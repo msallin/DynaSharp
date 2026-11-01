@@ -49,6 +49,7 @@ internal sealed class EntityKeyBuilder(
 
         var sort = TableKey(SortSlot);
         var hasSort = AttributeReader.Find(type, WellKnownNames.SortKeyAttribute) is not null || properties.Exists(static property => property.SortKey is not null);
+        ReportTruncatedEnd(hasSort ? sort : partition, hasSort ? SortSlot : PartitionSlot);
 
         var indexes = new List<IndexModel>();
         foreach (var attribute in AttributeReader.FindAll(type, WellKnownNames.GlobalIndexKeyAttribute))
@@ -68,6 +69,7 @@ internal sealed class EntityKeyBuilder(
             return null;
         }
 
+        ReportEmptyDefaults();
         RestoreKeyOnlyProperties();
         FindFallbackKeys();
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
@@ -122,6 +124,27 @@ internal sealed class EntityKeyBuilder(
             .Select(static placeholder => placeholder.Property)
             .Distinct();
         return new EquatableArray<string>([.. names]);
+    }
+
+    // What ends the primary key decides whether two items are one. An index is not unique, and a partition key beside a sort key is not all of the key. A format of a minute or coarser says one item per
+    // period, which is the design of a counter or a summary; the default and the finer formats stand for a moment, and there the cut is what loses an item.
+    private void ReportTruncatedEnd(KeyModel? lastKey, KeySlot slot)
+    {
+        var last = (lastKey?.Template?.Segments ?? default).OfType<PlaceholderSegment>().LastOrDefault();
+        if (last?.Encoding is TimestampEncoding { IsLossless: false, IsBucket: false })
+        {
+            bag.Report(Descriptors.TruncatedTimestampEndsTableKey, Spot.Argument(AttributeReader.Find(type, slot.Attribute)!, 0, typeSpot), last.Property);
+        }
+    }
+
+    private void ReportEmptyDefaults()
+    {
+        var inputs = _keys.SelectMany(static key => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Select(static placeholder => placeholder.Property)).ToList();
+        inputs.AddRange(_keys.Select(static key => key.PlainProperty).OfType<string>());
+        foreach (var property in properties.Where(property => inputs.Contains(property.Name) && EmptyDefault.IsForgettable(property, type)))
+        {
+            bag.Report(Descriptors.EmptyDefaultOfKey, property.Spot, property.Name);
+        }
     }
 
     private KeyModel? TableKey(KeySlot slot)

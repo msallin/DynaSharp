@@ -31,4 +31,9 @@ internal sealed record PropertyModel(
     string? FallbackKey,
     string ParameterName,
     bool IsPublic,
-    bool OmitsEmpty);
+    bool OmitsEmpty)
+{
+    /// <summary>Returns the type as code without its nullability, which is what a handle and a key take: a key has no null.</summary>
+    /// <returns>The type.</returns>
+    public string InnerValueType() => ValueType.EndsWith("?", StringComparison.Ordinal) ? ValueType.Substring(0, ValueType.Length - 1) : ValueType;
+}

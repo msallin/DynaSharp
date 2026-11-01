@@ -111,7 +111,7 @@ internal sealed partial record StockMove
 [DynamoDbEntity]
 [Discriminator("AUDIT")]
 [PartitionKey("STREAM#{Stream}")]
-[SortKey("AT#{At}")]
+[SortKey("AT#{At:ticks}")]
 internal sealed partial record AuditEvent
 {
     public required string Stream { get; init; }

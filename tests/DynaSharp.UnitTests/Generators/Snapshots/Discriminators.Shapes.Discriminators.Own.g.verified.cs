@@ -10,24 +10,31 @@ namespace Shapes.Discriminators;
 
 partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.Own>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "OWN",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: "rev",
-        discriminatorAttributeName: "kind");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "OWN",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: "rev",
+            discriminatorAttributeName: "kind");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Discriminators.Own>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Discriminators.Own>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Own()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Own(in __Fields fields)
         : this()
@@ -36,14 +43,17 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
         if (fields.Revision__set) { this.Revision = fields.Revision; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Discriminators.Own>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Discriminators.Own entity)
     {
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Discriminators.Own>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Discriminators.Own entity) => __WriteAttributes(writer, entity, entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbDocument<global::Shapes.Discriminators.Own>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shapes.Discriminators.Own entity)
     {
         var held = entity.Revision;
@@ -51,8 +61,10 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
         return checked((long)held);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbEntity<global::Shapes.Discriminators.Own>.ReadVersion(global::Shapes.Discriminators.Own entity) => checked((long)entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private static void __WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Discriminators.Own entity, long __version)
     {
         writer.WriteAttributeName("kind"u8);
@@ -63,6 +75,7 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
         global::DynaSharp.Serialization.NumberConverter<long>.Write(writer, __version);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Discriminators.Own __Map.IDynamoDbDocument<global::Shapes.Discriminators.Own>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -117,6 +130,7 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
         return new global::Shapes.Discriminators.Own(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int Id; public bool Id__set;
@@ -124,6 +138,7 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
     }
 
     /// <summary>The attributes of <c>Own</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -134,12 +149,14 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
     }
 
     /// <summary>The key builders of <c>Own</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Own</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(int id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Own</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Discriminators.Own>
         {
             private readonly int _0;
@@ -155,6 +172,14 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, _0);
             }
+        }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>Own</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Own</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Discriminators.Own> Of(int id) => new global::DynaSharp.PartitionKey<global::Shapes.Discriminators.Own>(global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>(id), "Id");
         }
     }
 }

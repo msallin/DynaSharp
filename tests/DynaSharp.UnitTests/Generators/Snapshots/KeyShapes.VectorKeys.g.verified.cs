@@ -10,60 +10,67 @@ namespace KeyShapes;
 
 partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.VectorKeys>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "VECTORS",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("V02", "v02pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V02Pk" },
-            new __Map.DynamoDbIndexInfo("V03", "v03pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V03Pk" },
-            new __Map.DynamoDbIndexInfo("V04", "v04pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V04Pk" },
-            new __Map.DynamoDbIndexInfo("V05", "v05pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V05Pk" },
-            new __Map.DynamoDbIndexInfo("V06", "v06pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V06Pk" },
-            new __Map.DynamoDbIndexInfo("V07", "v07pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V07Pk" },
-            new __Map.DynamoDbIndexInfo("V08", "v08pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V08Pk" },
-            new __Map.DynamoDbIndexInfo("V09", "v09pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V09Pk" },
-            new __Map.DynamoDbIndexInfo("V10", "v10pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V10Pk" },
-            new __Map.DynamoDbIndexInfo("V11", "v11pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V11Pk" },
-            new __Map.DynamoDbIndexInfo("V12", "v12pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V12Pk" },
-            new __Map.DynamoDbIndexInfo("V13", "v13pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V13Pk" },
-            new __Map.DynamoDbIndexInfo("V14", "v14pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V14Pk" },
-            new __Map.DynamoDbIndexInfo("V15", "v15pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V15Pk" },
-            new __Map.DynamoDbIndexInfo("V16", "v16pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V16Pk" },
-            new __Map.DynamoDbIndexInfo("V17", "v17pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V17Pk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-            new __Map.DynamoDbKeyTemplate("v02pk", "PROFILE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.V02Pk.Format()),
-            new __Map.DynamoDbKeyTemplate("v03pk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V03Pk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v04pk", "TENANT#{Tenant}#USER#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant"), new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V04Pk.Format((string)__values[0]!, (string)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v05pk", "COUNTRY#{Country}#CANTON#{Canton}", false, new[] { new __Map.DynamoDbKeyInput("Country", "Country"), new __Map.DynamoDbKeyInput("Canton", "Canton") }, static __values => Keys.V05Pk.Format((string)__values[0]!, (string)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v06pk", "ORDER#{CreatedAt}#{OrderId}", false, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }, static __values => Keys.V06Pk.Format((global::System.DateTimeOffset)__values[0]!, (global::System.Guid)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v07pk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.V07Pk.Format((decimal)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v08pk", "TOTAL#{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.V08Pk.Format((decimal)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v09pk", "A-{X}#B", false, new[] { new __Map.DynamoDbKeyInput("X", "X") }, static __values => Keys.V09Pk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v10pk", "v{X}", false, new[] { new __Map.DynamoDbKeyInput("X", "X") }, static __values => Keys.V10Pk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v11pk", "N#{Number}", false, new[] { new __Map.DynamoDbKeyInput("Number", "Number") }, static __values => Keys.V11Pk.Format((long)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v12pk", "N-{Number}", false, new[] { new __Map.DynamoDbKeyInput("Number", "Number") }, static __values => Keys.V12Pk.Format((long)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("v13pk", "SEQ#{Sequence:d6}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("Sequence", "Sequence"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V13Pk.Format((long)__values[0]!, (string)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v14pk", "SEQ#{Sequence:d2}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("Sequence", "Sequence"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V14Pk.Format((long)__values[0]!, (string)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v15pk", "{A}#{B}#{C}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B"), new __Map.DynamoDbKeyInput("C", "C") }, static __values => Keys.V15Pk.Format((string)__values[0]!, (string)__values[1]!, (string)__values[2]!)),
-            new __Map.DynamoDbKeyTemplate("v16pk", "{A}#{B}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B") }, static __values => Keys.V16Pk.Format((string)__values[0]!, (string)__values[1]!)),
-            new __Map.DynamoDbKeyTemplate("v17pk", "L#{City}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("City", "City"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V17Pk.Format((string)__values[0]!, (string)__values[1]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "VECTORS",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("V02", "v02pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V02Pk" },
+                new __Map.DynamoDbIndexInfo("V03", "v03pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V03Pk" },
+                new __Map.DynamoDbIndexInfo("V04", "v04pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V04Pk" },
+                new __Map.DynamoDbIndexInfo("V05", "v05pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V05Pk" },
+                new __Map.DynamoDbIndexInfo("V06", "v06pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V06Pk" },
+                new __Map.DynamoDbIndexInfo("V07", "v07pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V07Pk" },
+                new __Map.DynamoDbIndexInfo("V08", "v08pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V08Pk" },
+                new __Map.DynamoDbIndexInfo("V09", "v09pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V09Pk" },
+                new __Map.DynamoDbIndexInfo("V10", "v10pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V10Pk" },
+                new __Map.DynamoDbIndexInfo("V11", "v11pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V11Pk" },
+                new __Map.DynamoDbIndexInfo("V12", "v12pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V12Pk" },
+                new __Map.DynamoDbIndexInfo("V13", "v13pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V13Pk" },
+                new __Map.DynamoDbIndexInfo("V14", "v14pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V14Pk" },
+                new __Map.DynamoDbIndexInfo("V15", "v15pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V15Pk" },
+                new __Map.DynamoDbIndexInfo("V16", "v16pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V16Pk" },
+                new __Map.DynamoDbIndexInfo("V17", "v17pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V17Pk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("v02pk", "PROFILE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.V02Pk.Format()),
+                new __Map.DynamoDbKeyTemplate("v03pk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V03Pk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v04pk", "TENANT#{Tenant}#USER#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant"), new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V04Pk.Format((string)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v05pk", "COUNTRY#{Country}#CANTON#{Canton}", false, new[] { new __Map.DynamoDbKeyInput("Country", "Country"), new __Map.DynamoDbKeyInput("Canton", "Canton") }, static __values => Keys.V05Pk.Format((string)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v06pk", "ORDER#{CreatedAt}#{OrderId}", false, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }, static __values => Keys.V06Pk.Format((global::System.DateTimeOffset)__values[0]!, (global::System.Guid)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v07pk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.V07Pk.Format((decimal)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v08pk", "TOTAL#{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.V08Pk.Format((decimal)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v09pk", "A-{X}#B", false, new[] { new __Map.DynamoDbKeyInput("X", "X") }, static __values => Keys.V09Pk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v10pk", "v{X}", false, new[] { new __Map.DynamoDbKeyInput("X", "X") }, static __values => Keys.V10Pk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v11pk", "N#{Number}", false, new[] { new __Map.DynamoDbKeyInput("Number", "Number") }, static __values => Keys.V11Pk.Format((long)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v12pk", "N-{Number}", false, new[] { new __Map.DynamoDbKeyInput("Number", "Number") }, static __values => Keys.V12Pk.Format((long)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("v13pk", "SEQ#{Sequence:d6}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("Sequence", "Sequence"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V13Pk.Format((long)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v14pk", "SEQ#{Sequence:d2}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("Sequence", "Sequence"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V14Pk.Format((long)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v15pk", "{A}#{B}#{C}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B"), new __Map.DynamoDbKeyInput("C", "C") }, static __values => Keys.V15Pk.Format((string)__values[0]!, (string)__values[1]!, (string)__values[2]!)),
+                new __Map.DynamoDbKeyTemplate("v16pk", "{A}#{B}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B") }, static __values => Keys.V16Pk.Format((string)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v17pk", "L#{City}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("City", "City"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V17Pk.Format((string)__values[0]!, (string)__values[1]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.VectorKeys>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.VectorKeys>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public VectorKeys()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private VectorKeys(in __Fields fields)
         : this()
@@ -85,12 +92,14 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         this.City = fields.City;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.VectorKeys>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.VectorKeys entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.VectorKeys>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.VectorKeys entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -161,6 +170,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.City);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.VectorKeys __Map.IDynamoDbDocument<global::KeyShapes.VectorKeys>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -419,6 +429,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         return new global::KeyShapes.VectorKeys(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -439,6 +450,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
     }
 
     /// <summary>The attributes of <c>VectorKeys</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -488,12 +500,14 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
     }
 
     /// <summary>The key builders of <c>VectorKeys</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>VectorKeys</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>VectorKeys</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.VectorKeys>
         {
             private readonly string _0;
@@ -513,9 +527,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>VectorKeys</c>, with the template <c>USER#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -608,9 +624,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         }
 
         /// <summary>The values of a parsed <c>v02pk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V02PkParts();
 
         /// <summary>Builds and parses the partition key <c>v02pk</c> of <c>VectorKeys</c>, with the template <c>PROFILE</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V02Pk
         {
             private const int BufferLength = 7;
@@ -674,9 +692,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v03pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V03PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>v03pk</c> of <c>VectorKeys</c>, with the template <c>{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V03Pk
         {
             private const int BufferLength = 256;
@@ -769,9 +789,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v04pk</c>.</summary>
         /// <param name="Tenant">The value of the placeholder <c>Tenant</c>.</param>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V04PkParts(string Tenant, string Id);
 
         /// <summary>Builds and parses the partition key <c>v04pk</c> of <c>VectorKeys</c>, with the template <c>TENANT#{Tenant}#USER#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V04Pk
         {
             private const int BufferLength = 256;
@@ -870,9 +892,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v05pk</c>.</summary>
         /// <param name="Country">The value of the placeholder <c>Country</c>.</param>
         /// <param name="Canton">The value of the placeholder <c>Canton</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V05PkParts(string Country, string Canton);
 
         /// <summary>Builds and parses the partition key <c>v05pk</c> of <c>VectorKeys</c>, with the template <c>COUNTRY#{Country}#CANTON#{Canton}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V05Pk
         {
             private const int BufferLength = 256;
@@ -971,9 +995,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v06pk</c>.</summary>
         /// <param name="CreatedAt">The value of the placeholder <c>CreatedAt</c>.</param>
         /// <param name="OrderId">The value of the placeholder <c>OrderId</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V06PkParts(global::System.DateTimeOffset CreatedAt, global::System.Guid OrderId);
 
         /// <summary>Builds and parses the partition key <c>v06pk</c> of <c>VectorKeys</c>, with the template <c>ORDER#{CreatedAt}#{OrderId}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V06Pk
         {
             private const int BufferLength = 67;
@@ -1071,9 +1097,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v07pk</c>.</summary>
         /// <param name="Total">The value of the placeholder <c>Total</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V07PkParts(decimal Total);
 
         /// <summary>Builds and parses the partition key <c>v07pk</c> of <c>VectorKeys</c>, with the template <c>{Total:n10.2}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V07Pk
         {
             private const int BufferLength = 14;
@@ -1165,9 +1193,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v08pk</c>.</summary>
         /// <param name="Total">The value of the placeholder <c>Total</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V08PkParts(decimal Total);
 
         /// <summary>Builds and parses the partition key <c>v08pk</c> of <c>VectorKeys</c>, with the template <c>TOTAL#{Total:n10.2}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V08Pk
         {
             private const int BufferLength = 20;
@@ -1261,9 +1291,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v09pk</c>.</summary>
         /// <param name="X">The value of the placeholder <c>X</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V09PkParts(string X);
 
         /// <summary>Builds and parses the partition key <c>v09pk</c> of <c>VectorKeys</c>, with the template <c>A-{X}#B</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V09Pk
         {
             private const int BufferLength = 256;
@@ -1359,9 +1391,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v10pk</c>.</summary>
         /// <param name="X">The value of the placeholder <c>X</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V10PkParts(string X);
 
         /// <summary>Builds and parses the partition key <c>v10pk</c> of <c>VectorKeys</c>, with the template <c>v{X}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V10Pk
         {
             private const int BufferLength = 256;
@@ -1455,9 +1489,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v11pk</c>.</summary>
         /// <param name="Number">The value of the placeholder <c>Number</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V11PkParts(long Number);
 
         /// <summary>Builds and parses the partition key <c>v11pk</c> of <c>VectorKeys</c>, with the template <c>N#{Number}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V11Pk
         {
             private const int BufferLength = 256;
@@ -1551,9 +1587,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The values of a parsed <c>v12pk</c>.</summary>
         /// <param name="Number">The value of the placeholder <c>Number</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V12PkParts(long Number);
 
         /// <summary>Builds and parses the partition key <c>v12pk</c> of <c>VectorKeys</c>, with the template <c>N-{Number}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V12Pk
         {
             private const int BufferLength = 256;
@@ -1648,9 +1686,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v13pk</c>.</summary>
         /// <param name="Sequence">The value of the placeholder <c>Sequence</c>.</param>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V13PkParts(long Sequence, string Name);
 
         /// <summary>Builds and parses the partition key <c>v13pk</c> of <c>VectorKeys</c>, with the template <c>SEQ#{Sequence:d6}#{Name}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V13Pk
         {
             private const int BufferLength = 256;
@@ -1749,9 +1789,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v14pk</c>.</summary>
         /// <param name="Sequence">The value of the placeholder <c>Sequence</c>.</param>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V14PkParts(long Sequence, string Name);
 
         /// <summary>Builds and parses the partition key <c>v14pk</c> of <c>VectorKeys</c>, with the template <c>SEQ#{Sequence:d2}#{Name}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V14Pk
         {
             private const int BufferLength = 256;
@@ -1851,9 +1893,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <param name="A">The value of the placeholder <c>A</c>.</param>
         /// <param name="B">The value of the placeholder <c>B</c>.</param>
         /// <param name="C">The value of the placeholder <c>C</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V15PkParts(string A, string B, string C);
 
         /// <summary>Builds and parses the partition key <c>v15pk</c> of <c>VectorKeys</c>, with the template <c>{A}#{B}#{C}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V15Pk
         {
             private const int BufferLength = 256;
@@ -1954,9 +1998,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v16pk</c>.</summary>
         /// <param name="A">The value of the placeholder <c>A</c>.</param>
         /// <param name="B">The value of the placeholder <c>B</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V16PkParts(string A, string B);
 
         /// <summary>Builds and parses the partition key <c>v16pk</c> of <c>VectorKeys</c>, with the template <c>{A}#{B}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V16Pk
         {
             private const int BufferLength = 256;
@@ -2053,9 +2099,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         /// <summary>The values of a parsed <c>v17pk</c>.</summary>
         /// <param name="City">The value of the placeholder <c>City</c>.</param>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct V17PkParts(string City, string Name);
 
         /// <summary>Builds and parses the partition key <c>v17pk</c> of <c>VectorKeys</c>, with the template <c>L#{City}#{Name}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V17Pk
         {
             private const int BufferLength = 256;
@@ -2153,6 +2201,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
     }
 
     /// <summary>The names of the indexes of <c>VectorKeys</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>V02</c>.</summary>

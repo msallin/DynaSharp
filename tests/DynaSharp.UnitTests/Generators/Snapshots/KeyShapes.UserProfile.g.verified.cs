@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserProfile>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "PROFILE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "PROFILE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.UserProfile>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.UserProfile>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public UserProfile()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private UserProfile(in __Fields fields)
         : this()
@@ -39,6 +46,7 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
         if (fields.Id__set) { this.Id = fields.Id; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.UserProfile>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.UserProfile entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -47,6 +55,7 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
         Keys.Sk.Write(writer);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.UserProfile>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.UserProfile entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -59,6 +68,7 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.UserProfile __Map.IDynamoDbDocument<global::KeyShapes.UserProfile>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -111,12 +121,14 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
         return new global::KeyShapes.UserProfile(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
     }
 
     /// <summary>The attributes of <c>UserProfile</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -124,12 +136,14 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
     }
 
     /// <summary>The key builders of <c>UserProfile</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>UserProfile</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>UserProfile</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.UserProfile>
         {
             private readonly string _0;
@@ -151,9 +165,11 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>UserProfile</c>, with the template <c>USER#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -246,9 +262,11 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
         }
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts();
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>UserProfile</c>, with the template <c>PROFILE</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 7;

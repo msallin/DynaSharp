@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>bytepk</c>.</summary>
         /// <param name="Byte">The value of the placeholder <c>Byte</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct BytePkParts(byte Byte);
 
         /// <summary>Builds and parses the partition key <c>bytepk</c> of <c>KeyFormats</c>, with the template <c>I#{Byte}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class BytePk
         {
             private const int BufferLength = 256;

@@ -213,7 +213,8 @@ public sealed class CommandStressTests
             var first = command.SendAsync().AsTask();
             try
             {
-                _ = command.SendAsync().AsTask();
+                var again = command;
+                _ = again.SendAsync().AsTask();
                 return (first, false);
             }
             catch (InvalidOperationException)
@@ -239,7 +240,8 @@ public sealed class CommandStressTests
             var first = command.SendAsync().AsTask();
             try
             {
-                command.Set("late", "write");
+                var again = command;
+                _ = again.Set("late", "write");
                 return (first, false);
             }
             catch (InvalidOperationException)

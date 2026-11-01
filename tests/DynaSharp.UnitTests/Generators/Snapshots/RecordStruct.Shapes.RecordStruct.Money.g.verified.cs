@@ -10,6 +10,7 @@ namespace Shapes.RecordStruct;
 
 partial record struct Money : __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Money>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Money>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.RecordStruct.Money entity)
     {
         writer.WriteAttributeName("Amount"u8);
@@ -18,6 +19,7 @@ partial record struct Money : __Map.IDynamoDbDocument<global::Shapes.RecordStruc
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Currency);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.RecordStruct.Money __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Money>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -64,6 +66,7 @@ partial record struct Money : __Map.IDynamoDbDocument<global::Shapes.RecordStruc
         return new global::Shapes.RecordStruct.Money(fields.Amount!, fields.Currency__set ? fields.Currency! : "CHF");
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public decimal Amount; public bool Amount__set;
@@ -71,6 +74,7 @@ partial record struct Money : __Map.IDynamoDbDocument<global::Shapes.RecordStruc
     }
 
     /// <summary>The attributes of <c>Money</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Amount</c>.</summary>

@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "ACCOUNT",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("sk", "ACCOUNT#{Id}#V{Version:d3}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id"), new __Map.DynamoDbKeyInput("Version", "Version") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "ACCOUNT",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("sk", "ACCOUNT#{Id}#V{Version:d3}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id"), new __Map.DynamoDbKeyInput("Version", "Version") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Account>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Account>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Account()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Account(in __Fields fields)
         : this()
@@ -40,6 +47,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
         if (fields.Version__set) { this.Version = fields.Version; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Account>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Account entity)
     {
         writer.WriteAttributeName("Id"u8);
@@ -48,6 +56,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
         Keys.Sk.Write(writer, entity.Id, entity.Version);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Account>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Account entity)
     {
         writer.WriteAttributeName("sk"u8);
@@ -60,6 +69,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Version);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Account __Map.IDynamoDbDocument<global::KeyShapes.Account>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -123,6 +133,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
         return new global::KeyShapes.Account(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -130,6 +141,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
     }
 
     /// <summary>The attributes of <c>Account</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -140,12 +152,14 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
     }
 
     /// <summary>The key builders of <c>Account</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Account</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id, int version) => new PrimaryKey(id, version);
 
         /// <summary>The primary key of <c>Account</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Account>
         {
             private readonly string _0;
@@ -167,12 +181,25 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
             }
         }
 
+        /// <summary>Builds the partition key <c>Id</c> of <c>Account</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Account</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Account> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.Account>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
+        }
+
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
         /// <param name="Version">The value of the placeholder <c>Version</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(string Id, int Version);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Account</c>, with the template <c>ACCOUNT#{Id}#V{Version:d3}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;

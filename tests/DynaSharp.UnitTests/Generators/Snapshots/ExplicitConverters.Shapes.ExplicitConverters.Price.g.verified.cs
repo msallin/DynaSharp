@@ -10,24 +10,31 @@ namespace Shapes.ExplicitConverters;
 
 partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConverters.Price>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "PRICE",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        sortKeyName: "Net",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "PRICE",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            sortKeyName: "Net",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.ExplicitConverters.Price>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.ExplicitConverters.Price>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Price()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Price(in __Fields fields)
         : this()
@@ -40,6 +47,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         if (fields.Labels__set) { this.Labels = fields.Labels; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.ExplicitConverters.Price>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.ExplicitConverters.Price entity)
     {
         writer.WriteAttributeName("Id"u8);
@@ -48,6 +56,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         global::DynaSharp.Serialization.NullableConverter<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>.Write(writer, entity.Net);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.ExplicitConverters.Price>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.ExplicitConverters.Price entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -72,6 +81,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         global::DynaSharp.Serialization.ListConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>.Write(writer, entity.Labels);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.ExplicitConverters.Price __Map.IDynamoDbDocument<global::Shapes.ExplicitConverters.Price>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -160,6 +170,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         return new global::Shapes.ExplicitConverters.Price(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::Shapes.ExplicitConverters.Tag Id; public bool Id__set;
@@ -171,6 +182,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
     }
 
     /// <summary>The attributes of <c>Price</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -193,12 +205,14 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
     }
 
     /// <summary>The key builders of <c>Price</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Price</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(global::Shapes.ExplicitConverters.Tag id, global::Shapes.ExplicitConverters.Cents net) => new PrimaryKey(id, net);
 
         /// <summary>The primary key of <c>Price</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.ExplicitConverters.Price>
         {
             private readonly global::Shapes.ExplicitConverters.Tag _0;
@@ -218,6 +232,22 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
                 writer.WriteAttributeName("Net"u8);
                 global::DynaSharp.Serialization.NullableConverter<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>.Write(writer, _1);
             }
+        }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>Price</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Price</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.ExplicitConverters.Price> Of(global::Shapes.ExplicitConverters.Tag id) => new global::DynaSharp.PartitionKey<global::Shapes.ExplicitConverters.Price>(global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>(id), "Id");
+        }
+
+        /// <summary>Builds the sort key <c>Net</c> of <c>Price</c>, which is the property <c>Net</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Sk
+        {
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            public static global::DynaSharp.AttributeValue Of(global::Shapes.ExplicitConverters.Cents net) => global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>(net);
         }
     }
 }

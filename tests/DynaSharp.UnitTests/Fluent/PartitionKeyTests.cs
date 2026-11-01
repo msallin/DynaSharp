@@ -157,6 +157,111 @@ public sealed class PartitionKeyTests
     }
 
     [Test]
+    public async Task Value_NumberKey_IsItsDigits()
+    {
+        // Arrange, Act
+        var key = NumberKeyed.Keys.Pk.Of(7);
+
+        // Assert
+        await Assert.That(key.Value).IsEqualTo("7");
+    }
+
+    [Test]
+    public async Task Value_BinaryKey_IsItsBase64()
+    {
+        // Arrange, Act
+        var key = BinaryKeyed.Keys.Pk.Of([1, 2]);
+
+        // Assert
+        await Assert.That(key.Value).IsEqualTo("AQI=");
+    }
+
+    [Test]
+    public async Task Value_PlainKeyStoredAsAString_IsWhatTheConverterWrites()
+    {
+        // Arrange
+        var at = new DateTimeOffset(2026, 10, 31, 14, 34, 56, TimeSpan.FromHours(2));
+
+        // Act
+        var text = BinaryKeyed.Keys.Sk.Format(at);
+
+        // Assert
+        await Assert.That(text).IsEqualTo("2026-10-31T12:34:56.0000000Z");
+    }
+
+    [Test]
+    public async Task Query_NumberKey_SendsANumber()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<NumberKeyed>("Shop").Query(NumberKeyed.Keys.Pk.Of(7), SortKey.Ge(NumberKeyed.Keys.Sk.Of(5))).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","KeyConditionExpression":"#n0 = :v0 AND #n1 >= :v1","FilterExpression":"#n2 = :v2","ExpressionAttributeNames":{"#n0":"Id","#n1":"Sequence","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"N":"7"},":v1":{"N":"5"},":v2":{"S":"NUMBERED"}}}""");
+    }
+
+    [Test]
+    public async Task Query_BinaryKey_SendsBinary()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<BinaryKeyed>("Shop").Query(BinaryKeyed.Keys.Pk.Of([1, 2])).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains(""":v0":{"B":"AQI="}""");
+    }
+
+    [Test]
+    public async Task Query_NumberKeys_FanOutAsNumbers()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<NumberKeyed>("Shop").Query([NumberKeyed.Keys.Pk.Of(1), NumberKeyed.Keys.Pk.Of(2)]).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains(""":pk":{"N":"1"}""");
+    }
+
+    [Test]
+    public async Task Query_BarePlaceholderOfAnIndex_SendsTheValueOfTheProperty()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table<OwnedThing>("Shop").Index(OwnedThing.Indexes.ByOwner);
+
+        // Act
+        var json = index.Query(OwnedThing.Keys.ByOwnerPk.Of("alice"), SortKey.Gt(OwnedThing.Keys.ByOwnerSk.Of(3))).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByOwner","KeyConditionExpression":"#n0 = :v0 AND #n1 > :v1","ExpressionAttributeNames":{"#n0":"owner","#n1":"rank"},"ExpressionAttributeValues":{":v0":{"S":"alice"},":v1":{"N":"3"}}}""");
+    }
+
+    [Test]
+    public async Task Query_EmptyPlainKey_ThrowsAsAnEmptyKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var things = client.Table<OwnedThing>("Shop").Index(OwnedThing.Indexes.ByOwner);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(things.Query(OwnedThing.Keys.ByOwnerPk.Of(string.Empty)).ToRequestJson()));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("partitionKey");
+    }
+
+    [Test]
     public async Task Query_DefaultKey_ThrowsAsAnEmptyKey()
     {
         // Arrange

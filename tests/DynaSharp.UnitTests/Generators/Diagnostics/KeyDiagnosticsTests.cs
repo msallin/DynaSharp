@@ -6,8 +6,8 @@ namespace DynaSharp.UnitTests.Generators.Diagnostics;
 public sealed class KeyDiagnosticsTests
 {
     private const string Members = """
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
+        public string Id { get; set; } = "id";
+        public string Name { get; set; } = "name";
         public int Number { get; set; }
         public decimal Total { get; set; }
         public DateTimeOffset At { get; set; }
@@ -394,7 +394,7 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
-    [Arguments("""[[|KeyOnly|]] public DateTime At { get; set; }""", "ORDER#{At}", "At", "no key holds it without loss, a timestamp needs the format ticks")]
+    [Arguments("""[[|KeyOnly|]] public DateTime At { get; set; }""", "ORDER#{At:yyyy-MM-dd}", "At", "no key holds it without loss, a timestamp needs the format ticks")]
     [Arguments("""[[|KeyOnly|]] public string Other { get; set; } = "";""", "E", "Other", "no key template uses it")]
     [Arguments("""[[|KeyOnly|]] public string Calculated => "x";""", "A#{Calculated}", "Calculated", "it is computed")]
     [Arguments("""[[|KeyOnly|], DynamoDbIgnore] public string Id { get; set; } = "";""", "E", "Id", "it is also [DynamoDbIgnore]")]
@@ -711,6 +711,269 @@ public sealed class KeyDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA016 Error: Type 'Shop.Hidden' used by 'V' is not accessible to generated code"));
+    }
+
+    [Test]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"AT#{At}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{Number:d4}#{At}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At:ms}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At:us}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At:s}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At}#END"|])""")]
+    [Arguments("""PartitionKey([|"EVENT#{At}"|])""")]
+    public async Task Build_TruncatedTimestampAtTheEndOfATableKey_ReportsDyna116(string attributes)
+    {
+        // Arrange
+        var source = $$"""
+            {{Enum}}
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { {{Members}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA116 Warning: Timestamp 'At' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {At:ticks}."));
+    }
+
+    [Test]
+    public async Task Build_DateTimeAtTheEndOfATableKey_ReportsDyna116()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey([|"{Utc}"|])]
+            public partial class E { public DateTime Utc { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA116 Warning: Timestamp 'Utc' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {Utc:ticks}."));
+    }
+
+    [Test]
+    [Arguments("""PartitionKey("E"), SortKey("{At:ticks}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{Unique}#{At:ticks}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At}#{Unique}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At:ms}#{Id}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At:yyyy-MM-dd}#{Unique}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("MONTH#{At:yyyy-MM}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At:yyyy}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("DAY#{At:yyyy-MM-dd}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At:yyyy-MM-ddTHH}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("WINDOW#{At:yyyy-MM-ddTHH:mm}")""")]
+    [Arguments("""PartitionKey("EVENT#{At:yyyy-MM-dd}"), SortKey("{Unique}")""")]
+    [Arguments("""PartitionKey("EVENT#{At}"), SortKey("{Unique}")""")]
+    [Arguments("""PartitionKey("EVENT#{At:ticks}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("S"), LocalIndexKey("LSI1", "{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("S"), GlobalIndexKey("GSI1", PartitionKey = "{Id}", SortKey = "{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("S"), GlobalIndexKey("GSI1", PartitionKey = "{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At}", AttributeName = "At")""")]
+    public async Task Build_TimestampThatCannotLoseAnItem_ReportsNothing(string attributes)
+    {
+        // Arrange (a later placeholder breaks a tie, a format of a minute or coarser says one item per bucket, an index is not unique, and a partition key beside a sort key is not all of the key)
+        var source = $$"""
+            {{Enum}}
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { {{Members}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_DateAtTheEndOfATableKey_ReportsNothing()
+    {
+        // Arrange (a date has no time to lose)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey("{Day}")]
+            public partial class E { public DateOnly Day { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_PlainTimestampKey_ReportsNothing()
+    {
+        // Arrange (the converter of a property keeps all its digits)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E")]
+            public partial class E { [SortKey] public DateTimeOffset At { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("{X}")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("{X}", AttributeName = "X")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("E"), SortKey("S#{X}")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("E"), SortKey("S"), GlobalIndexKey("GSI1", PartitionKey = "G#{X}")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("E"), SortKey("S"), LocalIndexKey("LSI1", "L#{X}")""", """public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; init; } = "";""")]
+    [Arguments("""PartitionKey("A#{X}")""", """[KeyOnly] public string [|X|] { get; set; } = "";""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = string.Empty;""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = String.Empty;""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = System.String.Empty;""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = null!;""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = default!;""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public string [|X|] { get; set; } = default(string)!;""")]
+    [Arguments("""PartitionKey("E")""", """[SortKey] public string [|X|] { get; set; } = string.Empty;""")]
+    [Arguments("""PartitionKey("E")""", """[SortKey] public byte[] [|X|] { get; set; } = [];""")]
+    [Arguments("""PartitionKey("E")""", """[SortKey] public byte[] [|X|] { get; set; } = Array.Empty<byte>();""")]
+    [Arguments("""PartitionKey("A#{X}")""", """public E() { Other = "y"; } public string [|X|] { get; set; } = ""; public string Other { get; set; }""")]
+    public async Task Build_KeyPropertyThatStartsEmpty_ReportsDyna117(string attributes, string members)
+    {
+        // Arrange (the shape of an entity that a `with` fills in later: forgetting that compiles and throws on the put)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { {{members}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA117 Info: Key property 'X' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor."));
+    }
+
+    [Test]
+    public async Task Build_PropertyThatStartsEmptyInTwoKeys_ReportsDyna117Once()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}"), SortKey("B#{X}"), GlobalIndexKey("GSI1", PartitionKey = "G#{X}")]
+            public partial class E { public string [|X|] { get; set; } = ""; }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA117 Info: Key property 'X' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor."));
+    }
+
+    [Test]
+    public async Task Build_InheritedKeyPropertyThatStartsEmpty_ReportsDyna117()
+    {
+        // Arrange
+        const string Source = """
+            public abstract class Base { public string [|X|] { get; set; } = ""; }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}")]
+            public partial class E : Base { }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA117 Info: Key property 'X' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor."));
+    }
+
+    [Test]
+    [Arguments("""public required string X { get; set; } = "";""")]
+    [Arguments("""public required string X { get; set; }""")]
+    [Arguments("""public string X { get; set; }""")]
+    [Arguments("""public string X => "x";""")]
+    [Arguments("""public string X { get; } = "";""")]
+    [Arguments("""public string X { get; set; } = "main";""")]
+    [Arguments("""public string X { get; set; } = Guid.NewGuid().ToString();""")]
+    [Arguments("""public string X { get; set; } = Create(); private static string Create() => "x";""")]
+    [Arguments("""public string X { get; set; } = Text.Empty; private static class Text { public const string Empty = "x"; }""")]
+    [Arguments("""public int X { get; set; } = default;""")]
+    [Arguments("""public int X { get; set; } = 0;""")]
+    [Arguments("""public Guid X { get; set; } = Guid.Empty;""")]
+    [Arguments("""public E() { X = "x"; } public string X { get; set; } = "";""")]
+    [Arguments("""public E() => this.X = "x"; public string X { get; set; } = "";""")]
+    [Arguments("""public E(string x) { X = x; } public string X { get; set; } = "";""")]
+    [Arguments("""public E() { } public E(string x, string y) => (X, Y) = (x, y); public string X { get; set; } = ""; public string Y { get; set; } = "";""")]
+    public async Task Build_KeyPropertyThatCannotBeForgotten_ReportsNothing(string members)
+    {
+        // Arrange (required and a constructor make the caller say it, a default of value is a key of its own, and a computed property has no value to forget)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}")]
+            public partial class E { {{members}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""public partial record E(string X)""")]
+    [Arguments("""public partial record E(string X = "")""")]
+    [Arguments("""public partial class E(string x) { public string X { get; set; } = x; }""")]
+    public async Task Build_KeyPropertyOfAPrimaryConstructor_ReportsNothing(string declaration)
+    {
+        // Arrange
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}")]
+            {{declaration}};
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_KeyPropertySetByTheConstructorOfItsBase_ReportsNothing()
+    {
+        // Arrange
+        const string Source = """
+            public abstract class Base { protected Base() { X = "x"; } public string X { get; set; } = ""; }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}")]
+            public partial class E : Base { }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_EmptyDefaultOutsideAKey_ReportsNothing()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{X}"), GlobalIndexKey("GSI1", PartitionKey = "G#{Owner}", Sparse = true)]
+            public partial class E
+            {
+                public required string X { get; set; }
+                public string Note { get; set; } = "";
+                public string? Owner { get; set; } = null;
+            }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]

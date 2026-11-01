@@ -10,32 +10,39 @@ namespace KeyShapes;
 
 partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickName>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "NICK",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("ByNickAndAge", "shared", "bynickandagesk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByNickAndAgePk" },
-            new __Map.DynamoDbIndexInfo("ByNick", "shared", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByNickPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("shared", "NICK#{Nick}", false, new[] { new __Map.DynamoDbKeyInput("Nick", "Nick") }, static __values => Keys.ByNickAndAgePk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("bynickandagesk", "{Age:d3}", false, new[] { new __Map.DynamoDbKeyInput("Age", "Age") }, static __values => Keys.ByNickAndAgeSk.Format((int)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "NICK",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("ByNickAndAge", "shared", "bynickandagesk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByNickAndAgePk" },
+                new __Map.DynamoDbIndexInfo("ByNick", "shared", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByNickPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("shared", "NICK#{Nick}", false, new[] { new __Map.DynamoDbKeyInput("Nick", "Nick") }, static __values => Keys.ByNickAndAgePk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bynickandagesk", "{Age:d3}", false, new[] { new __Map.DynamoDbKeyInput("Age", "Age") }, static __values => Keys.ByNickAndAgeSk.Format((int)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.NickName>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.NickName>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public NickName()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private NickName(in __Fields fields)
         : this()
@@ -45,12 +52,14 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
         if (fields.Age__set) { this.Age = fields.Age; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.NickName>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.NickName entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.NickName>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.NickName entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -81,6 +90,7 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.NickName __Map.IDynamoDbDocument<global::KeyShapes.NickName>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -154,6 +164,7 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
         return new global::KeyShapes.NickName(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -162,6 +173,7 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
     }
 
     /// <summary>The attributes of <c>NickName</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -175,12 +187,14 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
     }
 
     /// <summary>The key builders of <c>NickName</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>NickName</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>NickName</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.NickName>
         {
             private readonly string _0;
@@ -200,9 +214,11 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>NickName</c>, with the template <c>{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -294,9 +310,11 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
 
         /// <summary>The values of a parsed <c>shared</c>.</summary>
         /// <param name="Nick">The value of the placeholder <c>Nick</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByNickAndAgePkParts(string Nick);
 
         /// <summary>Builds and parses the partition key <c>shared</c> of <c>NickName</c>, with the template <c>NICK#{Nick}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByNickAndAgePk
         {
             private const int BufferLength = 256;
@@ -390,9 +408,11 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
 
         /// <summary>The values of a parsed <c>bynickandagesk</c>.</summary>
         /// <param name="Age">The value of the placeholder <c>Age</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByNickAndAgeSkParts(int Age);
 
         /// <summary>Builds and parses the sort key <c>bynickandagesk</c> of <c>NickName</c>, with the template <c>{Age:d3}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByNickAndAgeSk
         {
             private const int BufferLength = 3;
@@ -480,9 +500,11 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
 
         /// <summary>The values of a parsed <c>shared</c>.</summary>
         /// <param name="Nick">The value of the placeholder <c>Nick</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByNickPkParts(string Nick);
 
         /// <summary>Builds and parses the partition key <c>shared</c> of <c>NickName</c>, with the template <c>NICK#{Nick}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByNickPk
         {
             private const int BufferLength = 256;
@@ -576,6 +598,7 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
     }
 
     /// <summary>The names of the indexes of <c>NickName</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>ByNickAndAge</c>.</summary>

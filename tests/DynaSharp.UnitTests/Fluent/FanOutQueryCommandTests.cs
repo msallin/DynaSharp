@@ -258,8 +258,9 @@ public sealed class FanOutQueryCommandTests
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() =>
         {
             var query = client.Table("Shop", "pk", "sk").Query(TwoPartitions);
-            query.Limit(1);
-            query.Limit(2);
+            _ = query.Limit(1);
+            var again = query;
+            _ = again.Limit(2);
             return Task.CompletedTask;
         });
 
@@ -273,7 +274,7 @@ public sealed class FanOutQueryCommandTests
         // Arrange and Act
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() =>
         {
-            default(FanOutQueryCommand<Item>).MaxConcurrency(1);
+            _ = default(FanOutQueryCommand<Item>).MaxConcurrency(1);
             return Task.CompletedTask;
         });
 

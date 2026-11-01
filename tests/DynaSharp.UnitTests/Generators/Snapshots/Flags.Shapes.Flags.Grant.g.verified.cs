@@ -10,10 +10,12 @@ namespace Shapes.Flags;
 
 partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Grant()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Grant(in __Fields fields)
         : this()
@@ -28,6 +30,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         if (fields.None__set) { this.None = fields.None; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Flags.Grant entity)
     {
         writer.WriteAttributeName("Rights"u8);
@@ -63,6 +66,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Flags.Grant __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -158,6 +162,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         return new global::Shapes.Flags.Grant(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::Shapes.Flags.Rights Rights; public bool Rights__set;
@@ -171,6 +176,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
     }
 
     /// <summary>The attributes of <c>Grant</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Rights</c>.</summary>
@@ -198,6 +204,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         public static global::DynaSharp.Attr<global::Shapes.Flags.Nothing, __Shapes_Flags_NothingConverter> None => new("None");
 
         /// <summary>The converter of <c>global::Shapes.Flags.Rights</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Flags_RightsConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Flags.Rights>, global::DynaSharp.Serialization.IDynamoDbSetElementConverter<global::Shapes.Flags.Rights>
         {
@@ -218,6 +225,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         }
 
         /// <summary>The converter of <c>global::Shapes.Flags.Wide</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Flags_WideConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Flags.Wide>
         {
@@ -229,6 +237,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         }
 
         /// <summary>The converter of <c>global::Shapes.Flags.Color</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Flags_ColorConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Flags.Color>, global::DynaSharp.Serialization.IDynamoDbSetElementConverter<global::Shapes.Flags.Color>
         {
@@ -249,6 +258,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         }
 
         /// <summary>The converter of <c>global::Shapes.Flags.Nothing</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Flags_NothingConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Flags.Nothing>
         {
@@ -261,6 +271,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Flags_RightsConverter : __Ser.IDynamoDbConverter<global::Shapes.Flags.Rights>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Flags.Rights>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.NumberSet;
@@ -278,6 +289,7 @@ file readonly struct Shapes_Flags_RightsConverter : __Ser.IDynamoDbConverter<glo
     public static global::Shapes.Flags.Rights ReadElement(ref __Ser.DynamoDbReader reader) => (global::Shapes.Flags.Rights)reader.GetNumber<byte>();
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Flags_WideConverter : __Ser.IDynamoDbConverter<global::Shapes.Flags.Wide>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Flags.Wide>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.NumberSet;
@@ -295,6 +307,7 @@ file readonly struct Shapes_Flags_WideConverter : __Ser.IDynamoDbConverter<globa
     public static global::Shapes.Flags.Wide ReadElement(ref __Ser.DynamoDbReader reader) => (global::Shapes.Flags.Wide)reader.GetNumber<long>();
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Flags_ColorConverter : __Ser.IDynamoDbConverter<global::Shapes.Flags.Color>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Flags.Color>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;
@@ -349,6 +362,7 @@ file readonly struct Shapes_Flags_ColorConverter : __Ser.IDynamoDbConverter<glob
         TryParseName(reader.GetStringUtf8(), out var value) ? value : throw new global::System.FormatException("The text is not a member of Shapes.Flags.Color.");
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Flags_NothingConverter : __Ser.IDynamoDbConverter<global::Shapes.Flags.Nothing>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Flags.Nothing>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

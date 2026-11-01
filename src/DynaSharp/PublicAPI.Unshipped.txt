@@ -44,6 +44,8 @@ DynaSharp.CreateTableCommand.ToRequest() -> DynaSharp.Requests.CreateTableReques
 DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
 DynaSharp.Item.Remove(string! name) -> bool
+DynaSharp.PartitionKey<TEntity>.PartitionKey(DynaSharp.AttributeValue value, string! attributeName) -> void
+static DynaSharp.Serialization.ConverterChecks.ToAttributeValue<T, TConverter>(T value) -> DynaSharp.AttributeValue
 DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType

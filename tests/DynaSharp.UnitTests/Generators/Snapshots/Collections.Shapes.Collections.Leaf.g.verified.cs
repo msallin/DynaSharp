@@ -10,10 +10,12 @@ namespace Shapes.Collections;
 
 partial class Leaf : __Map.IDynamoDbDocument<global::Shapes.Collections.Leaf>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Leaf()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Leaf(in __Fields fields)
         : this()
@@ -21,12 +23,14 @@ partial class Leaf : __Map.IDynamoDbDocument<global::Shapes.Collections.Leaf>
         if (fields.Name__set) { this.Name = fields.Name; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Collections.Leaf>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Collections.Leaf entity)
     {
         writer.WriteAttributeName("Name"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Name);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Collections.Leaf __Map.IDynamoDbDocument<global::Shapes.Collections.Leaf>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -62,12 +66,14 @@ partial class Leaf : __Map.IDynamoDbDocument<global::Shapes.Collections.Leaf>
         return new global::Shapes.Collections.Leaf(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
     }
 
     /// <summary>The attributes of <c>Leaf</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>

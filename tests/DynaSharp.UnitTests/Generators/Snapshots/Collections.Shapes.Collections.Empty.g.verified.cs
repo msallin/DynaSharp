@@ -10,10 +10,12 @@ namespace Shapes.Collections;
 
 partial class Empty : __Map.IDynamoDbDocument<global::Shapes.Collections.Empty>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Collections.Empty>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Collections.Empty entity)
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Collections.Empty __Map.IDynamoDbDocument<global::Shapes.Collections.Empty>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         string? attribute = null;
@@ -34,6 +36,7 @@ partial class Empty : __Map.IDynamoDbDocument<global::Shapes.Collections.Empty>
     }
 
     /// <summary>The attributes of <c>Empty</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
     }

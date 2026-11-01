@@ -10,29 +10,36 @@ namespace KeyShapes;
 
 partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "HANDLES",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "HANDLES#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("sk", "SLOT#{Slot:d3}", true, new[] { new __Map.DynamoDbKeyInput("Slot", null) }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "HANDLES",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "HANDLES#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("sk", "SLOT#{Slot:d3}", true, new[] { new __Map.DynamoDbKeyInput("Slot", null) }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Handles>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Handles>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Handles()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Handles(in __Fields fields)
         : this()
@@ -59,6 +66,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         if (fields.Slot__set) { this.Slot = fields.Slot; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Handles>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Handles entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -67,6 +75,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         Keys.Sk.Write(writer, entity.Slot);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Handles>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Handles entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -139,6 +148,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         global::KeyShapes.SecretConverter.Write(writer, entity.Secret);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Handles __Map.IDynamoDbDocument<global::KeyShapes.Handles>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -361,6 +371,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         return new global::KeyShapes.Handles(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -386,6 +397,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
     }
 
     /// <summary>The attributes of <c>Handles</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -440,6 +452,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         internal static global::DynaSharp.Attr<string, global::KeyShapes.SecretConverter> Secret => new("Secret");
 
         /// <summary>The converter of <c>global::KeyShapes.Plan</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_PlanConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Plan>, global::DynaSharp.Serialization.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
         {
@@ -460,6 +473,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         }
 
         /// <summary>The converter of <c>global::KeyShapes.Features</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_FeaturesConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Features>
         {
@@ -472,12 +486,14 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
     }
 
     /// <summary>The key builders of <c>Handles</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Handles</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id, int slot) => new PrimaryKey(id, slot);
 
         /// <summary>The primary key of <c>Handles</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Handles>
         {
             private readonly string _0;
@@ -501,9 +517,11 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Handles</c>, with the template <c>HANDLES#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -597,9 +615,11 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Slot">The value of the placeholder <c>Slot</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(int Slot);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Handles</c>, with the template <c>SLOT#{Slot:d3}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 8;
@@ -711,6 +731,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Plan>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;
@@ -762,6 +783,7 @@ file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::
         TryParseName(reader.GetStringUtf8(), out var value) ? value : throw new global::System.FormatException("The text is not a member of KeyShapes.Plan.");
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_FeaturesConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Features>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Features>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.NumberSet;

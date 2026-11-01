@@ -17,6 +17,7 @@ internal static class AttrsEmitter
     {
         var handles = type.Properties.Where(static property => property.Converter is not null && IsPlainName(property.AttributeName)).ToList();
         code.Line($"/// <summary>The attributes of <c>{type.Name}</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public {(type.HidesInheritedAttrs ? "new " : string.Empty)}static class Attrs");
         code.Open();
         var isFirst = true;
@@ -51,9 +52,8 @@ internal static class AttrsEmitter
 
         // The handle says it in its type, so that a property without [OmitEmpty] pays nothing, in a handle or in a command.
         converter = handle.OmitsEmpty ? $"{Serialization}OmitEmptyConverter<{converter}>" : converter;
-        var value = handle.ValueType.EndsWith("?", StringComparison.Ordinal) ? handle.ValueType.Substring(0, handle.ValueType.Length - 1) : handle.ValueType;
         code.Line($"/// <summary>The attribute <c>{CodeText.Xml(handle.AttributeName)}</c>.</summary>");
-        code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{value}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");
+        code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{handle.InnerValueType()}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");
     }
 
     private static string Accessibility(bool isPublic) => isPublic ? "public" : "internal";
@@ -66,6 +66,7 @@ internal static class AttrsEmitter
         var converter = $"{Serialization}IDynamoDbConverter<{model.FullName}>";
         var element = isElement ? $", {Serialization}IDynamoDbSetElementConverter<{model.FullName}>" : string.Empty;
         code.Line($"/// <summary>The converter of <c>{CodeText.Xml(model.FullName)}</c>, in a form that a handle can name.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
         code.Line($"{Accessibility(users.Exists(static handle => handle.IsPublic))} readonly struct {ForwarderPrefix}{model.ConverterName} : {converter}{element}");
         code.Open();

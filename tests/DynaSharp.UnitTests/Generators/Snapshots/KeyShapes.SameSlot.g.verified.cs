@@ -10,32 +10,39 @@ namespace KeyShapes;
 
 partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlot>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "SAMESLOT",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room") }),
-            new __Map.DynamoDbKeyTemplate("sk", "AT#{Start}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Start } : null },
-            new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("byownersk", "{Start}", false, new[] { new __Map.DynamoDbKeyInput("Start", "Start") }, static __values => Keys.ByOwnerSk.Format((global::System.DateTimeOffset)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "SAMESLOT",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room") }),
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{Start:yyyy-MM-ddTHH:mm}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Start } : null },
+                new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("byownersk", "{Start:yyyy-MM-ddTHH:mm}", false, new[] { new __Map.DynamoDbKeyInput("Start", "Start") }, static __values => Keys.ByOwnerSk.Format((global::System.DateTimeOffset)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.SameSlot>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.SameSlot>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public SameSlot()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private SameSlot(in __Fields fields)
         : this()
@@ -45,6 +52,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
         this.Owner = fields.Owner;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.SameSlot>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.SameSlot entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -53,6 +61,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
         Keys.Sk.Write(writer, entity.Start);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.SameSlot>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.SameSlot entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -73,6 +82,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Owner);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.SameSlot __Map.IDynamoDbDocument<global::KeyShapes.SameSlot>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -151,6 +161,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
         return new global::KeyShapes.SameSlot(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Room; public bool Room__set;
@@ -159,6 +170,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
     }
 
     /// <summary>The attributes of <c>SameSlot</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Room</c>.</summary>
@@ -172,12 +184,14 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
     }
 
     /// <summary>The key builders of <c>SameSlot</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>SameSlot</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string room, global::System.DateTimeOffset start) => new PrimaryKey(room, start);
 
         /// <summary>The primary key of <c>SameSlot</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.SameSlot>
         {
             private readonly string _0;
@@ -201,9 +215,11 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Room">The value of the placeholder <c>Room</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Room);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>SameSlot</c>, with the template <c>ROOM#{Room}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -297,12 +313,14 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Start">The value of the placeholder <c>Start</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(global::System.DateTimeOffset Start);
 
-        /// <summary>Builds and parses the sort key <c>sk</c> of <c>SameSlot</c>, with the template <c>AT#{Start}</c>.</summary>
+        /// <summary>Builds and parses the sort key <c>sk</c> of <c>SameSlot</c>, with the template <c>AT#{Start:yyyy-MM-ddTHH:mm}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
-            private const int BufferLength = 27;
+            private const int BufferLength = 19;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -375,7 +393,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
                 if (__key.TryReadLiteral("AT#"u8)
-                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Minute, out global::System.DateTimeOffset __p0)
                     && __key.IsAtEnd)
                 {
                     parts = new SkParts(__p0);
@@ -400,20 +418,22 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                 }
             }
 
-            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template AT#{Start}.");
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template AT#{Start:yyyy-MM-ddTHH:mm}.");
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset start)
             {
                 __key.WriteLiteral("AT#"u8);
-                __key.WriteTimestamp(start, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteTimestamp(start, global::DynaSharp.Keys.KeyTimeFormat.Minute);
             }
         }
 
         /// <summary>The values of a parsed <c>byownerpk</c>.</summary>
         /// <param name="Owner">The value of the placeholder <c>Owner</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByOwnerPkParts(string Owner);
 
         /// <summary>Builds and parses the partition key <c>byownerpk</c> of <c>SameSlot</c>, with the template <c>OWNER#{Owner}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByOwnerPk
         {
             private const int BufferLength = 256;
@@ -507,12 +527,14 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
 
         /// <summary>The values of a parsed <c>byownersk</c>.</summary>
         /// <param name="Start">The value of the placeholder <c>Start</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByOwnerSkParts(global::System.DateTimeOffset Start);
 
-        /// <summary>Builds and parses the sort key <c>byownersk</c> of <c>SameSlot</c>, with the template <c>{Start}</c>.</summary>
+        /// <summary>Builds and parses the sort key <c>byownersk</c> of <c>SameSlot</c>, with the template <c>{Start:yyyy-MM-ddTHH:mm}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByOwnerSk
         {
-            private const int BufferLength = 24;
+            private const int BufferLength = 16;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -562,7 +584,7 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
             public static bool TryParse(global::System.ReadOnlySpan<byte> utf8Text, out ByOwnerSkParts parts)
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
-                if (__key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                if (__key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Minute, out global::System.DateTimeOffset __p0)
                     && __key.IsAtEnd)
                 {
                     parts = new ByOwnerSkParts(__p0);
@@ -587,16 +609,17 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                 }
             }
 
-            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template {Start}.");
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template {Start:yyyy-MM-ddTHH:mm}.");
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset start)
             {
-                __key.WriteTimestamp(start, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteTimestamp(start, global::DynaSharp.Keys.KeyTimeFormat.Minute);
             }
         }
     }
 
     /// <summary>The names of the indexes of <c>SameSlot</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>ByOwner</c>.</summary>

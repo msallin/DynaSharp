@@ -129,7 +129,7 @@ A wait returns when the table and all its global secondary indexes are `ACTIVE`,
 There is no wait for one index. A wait that runs out throws `TableNotActiveException`, which is section 15.
 
 `Index<T>` has `Query` and `Scan`, so a write through an index does not compile. `orders.Index(name)` and `shop.Index<Order>(name)` throw `ArgumentException` for
-an index the entity does not declare.
+an index the entity does not declare, which `DYNA207` reports for a constant name.
 
 ## 4. Generated surface
 
@@ -138,12 +138,12 @@ For `[DynamoDbEntity]` and `[DynamoDbDocument]` types, which must be `partial`:
 | Member | Content |
 |---|---|
 | `T.Keys.Of(...)` | A `readonly struct PrimaryKey : IKey<T>` holding the placeholder values; costs no string. A key of another entity does not compile |
-| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, and, when the last placeholder is a string, `PrefixPartial` |
+| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per key. For a template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, and, when the last placeholder is a string, `PrefixPartial`. For a plain key, or a template of one bare placeholder over the attribute of its property: `Of(value)`, with the type and the converter of the property, which gives a `PartitionKey<T>` on a partition key and the `AttributeValue` for a `SortKey` condition on a sort key, and `Format(value)` when the key is stored as a string. There is nothing to parse and no prefix |
 | `T.Attrs.X` | A typed handle `Attr<TValue, TConverter>` per stored attribute, also on documents. `internal` unless the property, its type and its converters are public. An attribute name holding `.` or `[` and a `[KeyOnly]` property have none |
 | `T.Indexes.X` | A `const string` per index, on an entity with an index: `orders-by_date` gives `OrdersByDate`, `GSI1` gives `Gsi1` |
 
-`Order.Keys.Pk.Of(userId)` returns a `PartitionKey<Order>`, a readonly struct over the formatted key, one type for every key builder of an entity. It has no implicit conversion to `AttributeValue`,
-because that would bring the mistake back that it rules out; `.Value` is the explicit way out, and the formatted string. `Order.Keys.Sk.BeginsWith()` and `BeginsWith(leading...)` return a `SortKey`.
+`Order.Keys.Pk.Of(userId)` returns a `PartitionKey<Order>`, a readonly struct over the key as it is stored, one type for every key builder of an entity. A key of a template, and a plain string, cost nothing beyond what `Format` costs; a plain number or binary key goes through its converter once. It has no implicit conversion to `AttributeValue`,
+because that would bring the mistake back that it rules out; `.Value` is the explicit way out, and the key as text, which is the digits of a number and the base64 of binary. `Order.Keys.Sk.BeginsWith()` and `BeginsWith(leading...)` return a `SortKey`.
 
 `Keys`, `Attrs` and `Indexes` are reserved member names on every mapped type (`DYNA014`). A type with the name of a class generated into it is
 `DYNA025`. A string before a delimiter in a sort key is `DYNA115` at severity `Info`: the ordering caveat is real but rare, and a warning would fail a
@@ -178,7 +178,7 @@ Custom converters implement `IDynamoDbConverter<T>` with static members on a str
 
 Every method of a table that reads or writes items starts a command, a `readonly ref struct` over pooled state. `CreateTable()` starts an ordinary class, `CreateTableCommand`, because administration is no hot path, and it has no `MaxAttempts`. A command is built and sent in one expression: `diagnostics.md`
 lists what the compiler refuses and what to write instead. Every fluent call uses up its handle and returns a new one, so using one twice
-throws `InvalidOperationException`. The method that returns a command is the template of a request, and a helper takes and returns one:
+throws `InvalidOperationException` (`DYNA204` where a build can see it), and a call whose result is dropped sends nothing (`DYNA203`). The method that returns a command is the template of a request, and a helper takes and returns one:
 
 ```csharp
 public static UpdateCommand<T> Audited<T>(this UpdateCommand<T> command, string user)
@@ -336,7 +336,7 @@ type without the attribute generates what it did. Project-wide defaults come lat
 |---|---|
 | `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `Put(entity with a version above 0).IgnoreVersion()` takes such an item over; at 0 the item would read as 0 and fail the next write. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
 | `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
-| `Put(entity).IfNotExists()` | Legal at version 0, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called |
+| `Put(entity).IfNotExists()` | Legal at version 0, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called. `DYNA206` reports that where a build can see the version |
 | `Put(entity).IfExists()`, `Update(key).IfVersion(0).IfExists()`, `Delete(entity).IfExists()` | Legal above 0. At version 0 the terminal throws `InvalidOperationException` naming the entity, in either order, also on a transaction step and `ConditionStep`, because version 0 means that no item has the key, unless `.IgnoreVersion()` was called, which lifts this where it lifts the row above. Both conditions would otherwise go out and fail at DynamoDB every time |
 | `Update(key)` | `.IfVersion(n)` adds the condition, which at 0 is `attribute_not_exists(<partition key>)`, and `SET <version> = :new` with `n + 1`. Without it the terminal throws `InvalidOperationException` naming the entity, unless `.IgnoreVersion()` was called. There is no `Update(entity)` |
 | `Delete(key)` | The same rule, with the condition alone |

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>yearpk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct YearPkParts(global::System.DateTimeOffset At);
 
         /// <summary>Builds and parses the partition key <c>yearpk</c> of <c>KeyFormats</c>, with the template <c>T#{At:yyyy}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class YearPk
         {
             private const int BufferLength = 6;

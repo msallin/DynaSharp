@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>longpk</c>.</summary>
         /// <param name="Long">The value of the placeholder <c>Long</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct LongPkParts(long Long);
 
         /// <summary>Builds and parses the partition key <c>longpk</c> of <c>KeyFormats</c>, with the template <c>I#{Long}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class LongPk
         {
             private const int BufferLength = 256;

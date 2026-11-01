@@ -234,6 +234,24 @@ internal static class Descriptors
         true,
         helpLinkUri: KeyHelp);
 
+    public static readonly DiagnosticDescriptor TruncatedTimestampEndsTableKey = new(
+        "DYNA116",
+        "Truncated timestamp at the end of a table key",
+        "Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {{{0}:ticks}}.",
+        KeyGrammar,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: KeyHelp);
+
+    public static readonly DiagnosticDescriptor EmptyDefaultOfKey = new(
+        "DYNA117",
+        "Key property starts empty",
+        "Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.",
+        KeyGrammar,
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: KeyHelp);
+
     public static readonly DiagnosticDescriptor CommandOutlivesExpression = new(
         "DYNA201",
         "Command outlives its expression",
@@ -247,6 +265,51 @@ internal static class Descriptors
         "DYNA202",
         "Read command is not awaited",
         "Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor CommandDiscarded = new(
+        "DYNA203",
+        "Command is discarded",
+        "This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor CommandReused = new(
+        "DYNA204",
+        "Command is used twice",
+        "This command was used by an earlier call, so this one throws at run time. Assign what each call returns to the variable, or build the command again.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor WriteOfTableKeyInput = new(
+        "DYNA205",
+        "Write to a key of the table",
+        "'{0}' is part of the key of the table of '{1}', and DynamoDB cannot change a key. Delete the item and put a new one.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor IfNotExistsOnVersionedPut = new(
+        "DYNA206",
+        "IfNotExists on a Put with a version",
+        "This Put of '{0}' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor UndeclaredIndex = new(
+        "DYNA207",
+        "Index is not declared",
+        "'{0}' declares no index '{1}'. Take the name from {0}.Indexes.",
         Commands,
         DiagnosticSeverity.Warning,
         true,
@@ -316,8 +379,8 @@ internal static class Descriptors
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter,
-        CommandOutlivesExpression, ReadCommandNotAwaitable, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey,
+        CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

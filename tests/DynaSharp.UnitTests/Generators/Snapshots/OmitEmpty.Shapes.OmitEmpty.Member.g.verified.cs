@@ -10,30 +10,37 @@ namespace Shapes.OmitEmpty;
 
 partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Member>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "MEMBER",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("ByLabel", "bylabelpk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByLabelPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "MEMBER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("bylabelpk", "LABEL#{Label}", false, new[] { new __Map.DynamoDbKeyInput("Label", "Label") }, static __values => Keys.ByLabelPk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "MEMBER",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("ByLabel", "bylabelpk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByLabelPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "MEMBER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("bylabelpk", "LABEL#{Label}", false, new[] { new __Map.DynamoDbKeyInput("Label", "Label") }, static __values => Keys.ByLabelPk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.OmitEmpty.Member>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.OmitEmpty.Member>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Member()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Member(in __Fields fields)
         : this()
@@ -45,12 +52,14 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
         if (fields.Home__set) { this.Home = fields.Home; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.OmitEmpty.Member>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.OmitEmpty.Member entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Member>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.OmitEmpty.Member entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -83,6 +92,7 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.OmitEmpty.Member __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Member>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -169,6 +179,7 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
         return new global::Shapes.OmitEmpty.Member(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -179,6 +190,7 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
     }
 
     /// <summary>The attributes of <c>Member</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -198,12 +210,14 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
     }
 
     /// <summary>The key builders of <c>Member</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Member</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Member</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.OmitEmpty.Member>
         {
             private readonly string _0;
@@ -223,9 +237,11 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Member</c>, with the template <c>MEMBER#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -319,9 +335,11 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
 
         /// <summary>The values of a parsed <c>bylabelpk</c>.</summary>
         /// <param name="Label">The value of the placeholder <c>Label</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByLabelPkParts(string Label);
 
         /// <summary>Builds and parses the partition key <c>bylabelpk</c> of <c>Member</c>, with the template <c>LABEL#{Label}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByLabelPk
         {
             private const int BufferLength = 256;
@@ -415,6 +433,7 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
     }
 
     /// <summary>The names of the indexes of <c>Member</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>ByLabel</c>.</summary>

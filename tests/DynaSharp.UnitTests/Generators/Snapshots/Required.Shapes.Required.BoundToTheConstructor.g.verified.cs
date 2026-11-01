@@ -10,18 +10,21 @@ namespace Shapes.Required;
 
 partial class BoundToTheConstructor : __Map.IDynamoDbDocument<global::Shapes.Required.BoundToTheConstructor>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private BoundToTheConstructor(in __Fields fields)
         : this(fields.Name!)
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Required.BoundToTheConstructor>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Required.BoundToTheConstructor entity)
     {
         writer.WriteAttributeName("Name"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Name);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Required.BoundToTheConstructor __Map.IDynamoDbDocument<global::Shapes.Required.BoundToTheConstructor>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -58,12 +61,14 @@ partial class BoundToTheConstructor : __Map.IDynamoDbDocument<global::Shapes.Req
         return new global::Shapes.Required.BoundToTheConstructor(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
     }
 
     /// <summary>The attributes of <c>BoundToTheConstructor</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>

@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditEvent>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "AUDIT",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "AUDIT#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "AUDIT",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "AUDIT#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.AuditEvent>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.AuditEvent>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public AuditEvent()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private AuditEvent(in __Fields fields)
         : this()
@@ -40,12 +47,14 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
         if (fields.Actor__set) { this.Actor = fields.Actor; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.AuditEvent>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.AuditEvent entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.AuditEvent>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.AuditEvent entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -58,6 +67,7 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Actor);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.AuditEvent __Map.IDynamoDbDocument<global::KeyShapes.AuditEvent>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -118,6 +128,7 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
         return new global::KeyShapes.AuditEvent(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -125,6 +136,7 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
     }
 
     /// <summary>The attributes of <c>AuditEvent</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -135,12 +147,14 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
     }
 
     /// <summary>The key builders of <c>AuditEvent</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Keys
     {
         /// <summary>Creates the primary key of <c>AuditEvent</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>AuditEvent</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.AuditEvent>
         {
             private readonly string _0;
@@ -160,9 +174,11 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>AuditEvent</c>, with the template <c>AUDIT#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;

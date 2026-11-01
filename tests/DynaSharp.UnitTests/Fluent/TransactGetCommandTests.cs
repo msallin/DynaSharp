@@ -308,7 +308,7 @@ public sealed class TransactGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => Gets(client.TransactGet(), shop, 101));
+        var failure = TestClient.Catch(() => _ = Gets(client.TransactGet(), shop, 101));
 
         // Assert
         await Assert.That((failure is InvalidOperationException, failure.Message.Contains("at most 100 actions", StringComparison.Ordinal))).IsEqualTo((true, true));
@@ -322,7 +322,7 @@ public sealed class TransactGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get((Table<Item>)null!, "a", default, out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get((Table<Item>)null!, "a", default, out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -336,7 +336,7 @@ public sealed class TransactGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get((Table<Customer>)null!, Customer.Keys.Of("a"), out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get((Table<Customer>)null!, Customer.Keys.Of("a"), out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -351,7 +351,7 @@ public sealed class TransactGetCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get(customers, (ClassKey)null!, out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get(customers, (ClassKey)null!, out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -381,7 +381,7 @@ public sealed class TransactGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get(shop, string.Empty, default, out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get(shop, string.Empty, default, out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -396,7 +396,7 @@ public sealed class TransactGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get(shop, string.Empty, out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get(shop, string.Empty, out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -410,7 +410,7 @@ public sealed class TransactGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().Get((Table<Item>)null!, "a", out _));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().Get((Table<Item>)null!, "a", out _));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -424,7 +424,7 @@ public sealed class TransactGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactGet().MaxAttempts(0));
+        var failure = TestClient.Catch(() => _ = client.TransactGet().MaxAttempts(0));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentOutOfRangeException>();
@@ -443,7 +443,8 @@ public sealed class TransactGetCommandTests
         {
             var command = client.TransactGet();
             _ = command.Get(shop, "a", default, out _);
-            _ = command.Get(shop, "b", default, out _);
+            var again = command;
+            _ = again.Get(shop, "b", default, out _);
         });
 
         // Assert

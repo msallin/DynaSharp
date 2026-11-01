@@ -300,7 +300,8 @@ public sealed class GetCommandTests
         {
             var command = shop.Get("a");
             _ = command.Consistent();
-            return command.ItemAsync().AsTask();
+            var again = command;
+            return again.ItemAsync().AsTask();
         });
 
         // Assert
@@ -337,7 +338,7 @@ public sealed class GetCommandTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Get("a").Project(path);
+            _ = shop.Get("a").Project(path);
             return Task.CompletedTask;
         });
 

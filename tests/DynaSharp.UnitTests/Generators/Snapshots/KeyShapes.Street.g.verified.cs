@@ -10,6 +10,7 @@ namespace KeyShapes;
 
 partial record Street : __Map.IDynamoDbDocument<global::KeyShapes.Street>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Street>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Street entity)
     {
         writer.WriteAttributeName("Name"u8);
@@ -18,6 +19,7 @@ partial record Street : __Map.IDynamoDbDocument<global::KeyShapes.Street>
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Number);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Street __Map.IDynamoDbDocument<global::KeyShapes.Street>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -65,6 +67,7 @@ partial record Street : __Map.IDynamoDbDocument<global::KeyShapes.Street>
         return new global::KeyShapes.Street(fields.Name!, fields.Number!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
@@ -72,6 +75,7 @@ partial record Street : __Map.IDynamoDbDocument<global::KeyShapes.Street>
     }
 
     /// <summary>The attributes of <c>Street</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>

@@ -8,24 +8,31 @@ using __Ser = global::DynaSharp.Serialization;
 
 partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "GLOBAL",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "GLOBAL",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::GlobalThing>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::GlobalThing>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public GlobalThing()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private GlobalThing(in __Fields fields)
         : this()
@@ -34,12 +41,14 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
         if (fields.Color__set) { this.Color = fields.Color; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::GlobalThing>.WriteKey(__Ser.DynamoDbWriter writer, global::GlobalThing entity)
     {
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::GlobalThing>.WriteAttributes(__Ser.DynamoDbWriter writer, global::GlobalThing entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -50,6 +59,7 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
         GlobalColorConverter.Write(writer, entity.Color);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::GlobalThing __Map.IDynamoDbDocument<global::GlobalThing>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -102,6 +112,7 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
         return new global::GlobalThing(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -109,6 +120,7 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
     }
 
     /// <summary>The attributes of <c>GlobalThing</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -118,6 +130,7 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
         public static global::DynaSharp.Attr<global::GlobalColor, __GlobalColorConverter> Color => new("Color");
 
         /// <summary>The converter of <c>global::GlobalColor</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __GlobalColorConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::GlobalColor>
         {
@@ -130,12 +143,14 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
     }
 
     /// <summary>The key builders of <c>GlobalThing</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>GlobalThing</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>GlobalThing</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::GlobalThing>
         {
             private readonly string _0;
@@ -152,9 +167,21 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }
         }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>GlobalThing</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>GlobalThing</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::GlobalThing> Of(string id) => new global::DynaSharp.PartitionKey<global::GlobalThing>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
+        }
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct GlobalColorConverter : __Ser.IDynamoDbConverter<global::GlobalColor>, __Ser.IDynamoDbSetElementConverter<global::GlobalColor>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

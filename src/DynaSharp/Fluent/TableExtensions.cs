@@ -103,7 +103,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(table);
         ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
-        return table.Query(partitionKey.Value, sortKey);
+        return table.Query(partitionKey.Key, sortKey);
     }
 
     /// <summary>Starts a query of one partition of a table without a schema, by the key of any entity, for a mixed read: <c>shop.Query(Order.Keys.Pk.Of(id)).Of&lt;Customer, Order&gt;()</c>.</summary>
@@ -118,7 +118,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(table);
         ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
-        return table.Query(partitionKey.Value, sortKey);
+        return table.Query(partitionKey.Key, sortKey);
     }
 
     /// <summary>Starts a query of several partitions by typed keys, merged by sort key: <c>orders.Query(shards.Select(Order.Keys.Pk.Of))</c>. See <see cref="Table{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -133,7 +133,7 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(FormattedKeys(partitionKeys, table.PartitionKeyName, table.Name).AsSpan(), sortKey);
+        return table.Query(KeysOf(partitionKeys, table.PartitionKeyName, table.Name), sortKey);
     }
 
     /// <summary>Starts a query of several partitions of a table without a schema, by the keys of any entity. See <see cref="Table{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -148,7 +148,7 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(FormattedKeys(partitionKeys, table.PartitionKeyName, table.Name).AsSpan(), sortKey);
+        return table.Query(KeysOf(partitionKeys, table.PartitionKeyName, table.Name), sortKey);
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(index);
         ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
-        return index.Query(partitionKey.Value, sortKey);
+        return index.Query(partitionKey.Key, sortKey);
     }
 
     /// <summary>Starts a query of one partition of an index without a schema, by the key of any entity, for a mixed read. See <see cref="Index{T}.Query(AttributeValue, SortKey)"/>.</summary>
@@ -182,7 +182,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(index);
         ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
-        return index.Query(partitionKey.Value, sortKey);
+        return index.Query(partitionKey.Key, sortKey);
     }
 
     /// <summary>Starts a query of several partitions of an index by typed keys, merged by the sort key of the index. See <see cref="Index{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -197,7 +197,7 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(FormattedKeys(partitionKeys, index.PartitionKeyName, index.Name).AsSpan(), sortKey);
+        return index.Query(KeysOf(partitionKeys, index.PartitionKeyName, index.Name), sortKey);
     }
 
     /// <summary>Starts a query of several partitions of an index without a schema, by the keys of any entity. See <see cref="Index{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -212,7 +212,7 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(FormattedKeys(partitionKeys, index.PartitionKeyName, index.Name).AsSpan(), sortKey);
+        return index.Query(KeysOf(partitionKeys, index.PartitionKeyName, index.Name), sortKey);
     }
 
     /// <summary>Starts a get of the item under the key of an entity, which is how a reload reads.</summary>
@@ -349,15 +349,15 @@ public static class TableExtensions
         throw new ArgumentException($"{typeof(TEntity)} declares no index \"{name}\".", nameof(name));
     }
 
-    private static string[] FormattedKeys<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys, string attributeName, string readName)
+    private static AttributeValue[] KeysOf<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys, string attributeName, string readName)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(partitionKeys);
-        var keys = new List<string>();
+        var keys = new List<AttributeValue>();
         foreach (var key in partitionKeys)
         {
             ThrowIfOtherAttribute(key, attributeName, readName);
-            keys.Add(key.Value);
+            keys.Add(key.Key);
         }
 
         return [.. keys];
@@ -375,14 +375,12 @@ public static class TableExtensions
         }
     }
 
-    // Generated keys have the names of the model, so the name of a builder comes from the entity. A plain key has no builder, and it is its own input.
+    // Generated keys have the names of the model, so the name of a builder comes from the entity.
     private static string BuilderOf<TEntity>(string attributeName)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         var info = TEntity.Info;
-        var builder = info.KeyTemplates.Any(template => template.IsTableKey && template.AttributeName == attributeName && template.Inputs.All(input => input.AttributeName != attributeName) && attributeName == info.PartitionKeyName)
-            ? "Pk"
-            : info.Indexes.FirstOrDefault(index => index.PartitionKeyName == attributeName)?.PartitionKeyBuilder;
+        var builder = attributeName == info.PartitionKeyName ? "Pk" : info.Indexes.FirstOrDefault(index => index.PartitionKeyName == attributeName)?.PartitionKeyBuilder;
         return builder is null
             ? "Pass the value of that attribute as an AttributeValue."
             : $"Use {typeof(TEntity)}.Keys.{builder}.Of(...).";

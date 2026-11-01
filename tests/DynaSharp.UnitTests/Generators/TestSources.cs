@@ -13,7 +13,7 @@ internal static class TestSources
             [PartitionKey("ORDER#{Id}")]
             public partial class Order
             {
-                public string Id { get; set; } = "";
+                public string Id { get; set; } = "none";
 
                 public int Count() => 1;
             }
@@ -40,7 +40,7 @@ internal static class TestSources
             [SortKey("{Number}")]
             public partial class Invoice
             {
-                public string Id { get; set; } = "";
+                public string Id { get; set; } = "none";
 
                 public int Number { get; set; }
             }

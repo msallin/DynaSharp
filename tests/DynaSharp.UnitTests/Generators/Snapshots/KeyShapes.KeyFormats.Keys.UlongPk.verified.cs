@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>ulongpk</c>.</summary>
         /// <param name="ULong">The value of the placeholder <c>ULong</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct UlongPkParts(ulong ULong);
 
         /// <summary>Builds and parses the partition key <c>ulongpk</c> of <c>KeyFormats</c>, with the template <c>I#{ULong}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class UlongPk
         {
             private const int BufferLength = 256;

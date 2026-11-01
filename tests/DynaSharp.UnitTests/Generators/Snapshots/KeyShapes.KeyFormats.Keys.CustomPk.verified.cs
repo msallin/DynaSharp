@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>custompk</c>.</summary>
         /// <param name="Address">The value of the placeholder <c>Address</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct CustomPkParts(global::System.Net.IPAddress Address);
 
         /// <summary>Builds and parses the partition key <c>custompk</c> of <c>KeyFormats</c>, with the template <c>C#{Address}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class CustomPk
         {
             private const int BufferLength = 256;

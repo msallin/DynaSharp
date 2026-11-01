@@ -598,6 +598,46 @@ public partial record Notice
     public string? Note { get; init; }
 }
 
+/// <summary>Plain keys that are not strings: a number and a sort key, each with the converter of its property.</summary>
+[DynamoDbEntity]
+[Discriminator("NUMBERED")]
+public partial record NumberKeyed
+{
+    [PartitionKey]
+    public required int Id { get; init; }
+
+    [SortKey]
+    public required long Sequence { get; init; }
+}
+
+/// <summary>A plain key of binary, and a table key without a builder of a string type, whose <c>Of</c> goes through the converter of the property.</summary>
+[DynamoDbEntity]
+[Discriminator("BINARY")]
+public partial record BinaryKeyed
+{
+    [PartitionKey]
+    public required byte[] Id { get; init; }
+
+    [SortKey]
+    public required DateTimeOffset At { get; init; }
+}
+
+/// <summary>An index of bare placeholders over the attributes of its properties, nullable because it is sparse: the shape that shares its attribute with a property.</summary>
+[DynamoDbEntity]
+[Discriminator(OptOut = true)]
+[PartitionKey("THING#{Id}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "{Owner}", SortKey = "{Rank}", Sparse = true, PartitionKeyAttributeName = "owner", SortKeyAttributeName = "rank")]
+public partial record OwnedThing
+{
+    public required string Id { get; init; }
+
+    [DynamoDbAttribute("owner")]
+    public string? Owner { get; init; }
+
+    [DynamoDbAttribute("rank")]
+    public int? Rank { get; init; }
+}
+
 /// <summary>An index that wants more of a timestamp than the table key holds, so that the generated key has to give the value to an update.</summary>
 [DynamoDbEntity]
 [Discriminator("HELDSLOT")]
@@ -619,8 +659,8 @@ public partial record HeldSlot
 [DynamoDbEntity]
 [Discriminator("SAMESLOT")]
 [PartitionKey("ROOM#{Room}")]
-[SortKey("AT#{Start}")]
-[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "{Start}")]
+[SortKey("AT#{Start:yyyy-MM-ddTHH:mm}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "{Start:yyyy-MM-ddTHH:mm}")]
 public partial record SameSlot
 {
     public required string Room { get; init; }

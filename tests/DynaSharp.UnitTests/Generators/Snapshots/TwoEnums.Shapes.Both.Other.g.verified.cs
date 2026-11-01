@@ -10,10 +10,12 @@ namespace Shapes.Both;
 
 partial class Other : __Map.IDynamoDbDocument<global::Shapes.Both.Other>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Other()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Other(in __Fields fields)
         : this()
@@ -21,12 +23,14 @@ partial class Other : __Map.IDynamoDbDocument<global::Shapes.Both.Other>
         if (fields.Status__set) { this.Status = fields.Status; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Both.Other>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Both.Other entity)
     {
         writer.WriteAttributeName("Status"u8);
         Shapes_First_StatusConverter.Write(writer, entity.Status);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Both.Other __Map.IDynamoDbDocument<global::Shapes.Both.Other>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -62,18 +66,21 @@ partial class Other : __Map.IDynamoDbDocument<global::Shapes.Both.Other>
         return new global::Shapes.Both.Other(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::Shapes.First.Status Status; public bool Status__set;
     }
 
     /// <summary>The attributes of <c>Other</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Status</c>.</summary>
         public static global::DynaSharp.Attr<global::Shapes.First.Status, __Shapes_First_StatusConverter> Status => new("Status");
 
         /// <summary>The converter of <c>global::Shapes.First.Status</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_First_StatusConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.First.Status>
         {
@@ -86,6 +93,7 @@ partial class Other : __Map.IDynamoDbDocument<global::Shapes.Both.Other>
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_First_StatusConverter : __Ser.IDynamoDbConverter<global::Shapes.First.Status>, __Ser.IDynamoDbSetElementConverter<global::Shapes.First.Status>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

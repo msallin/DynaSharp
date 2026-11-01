@@ -471,7 +471,8 @@ static void SendTwice(Table<Visitor> table)
 {
     var command = table.Update(new Visitor.Key("v-1")).Set("visits", 1);
     _ = command.ToRequestJson();
-    _ = command.ToRequestJson();
+    var again = command;
+    _ = again.ToRequestJson();
 }
 
 void Check(bool condition, string what)

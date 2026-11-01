@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>shortpk</c>.</summary>
         /// <param name="Short">The value of the placeholder <c>Short</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ShortPkParts(short Short);
 
         /// <summary>Builds and parses the partition key <c>shortpk</c> of <c>KeyFormats</c>, with the template <c>I#{Short}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ShortPk
         {
             private const int BufferLength = 256;

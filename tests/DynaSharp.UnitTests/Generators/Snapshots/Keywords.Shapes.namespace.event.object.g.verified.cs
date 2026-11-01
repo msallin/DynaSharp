@@ -10,12 +10,14 @@ namespace Shapes.@namespace.@event;
 
 partial record @object : __Map.IDynamoDbDocument<global::Shapes.@namespace.@event.@object>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.@namespace.@event.@object>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.@namespace.@event.@object entity)
     {
         writer.WriteAttributeName("int"u8);
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.@int);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.@namespace.@event.@object __Map.IDynamoDbDocument<global::Shapes.@namespace.@event.@object>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -52,12 +54,14 @@ partial record @object : __Map.IDynamoDbDocument<global::Shapes.@namespace.@even
         return new global::Shapes.@namespace.@event.@object(fields.@int!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int @int; public bool int__set;
     }
 
     /// <summary>The attributes of <c>object</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>int</c>.</summary>

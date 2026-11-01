@@ -10,6 +10,7 @@ namespace Shapes.Struct;
 
 partial struct Size : __Map.IDynamoDbDocument<global::Shapes.Struct.Size>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Struct.Size>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Struct.Size entity)
     {
         writer.WriteAttributeName("Width"u8);
@@ -18,6 +19,7 @@ partial struct Size : __Map.IDynamoDbDocument<global::Shapes.Struct.Size>
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Height);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Struct.Size __Map.IDynamoDbDocument<global::Shapes.Struct.Size>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -65,6 +67,7 @@ partial struct Size : __Map.IDynamoDbDocument<global::Shapes.Struct.Size>
         return new global::Shapes.Struct.Size(fields.Width!, fields.Height!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int Width; public bool Width__set;
@@ -72,6 +75,7 @@ partial struct Size : __Map.IDynamoDbDocument<global::Shapes.Struct.Size>
     }
 
     /// <summary>The attributes of <c>Size</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Width</c>.</summary>

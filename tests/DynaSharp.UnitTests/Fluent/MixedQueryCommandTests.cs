@@ -194,8 +194,9 @@ public sealed class MixedQueryCommandTests
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() =>
         {
             var query = client.Table("Shop", "pk", "sk").Query("a");
-            query.Limit(1);
-            query.Of<Alpha, Beta>();
+            _ = query.Limit(1);
+            var again = query;
+            _ = again.Of<Alpha, Beta>();
             return Task.CompletedTask;
         });
 
@@ -214,8 +215,9 @@ public sealed class MixedQueryCommandTests
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() =>
         {
             var query = client.Table("Shop", "pk", "sk").Query("a").Of<Alpha, Beta>();
-            query.Limit(1);
-            query.ToRequestJson();
+            _ = query.Limit(1);
+            var again = query;
+            again.ToRequestJson();
             return Task.CompletedTask;
         });
 

@@ -10,10 +10,12 @@ namespace Shapes.Required;
 
 partial record Nullable : __Map.IDynamoDbDocument<global::Shapes.Required.Nullable>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Nullable()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Nullable(in __Fields fields)
         : this()
@@ -21,6 +23,7 @@ partial record Nullable : __Map.IDynamoDbDocument<global::Shapes.Required.Nullab
         if (fields.Maybe__set) { this.Maybe = fields.Maybe; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Required.Nullable>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Required.Nullable entity)
     {
         if (entity.Maybe is { } __v0)
@@ -30,6 +33,7 @@ partial record Nullable : __Map.IDynamoDbDocument<global::Shapes.Required.Nullab
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Required.Nullable __Map.IDynamoDbDocument<global::Shapes.Required.Nullable>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -65,12 +69,14 @@ partial record Nullable : __Map.IDynamoDbDocument<global::Shapes.Required.Nullab
         return new global::Shapes.Required.Nullable(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string? Maybe; public bool Maybe__set;
     }
 
     /// <summary>The attributes of <c>Nullable</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Maybe</c>.</summary>

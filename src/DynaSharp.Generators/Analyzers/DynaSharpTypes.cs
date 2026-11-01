@@ -25,4 +25,17 @@ internal static class DynaSharpTypes
     /// <param name="type">The type of the value, if it has one.</param>
     /// <returns>Whether the value has the limits of a DynaSharp ref struct.</returns>
     public static bool IsRefStruct(ITypeSymbol? type) => type is { IsRefLikeType: true } && IsDeclaredByDynaSharp(type);
+
+    /// <summary>
+    /// Whether a value is a command or a step of a transaction: every call on one uses it up and gives the next one back. Those are the ref structs of the root namespace; handlers, readers and writers
+    /// live below it. In a generic helper it is a type parameter that can be a ref struct and has a fluent interface of the library, such as <c>IConditional&lt;TSelf&gt;</c>, over itself.
+    /// </summary>
+    /// <param name="type">The type of the value, if it has one.</param>
+    /// <returns>Whether the value is a handle to a command.</returns>
+    public static bool IsCommand(ITypeSymbol? type) => type is ITypeParameterSymbol parameter
+        ? parameter.AllowsRefLikeType && parameter.ConstraintTypes.Any(constraint => IsFluentOver(constraint, parameter))
+        : type is { IsRefLikeType: true, ContainingNamespace: { Name: RootNamespace, ContainingNamespace.IsGlobalNamespace: true } };
+
+    private static bool IsFluentOver(ITypeSymbol constraint, ITypeParameterSymbol parameter) =>
+        constraint is INamedTypeSymbol { TypeArguments.Length: 1 } generic && SymbolEqualityComparer.Default.Equals(generic.TypeArguments[0], parameter) && IsDeclaredByDynaSharp(constraint);
 }

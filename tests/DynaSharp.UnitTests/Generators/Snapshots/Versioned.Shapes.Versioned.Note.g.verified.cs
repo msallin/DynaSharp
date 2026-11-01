@@ -10,31 +10,38 @@ namespace Shapes.Versioned;
 
 partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "NOTE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
-        },
-        versionAttributeName: "Revision",
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "NOTE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-            new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("byownersk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "NOTE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
+            },
+            versionAttributeName: "Revision",
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "NOTE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("byownersk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Versioned.Note>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Versioned.Note>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Note()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Note(in __Fields fields)
         : this()
@@ -44,14 +51,17 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         if (fields.Revision__set) { this.Revision = fields.Revision; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Versioned.Note>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Versioned.Note entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Versioned.Note>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Versioned.Note entity) => __WriteAttributes(writer, entity, entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbDocument<global::Shapes.Versioned.Note>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shapes.Versioned.Note entity)
     {
         var held = entity.Revision;
@@ -59,8 +69,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         return checked((long)held);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbEntity<global::Shapes.Versioned.Note>.ReadVersion(global::Shapes.Versioned.Note entity) => checked((long)entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private static void __WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Versioned.Note entity, short __version)
     {
         writer.WriteAttributeName("pk"u8);
@@ -85,6 +97,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         global::DynaSharp.Serialization.NumberConverter<short>.Write(writer, __version);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Versioned.Note __Map.IDynamoDbDocument<global::Shapes.Versioned.Note>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -156,6 +169,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         return new global::Shapes.Versioned.Note(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -164,6 +178,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
     }
 
     /// <summary>The attributes of <c>Note</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -177,12 +192,14 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
     }
 
     /// <summary>The key builders of <c>Note</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Note</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Note</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Versioned.Note>
         {
             private readonly string _0;
@@ -202,9 +219,11 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Note</c>, with the template <c>NOTE#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -298,9 +317,11 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
 
         /// <summary>The values of a parsed <c>byownerpk</c>.</summary>
         /// <param name="Owner">The value of the placeholder <c>Owner</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByOwnerPkParts(string Owner);
 
         /// <summary>Builds and parses the partition key <c>byownerpk</c> of <c>Note</c>, with the template <c>OWNER#{Owner}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByOwnerPk
         {
             private const int BufferLength = 256;
@@ -394,9 +415,11 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
 
         /// <summary>The values of a parsed <c>byownersk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByOwnerSkParts(string Id);
 
         /// <summary>Builds and parses the sort key <c>byownersk</c> of <c>Note</c>, with the template <c>{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByOwnerSk
         {
             private const int BufferLength = 256;
@@ -500,6 +523,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
     }
 
     /// <summary>The names of the indexes of <c>Note</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>ByOwner</c>.</summary>

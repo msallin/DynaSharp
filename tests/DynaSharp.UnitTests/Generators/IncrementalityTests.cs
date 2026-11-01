@@ -45,7 +45,7 @@ public sealed class IncrementalityTests
             [PartitionKey("TICKET#{Id}")]
             public partial class Ticket
             {
-                public string Id { get; set; } = "";
+                public string Id { get; set; } = "none";
 
                 public Status Status { get; set; }
 

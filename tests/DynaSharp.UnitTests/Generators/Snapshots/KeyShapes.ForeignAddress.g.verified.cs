@@ -10,10 +10,12 @@ namespace KeyShapes;
 
 partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.ForeignAddress>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public ForeignAddress()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private ForeignAddress(in __Fields fields)
         : this()
@@ -23,6 +25,7 @@ partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.Foreig
         if (fields.Country__set) { this.Country = fields.Country; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.ForeignAddress>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.ForeignAddress entity)
     {
         writer.WriteAttributeName("City"u8);
@@ -39,6 +42,7 @@ partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.Foreig
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.ForeignAddress __Map.IDynamoDbDocument<global::KeyShapes.ForeignAddress>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -95,6 +99,7 @@ partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.Foreig
         return new global::KeyShapes.ForeignAddress(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string City; public bool City__set;
@@ -103,6 +108,7 @@ partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.Foreig
     }
 
     /// <summary>The attributes of <c>ForeignAddress</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Attrs
     {
         /// <summary>The attribute <c>City</c>.</summary>

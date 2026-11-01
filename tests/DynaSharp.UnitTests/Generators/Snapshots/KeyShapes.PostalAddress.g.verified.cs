@@ -10,10 +10,12 @@ namespace KeyShapes;
 
 partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalAddress>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public PostalAddress()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private PostalAddress(in __Fields fields)
         : this()
@@ -22,6 +24,7 @@ partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalA
         if (fields.Street__set) { this.Street = fields.Street; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.PostalAddress>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.PostalAddress entity)
     {
         writer.WriteAttributeName("City"u8);
@@ -33,6 +36,7 @@ partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalA
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.PostalAddress __Map.IDynamoDbDocument<global::KeyShapes.PostalAddress>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -79,6 +83,7 @@ partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalA
         return new global::KeyShapes.PostalAddress(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string City; public bool City__set;
@@ -86,6 +91,7 @@ partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalA
     }
 
     /// <summary>The attributes of <c>PostalAddress</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>City</c>.</summary>

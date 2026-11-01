@@ -1880,7 +1880,8 @@ public sealed class QueryCommandTests
     {
         var command = shop.Query("a");
         _ = command.ToRequestJson();
-        return command.ItemAsync();
+        var again = command;
+        return again.ItemAsync();
     }
 
     private static string FilterOnStaleHandle(Table<Item> shop)
@@ -1889,7 +1890,8 @@ public sealed class QueryCommandTests
         _ = stale.ToRequestJson();
         try
         {
-            stale.Filter($"{Attr("a")} = {1}");
+            var again = stale;
+            _ = again.Filter($"{Attr("a")} = {1}");
             return string.Empty;
         }
         catch (InvalidOperationException exception)
@@ -1904,7 +1906,8 @@ public sealed class QueryCommandTests
         _ = command.ToRequestJson();
         try
         {
-            _ = command.ToRequestJson();
+            var again = command;
+            _ = again.ToRequestJson();
             return string.Empty;
         }
         catch (InvalidOperationException exception)
@@ -1919,7 +1922,8 @@ public sealed class QueryCommandTests
         _ = command.ItemsAsync();
         try
         {
-            _ = command.ItemsAsync();
+            var again = command;
+            _ = again.ItemsAsync();
             return string.Empty;
         }
         catch (InvalidOperationException exception)

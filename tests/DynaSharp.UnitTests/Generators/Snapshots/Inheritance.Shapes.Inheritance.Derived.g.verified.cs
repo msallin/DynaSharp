@@ -10,24 +10,31 @@ namespace Shapes.Inheritance;
 
 partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Derived>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "DERIVED",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "DERIVED",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Inheritance.Derived>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Inheritance.Derived>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Derived()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Derived(in __Fields fields)
         : this()
@@ -38,12 +45,14 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         if (fields.Extra__set) { this.Extra = fields.Extra; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Inheritance.Derived>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Inheritance.Derived entity)
     {
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Inheritance.Derived>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Inheritance.Derived entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -58,6 +67,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Extra);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Inheritance.Derived __Map.IDynamoDbDocument<global::Shapes.Inheritance.Derived>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -129,6 +139,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         return new global::Shapes.Inheritance.Derived(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::System.DateTimeOffset At; public bool At__set;
@@ -138,6 +149,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
     }
 
     /// <summary>The attributes of <c>Derived</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Attrs
     {
         /// <summary>The attribute <c>At</c>.</summary>
@@ -154,12 +166,14 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
     }
 
     /// <summary>The key builders of <c>Derived</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Keys
     {
         /// <summary>Creates the primary key of <c>Derived</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Derived</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Inheritance.Derived>
         {
             private readonly string _0;
@@ -175,6 +189,17 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }
+        }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>Derived</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Derived</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Inheritance.Derived> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Inheritance.Derived>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
         }
     }
 }

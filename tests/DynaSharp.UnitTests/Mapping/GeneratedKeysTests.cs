@@ -519,7 +519,7 @@ public sealed class GeneratedKeysTests
     {
         // Arrange
         var entities = typeof(KeyedOrder).Assembly.GetTypes().Where(static type => type.Namespace == typeof(KeyedOrder).Namespace && type.GetNestedType("Keys") is not null);
-        var builders = entities.SelectMany(static entity => entity.GetNestedType("Keys")!.GetNestedTypes().Where(static type => type.GetMethod("Of") is not null)).ToList();
+        var builders = entities.SelectMany(static entity => entity.GetNestedType("Keys")!.GetNestedTypes().Where(static type => type.GetMethod("Of") is not null && type.GetMethod("Format") is not null)).ToList();
 
         // Act
         var differing = builders.Where(static builder => !Parameters(builder, "Of").SequenceEqual(Parameters(builder, "Format"))).ToList();
@@ -607,13 +607,23 @@ public sealed class GeneratedKeysTests
     }
 
     [Test]
-    public async Task Builders_PlainKeys_HaveNone()
+    public async Task Builders_PlainKeys_HaveOneEach()
     {
         // Arrange, Act
-        var builders = typeof(Device.Keys).GetNestedTypes().Where(type => type.IsAbstract);
+        var builders = typeof(Device.Keys).GetNestedTypes().Where(type => type.IsAbstract).Select(static type => type.Name).Order(StringComparer.Ordinal);
 
         // Assert
-        await Assert.That(builders).IsEmpty();
+        await Assert.That(builders).IsEquivalentTo(["Pk", "Sk"]);
+    }
+
+    [Test]
+    public async Task Builders_PlainKeyStoredAsANumber_HasOfAlone()
+    {
+        // Arrange, Act
+        var methods = typeof(NumberKeyed.Keys.Pk).GetMethods(BindingFlags.Public | BindingFlags.Static).Select(static method => method.Name);
+
+        // Assert
+        await Assert.That(methods).IsEquivalentTo(["Of"]);
     }
 
     [Test]

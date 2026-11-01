@@ -10,34 +10,41 @@ namespace KeyShapes;
 
 partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.FeaturedPost>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "POST",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "FeaturedPk" },
-            new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "EverythingPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "POST#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("featuredpk", "FEATURED", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.FeaturedPk.Format()),
-            new __Map.DynamoDbKeyTemplate("featuredsk", "ON#{FeaturedOn}", false, new[] { new __Map.DynamoDbKeyInput("FeaturedOn", "FeaturedOn") }, static __values => Keys.FeaturedSk.Format((global::System.DateOnly)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("everythingpk", "ALL", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EverythingPk.Format()),
-            new __Map.DynamoDbKeyTemplate("everythingsk", "{Title}", false, new[] { new __Map.DynamoDbKeyInput("Title", "Title") }, static __values => Keys.EverythingSk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "POST",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "FeaturedPk" },
+                new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "EverythingPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "POST#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("featuredpk", "FEATURED", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.FeaturedPk.Format()),
+                new __Map.DynamoDbKeyTemplate("featuredsk", "ON#{FeaturedOn}", false, new[] { new __Map.DynamoDbKeyInput("FeaturedOn", "FeaturedOn") }, static __values => Keys.FeaturedSk.Format((global::System.DateOnly)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("everythingpk", "ALL", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EverythingPk.Format()),
+                new __Map.DynamoDbKeyTemplate("everythingsk", "{Title}", false, new[] { new __Map.DynamoDbKeyInput("Title", "Title") }, static __values => Keys.EverythingSk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.FeaturedPost>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.FeaturedPost>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public FeaturedPost()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private FeaturedPost(in __Fields fields)
         : this()
@@ -47,12 +54,14 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         if (fields.FeaturedOn__set) { this.FeaturedOn = fields.FeaturedOn; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.FeaturedPost>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.FeaturedPost entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.FeaturedPost>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.FeaturedPost entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -81,6 +90,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.FeaturedPost __Map.IDynamoDbDocument<global::KeyShapes.FeaturedPost>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -160,6 +170,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         return new global::KeyShapes.FeaturedPost(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -168,6 +179,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
     }
 
     /// <summary>The attributes of <c>FeaturedPost</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -181,12 +193,14 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
     }
 
     /// <summary>The key builders of <c>FeaturedPost</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>FeaturedPost</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>FeaturedPost</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.FeaturedPost>
         {
             private readonly string _0;
@@ -206,9 +220,11 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>FeaturedPost</c>, with the template <c>POST#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -301,9 +317,11 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         }
 
         /// <summary>The values of a parsed <c>featuredpk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct FeaturedPkParts();
 
         /// <summary>Builds and parses the partition key <c>featuredpk</c> of <c>FeaturedPost</c>, with the template <c>FEATURED</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class FeaturedPk
         {
             private const int BufferLength = 8;
@@ -367,9 +385,11 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
 
         /// <summary>The values of a parsed <c>featuredsk</c>.</summary>
         /// <param name="FeaturedOn">The value of the placeholder <c>FeaturedOn</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct FeaturedSkParts(global::System.DateOnly FeaturedOn);
 
         /// <summary>Builds and parses the sort key <c>featuredsk</c> of <c>FeaturedPost</c>, with the template <c>ON#{FeaturedOn}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class FeaturedSk
         {
             private const int BufferLength = 13;
@@ -480,9 +500,11 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         }
 
         /// <summary>The values of a parsed <c>everythingpk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct EverythingPkParts();
 
         /// <summary>Builds and parses the partition key <c>everythingpk</c> of <c>FeaturedPost</c>, with the template <c>ALL</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class EverythingPk
         {
             private const int BufferLength = 3;
@@ -546,9 +568,11 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
 
         /// <summary>The values of a parsed <c>everythingsk</c>.</summary>
         /// <param name="Title">The value of the placeholder <c>Title</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct EverythingSkParts(string Title);
 
         /// <summary>Builds and parses the sort key <c>everythingsk</c> of <c>FeaturedPost</c>, with the template <c>{Title}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class EverythingSk
         {
             private const int BufferLength = 256;
@@ -652,6 +676,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
     }
 
     /// <summary>The names of the indexes of <c>FeaturedPost</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>Featured</c>.</summary>

@@ -21,6 +21,24 @@ public static class Code
         await Shop.Query("a");
     }
 
+    public static void Dyna203()
+    {
+        Shop.Update("a");
+    }
+
+    public static void Dyna204()
+    {
+        var query = Shop.Query("a");
+        var first = query.Limit(1);
+        var second = query.Limit(2);
+    }
+
+    public static void Dyna205() => Orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Id, "b").ToRequestJson();
+
+    public static void Dyna206() => Orders.Put(new Order { Id = "a", Revision = 1 }).IfNotExists().ToRequestJson();
+
+    public static void Dyna207() => _ = Orders.Index("Nope");
+
     public static void Dyna210() => Shop.Update("a").If($"{"status"} = {"open"}");
 
     public static void Dyna211() => Shop.Update("a").If($"attribute_exists(#pk)");

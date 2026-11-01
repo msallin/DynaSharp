@@ -7,42 +7,86 @@ using Microsoft.CodeAnalysis.Operations;
 namespace DynaSharp.Generators;
 
 /// <summary>
-/// Finds the reads of a local that the compiler refuses with CS4007, by the rule the compiler has: an <c>await</c> or a <c>yield return</c> forgets
-/// every local, a write makes it known again, and a read of a forgotten local on any path would need it preserved. It runs on the
-/// control flow graph, because a local that is only used on the other branch of an <c>if</c>, or written again after the <c>await</c>, compiles.
+/// Follows one variable through the control flow graph of a member, because what is wrong on one path may be right on the other branch of an <c>if</c>, and a write makes a variable good again. Two
+/// rules run on it. The reads of a local that the compiler refuses with CS4007 go by the rule the compiler has: an <c>await</c> or a <c>yield return</c> forgets every local, and a read of a forgotten
+/// local on any path would need it preserved. The second use of a command goes by the rule of the handle: a call uses it up, on any path, so a later call on that path throws.
 /// </summary>
 internal static class CommandFlow
 {
+    private static readonly Rule Boundary = new(
+        static operation => operation.Kind is OperationKind.Await or OperationKind.YieldReturn,
+        static _ => true,
+        IsOutArgument);
+
     /// <summary>Whether a read of a local comes after a boundary it cannot cross.</summary>
     /// <param name="graph">The graph of the whole member, which holds the graphs of its lambdas and local functions.</param>
     /// <param name="reference">The reference.</param>
     /// <returns>Whether the compiler would have to preserve the local for this reference.</returns>
-    public static bool ReadsAcrossBoundary(ControlFlowGraph graph, ILocalReferenceOperation reference)
+    public static bool ReadsAcrossBoundary(ControlFlowGraph graph, ILocalReferenceOperation reference) => Finds(graph, reference, reference.Local, Boundary);
+
+    /// <summary>Whether a call on a command comes after another one on some path, with no write of the variable between them.</summary>
+    /// <param name="graph">The graph of the whole member, which holds the graphs of its lambdas and local functions.</param>
+    /// <param name="reference">The reference, which <see cref="IsCall"/> found to be a call.</param>
+    /// <param name="variable">The local or parameter that holds the command.</param>
+    /// <param name="model">The semantic model of the reference. The operations of a graph have none of their own.</param>
+    /// <returns>Whether an earlier call has used the command up by here.</returns>
+    public static bool IsUsedAgain(ControlFlowGraph graph, IOperation reference, ISymbol variable, SemanticModel model)
+    {
+        var rule = new Rule(
+            operation => IsReferenceTo(operation, variable) && IsCall(operation, model),
+            operation => IsCall(operation, model),
+            static operation => IsOutArgument(operation) || IsRefArgument(operation));
+        return Finds(graph, reference, variable, rule);
+    }
+
+    /// <summary>
+    /// Whether a reference is the receiver of a call that uses a command up: a call in the library, a helper that returns a command, or an <c>await</c>. A method of the user that returns anything else
+    /// may never touch the command. It reads the syntax, because the graph takes a receiver out of its call when an argument branches.
+    /// </summary>
+    /// <param name="reference">The reference.</param>
+    /// <param name="model">The semantic model.</param>
+    /// <returns>Whether the reference is such a receiver.</returns>
+    public static bool IsCall(IOperation reference, SemanticModel model)
+    {
+        var receiver = reference.Syntax;
+        while (receiver.Parent is ParenthesizedExpressionSyntax parenthesized)
+        {
+            receiver = parenthesized;
+        }
+
+        return receiver.Parent is AwaitExpressionSyntax
+            || (receiver.Parent is MemberAccessExpressionSyntax { Parent: InvocationExpressionSyntax invocation } access
+                && access.Expression == receiver
+                && model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
+                && (DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) || DynaSharpTypes.IsCommand(method.ReturnType)));
+    }
+
+    private static bool Finds(ControlFlowGraph graph, IOperation reference, ISymbol variable, Rule rule)
     {
         var reads = new HashSet<SyntaxNode>();
-        Collect(graph, reference.Local, reads);
+        Collect(graph, variable, rule, reads);
         return reads.Contains(reference.Syntax);
     }
 
-    private static void Collect(ControlFlowGraph graph, ILocalSymbol local, HashSet<SyntaxNode> reads)
+    private static void Collect(ControlFlowGraph graph, ISymbol variable, Rule rule, HashSet<SyntaxNode> reads)
     {
-        Flow(graph, local, reads);
+        Flow(graph, variable, rule, reads);
         foreach (var function in graph.LocalFunctions)
         {
-            Collect(graph.GetLocalFunctionControlFlowGraph(function), local, reads);
+            Collect(graph.GetLocalFunctionControlFlowGraph(function), variable, rule, reads);
         }
 
         foreach (var block in graph.Blocks)
         {
             foreach (var lambda in OperationsOf(block).SelectMany(static operation => operation.DescendantsAndSelf()).OfType<IFlowAnonymousFunctionOperation>())
             {
-                Collect(graph.GetAnonymousFunctionControlFlowGraph(lambda), local, reads);
+                Collect(graph.GetAnonymousFunctionControlFlowGraph(lambda), variable, rule, reads);
             }
         }
     }
 
     // The state of a block only ever turns stale, so a read found on the way to the fixed point stays a finding.
-    private static void Flow(ControlFlowGraph graph, ILocalSymbol local, HashSet<SyntaxNode> reads)
+    private static void Flow(ControlFlowGraph graph, ISymbol variable, Rule rule, HashSet<SyntaxNode> reads)
     {
         var entry = new bool[graph.Blocks.Length];
         bool changed;
@@ -54,7 +98,7 @@ internal static class CommandFlow
                 var stale = entry[block.Ordinal];
                 foreach (var operation in OperationsOf(block))
                 {
-                    Visit(operation, local, ref stale, reads);
+                    Visit(operation, variable, rule, ref stale, reads);
                 }
 
                 if (stale)
@@ -126,37 +170,56 @@ internal static class CommandFlow
     private static IEnumerable<IOperation> OperationsOf(BasicBlock block) => block.BranchValue is { } value ? block.Operations.Append(value) : block.Operations;
 
     // Children come in evaluation order, and an operation happens after its children: the await of `await cmd.SendAsync()` follows the read of cmd.
-    private static void Visit(IOperation operation, ILocalSymbol local, ref bool stale, HashSet<SyntaxNode> reads)
+    private static void Visit(IOperation operation, ISymbol variable, Rule rule, ref bool stale, HashSet<SyntaxNode> reads)
     {
-        if (operation is ISimpleAssignmentOperation { Target: ILocalReferenceOperation target } assignment && SymbolEqualityComparer.Default.Equals(target.Local, local))
+        if (operation is ISimpleAssignmentOperation assignment && Writes(assignment, variable))
         {
-            Visit(assignment.Value, local, ref stale, reads);
+            Visit(assignment.Value, variable, rule, ref stale, reads);
             stale = false;
             return;
         }
 
         foreach (var child in operation.ChildOperations)
         {
-            Visit(child, local, ref stale, reads);
+            Visit(child, variable, rule, ref stale, reads);
         }
 
-        if (operation.Kind is OperationKind.Await or OperationKind.YieldReturn)
+        if (IsReferenceTo(operation, variable))
         {
-            stale = true;
-        }
-        else if (operation is ILocalReferenceOperation reference && SymbolEqualityComparer.Default.Equals(reference.Local, local))
-        {
-            if (IsOutArgument(reference))
+            if (rule.Clears(operation))
             {
                 stale = false;
             }
-            else if (stale)
+            else if (stale && rule.Counts(operation))
             {
-                reads.Add(reference.Syntax);
+                reads.Add(operation.Syntax);
             }
         }
+
+        stale |= rule.Spoils(operation);
     }
+
+    // When the value branches or holds an initializer, the graph takes the target out of the assignment first, and then only the syntax still names it.
+    private static bool Writes(ISimpleAssignmentOperation assignment, ISymbol variable) =>
+        IsReferenceTo(assignment.Target, variable)
+        || (assignment.Target is IFlowCaptureReferenceOperation { Syntax: IdentifierNameSyntax name } && name.Identifier.ValueText == variable.Name);
+
+    private static bool IsReferenceTo(IOperation operation, ISymbol variable) => operation switch
+    {
+        ILocalReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Local, variable),
+        IParameterReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Parameter, variable),
+        _ => false,
+    };
 
     private static bool IsOutArgument(IOperation reference) =>
         reference.Syntax.Parent is ArgumentSyntax argument && argument.RefKindKeyword.IsKind(SyntaxKind.OutKeyword);
+
+    private static bool IsRefArgument(IOperation reference) =>
+        reference.Syntax.Parent is ArgumentSyntax argument && argument.RefKindKeyword.IsKind(SyntaxKind.RefKeyword);
+
+    /// <summary>What a rule looks for in the flow of one variable.</summary>
+    /// <param name="Spoils">Whether an operation makes the variable stale.</param>
+    /// <param name="Counts">Whether a reference to a stale variable is a finding.</param>
+    /// <param name="Clears">Whether a reference to the variable writes it, as an assignment does.</param>
+    private sealed record Rule(Func<IOperation, bool> Spoils, Func<IOperation, bool> Counts, Func<IOperation, bool> Clears);
 }

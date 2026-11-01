@@ -10,20 +10,26 @@ namespace Shapes.Positional;
 
 partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.Member>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "MEMBER",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "MEMBER",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Positional.Member>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Positional.Member>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Member(in __Fields fields)
         : this(fields.Id!, fields.Name!, fields.Age__set ? fields.Age! : 18, fields.Limit__set ? fields.Limit! : 1.5m, fields.Motto__set ? fields.Motto! : "hello \"world\"", fields.Tier__set ? fields.Tier! : (global::Shapes.Positional.Tier)(-1), fields.Nick__set ? fields.Nick : default, fields.Badges__set ? fields.Badges : default)
@@ -32,12 +38,14 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
         if (fields.Home__set) { this.Home = fields.Home; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Positional.Member>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Positional.Member entity)
     {
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Positional.Member>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Positional.Member entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -76,6 +84,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Positional.Member __Map.IDynamoDbDocument<global::Shapes.Positional.Member>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -200,6 +209,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
         return new global::Shapes.Positional.Member(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -215,6 +225,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
     }
 
     /// <summary>The attributes of <c>Member</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -248,6 +259,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
         public static global::DynaSharp.Attr<global::Shapes.Positional.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Positional.Address>> Home => new("Home");
 
         /// <summary>The converter of <c>global::Shapes.Positional.Tier</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Positional_TierConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Positional.Tier>
         {
@@ -260,12 +272,14 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
     }
 
     /// <summary>The key builders of <c>Member</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Member</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Member</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Positional.Member>
         {
             private readonly string _0;
@@ -282,9 +296,21 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }
         }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>Member</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Member</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Positional.Member> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Positional.Member>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
+        }
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Positional_TierConverter : __Ser.IDynamoDbConverter<global::Shapes.Positional.Tier>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Positional.Tier>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

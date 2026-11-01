@@ -16,12 +16,14 @@ partial interface IInner
 {
 partial record Deep : __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle.IInner.Deep>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle.IInner.Deep>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Nested.Outer.Middle.IInner.Deep entity)
     {
         writer.WriteAttributeName("Kind"u8);
         Shapes_Nested_Outer_Middle_KindConverter.Write(writer, entity.Kind);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Nested.Outer.Middle.IInner.Deep __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle.IInner.Deep>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -58,18 +60,21 @@ partial record Deep : __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle
         return new global::Shapes.Nested.Outer.Middle.IInner.Deep(fields.Kind!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::Shapes.Nested.Outer.Middle.Kind Kind; public bool Kind__set;
     }
 
     /// <summary>The attributes of <c>Deep</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Kind</c>.</summary>
         public static global::DynaSharp.Attr<global::Shapes.Nested.Outer.Middle.Kind, __Shapes_Nested_Outer_Middle_KindConverter> Kind => new("Kind");
 
         /// <summary>The converter of <c>global::Shapes.Nested.Outer.Middle.Kind</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Nested_Outer_Middle_KindConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Nested.Outer.Middle.Kind>
         {
@@ -85,6 +90,7 @@ partial record Deep : __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle
 }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Nested_Outer_Middle_KindConverter : __Ser.IDynamoDbConverter<global::Shapes.Nested.Outer.Middle.Kind>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Nested.Outer.Middle.Kind>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

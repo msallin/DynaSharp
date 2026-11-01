@@ -285,7 +285,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Get(key, "b");
+            _ = shop.Get(key, "b");
             return Task.CompletedTask;
         });
 
@@ -304,7 +304,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Get(default);
+            _ = shop.Get(default);
             return Task.CompletedTask;
         });
 
@@ -323,7 +323,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Update("a", string.Empty);
+            _ = shop.Update("a", string.Empty);
             return Task.CompletedTask;
         });
 
@@ -342,7 +342,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Delete(Array.Empty<byte>());
+            _ = shop.Delete(Array.Empty<byte>());
             return Task.CompletedTask;
         });
 
@@ -361,7 +361,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Get("a", "b");
+            _ = shop.Get("a", "b");
             return Task.CompletedTask;
         });
 
@@ -381,7 +381,7 @@ public sealed class TableTests
         // Act
         await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Get(string.Empty);
+            _ = shop.Get(string.Empty);
             return Task.CompletedTask;
         });
 
@@ -400,7 +400,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentNullException>(() =>
         {
-            customers.Get((ClassKey)null!);
+            _ = customers.Get((ClassKey)null!);
             return Task.CompletedTask;
         });
 
@@ -434,7 +434,7 @@ public sealed class TableTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentNullException>(() =>
         {
-            customers.Get((Customer)null!);
+            _ = customers.Get((Customer)null!);
             return Task.CompletedTask;
         });
 
@@ -454,12 +454,12 @@ public sealed class TableTests
         {
             await TestClient.CaptureAsync<ArgumentNullException>(() =>
             {
-                items.Put();
+                _ = items.Put();
                 return Task.CompletedTask;
             }),
             await TestClient.CaptureAsync<ArgumentNullException>(() =>
             {
-                customers.Get(new Customer("a", "b"));
+                _ = customers.Get(new Customer("a", "b"));
                 return Task.CompletedTask;
             }),
             await TestClient.CaptureAsync<ArgumentNullException>(() => Task.FromResult(customers.Index("a"))),

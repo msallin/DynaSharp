@@ -77,7 +77,7 @@ public sealed class TablePerPeriodTests(Backend backend)
 [DynamoDbEntity]
 [Discriminator("LOG")]
 [PartitionKey("LOG#{Source}")]
-[SortKey("{At}")]
+[SortKey("{At:ticks}")]
 internal sealed partial record LogEntry
 {
     public required string Source { get; init; }

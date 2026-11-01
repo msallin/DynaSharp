@@ -14,30 +14,37 @@ partial record struct Inner
 {
 partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Outer.Inner.Point>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "POINT",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "POINT#{X:plain}", true, new[] { new __Map.DynamoDbKeyInput("X", "X") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "POINT",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "POINT#{X:plain}", true, new[] { new __Map.DynamoDbKeyInput("X", "X") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Outer.Inner.Point>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Outer.Inner.Point>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Outer.Inner.Point>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Outer.Inner.Point entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.X);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Outer.Inner.Point>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Outer.Inner.Point entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -50,6 +57,7 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Y);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Outer.Inner.Point __Map.IDynamoDbDocument<global::KeyShapes.Outer.Inner.Point>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -112,6 +120,7 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
         return new global::KeyShapes.Outer.Inner.Point(fields.X!, fields.Y!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int X; public bool X__set;
@@ -119,6 +128,7 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
     }
 
     /// <summary>The attributes of <c>Point</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>X</c>.</summary>
@@ -129,12 +139,14 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
     }
 
     /// <summary>The key builders of <c>Point</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Point</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(int x) => new PrimaryKey(x);
 
         /// <summary>The primary key of <c>Point</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Outer.Inner.Point>
         {
             private readonly int _0;
@@ -154,9 +166,11 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="X">The value of the placeholder <c>X</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(int X);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Point</c>, with the template <c>POINT#{X:plain}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;

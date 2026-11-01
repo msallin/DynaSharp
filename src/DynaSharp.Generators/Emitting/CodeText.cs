@@ -6,6 +6,15 @@ namespace DynaSharp.Generators;
 /// <summary>Spells values as the text of generated code.</summary>
 internal static class CodeText
 {
+    /// <summary>The version in <see cref="GeneratedCode"/>. It is a constant so that a generated file does not change with the build that made the generator.</summary>
+    public const string GeneratorVersion = "0.1.0";
+
+    /// <summary>
+    /// The attribute coverage tools exclude generated code by. It goes on every generated member and never on a partial declaration, which merges with the declaration of the user: it would
+    /// exclude hand-written members as well, and clash with a <c>[GeneratedCode]</c> of the user's own, because the attribute allows one use.
+    /// </summary>
+    public const string GeneratedCode = "[global::System.CodeDom.Compiler.GeneratedCode(\"DynaSharp.Generators\", \"" + GeneratorVersion + "\")]";
+
     /// <summary>A C# string literal: <c>a"b</c> gives <c>"a\"b"</c>.</summary>
     public static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 

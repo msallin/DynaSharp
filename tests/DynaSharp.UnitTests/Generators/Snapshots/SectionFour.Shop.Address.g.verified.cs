@@ -10,6 +10,7 @@ namespace Shop;
 
 partial record Address : __Map.IDynamoDbDocument<global::Shop.Address>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shop.Address>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shop.Address entity)
     {
         writer.WriteAttributeName("Street"u8);
@@ -23,6 +24,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shop.Address>
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shop.Address __Map.IDynamoDbDocument<global::Shop.Address>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -80,6 +82,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shop.Address>
         return new global::Shop.Address(fields.Street!, fields.City!, fields.Zip);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Street; public bool Street__set;
@@ -88,6 +91,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shop.Address>
     }
 
     /// <summary>The attributes of <c>Address</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Street</c>.</summary>

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>uintpk</c>.</summary>
         /// <param name="UInt">The value of the placeholder <c>UInt</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct UintPkParts(uint UInt);
 
         /// <summary>Builds and parses the partition key <c>uintpk</c> of <c>KeyFormats</c>, with the template <c>I#{UInt}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class UintPk
         {
             private const int BufferLength = 256;

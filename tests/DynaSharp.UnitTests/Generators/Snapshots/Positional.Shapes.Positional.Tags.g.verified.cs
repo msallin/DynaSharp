@@ -10,6 +10,7 @@ namespace Shapes.Positional;
 
 partial record Tags : __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Positional.Tags entity)
     {
         if (entity.Names is { Count: > 0 } __v0)
@@ -21,6 +22,7 @@ partial record Tags : __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>
         global::DynaSharp.Serialization.ArrayConverter<string, global::DynaSharp.Serialization.StringConverter>.Write(writer, entity.Unused);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Positional.Tags __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -67,6 +69,7 @@ partial record Tags : __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>
         return new global::Shapes.Positional.Tags(fields.Names__set ? fields.Names! : new global::System.Collections.Generic.HashSet<string>(), fields.Unused!);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::System.Collections.Generic.HashSet<string> Names; public bool Names__set;
@@ -74,6 +77,7 @@ partial record Tags : __Map.IDynamoDbDocument<global::Shapes.Positional.Tags>
     }
 
     /// <summary>The attributes of <c>Tags</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Names</c>.</summary>

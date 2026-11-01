@@ -10,6 +10,7 @@ namespace Shapes.RecordStruct;
 
 partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Flat>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Flat(in __Fields fields)
         : this()
@@ -18,6 +19,7 @@ partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct
         if (fields.Rent__set) { this.Rent = fields.Rent; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Flat>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.RecordStruct.Flat entity)
     {
         writer.WriteAttributeName("Floor"u8);
@@ -29,6 +31,7 @@ partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.RecordStruct.Flat __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Flat>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -75,6 +78,7 @@ partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct
         return new global::Shapes.RecordStruct.Flat(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int Floor; public bool Floor__set;
@@ -82,6 +86,7 @@ partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct
     }
 
     /// <summary>The attributes of <c>Flat</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Floor</c>.</summary>

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>fixeddecimalpk</c>.</summary>
         /// <param name="Money">The value of the placeholder <c>Money</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct FixedDecimalPkParts(decimal Money);
 
         /// <summary>Builds and parses the partition key <c>fixeddecimalpk</c> of <c>KeyFormats</c>, with the template <c>M#{Money:n4.2}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class FixedDecimalPk
         {
             private const int BufferLength = 10;

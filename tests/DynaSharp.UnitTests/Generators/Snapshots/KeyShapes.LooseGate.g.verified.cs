@@ -10,33 +10,40 @@ namespace KeyShapes;
 
 partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseGate>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "LOOSE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "OpenPk" },
-            new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "GatedPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-            new __Map.DynamoDbKeyTemplate("openpk", "O#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.OpenPk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("shared", "T#{Tenant}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }, static __values => Keys.OpenSk.Format((string)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("gatedpk", "G#{Note}", false, new[] { new __Map.DynamoDbKeyInput("Note", "Note") }, static __values => Keys.GatedPk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "LOOSE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "OpenPk" },
+                new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "GatedPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("openpk", "O#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.OpenPk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("shared", "T#{Tenant}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }, static __values => Keys.OpenSk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gatedpk", "G#{Note}", false, new[] { new __Map.DynamoDbKeyInput("Note", "Note") }, static __values => Keys.GatedPk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.LooseGate>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.LooseGate>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public LooseGate()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private LooseGate(in __Fields fields)
         : this()
@@ -46,12 +53,14 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
         if (fields.Note__set) { this.Note = fields.Note; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.LooseGate>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.LooseGate entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.LooseGate>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.LooseGate entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -78,6 +87,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.LooseGate __Map.IDynamoDbDocument<global::KeyShapes.LooseGate>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -159,6 +169,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
         return new global::KeyShapes.LooseGate(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -167,6 +178,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
     }
 
     /// <summary>The attributes of <c>LooseGate</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -180,12 +192,14 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
     }
 
     /// <summary>The key builders of <c>LooseGate</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>LooseGate</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>LooseGate</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.LooseGate>
         {
             private readonly string _0;
@@ -205,9 +219,11 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>LooseGate</c>, with the template <c>{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -299,9 +315,11 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
         /// <summary>The values of a parsed <c>openpk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct OpenPkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>openpk</c> of <c>LooseGate</c>, with the template <c>O#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class OpenPk
         {
             private const int BufferLength = 256;
@@ -395,9 +413,11 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
         /// <summary>The values of a parsed <c>shared</c>.</summary>
         /// <param name="Tenant">The value of the placeholder <c>Tenant</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct OpenSkParts(string Tenant);
 
         /// <summary>Builds and parses the sort key <c>shared</c> of <c>LooseGate</c>, with the template <c>T#{Tenant}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class OpenSk
         {
             private const int BufferLength = 256;
@@ -526,9 +546,11 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
         /// <summary>The values of a parsed <c>gatedpk</c>.</summary>
         /// <param name="Note">The value of the placeholder <c>Note</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct GatedPkParts(string Note);
 
         /// <summary>Builds and parses the partition key <c>gatedpk</c> of <c>LooseGate</c>, with the template <c>G#{Note}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class GatedPk
         {
             private const int BufferLength = 256;
@@ -622,9 +644,11 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
         /// <summary>The values of a parsed <c>shared</c>.</summary>
         /// <param name="Tenant">The value of the placeholder <c>Tenant</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct GatedSkParts(string Tenant);
 
         /// <summary>Builds and parses the sort key <c>shared</c> of <c>LooseGate</c>, with the template <c>T#{Tenant}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class GatedSk
         {
             private const int BufferLength = 256;
@@ -753,6 +777,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
     }
 
     /// <summary>The names of the indexes of <c>LooseGate</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>Open</c>.</summary>

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>tickspk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct TicksPkParts(global::System.DateTimeOffset At);
 
         /// <summary>Builds and parses the partition key <c>tickspk</c> of <c>KeyFormats</c>, with the template <c>T#{At:ticks}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class TicksPk
         {
             private const int BufferLength = 30;

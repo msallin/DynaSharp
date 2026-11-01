@@ -324,7 +324,7 @@ public sealed class CommandStateTests
         // Act
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() =>
         {
-            shop.Update("a").Set(new Attr<string, ThrowingConverter>("x"), "boom");
+            _ = shop.Update("a").Set(new Attr<string, ThrowingConverter>("x"), "boom");
             return Task.CompletedTask;
         });
         var json = shop.Update("b").Set("y", 1).ToRequestJson();
@@ -468,7 +468,8 @@ public sealed class CommandStateTests
         _ = command.ToRequestJson();
         try
         {
-            _ = command.SendAsync().AsTask();
+            var again = command;
+            _ = again.SendAsync().AsTask();
             return string.Empty;
         }
         catch (InvalidOperationException exception)
@@ -483,7 +484,8 @@ public sealed class CommandStateTests
         _ = first.Set("x", 1);
         try
         {
-            first.Set("y", 2);
+            var again = first;
+            _ = again.Set("y", 2);
             return string.Empty;
         }
         catch (InvalidOperationException exception)
@@ -498,7 +500,8 @@ public sealed class CommandStateTests
         var first = command.SendAsync().AsTask();
         try
         {
-            _ = command.SendAsync().AsTask();
+            var again = command;
+            _ = again.SendAsync().AsTask();
             return (string.Empty, first);
         }
         catch (InvalidOperationException exception)
@@ -513,7 +516,8 @@ public sealed class CommandStateTests
         _ = command.ToRequestJson();
         try
         {
-            _ = command.ToRequestJson();
+            var again = command;
+            _ = again.ToRequestJson();
             return string.Empty;
         }
         catch (InvalidOperationException exception)
@@ -531,12 +535,14 @@ public sealed class CommandStateTests
         var second = shop.Get("second");
         try
         {
-            stale.Set("a", 1);
+            var again = stale;
+            _ = again.Set("a", 1);
             return (string.Empty, second.ToRequestJson());
         }
         catch (InvalidOperationException exception)
         {
-            return (exception.Message, second.ToRequestJson());
+            var again = second;
+            return (exception.Message, again.ToRequestJson());
         }
     }
 
@@ -547,12 +553,14 @@ public sealed class CommandStateTests
         var second = shop.Get("second");
         try
         {
-            stale.If($"{Attr("a")} = {1}");
+            var again = stale;
+            _ = again.If($"{Attr("a")} = {1}");
             return (string.Empty, second.ToRequestJson());
         }
         catch (InvalidOperationException exception)
         {
-            return (exception.Message, second.ToRequestJson());
+            var again = second;
+            return (exception.Message, again.ToRequestJson());
         }
     }
 

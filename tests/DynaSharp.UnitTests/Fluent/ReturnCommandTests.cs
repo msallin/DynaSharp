@@ -198,7 +198,7 @@ public sealed class ReturnCommandTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentException>(() =>
         {
-            shop.Update("a").Set("tags[1]", "x").Return(Attr("tags[1]"));
+            _ = shop.Update("a").Set("tags[1]", "x").Return(Attr("tags[1]"));
             return Task.CompletedTask;
         });
 

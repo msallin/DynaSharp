@@ -10,31 +10,38 @@ namespace KeyShapes;
 
 partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainKeys>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "PLAINKEYS",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "Sort",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("ByCode", "Code", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("ByTag", "Id", "bytagsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("Code", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }),
-            new __Map.DynamoDbKeyTemplate("bytagsk", "TAG#{Tag}", false, new[] { new __Map.DynamoDbKeyInput("Tag", "Tag") }, static __values => Keys.ByTagSk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "PLAINKEYS",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "Sort",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("ByCode", "Code", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByCodePk" },
+                new __Map.DynamoDbIndexInfo("ByTag", "Id", "bytagsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("Code", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }),
+                new __Map.DynamoDbKeyTemplate("bytagsk", "TAG#{Tag}", false, new[] { new __Map.DynamoDbKeyInput("Tag", "Tag") }, static __values => Keys.ByTagSk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.PlainKeys>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.PlainKeys>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public PlainKeys()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private PlainKeys(in __Fields fields)
         : this()
@@ -45,6 +52,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         this.Tag = fields.Tag;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.PlainKeys>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.PlainKeys entity)
     {
         writer.WriteAttributeName("Id"u8);
@@ -53,6 +61,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Sort);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.PlainKeys>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.PlainKeys entity)
     {
         writer.WriteAttributeName("bytagsk"u8);
@@ -69,6 +78,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Tag);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.PlainKeys __Map.IDynamoDbDocument<global::KeyShapes.PlainKeys>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -153,6 +163,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         return new global::KeyShapes.PlainKeys(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -162,6 +173,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
     }
 
     /// <summary>The attributes of <c>PlainKeys</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -178,12 +190,14 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
     }
 
     /// <summary>The key builders of <c>PlainKeys</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>PlainKeys</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id, string sort) => new PrimaryKey(id, sort);
 
         /// <summary>The primary key of <c>PlainKeys</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.PlainKeys>
         {
             private readonly string _0;
@@ -205,11 +219,46 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
             }
         }
 
+        /// <summary>Builds the partition key <c>Id</c> of <c>PlainKeys</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>PlainKeys</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.PlainKeys> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.PlainKeys>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
+        }
+
+        /// <summary>Builds the sort key <c>Sort</c> of <c>PlainKeys</c>, which is the property <c>Sort</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Sk
+        {
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            public static global::DynaSharp.AttributeValue Of(string sort) => global::DynaSharp.AttributeValue.FromString(sort);
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string sort) => Of(sort).AsString();
+        }
+
+        /// <summary>Builds the partition key <c>Code</c> of <c>PlainKeys</c>, which is the property <c>Code</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class ByCodePk
+        {
+            /// <summary>Gives the key as a key of <c>PlainKeys</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.PlainKeys> Of(string code) => new global::DynaSharp.PartitionKey<global::KeyShapes.PlainKeys>(global::DynaSharp.AttributeValue.FromString(code), "Code");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string code) => Of(code).Value;
+        }
+
         /// <summary>The values of a parsed <c>bytagsk</c>.</summary>
         /// <param name="Tag">The value of the placeholder <c>Tag</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByTagSkParts(string Tag);
 
         /// <summary>Builds and parses the sort key <c>bytagsk</c> of <c>PlainKeys</c>, with the template <c>TAG#{Tag}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByTagSk
         {
             private const int BufferLength = 256;
@@ -338,6 +387,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
     }
 
     /// <summary>The names of the indexes of <c>PlainKeys</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>ByCode</c>.</summary>

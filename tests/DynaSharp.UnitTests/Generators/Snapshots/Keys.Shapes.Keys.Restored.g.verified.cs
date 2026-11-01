@@ -10,28 +10,34 @@ namespace Shapes.Keys;
 
 partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Restored>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "RESTORED",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "USER#{User}", true, new[] { new __Map.DynamoDbKeyInput("User", null) }),
-            new __Map.DynamoDbKeyTemplate("sk", "{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", null), new __Map.DynamoDbKeyInput("Id", null) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
-            new __Map.DynamoDbKeyTemplate("gsi1pk", "STATE#{State}", false, new[] { new __Map.DynamoDbKeyInput("State", null) }, static __values => Keys.Gsi1Pk.Format((global::Shapes.Keys.Status)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("gsi1sk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", null) }, static __values => Keys.Gsi1Sk.Format((global::System.Guid)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "RESTORED",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{User}", true, new[] { new __Map.DynamoDbKeyInput("User", null) }),
+                new __Map.DynamoDbKeyTemplate("sk", "{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", null), new __Map.DynamoDbKeyInput("Id", null) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("gsi1pk", "STATE#{State}", false, new[] { new __Map.DynamoDbKeyInput("State", null) }, static __values => Keys.Gsi1Pk.Format((global::Shapes.Keys.Status)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gsi1sk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", null) }, static __values => Keys.Gsi1Sk.Format((global::System.Guid)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Keys.Restored>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Keys.Restored>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Restored(in __Fields fields)
         : this(fields.User!, fields.State!, fields.Size__set ? fields.Size! : 1)
@@ -41,6 +47,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         if (fields.Note__set) { this.Note = fields.Note; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Keys.Restored>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Keys.Restored entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -49,6 +56,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         Keys.Sk.Write(writer, entity.At, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Keys.Restored>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Keys.Restored entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -70,6 +78,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Keys.Restored __Map.IDynamoDbDocument<global::Shapes.Keys.Restored>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -164,6 +173,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         return new global::Shapes.Keys.Restored(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string User; public bool User__set;
@@ -175,6 +185,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
     }
 
     /// <summary>The attributes of <c>Restored</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Size</c>.</summary>
@@ -185,12 +196,14 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
     }
 
     /// <summary>The key builders of <c>Restored</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Restored</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string user, global::System.DateTime at, global::System.Guid id) => new PrimaryKey(user, at, id);
 
         /// <summary>The primary key of <c>Restored</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Keys.Restored>
         {
             private readonly string _0;
@@ -216,9 +229,11 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="User">The value of the placeholder <c>User</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string User);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Restored</c>, with the template <c>USER#{User}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -313,9 +328,11 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(global::System.DateTime At, global::System.Guid Id);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Restored</c>, with the template <c>{At:ticks}#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 65;
@@ -446,9 +463,11 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
 
         /// <summary>The values of a parsed <c>gsi1pk</c>.</summary>
         /// <param name="State">The value of the placeholder <c>State</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi1PkParts(global::Shapes.Keys.Status State);
 
         /// <summary>Builds and parses the partition key <c>gsi1pk</c> of <c>Restored</c>, with the template <c>STATE#{State}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi1Pk
         {
             private const int BufferLength = 256;
@@ -542,9 +561,11 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
 
         /// <summary>The values of a parsed <c>gsi1sk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi1SkParts(global::System.Guid Id);
 
         /// <summary>Builds and parses the sort key <c>gsi1sk</c> of <c>Restored</c>, with the template <c>{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi1Sk
         {
             private const int BufferLength = 36;
@@ -632,6 +653,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
     }
 
     /// <summary>The names of the indexes of <c>Restored</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>GSI1</c>.</summary>
@@ -639,6 +661,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Keys_StatusConverter : __Ser.IDynamoDbConverter<global::Shapes.Keys.Status>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Keys.Status>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>digitsintpk</c>.</summary>
         /// <param name="Int">The value of the placeholder <c>Int</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct DigitsIntPkParts(int Int);
 
         /// <summary>Builds and parses the partition key <c>digitsintpk</c> of <c>KeyFormats</c>, with the template <c>D#{Int:d12}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class DigitsIntPk
         {
             private const int BufferLength = 14;

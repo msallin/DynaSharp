@@ -10,94 +10,101 @@ namespace KeyShapes;
 
 partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFormats>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "FORMATS",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("guid", "guidpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "GuidPk" },
-            new __Map.DynamoDbIndexInfo("name", "namepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "NamePk" },
-            new __Map.DynamoDbIndexInfo("value", "valuepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ValuePk" },
-            new __Map.DynamoDbIndexInfo("byteEnum", "byteenumpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByteEnumPk" },
-            new __Map.DynamoDbIndexInfo("sbyte", "sbytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "SbytePk" },
-            new __Map.DynamoDbIndexInfo("byte", "bytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "BytePk" },
-            new __Map.DynamoDbIndexInfo("short", "shortpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ShortPk" },
-            new __Map.DynamoDbIndexInfo("ushort", "ushortpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UshortPk" },
-            new __Map.DynamoDbIndexInfo("int", "intpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "IntPk" },
-            new __Map.DynamoDbIndexInfo("uint", "uintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UintPk" },
-            new __Map.DynamoDbIndexInfo("long", "longpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "LongPk" },
-            new __Map.DynamoDbIndexInfo("ulong", "ulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UlongPk" },
-            new __Map.DynamoDbIndexInfo("plain", "plainpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "PlainPk" },
-            new __Map.DynamoDbIndexInfo("digitsInt", "digitsintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsIntPk" },
-            new __Map.DynamoDbIndexInfo("digitsByte", "digitsbytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsBytePk" },
-            new __Map.DynamoDbIndexInfo("digitsULong", "digitsulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsULongPk" },
-            new __Map.DynamoDbIndexInfo("fixedInt", "fixedintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedIntPk" },
-            new __Map.DynamoDbIndexInfo("fixedULong", "fixedulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedULongPk" },
-            new __Map.DynamoDbIndexInfo("decimal", "decimalpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DecimalPk" },
-            new __Map.DynamoDbIndexInfo("fixedDecimal", "fixeddecimalpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedDecimalPk" },
-            new __Map.DynamoDbIndexInfo("year", "yearpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "YearPk" },
-            new __Map.DynamoDbIndexInfo("month", "monthpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MonthPk" },
-            new __Map.DynamoDbIndexInfo("day", "daypk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DayPk" },
-            new __Map.DynamoDbIndexInfo("hour", "hourpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "HourPk" },
-            new __Map.DynamoDbIndexInfo("minute", "minutepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MinutePk" },
-            new __Map.DynamoDbIndexInfo("second", "secondpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "SecondPk" },
-            new __Map.DynamoDbIndexInfo("milli", "millipk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MilliPk" },
-            new __Map.DynamoDbIndexInfo("micro", "micropk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MicroPk" },
-            new __Map.DynamoDbIndexInfo("ticks", "tickspk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "TicksPk" },
-            new __Map.DynamoDbIndexInfo("dateTime", "datetimepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DateTimePk" },
-            new __Map.DynamoDbIndexInfo("dateTimeTicks", "datetimetickspk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DateTimeTicksPk" },
-            new __Map.DynamoDbIndexInfo("date", "datepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DatePk" },
-            new __Map.DynamoDbIndexInfo("custom", "custompk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "CustomPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "{Text}", true, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }),
-            new __Map.DynamoDbKeyTemplate("guidpk", "G#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.GuidPk.Format((global::System.Guid)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("namepk", "E#{Plan}", false, new[] { new __Map.DynamoDbKeyInput("Plan", "Plan") }, static __values => Keys.NamePk.Format((global::KeyShapes.Plan)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("valuepk", "E#{Plan:d3}", false, new[] { new __Map.DynamoDbKeyInput("Plan", "Plan") }, static __values => Keys.ValuePk.Format((global::KeyShapes.Plan)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("byteenumpk", "E#{Tier:d3}", false, new[] { new __Map.DynamoDbKeyInput("Tier", "Tier") }, static __values => Keys.ByteEnumPk.Format((global::KeyShapes.Tier)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("sbytepk", "I#{SByte}", false, new[] { new __Map.DynamoDbKeyInput("SByte", "SByte") }, static __values => Keys.SbytePk.Format((sbyte)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("bytepk", "I#{Byte}", false, new[] { new __Map.DynamoDbKeyInput("Byte", "Byte") }, static __values => Keys.BytePk.Format((byte)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("shortpk", "I#{Short}", false, new[] { new __Map.DynamoDbKeyInput("Short", "Short") }, static __values => Keys.ShortPk.Format((short)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("ushortpk", "I#{UShort}", false, new[] { new __Map.DynamoDbKeyInput("UShort", "UShort") }, static __values => Keys.UshortPk.Format((ushort)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("intpk", "I#{Int}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.IntPk.Format((int)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("uintpk", "I#{UInt}", false, new[] { new __Map.DynamoDbKeyInput("UInt", "UInt") }, static __values => Keys.UintPk.Format((uint)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("longpk", "I#{Long}", false, new[] { new __Map.DynamoDbKeyInput("Long", "Long") }, static __values => Keys.LongPk.Format((long)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("ulongpk", "I#{ULong}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.UlongPk.Format((ulong)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("plainpk", "I#{Int:plain}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.PlainPk.Format((int)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("digitsintpk", "D#{Int:d12}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.DigitsIntPk.Format((int)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("digitsbytepk", "D#{Byte:d4}", false, new[] { new __Map.DynamoDbKeyInput("Byte", "Byte") }, static __values => Keys.DigitsBytePk.Format((byte)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("digitsulongpk", "D#{ULong:d20}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.DigitsULongPk.Format((ulong)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("fixedintpk", "F#{Int:n12}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.FixedIntPk.Format((int)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("fixedulongpk", "F#{ULong:n20}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.FixedULongPk.Format((ulong)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("decimalpk", "M#{Money}", false, new[] { new __Map.DynamoDbKeyInput("Money", "Money") }, static __values => Keys.DecimalPk.Format((decimal)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("fixeddecimalpk", "M#{Money:n4.2}", false, new[] { new __Map.DynamoDbKeyInput("Money", "Money") }, static __values => Keys.FixedDecimalPk.Format((decimal)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("yearpk", "T#{At:yyyy}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.YearPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("monthpk", "T#{At:yyyy-MM}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MonthPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("daypk", "T#{At:yyyy-MM-dd}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.DayPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("hourpk", "T#{At:yyyy-MM-ddTHH}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.HourPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("minutepk", "T#{At:yyyy-MM-ddTHH:mm}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MinutePk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("secondpk", "T#{At:s}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.SecondPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("millipk", "T#{At:ms}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MilliPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("micropk", "T#{At:us}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MicroPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("tickspk", "T#{At:ticks}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.TicksPk.Format((global::System.DateTimeOffset)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("datetimepk", "T#{Utc}", false, new[] { new __Map.DynamoDbKeyInput("Utc", "Utc") }, static __values => Keys.DateTimePk.Format((global::System.DateTime)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("datetimetickspk", "T#{Utc:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Utc", "Utc") }, static __values => Keys.DateTimeTicksPk.Format((global::System.DateTime)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("datepk", "T#{Date}", false, new[] { new __Map.DynamoDbKeyInput("Date", "Date") }, static __values => Keys.DatePk.Format((global::System.DateOnly)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("custompk", "C#{Address}", false, new[] { new __Map.DynamoDbKeyInput("Address", null) }, static __values => Keys.CustomPk.Format((global::System.Net.IPAddress)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "FORMATS",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("guid", "guidpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "GuidPk" },
+                new __Map.DynamoDbIndexInfo("name", "namepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "NamePk" },
+                new __Map.DynamoDbIndexInfo("value", "valuepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ValuePk" },
+                new __Map.DynamoDbIndexInfo("byteEnum", "byteenumpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByteEnumPk" },
+                new __Map.DynamoDbIndexInfo("sbyte", "sbytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "SbytePk" },
+                new __Map.DynamoDbIndexInfo("byte", "bytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "BytePk" },
+                new __Map.DynamoDbIndexInfo("short", "shortpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ShortPk" },
+                new __Map.DynamoDbIndexInfo("ushort", "ushortpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UshortPk" },
+                new __Map.DynamoDbIndexInfo("int", "intpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "IntPk" },
+                new __Map.DynamoDbIndexInfo("uint", "uintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UintPk" },
+                new __Map.DynamoDbIndexInfo("long", "longpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "LongPk" },
+                new __Map.DynamoDbIndexInfo("ulong", "ulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "UlongPk" },
+                new __Map.DynamoDbIndexInfo("plain", "plainpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "PlainPk" },
+                new __Map.DynamoDbIndexInfo("digitsInt", "digitsintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsIntPk" },
+                new __Map.DynamoDbIndexInfo("digitsByte", "digitsbytepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsBytePk" },
+                new __Map.DynamoDbIndexInfo("digitsULong", "digitsulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DigitsULongPk" },
+                new __Map.DynamoDbIndexInfo("fixedInt", "fixedintpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedIntPk" },
+                new __Map.DynamoDbIndexInfo("fixedULong", "fixedulongpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedULongPk" },
+                new __Map.DynamoDbIndexInfo("decimal", "decimalpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DecimalPk" },
+                new __Map.DynamoDbIndexInfo("fixedDecimal", "fixeddecimalpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "FixedDecimalPk" },
+                new __Map.DynamoDbIndexInfo("year", "yearpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "YearPk" },
+                new __Map.DynamoDbIndexInfo("month", "monthpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MonthPk" },
+                new __Map.DynamoDbIndexInfo("day", "daypk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DayPk" },
+                new __Map.DynamoDbIndexInfo("hour", "hourpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "HourPk" },
+                new __Map.DynamoDbIndexInfo("minute", "minutepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MinutePk" },
+                new __Map.DynamoDbIndexInfo("second", "secondpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "SecondPk" },
+                new __Map.DynamoDbIndexInfo("milli", "millipk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MilliPk" },
+                new __Map.DynamoDbIndexInfo("micro", "micropk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "MicroPk" },
+                new __Map.DynamoDbIndexInfo("ticks", "tickspk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "TicksPk" },
+                new __Map.DynamoDbIndexInfo("dateTime", "datetimepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DateTimePk" },
+                new __Map.DynamoDbIndexInfo("dateTimeTicks", "datetimetickspk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DateTimeTicksPk" },
+                new __Map.DynamoDbIndexInfo("date", "datepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "DatePk" },
+                new __Map.DynamoDbIndexInfo("custom", "custompk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "CustomPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "{Text}", true, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }),
+                new __Map.DynamoDbKeyTemplate("guidpk", "G#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.GuidPk.Format((global::System.Guid)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("namepk", "E#{Plan}", false, new[] { new __Map.DynamoDbKeyInput("Plan", "Plan") }, static __values => Keys.NamePk.Format((global::KeyShapes.Plan)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("valuepk", "E#{Plan:d3}", false, new[] { new __Map.DynamoDbKeyInput("Plan", "Plan") }, static __values => Keys.ValuePk.Format((global::KeyShapes.Plan)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("byteenumpk", "E#{Tier:d3}", false, new[] { new __Map.DynamoDbKeyInput("Tier", "Tier") }, static __values => Keys.ByteEnumPk.Format((global::KeyShapes.Tier)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("sbytepk", "I#{SByte}", false, new[] { new __Map.DynamoDbKeyInput("SByte", "SByte") }, static __values => Keys.SbytePk.Format((sbyte)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bytepk", "I#{Byte}", false, new[] { new __Map.DynamoDbKeyInput("Byte", "Byte") }, static __values => Keys.BytePk.Format((byte)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("shortpk", "I#{Short}", false, new[] { new __Map.DynamoDbKeyInput("Short", "Short") }, static __values => Keys.ShortPk.Format((short)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("ushortpk", "I#{UShort}", false, new[] { new __Map.DynamoDbKeyInput("UShort", "UShort") }, static __values => Keys.UshortPk.Format((ushort)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("intpk", "I#{Int}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.IntPk.Format((int)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("uintpk", "I#{UInt}", false, new[] { new __Map.DynamoDbKeyInput("UInt", "UInt") }, static __values => Keys.UintPk.Format((uint)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("longpk", "I#{Long}", false, new[] { new __Map.DynamoDbKeyInput("Long", "Long") }, static __values => Keys.LongPk.Format((long)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("ulongpk", "I#{ULong}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.UlongPk.Format((ulong)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("plainpk", "I#{Int:plain}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.PlainPk.Format((int)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("digitsintpk", "D#{Int:d12}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.DigitsIntPk.Format((int)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("digitsbytepk", "D#{Byte:d4}", false, new[] { new __Map.DynamoDbKeyInput("Byte", "Byte") }, static __values => Keys.DigitsBytePk.Format((byte)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("digitsulongpk", "D#{ULong:d20}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.DigitsULongPk.Format((ulong)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("fixedintpk", "F#{Int:n12}", false, new[] { new __Map.DynamoDbKeyInput("Int", "Int") }, static __values => Keys.FixedIntPk.Format((int)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("fixedulongpk", "F#{ULong:n20}", false, new[] { new __Map.DynamoDbKeyInput("ULong", "ULong") }, static __values => Keys.FixedULongPk.Format((ulong)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("decimalpk", "M#{Money}", false, new[] { new __Map.DynamoDbKeyInput("Money", "Money") }, static __values => Keys.DecimalPk.Format((decimal)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("fixeddecimalpk", "M#{Money:n4.2}", false, new[] { new __Map.DynamoDbKeyInput("Money", "Money") }, static __values => Keys.FixedDecimalPk.Format((decimal)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("yearpk", "T#{At:yyyy}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.YearPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("monthpk", "T#{At:yyyy-MM}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MonthPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("daypk", "T#{At:yyyy-MM-dd}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.DayPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("hourpk", "T#{At:yyyy-MM-ddTHH}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.HourPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("minutepk", "T#{At:yyyy-MM-ddTHH:mm}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MinutePk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("secondpk", "T#{At:s}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.SecondPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("millipk", "T#{At:ms}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MilliPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("micropk", "T#{At:us}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.MicroPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("tickspk", "T#{At:ticks}", false, new[] { new __Map.DynamoDbKeyInput("At", "At") }, static __values => Keys.TicksPk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("datetimepk", "T#{Utc}", false, new[] { new __Map.DynamoDbKeyInput("Utc", "Utc") }, static __values => Keys.DateTimePk.Format((global::System.DateTime)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("datetimetickspk", "T#{Utc:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Utc", "Utc") }, static __values => Keys.DateTimeTicksPk.Format((global::System.DateTime)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("datepk", "T#{Date}", false, new[] { new __Map.DynamoDbKeyInput("Date", "Date") }, static __values => Keys.DatePk.Format((global::System.DateOnly)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("custompk", "C#{Address}", false, new[] { new __Map.DynamoDbKeyInput("Address", null) }, static __values => Keys.CustomPk.Format((global::System.Net.IPAddress)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.KeyFormats>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.KeyFormats>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public KeyFormats()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private KeyFormats(in __Fields fields)
         : this()
@@ -121,12 +128,14 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         this.Address = fields.Address;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.KeyFormats>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.KeyFormats entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Text);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.KeyFormats>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.KeyFormats entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -233,6 +242,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         global::DynaSharp.Serialization.DateOnlyConverter.Write(writer, entity.Date);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.KeyFormats __Map.IDynamoDbDocument<global::KeyShapes.KeyFormats>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -531,6 +541,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         return new global::KeyShapes.KeyFormats(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Text; public bool Text__set;
@@ -553,6 +564,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     }
 
     /// <summary>The attributes of <c>KeyFormats</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Text</c>.</summary>
@@ -604,6 +616,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         public static global::DynaSharp.Attr<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter> Date => new("Date");
 
         /// <summary>The converter of <c>global::KeyShapes.Plan</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_PlanConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Plan>
         {
@@ -615,6 +628,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         }
 
         /// <summary>The converter of <c>global::KeyShapes.Tier</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_TierConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Tier>
         {
@@ -627,12 +641,14 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     }
 
     /// <summary>The key builders of <c>KeyFormats</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>KeyFormats</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string text) => new PrimaryKey(text);
 
         /// <summary>The primary key of <c>KeyFormats</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.KeyFormats>
         {
             private readonly string _0;
@@ -652,6 +668,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     }
 
     /// <summary>The names of the indexes of <c>KeyFormats</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>guid</c>.</summary>
@@ -755,6 +772,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Plan>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;
@@ -806,6 +824,7 @@ file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::
         TryParseName(reader.GetStringUtf8(), out var value) ? value : throw new global::System.FormatException("The text is not a member of KeyShapes.Plan.");
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_TierConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Tier>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Tier>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

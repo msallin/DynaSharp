@@ -10,6 +10,7 @@ namespace Shapes.RecordStruct;
 
 partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Tagged>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Tagged(in __Fields fields)
         : this(fields.Id!)
@@ -17,6 +18,7 @@ partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStru
         if (fields.Label__set) { this.Label = fields.Label; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Tagged>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.RecordStruct.Tagged entity)
     {
         writer.WriteAttributeName("Id"u8);
@@ -28,6 +30,7 @@ partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStru
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.RecordStruct.Tagged __Map.IDynamoDbDocument<global::Shapes.RecordStruct.Tagged>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -74,6 +77,7 @@ partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStru
         return new global::Shapes.RecordStruct.Tagged(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int Id; public bool Id__set;
@@ -81,6 +85,7 @@ partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStru
     }
 
     /// <summary>The attributes of <c>Tagged</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>

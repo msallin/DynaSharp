@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "ADJACENT",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("sk", "{Code:d3}{Name}", true, new[] { new __Map.DynamoDbKeyInput("Code", "Code"), new __Map.DynamoDbKeyInput("Name", "Name") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "ADJACENT",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("sk", "{Code:d3}{Name}", true, new[] { new __Map.DynamoDbKeyInput("Code", "Code"), new __Map.DynamoDbKeyInput("Name", "Name") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Adjacent>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Adjacent>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Adjacent()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Adjacent(in __Fields fields)
         : this()
@@ -40,6 +47,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         if (fields.Name__set) { this.Name = fields.Name; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Adjacent>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Adjacent entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -48,6 +56,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         Keys.Sk.Write(writer, entity.Code, entity.Name);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Adjacent>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Adjacent entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -62,6 +71,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Name);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Adjacent __Map.IDynamoDbDocument<global::KeyShapes.Adjacent>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -123,6 +133,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         return new global::KeyShapes.Adjacent(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public int Code; public bool Code__set;
@@ -130,6 +141,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
     }
 
     /// <summary>The attributes of <c>Adjacent</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Code</c>.</summary>
@@ -140,12 +152,14 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
     }
 
     /// <summary>The key builders of <c>Adjacent</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Adjacent</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(int code, string name) => new PrimaryKey(code, name);
 
         /// <summary>The primary key of <c>Adjacent</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Adjacent>
         {
             private readonly int _0;
@@ -168,9 +182,11 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         }
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts();
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Adjacent</c>, with the template <c>P</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 1;
@@ -235,9 +251,11 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Code">The value of the placeholder <c>Code</c>.</param>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(int Code, string Name);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Adjacent</c>, with the template <c>{Code:d3}{Name}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;

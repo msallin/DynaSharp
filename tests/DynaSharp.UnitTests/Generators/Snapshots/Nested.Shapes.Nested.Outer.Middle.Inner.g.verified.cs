@@ -14,24 +14,31 @@ partial record struct Middle
 {
 partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.Middle.Inner>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "INNER",
-        partitionKeyName: "Id",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "INNER",
+            partitionKeyName: "Id",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Nested.Outer.Middle.Inner>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Nested.Outer.Middle.Inner>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Inner()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Inner(in __Fields fields)
         : this()
@@ -40,12 +47,14 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
         if (fields.Kind__set) { this.Kind = fields.Kind; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Nested.Outer.Middle.Inner>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Nested.Outer.Middle.Inner entity)
     {
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle.Inner>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Nested.Outer.Middle.Inner entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -56,6 +65,7 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
         Shapes_Nested_Outer_Middle_KindConverter.Write(writer, entity.Kind);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Nested.Outer.Middle.Inner __Map.IDynamoDbDocument<global::Shapes.Nested.Outer.Middle.Inner>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -110,6 +120,7 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
         return new global::Shapes.Nested.Outer.Middle.Inner(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -117,6 +128,7 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
     }
 
     /// <summary>The attributes of <c>Inner</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -126,6 +138,7 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
         public static global::DynaSharp.Attr<global::Shapes.Nested.Outer.Middle.Kind, __Shapes_Nested_Outer_Middle_KindConverter> Kind => new("Kind");
 
         /// <summary>The converter of <c>global::Shapes.Nested.Outer.Middle.Kind</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_Nested_Outer_Middle_KindConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.Nested.Outer.Middle.Kind>
         {
@@ -138,12 +151,14 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
     }
 
     /// <summary>The key builders of <c>Inner</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Inner</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Inner</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Nested.Outer.Middle.Inner>
         {
             private readonly string _0;
@@ -160,11 +175,23 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }
         }
+
+        /// <summary>Builds the partition key <c>Id</c> of <c>Inner</c>, which is the property <c>Id</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Inner</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Nested.Outer.Middle.Inner> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Nested.Outer.Middle.Inner>(global::DynaSharp.AttributeValue.FromString(id), "Id");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string id) => Of(id).Value;
+        }
     }
 }
 }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_Nested_Outer_Middle_KindConverter : __Ser.IDynamoDbConverter<global::Shapes.Nested.Outer.Middle.Kind>, __Ser.IDynamoDbSetElementConverter<global::Shapes.Nested.Outer.Middle.Kind>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

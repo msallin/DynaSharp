@@ -10,30 +10,37 @@ namespace KeyShapes;
 
 partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "EDGE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "InvertedPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "FROM#{Source}", true, new[] { new __Map.DynamoDbKeyInput("Source", "Source") }),
-            new __Map.DynamoDbKeyTemplate("sk", "TO#{Target}", true, new[] { new __Map.DynamoDbKeyInput("Target", "Target") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "EDGE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "InvertedPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "FROM#{Source}", true, new[] { new __Map.DynamoDbKeyInput("Source", "Source") }),
+                new __Map.DynamoDbKeyTemplate("sk", "TO#{Target}", true, new[] { new __Map.DynamoDbKeyInput("Target", "Target") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Edge>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Edge>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Edge()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Edge(in __Fields fields)
         : this()
@@ -42,6 +49,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         if (fields.Target__set) { this.Target = fields.Target; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Edge>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Edge entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -50,6 +58,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         Keys.Sk.Write(writer, entity.Target);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Edge>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Edge entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -64,6 +73,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Target);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Edge __Map.IDynamoDbDocument<global::KeyShapes.Edge>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -131,6 +141,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         return new global::KeyShapes.Edge(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Source; public bool Source__set;
@@ -138,6 +149,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
     }
 
     /// <summary>The attributes of <c>Edge</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Source</c>.</summary>
@@ -148,12 +160,14 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
     }
 
     /// <summary>The key builders of <c>Edge</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Edge</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string source, string target) => new PrimaryKey(source, target);
 
         /// <summary>The primary key of <c>Edge</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Edge>
         {
             private readonly string _0;
@@ -177,9 +191,11 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Source">The value of the placeholder <c>Source</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Source);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Edge</c>, with the template <c>FROM#{Source}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -273,9 +289,11 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Target">The value of the placeholder <c>Target</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(string Target);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Edge</c>, with the template <c>TO#{Target}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;
@@ -404,9 +422,11 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Target">The value of the placeholder <c>Target</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct InvertedPkParts(string Target);
 
         /// <summary>Builds and parses the partition key <c>sk</c> of <c>Edge</c>, with the template <c>TO#{Target}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class InvertedPk
         {
             private const int BufferLength = 256;
@@ -500,9 +520,11 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Source">The value of the placeholder <c>Source</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct InvertedSkParts(string Source);
 
         /// <summary>Builds and parses the sort key <c>pk</c> of <c>Edge</c>, with the template <c>FROM#{Source}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class InvertedSk
         {
             private const int BufferLength = 256;
@@ -631,6 +653,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
     }
 
     /// <summary>The names of the indexes of <c>Edge</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>Inverted</c>.</summary>

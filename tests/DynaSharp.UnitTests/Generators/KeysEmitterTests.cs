@@ -230,6 +230,6 @@ public sealed partial class KeysEmitterTests
     }
 
     // What one run of KeyBuilderEmitter writes: a blank line, the record of the parsed values and the builder, whose closing brace is the first at its indent.
-    [GeneratedRegex(@"^\n(?: {8}///[^\n]*\n)+ {8}public readonly record struct (?<name>\w+)Parts\([^\n]*\n\n(?: {8}///[^\n]*\n)+ {8}public static class \k<name>\n.*?^ {8}\}\n", RegexOptions.Multiline | RegexOptions.Singleline)]
+    [GeneratedRegex(@"^\n(?: {8}///[^\n]*\n)+ {8}\[[^\n]*\n {8}public readonly record struct (?<name>\w+)Parts\([^\n]*\n\n(?: {8}///[^\n]*\n)+ {8}\[[^\n]*\n {8}public static class \k<name>\n.*?^ {8}\}\n", RegexOptions.Multiline | RegexOptions.Singleline)]
     private static partial Regex Builder();
 }

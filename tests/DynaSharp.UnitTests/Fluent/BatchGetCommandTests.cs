@@ -379,7 +379,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().Key(string.Empty));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Key(string.Empty));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -394,7 +394,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().Key((TextKey)null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Key((TextKey)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -410,7 +410,7 @@ public sealed class BatchGetCommandTests
         var keys = new TextKey[] { null! };
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().Keys(keys));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Keys(keys));
 
         // Assert
         await Assert.That((failure as ArgumentNullException)?.ParamName).IsEqualTo("keys");
@@ -425,7 +425,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().Keys((IEnumerable<TextKey>)null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Keys((IEnumerable<TextKey>)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -440,7 +440,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().MaxAttempts(0));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().MaxAttempts(0));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentOutOfRangeException>();
@@ -458,7 +458,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchGet().MaxStalledRounds(rounds));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().MaxStalledRounds(rounds));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentOutOfRangeException>();
@@ -545,7 +545,7 @@ public sealed class BatchGetCommandTests
         // Arrange (nothing to arrange)
 
         // Act
-        var failure = TestClient.Catch(static () => default(BatchGetCommand<Item>).Consistent());
+        var failure = TestClient.Catch(static () => _ = default(BatchGetCommand<Item>).Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("default value");

@@ -6,6 +6,39 @@ namespace DynaSharp.UnitTests.Serialization;
 public sealed class ConverterChecksTests
 {
     [Test]
+    public async Task ToAttributeValue_Number_KeepsItsType()
+    {
+        // Arrange, Act
+        var value = ConverterChecks.ToAttributeValue<long, NumberConverter<long>>(42);
+
+        // Assert
+        await Assert.That(value).IsEqualTo(AttributeValue.FromNumber("42"));
+    }
+
+    [Test]
+    public async Task ToAttributeValue_Bytes_KeepsItsType()
+    {
+        // Arrange, Act
+        var value = ConverterChecks.ToAttributeValue<byte[], BinaryConverter>([1, 2]);
+
+        // Assert
+        await Assert.That(value).IsEqualTo(AttributeValue.FromBinary([1, 2]));
+    }
+
+    [Test]
+    public async Task ToAttributeValue_LongerThanTheFirstBuffer_ComesBackWhole()
+    {
+        // Arrange
+        var text = new string('a', 100_000);
+
+        // Act
+        var value = ConverterChecks.ToAttributeValue<string, StringConverter>(text);
+
+        // Assert
+        await Assert.That(value.AsString()).IsEqualTo(text);
+    }
+
+    [Test]
     [Arguments(AttributeType.String)]
     [Arguments(AttributeType.Number)]
     [Arguments(AttributeType.Binary)]

@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>secondpk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SecondPkParts(global::System.DateTimeOffset At);
 
         /// <summary>Builds and parses the partition key <c>secondpk</c> of <c>KeyFormats</c>, with the template <c>T#{At:s}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class SecondPk
         {
             private const int BufferLength = 22;

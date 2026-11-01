@@ -8,7 +8,13 @@ internal sealed record TimestampEncoding(string Format, int Width, bool IsOffset
 {
     public const string LosslessFormat = "Ticks";
 
+    // The width of a minute, the finest format that names a bucket of time rather than a moment.
+    private const int WidestBucket = 16;
+
     public override bool IsLossless => Format == LosslessFormat;
+
+    /// <summary>Gets a value indicating whether the format asks for one key per period, a window or a month, as opposed to a moment in time that it cuts off.</summary>
+    public bool IsBucket => Width <= WidestBucket;
 
     private string FormatCode => $"global::DynaSharp.Keys.KeyTimeFormat.{Format}";
 

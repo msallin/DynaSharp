@@ -861,7 +861,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().PutAll([Numbered(1), null!]));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().PutAll([Numbered(1), null!]));
 
         // Assert
         await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("items");
@@ -878,7 +878,7 @@ public sealed class BatchWriteCommandTests
         Ticket[] items = [new() { Id = "t1", OpenedAt = day }, new() { Id = "a#b", OpenedAt = day }];
 
         // Act
-        var failure = TestClient.Catch(() => tickets.BatchWrite().PutAll(items));
+        var failure = TestClient.Catch(() => _ = tickets.BatchWrite().PutAll(items));
 
         // Assert
         await Assert.That((failure is KeyFormatException, handler.Requests.Count)).IsEqualTo((true, 0));
@@ -983,7 +983,7 @@ public sealed class BatchWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => customers.BatchWrite().DeleteAll((IEnumerable<IKey<Customer>>)null!));
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().DeleteAll((IEnumerable<IKey<Customer>>)null!));
 
         // Assert
         await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("keys");
@@ -998,7 +998,7 @@ public sealed class BatchWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => customers.BatchWrite().DeleteAll(new ClassKey[] { null! }));
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().DeleteAll(new ClassKey[] { null! }));
 
         // Assert
         await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("keys");
@@ -1017,7 +1017,8 @@ public sealed class BatchWriteCommandTests
         {
             var command = customers.BatchWrite();
             _ = command.DeleteAll([Customer.Keys.Of("a")]);
-            _ = command.DeleteAll([Customer.Keys.Of("b")]);
+            var again = command;
+            _ = again.DeleteAll([Customer.Keys.Of("b")]);
         });
 
         // Assert
@@ -1037,7 +1038,8 @@ public sealed class BatchWriteCommandTests
         {
             var command = shop.BatchWrite();
             _ = command.PutAll([Numbered(1)]);
-            _ = command.PutAll([Numbered(2)]);
+            var again = command;
+            _ = again.PutAll([Numbered(2)]);
         });
 
         // Assert
@@ -1053,7 +1055,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().Put(null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().Put(null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1068,7 +1070,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().Put(shop, null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().Put(shop, null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1083,7 +1085,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().Put((Table<Item>)null!, Numbered(1)));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().Put((Table<Item>)null!, Numbered(1)));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1098,7 +1100,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().Delete((Table<Item>)null!, "a"));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().Delete((Table<Item>)null!, "a"));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1113,7 +1115,7 @@ public sealed class BatchWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => customers.BatchWrite().Delete((Table<Customer>)null!, Customer.Keys.Of("a")));
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().Delete((Table<Customer>)null!, Customer.Keys.Of("a")));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1128,7 +1130,7 @@ public sealed class BatchWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => customers.BatchWrite().Delete((ClassKey)null!));
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().Delete((ClassKey)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1158,7 +1160,7 @@ public sealed class BatchWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => customers.BatchWrite().Delete(customers, (ClassKey)null!));
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().Delete(customers, (ClassKey)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1173,7 +1175,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().Delete(string.Empty));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().Delete(string.Empty));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -1188,7 +1190,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().MaxAttempts(0));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().MaxAttempts(0));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentOutOfRangeException>();
@@ -1206,7 +1208,7 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => shop.BatchWrite().MaxStalledRounds(rounds));
+        var failure = TestClient.Catch(() => _ = shop.BatchWrite().MaxStalledRounds(rounds));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentOutOfRangeException>();
@@ -1251,7 +1253,7 @@ public sealed class BatchWriteCommandTests
         // Arrange (nothing to arrange)
 
         // Act
-        var failure = TestClient.Catch(static () => default(BatchWriteCommand<Item>).Put(Numbered(1)));
+        var failure = TestClient.Catch(static () => _ = default(BatchWriteCommand<Item>).Put(Numbered(1)));
 
         // Assert
         await Assert.That(failure.Message).Contains("default value");
@@ -1353,7 +1355,8 @@ public sealed class BatchWriteCommandTests
         var first = command.SendAsync().AsTask();
         try
         {
-            _ = command.SendAsync().AsTask();
+            var again = command;
+            _ = again.SendAsync().AsTask();
             return (first, false);
         }
         catch (InvalidOperationException)
@@ -1367,7 +1370,7 @@ public sealed class BatchWriteCommandTests
         failure = null;
         try
         {
-            command.PutAll(null!);
+            _ = command.PutAll(null!);
         }
         catch (ArgumentNullException exception)
         {

@@ -1130,7 +1130,7 @@ public sealed class WriteRulesTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => customers.Update(Customer.Keys.Of("a")).IfVersion(1));
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = customers.Update(Customer.Keys.Of("a")).IfVersion(1));
 
         // Assert
         await Assert.That(failure.Message).Contains("Shop");
@@ -1683,7 +1683,7 @@ public sealed class WriteRulesTests
         var failure = Assert.Throws<InvalidOperationException>(() =>
         {
             TransactWriteCommand command = client.TransactWrite().Delete(tickets, Ticket.Keys.Of("t1", Day));
-            command.Put(tickets, Held(1));
+            _ = command.Put(tickets, Held(1));
         });
 
         // Assert
@@ -1956,7 +1956,7 @@ public sealed class WriteRulesTests
         failure = null;
         try
         {
-            command.IfVersion(version);
+            _ = command.IfVersion(version);
         }
         catch (ArgumentOutOfRangeException exception)
         {

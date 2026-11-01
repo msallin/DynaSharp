@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyOnlyPlan>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "KEYONLY",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "PLAN#{Plan}", true, new[] { new __Map.DynamoDbKeyInput("Plan", null) }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "KEYONLY",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "PLAN#{Plan}", true, new[] { new __Map.DynamoDbKeyInput("Plan", null) }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.KeyOnlyPlan>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.KeyOnlyPlan>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public KeyOnlyPlan()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private KeyOnlyPlan(in __Fields fields)
         : this()
@@ -39,12 +46,14 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
         if (fields.Plan__set) { this.Plan = fields.Plan; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.KeyOnlyPlan>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.KeyOnlyPlan entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Plan);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.KeyOnlyPlan>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.KeyOnlyPlan entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -53,6 +62,7 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
         writer.WriteString("KEYONLY"u8);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.KeyOnlyPlan __Map.IDynamoDbDocument<global::KeyShapes.KeyOnlyPlan>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -100,23 +110,27 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
         return new global::KeyShapes.KeyOnlyPlan(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::KeyShapes.Plan Plan; public bool Plan__set;
     }
 
     /// <summary>The attributes of <c>KeyOnlyPlan</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
     }
 
     /// <summary>The key builders of <c>KeyOnlyPlan</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>KeyOnlyPlan</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(global::KeyShapes.Plan plan) => new PrimaryKey(plan);
 
         /// <summary>The primary key of <c>KeyOnlyPlan</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.KeyOnlyPlan>
         {
             private readonly global::KeyShapes.Plan _0;
@@ -136,9 +150,11 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Plan">The value of the placeholder <c>Plan</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(global::KeyShapes.Plan Plan);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>KeyOnlyPlan</c>, with the template <c>PLAN#{Plan}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -232,6 +248,7 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Plan>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

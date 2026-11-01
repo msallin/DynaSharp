@@ -143,7 +143,7 @@ public sealed class KeyInputChangesTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Delete(tickets, "a", "b"));
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Delete(tickets, "a", "b"));
 
         // Assert
         await Assert.That(failure.Message).Contains("byownersk");
@@ -326,9 +326,10 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var invoices = client.Table<TenantInvoice>("Billing");
+        var keyInput = TenantInvoice.Attrs.TenantId;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).Set(TenantInvoice.Attrs.TenantId, "acme").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).Set(keyInput, "acme").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot update a key");
@@ -451,9 +452,10 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var counters = client.Table<NumberedCounter>("Shop");
+        var keyInput = NumberedCounter.Attrs.Id;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update(NumberedCounter.Keys.Of(7)).Set(NumberedCounter.Attrs.Id, 8).ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update(NumberedCounter.Keys.Of(7)).Set(keyInput, 8).ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot update a key");
@@ -462,16 +464,16 @@ public sealed class KeyInputChangesTests
     [Test]
     public async Task ToRequestJson_TimestampInTheSameFormatOnARawKey_DerivesTheIndexKeyFromTheParsedKey()
     {
-        // Arrange (parsing loses what is below a millisecond, and the index key has no use for it)
+        // Arrange (the key holds the minute, and the index key has no use for more)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<RoomSlot>("Shop").Update("ROOM#r1", "AT#2026-11-02T10:00:00.000Z").Set(RoomSlot.Attrs.Owner, "ann").ToRequestJson();
+        var json = client.Table<RoomSlot>("Shop").Update("ROOM#r1", "AT#2026-11-02T10:00").Set(RoomSlot.Attrs.Owner, "ann").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
-            "ExpressionAttributeValues":{":v0":{"S":"ann"},":v1":{"S":"OWNER#ann"},":v2":{"S":"2026-11-02T10:00:00.000Z"},":v3":{"S":"SLOT"}}
+            "ExpressionAttributeValues":{":v0":{"S":"ann"},":v1":{"S":"OWNER#ann"},":v2":{"S":"2026-11-02T10:00"},":v3":{"S":"SLOT"}}
             """);
     }
 
@@ -599,9 +601,10 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var claims = client.Table<Claim>("Shop");
+        var keyInput = Claim.Attrs.Id;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "h").Set(Claim.Attrs.Id, "c2").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "h").Set(keyInput, "c2").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot update a key");
@@ -614,9 +617,10 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var devices = client.Table<PlainDevice>("Shop");
+        var keyInput = PlainDevice.Attrs.Serial;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => devices.Update("d1").Set(PlainDevice.Attrs.Rack, "r").Set(PlainDevice.Attrs.Serial, "d2").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => devices.Update("d1").Set(PlainDevice.Attrs.Rack, "r").Set(keyInput, "d2").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot update a key");
@@ -739,9 +743,10 @@ public sealed class KeyInputChangesTests
         using var client = TestClient.Create(handler);
         var tickets = client.Table<Ticket>("Shop");
         DateOnly? openedAt = Day;
+        var keyInput = Ticket.Attrs.OpenedAt;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.OpenedAt, openedAt).ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(keyInput, openedAt).ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("DynamoDB cannot update a key");
@@ -1159,11 +1164,12 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var tickets = client.Table<Ticket>("Shop");
+        var (id, openedAt) = (Ticket.Attrs.Id, Ticket.Attrs.OpenedAt);
 
         // Act
         var failure = Assert.Throws<InvalidOperationException>(() => _ = input == "Id"
-            ? tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Id, "other").ToRequestJson()
-            : tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.OpenedAt, Day).ToRequestJson());
+            ? tickets.Update(TicketKey).IgnoreVersion().Set(id, "other").ToRequestJson()
+            : tickets.Update(TicketKey).IgnoreVersion().Set(openedAt, Day).ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains(input == "Id" ? "TICKET#{Id}" : "AT#{OpenedAt}").And.Contains("cannot update a key");
@@ -1176,9 +1182,10 @@ public sealed class KeyInputChangesTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var tickets = client.Table<Ticket>("Shop");
+        var keyInput = Ticket.Attrs.Id;
 
         // Act
-        var act = () => tickets.Update(TicketKey).IgnoreVersion().Remove(Ticket.Attrs.Id).ToRequestJson();
+        var act = () => tickets.Update(TicketKey).IgnoreVersion().Remove(keyInput).ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();

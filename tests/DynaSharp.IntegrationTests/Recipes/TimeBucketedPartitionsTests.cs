@@ -51,7 +51,7 @@ public sealed class TimeBucketedPartitionsTests(Backend backend)
 [DynamoDbEntity]
 [Discriminator("SAMPLE")]
 [PartitionKey("METRIC#{Metric}#{Bucket:d10}")]
-[SortKey("{At}")]
+[SortKey("{At:ticks}")]
 internal sealed partial record MetricSample
 {
     public required string Metric { get; init; }

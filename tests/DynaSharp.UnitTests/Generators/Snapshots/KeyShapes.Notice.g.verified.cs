@@ -10,36 +10,43 @@ namespace KeyShapes;
 
 partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "NOTICE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "BoardPk" },
-            new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "EveryonePk" },
-            new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByTextPk" },
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "NOTICE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("boardpk", "NOTICES", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardPk.Format()),
-            new __Map.DynamoDbKeyTemplate("boardsk", "ANY", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardSk.Format()),
-            new __Map.DynamoDbKeyTemplate("everyonepk", "EVERYONE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EveryonePk.Format()),
-            new __Map.DynamoDbKeyTemplate("bytextpk", "TEXT", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByTextPk.Format()),
-            new __Map.DynamoDbKeyTemplate("bytextsk", "{Text}", false, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }, static __values => Keys.ByTextSk.Format((string)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "NOTICE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "BoardPk" },
+                new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "EveryonePk" },
+                new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByTextPk" },
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "NOTICE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("boardpk", "NOTICES", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardPk.Format()),
+                new __Map.DynamoDbKeyTemplate("boardsk", "ANY", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardSk.Format()),
+                new __Map.DynamoDbKeyTemplate("everyonepk", "EVERYONE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EveryonePk.Format()),
+                new __Map.DynamoDbKeyTemplate("bytextpk", "TEXT", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByTextPk.Format()),
+                new __Map.DynamoDbKeyTemplate("bytextsk", "{Text}", false, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }, static __values => Keys.ByTextSk.Format((string)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Notice>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Notice>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Notice()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Notice(in __Fields fields)
         : this()
@@ -49,12 +56,14 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         if (fields.Note__set) { this.Note = fields.Note; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Notice>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Notice entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Notice>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Notice entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -82,6 +91,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Notice __Map.IDynamoDbDocument<global::KeyShapes.Notice>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -161,6 +171,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         return new global::KeyShapes.Notice(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Id; public bool Id__set;
@@ -169,6 +180,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
     }
 
     /// <summary>The attributes of <c>Notice</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Id</c>.</summary>
@@ -182,12 +194,14 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
     }
 
     /// <summary>The key builders of <c>Notice</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Notice</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Notice</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Notice>
         {
             private readonly string _0;
@@ -207,9 +221,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Notice</c>, with the template <c>NOTICE#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -302,9 +318,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         }
 
         /// <summary>The values of a parsed <c>boardpk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct BoardPkParts();
 
         /// <summary>Builds and parses the partition key <c>boardpk</c> of <c>Notice</c>, with the template <c>NOTICES</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class BoardPk
         {
             private const int BufferLength = 7;
@@ -367,9 +385,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         }
 
         /// <summary>The values of a parsed <c>boardsk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct BoardSkParts();
 
         /// <summary>Builds and parses the sort key <c>boardsk</c> of <c>Notice</c>, with the template <c>ANY</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class BoardSk
         {
             private const int BufferLength = 3;
@@ -429,9 +449,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         }
 
         /// <summary>The values of a parsed <c>everyonepk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct EveryonePkParts();
 
         /// <summary>Builds and parses the partition key <c>everyonepk</c> of <c>Notice</c>, with the template <c>EVERYONE</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class EveryonePk
         {
             private const int BufferLength = 8;
@@ -494,9 +516,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         }
 
         /// <summary>The values of a parsed <c>bytextpk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByTextPkParts();
 
         /// <summary>Builds and parses the partition key <c>bytextpk</c> of <c>Notice</c>, with the template <c>TEXT</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByTextPk
         {
             private const int BufferLength = 4;
@@ -560,9 +584,11 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
 
         /// <summary>The values of a parsed <c>bytextsk</c>.</summary>
         /// <param name="Text">The value of the placeholder <c>Text</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByTextSkParts(string Text);
 
         /// <summary>Builds and parses the sort key <c>bytextsk</c> of <c>Notice</c>, with the template <c>{Text}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByTextSk
         {
             private const int BufferLength = 256;
@@ -666,6 +692,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
     }
 
     /// <summary>The names of the indexes of <c>Notice</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>Board</c>.</summary>

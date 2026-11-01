@@ -293,6 +293,7 @@ Entity: EntityModel
             Width: 24
             IsOffset: True
             IsLossless: False
+            IsBucket: False
             FixedWidth: 24
           InputIsNullable: False
         - LiteralSegment
@@ -403,6 +404,7 @@ Entity: EntityModel
                 Width: 24
                 IsOffset: True
                 IsLossless: False
+                IsBucket: False
                 FixedWidth: 24
               InputIsNullable: True
           Delimiters: 

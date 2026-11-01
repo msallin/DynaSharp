@@ -64,6 +64,69 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_QueryByATypedKey_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var members = client.Table<Member>("Shop");
+        var key = Member.Keys.Pk.Of("t", "u");
+
+        // Act (the key is a struct over the string that Of formatted, which happens once, here)
+        var allocated = Measure(members, table => CommandHelpers.FinishAndRelease(QueryOf(table, key).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_QueryByAPlainStringKey_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var things = client.Table<OwnedThing>("Shop").Index(OwnedThing.Indexes.ByOwner);
+
+        // Act (a string key has nothing to format, so Of costs nothing either)
+        var allocated = Measure(things, static table => CommandHelpers.FinishAndRelease(table.Query(OwnedThing.Keys.ByOwnerPk.Of("alice")).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_QueryByAPlainNumberKey_AllocatesNothing()
+    {
+        // Arrange (the key is made before: its digits are what Of costs)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var numbered = client.Table<NumberKeyed>("Shop");
+        var key = NumberKeyed.Keys.Pk.Of(7);
+
+        // Act
+        var allocated = Measure(numbered, table => CommandHelpers.FinishAndRelease(QueryOf(table, key).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_QueryByAPlainBinaryKey_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var binary = client.Table<BinaryKeyed>("Shop");
+        var key = BinaryKeyed.Keys.Pk.Of([1, 2]);
+
+        // Act
+        var allocated = Measure(binary, table => CommandHelpers.FinishAndRelease(QueryOf(table, key).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task Build_UpdateWithStructCondition_AllocatesNothing()
     {
         // Arrange
@@ -667,6 +730,9 @@ public sealed class CommandAllocationTests
 
         return smallest;
     }
+
+    private static QueryCommand<T> QueryOf<T>(Table<T> table, PartitionKey<T> key)
+        where T : DynaSharp.Mapping.IDynamoDbEntity<T> => table.Query(key);
 
     private readonly struct SessionKey : DynaSharp.Mapping.IKey<Session>
     {

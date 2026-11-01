@@ -26,7 +26,7 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
         {
             if (start.Compilation.GetTypeByMetadataName(WellKnownNames.ExpressionHandler) is not null)
             {
-                var catalog = new AttributeCatalog(start.Compilation);
+                var catalog = new AttributeCatalog(new ModelCatalog(start.Compilation));
                 start.RegisterOperationAction(operation => Analyze(operation, catalog), OperationKind.Argument);
             }
         });
@@ -101,8 +101,8 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
     }
 
     /// <summary>The attributes of the mapped types one compilation uses, each worked out once.</summary>
-    /// <param name="compilation">The compilation.</param>
-    private sealed class AttributeCatalog(Compilation compilation)
+    /// <param name="models">The models of the compilation.</param>
+    private sealed class AttributeCatalog(ModelCatalog models)
     {
         private readonly ConcurrentDictionary<INamedTypeSymbol, HashSet<string>?> _names = new(SymbolEqualityComparer.Default);
 
@@ -144,24 +144,6 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        // Item, a type without an attribute and a type with errors have no list to check against, so nothing is reported for them.
-        private HashSet<string>? Read(INamedTypeSymbol type)
-        {
-            MappedKind kind;
-            if (AttributeReader.Find(type, WellKnownNames.EntityAttribute) is not null)
-            {
-                kind = MappedKind.Entity;
-            }
-            else if (AttributeReader.Find(type, WellKnownNames.DocumentAttribute) is not null)
-            {
-                kind = MappedKind.Document;
-            }
-            else
-            {
-                return null;
-            }
-
-            return ModelBuilder.ModelOf(type, kind, compilation) is { } model ? NamesIn(model) : null;
-        }
+        private HashSet<string>? Read(INamedTypeSymbol type) => models.ModelOf(type) is { } model ? NamesIn(model) : null;
     }
 }

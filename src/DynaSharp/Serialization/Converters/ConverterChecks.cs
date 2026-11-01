@@ -50,6 +50,28 @@ public static class ConverterChecks
     }
 
     /// <summary>
+    /// Turns a value into the attribute value its converter writes, for the key builders the source generator emits for a plain key: the key is whatever the converter of the property stores, so
+    /// the builder cannot get its type or its text wrong. It writes and reads the value once, so it costs a string or an array.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <returns>The attribute value.</returns>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static AttributeValue ToAttributeValue<T, TConverter>(T value)
+        where TConverter : IDynamoDbConverter<T>
+    {
+        using var buffer = new PooledByteBuffer();
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            TConverter.Write(new DynamoDbWriter(json), value);
+        }
+
+        var reader = new DynamoDbReader(buffer.WrittenSpan);
+        return reader.ReadAttribute<AttributeValue, AttributeValueConverter>();
+    }
+
+    /// <summary>
     /// Finds a string attribute in an item, for the code the source generator emits to restore a property from a key. It is not a check: it fails for an attribute that is absent or of
     /// another type, and the property then counts as missing.
     /// </summary>

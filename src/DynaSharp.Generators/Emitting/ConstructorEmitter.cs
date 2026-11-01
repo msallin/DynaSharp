@@ -13,6 +13,7 @@ internal static class ConstructorEmitter
         if (constructor.DeclareDefaultConstructor)
         {
             code.Blank();
+            code.Line(CodeText.GeneratedCode);
             code.Line($"public {type.Identifier}()");
             code.Open();
             code.Close();
@@ -24,6 +25,7 @@ internal static class ConstructorEmitter
         }
 
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line("[global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]");
         code.Line($"private {type.Identifier}(in __Fields fields)");
         code.Line($"    : this({Arguments(type)})");

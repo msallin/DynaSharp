@@ -217,7 +217,7 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `IDynamoDbEntity<T>.Info`, `WriteKey` | `DynamoDbClient.CreateTable<T>`, `Get(entity)`, `Delete(entity)`, `Index(name)` |
 | `IDynamoDbDiscriminated<T>` | A marker; the constraint of mixed reads. `EntityEmitter` puts it on the declaration when the entity has a discriminator value |
 | `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string. `ValueOf` exists only for an entity with `DynamoDbKeyTemplate.LosesValues` |
-| `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense, with the attribute it is for; `TableExtensions.Query`, which takes it and compares that attribute with what it reads |
+| `PartitionKey<T>` | The generated `Keys.X.Of`, through constructors hidden from IntelliSense, one for the string of a template and one for the `AttributeValue` of a plain key, each with the attribute it is for; `TableExtensions.Query`, which takes it and compares that attribute with what it reads |
 | `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema`, and by `TableExtensions` for the name of a key builder and the kind of an index |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
 | `OmitEmptyConverter<TConverter>`, `IDynamoDbConverter<T>.IsOmitted` | The type of the handle of a property with `[OmitEmpty]`, and `WriteRules`, which ask it through the type parameter. `static virtual`, and false by default, so that a struct converter compiles the question away. The write of the property is a generated `{ Length: > 0 }` and goes through its own converter |
@@ -249,7 +249,7 @@ fallback key of what is unset. A generated constructor taking `in __Fields` is w
 | Collect | `TypeRules.Check`, `PropertyCollector`, `ConstructorBinder`, `ConverterResolver`, `EnumRegistry` | `PropertyFacts`, the constructor, converters |
 | Bind | `KeyTemplateBinder`, `KeyInputCatalog`, `KeyInputs/*`, `EntityKeyBuilder`: placeholders to encodings, delimiters, buffer length, and all rules across keys and indexes | `KeyModel`, `IndexModel`, `EntityModel` |
 | Model | `ModelBuilder.Compose` | `TypeModel` in a `BuildResult` with diagnostics |
-| Emit | `EntityEmitter` owns the file. `ConstructorEmitter`, `WriteEmitter`, `ReadEmitter`, `KeysEmitter` with `KeyBuilderEmitter` and `AttrsEmitter`, `KeyTemplateEmitter`, `EnumEmitter` fill it | One `.g.cs` per type |
+| Emit | `EntityEmitter` owns the file. `ConstructorEmitter`, `WriteEmitter`, `ReadEmitter`, `KeysEmitter` with `KeyBuilderEmitter`, `PlainKeyBuilderEmitter` and `AttrsEmitter`, `KeyTemplateEmitter`, `EnumEmitter` fill it. Every generated member carries `[GeneratedCode]` (`CodeText.GeneratedCode`), the partial declaration never does: it merges with the user's, so it would exclude hand-written members from coverage and clash with a `[GeneratedCode]` of the user's own. The entity metadata sits in a nested `__Metadata` class, so the user's type gets no static initializer that coverage would count | One `.g.cs` per type |
 
 `ModelBuilder.Build` runs for every matching type on every compilation change, so it stays cheap, and nothing it returns refers to a symbol or a syntax tree. An error yields a null model and no output for that type. All problems are
 reported at once through `DiagnosticBag`, with places as `Spot` values. `KeyEncoding` subclasses in `Model/Encodings` are polymorphic and not a switch, because an arm that throws on a closed set is a branch no test
@@ -274,8 +274,8 @@ The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target ne
 | Template syntax | `KeyTemplateParser`, whose remarks show the grammar with an example |
 | Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
 | Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
-| Compile-time rules (`DYNA100` to `DYNA115`) | `KeyTemplateBinder`, `EntityKeyBuilder` |
-| Generated builders | `KeyBuilderEmitter` |
+| Compile-time rules (`DYNA100` to `DYNA117`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
+| Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter` |
 | `KeyFormatException` | `Keys/KeyFormatException.cs`, in namespace `DynaSharp`; it names the placeholder, never the value |
 
 The encoded form is an on-disk contract. `Parse` and `Format` must stay exact inverses, and changing an encoding is a data migration.
@@ -289,6 +289,11 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA026` | `DiscriminatorAnalyzer` | The generator's reading of `[Discriminator]`, on symbols, at the end of a compilation, because only that sees all entities | `DiscriminatorAnalyzerTests` |
 | `DYNA201` | `CommandLifetimeAnalyzer`, `CommandFlow` | The compiler's ref struct rules, CS4007, CS4012, CS9202, CS8175, CS9108. CS4007 comes from lowering, after analyzers ran, so the flow is rebuilt on the control flow graph. CS8345 stops the compiler first and has docs only | `CommandLifetimeAnalyzerTests`, the `Mistakes` project of `PackageSmoke` |
 | `DYNA202` | `ReadTerminalAnalyzer` | Which types are reads, known by having `ItemsAsync` | `ReadTerminalAnalyzerTests` |
+| `DYNA203` | `DiscardedCommandAnalyzer` | The value of an expression statement, by `DynaSharpTypes.IsCommand` | `DiscardedCommandAnalyzerTests` |
+| `DYNA204` | `CommandReuseAnalyzer`, `CommandFlow` | `CommandState.Enter`, which throws for a stale handle | `CommandReuseAnalyzerTests` |
+| `DYNA205` | `EntityCommandAnalyzer`, on the generator's model through `ModelCatalog` | `KeyInputChanges.Check`, for a table key | `EntityCommandAnalyzerTests` |
+| `DYNA206` | `EntityCommandAnalyzer` | `WriteRules.Settle`, which throws for the same put | `EntityCommandAnalyzerTests` |
+| `DYNA207` | `EntityCommandAnalyzer` | `TableExtensions.Index`, which throws for the same name | `EntityCommandAnalyzerTests` |
 | `DYNA210`, `DYNA211`, `DYNA212` | `ExpressionAnalyzer`, `ExpressionLexer`, `ExpressionParser` | DynamoDB's condition and update grammar, and the keyword list of `ExpressionWriter` | `ExpressionCorpus`, a test comparing the two keyword lists |
 | `DYNA213` | `PathAnalyzer` | The generator's model, through `ModelBuilder.ModelOf`, which also reads types from metadata | `PathAnalyzerTests` |
 | `DYNA214` | `PathAnalyzer`, `PathSyntax` | `ExpressionWriter.AppendPath` | `PathSyntaxTests`, which runs both |
@@ -327,6 +332,8 @@ A test that derives its expectation from the code proves little, so each area ha
 | Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators |
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
 | Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
+
+A test of the run-time guards makes on purpose what the analyzers report: it drops a command with `_ =`, it reuses a handle through a copy in a second variable, which `DYNA204` does not follow, and it writes a key by a handle in a variable, which `DYNA205` does not follow. `AnalyzerRun.ReportAsync` leaves out `DiscardedCommandAnalyzer` and `CommandReuseAnalyzer`, because a snippet of another rule is a statement whose value nothing uses.
 
 Snapshots use `SnapshotComparer`, a local comparer: a mismatch writes `*.received.cs`, and `DYNASHARP_ACCEPT_SNAPSHOTS=1` accepts. `*.verified.*` stay LF. `KeysEmitterTests` cuts the file of `KeyShapes.KeyFormats` into a snapshot per key builder, `KeyShapes.KeyFormats.Keys.*`, and one for the rest. Allocation claims live in `CommandAllocationTests` and the benchmarks
 in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so run it from the worktree. `dotnet format` runs no generator that is not built, so a generated type is no entity to it, and a variable of `PartitionKey<T>` passed to `Query` is a `CS1503` it reports, which is why such code in this repository passes the key inline or through a generic helper. Neither emulator produces `UnprocessedItems`, `TransactionConflict` or several shards, so these paths are tested with stubs only.

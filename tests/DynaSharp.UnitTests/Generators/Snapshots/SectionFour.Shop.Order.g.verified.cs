@@ -10,35 +10,42 @@ namespace Shop;
 
 partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "ORDER",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
-        },
-        versionAttributeName: "Revision",
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId") }),
-            new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }),
-            new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::Shop.OrderStatus)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),
-            new __Map.DynamoDbKeyTemplate("gsi2sk", "{ShippedAt}", false, new[] { new __Map.DynamoDbKeyInput("ShippedAt", "ShippedAt") }, static __values => Keys.Gsi2Sk.Format((global::System.DateTimeOffset)__values[0]!)),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "ORDER",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
+                new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
+            },
+            versionAttributeName: "Revision",
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId") }),
+                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }),
+                new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::Shop.OrderStatus)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gsi2sk", "{ShippedAt}", false, new[] { new __Map.DynamoDbKeyInput("ShippedAt", "ShippedAt") }, static __values => Keys.Gsi2Sk.Format((global::System.DateTimeOffset)__values[0]!)),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shop.Order>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shop.Order>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Order()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Order(in __Fields fields)
         : this()
@@ -57,6 +64,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         if (fields.Revision__set) { this.Revision = fields.Revision; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shop.Order>.WriteKey(__Ser.DynamoDbWriter writer, global::Shop.Order entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -65,8 +73,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         Keys.Sk.Write(writer, entity.CreatedAt, entity.OrderId);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shop.Order>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shop.Order entity) => __WriteAttributes(writer, entity, entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbDocument<global::Shop.Order>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shop.Order entity)
     {
         var held = entity.Revision;
@@ -74,8 +84,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         return checked((long)held);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static long __Map.IDynamoDbEntity<global::Shop.Order>.ReadVersion(global::Shop.Order entity) => checked((long)entity.Revision);
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private static void __WriteAttributes(__Ser.DynamoDbWriter writer, global::Shop.Order entity, long __version)
     {
         writer.WriteAttributeName("pk"u8);
@@ -136,6 +148,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         global::DynaSharp.Serialization.NumberConverter<long>.Write(writer, __version);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shop.Order __Map.IDynamoDbDocument<global::Shop.Order>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -314,6 +327,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         return new global::Shop.Order(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::System.Guid UserId; public bool UserId__set;
@@ -331,6 +345,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     }
 
     /// <summary>The attributes of <c>Order</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>UserId</c>.</summary>
@@ -370,6 +385,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         public static global::DynaSharp.Attr<long, global::DynaSharp.Serialization.NumberConverter<long>> Revision => new("Revision");
 
         /// <summary>The converter of <c>global::Shop.OrderStatus</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shop_OrderStatusConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shop.OrderStatus>
         {
@@ -382,12 +398,14 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     }
 
     /// <summary>The key builders of <c>Order</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Order</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(global::System.Guid userId, global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new PrimaryKey(userId, createdAt, orderId);
 
         /// <summary>The primary key of <c>Order</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shop.Order>
         {
             private readonly global::System.Guid _0;
@@ -413,9 +431,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="UserId">The value of the placeholder <c>UserId</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(global::System.Guid UserId);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Order</c>, with the template <c>USER#{UserId}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 41;
@@ -510,9 +530,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="CreatedAt">The value of the placeholder <c>CreatedAt</c>.</param>
         /// <param name="OrderId">The value of the placeholder <c>OrderId</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(global::System.DateTimeOffset CreatedAt, global::System.Guid OrderId);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Order</c>, with the template <c>ORDER#{CreatedAt}#{OrderId}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 67;
@@ -669,9 +691,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
         /// <summary>The values of a parsed <c>gsi1pk</c>.</summary>
         /// <param name="Status">The value of the placeholder <c>Status</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi1PkParts(global::Shop.OrderStatus Status);
 
         /// <summary>Builds and parses the partition key <c>gsi1pk</c> of <c>Order</c>, with the template <c>STATUS#{Status}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi1Pk
         {
             private const int BufferLength = 256;
@@ -765,9 +789,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
         /// <summary>The values of a parsed <c>gsi1sk</c>.</summary>
         /// <param name="Total">The value of the placeholder <c>Total</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi1SkParts(decimal Total);
 
         /// <summary>Builds and parses the sort key <c>gsi1sk</c> of <c>Order</c>, with the template <c>{Total:n10.2}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi1Sk
         {
             private const int BufferLength = 14;
@@ -855,9 +881,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
         /// <summary>The values of a parsed <c>gsi2pk</c>.</summary>
         /// <param name="TrackingId">The value of the placeholder <c>TrackingId</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi2PkParts(global::System.Guid TrackingId);
 
         /// <summary>Builds and parses the partition key <c>gsi2pk</c> of <c>Order</c>, with the template <c>TRACK#{TrackingId}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi2Pk
         {
             private const int BufferLength = 42;
@@ -951,9 +979,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
         /// <summary>The values of a parsed <c>gsi2sk</c>.</summary>
         /// <param name="ShippedAt">The value of the placeholder <c>ShippedAt</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct Gsi2SkParts(global::System.DateTimeOffset ShippedAt);
 
         /// <summary>Builds and parses the sort key <c>gsi2sk</c> of <c>Order</c>, with the template <c>{ShippedAt}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi2Sk
         {
             private const int BufferLength = 24;
@@ -1041,6 +1071,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     }
 
     /// <summary>The names of the indexes of <c>Order</c>, for <c>table.Index(...)</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Indexes
     {
         /// <summary>The index <c>GSI1</c>.</summary>
@@ -1051,6 +1082,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shop_OrderStatusConverter : __Ser.IDynamoDbConverter<global::Shop.OrderStatus>, __Ser.IDynamoDbSetElementConverter<global::Shop.OrderStatus>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

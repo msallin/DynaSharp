@@ -10,10 +10,12 @@ namespace Shapes.OmitEmpty;
 
 partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Home()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Home(in __Fields fields)
         : this()
@@ -22,6 +24,7 @@ partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
         if (fields.Street__set) { this.Street = fields.Street; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.OmitEmpty.Home entity)
     {
         if (entity.City is { Length: > 0 } __v0)
@@ -36,6 +39,7 @@ partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.OmitEmpty.Home __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -81,6 +85,7 @@ partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
         return new global::Shapes.OmitEmpty.Home(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string? City; public bool City__set;
@@ -88,6 +93,7 @@ partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
     }
 
     /// <summary>The attributes of <c>Home</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>City</c>.</summary>

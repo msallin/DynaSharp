@@ -10,29 +10,36 @@ namespace KeyShapes;
 
 partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "LEDGER",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At") }),
-            new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At"), new __Map.DynamoDbKeyInput("Id", "Id") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "LEDGER",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At") }),
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At"), new __Map.DynamoDbKeyInput("Id", "Id") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Ledger>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Ledger>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Ledger()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Ledger(in __Fields fields)
         : this()
@@ -41,6 +48,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         if (fields.Id__set) { this.Id = fields.Id; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Ledger>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Ledger entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -49,6 +57,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         Keys.Sk.Write(writer, entity.At, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Ledger>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Ledger entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -63,6 +72,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         global::DynaSharp.Serialization.GuidConverter.Write(writer, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Ledger __Map.IDynamoDbDocument<global::KeyShapes.Ledger>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -124,6 +134,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         return new global::KeyShapes.Ledger(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::System.DateTimeOffset At; public bool At__set;
@@ -131,6 +142,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
     }
 
     /// <summary>The attributes of <c>Ledger</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>At</c>.</summary>
@@ -141,12 +153,14 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
     }
 
     /// <summary>The key builders of <c>Ledger</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Ledger</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(global::System.DateTimeOffset at, global::System.Guid id) => new PrimaryKey(at, id);
 
         /// <summary>The primary key of <c>Ledger</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Ledger>
         {
             private readonly global::System.DateTimeOffset _0;
@@ -170,9 +184,11 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(global::System.DateTimeOffset At);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Ledger</c>, with the template <c>LEDGER#{At:yyyy-MM}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 14;
@@ -267,9 +283,11 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="At">The value of the placeholder <c>At</c>.</param>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(global::System.DateTimeOffset At, global::System.Guid Id);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Ledger</c>, with the template <c>AT#{At:ticks}#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 68;

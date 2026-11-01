@@ -10,29 +10,36 @@ namespace KeyShapes;
 
 partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "KEYWORDS",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class") }),
-            new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "KEYWORDS",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class") }),
+                new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Keywords>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Keywords>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Keywords()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Keywords(in __Fields fields)
         : this()
@@ -41,6 +48,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
         if (fields.event__set) { this.@event = fields.@event; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Keywords>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Keywords entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -49,6 +57,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
         Keys.Sk.Write(writer, entity.@event);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Keywords>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Keywords entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -63,6 +72,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.@event);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Keywords __Map.IDynamoDbDocument<global::KeyShapes.Keywords>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -128,6 +138,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
         return new global::KeyShapes.Keywords(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string @class; public bool class__set;
@@ -135,6 +146,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
     }
 
     /// <summary>The attributes of <c>Keywords</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>class</c>.</summary>
@@ -145,12 +157,14 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
     }
 
     /// <summary>The key builders of <c>Keywords</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Keywords</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string @class, string @event) => new PrimaryKey(@class, @event);
 
         /// <summary>The primary key of <c>Keywords</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Keywords>
         {
             private readonly string _0;
@@ -174,9 +188,11 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="class">The value of the placeholder <c>class</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string @class);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Keywords</c>, with the template <c>C#{class}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -270,9 +286,11 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="event">The value of the placeholder <c>event</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(string @event);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Keywords</c>, with the template <c>E#{event}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;

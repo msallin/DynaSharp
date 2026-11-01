@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "ARTICLE",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "SLUG#{Slug}", true, new[] { new __Map.DynamoDbKeyInput("Slug", null) }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "ARTICLE",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "SLUG#{Slug}", true, new[] { new __Map.DynamoDbKeyInput("Slug", null) }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Article>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Article>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Article()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Article(in __Fields fields)
         : this()
@@ -39,12 +46,14 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
         if (fields.Title__set) { this.Title = fields.Title; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Article>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Article entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Slug);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Article>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Article entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -55,6 +64,7 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Title);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Article __Map.IDynamoDbDocument<global::KeyShapes.Article>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -97,12 +107,14 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
         return new global::KeyShapes.Article(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Title; public bool Title__set;
     }
 
     /// <summary>The attributes of <c>Article</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Title</c>.</summary>
@@ -110,12 +122,14 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
     }
 
     /// <summary>The key builders of <c>Article</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Article</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string slug) => new PrimaryKey(slug);
 
         /// <summary>The primary key of <c>Article</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Article>
         {
             private readonly string _0;
@@ -135,9 +149,11 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Slug">The value of the placeholder <c>Slug</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Slug);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Article</c>, with the template <c>SLUG#{Slug}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;

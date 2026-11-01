@@ -10,24 +10,31 @@ namespace Shapes.@namespace.@event;
 
 partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@event.@class>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "say \"hi\"\\",
-        partitionKeyName: "the\tkey",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "the \"type\"");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "say \"hi\"\\",
+            partitionKeyName: "the\tkey",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "the \"type\"");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.@namespace.@event.@class>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.@namespace.@event.@class>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public @class()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private @class(in __Fields fields)
         : this()
@@ -46,12 +53,14 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         if (fields.exception__set) { this.exception = fields.exception; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.@namespace.@event.@class>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.@namespace.@event.@class entity)
     {
         writer.WriteAttributeName("the\tkey"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.@string);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.@namespace.@event.@class>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.@namespace.@event.@class entity)
     {
         writer.WriteAttributeName("the \"type\""u8);
@@ -88,6 +97,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.exception);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.@namespace.@event.@class __Map.IDynamoDbDocument<global::Shapes.@namespace.@event.@class>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -228,6 +238,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         return new global::Shapes.@namespace.@event.@class(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string @string; public bool string__set;
@@ -245,6 +256,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
     }
 
     /// <summary>The attributes of <c>class</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>the\tkey</c>.</summary>
@@ -284,6 +296,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> exception => new("exception");
 
         /// <summary>The converter of <c>global::Shapes.@namespace.@event.@enum</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __Shapes_namespace_event_enumConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::Shapes.@namespace.@event.@enum>
         {
@@ -296,12 +309,14 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
     }
 
     /// <summary>The key builders of <c>class</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>class</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string @string) => new PrimaryKey(@string);
 
         /// <summary>The primary key of <c>class</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.@namespace.@event.@class>
         {
             private readonly string _0;
@@ -318,9 +333,21 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }
         }
+
+        /// <summary>Builds the partition key <c>the\tkey</c> of <c>class</c>, which is the property <c>string</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>class</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.@namespace.@event.@class> Of(string @string) => new global::DynaSharp.PartitionKey<global::Shapes.@namespace.@event.@class>(global::DynaSharp.AttributeValue.FromString(@string), "the\tkey");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string @string) => Of(@string).Value;
+        }
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct Shapes_namespace_event_enumConverter : __Ser.IDynamoDbConverter<global::Shapes.@namespace.@event.@enum>, __Ser.IDynamoDbSetElementConverter<global::Shapes.@namespace.@event.@enum>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

@@ -10,4 +10,7 @@ public partial class Order
     public required string Id { get; init; }
 
     public decimal Total { get; init; }
+
+    [Version]
+    public long Revision { get; init; }
 }

@@ -380,7 +380,8 @@ public sealed class ScanCommandTests
         _ = command.ToRequestJson();
         try
         {
-            _ = command.ToRequestJson();
+            var again = command;
+            _ = again.ToRequestJson();
             return string.Empty;
         }
         catch (InvalidOperationException exception)

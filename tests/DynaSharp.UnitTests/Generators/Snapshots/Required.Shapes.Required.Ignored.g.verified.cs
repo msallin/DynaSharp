@@ -10,20 +10,24 @@ namespace Shapes.Required;
 
 partial class Ignored : __Map.IDynamoDbDocument<global::Shapes.Required.Ignored>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Ignored()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Ignored(in __Fields fields)
         : this()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Required.Ignored>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Required.Ignored entity)
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Required.Ignored __Map.IDynamoDbDocument<global::Shapes.Required.Ignored>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -44,11 +48,13 @@ partial class Ignored : __Map.IDynamoDbDocument<global::Shapes.Required.Ignored>
         return new global::Shapes.Required.Ignored(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
     }
 
     /// <summary>The attributes of <c>Ignored</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
     }

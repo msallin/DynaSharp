@@ -21,11 +21,13 @@ internal static class WriteEmitter
         code.Blank();
         if (version is null)
         {
+            code.Line(CodeText.GeneratedCode);
             code.Line($"static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
         }
         else
         {
             EmitVersionedWrites(code, type, version);
+            code.Line(CodeText.GeneratedCode);
             code.Line($"private static void __WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity, {version.ValueType} {VersionParameter})");
         }
 
@@ -47,8 +49,10 @@ internal static class WriteEmitter
     // A plain write gives the version as it stands, and a put gives the next one. A value that does not fit the property fails here, not on a read of the item.
     private static void EmitVersionedWrites(IndentedCode code, TypeModel type, PropertyModel version)
     {
+        code.Line(CodeText.GeneratedCode);
         code.Line($"static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity) => __WriteAttributes(writer, entity, entity.{version.Identifier});");
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line($"static long __Map.IDynamoDbDocument<{type.FullName}>.WriteNextVersion(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
         code.Open();
         code.Line($"var held = entity.{version.Identifier};");
@@ -56,6 +60,7 @@ internal static class WriteEmitter
         code.Line("return checked((long)held);");
         code.Close();
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line($"static long __Map.IDynamoDbEntity<{type.FullName}>.ReadVersion({type.FullName} entity) => checked((long)entity.{version.Identifier});");
         code.Blank();
     }
@@ -63,6 +68,7 @@ internal static class WriteEmitter
     private static void EmitWriteKey(IndentedCode code, TypeModel type, EntityModel entity)
     {
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line($"static void __Map.IDynamoDbEntity<{type.FullName}>.WriteKey(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
         code.Open();
         EmitTableKey(code, type, entity.PartitionKey);

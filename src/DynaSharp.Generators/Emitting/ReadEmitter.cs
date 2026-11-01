@@ -17,6 +17,7 @@ internal static class ReadEmitter
         var read = type.Properties.Where(static property => !property.IsWriteOnly).ToList();
         var hasFields = read.Count > 0 || type.Constructor.NeedsFieldsConstructor;
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line($"static {type.FullName} __Map.IDynamoDbDocument<{type.FullName}>.ReadAttributes(ref __Ser.DynamoDbReader reader)");
         code.Open();
         if (hasFields)
@@ -172,6 +173,7 @@ internal static class ReadEmitter
     private static void EmitFields(IndentedCode code, List<PropertyModel> read)
     {
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line("private struct __Fields");
         code.Open();
         foreach (var property in read)

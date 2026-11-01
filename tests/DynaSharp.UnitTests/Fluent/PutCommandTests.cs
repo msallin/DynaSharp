@@ -205,7 +205,7 @@ public sealed class PutCommandTests
         // Act
         var failure = await TestClient.CaptureAsync<ArgumentNullException>(() =>
         {
-            shop.Put((Item)null!);
+            _ = shop.Put((Item)null!);
             return Task.CompletedTask;
         });
 

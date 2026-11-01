@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>guidpk</c>.</summary>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct GuidPkParts(global::System.Guid Id);
 
         /// <summary>Builds and parses the partition key <c>guidpk</c> of <c>KeyFormats</c>, with the template <c>G#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class GuidPk
         {
             private const int BufferLength = 38;

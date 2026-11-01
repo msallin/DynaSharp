@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>sbytepk</c>.</summary>
         /// <param name="SByte">The value of the placeholder <c>SByte</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SbytePkParts(sbyte SByte);
 
         /// <summary>Builds and parses the partition key <c>sbytepk</c> of <c>KeyFormats</c>, with the template <c>I#{SByte}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class SbytePk
         {
             private const int BufferLength = 256;

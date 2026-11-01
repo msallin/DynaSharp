@@ -14,6 +14,7 @@ internal static class EnumEmitter
     public static void Emit(IndentedCode code, EnumModel model)
     {
         code.Blank();
+        code.Line(CodeText.GeneratedCode);
         code.Line($"file readonly struct {model.ConverterName} : __Ser.IDynamoDbConverter<{model.FullName}>, __Ser.IDynamoDbSetElementConverter<{model.FullName}>");
         code.Open();
         if (model.StoreAsNumber)

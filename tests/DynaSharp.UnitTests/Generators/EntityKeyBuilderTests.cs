@@ -156,9 +156,9 @@ public sealed class EntityKeyBuilderTests
     }
 
     [Test]
-    [Arguments("string", "public string V { get; set; } = \"\";")]
+    [Arguments("string", "public string V { get; set; } = \"v\";")]
     [Arguments("enum", "public Color V { get; set; }")]
-    [Arguments("byte[]", "public byte[] V { get; set; } = [];")]
+    [Arguments("byte[]", "public byte[] V { get; set; } = [1];")]
     [Arguments("memory", "public ReadOnlyMemory<byte> V { get; set; }")]
     [Arguments("decimal", "public decimal V { get; set; }")]
     [Arguments("Guid", "public Guid V { get; set; }")]

@@ -51,14 +51,16 @@ internal static class AnalyzerRun
         return output;
     }
 
-    /// <summary>What the analyzers report, one per line by position: <c>DYNA210 Warning [10..17]: the message</c>.</summary>
-    public static async Task<string> ReportAsync(string markedSource, LanguageVersion language = LanguageVersion.Latest)
-    {
-        var diagnostics = await Compile(markedSource, language).WithAnalyzers(Analyzers).GetAnalyzerDiagnosticsAsync();
-        return string.Join("\n", diagnostics.OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start).Select(Analysis.Describe));
-    }
+    /// <summary>
+    /// What the analyzers report, one per line by position: <c>DYNA210 Warning [10..17]: the message</c>. <see cref="DiscardedCommandAnalyzer"/> is left out: a snippet is a statement whose value
+    /// nothing uses, so it would report nearly every snippet of the other rules. <see cref="ReportWithAsync"/> runs it.
+    /// </summary>
+    public static Task<string> ReportAsync(string markedSource, LanguageVersion language = LanguageVersion.Latest) => ReportAsync(markedSource, language, Analyzers);
 
-    /// <summary>What <see cref="ReportAsync"/> gives when the lines, each "id severity: message", land on the marked spans, in order.</summary>
+    /// <summary>What these analyzers report, as <see cref="ReportAsync(string, LanguageVersion)"/> says.</summary>
+    public static Task<string> ReportWithAsync(string markedSource, params DiagnosticAnalyzer[] analyzers) => ReportAsync(markedSource, LanguageVersion.Latest, [.. analyzers]);
+
+    /// <summary>What <see cref="ReportAsync(string, LanguageVersion)"/> gives when the lines, each "id severity: message", land on the marked spans, in order.</summary>
     public static string Expect(string markedSource, params string[] lines) => Analysis.OnSpans(Analysis.Strip(markedSource).Spans, lines);
 
     /// <summary>The marked spans.</summary>
@@ -74,5 +76,11 @@ internal static class AnalyzerRun
                 .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Location.SourceTree?.FilePath.Length == 0)
                 .Select(diagnostic => (diagnostic.Id, diagnostic.Location.SourceSpan)),
         ];
+    }
+
+    private static async Task<string> ReportAsync(string markedSource, LanguageVersion language, ImmutableArray<DiagnosticAnalyzer> analyzers)
+    {
+        var diagnostics = await Compile(markedSource, language).WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync();
+        return string.Join("\n", diagnostics.OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start).Select(Analysis.Describe));
     }
 }

@@ -10,24 +10,31 @@ namespace KeyShapes;
 
 partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "QUOTA",
-        partitionKeyName: "Plan",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "QUOTA",
+            partitionKeyName: "Plan",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Quota>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Quota>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Quota()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Quota(in __Fields fields)
         : this()
@@ -35,12 +42,14 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
         if (fields.Plan__set) { this.Plan = fields.Plan; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Quota>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Quota entity)
     {
         writer.WriteAttributeName("Plan"u8);
         KeyShapes_PlanConverter.Write(writer, entity.Plan);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Quota>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Quota entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -49,6 +58,7 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
         KeyShapes_PlanConverter.Write(writer, entity.Plan);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Quota __Map.IDynamoDbDocument<global::KeyShapes.Quota>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -93,18 +103,21 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
         return new global::KeyShapes.Quota(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public global::KeyShapes.Plan Plan; public bool Plan__set;
     }
 
     /// <summary>The attributes of <c>Quota</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Plan</c>.</summary>
         public static global::DynaSharp.Attr<global::KeyShapes.Plan, __KeyShapes_PlanConverter> Plan => new("Plan");
 
         /// <summary>The converter of <c>global::KeyShapes.Plan</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_PlanConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Plan>
         {
@@ -117,12 +130,14 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
     }
 
     /// <summary>The key builders of <c>Quota</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Quota</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(global::KeyShapes.Plan plan) => new PrimaryKey(plan);
 
         /// <summary>The primary key of <c>Quota</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Quota>
         {
             private readonly global::KeyShapes.Plan _0;
@@ -139,9 +154,21 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
                 KeyShapes_PlanConverter.Write(writer, _0);
             }
         }
+
+        /// <summary>Builds the partition key <c>Plan</c> of <c>Quota</c>, which is the property <c>Plan</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Quota</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Quota> Of(global::KeyShapes.Plan plan) => new global::DynaSharp.PartitionKey<global::KeyShapes.Quota>(global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<global::KeyShapes.Plan, KeyShapes_PlanConverter>(plan), "Plan");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(global::KeyShapes.Plan plan) => Of(plan).Value;
+        }
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Plan>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

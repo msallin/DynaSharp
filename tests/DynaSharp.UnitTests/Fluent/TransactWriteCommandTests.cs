@@ -447,7 +447,7 @@ public sealed class TransactWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => Actions(client.TransactWrite().Delete(shop, "first"), shop, 100));
+        var failure = TestClient.Catch(() => _ = Actions(client.TransactWrite().Delete(shop, "first"), shop, 100));
 
         // Assert
         await Assert.That((failure is InvalidOperationException, failure.Message.Contains("at most 100 actions", StringComparison.Ordinal))).IsEqualTo((true, true));
@@ -573,7 +573,8 @@ public sealed class TransactWriteCommandTests
         {
             var command = client.TransactWrite();
             _ = command.Delete(shop, "a");
-            _ = command.Delete(shop, "b");
+            var again = command;
+            _ = again.Delete(shop, "b");
         });
 
         // Assert
@@ -738,7 +739,7 @@ public sealed class TransactWriteCommandTests
             var step = client.TransactWrite().Put(shop, new Item { ["pk"] = "a" });
             TransactWriteCommand command = step;
             _ = command;
-            step.IfNotExists();
+            _ = step.IfNotExists();
         });
 
         // Assert
@@ -759,7 +760,7 @@ public sealed class TransactWriteCommandTests
             var step = client.TransactWrite().Update(shop, "a");
             TransactWriteCommand command = step;
             _ = command;
-            step.Add("n", 1);
+            _ = step.Add("n", 1);
         });
 
         // Assert
@@ -780,7 +781,7 @@ public sealed class TransactWriteCommandTests
             var step = client.TransactWrite().Delete(shop, "a");
             TransactWriteCommand command = step;
             _ = command;
-            step.IfExists();
+            _ = step.IfExists();
         });
 
         // Assert
@@ -801,7 +802,7 @@ public sealed class TransactWriteCommandTests
             var step = client.TransactWrite().Put(shop, new Item { ["pk"] = "a" });
             TransactWriteCommand command = step;
             _ = command;
-            step.Put(shop, new Item { ["pk"] = "b" });
+            _ = step.Put(shop, new Item { ["pk"] = "b" });
         });
 
         // Assert
@@ -927,7 +928,8 @@ public sealed class TransactWriteCommandTests
         {
             TransactWriteCommand command = client.TransactWrite().Delete(shop, "a");
             _ = command.Delete(shop, "b");
-            _ = command.Delete(shop, "c");
+            var again = command;
+            _ = again.Delete(shop, "c");
         });
 
         // Assert
@@ -973,7 +975,7 @@ public sealed class TransactWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Put(shop, null!));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Put(shop, null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -987,7 +989,7 @@ public sealed class TransactWriteCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Put((Table<Item>)null!, new Item { ["pk"] = "a" }));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Put((Table<Item>)null!, new Item { ["pk"] = "a" }));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1001,7 +1003,7 @@ public sealed class TransactWriteCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Update((Table<Item>)null!, "a"));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Update((Table<Item>)null!, "a"));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1015,7 +1017,7 @@ public sealed class TransactWriteCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Update((Table<Customer>)null!, Customer.Keys.Of("a")));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Update((Table<Customer>)null!, Customer.Keys.Of("a")));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1030,7 +1032,7 @@ public sealed class TransactWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Update(customers, (ClassKey)null!));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Update(customers, (ClassKey)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -1062,7 +1064,7 @@ public sealed class TransactWriteCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Delete(shop, string.Empty));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Delete(shop, string.Empty));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -1076,7 +1078,7 @@ public sealed class TransactWriteCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = TestClient.Catch(() => client.TransactWrite().Token(string.Empty));
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Token(string.Empty));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
@@ -1097,20 +1099,21 @@ public sealed class TransactWriteCommandTests
         // Act
         var failure = TestClient.Catch(() =>
         {
-            switch (link)
+            if (link == 0)
             {
-                case 0:
-                    client.TransactWrite().MaxAttempts(0);
-                    break;
-                case 1:
-                    client.TransactWrite().Delete(shop, "a").MaxAttempts(0);
-                    break;
-                case 2:
-                    client.TransactWrite().Put(shop, new Item { ["pk"] = "a" }).MaxAttempts(0);
-                    break;
-                default:
-                    client.TransactWrite().Update(shop, "a").MaxAttempts(0);
-                    break;
+                _ = client.TransactWrite().MaxAttempts(0);
+            }
+            else if (link == 1)
+            {
+                _ = client.TransactWrite().Delete(shop, "a").MaxAttempts(0);
+            }
+            else if (link == 2)
+            {
+                _ = client.TransactWrite().Put(shop, new Item { ["pk"] = "a" }).MaxAttempts(0);
+            }
+            else
+            {
+                _ = client.TransactWrite().Update(shop, "a").MaxAttempts(0);
             }
         });
 
@@ -1124,7 +1127,7 @@ public sealed class TransactWriteCommandTests
         // Arrange (nothing to arrange)
 
         // Act
-        var failure = TestClient.Catch(static () => default(TransactWriteCommand).Token("t"));
+        var failure = TestClient.Catch(static () => _ = default(TransactWriteCommand).Token("t"));
 
         // Assert
         await Assert.That(failure.Message).Contains("default value");
@@ -1221,7 +1224,7 @@ public sealed class TransactWriteCommandTests
     {
         try
         {
-            step.IfExists();
+            _ = step.IfExists();
             return false;
         }
         catch (InvalidOperationException)
@@ -1254,7 +1257,8 @@ public sealed class TransactWriteCommandTests
     {
         var step = client.TransactWrite().Delete(shop, "a");
         _ = step.SendAsync().AsTask();
-        _ = step.SendAsync().AsTask();
+        var again = step;
+        _ = again.SendAsync().AsTask();
     }
 
     private static List<string> Texts(DynamoDbClient client, Table<Item> shop) =>

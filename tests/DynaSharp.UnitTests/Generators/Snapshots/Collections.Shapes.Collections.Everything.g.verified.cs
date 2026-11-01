@@ -10,10 +10,12 @@ namespace Shapes.Collections;
 
 partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Everything>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Everything()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Everything(in __Fields fields)
         : this()
@@ -53,6 +55,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         if (fields.Codes__set) { this.Codes = fields.Codes; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Collections.Everything>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Collections.Everything entity)
     {
         writer.WriteAttributeName("Text"u8);
@@ -150,6 +153,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         global::DynaSharp.Serialization.ListConverter<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter>.Write(writer, entity.Codes);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Collections.Everything __Map.IDynamoDbDocument<global::Shapes.Collections.Everything>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -457,6 +461,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         return new global::Shapes.Collections.Everything(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Text; public bool Text__set;
@@ -495,6 +500,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
     }
 
     /// <summary>The attributes of <c>Everything</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Text</c>.</summary>

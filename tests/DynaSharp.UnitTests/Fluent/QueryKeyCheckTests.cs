@@ -1,4 +1,5 @@
 using DynaSharp.Testing;
+using DynaSharp.UnitTests.Mapping.KeyEntities;
 
 namespace DynaSharp.UnitTests.Fluent;
 
@@ -14,7 +15,7 @@ public sealed class QueryKeyCheckTests
         var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => byStatus.Query(TenantInvoice.Keys.Pk.Of("acme")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = byStatus.Query(TenantInvoice.Keys.Pk.Of("acme")));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.ByStatusPk.Of").And.Contains("attribute pk").And.Contains("reads bystatuspk");
@@ -29,29 +30,59 @@ public sealed class QueryKeyCheckTests
         var invoices = client.Table<TenantInvoice>("Billing");
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => invoices.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)));
+        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
     }
 
     [Test]
-    public async Task Query_KeyOnAPlainIndexKey_ThrowsNamingTheWayOut()
+    public async Task Query_KeyOnAPlainIndexKey_ThrowsNamingItsBuilder()
     {
-        // Arrange (the sort key of a sparse index can be plain, and a partition key of an index too, which has no builder)
+        // Arrange (the sort key of a sparse index can be plain, and a partition key of an index too)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var index = client.Table<PlainIndexed>("Shop").Index(PlainIndexed.Indexes.ByCode);
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => index.Query(PlainIndexed.Keys.Pk.Of("a")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = index.Query(PlainIndexed.Keys.Pk.Of("a")));
 
         // Assert
-        await Assert.That(failure.Message).Contains("as an AttributeValue");
+        await Assert.That(failure.Message).Contains("PlainIndexed.Keys.ByCodePk.Of");
     }
 
     [Test]
-    public async Task Query_IndexKeyOnAPlainTableKey_ThrowsNamingTheWayOut()
+    public async Task Query_NumberKeyOfAnotherAttribute_ThrowsNamingTheWayOut()
+    {
+        // Arrange (a plain key knows its attribute as a key of a template does, and this table has nothing that entity declares)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = shop.Query(NumberKeyed.Keys.Pk.Of(7)));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("attribute Id").And.Contains("as an AttributeValue");
+    }
+
+    [Test]
+    public async Task Query_BinaryKeyOfAnotherAttribute_ThrowsNamingTheWayOut()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = shop.Query([BinaryKeyed.Keys.Pk.Of([1])]));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("attribute Id").And.Contains("as an AttributeValue");
+    }
+
+    [Test]
+    public async Task Query_IndexKeyOnAPlainTableKey_ThrowsNamingItsBuilder()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -59,10 +90,10 @@ public sealed class QueryKeyCheckTests
         var devices = client.Table<PlainDevice>("Shop");
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => devices.Query(PlainDevice.Keys.ByShelfPk.Of("s")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = devices.Query(PlainDevice.Keys.ByShelfPk.Of("s")));
 
         // Assert
-        await Assert.That(failure.Message).Contains("as an AttributeValue");
+        await Assert.That(failure.Message).Contains("PlainDevice.Keys.Pk.Of");
     }
 
     [Test]
@@ -125,7 +156,7 @@ public sealed class QueryKeyCheckTests
         var index = client.Table("Shop", "pk").Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => index.Query(OverloadedBadge.Keys.Pk.Of("b1")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = index.Query(OverloadedBadge.Keys.Pk.Of("b1")));
 
         // Assert
         await Assert.That(failure.Message).Contains("OverloadedBadge.Keys.Gsi1Pk.Of");
@@ -140,7 +171,7 @@ public sealed class QueryKeyCheckTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => shop.Query(OverloadedBadge.Keys.Gsi1Pk.Of("h")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = shop.Query(OverloadedBadge.Keys.Gsi1Pk.Of("h")));
 
         // Assert
         await Assert.That(failure.Message).Contains("OverloadedBadge.Keys.Pk.Of");
@@ -155,7 +186,7 @@ public sealed class QueryKeyCheckTests
         var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => byStatus.Query([TenantInvoice.Keys.Pk.Of("acme")]));
+        var failure = Assert.Throws<ArgumentException>(() => _ = byStatus.Query([TenantInvoice.Keys.Pk.Of("acme")]));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.ByStatusPk.Of");
@@ -170,7 +201,7 @@ public sealed class QueryKeyCheckTests
         var invoices = client.Table<TenantInvoice>("Billing");
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => invoices.Query([TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)]));
+        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query([TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)]));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
@@ -186,8 +217,8 @@ public sealed class QueryKeyCheckTests
         var index = shop.Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
 
         // Act
-        var onTable = Assert.Throws<ArgumentException>(() => shop.Query([OverloadedBadge.Keys.Gsi1Pk.Of("h")]));
-        var onIndex = Assert.Throws<ArgumentException>(() => index.Query([OverloadedBadge.Keys.Pk.Of("b")]));
+        var onTable = Assert.Throws<ArgumentException>(() => _ = shop.Query([OverloadedBadge.Keys.Gsi1Pk.Of("h")]));
+        var onIndex = Assert.Throws<ArgumentException>(() => _ = index.Query([OverloadedBadge.Keys.Pk.Of("b")]));
 
         // Assert
         await Assert.That((onTable.Message.Contains("Keys.Pk.Of", StringComparison.Ordinal), onIndex.Message.Contains("Keys.Gsi1Pk.Of", StringComparison.Ordinal))).IsEqualTo((true, true));

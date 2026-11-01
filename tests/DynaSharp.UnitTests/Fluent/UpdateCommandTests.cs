@@ -806,7 +806,8 @@ public sealed class UpdateCommandTests
     {
         var spent = tickets.Update(TicketKey).IgnoreVersion();
         _ = spent.SetIfNotNull(Ticket.Attrs.Votes, (int?)null);
-        _ = spent.Set(Ticket.Attrs.Votes, 1);
+        var again = spent;
+        _ = again.Set(Ticket.Attrs.Votes, 1);
     }
 
     private static bool Rejected(Table<Item> shop)
@@ -814,12 +815,13 @@ public sealed class UpdateCommandTests
         var command = shop.Update("a", "b");
         try
         {
-            command.MaxAttempts(0);
+            _ = command.MaxAttempts(0);
             return false;
         }
         catch (ArgumentOutOfRangeException)
         {
-            return command.Set("still", "usable").ToRequestJson().Length > 0;
+            var again = command;
+            return again.Set("still", "usable").ToRequestJson().Length > 0;
         }
     }
 

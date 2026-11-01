@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Text">The value of the placeholder <c>Text</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Text);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>KeyFormats</c>, with the template <c>{Text}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;

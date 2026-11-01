@@ -10,10 +10,12 @@ namespace Shapes.Collections;
 
 partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Tree()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Tree(in __Fields fields)
         : this()
@@ -23,6 +25,7 @@ partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
         if (fields.Parent__set) { this.Parent = fields.Parent; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Collections.Tree entity)
     {
         writer.WriteAttributeName("Name"u8);
@@ -36,6 +39,7 @@ partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Collections.Tree __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -91,6 +95,7 @@ partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
         return new global::Shapes.Collections.Tree(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
@@ -99,6 +104,7 @@ partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
     }
 
     /// <summary>The attributes of <c>Tree</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>

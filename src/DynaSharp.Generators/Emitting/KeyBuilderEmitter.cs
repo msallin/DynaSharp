@@ -50,6 +50,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         EmitParts(attribute);
         code.Blank();
         code.Line($"/// <summary>Builds and parses the {(isSortKey ? "sort" : "partition")} key <c>{attribute}</c> of <c>{entityName}</c>, with the template <c>{CodeText.Xml(template.Text)}</c>.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public static class {key.BuilderName}");
         code.Open();
         code.Line($"private const int {Buffer} = {template.StackBufferLength};");
@@ -89,6 +90,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         }
 
         var members = _placeholders.Select(static placeholder => $"{placeholder.ValueType} {Names.Identifier(placeholder.Property)}");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public readonly record struct {Parts}({string.Join(", ", members)});");
     }
 

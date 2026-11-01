@@ -13,7 +13,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("DYNA002", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { }""")]
     [Arguments("DYNA003", "[DynamoDbDocument] public partial class A { public string X { get; set; } = string.Empty; }")]
     [Arguments("DYNA004", """[DynamoDbDocument] public partial class A { [DynamoDbAttribute("a")] public int X { get; set; } [DynamoDbAttribute("b")] public int Y { get; set; } }""")]
-    [Arguments("DYNA004 key shared", """[DynamoDbEntity, Discriminator("E"), PartitionKey("{Id}"), SortKey("X#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "X#{Id}", PartitionKeyAttributeName = "sk", SortKey = "{Id}", SortKeyAttributeName = "pk")] public partial class E { public string Id { get; set; } = ""; }""")]
+    [Arguments("DYNA004 key shared", """[DynamoDbEntity, Discriminator("E"), PartitionKey("{Id}"), SortKey("X#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "X#{Id}", PartitionKeyAttributeName = "sk", SortKey = "{Id}", SortKeyAttributeName = "pk")] public partial class E { public string Id { get; set; } = "id"; }""")]
     [Arguments("DYNA005", """[DynamoDbDocument] public partial class A { public A() { } public A(int x) { } }""")]
     [Arguments("DYNA006", "[DynamoDbDocument] public partial class A { public A(int x) { X = x; } public int X { get; } }")]
     [Arguments("DYNA007", "[DynamoDbDocument] public sealed partial class A { }")]
@@ -29,15 +29,15 @@ public sealed class TypeDiagnosticsTests
     [Arguments("DYNA017", """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey] public long Id { get; set; } }""")]
     [Arguments("DYNA018", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey("S"), GlobalIndexKey("GSI1", PartitionKey = "A"), LocalIndexKey("LSI1", "B")] public partial class E { }""")]
     [Arguments("DYNA020", """[DynamoDbEntity, Discriminator(OptOut = true), PartitionKey("E")] public partial class E { }""")]
-    [Arguments("DYNA021", """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey] public string Id { get; set; } = ""; [DynamoDbIgnore] public int X { get; set; } }""")]
+    [Arguments("DYNA021", """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey] public string Id { get; set; } = "id"; [DynamoDbIgnore] public int X { get; set; } }""")]
     [Arguments("DYNA022", """[DynamoDbEntity, Discriminator("E", AttributeName = "kind"), PartitionKey("E")] public partial class E { }""")]
-    [Arguments("DYNA023", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { public string Id { get; set; } = ""; [Version] public long V { get; set; } }""")]
+    [Arguments("DYNA023", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { public string Id { get; set; } = "id"; [Version] public long V { get; set; } }""")]
     [Arguments("DYNA024", """[DynamoDbDocument] public partial class A { public Nothing? X { get; set; } } public enum Nothing { }""")]
     [Arguments("DYNA025", "[DynamoDbDocument] public partial class Keys { }")]
     [Arguments("DYNA030 property", "[DynamoDbDocument] public partial class A { [OmitEmpty] public string? X { get; set; } }")]
     [Arguments("DYNA030 ignored", "[DynamoDbDocument] public partial class A { [OmitEmpty, DynamoDbIgnore] public string? X { get; set; } }")]
     [Arguments("DYNA030 type", "[DynamoDbDocument, OmitEmpty] public partial class A { public string? X { get; set; } public int Y { get; set; } public int? Z { get; set; } public string W { get; set; } = \"\"; }")]
-    [Arguments("DYNA030 keys on a type", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "{Plain}", PartitionKeyAttributeName = "Plain", Sparse = true), OmitEmpty] public partial class E { public string Id { get; set; } = ""; public string? Owner { get; set; } public string? Plain { get; set; } }""")]
+    [Arguments("DYNA030 keys on a type", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "{Plain}", PartitionKeyAttributeName = "Plain", Sparse = true), OmitEmpty] public partial class E { public string Id { get; set; } = "id"; public string? Owner { get; set; } public string? Plain { get; set; } }""")]
     public async Task Build_SourceThatKeepsTheRule_ReportsNothing(string rule, string source)
     {
         // Arrange

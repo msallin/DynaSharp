@@ -10,10 +10,12 @@ namespace Shapes.Required;
 
 partial class Inherited : __Map.IDynamoDbDocument<global::Shapes.Required.Inherited>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Inherited()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Inherited(in __Fields fields)
         : this()
@@ -21,12 +23,14 @@ partial class Inherited : __Map.IDynamoDbDocument<global::Shapes.Required.Inheri
         this.Author = fields.Author;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Required.Inherited>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Required.Inherited entity)
     {
         writer.WriteAttributeName("Author"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Author);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Required.Inherited __Map.IDynamoDbDocument<global::Shapes.Required.Inherited>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -63,12 +67,14 @@ partial class Inherited : __Map.IDynamoDbDocument<global::Shapes.Required.Inheri
         return new global::Shapes.Required.Inherited(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Author; public bool Author__set;
     }
 
     /// <summary>The attributes of <c>Inherited</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Author</c>.</summary>

@@ -10,6 +10,7 @@ namespace Shapes.Positional;
 
 partial record Address : __Map.IDynamoDbDocument<global::Shapes.Positional.Address>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Positional.Address>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Positional.Address entity)
     {
         writer.WriteAttributeName("Street"u8);
@@ -23,6 +24,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shapes.Positional.Addre
         }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Positional.Address __Map.IDynamoDbDocument<global::Shapes.Positional.Address>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -80,6 +82,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shapes.Positional.Addre
         return new global::Shapes.Positional.Address(fields.Street!, fields.City!, fields.Zip);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Street; public bool Street__set;
@@ -88,6 +91,7 @@ partial record Address : __Map.IDynamoDbDocument<global::Shapes.Positional.Addre
     }
 
     /// <summary>The attributes of <c>Address</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Street</c>.</summary>

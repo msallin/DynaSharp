@@ -1,9 +1,11 @@
 
         /// <summary>The values of a parsed <c>datetimepk</c>.</summary>
         /// <param name="Utc">The value of the placeholder <c>Utc</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct DateTimePkParts(global::System.DateTime Utc);
 
         /// <summary>Builds and parses the partition key <c>datetimepk</c> of <c>KeyFormats</c>, with the template <c>T#{Utc}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class DateTimePk
         {
             private const int BufferLength = 26;

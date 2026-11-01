@@ -72,7 +72,7 @@ public sealed class BitemporalSortKeyTests(Backend backend)
 [DynamoDbEntity]
 [Discriminator("PRICE")]
 [PartitionKey("PRICE#{Sku}")]
-[SortKey("VALID#{ValidFrom}#TX#{RecordedAt}")]
+[SortKey("VALID#{ValidFrom}#TX#{RecordedAt:ticks}")]
 internal sealed partial record PriceFact
 {
     public required string Sku { get; init; }

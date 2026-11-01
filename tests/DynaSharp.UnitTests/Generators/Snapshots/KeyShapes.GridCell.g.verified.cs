@@ -10,25 +10,31 @@ namespace KeyShapes;
 
 partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCell>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "GRID",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "GRID#{Name}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name") }),
-            new __Map.DynamoDbKeyTemplate("sk", "CELL#{Column}#{Row:d3}", true, new[] { new __Map.DynamoDbKeyInput("Column", "Column"), new __Map.DynamoDbKeyInput("Row", "Row") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "GRID",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "GRID#{Name}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name") }),
+                new __Map.DynamoDbKeyTemplate("sk", "CELL#{Column}#{Row:d3}", true, new[] { new __Map.DynamoDbKeyInput("Column", "Column"), new __Map.DynamoDbKeyInput("Row", "Row") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.GridCell>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.GridCell>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.GridCell>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.GridCell entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -37,6 +43,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
         Keys.Sk.Write(writer, entity.Column, entity.Row);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.GridCell>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.GridCell entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -53,6 +60,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Row);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.GridCell __Map.IDynamoDbDocument<global::KeyShapes.GridCell>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -135,6 +143,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
         return new global::KeyShapes.GridCell(fields.Name!, fields.Column!, fields.Row__set ? fields.Row! : 5);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
@@ -143,6 +152,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
     }
 
     /// <summary>The attributes of <c>GridCell</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>
@@ -156,12 +166,14 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
     }
 
     /// <summary>The key builders of <c>GridCell</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>GridCell</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string name, string column, int row) => new PrimaryKey(name, column, row);
 
         /// <summary>The primary key of <c>GridCell</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.GridCell>
         {
             private readonly string _0;
@@ -187,9 +199,11 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Name);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>GridCell</c>, with the template <c>GRID#{Name}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -284,9 +298,11 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Column">The value of the placeholder <c>Column</c>.</param>
         /// <param name="Row">The value of the placeholder <c>Row</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(string Column, int Row);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>GridCell</c>, with the template <c>CELL#{Column}#{Row:d3}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;

@@ -274,7 +274,8 @@ public sealed class BatchStressTests
             var first = command.SendAsync().AsTask();
             try
             {
-                _ = command.SendAsync().AsTask();
+                var again = command;
+                _ = again.SendAsync().AsTask();
                 return (first, false);
             }
             catch (InvalidOperationException)

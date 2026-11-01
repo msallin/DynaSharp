@@ -22,12 +22,20 @@ internal static class KeysEmitter
 
         code.Blank();
         code.Line($"/// <summary>The key builders of <c>{type.Name}</c>.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public {(type.HidesInheritedKeys ? "new " : string.Empty)}static class Keys");
         code.Open();
         EmitPrimaryKey(code, type, entity);
-        foreach (var (key, isSortKey) in TemplateKeys(entity))
+        foreach (var (key, isSortKey) in KeysWithBuilders(entity))
         {
-            new KeyBuilderEmitter(code, key, key.Template!, isSortKey, type.Name, type.FullName).Emit();
+            if (key.Template is { } template)
+            {
+                new KeyBuilderEmitter(code, key, template, isSortKey, type.Name, type.FullName).Emit();
+            }
+            else
+            {
+                PlainKeyBuilderEmitter.Emit(code, key, type.Property(key.PlainProperty!), isSortKey, type);
+            }
         }
 
         code.Close();
@@ -41,6 +49,7 @@ internal static class KeysEmitter
     private static void EmitIndexes(IndentedCode code, TypeModel type, EntityModel entity)
     {
         code.Line($"/// <summary>The names of the indexes of <c>{type.Name}</c>, for <c>table.Index(...)</c>.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public {(type.HidesInheritedIndexes ? "new " : string.Empty)}static class Indexes");
         code.Open();
         var isFirst = true;
@@ -54,8 +63,8 @@ internal static class KeysEmitter
         code.Close();
     }
 
-    // Every key with a builder. The partition key of a local index is the one of the table, which has its builder already.
-    private static IEnumerable<(KeyModel Key, bool IsSortKey)> TemplateKeys(EntityModel entity)
+    // Every key has a builder. The partition key of a local index is the one of the table, which has its builder already.
+    private static List<(KeyModel Key, bool IsSortKey)> KeysWithBuilders(EntityModel entity)
     {
         var keys = new List<(KeyModel Key, bool IsSortKey)>();
         foreach (var key in PrimaryKeys(entity))
@@ -76,7 +85,7 @@ internal static class KeysEmitter
             }
         }
 
-        return keys.Where(static key => key.Key.Template is not null);
+        return keys;
     }
 
     private static List<KeyModel> PrimaryKeys(EntityModel entity) =>
@@ -100,6 +109,7 @@ internal static class KeysEmitter
         code.Line($"public static PrimaryKey Of({signature}) => new PrimaryKey({string.Join(", ", inputs.Select(static input => input.Parameter))});");
         code.Blank();
         code.Line($"/// <summary>The primary key of <c>{type.Name}</c>, which holds the values of the key and costs no string until it is written.</summary>");
+        code.Line(CodeText.GeneratedCode);
         code.Line($"public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<{type.FullName}>");
         code.Open();
         if (inputs.Count > 0)

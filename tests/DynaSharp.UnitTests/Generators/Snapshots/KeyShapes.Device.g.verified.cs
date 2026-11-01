@@ -10,24 +10,31 @@ namespace KeyShapes;
 
 partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "DEVICE",
-        partitionKeyName: "Serial",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "Slot",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type");
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "DEVICE",
+            partitionKeyName: "Serial",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "Slot",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type");
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Device>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Device>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Device()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Device(in __Fields fields)
         : this()
@@ -37,6 +44,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
         if (fields.Plan__set) { this.Plan = fields.Plan; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Device>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Device entity)
     {
         writer.WriteAttributeName("Serial"u8);
@@ -45,6 +53,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Slot);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Device>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Device entity)
     {
         writer.WriteAttributeName("_type"u8);
@@ -57,6 +66,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
         KeyShapes_PlanConverter.Write(writer, entity.Plan);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Device __Map.IDynamoDbDocument<global::KeyShapes.Device>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -119,6 +129,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
         return new global::KeyShapes.Device(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Serial; public bool Serial__set;
@@ -127,6 +138,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
     }
 
     /// <summary>The attributes of <c>Device</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Serial</c>.</summary>
@@ -139,6 +151,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
         public static global::DynaSharp.Attr<global::KeyShapes.Plan, __KeyShapes_PlanConverter> Plan => new("Plan");
 
         /// <summary>The converter of <c>global::KeyShapes.Plan</c>, in a form that a handle can name.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         public readonly struct __KeyShapes_PlanConverter : global::DynaSharp.Serialization.IDynamoDbConverter<global::KeyShapes.Plan>
         {
@@ -151,12 +164,14 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
     }
 
     /// <summary>The key builders of <c>Device</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Device</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string serial, int slot) => new PrimaryKey(serial, slot);
 
         /// <summary>The primary key of <c>Device</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Device>
         {
             private readonly string _0;
@@ -177,9 +192,29 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
                 global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, _1);
             }
         }
+
+        /// <summary>Builds the partition key <c>Serial</c> of <c>Device</c>, which is the property <c>Serial</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Pk
+        {
+            /// <summary>Gives the key as a key of <c>Device</c>, which a query of another entity does not take.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Device> Of(string serial) => new global::DynaSharp.PartitionKey<global::KeyShapes.Device>(global::DynaSharp.AttributeValue.FromString(serial), "Serial");
+
+            /// <summary>Formats the complete key.</summary>
+            public static string Format(string serial) => Of(serial).Value;
+        }
+
+        /// <summary>Builds the sort key <c>Slot</c> of <c>Device</c>, which is the property <c>Slot</c> as stored.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class Sk
+        {
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            public static global::DynaSharp.AttributeValue Of(int slot) => global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>(slot);
+        }
     }
 }
 
+[global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
 file readonly struct KeyShapes_PlanConverter : __Ser.IDynamoDbConverter<global::KeyShapes.Plan>, __Ser.IDynamoDbSetElementConverter<global::KeyShapes.Plan>
 {
     public static global::DynaSharp.AttributeType SetType => global::DynaSharp.AttributeType.StringSet;

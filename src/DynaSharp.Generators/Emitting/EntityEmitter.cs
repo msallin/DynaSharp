@@ -75,7 +75,12 @@ internal static class EntityEmitter
     {
         var version = entity.VersionProperty is { } property ? type.Property(property).AttributeName : null;
         code.Blank();
-        code.Line("private static readonly __Map.DynamoDbEntityInfo __Info = new(");
+
+        // In a class of its own: an initializer on the type would run in the static constructor of the type, which belongs to its user and which no attribute on a field excludes from coverage.
+        code.Line(CodeText.GeneratedCode);
+        code.Line("private static class __Metadata");
+        code.Open();
+        code.Line("internal static readonly __Map.DynamoDbEntityInfo Info = new(");
         code.Indent();
         code.Line($"discriminator: {CodeText.OptionalLiteral(entity.Discriminator)},");
         code.Line($"partitionKeyName: {CodeText.Literal(entity.PartitionKey.AttributeName)},");
@@ -88,7 +93,7 @@ internal static class EntityEmitter
         {
             var names = $"{CodeText.Literal(index.IndexName)}, {CodeText.Literal(index.PartitionKey.AttributeName)}, {CodeText.OptionalLiteral(index.SortKey?.AttributeName)}";
             var kind = $"{(index.Sparse ? "true" : "false")}, {(index.IsLocal ? "true" : "false")}";
-            var builder = index.PartitionKey.Template is null ? string.Empty : $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)} }}";
+            var builder = $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)} }}";
             code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}){builder},");
         }
 
@@ -109,7 +114,9 @@ internal static class EntityEmitter
         }
 
         code.Outdent();
+        code.Close();
         code.Blank();
-        code.Line($"static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<{type.FullName}>.Info => __Info;");
+        code.Line(CodeText.GeneratedCode);
+        code.Line($"static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<{type.FullName}>.Info => __Metadata.Info;");
     }
 }

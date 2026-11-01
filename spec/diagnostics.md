@@ -67,6 +67,17 @@ The source generator reports these on key templates. The grammar is in `requirem
 | `DYNA114` | A computed property in an index template, which no update can follow | Use a stored property |
 | `DYNA115` (info) | A string before a delimiter in a sort key, so values with a smaller character sort out of order | Use a delimiter below the values, or accept it: the caveat is real but rare |
 
+`DYNA116` (warning): a `DateTime` or `DateTimeOffset` in the default format, or in `s`, `ms` or `us`, is the last placeholder of the key of a table. `[SortKey("{At}")]` keeps milliseconds, so two puts
+0.5 ms apart write one key, and the second replaces the first without an error. Add a placeholder after the timestamp that breaks the tie, such as `{At}#{Id}`, or write `{At:ticks}`, which keeps all seven
+digits. It is the end of the whole key that counts: the sort key, or the partition key of a table without one. So a partition key that ends in a day beside a sort key is fine, and an index is exempt,
+because it is not unique. A format of a minute or coarser, such as `{Window:yyyy-MM-ddTHH:mm}` or `{Month:yyyy-MM}`, says one item per period, which is the design of a counter or a summary, so it is
+not reported. A plain `[SortKey]` on the property goes through its converter and keeps every digit.
+
+`DYNA117` (info): a key property starts empty and nothing has to set it, such as `public string EntityPartition { get; set; } = string.Empty;`, set later with a `with`. Forgetting that compiles, and the
+write throws `KeyFormatException` for a template or is rejected by DynamoDB for a plain key. Make it `required`, or set it in a constructor. It looks at every key of the entity, because a put writes the
+keys of its indexes too. Only a default that cannot be a key counts: `""`, `string.Empty`, `null!`, `default!`, and for a binary key `[]` and `Array.Empty<byte>()`. A default such as `"main"` or
+`Guid.NewGuid().ToString()` is a key of its own, and so is not reported, and neither is a property that is `required`, computed, nullable or has no initializer, or that a constructor mentions.
+
 ## Commands
 
 A command such as `PutCommand<T>` is a `ref struct` over pooled state. That is what makes building a request free of allocation, and it
@@ -83,12 +94,35 @@ what to write instead.
 | Captures one in a lambda or a local function | CS8175, CS9108 | Build inside the lambda: `pipeline.ExecuteAsync(ct => customers.Update(key).Add(attr, 1).SendAsync(ct))`. A retry from outside has to rebuild anyway, because the buffers are gone after the send. |
 
 Sending a command twice is not a compile error. It throws `InvalidOperationException`, and so does a second use of a handle after a
-fluent call: build the command again.
+fluent call: build the command again. `DYNA204` reports what the build can see of that.
 
 `DYNA202` (warning) reports `await shop.Query("a")` and `shop.Query("a").SendAsync()`. A read can end in several ways and none of them is
 the default, so name one: `ItemsAsync`, `ItemAsync` on a query, `PageAsync`, `PagesAsync` or `CountAsync`. Without this rule the compiler answers with a constraint
 on a type parameter (CS0315), which says nothing about what to write. An extension method of your own that makes a read awaitable is not
 reported.
+
+`DYNA203` (error) reports a statement whose value is a command or a step of a transaction: `events.Put(e);`, `query.Descending();`, or a helper of your own that returns one. Nothing sends it, and a
+call on a handle uses that handle up, so a chain with such a statement in the middle throws at its next use. Send it, or keep what the call returns: `query = query.Descending();`. An assignment, a
+`return` and an `await` use the value, and `_ = command;` says that dropping it is meant. A body such as `() => table.Put(item)` of a lambda that returns nothing is such a statement too: without
+this rule, `Task.Run(() => table.Put(item))` is a write that never happens. It is an error, because the code around it does not do what it says, and no use of a command is left out by it.
+
+`DYNA204` (warning) reports a call on a command in a variable when an earlier call has used that variable up on some path: `var a = q.Limit(1); var b = q.Limit(2);`, or
+`_ = command.ToRequestJson(); await command.SendAsync();`. Every call gives the next handle back, so assign it: `q = q.Limit(1);`. It follows branches and loops, so a call on each side of an `if`, a
+reassignment in a loop and an early `return` are fine, and `if (debug) log(command.ToRequestJson());` before the send is not: that path throws, when someone turns debug on. Build a command for the log
+instead. A handle copied to a second variable is not followed, and a graph does not know that two conditions go together, so two separate `if`s on one flag count as a path through both.
+
+`DYNA205` (warning) reports `Set`, `SetIfNotNull`, `Add`, `Remove`, `SetIfNotExists` or `Delete` by the handle of a property that the key of the table is made of, on a command of that entity:
+`events.Update(key).Set(DeviceEvent.Attrs.At, now)`. DynamoDB cannot change a key, so the same call throws when the command ends, or DynamoDB rejects it for a plain key. Delete the item and put a new one.
+It is about the property itself: a property that feeds only a key of an index stays writable, and a raw path is not looked at.
+
+`DYNA206` (warning) reports `IfNotExists()` on a `Put` whose item shows a version above 0 in the chain, in a transaction too: `orders.Put(new Order { Id = id, Revision = 1 }).IfNotExists()`, or
+`orders.Put(order with { Revision = 1 })`. An item that does not exist has no version, so the two can never both hold, and the command throws `InvalidOperationException` when it ends. A first write leaves
+the version at 0, which already means that no item has the key, so `order with { Revision = 0 }` and `IfNotExists` agree. To write without looking at versions, `IgnoreVersion()` gives the check up, and
+then `IfNotExists` is yours to use. Only a constant in an object initializer or a `with` in the chain counts: a version in a variable or from a method is not known here, and it is 0 as often as not, so
+it is not reported, and the run-time check answers for it.
+
+`DYNA207` (warning) reports a constant name that the entity does not declare, in the `Index` that takes the keys from the entity: `events.Index("Alertz")`, or `shop.Index<Order>("Alertz")`. It would
+throw `ArgumentException` when the code runs. Take the name from `T.Indexes`. A name that is not constant is not looked at, and neither is `Index(name, partitionKey, sortKey)`, which names its keys itself.
 
 ## Expressions
 

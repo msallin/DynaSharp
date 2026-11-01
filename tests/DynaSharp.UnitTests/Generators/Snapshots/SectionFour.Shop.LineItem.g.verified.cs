@@ -10,10 +10,12 @@ namespace Shop;
 
 partial record LineItem : __Map.IDynamoDbDocument<global::Shop.LineItem>
 {
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public LineItem()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private LineItem(in __Fields fields)
         : this()
@@ -22,6 +24,7 @@ partial record LineItem : __Map.IDynamoDbDocument<global::Shop.LineItem>
         this.Quantity = fields.Quantity;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shop.LineItem>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shop.LineItem entity)
     {
         writer.WriteAttributeName("Sku"u8);
@@ -30,6 +33,7 @@ partial record LineItem : __Map.IDynamoDbDocument<global::Shop.LineItem>
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Quantity);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shop.LineItem __Map.IDynamoDbDocument<global::Shop.LineItem>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -77,6 +81,7 @@ partial record LineItem : __Map.IDynamoDbDocument<global::Shop.LineItem>
         return new global::Shop.LineItem(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Sku; public bool Sku__set;
@@ -84,6 +89,7 @@ partial record LineItem : __Map.IDynamoDbDocument<global::Shop.LineItem>
     }
 
     /// <summary>The attributes of <c>LineItem</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Sku</c>.</summary>

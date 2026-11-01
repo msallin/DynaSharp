@@ -58,7 +58,7 @@ public sealed class ShardedLatestTests(Backend backend)
 [DynamoDbEntity]
 [Discriminator("ACTIVITY")]
 [PartitionKey("USER#{User}")]
-[SortKey("AT#{At}")]
+[SortKey("AT#{At:ticks}")]
 [GlobalIndexKey("GSI1", PartitionKey = "LATEST#{Shard:d1}", SortKey = "{At}")]
 internal sealed partial record Activity
 {

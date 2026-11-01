@@ -41,8 +41,15 @@ DYNA112 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key
 DYNA113 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA114 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA115 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA116 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA117 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA201 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA202 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA203 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA204 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA205 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA206 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA207 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA210 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA211 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA212 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
@@ -93,8 +100,15 @@ DYNA112 | Error | DynaSharp.Keys | Key on the wrong target | A template belongs 
 DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.
 DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current
 DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order
+DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table key | Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {{{0}:ticks}}.
+DYNA117 | Info | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
 DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync
+DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.
+DYNA204 | Warning | DynaSharp.Commands | Command is used twice | This command was used by an earlier call, so this one throws at run time. Assign what each call returns to the variable, or build the command again.
+DYNA205 | Warning | DynaSharp.Commands | Write to a key of the table | '{0}' is part of the key of the table of '{1}', and DynamoDB cannot change a key. Delete the item and put a new one.
+DYNA206 | Warning | DynaSharp.Commands | IfNotExists on a Put with a version | This Put of '{0}' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.
+DYNA207 | Warning | DynaSharp.Commands | Index is not declared | '{0}' declares no index '{1}'. Take the name from {0}.Indexes.
 DYNA210 | Warning | DynaSharp.Expressions | String where a name belongs | String '{0}' is a value here, but this position needs a name. Wrap it in Attr(...).
 DYNA211 | Error | DynaSharp.Expressions | Placeholder in an expression | DynaSharp generates placeholders; write the name in Attr(...) and the value in a hole, not '{0}'
 DYNA212 | Warning | DynaSharp.Expressions | Expression syntax error | The expression is not valid: {0}

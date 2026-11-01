@@ -10,28 +10,35 @@ namespace KeyShapes;
 
 partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKept>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "HALFKEPT",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: null,
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "KEPT#{Name}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name"), new __Map.DynamoDbKeyInput("Id", null) }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "HALFKEPT",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: null,
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "KEPT#{Name}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name"), new __Map.DynamoDbKeyInput("Id", null) }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.HalfKept>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.HalfKept>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public HalfKept()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private HalfKept(in __Fields fields)
         : this()
@@ -40,12 +47,14 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
         this.Id = fields.Id;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.HalfKept>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.HalfKept entity)
     {
         writer.WriteAttributeName("pk"u8);
         Keys.Pk.Write(writer, entity.Name, entity.Id);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.HalfKept>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.HalfKept entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -56,6 +65,7 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Name);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.HalfKept __Map.IDynamoDbDocument<global::KeyShapes.HalfKept>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -123,6 +133,7 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
         return new global::KeyShapes.HalfKept(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Name; public bool Name__set;
@@ -130,6 +141,7 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
     }
 
     /// <summary>The attributes of <c>HalfKept</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Name</c>.</summary>
@@ -137,12 +149,14 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
     }
 
     /// <summary>The key builders of <c>HalfKept</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>HalfKept</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string name, string id) => new PrimaryKey(name, id);
 
         /// <summary>The primary key of <c>HalfKept</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.HalfKept>
         {
             private readonly string _0;
@@ -165,9 +179,11 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Name">The value of the placeholder <c>Name</c>.</param>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Name, string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>HalfKept</c>, with the template <c>KEPT#{Name}#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;

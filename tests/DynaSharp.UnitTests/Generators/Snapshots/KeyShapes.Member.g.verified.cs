@@ -10,29 +10,36 @@ namespace KeyShapes;
 
 partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "MEMBER",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "TENANT#{Tenant}#USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant"), new __Map.DynamoDbKeyInput("Id", "Id") }),
-            new __Map.DynamoDbKeyTemplate("sk", "REGION#{Region}#CITY#{City}", true, new[] { new __Map.DynamoDbKeyInput("Region", "Region"), new __Map.DynamoDbKeyInput("City", "City") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "MEMBER",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "TENANT#{Tenant}#USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant"), new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("sk", "REGION#{Region}#CITY#{City}", true, new[] { new __Map.DynamoDbKeyInput("Region", "Region"), new __Map.DynamoDbKeyInput("City", "City") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Member>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::KeyShapes.Member>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Member()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Member(in __Fields fields)
         : this()
@@ -43,6 +50,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         this.City = fields.City;
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::KeyShapes.Member>.WriteKey(__Ser.DynamoDbWriter writer, global::KeyShapes.Member entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -51,6 +59,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         Keys.Sk.Write(writer, entity.Region, entity.City);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::KeyShapes.Member>.WriteAttributes(__Ser.DynamoDbWriter writer, global::KeyShapes.Member entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -69,6 +78,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.City);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::KeyShapes.Member __Map.IDynamoDbDocument<global::KeyShapes.Member>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -162,6 +172,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         return new global::KeyShapes.Member(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Tenant; public bool Tenant__set;
@@ -171,6 +182,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
     }
 
     /// <summary>The attributes of <c>Member</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Tenant</c>.</summary>
@@ -187,12 +199,14 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
     }
 
     /// <summary>The key builders of <c>Member</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Member</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string tenant, string id, string region, string city) => new PrimaryKey(tenant, id, region, city);
 
         /// <summary>The primary key of <c>Member</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Member>
         {
             private readonly string _0;
@@ -221,9 +235,11 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Tenant">The value of the placeholder <c>Tenant</c>.</param>
         /// <param name="Id">The value of the placeholder <c>Id</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Tenant, string Id);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Member</c>, with the template <c>TENANT#{Tenant}#USER#{Id}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -322,9 +338,11 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
         /// <summary>The values of a parsed <c>sk</c>.</summary>
         /// <param name="Region">The value of the placeholder <c>Region</c>.</param>
         /// <param name="City">The value of the placeholder <c>City</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(string Region, string City);
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Member</c>, with the template <c>REGION#{Region}#CITY#{City}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 256;

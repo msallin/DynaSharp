@@ -10,28 +10,35 @@ namespace Shapes.Keys;
 
 partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
 {
-    private static readonly __Map.DynamoDbEntityInfo __Info = new(
-        discriminator: "FIXED",
-        partitionKeyName: "pk",
-        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        sortKeyName: "sk",
-        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
-        indexes: new __Map.DynamoDbIndexInfo[]
-        {
-        },
-        versionAttributeName: null,
-        discriminatorAttributeName: "_type",
-        keyTemplates: new __Map.DynamoDbKeyTemplate[]
-        {
-            new __Map.DynamoDbKeyTemplate("pk", "TENANT#{Tenant}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }),
-        });
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    private static class __Metadata
+    {
+        internal static readonly __Map.DynamoDbEntityInfo Info = new(
+            discriminator: "FIXED",
+            partitionKeyName: "pk",
+            partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            sortKeyName: "sk",
+            sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
+            indexes: new __Map.DynamoDbIndexInfo[]
+            {
+            },
+            versionAttributeName: null,
+            discriminatorAttributeName: "_type",
+            keyTemplates: new __Map.DynamoDbKeyTemplate[]
+            {
+                new __Map.DynamoDbKeyTemplate("pk", "TENANT#{Tenant}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }),
+            });
+    }
 
-    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Keys.Fixed>.Info => __Info;
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<global::Shapes.Keys.Fixed>.Info => __Metadata.Info;
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public Fixed()
     {
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     [global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private Fixed(in __Fields fields)
         : this()
@@ -40,6 +47,7 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         if (fields.class__set) { this.@class = fields.@class; }
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbEntity<global::Shapes.Keys.Fixed>.WriteKey(__Ser.DynamoDbWriter writer, global::Shapes.Keys.Fixed entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -48,6 +56,7 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         Keys.Sk.Write(writer);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static void __Map.IDynamoDbDocument<global::Shapes.Keys.Fixed>.WriteAttributes(__Ser.DynamoDbWriter writer, global::Shapes.Keys.Fixed entity)
     {
         writer.WriteAttributeName("pk"u8);
@@ -62,6 +71,7 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.@class);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     static global::Shapes.Keys.Fixed __Map.IDynamoDbDocument<global::Shapes.Keys.Fixed>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
@@ -122,6 +132,7 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         return new global::Shapes.Keys.Fixed(in fields);
     }
 
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
         public string Tenant; public bool Tenant__set;
@@ -129,6 +140,7 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
     }
 
     /// <summary>The attributes of <c>Fixed</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Attrs
     {
         /// <summary>The attribute <c>Tenant</c>.</summary>
@@ -139,12 +151,14 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
     }
 
     /// <summary>The key builders of <c>Fixed</c>.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
         /// <summary>Creates the primary key of <c>Fixed</c>. Values are validated when the key is written, by the command it goes to.</summary>
         public static PrimaryKey Of(string tenant) => new PrimaryKey(tenant);
 
         /// <summary>The primary key of <c>Fixed</c>, which holds the values of the key and costs no string until it is written.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Keys.Fixed>
         {
             private readonly string _0;
@@ -166,9 +180,11 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
 
         /// <summary>The values of a parsed <c>pk</c>.</summary>
         /// <param name="Tenant">The value of the placeholder <c>Tenant</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct PkParts(string Tenant);
 
         /// <summary>Builds and parses the partition key <c>pk</c> of <c>Fixed</c>, with the template <c>TENANT#{Tenant}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Pk
         {
             private const int BufferLength = 256;
@@ -261,9 +277,11 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         }
 
         /// <summary>The values of a parsed <c>sk</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts();
 
         /// <summary>Builds and parses the sort key <c>sk</c> of <c>Fixed</c>, with the template <c>PROFILE</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
             private const int BufferLength = 7;

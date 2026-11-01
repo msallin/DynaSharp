@@ -20,6 +20,6 @@ public sealed record DynamoDbIndexInfo(
     ScalarAttributeType PartitionKeyType = ScalarAttributeType.Unknown,
     ScalarAttributeType SortKeyType = ScalarAttributeType.Unknown)
 {
-    /// <summary>Gets the name of the key builder of the partition key under <c>Keys</c>, for a message that says which one to use, or <see langword="null"/> for a plain key, which has none.</summary>
+    /// <summary>Gets the name of the key builder of the partition key under <c>Keys</c>, for a message that says which one to use, or <see langword="null"/> for metadata that does not name it.</summary>
     public string? PartitionKeyBuilder { get; init; }
 }

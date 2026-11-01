@@ -14,7 +14,7 @@ public sealed class ConsistentReadTests
         var byStatus = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => byStatus.Query("a").Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query("a").Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("ByStatus").And.Contains("global secondary index");
@@ -29,7 +29,7 @@ public sealed class ConsistentReadTests
         var byStatus = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => byStatus.Scan().Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Scan().Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -44,7 +44,7 @@ public sealed class ConsistentReadTests
         var byStatus = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => byStatus.Query(["a", "b"]).Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query(["a", "b"]).Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -59,7 +59,7 @@ public sealed class ConsistentReadTests
         var index = client.Table("Shop", "pk", "sk").Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => index.Query("a").Of<OverloadedBadge, OverloadedPass>().Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query("a").Of<OverloadedBadge, OverloadedPass>().Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -74,7 +74,7 @@ public sealed class ConsistentReadTests
         var index = client.Table("Shop", "pk", "sk").Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => index.Scan().Of<OverloadedBadge, OverloadedPass>().Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Scan().Of<OverloadedBadge, OverloadedPass>().Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -89,7 +89,7 @@ public sealed class ConsistentReadTests
         var index = client.Table<LabeledNote>("Shop").Index(LabeledNote.Indexes.OnPartition);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => index.Query("a").Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query("a").Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -104,7 +104,7 @@ public sealed class ConsistentReadTests
         var index = client.Table("Shop", "pk", "sk").Index("ByStatus", "status");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => index.Query("a").Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query("a").Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
