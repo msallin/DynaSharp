@@ -148,22 +148,46 @@ internal sealed class ExpressionWriter
         CommitPending(Clause.Condition);
     }
 
-    /// <summary>Adds the condition on a version to the condition: <c>attribute_not_exists</c> for 0, which stands for a new item, and <c>name = :old</c> for any other.</summary>
+    /// <summary>Adds <c>name = :old</c> to the condition. Version 0 never comes here: it stands for an item that does not exist, which is a condition on the key, see <see cref="WriteRules"/>.</summary>
     /// <param name="attributeName">The attribute of the version.</param>
     /// <param name="version">The version the item must have.</param>
     public void AppendVersion(string attributeName, long version)
     {
-        if (version == 0)
-        {
-            AppendItemExists(attributeName, exists: false);
-            return;
-        }
-
         var text = StartPending();
         AppendAttributeName(text, attributeName);
         text.Append(" = "u8);
         AppendValue<long, NumberConverter<long>>(text, version);
         CommitPending(Clause.Condition);
+    }
+
+    /// <summary>
+    /// Adds <c>name = value</c> to the key condition for every attribute of a key, which is how a query asks for the one item under it. The key is JSON already, and an attribute is a name
+    /// and a value in the form a map keeps them in, so they are copied, and a key costs no string here either.
+    /// </summary>
+    /// <param name="key">The key, as a JSON object.</param>
+    public void AppendKeyCondition(ReadOnlySpan<byte> key)
+    {
+        // Key:  {"pk":{"S":"a"},"sk":{"S":"b"}}
+        // Text: #n0 = :v0 AND #n1 = :v1
+        var text = this[Clause.KeyCondition];
+        var reader = new Utf8JsonReader(key);
+        reader.Read();
+        reader.Read();
+        while (reader.TokenType == JsonTokenType.PropertyName)
+        {
+            if (text.WrittenCount > 0)
+            {
+                text.Append(" AND "u8);
+            }
+
+            AppendEncodedName(text, reader.ValueSpan);
+            text.Append(" = "u8);
+            reader.Read();
+            var start = (int)reader.TokenStartIndex;
+            reader.Skip();
+            AppendEncodedValue(text, key[start..(int)reader.BytesConsumed]);
+            reader.Read();
+        }
     }
 
     /// <summary>Writes one value through its converter and a placeholder for it. Equal values share a placeholder.</summary>
@@ -174,31 +198,11 @@ internal sealed class ExpressionWriter
     public void AppendValue<T, TConverter>(PooledByteBuffer text, T value)
         where TConverter : IDynamoDbConverter<T>
     {
-        // ,":v3":{"S":"open"}
-        var values = _values;
-        var mark = values.WrittenCount;
-        var index = _valueCount;
-        values.Append(index == 0 ? "{\":v"u8 : ",\":v"u8);
-        values.AppendNumber(index);
-        values.Append("\":"u8);
-        var start = values.WrittenCount;
-
-        TConverter.Write(new DynamoDbWriter(ValueJson, values), value);
+        var mark = _values.WrittenCount;
+        var start = StartValue();
+        TConverter.Write(new DynamoDbWriter(ValueJson, _values), value);
         CommandState.EndWrite(ValueJson);
-
-        var existing = Find(_valueSlices, _valueCount, values, start);
-        if (existing >= 0)
-        {
-            values.Truncate(mark);
-            index = existing;
-        }
-        else
-        {
-            Add(ref _valueSlices, ref _valueCount, new Slice(start, values.WrittenCount - start));
-        }
-
-        text.Append(":v"u8);
-        text.AppendNumber(index);
+        EndValue(text, mark, start);
     }
 
     /// <summary>
@@ -773,29 +777,82 @@ internal sealed class ExpressionWriter
 
     private void AppendName(PooledByteBuffer text, ReadOnlySpan<char> name)
     {
-        // ,"#n3":"status"
-        var names = _names;
-        var mark = names.WrittenCount;
-        var index = _nameCount;
-        names.Append(index == 0 ? "{\"#n"u8 : ",\"#n"u8);
-        names.AppendNumber(index);
-        names.Append("\":\""u8);
-        var start = names.WrittenCount;
-        WireJson.AppendEncoded(names, name);
+        var mark = _names.WrittenCount;
+        var start = StartName();
+        WireJson.AppendEncoded(_names, name);
+        EndName(text, mark, start);
+    }
 
-        var existing = Find(_nameSlices, _nameCount, names, start);
-        if (existing >= 0)
+    private void AppendEncodedName(PooledByteBuffer text, ReadOnlySpan<byte> encoded)
+    {
+        var mark = _names.WrittenCount;
+        var start = StartName();
+        _names.Append(encoded);
+        EndName(text, mark, start);
+    }
+
+    // ,"#n3":"status"
+    private int StartName()
+    {
+        var names = _names;
+        names.Append(_nameCount == 0 ? "{\"#n"u8 : ",\"#n"u8);
+        names.AppendNumber(_nameCount);
+        names.Append("\":\""u8);
+        return names.WrittenCount;
+    }
+
+    private void EndName(PooledByteBuffer text, int mark, int start)
+    {
+        var names = _names;
+        var index = Find(_nameSlices, _nameCount, names, start);
+        if (index >= 0)
         {
             names.Truncate(mark);
-            index = existing;
         }
         else
         {
+            index = _nameCount;
             Add(ref _nameSlices, ref _nameCount, new Slice(start, names.WrittenCount - start));
             names.Append((byte)'"');
         }
 
         text.Append("#n"u8);
+        text.AppendNumber(index);
+    }
+
+    private void AppendEncodedValue(PooledByteBuffer text, ReadOnlySpan<byte> json)
+    {
+        var mark = _values.WrittenCount;
+        var start = StartValue();
+        _values.Append(json);
+        EndValue(text, mark, start);
+    }
+
+    // ,":v3":{"S":"open"}
+    private int StartValue()
+    {
+        var values = _values;
+        values.Append(_valueCount == 0 ? "{\":v"u8 : ",\":v"u8);
+        values.AppendNumber(_valueCount);
+        values.Append("\":"u8);
+        return values.WrittenCount;
+    }
+
+    private void EndValue(PooledByteBuffer text, int mark, int start)
+    {
+        var values = _values;
+        var index = Find(_valueSlices, _valueCount, values, start);
+        if (index >= 0)
+        {
+            values.Truncate(mark);
+        }
+        else
+        {
+            index = _valueCount;
+            Add(ref _valueSlices, ref _valueCount, new Slice(start, values.WrittenCount - start));
+        }
+
+        text.Append(":v"u8);
         text.AppendNumber(index);
     }
 

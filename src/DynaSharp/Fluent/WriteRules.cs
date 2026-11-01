@@ -118,13 +118,25 @@ internal static class WriteRules
         ArgumentOutOfRangeException.ThrowIfEqual(version, long.MaxValue);
     }
 
-    /// <summary>Adds the condition on a version, for a write that leaves no item or does not write one.</summary>
+    /// <summary>
+    /// Adds the condition on a version, for a write that leaves no item or does not write one. Version 0 stands for an item that does not exist, so it is the condition of <see cref="IfNotExists"/>, on the key: looking at the
+    /// version attribute instead would let a write replace an item that has none.
+    /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
     /// <param name="version">The version the item must have.</param>
     /// <exception cref="InvalidOperationException">The table has no version.</exception>
     public static void IfVersion(CommandState state, long version)
     {
-        state.Expressions.AppendVersion(VersionAttribute(state), version);
+        var attributeName = VersionAttribute(state);
+        if (version == 0)
+        {
+            IfNotExists(state);
+        }
+        else
+        {
+            state.Expressions.AppendVersion(attributeName, version);
+        }
+
         state.UnsettledVersion = null;
         state.VersionChecked = true;
         state.ExpectedVersion = version;
@@ -142,12 +154,26 @@ internal static class WriteRules
         state.StoredVersion = next;
     }
 
-    /// <summary>Adds the condition that no item has the key. It is noted as well, because an entity may hold a version that says the opposite, and <see cref="IgnoreVersion"/> can still take that back.</summary>
+    /// <summary>
+    /// Adds the condition that no item has the key, once, whichever of <c>IfNotExists</c> and version 0 comes first. It is noted as well, because an entity may hold a version that says the opposite, and
+    /// <see cref="IgnoreVersion"/> can still take that back.
+    /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
     public static void IfNotExists(CommandState state)
     {
-        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
-        state.ItemMustNotExist = true;
+        if (!state.ItemMustNotExist)
+        {
+            state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
+            state.ItemMustNotExist = true;
+        }
+    }
+
+    /// <summary>Adds the condition that an item has the key. It is noted as well, because version 0 says the opposite, and that is only known at the end of the chain.</summary>
+    /// <param name="state">The state, whose table is the one of the write.</param>
+    public static void IfExists(CommandState state)
+    {
+        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: true);
+        state.ItemMustExist = true;
     }
 
     /// <summary>Lets the write go out without looking at the version. A put of an entity then stores the entity as it is, so its item is written again.</summary>
@@ -174,17 +200,25 @@ internal static class WriteRules
     /// <summary>Ends what a write owes before it goes out. It runs at the terminal of a command and at the end of each action of a transaction.</summary>
     /// <param name="state">The state.</param>
     /// <returns>The state, for a chain.</returns>
-    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it asks for a new item with a version above 0, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
+    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it asks for a new item with a version above 0 or for an item that exists at version 0, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
     public static CommandState Settle(CommandState state)
     {
+        var versionChecked = state.VersionChecked;
         state.VersionChecked = false;
         var mustNotExist = state.ItemMustNotExist;
         state.ItemMustNotExist = false;
+        var mustExist = state.ItemMustExist;
+        state.ItemMustExist = false;
         var expected = state.ExpectedVersion;
         state.ExpectedVersion = 0;
         if (mustNotExist && expected > 0)
         {
             throw Contradiction(state.Table);
+        }
+
+        if (mustExist && versionChecked && expected == 0)
+        {
+            throw ExistsAtVersionZero(state.Table);
         }
 
         if (state.UnsettledVersion is { } table)
@@ -200,7 +234,20 @@ internal static class WriteRules
                 throw Contradiction(table);
             }
 
-            state.Expressions.AppendVersion(table.Writes!.VersionAttributeName!, held);
+            if (mustExist && held == 0)
+            {
+                throw ExistsAtVersionZero(table);
+            }
+
+            if (held != 0)
+            {
+                state.Expressions.AppendVersion(table.Writes!.VersionAttributeName!, held);
+            }
+            else if (!mustNotExist)
+            {
+                state.Expressions.AppendItemExists(table.PartitionKeyName, exists: false);
+            }
+
             state.UnsettledVersion = null;
             ForgetEntity(state);
         }
@@ -231,7 +278,7 @@ internal static class WriteRules
 
     /// <summary>
     /// Sets an attribute by its handle. A null value is a removal, because a converter takes no null, and because a <c>NULL</c> value would be rejected on an index key. That reads the same
-    /// way a generated entity does: it writes no attribute for a null property.
+    /// way a generated entity does: it writes no attribute for a null property. A value its converter counts as null goes the same way.
     /// </summary>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>
@@ -241,7 +288,7 @@ internal static class WriteRules
     public static void Set<TValue, TConverter>(CommandState state, string path, TValue? value)
         where TConverter : IDynamoDbConverter<TValue>
     {
-        if (value is null)
+        if (value is null || TConverter.IsOmitted(value))
         {
             Remove(state, path);
             return;
@@ -253,6 +300,36 @@ internal static class WriteRules
         }
 
         state.Expressions.Set<TValue, TConverter>(path, value);
+    }
+
+    /// <summary>Sets an attribute by its handle if there is a value, and otherwise adds nothing. A value its converter counts as null is none.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="state">The state.</param>
+    /// <param name="path">The path of the handle.</param>
+    /// <param name="value">The value.</param>
+    public static void SetIfNotNull<TValue, TConverter>(CommandState state, string path, TValue? value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        if (value is not null && !TConverter.IsOmitted(value))
+        {
+            Set<TValue, TConverter>(state, path, value);
+        }
+    }
+
+    /// <summary>Rejects what a converter counts as null where a value must be given, as a converter rejects null itself, before the command is touched.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="path">The path of the handle.</param>
+    /// <param name="value">The value.</param>
+    /// <exception cref="ArgumentException"><paramref name="value"/> counts as null.</exception>
+    public static void CheckValue<TValue, TConverter>(string path, TValue value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        if (TConverter.IsOmitted(value))
+        {
+            throw new ArgumentException($"The attribute {path} has [OmitEmpty], so an empty string counts as null, and SetIfNotExists takes a value.", nameof(value));
+        }
     }
 
     /// <summary>Removes an attribute by its handle.</summary>
@@ -271,6 +348,9 @@ internal static class WriteRules
 
     private static InvalidOperationException Contradiction(TableModel table) => new(
         $"This write of {table.Writes!.EntityName} holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().");
+
+    private static InvalidOperationException ExistsAtVersionZero(TableModel table) => new(
+        $"This write of {table.Writes!.EntityName} holds version 0 and asks that an item has its key, which can never both hold: version 0 means that no item has the key. For a first write leave out IfExists, for an item that exists use the version last read, and to write without looking at the version call IgnoreVersion().");
 
     private static void Note(CommandState state, string path, KeyInputChange change)
     {

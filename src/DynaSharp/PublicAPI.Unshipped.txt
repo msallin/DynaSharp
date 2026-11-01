@@ -4,6 +4,14 @@ DynaSharp.Credentials.DefaultCredentialsProvider.TryInvalidate(DynaSharp.Credent
 DynaSharp.Credentials.InstanceMetadataCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.IRefreshableCredentialsProvider
 DynaSharp.Credentials.IRefreshableCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Mapping.OmitEmptyAttribute
+DynaSharp.Mapping.OmitEmptyAttribute.OmitEmptyAttribute() -> void
+DynaSharp.Serialization.OmitEmptyConverter<TConverter>
+DynaSharp.Serialization.OmitEmptyConverter<TConverter>.OmitEmptyConverter() -> void
+static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.IsOmitted(string! value) -> bool
+static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> string!
+static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, string! value) -> void
+DynaSharp.Serialization.IDynamoDbConverter<T>.IsOmitted(T value) -> bool
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.get -> bool
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.init -> void
 DynaSharp.Mapping.DynamoDbKeyTemplate.Parse.get -> System.Func<DynaSharp.AttributeValue, object?[]?>?
@@ -18,6 +26,9 @@ static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<bool, DynaSharp.S
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.DateTimeOffset, DynaSharp.Serialization.EpochSecondsConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith<T, TConverter>(this DynaSharp.Attr<T, TConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith<T>(this DynaSharp.Attr<T, DynaSharp.Serialization.NumberConverter<T>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+DynaSharp.DynamoDbClient.Options.get -> DynaSharp.DynamoDbClientOptions!
+DynaSharp.Streams.DynamoDbStreamsClient.Options.get -> DynaSharp.DynamoDbClientOptions!
+DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
 DynaSharp.DynamoDbMappingException.Key.get -> DynaSharp.Item?
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
@@ -48,7 +59,17 @@ DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Requests.CreateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
 DynaSharp.Requests.DeleteTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.IUpdatable<TSelf>.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> TSelf
+DynaSharp.QueryCommand<T>.ItemAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
 DynaSharp.Requests.DescribeTableResponse.Table.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.Table<T>.Query<TKey>(TKey key) -> DynaSharp.QueryCommand<T>
+DynaSharp.TableNotActiveException
+DynaSharp.TableNotActiveException.LastStatus.get -> DynaSharp.TableStatus?
+DynaSharp.TableNotActiveException.PendingIndex.get -> string?
+DynaSharp.TableNotActiveException.TableName.get -> string!
+DynaSharp.TableNotActiveException.TableNotActiveException(string! message, string! tableName, DynaSharp.TableStatus? lastStatus, string? pendingIndex = null, System.Exception? innerException = null) -> void
+DynaSharp.UpdateCommand<T>.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> DynaSharp.UpdateCommand<T>
+DynaSharp.UpdateStep.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> DynaSharp.UpdateStep
 DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexName.get -> string?
 DynaSharp.Requests.LocalSecondaryIndexDescription.IndexName.get -> string?
 DynaSharp.Requests.TableDescription.TableName.get -> string?

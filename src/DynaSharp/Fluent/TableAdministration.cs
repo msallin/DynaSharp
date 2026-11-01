@@ -6,7 +6,7 @@ namespace DynaSharp.Fluent;
 /// <summary>The calls about a table that a user of a table makes, without going to the request API. They run the operations of that API, so they have its spans and metrics.</summary>
 internal static class TableAdministration
 {
-    /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes, and only the largest restores take longer: those know what to pass.</summary>
+    /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes, and only the largest restores and the backfill of an index on a table with much data take longer: those know what to pass.</summary>
     public static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
 
     // Tables turn active within seconds, usually. DescribeTable is a control plane call with its own, lower limits, so the poll backs off.
@@ -40,12 +40,12 @@ internal static class TableAdministration
         return response.TableDescription ?? NoDescription(table);
     }
 
-    /// <summary>Polls a table on the clock of the client until it is active.</summary>
+    /// <summary>Polls a table on the clock of the client until it and all its global secondary indexes are active. A table reads <c>ACTIVE</c> while an index backfills, so its status alone says too little.</summary>
     /// <param name="table">The table.</param>
     /// <param name="timeout">How long to wait.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
-    /// <exception cref="TimeoutException">The table was not active in time.</exception>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
     public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
@@ -54,14 +54,19 @@ internal static class TableAdministration
         var delay = FirstDelay;
         while (true)
         {
+            TableStatus? status = null;
+            GlobalSecondaryIndexDescription? pending = null;
             ResourceNotFoundException? missing = null;
             try
             {
                 var description = await DescribeAsync(table, cancellationToken).ConfigureAwait(false);
-                if (description.TableStatus == TableStatus.Active)
+                pending = FirstPendingIndex(description);
+                if (description.TableStatus == TableStatus.Active && pending is null)
                 {
                     return description;
                 }
+
+                status = description.TableStatus;
             }
             catch (ResourceNotFoundException exception)
             {
@@ -72,12 +77,35 @@ internal static class TableAdministration
             var left = timeout - clock.GetElapsedTime(start);
             if (left <= TimeSpan.Zero)
             {
-                throw new TimeoutException($"The table {table.Name} was not ACTIVE after {timeout}.", missing);
+                throw new TableNotActiveException($"The table {table.Name} and its indexes were not ACTIVE after {timeout}: {LastLook(status, pending)}.", table.Name, status, pending?.IndexName, missing);
             }
 
             await Task.Delay(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
             delay = delay * 2 < LongestDelay ? delay * 2 : LongestDelay;
         }
+    }
+
+    private static GlobalSecondaryIndexDescription? FirstPendingIndex(TableDescription description)
+    {
+        foreach (var index in description.GlobalSecondaryIndexes)
+        {
+            if (index.IndexStatus != IndexStatus.Active)
+            {
+                return index;
+            }
+        }
+
+        return null;
+    }
+
+    private static string LastLook(TableStatus? status, GlobalSecondaryIndexDescription? pending)
+    {
+        if (status is not { } seen)
+        {
+            return "the table was not found";
+        }
+
+        return pending is null ? $"the table was {seen}" : $"the table was {seen}, and the index {pending.IndexName} was {pending.IndexStatus}";
     }
 
     // The service model requires no member of these responses. A description that says nothing has the status Unknown, so a wait goes on, and a caller is spared a null DynamoDB does not send in practice.

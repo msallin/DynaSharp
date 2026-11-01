@@ -54,6 +54,35 @@ internal static class PagedRead<TOperation, T>
         }
     }
 
+    /// <summary>Reads pages up to the first that holds an item, which makes a page a filter left empty no reason to stop, and the next page no reason to go on.</summary>
+    /// <param name="state">The state of the read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The first item, or the default value if there is none, a task that the caller awaits exactly once.</returns>
+    [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+    public static async ValueTask<T?> FirstAsync(CommandState state, CancellationToken cancellationToken)
+    {
+        var version = state.Version;
+        try
+        {
+            PageData<T> page;
+            do
+            {
+                page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
+                if (page.Items.Length > 0)
+                {
+                    return page.Items[0];
+                }
+            }
+            while (page.HasMore);
+
+            return default;
+        }
+        finally
+        {
+            state.Release(version);
+        }
+    }
+
     /// <summary>Counts the items of all pages without reading them.</summary>
     /// <param name="state">The state of the read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>

@@ -48,6 +48,22 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_QueryByAGeneratedCompositeKey_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var orders = client.Table<KeyedOrder>("Shop");
+
+        // Act (the key goes from its values into the key condition without a string)
+        var allocated = Measure(orders, static table => CommandHelpers.FinishAndRelease(
+            table.Query(KeyedOrder.Keys.Of(Guid.Empty, DateTimeOffset.UnixEpoch, Guid.Empty)).Consistent().Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task Build_UpdateWithStructCondition_AllocatesNothing()
     {
         // Arrange
@@ -90,6 +106,22 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
             table.Update(default(StaticKey)).Set(Customer.Attrs.OrderCount, (int?)7).Set(Customer.Attrs.Email, "a@b.ch")));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_TypedUpdateWithSetIfNotNull_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
+            table.Update(default(StaticKey)).SetIfNotNull(Customer.Attrs.OrderCount, (int?)7).SetIfNotNull(Customer.Attrs.OrderCount, (int?)null).SetIfNotNull(Customer.Attrs.Email, "a@b.ch").SetIfNotNull(Customer.Attrs.Email, null)));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -186,6 +218,38 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(
             table.Put().With("pk", PartitionKey).With("sk", SortKey).With("orderId", 9182736455).With("total", 1249.95m).With("shipped", true).IfNotExists().ReturnOldOnFailure()));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_PutOfAnEntityWithOmitEmpty_AllocatesNothing()
+    {
+        // Arrange (the entity is made before, because it is what a put is given)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slips = client.Table<Slip>("Shop");
+        var slip = new Slip { Id = "s1", Note = string.Empty, Comment = "c" };
+
+        // Act
+        var allocated = Measure((slips, slip), static input => CommandHelpers.FinishAndRelease(input.slips.Put(input.slip)));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_UpdateByAHandleWithOmitEmpty_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slips = client.Table<Slip>("Shop");
+
+        // Act
+        var allocated = Measure(slips, static table => CommandHelpers.FinishAndRelease(
+            table.Update(Slip.Keys.Of("s1")).Set(Slip.Attrs.Note, string.Empty).SetIfNotNull(Slip.Attrs.Note, string.Empty).Set(Slip.Attrs.Comment, "c")));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);

@@ -39,6 +39,7 @@ Properties:
     FallbackKey: null
     ParameterName: street
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: City
     Identifier: City
@@ -58,6 +59,7 @@ Properties:
     FallbackKey: null
     ParameterName: city
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Zip
     Identifier: Zip
@@ -77,6 +79,7 @@ Properties:
     FallbackKey: null
     ParameterName: zip
     IsPublic: True
+    OmitsEmpty: False
 Entity: null
 Enums: []
 HidesInheritedKeys: False

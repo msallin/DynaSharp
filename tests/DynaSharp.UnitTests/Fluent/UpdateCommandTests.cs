@@ -8,6 +8,8 @@ public sealed class UpdateCommandTests
 {
     private const string Start = """{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}}""";
 
+    private static Ticket.Keys.PrimaryKey TicketKey => Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31));
+
     [Test]
     public async Task ToRequestJson_SetOfAString_WritesAPlaceholderForNameAndValue()
     {
@@ -85,6 +87,156 @@ public sealed class UpdateCommandTests
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo"}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAReferenceWithAValue_IsTheSet()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Note, "n").ToRequestJson();
+        var set = tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Note, "n").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(set);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAReferenceWithNull_AddsNothing()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Note, null).ToRequestJson();
+        var none = tickets.Update(TicketKey).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(none);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAValueTypeWithAValue_IsTheSet()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Votes, (int?)3).ToRequestJson();
+        var set = tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Votes, 3).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(set);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAValueTypeWithNull_AddsNothing()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Votes, (int?)null).ToRequestJson();
+        var none = tickets.Update(TicketKey).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(none);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAKeyInputWithAValue_FollowsTheRulesOfASet()
+    {
+        // Arrange (a sparse key without its other input would drop the item out of the index without a word)
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Owner, "ann").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("byownersk");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAllKeyInputs_WritesTheDerivedKey()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+        var day = new DateOnly(2026, 10, 31);
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Owner, "ann").SetIfNotNull(Ticket.Attrs.Due, (DateOnly?)day).ToRequestJson();
+        var set = tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Set(Ticket.Attrs.Due, day).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(set);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullOfAKeyInputWithNull_LeavesTheKeysAlone()
+    {
+        // Arrange (a null of Set would take the item out of the sparse index)
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Owner, null).SetIfNotNull(Ticket.Attrs.Due, (DateOnly?)null).ToRequestJson();
+        var none = tickets.Update(TicketKey).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(none);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullThroughANestedHandle_SetsThePath()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+
+        // Act
+        var json = fixture.Shop.Update("a", "b").SetIfNotNull(Purchase.Attrs.ShipTo.At(Place.Attrs.City), "Bern").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0.#n1 = :v0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"City"},"ExpressionAttributeValues":{":v0":{"S":"Bern"}}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotNullInATransaction_IsTheSetOrNothing()
+    {
+        // Arrange
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var json = fixture.Client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion()
+            .SetIfNotNull(Ticket.Attrs.Note, "n").SetIfNotNull(Ticket.Attrs.Votes, (int?)3)
+            .SetIfNotNull(Ticket.Attrs.Owner, null).SetIfNotNull(Ticket.Attrs.Rank, (int?)null)
+            .Token("t").ToRequestJson();
+        var set = fixture.Client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Set(Ticket.Attrs.Note, "n").Set(Ticket.Attrs.Votes, 3).Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(set);
+    }
+
+    [Test]
+    public async Task SetIfNotNull_NullOnAValueType_UsesTheHandleUp()
+    {
+        // Arrange (adding nothing still is a fluent call, so the handle before it is spent)
+        using var fixture = new Fixture();
+        var tickets = fixture.Client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => SetOnASpentHandle(tickets));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("already sent");
     }
 
     [Test]
@@ -648,6 +800,13 @@ public sealed class UpdateCommandTests
 
         // Assert
         await Assert.That(result.Attributes).IsEqualTo(new Customer("alice", "Alice", 3));
+    }
+
+    private static void SetOnASpentHandle(Table<Ticket> tickets)
+    {
+        var spent = tickets.Update(TicketKey).IgnoreVersion();
+        _ = spent.SetIfNotNull(Ticket.Attrs.Votes, (int?)null);
+        _ = spent.Set(Ticket.Attrs.Votes, 1);
     }
 
     private static bool Rejected(Table<Item> shop)

@@ -12,7 +12,7 @@ internal enum WriteCondition
     /// <summary>A set, by <c>Count</c>: DynamoDB rejects an empty set. Also false for null.</summary>
     WhenNotEmptyCount,
 
-    /// <summary>An array stored as a set, by <c>Length</c>. Also false for null.</summary>
+    /// <summary>An array stored as a set, or a string with <c>[OmitEmpty]</c>, by <c>Length</c>. Also false for null.</summary>
     WhenNotEmptyLength,
 
     /// <summary>Not an attribute: the value lives in a key.</summary>

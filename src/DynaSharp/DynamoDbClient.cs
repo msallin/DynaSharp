@@ -5,6 +5,7 @@ using DynaSharp.Credentials;
 using DynaSharp.Fluent;
 using DynaSharp.Http;
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 
 namespace DynaSharp;
 
@@ -90,6 +91,25 @@ public sealed class DynamoDbClient : IDisposable
         _transactions = TableModel.ForTransactions(Core);
     }
 
+    /// <summary>
+    /// Gets the options as the client resolved them when it was created: what it really uses, so a region from the environment or a profile and an endpoint from the environment are here and not null, and
+    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. The one exception is the public endpoint of the region, see the remarks. Nothing is
+    /// read again, so the environment of today can say something else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A second client is <c>new DynamoDbClient(client.Options with { MaxAttempts = 1 })</c>. It shares the provider and with it the cached credentials, and a handler the first client was given. A handler the first
+    /// client made stays its own, so <see cref="DynamoDbClientOptions.HttpHandler"/> is <see langword="null"/> there and the second client makes one too, and each outlives the other.
+    /// </para>
+    /// <para>
+    /// <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or the environment, which a copy keeps. The public endpoint that the client derived from its region is in use and still stays
+    /// <see langword="null"/> here, on purpose: it is no choice of anyone's, but a consequence of the region and of the kind of client. So <c>client.Options with { Region = other }</c> goes to the endpoint of the new region, and
+    /// <c>new DynamoDbStreamsClient(client.Options)</c> gets its own endpoint.
+    /// </para>
+    /// <para>The options hold a provider and not credentials, and <see cref="DynamoDbClientOptions.ToString"/> prints only its type.</para>
+    /// </remarks>
+    public DynamoDbClientOptions Options => Core.Options;
+
     // What the extension methods of DynaSharp.Requests and the commands of the tables run on.
     internal ClientCore Core { get; }
 
@@ -141,6 +161,31 @@ public sealed class DynamoDbClient : IDisposable
     /// </summary>
     /// <returns>The command.</returns>
     public TransactGetCommand TransactGet() => new(Transaction.Start(_transactions));
+
+    /// <summary>
+    /// Reads the definition and state of a table by its name (DynamoDB <c>DescribeTable</c>): status, key schema, indexes and approximate counts, which DynamoDB updates about every six hours. It is
+    /// <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> for the usual call, with no request to build and no <c>using DynaSharp.Requests;</c>, and it returns
+    /// what that returns. A <see cref="Table{T}"/> at hand has <see cref="Table{T}.DescribeAsync"/>.
+    /// </summary>
+    /// <remarks>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</remarks>
+    /// <param name="tableName">The table name, or its ARN.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The response. <see cref="DescribeTableResponse.Table"/> holds the description, and is <see langword="null"/> only if the response omits it.</returns>
+    /// <exception cref="ArgumentException"><paramref name="tableName"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table name is malformed.</exception>
+    /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:DescribeTable</c> on the table.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error surfaces only when the last attempt failed with it too.</exception>
+    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
+    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
+    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    public Task<DescribeTableResponse> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(tableName);
+        return this.DescribeTableAsync(new DescribeTableRequest { TableName = tableName }, cancellationToken);
+    }
 
     /// <summary>
     /// Sends a DynamoDB operation by name, with a request body that you write as JSON, and returns the response body as JSON. It is for

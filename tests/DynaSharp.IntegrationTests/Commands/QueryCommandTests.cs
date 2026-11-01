@@ -11,6 +11,76 @@ namespace DynaSharp.IntegrationTests.Commands;
 public sealed class QueryCommandTests(Backend backend)
 {
     [Test]
+    public async Task ItemAsync_Partition_GivesTheFirstInOrderOfTheSortKey()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 5);
+
+        // Act
+        var item = await sandbox.Shop.Query("a").ItemAsync();
+
+        // Assert
+        await Assert.That(item!.GetString("sk")).IsEqualTo("ORDER#001");
+    }
+
+    [Test]
+    public async Task ItemAsync_DescendingWithALimitOfOne_GivesTheLast()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 5);
+
+        // Act
+        var item = await sandbox.Shop.Query("a").Descending().Limit(1).ItemAsync();
+
+        // Assert
+        await Assert.That(item!.GetString("sk")).IsEqualTo("ORDER#005");
+    }
+
+    [Test]
+    public async Task ItemAsync_FilterThatEmptiesPages_FollowsThemToTheItem()
+    {
+        // Arrange (a page of one item at a time: the filter leaves all but the last empty)
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 6);
+
+        // Act
+        var item = await sandbox.Shop.Query("a").Limit(1).Filter(Attr("total").Eq(6)).ItemAsync();
+
+        // Assert
+        await Assert.That(item!.GetString("sk")).IsEqualTo("ORDER#006");
+    }
+
+    [Test]
+    public async Task ItemAsync_FilterThatNothingPasses_GivesNull()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 3);
+
+        // Act
+        var item = await sandbox.Shop.Query("a").Limit(1).Filter(Attr("total").Eq(99)).ItemAsync();
+
+        // Assert
+        await Assert.That(item).IsNull();
+    }
+
+    [Test]
+    public async Task ItemAsync_GlobalIndex_GivesTheFirstOfThePartition()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 2);
+
+        // Act
+        var item = await sandbox.Shop.Index(ReadSandbox.GlobalIndex, "status", "placedAt").Query("OPEN").ItemAsync();
+
+        // Assert
+        await Assert.That(item!.GetString("status")).IsEqualTo("OPEN");
+    }
+
+    [Test]
     public async Task ItemsAsync_Partition_GivesItsItemsInOrderOfTheSortKey()
     {
         // Arrange

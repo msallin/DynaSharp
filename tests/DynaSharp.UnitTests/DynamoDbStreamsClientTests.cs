@@ -29,6 +29,71 @@ public sealed class DynamoDbStreamsClientTests
     }
 
     [Test]
+    public async Task Options_RegionAndEndpointFromTheEnvironment_AreThere()
+    {
+        // Arrange
+        static string? Variables(string name) => name switch
+        {
+            "AWS_REGION" => "us-west-2",
+            "AWS_ENDPOINT_URL_DYNAMODB_STREAMS" => "http://localhost:8001",
+            _ => null,
+        };
+
+        using var client = new DynamoDbStreamsClient(new DynamoDbClientOptions(), Variables, null, null);
+
+        // Act
+        var options = client.Options;
+
+        // Assert
+        await Assert.That((options.Region?.Name, options.ServiceUrl, options.Credentials is DefaultCredentialsProvider)).IsEqualTo(((string?)"us-west-2", new Uri("http://localhost:8001"), true));
+    }
+
+    [Test]
+    public async Task Options_EndpointDerivedFromTheRegion_StaysNull()
+    {
+        // Arrange
+        using var client = new DynamoDbStreamsClient(new DynamoDbClientOptions(), static name => name == "AWS_REGION" ? "us-west-2" : null, null, null);
+
+        // Act
+        var endpoint = client.Options.ServiceUrl;
+
+        // Assert
+        await Assert.That(endpoint).IsNull();
+    }
+
+    [Test]
+    public async Task Options_OfAStreamsClientWithADerivedEndpoint_GiveAClientItsOwnEndpoint()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music"}}"""));
+        var region = AwsRegion.FromName("us-west-2");
+        using var streams = new DynamoDbStreamsClient(new DynamoDbClientOptions { Region = region, Credentials = Credentials, HttpHandler = handler }, static _ => null, null, null);
+        using var client = new DynamoDbClient(streams.Options, static _ => null, null, null);
+
+        // Act
+        await client.DescribeTableAsync("Music");
+
+        // Assert
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(region.DynamoDbEndpoint);
+    }
+
+    [Test]
+    public async Task Options_With_GivesASecondClientThatWorks()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Streams":[]}"""));
+        var given = new DynamoDbClientOptions { Region = TestClient.Region, ServiceUrl = LocalEndpoint, Credentials = Credentials, HttpHandler = handler };
+        using var first = new DynamoDbStreamsClient(given);
+        using var second = new DynamoDbStreamsClient(first.Options with { MaxAttempts = 1 });
+
+        // Act
+        await second.ListStreamsAsync(new ListStreamsRequest());
+
+        // Assert
+        await Assert.That((handler.Requests.Count, second.Options.MaxAttempts)).IsEqualTo((1, 1));
+    }
+
+    [Test]
     public async Task Constructor_OptionsWithRegion_CreatesAClientThatCanBeDisposed()
     {
         // Arrange

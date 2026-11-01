@@ -328,6 +328,19 @@ public sealed class ScanCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task DescribeTableAsync_Name_ReturnsTheDescriptionOfTheTable()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+
+        // Act
+        var response = await sandbox.Client.DescribeTableAsync(sandbox.TableName);
+
+        // Assert
+        await Assert.That((response.Table!.TableName, response.Table.TableStatus)).IsEqualTo(((string?)sandbox.TableName, TableStatus.Active));
+    }
+
+    [Test]
     public async Task WaitUntilActiveAsync_ActiveTable_ReturnsItsDescription()
     {
         // Arrange
@@ -348,10 +361,10 @@ public sealed class ScanCommandTests(Backend backend)
         var missing = sandbox.Client.Table(Tables.UniqueName(), "pk");
 
         // Act
-        var failure = await Items.FailureOfAsync<TimeoutException>(async () => await missing.WaitUntilActiveAsync(TimeSpan.Zero));
+        var failure = await Items.FailureOfAsync<TableNotActiveException>(async () => await missing.WaitUntilActiveAsync(TimeSpan.Zero));
 
         // Assert
-        await Assert.That(failure.InnerException is ResourceNotFoundException).IsTrue();
+        await Assert.That((failure.InnerException is ResourceNotFoundException, failure.TableName, failure.LastStatus)).IsEqualTo((true, missing.Name, (TableStatus?)null));
     }
 
     private static async Task WriteManyPartitionsAsync(ReadSandbox sandbox, int count)

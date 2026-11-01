@@ -404,6 +404,26 @@ commandHandler.Enqueue(StubResponse.Json("{}"));
 await looped.SendAsync();
 Check(commandHandler.Requests[^1].BodyText.Contains("VOUCHER#v-6", StringComparison.Ordinal), "a transaction goes on from a command that holds a step");
 
+// [OmitEmpty]: a handle whose converter wraps another through a type parameter, and one item from a query, over a page that a filter left empty.
+var memos = users.Of<Memo>();
+
+commandHandler.Enqueue(StubResponse.Json("{}"));
+await memos.Put(new Memo { Id = "m-1", Text = string.Empty }).SendAsync();
+Check(!commandHandler.Requests[^1].BodyText.Contains("Text", StringComparison.Ordinal), "a put leaves an empty string out");
+
+commandHandler.Enqueue(StubResponse.Json("{}"));
+await memos.Update(Memo.Keys.Of("m-1")).Set(Memo.Attrs.Text, string.Empty).SendAsync();
+Check(commandHandler.Requests[^1].BodyText.Contains("REMOVE", StringComparison.Ordinal), "a set of an empty string by handle is a remove");
+
+commandHandler.Enqueue(StubResponse.Json("""{"Attributes":{"Text":{"S":"x"}}}"""));
+var returnedMemo = await memos.Update(Memo.Keys.Of("m-1")).SetIfNotNull(Memo.Attrs.Text, "x").Return(Memo.Attrs.Text).SendAsync();
+Check(returnedMemo == "x", "a handle with OmitEmpty writes and reads through the converter it wraps");
+
+commandHandler.Enqueue(StubResponse.Json("""{"Items":[],"Count":0,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"MEMO#m-1"}}}"""));
+commandHandler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"MEMO#m-1"},"_type":{"S":"MEMO"},"Id":{"S":"m-1"},"Text":{"S":""}}],"Count":1,"ScannedCount":1}"""));
+var firstMemo = await memos.Query(Memo.Keys.Of("m-1")).Filter(Memo.Attrs.Text.Eq(string.Empty)).ItemAsync();
+Check(firstMemo?.Text?.Length == 0, "ItemAsync follows a page a filter left empty, and a stored empty string reads as it is");
+
 foreach (var failure in failures)
 {
     await Console.Error.WriteLineAsync($"FAILED: {failure}");

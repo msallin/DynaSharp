@@ -1,6 +1,7 @@
 using DynaSharp.Credentials;
 using DynaSharp.Http;
 using DynaSharp.Requests;
+using DynaSharp.Streams;
 using DynaSharp.Testing;
 
 namespace DynaSharp.UnitTests;
@@ -248,6 +249,242 @@ public sealed class DynamoDbClientTests
     }
 
     [Test]
+    public async Task Options_RegionAndEndpointFromTheEnvironment_AreThere()
+    {
+        // Arrange
+        using var client = new DynamoDbClient(new DynamoDbClientOptions(), Variables, null, null);
+
+        // Act
+        var options = client.Options;
+
+        // Assert
+        await Assert.That((options.Region?.Name, options.ServiceUrl)).IsEqualTo(((string?)"us-west-2", new Uri("http://localhost:8000")));
+    }
+
+    [Test]
+    public async Task Options_EndpointDerivedFromTheRegion_StaysNull()
+    {
+        // Arrange (it follows from the region, so a copy must not carry it along)
+        using var client = new DynamoDbClient(new DynamoDbClientOptions(), static name => name == "AWS_REGION" ? "us-west-2" : null, null, null);
+
+        // Act
+        var endpoint = client.Options.ServiceUrl;
+
+        // Assert
+        await Assert.That(endpoint).IsNull();
+    }
+
+    [Test]
+    public async Task Options_WithRegionAndADerivedEndpoint_SignsAndSendsToTheNewRegion()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music"}}"""));
+        var other = AwsRegion.FromName("ap-northeast-1");
+        using var first = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("us-west-2"), Credentials = Credentials, HttpHandler = handler }, static _ => null, null, null);
+        using var second = new DynamoDbClient(first.Options with { Region = other }, static _ => null, null, null);
+
+        // Act
+        await second.DescribeTableAsync("Music");
+        var sent = handler.Requests.Single();
+
+        // Assert
+        await Assert.That((sent.RequestUri, sent.Headers["Authorization"].Contains("/ap-northeast-1/dynamodb/aws4_request", StringComparison.Ordinal))).IsEqualTo((other.DynamoDbEndpoint, true));
+    }
+
+    [Test]
+    public async Task Options_WithRegionAndAnExplicitServiceUrl_KeepsTheEndpointAndSignsForTheNewRegion()
+    {
+        // Arrange (an emulator stays where it is, whatever region a copy names)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music"}}"""));
+        var given = new DynamoDbClientOptions { Region = AwsRegion.FromName("us-west-2"), ServiceUrl = LocalEndpoint, Credentials = Credentials, HttpHandler = handler };
+        using var first = new DynamoDbClient(given);
+        using var second = new DynamoDbClient(first.Options with { Region = AwsRegion.FromName("ap-northeast-1") });
+
+        // Act
+        await second.DescribeTableAsync("Music");
+        var sent = handler.Requests.Single();
+
+        // Assert
+        await Assert.That((sent.RequestUri, sent.Headers["Authorization"].Contains("/ap-northeast-1/dynamodb/aws4_request", StringComparison.Ordinal))).IsEqualTo((new Uri("http://localhost:8000/"), true));
+    }
+
+    [Test]
+    public async Task Options_OfAClientWithADerivedEndpoint_GiveAStreamsClientItsOwnEndpoint()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Streams":[]}"""));
+        var region = AwsRegion.FromName("us-west-2");
+        using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = region, Credentials = Credentials, HttpHandler = handler }, static _ => null, null, null);
+        using var streams = new DynamoDbStreamsClient(client.Options, static _ => null, null, null);
+
+        // Act
+        await streams.ListStreamsAsync(new ListStreamsRequest());
+
+        // Assert
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(region.DynamoDbStreamsEndpoint);
+    }
+
+    [Test]
+    public async Task Options_NoCredentialsGiven_IsTheProviderInUse()
+    {
+        // Arrange
+        using var client = new DynamoDbClient(new DynamoDbClientOptions(), Variables, null, null);
+
+        // Act
+        var provider = client.Options.Credentials;
+
+        // Assert
+        await Assert.That(provider).IsTypeOf<DefaultCredentialsProvider>();
+    }
+
+    [Test]
+    public async Task Options_WhatWasGiven_StaysAsItIs()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        var credentials = new StaticCredentialsProvider("id", "secret");
+        var region = AwsRegion.FromName("eu-central-2");
+        var url = new Uri("http://localhost:9000");
+        var given = new DynamoDbClientOptions { Region = region, ServiceUrl = url, Credentials = credentials, HttpHandler = handler, MaxAttempts = 2, AttemptTimeout = TimeSpan.FromSeconds(5) };
+        using var client = new DynamoDbClient(given);
+
+        // Act
+        var options = client.Options;
+
+        // Assert
+        await Assert.That(options).IsEqualTo(given);
+    }
+
+    [Test]
+    public async Task Options_HandlerTheClientMade_StaysItsOwn()
+    {
+        // Arrange (the handler goes when the client goes, and must not be left with a second client)
+        using var client = new DynamoDbClient(new DynamoDbClientOptions(), Variables, null, null);
+
+        // Act
+        var handler = client.Options.HttpHandler;
+
+        // Assert
+        await Assert.That(handler).IsNull();
+    }
+
+    [Test]
+    public async Task Options_Access_ReadsNothingAgain()
+    {
+        // Arrange
+        var reads = 0;
+        using var client = new DynamoDbClient(
+            new DynamoDbClientOptions(),
+            name =>
+            {
+                reads++;
+                return Variables(name);
+            },
+            null,
+            null);
+        var before = reads;
+
+        // Act
+        var first = client.Options;
+        var second = client.Options;
+
+        // Assert
+        await Assert.That((reads, ReferenceEquals(first, second))).IsEqualTo((before, true));
+    }
+
+    [Test]
+    public async Task Options_With_GivesASecondClientThatWorks()
+    {
+        // Arrange (the first client gives a throttle a second try, and the copy does not. It goes on after the first is gone.)
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ThrottlingException", "No."));
+        var first = TestClient.Create(handler, maxAttempts: 2);
+        using var second = new DynamoDbClient(first.Options with { MaxAttempts = 1 });
+        first.Dispose();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ThrottlingException>(() => second.DescribeTableAsync("Music"));
+
+        // Assert
+        await Assert.That((failure.TableName, handler.Requests.Count, second.Options.MaxAttempts)).IsEqualTo(("Music", 1, 1));
+    }
+
+    [Test]
+    public async Task Options_WithOfAClientWithoutAHandler_SharesTheProvider()
+    {
+        // Arrange
+        using var first = new DynamoDbClient(new DynamoDbClientOptions(), Variables, null, null);
+
+        // Act
+        using var second = new DynamoDbClient(first.Options with { MaxAttempts = 1 });
+
+        // Assert
+        await Assert.That(ReferenceEquals(second.Options.Credentials, first.Options.Credentials)).IsTrue();
+    }
+
+    [Test]
+    public async Task Options_ToString_HoldsNoKey()
+    {
+        // Arrange (a provider of the application can be a record, which prints what it holds)
+        const string Secret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler, credentials: new RecordProvider("AKIAIOSFODNN7EXAMPLE", Secret));
+
+        // Act
+        var text = client.Options.ToString();
+
+        // Assert
+        await Assert.That((text.Contains(Secret, StringComparison.Ordinal), text.Contains("AKIA", StringComparison.Ordinal), text.Contains("RecordProvider", StringComparison.Ordinal))).IsEqualTo((false, false, true));
+    }
+
+    [Test]
+    [Arguments("http://user:pass@localhost:8000", "ServiceUrl = http://localhost:8000")]
+    [Arguments("relative/path", "ServiceUrl = relative/path")]
+    public async Task ToString_ServiceUrl_ShowsNoUserInfo(string endpoint, string expected)
+    {
+        // Arrange (options can hold what a client would reject)
+        var options = new DynamoDbClientOptions { ServiceUrl = new Uri(endpoint, UriKind.RelativeOrAbsolute) };
+
+        // Act
+        var text = options.ToString();
+
+        // Assert
+        await Assert.That(text).Contains(expected);
+    }
+
+    [Test]
+    public async Task ToString_NothingSet_NamesEveryOption()
+    {
+        // Arrange
+        var options = new DynamoDbClientOptions { TimeProvider = null! };
+
+        // Act
+        var text = options.ToString();
+
+        // Assert
+        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = , ServiceUrl = , Credentials = , HttpHandler = , AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = , LoggerFactory =  }");
+    }
+
+    [Test]
+    public async Task ToString_EverythingSet_NamesTheTypes()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        var options = new DynamoDbClientOptions
+        {
+            Region = AwsRegion.FromName("us-west-2"),
+            Credentials = Credentials,
+            HttpHandler = handler,
+            LoggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance,
+        };
+
+        // Act
+        var text = options.ToString();
+
+        // Assert
+        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = us-west-2, ServiceUrl = , Credentials = DynaSharp.Credentials.StaticCredentialsProvider, HttpHandler = DynaSharp.Testing.StubHandler, AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = System.TimeProvider+SystemTimeProvider, LoggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory }");
+    }
+
+    [Test]
     public async Task DescribeTableAsync_NullRequest_ThrowsArgumentNullException()
     {
         // Arrange
@@ -255,10 +492,56 @@ public sealed class DynamoDbClientTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var act = async () => await client.DescribeTableAsync(null!);
+        var act = async () => await client.DescribeTableAsync((DescribeTableRequest)null!);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("request");
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_Name_SendsWhatTheRequestSends()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music","TableStatus":"ACTIVE"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var byName = await client.DescribeTableAsync("Music");
+        var byRequest = await client.DescribeTableAsync(new DescribeTableRequest { TableName = "Music" });
+
+        // Assert
+        await Assert.That((byName, handler.Requests[0].BodyText, handler.Requests[0].Operation)).IsEqualTo((byRequest, handler.Requests[1].BodyText, "DescribeTable"));
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_NameOnADisposedClient_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        var client = TestClient.Create(handler);
+        client.Dispose();
+
+        // Act
+        var act = async () => await client.DescribeTableAsync("Music");
+
+        // Assert
+        await Assert.That(act).Throws<ObjectDisposedException>();
+    }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task DescribeTableAsync_NoName_Throws(string? name)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.DescribeTableAsync(name!));
+
+        // Assert
+        await Assert.That((failure is ArgumentException, handler.Requests.Count)).IsEqualTo((true, 0));
     }
 
     [Test]
@@ -394,6 +677,18 @@ public sealed class DynamoDbClientTests
 
         // Assert
         await Assert.That(handler.UseCookies).IsFalse();
+    }
+
+    private static string? Variables(string name) => name switch
+    {
+        "AWS_REGION" => "us-west-2",
+        "AWS_ENDPOINT_URL_DYNAMODB" => "http://localhost:8000",
+        _ => null,
+    };
+
+    private sealed record RecordProvider(string AccessKeyId, string SecretAccessKey) : ICredentialsProvider
+    {
+        public ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken) => ValueTask.FromResult(new AwsCredentials(AccessKeyId, SecretAccessKey));
     }
 
     private sealed class ScopedEnvironmentVariables : IDisposable

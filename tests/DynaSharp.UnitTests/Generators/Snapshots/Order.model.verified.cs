@@ -30,6 +30,7 @@ Properties:
     FallbackKey: pk
     ParameterName: userId
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: CreatedAt
     Identifier: CreatedAt
@@ -49,6 +50,7 @@ Properties:
     FallbackKey: null
     ParameterName: createdAt
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: OrderId
     Identifier: OrderId
@@ -68,6 +70,7 @@ Properties:
     FallbackKey: sk
     ParameterName: orderId
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Status
     Identifier: Status
@@ -87,6 +90,7 @@ Properties:
     FallbackKey: gsi1pk
     ParameterName: status
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Total
     Identifier: Total
@@ -106,6 +110,7 @@ Properties:
     FallbackKey: gsi1sk
     ParameterName: total
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: TrackingId
     Identifier: TrackingId
@@ -125,6 +130,7 @@ Properties:
     FallbackKey: null
     ParameterName: trackingId
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: ShippedAt
     Identifier: ShippedAt
@@ -144,6 +150,7 @@ Properties:
     FallbackKey: null
     ParameterName: shippedAt
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: ShipTo
     Identifier: ShipTo
@@ -163,6 +170,7 @@ Properties:
     FallbackKey: null
     ParameterName: shipTo
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Lines
     Identifier: Lines
@@ -182,6 +190,7 @@ Properties:
     FallbackKey: null
     ParameterName: lines
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Tags
     Identifier: Tags
@@ -201,6 +210,7 @@ Properties:
     FallbackKey: null
     ParameterName: tags
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: ExpiresAt
     Identifier: ExpiresAt
@@ -220,6 +230,7 @@ Properties:
     FallbackKey: null
     ParameterName: expiresAt
     IsPublic: True
+    OmitsEmpty: False
   - PropertyModel
     Name: Revision
     Identifier: Revision
@@ -239,6 +250,7 @@ Properties:
     FallbackKey: null
     ParameterName: revision
     IsPublic: True
+    OmitsEmpty: False
 Entity: EntityModel
   Discriminator: ORDER
   DiscriminatorAttribute: _type

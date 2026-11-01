@@ -147,6 +147,9 @@ internal static class Descriptors
         helpLinkUri: EntityHelp,
         customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
+    public static readonly DiagnosticDescriptor InvalidOmitEmpty = new(
+        "DYNA030", "[OmitEmpty] is not valid here", "[OmitEmpty] on '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -243,7 +246,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor ReadCommandNotAwaitable = new(
         "DYNA202",
         "Read command is not awaited",
-        "Query and Scan are not awaited; end the chain with ItemsAsync, PageAsync, PagesAsync or CountAsync",
+        "Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync",
         Commands,
         DiagnosticSeverity.Warning,
         true,
@@ -311,7 +314,7 @@ internal static class Descriptors
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
         InvalidConverter, DuplicateKey, InvalidAttributeName, InvalidVersion, NotValidOnDocument, EntityAndDocument, MemberConflict,
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
-        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
+        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter,
         CommandOutlivesExpression, ReadCommandNotAwaitable, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,

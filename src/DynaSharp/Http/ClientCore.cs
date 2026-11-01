@@ -31,9 +31,10 @@ internal sealed class ClientCore : IDisposable
     private readonly string _serviceName;
     private bool _disposed;
 
-    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider)
+    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options)
     {
         TimeProvider = timeProvider;
+        Options = options;
         _http = http;
         _pipeline = pipeline;
         _pool = pool;
@@ -47,6 +48,9 @@ internal sealed class ClientCore : IDisposable
 
     /// <summary>Gets the clock of the client, for what waits outside the pipeline.</summary>
     public TimeProvider TimeProvider { get; }
+
+    /// <summary>Gets the options as they were resolved, once, when the client was created, see <see cref="DynamoDbClient.Options"/>.</summary>
+    public DynamoDbClientOptions Options { get; }
 
     /// <summary>Resolves the configuration and creates the HTTP client and the pipeline.</summary>
     /// <typeparam name="TClient">The public client, which is the category of its logger.</typeparam>
@@ -82,7 +86,8 @@ internal sealed class ClientCore : IDisposable
             : new HttpClient(CreateOwnedHandler(), disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
         var buffers = pool ?? ArrayPool<byte>.Shared;
         var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, random ?? Random.Shared, maxResponseLength);
-        return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider);
+        var resolved = options with { Region = configuration.Region, ServiceUrl = configuration.ChosenEndpoint, Credentials = configuration.Credentials };
+        return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved);
     }
 
     /// <summary>Gets a state for a new command.</summary>

@@ -24,20 +24,39 @@ public sealed class EntityCommandTests(Backend backend)
     }
 
     [Test]
-    public async Task Put_FirstWriteOverAnItemWithoutAVersion_ReplacesItAndStartsCounting()
+    public async Task Put_FirstWriteOverAnItemWithoutAVersion_FailsAndLeavesIt()
     {
-        // Arrange (the condition of a first write is on the version attribute, not on the key)
+        // Arrange (the condition of a first write is on the key, and the item reads as version 0)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         await sandbox.Shop.Put(new Item { ["pk"] = "TALLY#a", ["sk"] = "TOTAL", ["Count"] = 7 }).SendAsync();
         var tallies = sandbox.Shop.Of<Tally>();
+        var existing = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
 
         // Act
-        var existing = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
-        await tallies.Put(existing! with { Count = 8 }).SendAsync();
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await tallies.Put(existing! with { Count = 8 }).SendAsync());
         var stored = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
 
         // Assert
-        await Assert.That((existing.Revision, stored!.Count, stored.Revision)).IsEqualTo((0L, 8, 1L));
+        await Assert.That((failure is not null, existing!.Revision, stored!.Count)).IsEqualTo((true, 0L, 7));
+    }
+
+    [Test]
+    public async Task Put_IgnoreVersionOverAnItemWithoutAVersion_TakesItOverAndCountingGoesOn()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        await sandbox.Shop.Put(new Item { ["pk"] = "TALLY#a", ["sk"] = "TOTAL", ["Count"] = 7 }).SendAsync();
+        var tallies = sandbox.Shop.Of<Tally>();
+        var existing = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+
+        // Act
+        await tallies.Put(existing! with { Count = 8, Revision = 1 }).IgnoreVersion().SendAsync();
+        var taken = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+        await tallies.Put(taken! with { Count = 9 }).SendAsync();
+        var stored = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((stored!.Count, stored.Revision)).IsEqualTo((9, 2L));
     }
 
     [Test]

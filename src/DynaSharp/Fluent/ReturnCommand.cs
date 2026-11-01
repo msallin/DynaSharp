@@ -40,7 +40,7 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The attribute as it is after the update. Await it once.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <c>IfExists</c>, or a change by handle cannot
     /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>

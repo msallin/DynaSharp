@@ -530,6 +530,43 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_WaitUntilActive_WaitsForTheIndexesToo()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.Enqueue(StubResponse.Json("""{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"ByCity","IndexStatus":"CREATING"}]}}"""));
+        handler.Enqueue(StubResponse.Json("""{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"ByCity","IndexStatus":"ACTIVE"}]}}"""));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table("Shop", "pk").CreateTable().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var description = await waiting;
+
+        // Assert
+        await Assert.That((description.GlobalSecondaryIndexes.Single().IndexStatus, handler.Requests.Count)).IsEqualTo((DynaSharp.Requests.IndexStatus.Active, 3));
+    }
+
+    [Test]
+    public async Task SendAsync_WaitUntilActiveWithAnIndexThatStaysBehind_NamesIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.DefaultResponse = StubResponse.Json("""{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"ByCity","IndexStatus":"CREATING"}]}}""");
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var command = client.Table("Shop", "pk").CreateTable().WaitUntilActive(TimeSpan.Zero);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await command.SendAsync());
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex)).IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByCity"));
+    }
+
+    [Test]
     public async Task SendAsync_WaitUntilActiveWithoutATimeout_GivesUpAfterFiveMinutes()
     {
         // Arrange
@@ -563,10 +600,10 @@ public sealed class CreateTableCommandTests
         // Act
         var waiting = client.Table("Shop", "pk").CreateTable().WaitUntilActive(TimeSpan.FromSeconds(1)).SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
-        await TestClient.CaptureAsync<TimeoutException>(() => waiting);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => waiting);
 
         // Assert
-        await Assert.That(time.GetUtcNow() - started).IsEqualTo(TimeSpan.FromSeconds(1));
+        await Assert.That((time.GetUtcNow() - started, failure.TableName, failure.LastStatus)).IsEqualTo((TimeSpan.FromSeconds(1), "Shop", (TableStatus?)TableStatus.Creating));
     }
 
     [Test]

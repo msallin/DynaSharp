@@ -266,6 +266,44 @@ public sealed class TableManagementTests(Backend backend)
 
     [Test]
     [NotInParallel] // DynamoDB Local answers calls around a new index with InternalFailure while other tables change.
+    public async Task WaitUntilActiveAsync_IndexAddedByUpdateTable_ReturnsWhenItCanBeQueried()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var name = await sandbox.CreateTableAsync(TableSpec.PartitionOnly);
+        var table = sandbox.Client.Table(name, "pk");
+        foreach (var (pk, group) in new[] { ("a", "red"), ("b", "blue"), ("c", "red") })
+        {
+            await table.Put(new Item { ["pk"] = pk, ["color"] = group }).SendAsync();
+        }
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest
+        {
+            TableName = name,
+            AttributeDefinitions = [new AttributeDefinition("color", ScalarAttributeType.String)],
+            GlobalSecondaryIndexUpdates =
+            [
+                new GlobalSecondaryIndexUpdate
+                {
+                    Create = new GlobalSecondaryIndex
+                    {
+                        IndexName = "by-color",
+                        KeySchema = [new KeySchemaElement("color", KeyType.Hash)],
+                        Projection = new IndexProjection { ProjectionType = ProjectionType.All },
+                    },
+                },
+            ],
+        });
+        var description = await table.WaitUntilActiveAsync(TimeSpan.FromMinutes(1));
+        var red = await table.Index("by-color", "color").Query("red").CountAsync();
+
+        // Assert
+        await Assert.That((description.GlobalSecondaryIndexes.Single().IndexStatus, red)).IsEqualTo((IndexStatus.Active, 2));
+    }
+
+    [Test]
+    [NotInParallel] // DynamoDB Local answers calls around a new index with InternalFailure while other tables change.
     public async Task UpdateTable_CreateGlobalSecondaryIndexOnProvisionedTable_ReportsTheIndexCapacity()
     {
         // Arrange

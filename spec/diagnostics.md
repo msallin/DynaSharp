@@ -41,6 +41,9 @@ its table that a build shows beside it goes away with it.
 the other, or fail to. Give one of them another value. Entities that never share a table are fine, which is why this is a warning: suppress it there. It needs every type of the compilation, so an IDE shows
 it with full solution analysis, a build always does, and a type in another assembly is not looked at.
 
+`DYNA030`: `[OmitEmpty]` on a property that is no `string?`, or that feeds a key. An empty string counts as null only where null can be left out, which a key cannot be, so take it off, or make the property a `string?` outside the keys. On a type the attribute passes over such
+properties by itself. `[OmitEmpty]` on a type never reports this.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is in `requirements.md`, and the message of each says which part of a template it is about.
@@ -83,7 +86,7 @@ Sending a command twice is not a compile error. It throws `InvalidOperationExcep
 fluent call: build the command again.
 
 `DYNA202` (warning) reports `await shop.Query("a")` and `shop.Query("a").SendAsync()`. A read can end in several ways and none of them is
-the default, so name one: `ItemsAsync`, `PageAsync`, `PagesAsync` or `CountAsync`. Without this rule the compiler answers with a constraint
+the default, so name one: `ItemsAsync`, `ItemAsync` on a query, `PageAsync`, `PagesAsync` or `CountAsync`. Without this rule the compiler answers with a constraint
 on a type parameter (CS0315), which says nothing about what to write. An extension method of your own that makes a read awaitable is not
 reported.
 

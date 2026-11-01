@@ -77,7 +77,7 @@ public readonly ref struct ConditionStep : ITransactWriteStep<ConditionStep>
     /// <see cref="InvalidOperationException"/> without it. A condition check needs neither, and this makes it a check on the version.
     /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats a transaction together with the read of the version.
     /// </summary>
-    /// <param name="version">The version last read. A version of 0 stands for an item without one.</param>
+    /// <param name="version">The version last read. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key.</param>
     /// <returns>The step, which replaces this one.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="version"/> is negative, or <see cref="long.MaxValue"/>.</exception>
     /// <exception cref="InvalidOperationException">The table of this action has no <see cref="Mapping.VersionAttribute"/>.</exception>

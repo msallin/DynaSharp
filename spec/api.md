@@ -50,7 +50,7 @@ public partial record Customer
 
 | Namespace | Holds |
 |---|---|
-| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKey`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException` |
+| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKey`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types and not written by hand: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
@@ -89,7 +89,13 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRe
 ```
 
 `DynamoDbClient` is sealed and `IDisposable`. Its members are `Table(name, partitionKey, sortKey = null)`, `Table<T>(name)`, `TransactWrite()`,
-`TransactGet()`, `SendRawAsync(operation, requestJson, ct)` and `Dispose()`. `new DynamoDbClient()` takes everything from the environment.
+`TransactGet()`, `DescribeTableAsync(tableName, ct)`, `SendRawAsync(operation, requestJson, ct)` and `Dispose()`. `DescribeTableAsync` by name returns what the overload of the request API returns, a
+`DescribeTableResponse`, and needs no request and no `using DynaSharp.Requests;`. `new DynamoDbClient()` takes everything from the environment.
+
+`Options`, on `DynamoDbClient` and `DynamoDbStreamsClient`, is a `DynamoDbClientOptions` of what the client really uses, resolved once when it was created and not read again: a region and an endpoint from the environment are there and not
+null, and `Credentials` is the provider in use. `client.Options with { MaxAttempts = 1 }` gives a second working client, which shares the provider and a handler that was given. A handler the client made stays its own, so `HttpHandler` is null then. `ServiceUrl`
+holds an endpoint from the options or the environment. The public endpoint derived from the region stays null, although the client uses it: this narrows "what the client really uses" on purpose, so that `client.Options with { Region = other }` goes to the endpoint of
+the new region, and a streams client built from the `Options` of a client gets its own endpoint. `ToString()` of the options names the type of the provider and shows no key, and an endpoint without user info.
 There is no interface: the test seam is the `HttpMessageHandler`.
 
 | Option | Default | Note |
@@ -119,6 +125,8 @@ Index<Item> byStatusMixed = shop.Index<Order>(Order.Indexes.StatusIndex);   // n
 `Table<T>` is sealed, immutable and thread-safe. `T` is `Item` or a generated type, and it decides only how an item is written and read.
 `Of<T>()` and `client.Table<T>()` require an entity, not a keyless document. Opening a table makes no request. `DescribeAsync(ct)` and
 `WaitUntilActiveAsync(timeout, ct)` cover the two administrative calls a table user makes; the timeout defaults to 5 minutes. A response without a description gives one with the name of the table and `TableStatus.Unknown`, which a wait does not take for active.
+A wait returns when the table and all its global secondary indexes are `ACTIVE`, because a table reads `ACTIVE` while an index backfills, on `Table<T>` and `CreateTableCommand`. A backfill takes as long as the table is large, so it needs a longer timeout than the default.
+There is no wait for one index. A wait that runs out throws `TableNotActiveException`, which is section 15.
 
 `Index<T>` has `Query` and `Scan`, so a write through an index does not compile. `orders.Index(name)` and `shop.Index<Order>(name)` throw `ArgumentException` for
 an index the entity does not declare.
@@ -152,6 +160,7 @@ warnings-as-errors build on a hierarchical key. Attributes:
 | `[KeyOnly]` | property | Stored only in a key, restored by parsing it, so a key must hold it without loss |
 | `[DynamoDbAttribute(name)]` | property | Renames, and stores a computed property, which is then written and never read |
 | `[DynamoDbIgnore]` | property | Not mapped |
+| `[OmitEmpty]` | `string?` property, entity or document type | An empty string counts as null, section 7. On a type it covers the `string?` properties of that type that feed no key, and a nested type has its own. On a property that is no `string?`, or that feeds a key, it is `DYNA030` |
 | `[DynamoDbConverter(type)]` | property, type | First in converter selection |
 | `[DynamoDbConstructor]` | constructor | Chooses the constructor reads use |
 
@@ -183,7 +192,7 @@ public static TCommand OwnedBy<TCommand>(this TCommand command, string owner)
 |---|---|---|
 | `IConditional<TSelf>` | Put, Update, Delete commands and transaction steps | `If` |
 | `IFilterable<TSelf>` | Query, Scan, fan-out and mixed reads | `Filter` |
-| `IUpdatable<TSelf>` | `UpdateCommand<T>`, `UpdateStep` | `Set`, `SetIfNotExists`, `Add`, `Delete`, `Remove`, by raw path and by handle, and `Set` by handle of a nullable value |
+| `IUpdatable<TSelf>` | `UpdateCommand<T>`, `UpdateStep` | `Set`, `SetIfNotExists`, `Add`, `Delete`, `Remove`, by raw path and by handle, and by handle only `Set` of a nullable value and `SetIfNotNull` |
 | `IRetryable<TSelf>` | Every command and step, not `ParallelScanCommand<T>` or `ReturnCommand<,>` | `MaxAttempts` |
 | `ITransactWriteChain<TSelf>`, `ITransactWriteStep<TSelf>` | `TransactWriteCommand` and the steps | Carry the verbs of section 11. Nothing outside the library implements them |
 
@@ -193,7 +202,8 @@ Their type parameter has `allows ref struct`, so a generic helper costs no box. 
 |---|---|
 | `GetCommand<T>` | `SendAsync`, `ItemAsync`, `ToRequestJson` |
 | `PutCommand<T>`, `UpdateCommand<T>`, `DeleteCommand<T>`, `ReturnCommand<,>` | `SendAsync`, `ToRequestJson` |
-| `QueryCommand<T>`, `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
+| `QueryCommand<T>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
+| `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `ParallelScanCommand<T>` | `ItemsAsync` |
 | `FanOutQueryCommand<T>` | `ItemsAsync`, `PageAsync(pageSize, after, ct)`, `CountAsync`, `ToRequestJson` |
 | `MixedQueryCommand<...>`, `MixedScanCommand<...>` | `ItemsAsync`, `PageAsync`, `PagesAsync`, `ToRequestJson` |
@@ -233,6 +243,10 @@ string? next = page.HasMore ? page.Next.ToString() : null;
 int total = await orders.Query(pk).CountAsync(ct);
 await foreach (Page<Order> p in orders.Query(pk).PagesAsync(ct)) { }
 
+Order? open = await orders.Query(pk).Filter(Order.Attrs.Status.Eq(OrderStatus.Open)).ItemAsync(ct);    // the first match, or null
+Order? newest = await orders.Query(pk).Descending().Limit(1).ItemAsync(ct);                            // a read without a filter says that one is enough
+Order? held = await orders.Query(Order.Keys.Of("alice", "o1")).ItemAsync(ct);                          // takes what Get takes
+
 await foreach (Order order in byStatus.Query(Order.Keys.StatusIndexPk.Of(OrderStatus.Open), SortKey.Ge("2026-01-01")).ItemsAsync(ct)) { }
 Page<Item> segment = await shop.Scan().Segment(2, of: 8).PageAsync(after, ct);
 await foreach (Item item in shop.Scan().Parallel(segments: 8).ItemsAsync(ct)) { }
@@ -243,6 +257,11 @@ compiler does not tell those two apart. A key remembers the attribute it was bui
 such a query would come back empty without a word from DynamoDB. An index with the attribute of the table, a local one among them, takes the key of the table, and so does a fan-out by what each key says. An
 overloaded index takes the key of every entity on it. `Table<Item>` and `Index<Item>` take a `PartitionKey<TEntity>` of any entity, so `shop.Query(Order.Keys.Pk.Of(id)).Of<Customer, Order>()` reads
 naturally. These are extension methods of `TableExtensions`, so a call that binds to a member keeps binding to it, and the `AttributeValue` overload stays as the escape hatch.
+
+`Query<TKey>(key)` on `Table<T>` takes what `Get` takes, so the key of another entity does not compile, and queries the partition key with `Eq` on a sort key if there is one. A member that
+fails its constraint is no candidate, so a string or a `PartitionKey<T>` binds as it did. `ItemAsync` gives the first matching item in query order or null, on a table and on an index. It follows empty filtered
+pages and stops at the first item. It adds no `Limit`, because `Limit` works before the filter and what goes out stays what `ToRequestJson()` shows, so a read of a partition without a filter asks for `.Limit(1)` itself.
+Fan-out, mixed reads and scans have no `ItemAsync`.
 
 `ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `SortKey` offers only what a key
 condition allows: `Eq`, `Lt`, `Le`, `Gt`, `Ge`, `Between`, `BeginsWith`. `CountAsync` is `Select: COUNT` summed over pages, and throws
@@ -300,22 +319,28 @@ A retry repeats a write. `Add`, `list_append` and arithmetic in `SET` are applie
 reports a failure after the write was applied, and a condition makes them exact. After a lost response a conditional write judges what its first attempt wrote, which the `SendAsync` docs of each command spell out.
 
 `Set` by handle takes a nullable value, and null is a `Remove`, for every attribute: `string?` for a reference type, and `Guid?` through an overload for a value type, which is a `Set` when it has a
-value and costs what that costs. On a key input the rules of section 8 are those of the `Set` or `Remove` it turns into. `SetIfNotExists`, `Add` and `Delete` by handle reject null: a value type
+value and costs what that costs. On a key input the rules of section 8 are those of the `Set` or `Remove` it turns into. `SetIfNotNull(handle, value)`, for reference and value types and by handle only, is
+that `Set` when there is a value, with the rules of section 8, and with null it adds nothing, so the attribute stays and a key input counts as untouched. `SetIfNotExists`, `Add` and `Delete` by handle reject null: a value type
 does not compile, and a null of a reference type is a nullable warning and an `ArgumentNullException`. `Set`, `Add` and `Delete` by raw path and by handle both exist; a raw path is the escape
 hatch for attributes outside the entity, and the checks of section 8 do not apply to it.
 
+With `[OmitEmpty]` an empty string is written like null: `Put`, a `With` by handle and `Item.From` leave it out, `Set` by handle is a `Remove`, `SetIfNotNull` adds nothing, and `SetIfNotExists` by handle rejects it with an
+`ArgumentException`, the base of what null gets. A stored `""` still reads as `""`, and a raw path writes what it is given. The handle says so in its converter, `Attr<string, OmitEmptyConverter<StringConverter>>`, so a nested path keeps it, and a
+type without the attribute generates what it did. Project-wide defaults come later and set the same thing.
+
 ## 8. What a write of an entity enforces
 
-**`[Version]`.** The property holds the version the caller last read, and 0 means new. Every enforced write is visible in `ToRequestJson()`.
+**`[Version]`.** The property holds the version the caller last read, and 0 means that no item exists. Every enforced write is visible in `ToRequestJson()`.
 
 | Write | Rule |
 |---|---|
-| `Put(entity)` | Version 0 adds `attribute_not_exists(<version>)`, on the version and not on the key, so it replaces an item without a version attribute. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
-| `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
-| `Put(entity).IfNotExists()` | Legal at version 0. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called |
-| `Update(key)` | `.IfVersion(n)` adds the condition and `SET <version> = :new` with `n + 1`. Without it the terminal throws `InvalidOperationException` naming the entity, unless `.IgnoreVersion()` was called. There is no `Update(entity)` |
+| `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `Put(entity with a version above 0).IgnoreVersion()` takes such an item over; at 0 the item would read as 0 and fail the next write. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
+| `Put(entity).IfNotExists()` | Legal at version 0, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called |
+| `Put(entity).IfExists()`, `Update(key).IfVersion(0).IfExists()`, `Delete(entity).IfExists()` | Legal above 0. At version 0 the terminal throws `InvalidOperationException` naming the entity, in either order, also on a transaction step and `ConditionStep`, because version 0 means that no item has the key, unless `.IgnoreVersion()` was called, which lifts this where it lifts the row above. Both conditions would otherwise go out and fail at DynamoDB every time |
+| `Update(key)` | `.IfVersion(n)` adds the condition, which at 0 is `attribute_not_exists(<partition key>)`, and `SET <version> = :new` with `n + 1`. Without it the terminal throws `InvalidOperationException` naming the entity, unless `.IgnoreVersion()` was called. There is no `Update(entity)` |
 | `Delete(key)` | The same rule, with the condition alone |
-| `Delete(entity)` | Takes the version from the entity, as `IfVersion(entity.Version)`. `IfVersion(n)` replaces it, and `IgnoreVersion()` opts out |
+| `Delete(entity)` | Takes the version from the entity, as `IfVersion(entity.Version)`, so at 0 it fails on any item under the key. `IfVersion(n)` replaces it, and `IgnoreVersion()` opts out |
 | Transaction steps | The same rules: `IfVersion` on `UpdateStep` and `ConditionStep`, `IgnoreVersion` on all three steps |
 | `BatchWrite` | A batch cannot carry a condition, so a put or delete of a versioned entity throws at the terminal unless `.IgnoreVersion()` was called on the batch |
 | `Put(entity).IgnoreVersion()` | Stores the entity as it is, with no condition and no bump, for imports and migrations |
@@ -520,6 +545,7 @@ knows has its class, in `DynaSharp`, and any other is a plain `DynamoDbException
 | A rejected request of a command | `ValidationException`, with `Expressions`, `ExpressionNames` (`#n0 = status`) and `ExpressionValueTypes` (`:v0` is `S`), and one line in `Message`: `Expression: #n0 = :v0, where #n0 = status, :v0 (S)`. Values are not attached. Inside a transaction or a batch get the entries have a prefix such as `TransactItems[2].` |
 | An item that does not fit the type | `DynamoDbMappingException` with `EntityType`, `AttributeName` and `Key`, also for an item of another type; the discriminator value is named, because it is a type tag. A stored key that does not fit its template says so, with no value. `Key` holds the key attributes of the table for the item that failed, on `Get`, `Query`, `Scan`, fan-out, `BatchGet` and mixed reads, and neither the message nor telemetry show it |
 | A transaction | Section 11. `ConditionalCheckFailed` and `ValidationError` do not pass on a retry, `TransactionConflict` and `Throttled` may |
+| A wait for a table that runs out | `TableNotActiveException`, sealed, in `DynaSharp`, a `TimeoutException` with `TableName`, `LastStatus` (`TableStatus?`, null when the last look did not find the table, and then `InnerException` is the `ResourceNotFoundException`) and `PendingIndex` (`string?`, the index that was not active, which the message names too). A `catch (TimeoutException)` keeps working, and `AttemptTimeout` on a poll still gives the plain type |
 
 Compile errors stand in for what would otherwise be a `ValidationException`, a mapping failure or an empty result: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on
 `Table<Item>` only, steps have their own clauses, `Return(attr)` ends the chain, `SortKey` has only legal operators, `Of<T>()` takes entities, `Parallel()`

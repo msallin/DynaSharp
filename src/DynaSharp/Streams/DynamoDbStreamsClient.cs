@@ -95,6 +95,25 @@ public sealed class DynamoDbStreamsClient : IDisposable
     }
 
     /// <summary>
+    /// Gets the options as the client resolved them when it was created: what it really uses, so a region from the environment or a profile and an endpoint from the environment are here and not null, and
+    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. The one exception is the public endpoint of the region, see the remarks. Nothing is
+    /// read again, so the environment of today can say something else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A second client is <c>new DynamoDbStreamsClient(client.Options with { MaxAttempts = 1 })</c>. It shares the provider and with it the cached credentials, and a handler the first client was given. A handler the first
+    /// client made stays its own, so <see cref="DynamoDbClientOptions.HttpHandler"/> is <see langword="null"/> there and the second client makes one too, and each outlives the other.
+    /// </para>
+    /// <para>
+    /// <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or the environment, which a copy keeps. The public endpoint that the client derived from its region is in use and still stays
+    /// <see langword="null"/> here, on purpose: it is no choice of anyone's, but a consequence of the region and of the kind of client. So <c>client.Options with { Region = other }</c> goes to the endpoint of the new region, and
+    /// <c>new DynamoDbClient(client.Options)</c> gets its own endpoint.
+    /// </para>
+    /// <para>The options hold a provider and not credentials, and <see cref="DynamoDbClientOptions.ToString"/> prints only its type.</para>
+    /// </remarks>
+    public DynamoDbClientOptions Options => _core.Options;
+
+    /// <summary>
     /// Lists the streams of all tables of the account in the region, or of one table (DynamoDB Streams <c>ListStreams</c>).
     /// </summary>
     /// <param name="request">The optional table and paging settings.</param>

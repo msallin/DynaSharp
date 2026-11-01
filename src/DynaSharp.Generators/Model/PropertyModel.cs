@@ -15,6 +15,7 @@ namespace DynaSharp.Generators;
 /// <param name="FallbackKey">For a stored property that a key holds without loss, the attribute of that key, which a read parses when the attribute of the property is missing; otherwise null.</param>
 /// <param name="ParameterName">The parameter of the property in <c>Keys</c>, as code; see <see cref="PlaceholderSegment.ParameterName"/>.</param>
 /// <param name="IsPublic">Whether the property, its type and its converters are all public, so that a public handle can name them.</param>
+/// <param name="OmitsEmpty">Whether an empty string counts as null, for the property as for its handle.</param>
 internal sealed record PropertyModel(
     string Name,
     string Identifier,
@@ -29,4 +30,5 @@ internal sealed record PropertyModel(
     string? RestoredFromKey,
     string? FallbackKey,
     string ParameterName,
-    bool IsPublic);
+    bool IsPublic,
+    bool OmitsEmpty);

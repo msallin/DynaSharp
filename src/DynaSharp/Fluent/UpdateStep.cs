@@ -89,6 +89,29 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue> => value is { } known ? Set(attribute, known) : Remove(attribute);
 
+    /// <inheritdoc/>
+    public UpdateStep SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        WriteRules.SetIfNotNull<TValue, TConverter>(state, attribute.Path, value);
+        return new(state);
+    }
+
+    /// <inheritdoc/>
+    public UpdateStep SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        if (value is { } known)
+        {
+            WriteRules.Set<TValue, TConverter>(state, attribute.Path, known);
+        }
+
+        return new(state);
+    }
+
     /// <summary>
     /// Adds a <c>SET</c> action in the grammar of DynamoDB, for what the other forms do not cover, such as arithmetic and <c>list_append</c>:
     /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An attribute in a hole stands for its name and anything else is a value.
@@ -127,6 +150,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     public UpdateStep SetIfNotExists<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
         where TConverter : IDynamoDbConverter<TValue>
     {
+        WriteRules.CheckValue<TValue, TConverter>(attribute.Path, value);
         var state = Enter();
         WriteRules.NoteUnknownValue(state, attribute.Path);
         state.Expressions.SetIfNotExists<TValue, TConverter>(attribute.Path, value);
@@ -226,7 +250,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <summary>
     /// Makes this update depend on the item having this version, and stores the next one. If it has another, the whole transaction is cancelled, and the marker of this action says that this was
-    /// the reason. A version of 0 stands for a new item. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
+    /// the reason. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion"/>, and the next verb throws <see cref="InvalidOperationException"/> without it. <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>
     /// repeats a transaction together with the read of the version.
     /// </summary>

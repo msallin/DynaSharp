@@ -7,15 +7,18 @@ namespace DynaSharp.Mapping;
 /// <remarks>
 /// <para>
 /// The property holds the version the caller last read, and 0 means a new item. Every write of the typed API enforces it, and the condition shows in
-/// <c>ToRequestJson()</c>. A <c>Put</c> takes the version from the entity: it adds <c>attribute_not_exists</c> for 0 and <c>version = :old</c> for any other, and stores the next
+/// <c>ToRequestJson()</c>. A <c>Put</c> takes the version from the entity: it adds <c>attribute_not_exists</c> on the partition key for 0 and <c>version = :old</c> for any other, and stores the next
 /// version, which <see cref="WriteResult{T}.Version"/> returns, without changing the entity; with <c>.IgnoreVersion()</c> it stores the entity as it is, for an import or a migration. A
 /// <c>Delete</c> of an entity takes the version from it too. A key does not carry a version, so <c>Update</c> and a <c>Delete</c> by key need <c>.IfVersion(n)</c>, or <c>.IgnoreVersion()</c> to
 /// write without the check, and sending without either throws <see cref="InvalidOperationException"/>. A <see cref="BatchWriteCommand{T}"/> cannot carry a condition, so it takes
 /// <c>.IgnoreVersion()</c> only.
 /// </para>
 /// <para>
-/// A first write, at version 0, renders <c>attribute_not_exists</c> on the version attribute and not on the key. So it also replaces an existing item that has no version attribute, such as one
-/// written by other code, which reads as version 0. Add <c>.IfNotExists()</c> if such an item must stay; above version 0 that combination throws, because no item can lack its key and hold a version.
+/// Version 0 checks the key and never looks at the version attribute: every 0, on a <c>Put</c>, in <c>.IfVersion(0)</c>, on a <c>Delete</c> of an entity and on a step of a transaction, renders
+/// <c>attribute_not_exists</c> on the partition key. So a first write fails on any item under its key, also on one without a version attribute, such as one written by other code, which reads as
+/// version 0. <c>.IgnoreVersion()</c> is how such an item is taken over, by an entity with a version above 0, because an item stored at 0 reads as 0 and fails the next write the same way.
+/// <c>.IfNotExists()</c> at version 0 is the same condition and renders once; above version 0 it throws, because no item can lack its key and hold a version. <c>.IfExists()</c> at version 0 throws for the same reason the
+/// other way around, unless <c>.IgnoreVersion()</c> lifts it as it lifts that rule.
 /// </para>
 /// <para>
 /// A write that loses the race fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>. Nothing is

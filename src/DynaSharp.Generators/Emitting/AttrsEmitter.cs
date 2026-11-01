@@ -48,6 +48,9 @@ internal static class AttrsEmitter
     private static void EmitHandle(IndentedCode code, PropertyModel handle, EquatableArray<EnumModel> enums)
     {
         var converter = enums.Aggregate(handle.Converter!.WriteConverter, static (text, model) => FindConverter(model).Replace(text, ForwarderPrefix + model.ConverterName));
+
+        // The handle says it in its type, so that a property without [OmitEmpty] pays nothing, in a handle or in a command.
+        converter = handle.OmitsEmpty ? $"{Serialization}OmitEmptyConverter<{converter}>" : converter;
         var value = handle.ValueType.EndsWith("?", StringComparison.Ordinal) ? handle.ValueType.Substring(0, handle.ValueType.Length - 1) : handle.ValueType;
         code.Line($"/// <summary>The attribute <c>{CodeText.Xml(handle.AttributeName)}</c>.</summary>");
         code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{value}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");

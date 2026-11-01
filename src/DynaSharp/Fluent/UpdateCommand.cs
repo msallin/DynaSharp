@@ -91,6 +91,29 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue> => value is { } known ? Set(attribute, known) : Remove(attribute);
 
+    /// <inheritdoc/>
+    public UpdateCommand<T> SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        WriteRules.SetIfNotNull<TValue, TConverter>(state, attribute.Path, value);
+        return new(state, state.Table);
+    }
+
+    /// <inheritdoc/>
+    public UpdateCommand<T> SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        if (value is { } known)
+        {
+            WriteRules.Set<TValue, TConverter>(state, attribute.Path, known);
+        }
+
+        return new(state, state.Table);
+    }
+
     /// <summary>
     /// Adds a <c>SET</c> action in the grammar of DynamoDB, for what the other forms do not cover, such as arithmetic and <c>list_append</c>:
     /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An attribute in a hole stands for its name and anything else is a value.
@@ -129,6 +152,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     public UpdateCommand<T> SetIfNotExists<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
         where TConverter : IDynamoDbConverter<TValue>
     {
+        WriteRules.CheckValue<TValue, TConverter>(attribute.Path, value);
         var state = Enter();
         WriteRules.NoteUnknownValue(state, attribute.Path);
         state.Expressions.SetIfNotExists<TValue, TConverter>(attribute.Path, value);
@@ -232,7 +256,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <summary>
     /// Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create. With <c>IfVersion(n)</c> above 0 the terminal throws
-    /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 stands for such an item and goes with this.
+    /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 is this same condition, which then renders once.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> IfNotExists()
@@ -242,12 +266,15 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         return new(state, state.Table);
     }
 
-    /// <summary>Updates only if an item has this key (<c>attribute_exists</c> on the partition key), which is how an update stops being an upsert.</summary>
+    /// <summary>
+    /// Updates only if an item has this key (<c>attribute_exists</c> on the partition key), which is how an update stops being an upsert. <c>IfVersion(0)</c> says that no item has the key, so with it the terminal
+    /// throws <see cref="InvalidOperationException"/>, in either order.
+    /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> IfExists()
     {
         var state = Enter();
-        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: true);
+        WriteRules.IfExists(state);
         return new(state, state.Table);
     }
 
@@ -335,7 +362,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <see cref="IfExists"/>, or a change by handle cannot
     /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>

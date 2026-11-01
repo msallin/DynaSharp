@@ -3,7 +3,7 @@ namespace DynaSharp.UnitTests.Generators.Analyzers;
 /// <summary>DYNA202: a query or scan that is awaited or sent, where the compiler only has a constraint to complain about.</summary>
 public sealed class ReadTerminalAnalyzerTests
 {
-    private const string Message = "DYNA202 Warning: Query and Scan are not awaited; end the chain with ItemsAsync, PageAsync, PagesAsync or CountAsync";
+    private const string Message = "DYNA202 Warning: Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync";
 
     [Test]
     [Arguments("""[|await shop.Query("a")|];""")]

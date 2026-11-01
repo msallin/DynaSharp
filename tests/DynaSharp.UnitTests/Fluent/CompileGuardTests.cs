@@ -151,6 +151,16 @@ public sealed class CompileGuardTests
     [Arguments("""await shop.Of<UserProfile>().Get(Member.Keys.Of("a", "b", "c", "d"));""", "CS0315")]
     [Arguments("""await shop.Of<UserProfile>().Update(Member.Keys.Of("a", "b", "c", "d"));""", "CS0315")]
     [Arguments("""await shop.Of<UserProfile>().Delete(Member.Keys.Of("a", "b", "c", "d"));""", "CS0315")]
+    [Arguments("""shop.Of<UserProfile>().Query(Member.Keys.Of("a", "b", "c", "d"));""", "CS0315")]
+    [Arguments("""orders.Query(default(Address.Key));""", "CS0315")]
+    [Arguments("""shop.Query(UserProfile.Keys.Of("a"));""", "CS0315")]
+    [Arguments("""orders.Query(default(Order.Key), SortKey.Ge("a"));""", "CS1503")]
+    [Arguments("""index.Query(default(Order.Key));""", "CS1503")]
+    [Arguments("""await shop.Scan().ItemAsync();""", "CS1061")]
+    [Arguments("""await shop.Scan().Parallel(2).ItemAsync();""", "CS1061")]
+    [Arguments("""await shop.Query(shards).ItemAsync();""", "CS1061")]
+    [Arguments("""await shop.Query("a").Of<Invoice, Payment>().ItemAsync();""", "CS1061")]
+    [Arguments("""await shop.Scan().Of<Invoice, Payment>().ItemAsync();""", "CS1061")]
     [Arguments("""shop.Of<Handles>().Update("a").Add(Handles.Attrs.Nickname, "x");""", "CS0315")]
     [Arguments("""shop.Of<Handles>().Update("a").Add(Handles.Attrs.Plan, Plan.Pro);""", "CS0315")]
     [Arguments("""shop.Of<Handles>().Update("a").Add(Handles.Attrs.Home, new PostalAddress { City = "x" });""", "CS0315")]
@@ -217,7 +227,7 @@ public sealed class CompileGuardTests
     [Arguments("""index.Query([]);""", "CS0121")]
     [Arguments("""shop.Query(null);""", "CS0121")]
     [Arguments("""index.Query(null, SortKey.Ge("a"));""", "CS0121")]
-    [Arguments("""shop.Query(new[] { 1, 2 });""", "CS1503")]
+    [Arguments("""shop.Query(new[] { 1, 2 });""", "CS0311")]
     [Arguments("""shop.Scan().Query(shards);""", "CS0411")]
     [Arguments("""TransactWriteCommand tx = client.TransactWrite().Put(shop, new Item()); tx.If(Attr("x").Exists());""", "CS1061")]
     [Arguments("""TransactWriteCommand tx = client.TransactWrite().Put(shop, new Item()); tx.IfNotExists();""", "CS0315")]
@@ -237,12 +247,12 @@ public sealed class CompileGuardTests
     [Arguments("""await shop.Update("a").ItemAsync();""", "CS1061")]
     [Arguments("""await shop.Delete("a").ItemAsync();""", "CS1061")]
     [Arguments("""Order order = (await orders.Get(default(Order.Key)).ItemAsync()).ToString();""", "CS0029")]
-    [Arguments("""orders.Query(UserProfile.Keys.Pk.Of("a"));""", "CS1503")]
+    [Arguments("""orders.Query(UserProfile.Keys.Pk.Of("a"));""", "CS0315")]
     [Arguments("""orders.Query(UserProfile.Keys.Pk.Of("a"), SortKey.Ge("b"));""", "CS1503")]
-    [Arguments("""shop.Of<KeyedOrder>().Query(UserProfile.Keys.Pk.Of("a"));""", "CS1503")]
+    [Arguments("""shop.Of<KeyedOrder>().Query(UserProfile.Keys.Pk.Of("a"));""", "CS0315")]
     [Arguments("""shop.Of<KeyedOrder>().Index(KeyedOrder.Indexes.Gsi1).Query(UserProfile.Keys.Pk.Of("a"));""", "CS1503")]
     [Arguments("""indexOfInvoices.Query(UserProfile.Keys.Pk.Of("a"));""", "CS1503")]
-    [Arguments("""orders.Query(new[] { UserProfile.Keys.Pk.Of("a") });""", "CS1503")]
+    [Arguments("""orders.Query(new[] { UserProfile.Keys.Pk.Of("a") });""", "CS0311")]
     [Arguments("""orders.Query([UserProfile.Keys.Pk.Of("a")]);""", "CS9174")]
     [Arguments("""indexOfInvoices.Query(new[] { UserProfile.Keys.Pk.Of("a") });""", "CS1503")]
     [Arguments("""AttributeValue key = UserProfile.Keys.Pk.Of("a");""", "CS0029")]
@@ -268,6 +278,10 @@ public sealed class CompileGuardTests
     [Arguments("""await shop.Update("a").SetIfNotExists(Device.Attrs.Slot, (int?)1);""", "CS1503")]
     [Arguments("""await client.TransactWrite().Update(shop, "a").SetIfNotExists(Device.Attrs.Slot, null);""", "CS1503")]
     [Arguments("""await shop.Update("a").Set(Device.Attrs.Slot, (long?)1);""", "CS1503")]
+    [Arguments("""await shop.Update("a").SetIfNotNull(Device.Attrs.Slot, (long?)1);""", "CS0411")]
+    [Arguments("""await shop.Update("a").SetIfNotNull("x", "y");""", "CS0411")]
+    [Arguments("""await client.TransactWrite().Update(shop, "a").SetIfNotNull("x", "y");""", "CS0411")]
+    [Arguments("""await shop.Put(new Item()).SetIfNotNull(Device.Attrs.Slot, 1);""", "CS1061")]
     [Arguments("""shop.Index<Address>("x");""", "CS0311")]
     [Arguments("""shop.Index<Item>("x");""", "CS0311")]
     [Arguments("""shop.Index<KeyedOrder>();""", "CS1501")]
@@ -301,6 +315,23 @@ public sealed class CompileGuardTests
     [Arguments("""client.Table<Order>("Shop");""")]
     [Arguments("""await orders.Get(default(Order.Key));""")]
     [Arguments("""await orders.Get(new Order("a"));""")]
+    [Arguments("""Order? order = await orders.Query(default(Order.Key)).ItemAsync();""")]
+    [Arguments("""Order? order = await orders.Query(default(Order.Key)).Filter(Attr("x").Exists()).Consistent().Project("x").ItemAsync(default);""")]
+    [Arguments("""await foreach (var order in orders.Query(default(Order.Key)).ItemsAsync()) { }""")]
+    [Arguments("""UserProfile? profile = await shop.Of<UserProfile>().Query(UserProfile.Keys.Of("a")).ItemAsync();""")]
+    [Arguments("""Item? first = await shop.Query("a").Descending().Limit(1).ItemAsync();""")]
+    [Arguments("""Item? first = await index.Query("a").ItemAsync();""")]
+    [Arguments("""Invoice? first = await indexOfInvoices.Query("a").ItemAsync();""")]
+    [Arguments("""QueryCommand<Order> read = orders.Query("a");""")]
+    [Arguments("""QueryCommand<Item> read = shop.Query("a");""")]
+    [Arguments("""QueryCommand<Order> read = orders.Query(1);""")]
+    [Arguments("""AttributeValue key = "a"; QueryCommand<Order> read = orders.Query(key);""")]
+    [Arguments("""QueryCommand<UserProfile> read = shop.Of<UserProfile>().Query(UserProfile.Keys.Pk.Of("a"));""")]
+    [Arguments("""QueryCommand<UserProfile> read = shop.Of<UserProfile>().Query(UserProfile.Keys.Pk.Of("a"), SortKey.Ge("b"));""")]
+    [Arguments("""QueryCommand<Item> read = shop.Query(UserProfile.Keys.Pk.Of("a"));""")]
+    [Arguments("""FanOutQueryCommand<Order> read = orders.Query(["a", "b"]);""")]
+    [Arguments("""FanOutQueryCommand<Order> read = orders.Query(shards);""")]
+    [Arguments("""FanOutQueryCommand<Order> read = orders.Query(new[] { "a" });""")]
     [Arguments("""await orders.Delete(new Order("a"));""")]
     [Arguments("""await shop.Update("a").Add("n", 1).Return(Attr<int>("n"));""")]
     [Arguments("""await shop.Update("a").Add("n", 1).MaxAttempts(1).Return(Attr<int>("n")).SendAsync();""")]
@@ -318,6 +349,7 @@ public sealed class CompileGuardTests
     [Arguments("""await orders.WaitUntilActiveAsync();""")]
     [Arguments("""await orders.WaitUntilActiveAsync(System.TimeSpan.FromSeconds(1));""")]
     [Arguments("""var description = await orders.DescribeAsync();""")]
+    [Arguments("""try { await orders.WaitUntilActiveAsync(); } catch (TableNotActiveException e) when (e.LastStatus == TableStatus.Deleting || e.TableName.Length > 0) { }""")]
     [Arguments("""DynaSharp.Requests.TableDescription description = await orders.CreateTable().Including<Invoice>().Including<Payment>().SendAsync();""")]
     [Arguments("""await orders.CreateTable().Provisioned(read: 5, write: 5).WaitUntilActive().IfNotExists().SendAsync();""")]
     [Arguments("""await orders.CreateTable().WaitUntilActive(System.TimeSpan.FromSeconds(1));""")]
@@ -545,6 +577,9 @@ public sealed class CompileGuardTests
     [Arguments("""await shop.Update("a").Set(Device.Attrs.Serial, null);""")]
     [Arguments("""string? serial = null; await shop.Update("a").Set(Device.Attrs.Serial, serial);""")]
     [Arguments("""await shop.Update("a").Set(Device.Attrs.Slot, null);""")]
+    [Arguments("""await shop.Update("a").SetIfNotNull(Device.Attrs.Serial, null);""")]
+    [Arguments("""string? serial = null; await shop.Update("a").SetIfNotNull(Device.Attrs.Serial, serial);""")]
+    [Arguments("""await shop.Update("a").SetIfNotNull(Device.Attrs.Slot, null);""")]
     public async Task Compile_NullThroughAHandleOfSet_DoesNotWarn(string statement)
     {
         // Arrange
@@ -579,6 +614,9 @@ public sealed class CompileGuardTests
     [Arguments("""shop.Update("a").Set(Device.Attrs.Serial, "a");""", "String")]
     [Arguments("""shop.Update("a").Set(Device.Attrs.Serial, default);""", "String")]
     [Arguments("""shop.Update("a").Set(Device.Attrs.Slot, (int?)null);""", "Nullable`1")]
+    [Arguments("""shop.Update("a").SetIfNotNull(Device.Attrs.Slot, 1);""", "Int32")]
+    [Arguments("""shop.Update("a").SetIfNotNull(Device.Attrs.Serial, "a");""", "String")]
+    [Arguments("""shop.Update("a").SetIfNotNull(Device.Attrs.Slot, (int?)null);""", "Nullable`1")]
     public async Task Compile_SetByHandle_TakesTheNullableOverloadOnlyForANullableValue(string statement, string expected)
     {
         // Arrange
@@ -586,7 +624,7 @@ public sealed class CompileGuardTests
         var tree = compilation.SyntaxTrees.Single();
         var root = await tree.GetRootAsync();
         var set = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Single(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Set" });
+            .Single(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Set" or "SetIfNotNull" });
 
         // Act
         var bound = (IMethodSymbol?)compilation.GetSemanticModel(tree).GetSymbolInfo(set).Symbol;

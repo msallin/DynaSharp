@@ -18,7 +18,8 @@ public interface IUpdatable<TSelf>
 
     /// <summary>
     /// Sets an attribute, creating it if it does not exist (<c>SET</c>), and keeps every key made from it consistent, or throws when the command ends. A null value is a
-    /// <see cref="Remove{TValue, TConverter}(Attr{TValue, TConverter})"/>, for every attribute, because a generated entity writes no attribute for a null property either.
+    /// <see cref="Remove{TValue, TConverter}(Attr{TValue, TConverter})"/>, for every attribute, because a generated entity writes no attribute for a null property either. On a
+    /// property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string is one too.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -60,6 +61,33 @@ public interface IUpdatable<TSelf>
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue>;
 
+    /// <summary>
+    /// Sets an attribute if there is a value, and adds nothing if there is none, which is what an update of optional fields wants: <c>.SetIfNotNull(Customer.Attrs.Email, request.Email)</c>. With a value it is
+    /// <see cref="Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>, with all it says about keys. With <see langword="null"/> the attribute stays as it is, where <c>Set</c> would remove it, and a
+    /// property that feeds a key counts as untouched. On a property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string is no value either.
+    /// </summary>
+    /// <remarks>An update that ends up with no action is still an <c>UpdateItem</c>: it checks its conditions, creates the item if none has the key, and writes what the entity owes it, such as its discriminator.</remarks>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="value">The value, or <see langword="null"/> to leave the attribute alone.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public TSelf SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TConverter : IDynamoDbConverter<TValue>;
+
+    /// <summary>
+    /// Sets an attribute of a value type if the nullable value has a value, and adds nothing if it has none. With a value it costs what
+    /// <see cref="Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/> costs. See <see cref="SetIfNotNull{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
+    /// </summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="value">The value, or <see langword="null"/> to leave the attribute alone.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public TSelf SetIfNotNull<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue? value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>;
+
     /// <summary>Sets an attribute unless it exists (<c>SET a = if_not_exists(a, value)</c>).</summary>
     /// <param name="path">The name or document path.</param>
     /// <param name="value">The value.</param>
@@ -72,6 +100,8 @@ public interface IUpdatable<TSelf>
     /// <param name="attribute">The attribute.</param>
     /// <param name="value">The value.</param>
     /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is empty, on a property with <see cref="Mapping.OmitEmptyAttribute"/>, which counts that as null.</exception>
     public TSelf SetIfNotExists<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
         where TConverter : IDynamoDbConverter<TValue>;
 

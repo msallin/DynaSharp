@@ -46,7 +46,7 @@ public static class TableExtensions
     public static PutCommand<Item> With<TNumber>(this PutCommand<Item> command, string name, TNumber value)
         where TNumber : INumberBase<TNumber> => command.Attribute<TNumber, NumberConverter<TNumber>>(name, value);
 
-    /// <summary>Adds an attribute to the item of a put through its converter.</summary>
+    /// <summary>Adds an attribute to the item of a put through its converter. A handle of a property with <see cref="OmitEmptyAttribute"/> adds nothing for an empty string.</summary>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>
     /// <param name="command">The command.</param>
@@ -230,7 +230,8 @@ public static class TableExtensions
 
     /// <summary>
     /// Starts a delete of the item under the key of an entity. An entity with a <see cref="VersionAttribute"/> gives its version as well, so the delete happens only if the item still has the
-    /// version the entity holds, as with <see cref="IfVersion{T}(DeleteCommand{T}, long)"/>, and 0 means that the item has no version. Otherwise sending throws
+    /// version the entity holds, as with <see cref="IfVersion{T}(DeleteCommand{T}, long)"/>. Version 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition
+    /// key: an entity at 0 deletes nothing, and fails on any item under its key, also on one without a version attribute, which <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> deletes. Otherwise sending throws
     /// <see cref="ConditionalCheckFailedException"/>. <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> gives the check up, and <see cref="IfVersion{T}(DeleteCommand{T}, long)"/> checks another version
     /// in its place. The other attributes of the entity play no part. It costs nothing for an entity without a version.
     /// </summary>
@@ -248,8 +249,9 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Updates only if the item has this version, and stores the next one, which <see cref="WriteResult{T}.Version"/> returns. A version of 0 stands for a new item, so
-    /// it means that the item has no version yet. A key does not carry a version, so an update of an entity with a <see cref="VersionAttribute"/> needs this or
+    /// Updates only if the item has this version, and stores the next one, which <see cref="WriteResult{T}.Version"/> returns. A version of 0 stands for an item that does not exist, so it
+    /// renders <c>attribute_not_exists</c> on the partition key and fails on any item under the key, also on one without a version attribute, which <see cref="IgnoreVersion{T}(UpdateCommand{T})"/> writes to.
+    /// A key does not carry a version, so an update of an entity with a <see cref="VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion{T}(UpdateCommand{T})"/>. If the item has another version, sending throws <see cref="ConditionalCheckFailedException"/>, and nothing is read or
     /// retried by itself: <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> is how to ask for that, around code that reads the version again.
     /// </summary>
@@ -301,7 +303,8 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Deletes only if the item has this version. A key does not carry a version, so a delete by a key of an entity with a <see cref="VersionAttribute"/> needs this or
+    /// Deletes only if the item has this version. Version 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key, and the delete fails on any item under the key.
+    /// A key does not carry a version, so a delete by a key of an entity with a <see cref="VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion{T}(DeleteCommand{T})"/>; a delete of an entity takes the version from it, and this checks another one in its place. If the item has another version, sending throws
     /// <see cref="ConditionalCheckFailedException"/>; <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats code that reads the version again.
     /// </summary>
@@ -389,9 +392,13 @@ public static class TableExtensions
         where TConverter : IDynamoDbConverter<TValue>
     {
         var state = command.Enter();
-        var writer = new DynamoDbWriter(state.BodyJson);
-        writer.WriteAttributeName(name);
-        TConverter.Write(writer, value);
+        if (!TConverter.IsOmitted(value))
+        {
+            var writer = new DynamoDbWriter(state.BodyJson);
+            writer.WriteAttributeName(name);
+            TConverter.Write(writer, value);
+        }
+
         return new(state, state.Table);
     }
 

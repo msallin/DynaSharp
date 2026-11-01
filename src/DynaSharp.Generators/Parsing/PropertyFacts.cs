@@ -26,6 +26,8 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
 
     public AttributeData? Version { get; } = AttributeReader.Find(symbol, WellKnownNames.VersionAttribute);
 
+    public AttributeData? OmitEmpty { get; } = AttributeReader.Find(symbol, WellKnownNames.OmitEmptyAttribute);
+
     public AttributeData? Converter { get; } = AttributeReader.Find(symbol, WellKnownNames.ConverterAttribute);
 
     public bool IsIgnored { get; } = AttributeReader.Find(symbol, WellKnownNames.IgnoreAttribute) is not null;
@@ -47,6 +49,12 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
 
     /// <summary>Gets or sets the key attribute that holds a stored property without loss, which a read falls back on when the attribute of the property is missing.</summary>
     public string? FallbackKey { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether an empty string counts as null, which the type or the property asks for and only a property outside the keys gets.</summary>
+    public bool OmitsEmpty { get; set; }
+
+    /// <summary>Gets a value indicating whether the property is a <c>string?</c>, the one thing <c>[OmitEmpty]</c> applies to.</summary>
+    public bool IsNullableString => Types.Unwrap(Type) is { Inner.SpecialType: SpecialType.System_String, IsNullable: true };
 
     public bool IsComputed => !isSettable && Parameter is null;
 

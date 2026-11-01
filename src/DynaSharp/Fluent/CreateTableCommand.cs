@@ -82,7 +82,7 @@ public sealed class CreateTableCommand
         return this;
     }
 
-    /// <summary>Makes <see cref="SendAsync"/> wait until the table is <c>ACTIVE</c>, for at most five minutes. See <see cref="WaitUntilActive(TimeSpan)"/>.</summary>
+    /// <summary>Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, for at most five minutes. See <see cref="WaitUntilActive(TimeSpan)"/>.</summary>
     /// <returns>This command.</returns>
     public CreateTableCommand WaitUntilActive()
     {
@@ -91,8 +91,9 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Makes <see cref="SendAsync"/> wait until the table is <c>ACTIVE</c>, as <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/> does, with its rules on the timeout. Without this,
-    /// the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active.
+    /// Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, as <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/> does, with its rules on the timeout.
+    /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active. With <see cref="IfNotExists"/> over a table that has data, an index can still backfill, which
+    /// can take longer than the default of five minutes.
     /// </summary>
     /// <param name="timeout">How long to wait after the table was created. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
     /// <returns>This command.</returns>
@@ -134,7 +135,8 @@ public sealed class CreateTableCommand
     /// <exception cref="ResourceInUseException">A table of that name exists or is being deleted, and <see cref="IfNotExists"/> was not called.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes.</exception>
-    /// <exception cref="TimeoutException">The table was not active in time, with <see cref="WaitUntilActive()"/>.</exception>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/>.</exception>
+    /// <exception cref="TimeoutException">A call ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public async ValueTask<TableDescription> SendAsync(CancellationToken cancellationToken = default)
     {

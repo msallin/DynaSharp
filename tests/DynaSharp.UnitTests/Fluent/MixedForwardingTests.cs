@@ -7,6 +7,9 @@ public sealed class MixedForwardingTests
 {
     private const BindingFlags DeclaredPublicMethods = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
+    // A query gives one item that a mixed read would have to say the type of, so it is left out on purpose.
+    private const string NotOfferedByAMixedQuery = "ItemAsync";
+
     // What a mixed read leaves out on purpose. An entry that a mixed read does offer fails too, so the list stays true.
     private static readonly Dictionary<string, string> NotOffered = new(StringComparer.Ordinal)
     {
@@ -31,7 +34,8 @@ public sealed class MixedForwardingTests
         var missing = PublicMethods(read).Where(method => !offered.Contains(Signature(method))).Select(static method => method.Name).Order(StringComparer.Ordinal);
 
         // Assert
-        await Assert.That(string.Join(' ', missing)).IsEqualTo(string.Join(' ', NotOffered.Keys.Order(StringComparer.Ordinal)));
+        var expected = read == typeof(QueryCommand<>) ? NotOffered.Keys.Append(NotOfferedByAMixedQuery) : NotOffered.Keys;
+        await Assert.That(string.Join(' ', missing)).IsEqualTo(string.Join(' ', expected.Order(StringComparer.Ordinal)));
     }
 
     private static IEnumerable<MethodInfo> PublicMethods(Type type) => type.GetMethods(DeclaredPublicMethods).Where(static method => !method.IsSpecialName);

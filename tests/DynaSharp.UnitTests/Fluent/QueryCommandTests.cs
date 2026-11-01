@@ -432,6 +432,322 @@ public sealed class QueryCommandTests
     }
 
     [Test]
+    public async Task Query_GeneratedKey_IsTheQueryWithEqOnTheSortKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var byKey = customers.Query(Customer.Keys.Of("alice")).ToRequestJson();
+        var byCondition = customers.Query("CUSTOMER#alice", SortKey.Eq("PROFILE")).ToRequestJson();
+
+        // Assert
+        await Assert.That(byKey).IsEqualTo(byCondition);
+    }
+
+    [Test]
+    public async Task Query_KeyOfATableWithoutASortKey_QueriesThePartitionKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Session>("Sessions").Query(new SessionKey("s-1")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Sessions","KeyConditionExpression":"#n0 = :v0","ExpressionAttributeNames":{"#n0":"id"},"ExpressionAttributeValues":{":v0":{"S":"s-1"}}}""");
+    }
+
+    [Test]
+    public async Task Query_KeyWithOneValueTwice_SharesItsPlaceholder()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var json = shop.Query(new TextKey("pk"u8.ToArray(), "a", "sk"u8.ToArray(), "a")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","KeyConditionExpression":"#n0 = :v0 AND #n1 = :v0","ExpressionAttributeNames":{"#n0":"pk","#n1":"sk"},"ExpressionAttributeValues":{":v0":{"S":"a"}}}""");
+    }
+
+    [Test]
+    public async Task Query_KeyNameThatJsonEscapes_NamesTheSameAttributeAsAConditionDoes()
+    {
+        // Arrange (the name comes out of the JSON of the key, escaped as a writer escapes it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "p\"k", "s\\k");
+
+        // Act
+        var byKey = shop.Query(new TextKey("p\"k"u8.ToArray(), "a", "s\\k"u8.ToArray(), "b")).ToRequestJson();
+        var byCondition = shop.Query("a", SortKey.Eq("b")).ToRequestJson();
+
+        // Assert
+        await Assert.That(byKey).IsEqualTo(byCondition);
+    }
+
+    [Test]
+    public async Task Query_NullKey_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentNullException>(() => Task.FromResult(shop.Query((TextKey)null!).ToRequestJson()));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("key");
+    }
+
+    [Test]
+    public async Task Query_ByKey_GoesOnWithTheFilterOfTheCommand()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Of("alice")).Filter(Attr("x").Exists()).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "FilterExpression":"(#n2 = :v2) AND (attribute_exists(#n3))"
+            """);
+    }
+
+    [Test]
+    public async Task ItemAsync_OnePage_GivesTheFirstItem()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1", "2"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var item = await client.Table("Shop", "pk", "sk").Query("a").ItemAsync();
+
+        // Assert
+        await Assert.That(item!.GetString("sk")).IsEqualTo("1");
+    }
+
+    [Test]
+    public async Task ItemAsync_Nothing_GivesNull()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last());
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var item = await client.Table("Shop", "pk", "sk").Query("a").ItemAsync();
+
+        // Assert
+        await Assert.That(item).IsNull();
+    }
+
+    [Test]
+    public async Task ItemAsync_NoLimitAsked_SendsWhatToRequestJsonShows()
+    {
+        // Arrange (a limit works before the filter, so one of its own could lose the match)
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var rendered = shop.Query("a").Filter(Attr("x").Exists()).ToRequestJson();
+        await shop.Query("a").Filter(Attr("x").Exists()).ItemAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[0].BodyText).IsEqualTo(rendered);
+    }
+
+    [Test]
+    public async Task ItemAsync_LimitAsked_SendsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table("Shop", "pk", "sk").Query("a").Limit(1).ItemAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[0].BodyText).Contains("""
+            "Limit":1
+            """);
+    }
+
+    [Test]
+    public async Task ItemAsync_FilteredEmptyPages_FollowsThemAndStopsAtTheFirstItem()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(FilteredEmpty("1"));
+        handler.Enqueue(FilteredEmpty("2"));
+        handler.Enqueue(More("3", "4"));
+        handler.Enqueue(Last("5"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var item = await client.Table("Shop", "pk", "sk").Query("a").Filter(Attr("x").Exists()).ItemAsync();
+
+        // Assert
+        await Assert.That((item!.GetString("sk"), handler.Requests.Count)).IsEqualTo(("3", 3));
+    }
+
+    [Test]
+    public async Task ItemAsync_OnlyFilteredEmptyPages_GivesNull()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(FilteredEmpty("1"));
+        handler.Enqueue(Last());
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var item = await client.Table("Shop", "pk", "sk").Query("a").ItemAsync();
+
+        // Assert
+        await Assert.That((item is null, handler.Requests.Count)).IsEqualTo((true, 2));
+    }
+
+    [Test]
+    public async Task ItemAsync_Index_GivesTheFirstItem()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var item = await client.Table("Shop", "pk", "sk").Index("ByStatus", "status").Query("open").ItemAsync();
+
+        // Assert
+        await Assert.That((item!.GetString("sk"), handler.Requests[0].BodyText.Contains("ByStatus", StringComparison.Ordinal))).IsEqualTo(("1", true));
+    }
+
+    [Test]
+    public async Task ItemAsync_ItemOfTheEntity_ReadsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"CUSTOMER#alice"},"sk":{"S":"PROFILE"},"_type":{"S":"CUSTOMER"},"fullName":{"S":"Alice"},"orderCount":{"N":"3"}}],"Count":1,"ScannedCount":1}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var customer = await client.Table<Customer>("Shop").Query(Customer.Keys.Of("alice")).ItemAsync();
+
+        // Assert
+        await Assert.That(customer).IsEqualTo(new Customer("alice", "Alice", 3));
+    }
+
+    [Test]
+    public async Task ItemAsync_ProjectionOfAnEntity_AsksForWhatTheEntityNeeds()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last());
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table<Customer>("Shop").Query("a").Project("email").ItemAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[0].BodyText).Contains("""
+            "ProjectionExpression":"#n2, #n1, #n0, #n3"
+            """);
+    }
+
+    [Test]
+    public async Task ItemAsync_StructAndNoItem_GivesItsDefault()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"Items":[]}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var session = await client.Table<Session>("Sessions").Query("s").ItemAsync();
+
+        // Assert
+        await Assert.That(session).IsEqualTo(default(Session));
+    }
+
+    [Test]
+    public async Task ItemAsync_Done_ReleasesTheStateOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+        var (item, state, released) = StartItem(client.Table("Shop", "pk", "sk"));
+
+        // Act
+        await item;
+
+        // Assert
+        await Assert.That(state.Version).IsEqualTo(released);
+    }
+
+    [Test]
+    public async Task ItemAsync_ServiceFails_ReleasesTheStateOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Gone."));
+        using var client = TestClient.Create(handler);
+        var (item, state, released) = StartItem(client.Table("Shop", "pk", "sk"));
+
+        // Act
+        await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await item);
+
+        // Assert
+        await Assert.That(state.Version).IsEqualTo(released);
+    }
+
+    [Test]
+    public async Task ItemAsync_Cancelled_SendsNothingAndReleasesTheState()
+    {
+        // Arrange
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var (item, state, released) = StartItem(client.Table("Shop", "pk", "sk"), cancellation.Token);
+
+        // Act
+        await TestClient.CaptureAsync<OperationCanceledException>(async () => await item);
+
+        // Assert
+        await Assert.That((state.Version, handler.Requests.Count)).IsEqualTo((released, 0));
+    }
+
+    [Test]
+    public async Task ItemAsync_CommandUsedAlready_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(async () => await ItemAfterRendering(shop));
+
+        // Assert
+        await Assert.That(failure).IsNotNull();
+    }
+
+    [Test]
     public async Task ItemsAsync_OnePage_GivesItsItems()
     {
         // Arrange
@@ -1553,6 +1869,20 @@ public sealed class QueryCommandTests
         return (command.PageAsync(default, cancellationToken).AsTask(), handle.State!, handle.Version + 2);
     }
 
+    private static (Task<Item?> Item, CommandState State, int Released) StartItem(Table<Item> shop, CancellationToken cancellationToken = default)
+    {
+        var command = shop.Query("a");
+        var handle = command.Handle;
+        return (command.ItemAsync(cancellationToken).AsTask(), handle.State!, handle.Version + 2);
+    }
+
+    private static ValueTask<Item?> ItemAfterRendering(Table<Item> shop)
+    {
+        var command = shop.Query("a");
+        _ = command.ToRequestJson();
+        return command.ItemAsync();
+    }
+
     private static string FilterOnStaleHandle(Table<Item> shop)
     {
         var stale = shop.Query("a");
@@ -1595,6 +1925,26 @@ public sealed class QueryCommandTests
         catch (InvalidOperationException exception)
         {
             return exception.Message;
+        }
+    }
+
+    private readonly struct SessionKey(string id) : DynaSharp.Mapping.IKey<Session>
+    {
+        public void WriteKey(DynaSharp.Serialization.DynamoDbWriter writer)
+        {
+            writer.WriteAttributeName("id"u8);
+            writer.WriteString(id);
+        }
+    }
+
+    private sealed class TextKey(byte[] partitionKeyName, string partitionKey, byte[] sortKeyName, string sortKey) : DynaSharp.Mapping.IKey<Item>
+    {
+        public void WriteKey(DynaSharp.Serialization.DynamoDbWriter writer)
+        {
+            writer.WriteAttributeName(partitionKeyName);
+            writer.WriteString(partitionKey);
+            writer.WriteAttributeName(sortKeyName);
+            writer.WriteString(sortKey);
         }
     }
 }

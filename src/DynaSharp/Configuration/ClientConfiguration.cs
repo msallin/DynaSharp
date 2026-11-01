@@ -42,6 +42,12 @@ internal sealed record ClientConfiguration
     /// </summary>
     public required string EndpointSource { get; init; }
 
+    /// <summary>
+    /// Gets the endpoint if someone chose it, in the options or the environment, or <see langword="null"/> for the public endpoint of <see cref="Region"/>. That one follows from the region and the service, so a copy
+    /// of the options for another region or the other client must not carry it along.
+    /// </summary>
+    public Uri? ChosenEndpoint => EndpointSource == RegionSourceDefault ? null : Endpoint;
+
     /// <summary>Gets the credentials provider.</summary>
     public required ICredentialsProvider Credentials { get; init; }
 

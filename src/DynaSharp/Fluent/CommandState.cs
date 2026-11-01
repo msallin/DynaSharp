@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using DynaSharp.Http;
+using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
@@ -35,7 +36,7 @@ namespace DynaSharp.Fluent;
 /// <item><term><see cref="CommandCall{TOperation, TResponse}.Release"/></term><description>One request: when the pipeline ends the call, or at once if the client is disposed.</description></item>
 /// <item><term><see cref="ActionCall{TOperation, TResponse}.Release"/></term><description>A transaction, as for one request. It does nothing unless <see cref="IActionOperation{TResponse}.EndsCommand"/>, so a batch keeps its state between requests.</description></item>
 /// <item><term><see cref="BatchDriver.SendAsync{TOperation, TResult}"/></term><description>A batch, when the last request is done or the batch gives up. <see cref="BatchDriver.RenderJson{TOperation, TResult}"/> does the same for its <c>ToRequestJson</c>.</description></item>
-/// <item><term><see cref="PagedRead{TOperation, T}.PageAsync"/> and <see cref="PagedRead{TOperation, T}.CountAsync"/></term><description>One page, or all pages of a count, when the read ends. <see cref="PageCall{TOperation, T}.Release"/> does nothing, because the state lives for all pages.</description></item>
+/// <item><term><see cref="PagedRead{TOperation, T}.PageAsync"/>, <see cref="PagedRead{TOperation, T}.FirstAsync"/> and <see cref="PagedRead{TOperation, T}.CountAsync"/></term><description>One page, the pages up to the first item, or all pages of a count, when the read ends. <see cref="PageCall{TOperation, T}.Release"/> does nothing, because the state lives for all pages.</description></item>
 /// <item><term><see cref="PagedRead{TOperation, T}.ThrowIfProjected"/></term><description>A count with a projection, before it throws, and the state never reaches the read.</description></item>
 /// <item><term><see cref="RenderJson"/></term><description>Every other <c>ToRequestJson</c>, whatever <see cref="Finish"/> does.</description></item>
 /// <item><term><see cref="OnceEnumerable{T}.DisposeAsync"/></term><description>A read that is enumerated, also if its enumerator never moved: the state of the read, or the state a parallel scan or a fan-out copies from. A read nobody enumerates is abandoned.</description></item>
@@ -153,8 +154,11 @@ internal sealed class CommandState
     /// <summary>Gets or sets a value indicating whether the write in progress already says which version it expects, which cannot be taken back.</summary>
     public bool VersionChecked { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether the write in progress asks that no item has its key, which a version above 0 contradicts, see <see cref="WriteRules"/>.</summary>
+    /// <summary>Gets or sets a value indicating whether the write in progress asks that no item has its key, by <c>IfNotExists</c> or version 0, so that the condition stands once. A version above 0 contradicts it, see <see cref="WriteRules"/>.</summary>
     public bool ItemMustNotExist { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the write in progress asks that an item has its key, which version 0 contradicts, see <see cref="WriteRules"/>.</summary>
+    public bool ItemMustExist { get; set; }
 
     /// <summary>Gets or sets the version the write in progress expects by <c>IfVersion</c>, or 0 for none, which is no contradiction of <see cref="ItemMustNotExist"/> either.</summary>
     public long ExpectedVersion { get; set; }
@@ -308,6 +312,22 @@ internal sealed class CommandState
     {
         BodyJson.WriteEndObject();
         EndWrite(BodyJson);
+    }
+
+    /// <summary>
+    /// Writes a key that writes itself as the key condition of a query. It goes through the body, which is what such a key can write to, and leaves it again, because a query has no
+    /// <c>Key</c> member.
+    /// </summary>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="key">The key.</param>
+    public void WriteKeyCondition<TKey>(TKey key)
+        where TKey : IKey
+    {
+        var mark = Body.WrittenCount;
+        key.WriteKey(StartKey());
+        EndKey();
+        Expressions.AppendKeyCondition(Body.WrittenSpan[_keyStart..]);
+        Body.Truncate(mark);
     }
 
     /// <summary>Reads back the key of an update that is about to settle, which nothing follows in the body yet, because its expressions wait in their own segments.</summary>
@@ -528,6 +548,7 @@ internal sealed class CommandState
         VersionIgnored = false;
         VersionChecked = false;
         ItemMustNotExist = false;
+        ItemMustExist = false;
         ExpectedVersion = 0;
         StoredVersion = null;
         Table = null!;

@@ -118,6 +118,29 @@ public partial record Ticket
     public long Revision { get; init; }
 }
 
+/// <summary>A note whose empty strings go like null, on the type and on the document nested in it.</summary>
+[DynamoDbEntity]
+[Discriminator("MEMO")]
+[PartitionKey("MEMO#{Id}")]
+[SortKey("MEMO")]
+[OmitEmpty]
+public partial record Memo
+{
+    public required string Id { get; init; }
+
+    public string? Text { get; init; }
+
+    public MemoPlace? Place { get; init; }
+}
+
+/// <summary>Where a memo was written.</summary>
+[DynamoDbDocument]
+[OmitEmpty]
+public partial record MemoPlace
+{
+    public string? City { get; init; }
+}
+
 /// <summary>A claim, in a sparse index whose sort key repeats an input of the table key, which no update can write, so it enters the index by a put.</summary>
 [DynamoDbEntity]
 [Discriminator("CLAIM")]

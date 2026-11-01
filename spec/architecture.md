@@ -159,7 +159,7 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 
 ### Table administration
 
-`DescribeAsync`, `WaitUntilActiveAsync`, `DeleteTableAsync` and `CreateTableCommand` run the operations of the request API through `ClientCore.ExecuteAsync`, so they have its spans and metrics and write no JSON of their own. `TableAdministration` holds them.
+`DescribeAsync`, `WaitUntilActiveAsync`, `DeleteTableAsync` and `CreateTableCommand` run the operations of the request API through `ClientCore.ExecuteAsync`, so they have its spans and metrics and write no JSON of their own. `TableAdministration` holds them. A wait looks at the table and its global secondary indexes, because the status of a table says nothing about a backfill.
 
 `CreateTableCommand` is the one command that is an ordinary class over no pooled state: it crosses `await`, it can be kept, and a clause changes it and returns it. That is deliberate, because this is not a hot path, and it is why it has no `ToRequestJson` but `ToRequest`, whose record goes into the request API. `TableSchema` holds the union of the entities: `TableModel.Entity` starts it, and each `Including<T>` adds to it and throws at that call on a disagreement. A type of `ScalarAttributeType.Unknown` stays open, so a type stated by an entity fills it in and never conflicts, and what stays open is a string in the request. That is how `Table<Item>`, a type written by hand and a custom converter behave alike. Attribute names and the kind of an index are what entities have to agree on; templates are not compared, because an overloaded index is several templates over one attribute. `IfNotExists` leaves the description to the wait if there is one, which bears with a table `DescribeTable` does not see yet.
 
@@ -167,7 +167,8 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 
 **Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`.
 
-**Query and Scan.** `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
+**Query and Scan.** `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. `BeginKeyQuery` does that for a key that writes itself: the key goes through the body and leaves it,
+and `ExpressionWriter.AppendKeyCondition` copies its names and values into the maps, because they are JSON already. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
 it gets it. `PageCall.ReadResponse` copies `LastEvaluatedKey` into `CommandState.PageKey` only after the whole response parsed, so a retry of a page sends what the first attempt sent. `PageResponse`
 locates that key and does not parse it. `OnceEnumerable<T>` makes an enumeration single-use and releases the state however it ends, also for an enumerator disposed before its first `MoveNextAsync`. `ToPage` makes a
 `ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts exactly one JSON object of attribute values, because it reaches the body as raw bytes.
@@ -217,6 +218,7 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense, with the attribute it is for; `TableExtensions.Query`, which takes it and compares that attribute with what it reads |
 | `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema`, and by `TableExtensions` for the name of a key builder and the kind of an index |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
+| `OmitEmptyConverter<TConverter>`, `IDynamoDbConverter<T>.IsOmitted` | The type of the handle of a property with `[OmitEmpty]`, and `WriteRules`, which ask it through the type parameter. `static virtual`, and false by default, so that a struct converter compiles the question away. The write of the property is a generated `{ Length: > 0 }` and goes through its own converter |
 | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
 | `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
 | `ConverterChecks.ExpectDiscriminator`, `TryFindString`, `DynamoDbMappingException` | Generated reads |

@@ -322,7 +322,7 @@ public static class TransactWriteExtensions
 
     /// <summary>
     /// Makes this action depend on no item having its key (<c>attribute_not_exists</c> on the partition key of its table). Otherwise the whole transaction is
-    /// cancelled. The table is the one of the action, so it takes no argument. An entity with a <see cref="Mapping.VersionAttribute"/> must then hold version 0: the next verb or the terminal throws
+    /// cancelled. The table is the one of the action, so it takes no argument. An entity with a <see cref="Mapping.VersionAttribute"/> must then hold version 0, whose condition is this one and renders once: the next verb or the terminal throws
     /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called, because no item can lack its key and hold a version.
     /// </summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>
@@ -336,7 +336,10 @@ public static class TransactWriteExtensions
         return TStep.Continue(state);
     }
 
-    /// <summary>Makes this action depend on an item having its key (<c>attribute_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled.</summary>
+    /// <summary>
+    /// Makes this action depend on an item having its key (<c>attribute_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled. Version 0 says that no item has the key, so with
+    /// it the next verb or the terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of an entity back.
+    /// </summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>
     /// <param name="step">The step, which this replaces.</param>
     /// <returns>The step.</returns>
@@ -344,7 +347,7 @@ public static class TransactWriteExtensions
         where TStep : ITransactWriteStep<TStep>, allows ref struct
     {
         var state = step.Enter();
-        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: true);
+        WriteRules.IfExists(state);
         return TStep.Continue(state);
     }
 

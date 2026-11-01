@@ -309,6 +309,26 @@ Contracts: `history/api-design.md` section 9. Packages: **M3a** (merged) `[Versi
 - [x] Scenario tests, including the recipes from `patterns.md`
 - [~] M3 independent review (done by a second reviewer after the A5 merge: no Critical or High, nine findings, decisions in `history/api-design.md` section 9. Not reached: bodies of several emitters, serialization, telemetry, credentials; integration tests were not run by it)
 
+### G1 - additions from the three services
+
+Owner's decision of 2026-11-01. One package, branch `m3/g1-additions`.
+
+- [x] **Version 0 checks the key.** Every version 0, on `Put`, `IfVersion(0)`, `Delete(entity)` and transaction steps, renders `attribute_not_exists(<partition key>)` and no longer looks at the version attribute, so a first write fails on an existing item without a version instead of replacing it. With `IfNotExists()` the clause appears once. `IgnoreVersion()` is how such an item is taken over. Breaking.
+- [x] **One item from a query.** `Table<T>.Query<TKey>(TKey key)` takes what `Get` takes, and queries the partition key with `Eq` on a sort key if there is one. `QueryCommand<T>.ItemAsync(ct)` gives the first matching item in query order or null. It follows empty filtered pages and stops at the first item. It adds no `Limit`, because `Limit` works before the filter and what goes out stays what `ToRequestJson()` shows; the docs show `.Limit(1)` for a read of a partition without a filter. Index queries get the terminal too. Not on fan-out, mixed reads or scans.
+- [x] **`SetIfNotNull`.** `SetIfNotNull(handle, value)` on `IUpdatable<TSelf>`, by handle only, for reference and value types. With a value it is the `Set`, including the rules of section 8 of `api.md`. With null it adds nothing.
+- [x] **Describe by name.** `DynamoDbClient.DescribeTableAsync(string tableName, CancellationToken ct = default)`, which returns what the request overload returns.
+- [x] **`TableNotActiveException : TimeoutException`.** `WaitUntilActiveAsync` throws it, on `Table<T>` and `CreateTableCommand`, with `TableName` and `LastStatus` (`TableStatus?`, null when the table was not found). Sealed, in `DynaSharp`. A `catch (TimeoutException)` keeps working, and `AttemptTimeout` still gives the plain type.
+- [x] **`[OmitEmpty]`.** One attribute for a property or an entity or document type. On a type it covers the `string?` properties of that type that feed no key, and nested types have their own. An empty string is written like null: left out by `Put` and `Item.From`, a `Remove` in `Set` by handle, nothing in `SetIfNotNull`, and rejected by `SetIfNotExists` by handle like null is. A stored `""` still reads as `""`. On a property that is not `string?`, or that feeds a key, it is an error with a diagnostic of its own. Project-wide defaults come later and set the same thing.
+- [x] **`Options` on the clients.** `DynamoDbClient.Options` and `DynamoDbStreamsClient.Options` return a `DynamoDbClientOptions` holding what the client really uses, so a region or an endpoint from the environment is there and not null. `client.Options with { MaxAttempts = 1 }` makes a second client.
+- [x] **`WaitUntilActiveAsync` waits for the indexes.** It returns when the table and all its global secondary indexes are `ACTIVE`, because a table reads `ACTIVE` while an index backfills. `TableNotActiveException` gets `PendingIndex` (`string?`), the index that was not active when the time ran out. There is no `WaitUntilIndexActiveAsync`.
+
+### G2 - typed projection
+
+After G1 and F2. `Project` stays as it is: leaving out a `required` member would give a null the compiler rules out.
+
+- [ ] **Analyzer.** A warning with its own diagnostic when `Project` on a typed read leaves out a `required` member that is no key input and is not restored from a key.
+- [ ] **`Select(handle)`.** On `GetCommand<T>`, `QueryCommand<T>` and `ScanCommand<T>`: one handle, projects that attribute and reads its value, without the entity. `Return(attr)` is the model. A missing attribute follows the type of the handle: null for a nullable one, `DynamoDbMappingException` otherwise. More than one handle is a later step.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

@@ -181,6 +181,19 @@ internal sealed class TableModel
         return BeginKeyCondition(partitionKey, sortKey);
     }
 
+    /// <summary>Starts a <c>Query</c> of the items under a key that writes itself: equal to each of its attributes, and the discriminator of a typed read in the filter.</summary>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="key">The key.</param>
+    /// <returns>The state of the command.</returns>
+    public CommandState BeginKeyQuery<TKey>(TKey key)
+        where TKey : IKey
+    {
+        var state = Begin();
+        state.WriteKeyCondition(key);
+        AddQueryFilter(state);
+        return state;
+    }
+
     /// <summary>Starts what the queries of a fan-out are copies of. It is <see cref="BeginQuery"/> with <c>:pk</c> for the partition, whose value each copy adds.</summary>
     /// <param name="sortKey">The condition on the sort key.</param>
     /// <returns>The state of the command.</returns>
@@ -288,13 +301,16 @@ internal sealed class TableModel
         }
 
         sortKey.Render(expressions, text, SortKeyName!);
+        AddQueryFilter(state);
+        return state;
+    }
 
-        // DynamoDB refuses a filter on a key of what a query reads, for a scan it takes one. The key condition of such a query already says which items come back.
+    // DynamoDB refuses a filter on a key of what a query reads, for a scan it takes one. The key condition of such a query already says which items come back.
+    private void AddQueryFilter(CommandState state)
+    {
         if (!DiscriminatorIsKey)
         {
             AddDiscriminatorFilter(state);
         }
-
-        return state;
     }
 }

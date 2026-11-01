@@ -57,4 +57,12 @@ public interface IDynamoDbConverter<T>
     /// </param>
     /// <returns>The value.</returns>
     public static abstract T Read(ref DynamoDbReader reader, AttributeType type);
+
+    /// <summary>
+    /// Finds out whether a command by handle treats a value like null, which <see cref="Mapping.OmitEmptyAttribute"/> asks for through <see cref="OmitEmptyConverter{TConverter}"/>. No other converter has a use for
+    /// this: the default answers <see langword="false"/>, and a struct converter compiles that away, so a handle pays nothing.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    /// <returns><see langword="true"/> if the value counts as null.</returns>
+    public static virtual bool IsOmitted(T value) => false;
 }

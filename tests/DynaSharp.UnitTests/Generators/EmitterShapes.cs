@@ -602,6 +602,38 @@ internal static class EmitterShapes
         }
         """;
 
+    public const string OmitEmpty = Usings + """
+        namespace Shapes.OmitEmpty
+        {
+            [DynamoDbEntity]
+            [Discriminator("MEMBER")]
+            [PartitionKey("MEMBER#{Id}")]
+            [GlobalIndexKey("ByLabel", PartitionKey = "LABEL#{Label}", Sparse = true)]
+            [OmitEmpty]
+            public partial class Member
+            {
+                public string Id { get; set; } = string.Empty;
+
+                public string? Nick { get; set; }
+
+                public string? Label { get; set; }
+
+                public string Motto { get; set; } = string.Empty;
+
+                public Home? Home { get; set; }
+            }
+
+            [DynamoDbDocument]
+            public partial class Home
+            {
+                [OmitEmpty]
+                public string? City { get; set; }
+
+                public string? Street { get; set; }
+            }
+        }
+        """;
+
     /// <summary>Gets the shapes by name, which is also how the names of their snapshots start.</summary>
     public static IReadOnlyDictionary<string, string> All { get; } = new Dictionary<string, string>
     {
@@ -622,6 +654,7 @@ internal static class EmitterShapes
         ["Required"] = Required,
         ["ExplicitConverters"] = ExplicitConverters,
         ["Versioned"] = Versioned,
+        ["OmitEmpty"] = OmitEmpty,
     };
 
     public static IEnumerable<string> Names() => All.Keys;

@@ -62,6 +62,7 @@ internal sealed class EntityKeyBuilder(
         }
 
         var version = VersionProperty();
+        KeepKeysFromOmitEmpty();
         if (bag.HasErrors)
         {
             return null;
@@ -436,12 +437,26 @@ internal sealed class EntityKeyBuilder(
     // A put writes the next version, so the key would move to another item, or an index would go stale.
     private void RejectVersionInKey(PropertyFacts property)
     {
-        var inputs = _keys.SelectMany(static key => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Select(static placeholder => placeholder.Property));
-        if (_keys.Exists(key => key.PlainProperty == property.Name) || inputs.Contains(property.Name))
+        if (FeedsKey(property))
         {
             bag.Report(Descriptors.VersionInKey, Spot.Of(property.Version!, property.Spot), property.Name);
         }
     }
+
+    // A key must not be empty, and one that leaves out an input is no key, so on a type the attribute passes over a property that feeds one, and on the property it is a mistake.
+    private void KeepKeysFromOmitEmpty()
+    {
+        foreach (var property in properties.Where(FeedsKey))
+        {
+            property.OmitsEmpty = false;
+            if (property.OmitEmpty is { } attribute && property.IsNullableString)
+            {
+                bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key");
+            }
+        }
+    }
+
+    private bool FeedsKey(PropertyFacts property) => _keys.Exists(key => key.PlainProperty == property.Name) || HoldersOf(property).Count > 0;
 
     private void RestoreKeyOnlyProperties()
     {

@@ -120,7 +120,7 @@ internal sealed class ModelBuilder
 
     private static PropertyModel ToModel(PropertyFacts property)
     {
-        var write = property.Resolved?.Write ?? WriteCondition.Never;
+        var write = property.OmitsEmpty ? WriteCondition.WhenNotEmptyLength : property.Resolved?.Write ?? WriteCondition.Never;
         return new PropertyModel(
             property.Name,
             Names.Identifier(property.Name),
@@ -135,7 +135,8 @@ internal sealed class ModelBuilder
             property.RestoredFromKey,
             property.FallbackKey,
             property.ParameterName,
-            property.Symbol.DeclaredAccessibility == Accessibility.Public && Types.Effective(property.Type) == Accessibility.Public && property.Resolved?.IsPublic == true);
+            property.Symbol.DeclaredAccessibility == Accessibility.Public && Types.Effective(property.Type) == Accessibility.Public && property.Resolved?.IsPublic == true,
+            property.OmitsEmpty);
     }
 
     private TypeModel? Analyze()
@@ -161,6 +162,7 @@ internal sealed class ModelBuilder
             MapProperty(property, reserved, claims, resolver);
         }
 
+        ReadOmitEmpty(properties);
         var entity = discriminator is null ? null : new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator);
         return _bag.HasErrors ? null : Compose(properties, constructor, entity);
     }
@@ -210,6 +212,21 @@ internal sealed class ModelBuilder
     {
         var name = attribute.AttributeClass!.Name;
         _bag.Report(Descriptors.NotValidOnDocument, Spot.Of(attribute, _spot), name.Substring(0, name.Length - nameof(Attribute).Length));
+    }
+
+    // What feeds a key is not known yet, so the keys of an entity take that back in EntityKeyBuilder.
+    private void ReadOmitEmpty(List<PropertyFacts> properties)
+    {
+        var onType = AttributeReader.Find(_type, WellKnownNames.OmitEmptyAttribute) is not null;
+        foreach (var property in properties)
+        {
+            if (property.OmitEmpty is { } attribute && !property.IsNullableString)
+            {
+                _bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it is no string?");
+            }
+
+            property.OmitsEmpty = property.IsStored && property.IsNullableString && (onType || property.OmitEmpty is not null);
+        }
     }
 
     private void MapProperty(PropertyFacts property, string? reserved, Dictionary<string, AttributeClaim> claims, ConverterResolver resolver)

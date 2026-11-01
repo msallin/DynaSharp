@@ -29,6 +29,8 @@ internal static class WellKnownNames
 
     public const string VersionAttribute = "DynaSharp.Mapping.VersionAttribute";
 
+    public const string OmitEmptyAttribute = "DynaSharp.Mapping.OmitEmptyAttribute";
+
     public const string DocumentInterface = "DynaSharp.Mapping.IDynamoDbDocument<TSelf>";
 
     public const string ConverterInterface = "DynaSharp.Serialization.IDynamoDbConverter<T>";

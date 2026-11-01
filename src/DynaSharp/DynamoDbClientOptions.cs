@@ -1,3 +1,4 @@
+using System.Text;
 using DynaSharp.Credentials;
 using Microsoft.Extensions.Logging;
 
@@ -10,7 +11,8 @@ namespace DynaSharp;
 /// <remarks>
 /// The options are a record, so a variation of a shared configuration is a <c>with</c> expression, for example
 /// <c>options with { MaxAttempts = 1 }</c> for a client that must not retry its updates. The copy is shallow: it shares the credentials
-/// provider, the HTTP handler and the logger factory of the original. What the client does with the settings while an operation runs,
+/// provider, the HTTP handler and the logger factory of the original. <see cref="DynamoDbClient.Options"/> gives these options back as a client resolved them. <see cref="ToString"/> names the type of the
+/// provider and nothing it holds, whatever the provider prints, so options are safe to log. What the client does with the settings while an operation runs,
 /// that is retries, timeouts, errors and telemetry, is described on <see cref="Requests.DynamoDbRequests"/>.
 /// </remarks>
 public sealed record DynamoDbClientOptions
@@ -142,4 +144,18 @@ public sealed record DynamoDbClientOptions
 
     /// <summary>Gets the logger factory. When <see langword="null"/>, nothing is logged.</summary>
     public ILoggerFactory? LoggerFactory { get; init; }
+
+    // A record prints what its members print, and a provider of the application can be a record itself, which prints its keys. An endpoint can carry user info until a client rejects it.
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("Region = ").Append(Region)
+            .Append(", ServiceUrl = ").Append(ServiceUrl is { IsAbsoluteUri: true } url ? url.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped) : ServiceUrl?.ToString())
+            .Append(", Credentials = ").Append(Credentials?.GetType())
+            .Append(", HttpHandler = ").Append(HttpHandler?.GetType())
+            .Append(", AttemptTimeout = ").Append(AttemptTimeout)
+            .Append(", MaxAttempts = ").Append(MaxAttempts)
+            .Append(", TimeProvider = ").Append(TimeProvider?.GetType())
+            .Append(", LoggerFactory = ").Append(LoggerFactory?.GetType());
+        return true;
+    }
 }

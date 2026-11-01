@@ -34,6 +34,10 @@ public sealed class TypeDiagnosticsTests
     [Arguments("DYNA023", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { public string Id { get; set; } = ""; [Version] public long V { get; set; } }""")]
     [Arguments("DYNA024", """[DynamoDbDocument] public partial class A { public Nothing? X { get; set; } } public enum Nothing { }""")]
     [Arguments("DYNA025", "[DynamoDbDocument] public partial class Keys { }")]
+    [Arguments("DYNA030 property", "[DynamoDbDocument] public partial class A { [OmitEmpty] public string? X { get; set; } }")]
+    [Arguments("DYNA030 ignored", "[DynamoDbDocument] public partial class A { [OmitEmpty, DynamoDbIgnore] public string? X { get; set; } }")]
+    [Arguments("DYNA030 type", "[DynamoDbDocument, OmitEmpty] public partial class A { public string? X { get; set; } public int Y { get; set; } public int? Z { get; set; } public string W { get; set; } = \"\"; }")]
+    [Arguments("DYNA030 keys on a type", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "{Plain}", PartitionKeyAttributeName = "Plain", Sparse = true), OmitEmpty] public partial class E { public string Id { get; set; } = ""; public string? Owner { get; set; } public string? Plain { get; set; } }""")]
     public async Task Build_SourceThatKeepsTheRule_ReportsNothing(string rule, string source)
     {
         // Arrange
@@ -44,6 +48,76 @@ public sealed class TypeDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("int", "int")]
+    [Arguments("string", "string")]
+    [Arguments("int?", "int?")]
+    [Arguments("System.Collections.Generic.List<string>?", "list")]
+    public async Task Build_OmitEmptyOnSomethingElseThanANullableString_ReportsDyna030(string type, string name)
+    {
+        // Arrange
+        _ = name;
+        var source = $$"""[DynamoDbDocument] public partial class A { [[|OmitEmpty|]] public {{type}} X { get; set; } = default!; }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: it is no string?"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnAPropertyInATemplate_ReportsDyna030()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)] public partial class E { public string Id { get; set; } = ""; [[|OmitEmpty|]] public string? Owner { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnAPlainKeyOfAnIndex_ReportsDyna030()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "{Owner}", PartitionKeyAttributeName = "Owner", Sparse = true)] public partial class E { public string Id { get; set; } = ""; [[|OmitEmpty|]] public string? Owner { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnAKeyOnlyProperty_ReportsDyna030()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)] public partial class E { public string Id { get; set; } = ""; [KeyOnly, [|OmitEmpty|]] public string? Owner { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnAnIntegerInAKey_ReportsDyna030Once()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { [[|OmitEmpty|]] public int Id { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it is no string?"));
     }
 
     [Test]

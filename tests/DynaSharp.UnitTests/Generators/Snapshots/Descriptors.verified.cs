@@ -24,6 +24,7 @@ DYNA023 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#ent
 DYNA024 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA025 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA026 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA030 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA100 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA101 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA102 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
@@ -75,6 +76,7 @@ DYNA023 | Error | DynaSharp.Mapping | [Version] property is part of a key | [Ver
 DYNA024 | Error | DynaSharp.Mapping | Enum has no members | Property '{0}' has enum type '{1}', which has no members, so every write throws. Add a member, make the property nullable, or add a [DynamoDbConverter].
 DYNA025 | Error | DynaSharp.Mapping | Type has the name of a generated class | Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.
 DYNA026 | Warning | DynaSharp.Mapping | Two entities share a discriminator | Entity '{0}' has the discriminator '{1}' in the attribute '{2}', as '{3}' has, so on one table their items cannot be told apart. Give one of them another value, unless they never share a table.
+DYNA030 | Error | DynaSharp.Mapping | [OmitEmpty] is not valid here | [OmitEmpty] on '{0}' is not valid: {1}
 DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
 DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
 DYNA102 | Error | DynaSharp.Keys | Unknown property in a key template | Key template references unknown property '{0}'
@@ -92,7 +94,7 @@ DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' ha
 DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current
 DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
-DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | Query and Scan are not awaited; end the chain with ItemsAsync, PageAsync, PagesAsync or CountAsync
+DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync
 DYNA210 | Warning | DynaSharp.Expressions | String where a name belongs | String '{0}' is a value here, but this position needs a name. Wrap it in Attr(...).
 DYNA211 | Error | DynaSharp.Expressions | Placeholder in an expression | DynaSharp generates placeholders; write the name in Attr(...) and the value in a hole, not '{0}'
 DYNA212 | Warning | DynaSharp.Expressions | Expression syntax error | The expression is not valid: {0}

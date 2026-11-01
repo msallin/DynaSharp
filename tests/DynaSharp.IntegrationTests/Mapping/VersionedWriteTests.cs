@@ -46,6 +46,140 @@ public sealed class VersionedWriteTests(Backend backend)
     }
 
     [Test]
+    public async Task Put_VersionZeroOverAnItemWithoutAVersionAttribute_FailsTheCondition()
+    {
+        // Arrange (written by other code, it reads as version 0)
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Put(NewTicket).SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"foreign"));
+    }
+
+    [Test]
+    public async Task Put_IgnoreVersionOverAnItemWithoutAVersionAttribute_TakesItOver()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        await shop.Tickets.Put(NewTicket with { Note = "ours", Revision = 1 }).IgnoreVersion().SendAsync();
+        var stored = await ReadAsync(shop);
+
+        // Assert
+        await Assert.That((stored.Note, stored.Revision)).IsEqualTo(((string?)"ours", 1L));
+    }
+
+    [Test]
+    public async Task Update_IfVersionZeroOverAnItemWithoutAVersionAttribute_FailsTheCondition()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "n").IfVersion(0).SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"foreign"));
+    }
+
+    [Test]
+    public async Task Delete_EntityAtVersionZeroOverAnItemWithoutAVersionAttribute_FailsTheCondition()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Delete(NewTicket).SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"foreign"));
+    }
+
+    [Test]
+    public async Task TransactWrite_CheckIfVersionZeroOverAnItemWithoutAVersionAttribute_CancelsTheTransaction()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        var failure = await Items.FailureOfAsync<TransactionCanceledException>(async () => await shop.Client.TransactWrite()
+            .Check(shop.Tickets, Key).IfVersion(0)
+            .Put(shop.Tickets, new Ticket { Id = "t2" })
+            .SendAsync());
+        var second = await shop.Tickets.Get(Ticket.Keys.Of("t2")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((failure is not null, second is null)).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task Update_IfVersionZeroAndIfNotExists_CreatesTheItemOnce()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "first").IfNotExists().IfVersion(0).SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "second").IfVersion(0).IfNotExists().SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"first"));
+    }
+
+    [Test]
+    public async Task Query_GeneratedKey_FindsTheItemTheKeyHolds()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket with { Note = "wanted" }).SendAsync();
+        await shop.Tickets.Put(new Ticket { Id = "t2", Note = "other" }).SendAsync();
+
+        // Act
+        var ticket = await shop.Tickets.Query(Key).Filter(Ticket.Attrs.Note.Eq("wanted")).ItemAsync();
+        var filtered = await shop.Tickets.Query(Key).Filter(Ticket.Attrs.Note.Eq("other")).ItemAsync();
+
+        // Assert
+        await Assert.That((ticket!.Id, filtered)).IsEqualTo(("t1", (Ticket?)null));
+    }
+
+    [Test]
+    public async Task Update_SetIfNotNullWithNull_LeavesTheAttribute()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket with { Note = "kept" }).SendAsync();
+
+        // Act
+        await shop.Tickets.Update(Key).SetIfNotNull(Ticket.Attrs.Note, null).IfVersion(1).SendAsync();
+        var stored = await ReadAsync(shop);
+
+        // Assert
+        await Assert.That((stored.Note, stored.Revision)).IsEqualTo(((string?)"kept", 2L));
+    }
+
+    [Test]
+    public async Task Update_SetIfNotNullWithAValue_SetsTheAttribute()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket with { Note = "old" }).SendAsync();
+
+        // Act
+        await shop.Tickets.Update(Key).SetIfNotNull(Ticket.Attrs.Note, "new").IfVersion(1).SendAsync();
+
+        // Assert
+        await Assert.That((await ReadAsync(shop)).Note).IsEqualTo("new");
+    }
+
+    [Test]
     public async Task Put_ConcurrentWritersOfOneVersion_OneWins()
     {
         // Arrange (everyone holds the version the first put stored)
@@ -496,6 +630,9 @@ public sealed class VersionedWriteTests(Backend backend)
     }
 
     private static async Task<Ticket> ReadAsync(ShopSandbox shop) => (await shop.Tickets.Get(Key).Consistent().SendAsync()).Item!;
+
+    private static async Task WriteWithoutAVersionAsync(ShopSandbox shop) =>
+        await shop.Shop.Put(new Item { ["pk"] = "TICKET#t1", ["sk"] = "TICKET", ["_type"] = "TICKET", ["Id"] = "t1", ["Note"] = "foreign" }).SendAsync();
 
     private static async Task<bool> TryPutAsync(ShopSandbox shop, Ticket ticket)
     {

@@ -1,3 +1,4 @@
+using DynaSharp.Requests;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Telemetry;
 using static DynaSharp.UnitTests.Http.RetryTestSupport;
@@ -8,6 +9,8 @@ public sealed class TableAdministrationTests
 {
     private const string Active = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE"}}""";
     private const string Creating = """{"Table":{"TableName":"Shop","TableStatus":"CREATING"}}""";
+    private const string Backfilling = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"Ready","IndexStatus":"ACTIVE"},{"IndexName":"ByCity","IndexStatus":"CREATING","Backfilling":true}]}}""";
+    private const string IndexesActive = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"Ready","IndexStatus":"ACTIVE"},{"IndexName":"ByCity","IndexStatus":"ACTIVE"}]}}""";
 
     private static readonly TimeSpan Forever = TimeSpan.FromDays(30);
 
@@ -212,6 +215,157 @@ public sealed class TableAdministrationTests
 
         // Assert (the last delay is cut to the bound, and the table gets one last look at it)
         await Assert.That((string.Join(",", delays.Select(static delay => delay.TotalMilliseconds)), handler.Requests.Count, failure.InnerException)).IsEqualTo(("100,200,400,300", 5, null));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_NeverActive_NamesTheTableAndItsLastStatus()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Creating));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.TableName, failure.LastStatus, failure.PendingIndex, failure.InnerException, failure.Message)).IsEqualTo(("Shop", (TableStatus?)TableStatus.Creating, null, null, "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Creating."));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_ActiveTableWithABackfillingIndex_KeepsWaitingUntilItIsActive()
+    {
+        // Arrange (a table reads ACTIVE while an index it was given backfills)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Backfilling));
+        handler.Enqueue(StubResponse.Json(Backfilling));
+        handler.Enqueue(StubResponse.Json(IndexesActive));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync().AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var description = await waiting;
+
+        // Assert
+        await Assert.That((description.GlobalSecondaryIndexes[1].IndexStatus, handler.Requests.Count)).IsEqualTo((IndexStatus.Active, 3));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_IndexStillBackfillingAtTheEnd_NamesIt()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Backfilling));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex, failure.Message)).IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByCity", "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index ByCity was Creating."));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_TableAndIndexBothCreating_SaysBoth()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableStatus":"CREATING","GlobalSecondaryIndexes":[{"IndexName":"ByCity","IndexStatus":"CREATING"}]}}"""));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex)).IsEqualTo(((TableStatus?)TableStatus.Creating, (string?)"ByCity"));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_ResponseWithoutATableToTheEnd_HasNoKnownStatus()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(failure.LastStatus).IsEqualTo(TableStatus.Unknown);
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_TableGoneAtTheLastLook_HasNoStatus()
+    {
+        // Arrange (only the last look counts)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Creating));
+        handler.DefaultResponse = StubResponse.DynamoDbError("ResourceNotFoundException", "Gone.");
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync(TimeSpan.FromSeconds(1)).AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => waiting);
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.InnerException is ResourceNotFoundException, failure.Message)).IsEqualTo(((TableStatus?)null, true, "The table Shop and its indexes were not ACTIVE after 00:00:01: the table was not found."));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_CatchOfTheBaseType_StillCatchesIt()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Creating));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TimeoutException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(failure).IsTypeOf<TableNotActiveException>();
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_PollRunsOutOfTheAttemptTimeout_ThrowsThePlainType()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new StubHandler(async (_, cancellationToken) =>
+        {
+            arrived.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return StubResponse.Json(Active);
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromSeconds(30));
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync().AsTask();
+        await arrived.Task;
+
+        // Act
+        time.Advance(TimeSpan.FromSeconds(30));
+
+        // Assert
+        await Assert.That(async () => await waiting).ThrowsExactly<TimeoutException>();
+    }
+
+    [Test]
+    public async Task Constructor_NoTableName_Throws()
+    {
+        // Arrange
+        string tableName = null!;
+
+        // Act
+        var failure = TestClient.Catch(() => _ = new TableNotActiveException("m", tableName, null, null));
+
+        // Assert
+        await Assert.That(failure).IsTypeOf<ArgumentNullException>();
     }
 
     [Test]

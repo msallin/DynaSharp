@@ -152,6 +152,23 @@ public sealed class Table<T>
     public QueryCommand<T> Query(AttributeValue partitionKey, SortKey sortKey = default) => new(Model.BeginQuery(partitionKey, sortKey), Model);
 
     /// <summary>
+    /// Starts a query by what <see cref="Get{TKey}(TKey)"/> takes: <c>orders.Query(Order.Keys.Of(id, day)).Filter(open).ItemAsync(ct)</c>. It queries the partition key, with <c>Eq</c> on the sort key if the
+    /// key has one, so it finds at most one item, and what it has over a <c>Get</c> is a filter. A read of an entity filters on its discriminator, so an item of another type under the key is no match, where a
+    /// <c>Get</c> would fail on it.
+    /// </summary>
+    /// <remarks>A generated key costs no string for this. A partition key such as <c>Order.Keys.Pk.Of(id)</c> is no key of an item, and goes to the overloads that take a condition on the sort key.</remarks>
+    /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
+    /// <param name="key">The key.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public QueryCommand<T> Query<TKey>(TKey key)
+        where TKey : IKey<T>
+    {
+        Argument.ThrowIfNull(key);
+        return new(Model.BeginKeyQuery(key), Model);
+    }
+
+    /// <summary>
     /// Starts a query of several partitions, merged by sort key, for write shards and time buckets: <c>orders.Query(shards, SortKey.Ge(from)).ItemsAsync(ct)</c>. It costs at least one
     /// read per partition, see <see cref="FanOutQueryCommand{T}"/>.
     /// </summary>
@@ -195,10 +212,14 @@ public sealed class Table<T>
     public ValueTask<TableDescription> DescribeAsync(CancellationToken cancellationToken = default) =>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
-    /// <summary>Waits until the table is <c>ACTIVE</c>, for at most five minutes. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.</summary>
+    /// <summary>
+    /// Waits until the table and all its global secondary indexes are <c>ACTIVE</c>, for at most five minutes, which the backfill of an index on a table with much data can take longer than. See
+    /// <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
+    /// </summary>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
-    /// <exception cref="TimeoutException">The table was not active in time.</exception>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
+    /// <exception cref="TimeoutException">A poll ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns an error other than <see cref="ResourceNotFoundException"/>; a throttling or server error only after the last attempt.</exception>
@@ -206,26 +227,33 @@ public sealed class Table<T>
         TableAdministration.WaitUntilActiveAsync(Model, TableAdministration.DefaultActiveTimeout, cancellationToken);
 
     /// <summary>
-    /// Waits until the table is <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
+    /// Waits until the table and all its global secondary indexes are <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
     /// <see cref="DynamoDbClientOptions.TimeProvider"/> of the client, so a test with a fake clock does not wait.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The wait is bounded: the last poll starts at the latest when <paramref name="timeout"/> is up, and then the call throws, whatever the status is. A poll
+    /// The wait is bounded: the last poll starts at the latest when <paramref name="timeout"/> is up, and then the call throws <see cref="TableNotActiveException"/>, which is a <see cref="TimeoutException"/>
+    /// with the name of the table and its last status, whatever that status is. A poll
     /// itself takes as long as a call takes, up to <see cref="DynamoDbClientOptions.AttemptTimeout"/> per attempt, so the call can return that much later.
     /// With a timeout of zero it looks once.
     /// </para>
     /// <para>
     /// A table that does not exist counts as not active yet, because <c>DescribeTable</c> right after <c>CreateTable</c> can miss a new table. So a wrong name shows
-    /// up as a timeout, whose <see cref="Exception.InnerException"/> is the <see cref="ResourceNotFoundException"/>. A status that never turns active, such as
-    /// <c>DELETING</c>, runs into the timeout too. Global secondary indexes are not waited for: a table is active while an index still builds.
+    /// up as a timeout with no <see cref="TableNotActiveException.LastStatus"/>, whose <see cref="Exception.InnerException"/> is the <see cref="ResourceNotFoundException"/>. A status that never turns active, such as
+    /// <c>DELETING</c>, runs into the timeout too.
+    /// </para>
+    /// <para>
+    /// A table reads <c>ACTIVE</c> while an index it was given by <c>UpdateTable</c> backfills, and the index misses items until it is done, so this waits for the indexes too, and
+    /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. A backfill takes as long as the table is large, which can be hours, so that wait needs a longer timeout than the default of five minutes.
+    /// Local secondary indexes have no status: they exist from the creation of the table.
     /// </para>
     /// </remarks>
-    /// <param name="timeout">How long to wait. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
+    /// <param name="timeout">How long to wait, which for the backfill of an index goes with the size of the table. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative.</exception>
-    /// <exception cref="TimeoutException">The table was not active in time.</exception>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
+    /// <exception cref="TimeoutException">A poll ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns an error other than <see cref="ResourceNotFoundException"/>; a throttling or server error only after the last attempt.</exception>

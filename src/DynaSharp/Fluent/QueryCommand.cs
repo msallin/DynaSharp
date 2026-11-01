@@ -8,7 +8,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp;
 
 /// <summary>
-/// A <c>Query</c> under construction: the items of one partition, in the order of the sort key. Chain the options and end with <see cref="ItemsAsync"/>,
+/// A <c>Query</c> under construction: the items of one partition, in the order of the sort key. Chain the options and end with <see cref="ItemsAsync"/>, <see cref="ItemAsync"/>,
 /// <see cref="PagesAsync"/>, <see cref="PageAsync"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <remarks>
@@ -170,6 +170,29 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default) =>
         PagedRead<QueryPageOperation<T>, T>.Items(Prepare(), cancellationToken);
+
+    /// <summary>
+    /// Reads the first item that matches, in the order of the query, and stops there. It goes on through pages that a filter left empty, and sends no page after the one that holds the item.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It adds no <see cref="Limit"/>, because a limit counts items before the filter, so a limit of 1 on a filtered read would look at one item and could miss the match, and because what goes out
+    /// stays what <see cref="ToRequestJson"/> shows. So the first page comes back whole, up to 1 MB, and costs the capacity of all it read. A read of a partition without a filter that wants one
+    /// item says so: <c>orders.Query(pk).Descending().Limit(1).ItemAsync(ct)</c> reads the newest and pays for one. A read of an entity filters on its discriminator, so in a partition that holds
+    /// several types that limit counts the items of the other types too, and <see cref="ItemAsync"/> goes on to the next page.
+    /// </para>
+    /// <para>An entity that is a struct reads as its default value when no item matches, so a miss looks like an item of default values there. <see cref="PageAsync"/> tells them apart.</para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the read. It is looked at per page.</param>
+    /// <returns>The item, or <see langword="null"/> if none matches. Await it once.</returns>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbMappingException">An item of the page cannot be read as <typeparamref name="T"/>, which counts for all items of that page, not only for the first.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<T?> ItemAsync(CancellationToken cancellationToken = default) =>
+        PagedRead<QueryPageOperation<T>, T>.FirstAsync(Prepare(), cancellationToken);
 
     /// <summary>
     /// Reads all pages as they come, for code that wants <see cref="Page{T}.ConsumedCapacity"/> or works page by page. It gives every response, also one that a
