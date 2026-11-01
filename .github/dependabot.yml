@@ -1,0 +1,60 @@
+version: 2
+updates:
+  # The prefixes make the PR titles Conventional Commits (the pr-title check requires it); build and ci do not bump the version.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      test:
+        patterns: ["TUnit*", "Microsoft.Testing.*", "Testcontainers*"]
+      analyzers:
+        patterns: ["StyleCop.*", "Microsoft.CodeAnalysis.*"]
+    ignore:
+      # The source generator compiles against the oldest Roslyn it supports, and the compiler that loads it must be at or above that.
+      # Raising the floor to "latest" breaks consumers on older SDKs and Stryker, which compiles with an older Roslyn than the SDK.
+      # It is raised by hand, together with the generator's tests, never by an update PR.
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp.Workspaces"
+
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The emulator images of the integration tests, one Dockerfile each; the tests read the FROM line.
+  - package-ecosystem: docker
+    directories:
+      - /tests/DynaSharp.IntegrationTests/Backends/dynoxide
+      - /tests/DynaSharp.IntegrationTests/Backends/dynamodb-local
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+
+  # The emulator images of the sample.
+  - package-ecosystem: docker-compose
+    directory: /samples
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope

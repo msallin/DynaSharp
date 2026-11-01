@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Testcontainers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The pinned emulator images. The test setup reads the FROM line, so Dependabot's updates reach the tests. -->
+    <None Include="Backends/*/Dockerfile" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <!-- The generator reaches a project only through the package, so in the repo it is referenced as an analyzer. -->
+    <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

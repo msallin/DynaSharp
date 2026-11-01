@@ -1,0 +1,18 @@
+# Overrides for the sample. Inherits everything from the root; the code stays clean, only the rules for libraries are relaxed.
+[*.cs]
+# CS1591 / SA1600: XML docs are for the public library API, not for a console app.
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+# CA2007: console apps have no synchronization context.
+dotnet_diagnostic.CA2007.severity = none
+# CA1303: the output is English text on purpose, nothing is localized.
+dotnet_diagnostic.CA1303.severity = none
+# CA1515: the model reads as what a data layer exposes, which is public.
+dotnet_diagnostic.CA1515.severity = none
+
+# The model reads best in one place. SA1601: the types that need no words have none.
+[ShopModel.cs]
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1602.severity = none
+dotnet_diagnostic.SA1649.severity = none

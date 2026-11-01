@@ -1,0 +1,14 @@
+T:System.Runtime.CompilerServices.Unsafe;No unsafe code. Find a safe Span-based alternative.
+T:System.Runtime.InteropServices.MemoryMarshal;No unsafe code. Find a safe Span-based alternative.
+T:System.Runtime.InteropServices.CollectionsMarshal;No unsafe code. Find a safe alternative.
+T:System.Runtime.InteropServices.Marshal;No unsafe code or interop.
+T:System.Runtime.InteropServices.NativeMemory;No unsafe code or native memory.
+T:System.Runtime.InteropServices.GCHandle;No unsafe code or pinning.
+T:System.Activator;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.MemberInfo;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.PropertyInfo;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.FieldInfo;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.MethodInfo;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.ConstructorInfo;No reflection. Mapping code comes from the source generator.
+T:System.Reflection.CustomAttributeExtensions;No reflection. Mapping code comes from the source generator.
+N:System.Reflection.Emit;No runtime code generation. It breaks Native AOT.

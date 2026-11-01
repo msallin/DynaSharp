@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Consumes the DynaSharp nupkg that `dotnet pack src/DynaSharp` writes to artifacts/packages, as a user's project would:
+    restore from that folder, compile with the generator the package carries, run. Outside the solution on purpose, and without a
+    lock file, because the package's hash changes with every pack. Run it with dotnet run on this project.
+  -->
+  <PropertyGroup>
+    <!-- The newest package in the folder, prereleases included. Set DynaSharpVersion to pin one when the folder holds several. -->
+    <DynaSharpVersion Condition="'$(DynaSharpVersion)' == ''">*-*</DynaSharpVersion>
+    <!-- A cache of its own, so a package packed again under the same version is never served from the machine-wide cache. -->
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)obj/packages</RestorePackagesPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DynaSharp" Version="$(DynaSharpVersion)" />
+  </ItemGroup>
+
+  <!-- Analyzer packaging fails silently: a package without the dll still compiles. So check what the compiler was given. -->
+  <Target Name="CheckGeneratorComesFromThePackage" AfterTargets="ResolveLockFileAnalyzers" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_GeneratorFromPackage Include="@(Analyzer)" Condition="'%(Filename)%(Extension)' == 'DynaSharp.Generators.dll'" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_GeneratorPath>@(_GeneratorFromPackage->'%(FullPath)')</_GeneratorPath>
+      <_GeneratorPath>$(_GeneratorPath.Replace('\', '/'))</_GeneratorPath>
+      <_PackageRoot Condition="'$(_GeneratorPath)' != ''">$([System.IO.Path]::GetFullPath('$(_GeneratorPath)/../../../../'))</_PackageRoot>
+      <_Nuspec Condition="'$(_PackageRoot)' != ''">$([System.IO.File]::ReadAllText('$(_PackageRoot)dynasharp.nuspec'))</_Nuspec>
+    </PropertyGroup>
+    <Error Condition="'$(_GeneratorPath)' == '' or !$(_GeneratorPath.Contains('/analyzers/dotnet/cs/DynaSharp.Generators.dll'))"
+           Text="The compiler is not given DynaSharp.Generators.dll from analyzers/dotnet/cs of the DynaSharp package. Analyzers: @(Analyzer)" />
+    <Error Condition="$(_Nuspec.Contains('&lt;dependency '))"
+           Text="The DynaSharp package declares a dependency. The generator must be packed without one." />
+  </Target>
+
+  <ItemGroup>
+    <!-- A project of its own, which must fail to build. -->
+    <Compile Remove="Mistakes/**" />
+    <None Remove="Mistakes/**" />
+  </ItemGroup>
+
+  <!--
+    An analyzer that the compiler does not load fails silently too, and no consumer's build would say so. So build a project with one mistake per
+    rule against the same package, and check what the compiler printed: the rule beside the compiler's own error, with no load failure of the
+    analyzers, which have the Workspaces dll missing in a consumer's build.
+  -->
+  <Target Name="CheckRulesComeFromThePackage" AfterTargets="Build">
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; build &quot;$(MSBuildThisFileDirectory)Mistakes/Mistakes.csproj&quot; -c $(Configuration) -p:DynaSharpVersion=$(DynaSharpVersion) --no-incremental -clp:NoSummary"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MistakesOutput" />
+    </Exec>
+    <Error Condition="!$(_MistakesOutput.Contains('error CS4007')) or !$(_MistakesOutput.Contains('warning DYNA201'))" Text="DYNA201 did not appear beside CS4007. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA202'))" Text="DYNA202 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA210'))" Text="DYNA210 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('error DYNA211'))" Text="DYNA211 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA212'))" Text="DYNA212 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA213'))" Text="DYNA213 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA214'))" Text="DYNA214 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="$(_MistakesOutput.Contains('CS8032')) or $(_MistakesOutput.Contains('AD0001')) or $(_MistakesOutput.Contains('CS8784'))" Text="An analyzer or generator failed to load or run. The compiler printed: $(_MistakesOutput)" />
+  </Target>
+
+</Project>

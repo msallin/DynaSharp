@@ -1,0 +1,22 @@
+# Overrides for benchmark code. Inherits everything from the root.
+[*.cs]
+# CS1591 / SA1600: XML docs are for the public library API, not for benchmarks.
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+# CA1515 / CA1822: BenchmarkDotNet requires public, instance benchmark members.
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1822.severity = none
+# CA1707: benchmark names may use underscores.
+dotnet_diagnostic.CA1707.severity = none
+# CA2007: benchmark code runs without a synchronization context.
+dotnet_diagnostic.CA2007.severity = none
+# CA2000: the stub handler hands out the responses it creates; the client disposes them.
+dotnet_diagnostic.CA2000.severity = none
+
+# The models read best side by side, and they are what users declare.
+[DynaSharp.Benchmarks/{EntityModels,ForeignEntityModels}.cs]
+dotnet_diagnostic.CA2227.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1649.severity = none

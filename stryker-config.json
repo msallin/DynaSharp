@@ -1,0 +1,21 @@
+{
+  "stryker-config": {
+    "solution": "DynaSharp.Mutation.slnx",
+    "test-projects": [
+      "tests/DynaSharp.UnitTests/DynaSharp.UnitTests.csproj"
+    ],
+    "configuration": "Release",
+    "mutation-level": "Complete",
+    "reporters": [
+      "html",
+      "progress",
+      "markdown"
+    ],
+    "thresholds": {
+      "high": 95,
+      "low": 90,
+      "break": 90
+    },
+    "test-runner": "mtp"
+  }
+}

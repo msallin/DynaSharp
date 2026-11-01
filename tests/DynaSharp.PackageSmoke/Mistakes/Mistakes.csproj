@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Consumes the package like the parent project, with code that is wrong on purpose, see Mistakes.cs. It never builds, and only the parent runs it. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DynaSharpVersion Condition="'$(DynaSharpVersion)' == ''">*-*</DynaSharpVersion>
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)obj/packages</RestorePackagesPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DynaSharp" Version="$(DynaSharpVersion)" />
+  </ItemGroup>
+
+</Project>

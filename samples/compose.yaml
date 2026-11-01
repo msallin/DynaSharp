@@ -1,0 +1,17 @@
+# Local DynamoDB emulators for the sample. The images are pinned here so Dependabot keeps them current.
+#
+#   docker compose -f samples/compose.yaml up -d                           Dynoxide on http://localhost:8000
+#   docker compose -f samples/compose.yaml --profile dynamodb-local up -d  DynamoDB Local on http://localhost:8001
+services:
+  dynoxide:
+    image: ghcr.io/nubo-db/dynoxide:1.5.0
+    ports:
+      - "8000:8000"
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:3.3.2
+    # In memory, one database for all credentials and regions.
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "8001:8000"
+    profiles: ["dynamodb-local"]

@@ -1,0 +1,55 @@
+DYNA201 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA202 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA210 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA211 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA212 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA213 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA214 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
+DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
+DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
+DYNA004 | Error | DynaSharp.Mapping | Attribute name is used twice | Attribute name '{0}' is used by both '{1}' and '{2}'
+DYNA005 | Error | DynaSharp.Mapping | No usable constructor | Type '{0}' has no single usable constructor. Mark one with [DynamoDbConstructor].
+DYNA006 | Error | DynaSharp.Mapping | Constructor parameter has no property | Constructor parameter '{0}' has no matching mapped property
+DYNA007 | Error | DynaSharp.Mapping | Type cannot be mapped | Type '{0}' cannot be mapped: {1}
+DYNA008 | Error | DynaSharp.Mapping | Converter is not usable | Converter '{0}' does not implement IDynamoDbConverter<{1}> or has no accessible definition
+DYNA009 | Error | DynaSharp.Mapping | Key is declared twice | Key '{0}' is declared more than once
+DYNA010 | Error | DynaSharp.Mapping | Attribute name is invalid | Attribute name '{0}' is invalid: {1}
+DYNA011 | Error | DynaSharp.Mapping | [Version] is not valid here | [Version] requires a single integer property without a converter; '{0}' is not valid
+DYNA012 | Error | DynaSharp.Mapping | Attribute is not valid on a document | [{0}] is not valid on a document
+DYNA013 | Error | DynaSharp.Mapping | Both entity and document | Type '{0}' cannot be both an entity and a document
+DYNA014 | Error | DynaSharp.Mapping | Generated member conflicts | Generated member '{0}' conflicts with a member of '{1}'
+DYNA015 | Error | DynaSharp.Mapping | C# version is too low | DynaSharp generated code needs C# 11 or later; this project uses {0}
+DYNA016 | Error | DynaSharp.Mapping | Type is not accessible | Type '{0}' used by '{1}' is not accessible to generated code
+DYNA017 | Error | DynaSharp.Mapping | Property cannot be a key | Property '{0}' of type '{1}' cannot be a DynamoDB key, which must be a string, number or binary
+DYNA018 | Error | DynaSharp.Mapping | Index is invalid | Index '{0}' is invalid: {1}
+DYNA019 | Error | DynaSharp.Mapping | Type is outside a nullable context | Type '{0}' must be in an enabled nullable context, otherwise nullable properties cannot be told from others
+DYNA020 | Error | DynaSharp.Mapping | Entity has no discriminator | Entity '{0}' has no discriminator. Add [Discriminator("NAME")], or [Discriminator(OptOut = true)] for a table written by other tools.
+DYNA021 | Error | DynaSharp.Mapping | Plain key is ignored | Property '{0}' is a plain key, so it cannot be [DynamoDbIgnore]
+DYNA022 | Error | DynaSharp.Mapping | Discriminator is invalid | [Discriminator] on '{0}' is invalid: {1}
+DYNA023 | Error | DynaSharp.Mapping | [Version] property is part of a key | [Version] property '{0}' is part of a key. A write changes the version, and a key cannot follow it.
+DYNA024 | Error | DynaSharp.Mapping | Enum has no members | Property '{0}' has enum type '{1}', which has no members, so every write throws. Add a member, make the property nullable, or add a [DynamoDbConverter].
+DYNA025 | Error | DynaSharp.Mapping | Type has the name of a generated class | Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.
+DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
+DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
+DYNA102 | Error | DynaSharp.Keys | Unknown property in a key template | Key template references unknown property '{0}'
+DYNA103 | Error | DynaSharp.Keys | Type cannot be used in a key | Property '{0}' of type '{1}' cannot be used in a key
+DYNA104 | Error | DynaSharp.Keys | Format does not fit the type | Format '{0}' does not fit type '{1}'
+DYNA105 | Error | DynaSharp.Keys | Format is out of range | Format '{0}' is out of range
+DYNA106 | Error | DynaSharp.Keys | Placeholders cannot be told apart | '{0}' is variable-width and '{1}' follows with no literal between them, so the key cannot be parsed
+DYNA107 | Error | DynaSharp.Keys | Nullable input in a key | Nullable '{0}' is used in a key that is not Sparse
+DYNA108 | Warning | DynaSharp.Keys | Number without a fixed format in a sort key | Number '{0}' has no fixed format in a sort key, so 10 sorts before 9. Use d<w> or n<i>, or {{{0}:plain}}.
+DYNA109 | Error | DynaSharp.Keys | [KeyOnly] is not valid here | [KeyOnly] on '{0}' is invalid: {1}
+DYNA110 | Warning | DynaSharp.Keys | Sparse index without nullable inputs | Index '{0}' is Sparse, but all its inputs are non-nullable, so every item is indexed
+DYNA111 | Error | DynaSharp.Keys | Property is repeated in a key template | Property '{0}' appears twice in a key template
+DYNA112 | Error | DynaSharp.Keys | Key on the wrong target | A template belongs on the type, a plain key on a property
+DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.
+DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current
+DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order
+DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
+DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | Query and Scan are not awaited; end the chain with ItemsAsync, PageAsync, PagesAsync or CountAsync
+DYNA210 | Warning | DynaSharp.Expressions | String where a name belongs | String '{0}' is a value here, but this position needs a name. Wrap it in Attr(...).
+DYNA211 | Error | DynaSharp.Expressions | Placeholder in an expression | DynaSharp generates placeholders; write the name in Attr(...) and the value in a hole, not '{0}'
+DYNA212 | Warning | DynaSharp.Expressions | Expression syntax error | The expression is not valid: {0}
+DYNA213 | Warning | DynaSharp.Expressions | Path matches no attribute | Path '{0}' matches no attribute of '{1}'. Check the spelling, unless the attribute is outside the entity.
+DYNA214 | Warning | DynaSharp.Expressions | Attribute path is not valid | Attribute path '{0}' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c

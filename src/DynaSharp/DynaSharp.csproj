@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Stryker compiles with Roslyn 5.9, so nothing newer than what it parses. Never preview. -->
+    <LangVersion>14.0</LangVersion>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <PackageId>DynaSharp</PackageId>
+    <Description>High-performance, Native AOT compatible DynamoDB client with a fluent API that keeps DynamoDB semantics.</Description>
+    <PackageTags>dynamodb;aws;nosql;aot</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="../BannedSymbols.txt" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <!-- The source generator ships inside this package as an analyzer and adds no dependency. The project reference only orders the
+       build; the dll is packed from its output folder, which is why pack must never be given a runtime identifier. -->
+  <ItemGroup>
+    <ProjectReference Include="../DynaSharp.Generators/DynaSharp.Generators.csproj"
+                      ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="../DynaSharp.Generators/bin/$(Configuration)/netstandard2.0/DynaSharp.Generators.dll"
+          Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="RejectRuntimeSpecificPack" BeforeTargets="GenerateNuspec" Condition="'$(RuntimeIdentifier)' != ''">
+    <Error Text="Pack the package without a runtime identifier: the generator would build into a runtime folder and a stale dll could be packed." />
+  </Target>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DynaSharp.Testing" />
+    <InternalsVisibleTo Include="DynaSharp.UnitTests" />
+    <InternalsVisibleTo Include="DynaSharp.Benchmarks" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+DynaSharp
+Copyright (c) 2026 DynaSharp contributors, licensed under the MIT License (LICENSE).
+
+Third-party material in this repository
+
+1. DynamoDB Conformance Suite
+   https://github.com/paritysuite/dynamodb-conformance (commit 05e9d7ec20d95523330cc8177aef94a37b236f81)
+   Copyright 2026 Martin Hicks and the dynamodb-conformance contributors
+   Licensed under the Apache License, Version 2.0 (licenses/Apache-2.0.txt).
+
+   Used in: tests/DynaSharp.UnitTests/Serialization/real_aws_responses.json, which holds twelve response bodies that the suite
+   recorded from real DynamoDB (region eu-west-2) in captures/2026-07-13-empty-set-member.json. Changes: only the response body
+   members Item, Items, Count and ScannedCount were kept, and binary values, which the suite stored as {b64, byteLength}, were
+   written back as base64 text.
+
+   DynamoDB is a trademark of Amazon.com, Inc. or its affiliates. The DynamoDB Conformance Suite is an independent project and is
+   not affiliated with, endorsed by, or sponsored by Amazon. Its license does not grant permission to use those trade names,
+   trademarks, service marks, or product names.

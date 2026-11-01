@@ -1,0 +1,19 @@
+# Normalize to LF in the repository, check out as CRLF.
+* text=auto eol=crlf
+
+# Files that must keep LF on every platform.
+*.sh text eol=lf
+
+# Binary files.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.snk binary
+*.dll binary
+*.exe binary
+*.nupkg binary
+*.snupkg binary
+
+# Snapshots of generated code are compared byte for byte, so they keep LF on every platform.
+*.verified.* text eol=lf

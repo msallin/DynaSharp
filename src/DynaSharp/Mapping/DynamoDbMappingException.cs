@@ -1,0 +1,68 @@
+using System.Text.Json;
+
+namespace DynaSharp;
+
+/// <summary>
+/// An item cannot be mapped to its .NET type: an attribute is missing, has a value the type cannot hold, or the item is of another type.
+/// The service did what it was asked, so this is never retried. In particular, an <c>UpdateItem</c> whose returned attribute is
+/// missing has been applied.
+/// </summary>
+/// <remarks>
+/// The message names the type and the attribute, never a value; the one exception is the discriminator of an item of another type, which
+/// is the name of that type. <see cref="Exception.InnerException"/> can be a <see cref="FormatException"/> that quotes the value, so take
+/// care when logging <see cref="Exception.ToString"/> of it.
+/// </remarks>
+public sealed class DynamoDbMappingException : Exception
+{
+    /// <summary>Initializes a new instance of the <see cref="DynamoDbMappingException"/> class.</summary>
+    /// <param name="entityType">The .NET type that was read.</param>
+    /// <param name="attributeName">The attribute, if the failure is about one.</param>
+    /// <param name="innerException">The conversion that failed, if any.</param>
+    public DynamoDbMappingException(string entityType, string? attributeName, Exception? innerException = null)
+        : this(attributeName is null ? $"The item cannot be read as {entityType}." : $"The attribute \"{attributeName}\" cannot be read as part of {entityType}.", entityType, attributeName, innerException)
+    {
+    }
+
+    private DynamoDbMappingException(string message, string entityType, string? attributeName, Exception? innerException)
+        : base(message, innerException)
+    {
+        EntityType = entityType;
+        AttributeName = attributeName;
+    }
+
+    /// <summary>Gets the .NET type that was read.</summary>
+    public string EntityType { get; }
+
+    /// <summary>Gets the attribute the failure is about, or <see langword="null"/> if it is about the item.</summary>
+    public string? AttributeName { get; }
+
+    /// <summary>
+    /// Determines whether an exception is one that a converter throws for a value it cannot convert, which generated code wraps in a
+    /// <see cref="DynamoDbMappingException"/>.
+    /// </summary>
+    /// <param name="exception">The exception.</param>
+    /// <returns><see langword="true"/> for a failed conversion.</returns>
+    public static bool IsConversionFailure(Exception exception) =>
+        exception is JsonException or FormatException or OverflowException or InvalidOperationException;
+
+    /// <summary>Creates the exception for a required attribute the item does not have.</summary>
+    /// <param name="entityType">The .NET type that was read.</param>
+    /// <param name="attributeName">The attribute.</param>
+    /// <returns>The exception.</returns>
+    public static DynamoDbMappingException Missing(string entityType, string attributeName) =>
+        new($"The attribute \"{attributeName}\" is missing, so the item cannot be read as {entityType}.", entityType, attributeName, null);
+
+    /// <summary>Creates the exception for an item of another type, which a query over an overloaded prefix can return.</summary>
+    /// <param name="entityType">The .NET type that was read.</param>
+    /// <param name="attributeName">The attribute that holds the discriminator.</param>
+    /// <param name="foundType">The discriminator the item has.</param>
+    /// <returns>The exception.</returns>
+    public static DynamoDbMappingException OtherType(string entityType, string attributeName, string foundType) =>
+        new($"The item is of type \"{foundType}\", so it cannot be read as {entityType}.", entityType, attributeName, null);
+
+    /// <summary>Creates the exception for an enum value without a name, for example a cast from a number, on its way into an item.</summary>
+    /// <param name="enumType">The enum.</param>
+    /// <returns>The exception.</returns>
+    public static DynamoDbMappingException UndefinedEnumValue(string enumType) =>
+        new($"The value is not a member of {enumType}, so it has no name to store.", enumType, null, null);
+}

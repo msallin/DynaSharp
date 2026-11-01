@@ -1,0 +1,9 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Library projects are restored for these runtimes when the AOT smoke test is published. Listing them keeps the
+       lock files complete, so restore in locked mode (CI) does not fail. Must match DynaSharp.AotSmoke. -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DynaSharp/DynaSharp.csproj" />
+    <Project Path="src/DynaSharp.Generators/DynaSharp.Generators.csproj" />
+    <Project Path="src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DynaSharp.UnitTests/DynaSharp.UnitTests.csproj" />
+    <Project Path="tests/DynaSharp.AotSmoke/DynaSharp.AotSmoke.csproj" />
+    <Project Path="tests/DynaSharp.IntegrationTests/DynaSharp.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/DynaSharp.Benchmarks/DynaSharp.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/DynaSharp.Sample/DynaSharp.Sample.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+</Solution>

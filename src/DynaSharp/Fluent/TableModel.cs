@@ -1,0 +1,276 @@
+using System.Text.Json;
+using DynaSharp.Http;
+using DynaSharp.Serialization;
+
+namespace DynaSharp.Fluent;
+
+/// <summary>
+/// What every command on a table starts from: the client, the names, and the parts of the request that never change, encoded once so
+/// that a command copies them. <see cref="Table{T}"/> is this with a type; an object of this class is what commands and misuse messages
+/// hold, because they do not care about the type.
+/// </summary>
+internal sealed class TableModel
+{
+    /// <summary>Initializes a new instance of the <see cref="TableModel"/> class.</summary>
+    /// <param name="core">The client.</param>
+    /// <param name="name">The table name, or its ARN.</param>
+    /// <param name="partitionKeyName">The attribute name of the partition key.</param>
+    /// <param name="sortKeyName">The attribute name of the sort key, if the table has one.</param>
+    /// <param name="discriminator">The value of the discriminator, if the table is typed and the type has one.</param>
+    /// <param name="discriminatorAttributeName">The attribute of the discriminator, which a table of an entity always names, even if the entity has no discriminator.</param>
+    /// <param name="indexName">The secondary index this model reads, if it is one.</param>
+    /// <param name="table">The model of the table of an index.</param>
+    public TableModel(ClientCore core, string name, string partitionKeyName, string? sortKeyName, string? discriminator = null, string? discriminatorAttributeName = null, string? indexName = null, TableModel? table = null)
+    {
+        Core = core;
+        Name = name;
+        PartitionKeyName = partitionKeyName;
+        SortKeyName = sortKeyName;
+        Discriminator = discriminator;
+        DiscriminatorAttributeName = discriminatorAttributeName;
+        IndexName = indexName;
+        RequiredNames = discriminatorAttributeName is null ? [] : NamesOfATypedRead(table, discriminator is null ? null : discriminatorAttributeName, partitionKeyName, sortKeyName);
+        BodyStart = indexName is null
+            ? [.. "{\"TableName\":\""u8, .. Encode(name), .. "\""u8]
+            : [.. "{\"TableName\":\""u8, .. Encode(name), .. "\",\"IndexName\":\""u8, .. Encode(indexName), .. "\""u8];
+        KeyStart = [.. ",\"Key\":{\""u8, .. Encode(partitionKeyName), .. "\":"u8];
+        SortKeyStart = sortKeyName is null ? [] : [.. ",\""u8, .. Encode(sortKeyName), .. "\":"u8];
+        RequestItemsStart = [.. "\""u8, .. Encode(name), .. "\":"u8];
+    }
+
+    /// <summary>Gets the client.</summary>
+    public ClientCore Core { get; }
+
+    /// <summary>Gets the table name, or its ARN.</summary>
+    public string Name { get; }
+
+    /// <summary>Gets the attribute name of the partition key.</summary>
+    public string PartitionKeyName { get; }
+
+    /// <summary>Gets the attribute name of the sort key, if the table has one.</summary>
+    public string? SortKeyName { get; }
+
+    /// <summary>Gets the value of the discriminator, if the table is typed and the type has one.</summary>
+    public string? Discriminator { get; }
+
+    /// <summary>Gets the attribute of the discriminator.</summary>
+    public string? DiscriminatorAttributeName { get; }
+
+    /// <summary>Gets the secondary index this model reads, if it is one.</summary>
+    public string? IndexName { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether an update has an action on the discriminator, because it can create the item. That is every update of a type with one, unless the attribute is a key
+    /// of the table, which every item has and DynamoDB does not let an update touch.
+    /// </summary>
+    public bool UpdateWritesDiscriminator => Discriminator is not null && !DiscriminatorIsKey;
+
+    /// <summary>Gets what a write of the entity owes its version and its keys, or <see langword="null"/> if there is nothing, which a table without an entity never has.</summary>
+    public EntityWrites? Writes { get; init; }
+
+    /// <summary>
+    /// Gets the attributes a typed read needs in its projection: the discriminator, which the read checks, and the keys, which an entity is restored
+    /// from. An <see cref="Item"/> needs none.
+    /// </summary>
+    public string[] RequiredNames { get; }
+
+    /// <summary>Gets the start of every body: <c>{"TableName":"Shop"</c>, followed by the index for a read of one.</summary>
+    public byte[] BodyStart { get; }
+
+    /// <summary>Gets what comes before the value of the partition key: <c>,"Key":{"pk":</c>.</summary>
+    public byte[] KeyStart { get; }
+
+    /// <summary>Gets what comes before the value of the sort key: <c>,"sk":</c>.</summary>
+    public byte[] SortKeyStart { get; }
+
+    /// <summary>Gets what names the table in the <c>RequestItems</c> of a batch: <c>"Shop":</c>.</summary>
+    public byte[] RequestItemsStart { get; }
+
+    private bool DiscriminatorIsKey => IsKey(DiscriminatorAttributeName);
+
+    /// <summary>
+    /// Makes what stands for all tables of a transaction, which is opened on the client and has none of its own yet. Its name only shows in the
+    /// message about a stale command and in the debugger, and none of its keys is ever written.
+    /// </summary>
+    /// <param name="core">The client.</param>
+    /// <returns>The model.</returns>
+    public static TableModel ForTransactions(ClientCore core) => new(core, "several tables", "none", null);
+
+    /// <summary>Finds out whether a key has nothing in it, which DynamoDB rejects in a message that does not say which call it was.</summary>
+    /// <param name="key">The key.</param>
+    /// <returns><see langword="true"/> for no value, an empty string and an empty binary value.</returns>
+    public static bool IsEmptyKey(AttributeValue key) =>
+        key.Type == AttributeType.None
+        || (key.Type == AttributeType.String && key.AsString().Length == 0)
+        || (key.Type == AttributeType.Binary && key.AsBinary().IsEmpty);
+
+    /// <summary>Starts a command.</summary>
+    /// <returns>The state of the command.</returns>
+    public CommandState Begin()
+    {
+        var state = Core.RentCommand();
+        state.Start(this);
+        return state;
+    }
+
+    /// <summary>Starts a command on a key of attribute values. Everything that is wrong with the key is found first, at the call that passed it.</summary>
+    /// <param name="partitionKey">The partition key.</param>
+    /// <param name="sortKey">The sort key, or the default value if there is none.</param>
+    /// <returns>The state of the command.</returns>
+    /// <exception cref="ArgumentException">A key is empty, or there is a sort key and the table has none.</exception>
+    public CommandState Begin(AttributeValue partitionKey, AttributeValue sortKey)
+    {
+        CheckKey(partitionKey, sortKey);
+        var state = Begin();
+        state.WriteKey(partitionKey, sortKey);
+        return state;
+    }
+
+    /// <summary>Starts a command of several actions, whose request does not start with one table.</summary>
+    /// <returns>The state of the command.</returns>
+    public CommandState BeginActions()
+    {
+        var state = Core.RentCommand();
+        state.Table = this;
+        return state;
+    }
+
+    /// <summary>Finds out whether an attribute is a key of what this model reads, which DynamoDB refuses in the filter of a query.</summary>
+    /// <param name="attributeName">The attribute.</param>
+    /// <returns><see langword="true"/> for the partition key and the sort key.</returns>
+    public bool IsKey(string? attributeName) => attributeName == PartitionKeyName || attributeName == SortKeyName;
+
+    /// <summary>Finds what is wrong with a key at the call that passed it.</summary>
+    /// <param name="partitionKey">The partition key.</param>
+    /// <param name="sortKey">The sort key, or the default value if there is none.</param>
+    /// <exception cref="ArgumentException">A key is empty, or there is a sort key and the table has none.</exception>
+    public void CheckKey(AttributeValue partitionKey, AttributeValue sortKey)
+    {
+        ThrowIfEmpty(partitionKey, nameof(partitionKey));
+        if (sortKey.Type != AttributeType.None)
+        {
+            ThrowIfEmpty(sortKey, nameof(sortKey));
+            if (SortKeyName is null)
+            {
+                throw new ArgumentException($"The table {Name} was opened without a sort key, so a key of it has none.", nameof(sortKey));
+            }
+        }
+    }
+
+    /// <summary>Starts a <c>Query</c>: the key condition is written here, and the discriminator of a typed read joins the filter.</summary>
+    /// <param name="partitionKey">The partition key.</param>
+    /// <param name="sortKey">The condition on the sort key.</param>
+    /// <returns>The state of the command.</returns>
+    /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the table or index has none.</exception>
+    public CommandState BeginQuery(AttributeValue partitionKey, SortKey sortKey)
+    {
+        ThrowIfEmpty(partitionKey, nameof(partitionKey));
+        return BeginKeyCondition(partitionKey, sortKey);
+    }
+
+    /// <summary>Starts what the queries of a fan-out are copies of. It is <see cref="BeginQuery"/> with <c>:pk</c> for the partition, whose value each copy adds.</summary>
+    /// <param name="sortKey">The condition on the sort key.</param>
+    /// <returns>The state of the command.</returns>
+    /// <exception cref="ArgumentException">There is a condition on a sort key and the table or index has none.</exception>
+    public CommandState BeginFanOut(SortKey sortKey) => BeginKeyCondition(default, sortKey);
+
+    /// <summary>Starts a <c>Scan</c>, with the discriminator of a typed read in its filter.</summary>
+    /// <returns>The state of the command.</returns>
+    public CommandState BeginScan()
+    {
+        var state = Begin();
+        AddDiscriminatorFilter(state);
+        return state;
+    }
+
+    /// <summary>Creates the model of a secondary index of this table.</summary>
+    /// <param name="indexName">The name of the index.</param>
+    /// <param name="partitionKeyName">The attribute name of its partition key.</param>
+    /// <param name="sortKeyName">The attribute name of its sort key, if it has one.</param>
+    /// <returns>The model.</returns>
+    public TableModel ForIndex(string indexName, string partitionKeyName, string? sortKeyName) =>
+        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this);
+
+    /// <summary>Completes the projection of a typed read with what the read needs. It runs when the chain ends, because a projection can grow until then.</summary>
+    /// <param name="state">The state of the read.</param>
+    public void AddRequiredNames(CommandState state) => state.Expressions.CompleteProjection(RequiredNames);
+
+    /// <summary>
+    /// Adds the discriminator to the filter of a read, so that a typed read of a table shared by several types sees its own items. The hook of
+    /// <c>Query</c> and <c>Scan</c> on a typed table. It costs two placeholders, and the filter runs after the read, so capacity stays what it was.
+    /// </summary>
+    /// <param name="state">The state of the read.</param>
+    public void AddDiscriminatorFilter(CommandState state)
+    {
+        if (Discriminator is not null)
+        {
+            var expressions = state.Expressions;
+            var text = expressions.StartPending();
+            expressions.AppendAttributeName(text, DiscriminatorAttributeName!);
+            text.Append(" = "u8);
+            expressions.AppendValue<string, StringConverter>(text, Discriminator);
+            expressions.CommitPending(Clause.Filter);
+        }
+    }
+
+    private static string[] NamesOfATypedRead(TableModel? table, string? discriminatorAttributeName, string partitionKeyName, string? sortKeyName)
+    {
+        var names = new List<string>(table?.RequiredNames ?? []);
+        if (table is null && discriminatorAttributeName is not null)
+        {
+            names.Add(discriminatorAttributeName);
+        }
+
+        names.Add(partitionKeyName);
+        if (sortKeyName is not null)
+        {
+            names.Add(sortKeyName);
+        }
+
+        return [.. names];
+    }
+
+    private static byte[] Encode(string text) => JsonEncodedText.Encode(text, WireJson.WriterOptions.Encoder).EncodedUtf8Bytes.ToArray();
+
+    // Everything beyond an empty key is left to DynamoDB.
+    private static void ThrowIfEmpty(AttributeValue key, string parameterName)
+    {
+        if (IsEmptyKey(key))
+        {
+            throw new ArgumentException("A key attribute cannot be empty.", parameterName);
+        }
+    }
+
+    // #n0 = :v0 AND ..., or #n0 = :pk for a partition that is not known yet.
+    private CommandState BeginKeyCondition(AttributeValue partitionKey, SortKey sortKey)
+    {
+        if (sortKey.IsSet && SortKeyName is null)
+        {
+            throw new ArgumentException($"The table or index {IndexName ?? Name} was opened without a sort key, so a query of it has no condition on one.", nameof(sortKey));
+        }
+
+        var state = Begin();
+        var expressions = state.Expressions;
+        var text = expressions[Clause.KeyCondition];
+        expressions.AppendAttributeName(text, PartitionKeyName);
+        text.Append(" = "u8);
+        if (partitionKey.Type == AttributeType.None)
+        {
+            text.Append(":pk"u8);
+        }
+        else
+        {
+            expressions.AppendValue<AttributeValue, AttributeValueConverter>(text, partitionKey);
+        }
+
+        sortKey.Render(expressions, text, SortKeyName!);
+
+        // DynamoDB refuses a filter on a key of what a query reads, for a scan it takes one. The key condition of such a query already says which items come back.
+        if (!DiscriminatorIsKey)
+        {
+            AddDiscriminatorFilter(state);
+        }
+
+        return state;
+    }
+}

@@ -1,0 +1,70 @@
+#nullable enable
+DynaSharp.Testing.RecordedExchange
+DynaSharp.Testing.RecordedExchange.Error.get -> System.Exception?
+DynaSharp.Testing.RecordedExchange.Request.get -> DynaSharp.Testing.RecordedRequest!
+DynaSharp.Testing.RecordedExchange.Response.get -> DynaSharp.Testing.RecordedResponse?
+DynaSharp.Testing.RecordedRequest
+DynaSharp.Testing.RecordedRequest.Body.get -> System.ReadOnlyMemory<byte>
+DynaSharp.Testing.RecordedRequest.BodyJson.get -> System.Text.Json.JsonElement
+DynaSharp.Testing.RecordedRequest.BodyText.get -> string!
+DynaSharp.Testing.RecordedRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+DynaSharp.Testing.RecordedRequest.Method.get -> System.Net.Http.HttpMethod!
+DynaSharp.Testing.RecordedRequest.Operation.get -> string?
+DynaSharp.Testing.RecordedRequest.ReadItem() -> DynaSharp.Item!
+DynaSharp.Testing.RecordedRequest.ReadItem(string! member) -> DynaSharp.Item!
+DynaSharp.Testing.RecordedRequest.ReadItem<T>() -> T
+DynaSharp.Testing.RecordedRequest.ReadItem<T>(string! member) -> T
+DynaSharp.Testing.RecordedRequest.ReadKey() -> DynaSharp.Item!
+DynaSharp.Testing.RecordedRequest.ReadKey<T>() -> T
+DynaSharp.Testing.RecordedRequest.RequestUri.get -> System.Uri?
+DynaSharp.Testing.RecordedResponse
+DynaSharp.Testing.RecordedResponse.Body.get -> System.ReadOnlyMemory<byte>
+DynaSharp.Testing.RecordedResponse.BodyText.get -> string!
+DynaSharp.Testing.RecordedResponse.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+DynaSharp.Testing.RecordedResponse.StatusCode.get -> System.Net.HttpStatusCode
+DynaSharp.Testing.RecordingHandler
+DynaSharp.Testing.RecordingHandler.Exchanges.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedExchange!>!
+DynaSharp.Testing.RecordingHandler.RecordingHandler() -> void
+DynaSharp.Testing.RecordingHandler.RecordingHandler(System.Net.Http.HttpMessageHandler! innerHandler) -> void
+DynaSharp.Testing.StubHandler
+DynaSharp.Testing.StubHandler.DefaultResponse.get -> DynaSharp.Testing.StubResponse?
+DynaSharp.Testing.StubHandler.DefaultResponse.set -> void
+DynaSharp.Testing.StubHandler.Enqueue(DynaSharp.Testing.StubResponse! response) -> void
+DynaSharp.Testing.StubHandler.RecordRequests.get -> bool
+DynaSharp.Testing.StubHandler.RecordRequests.set -> void
+DynaSharp.Testing.StubHandler.Requests.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedRequest!>!
+DynaSharp.Testing.StubHandler.StubHandler() -> void
+DynaSharp.Testing.StubHandler.StubHandler(System.Func<DynaSharp.Testing.RecordedRequest!, DynaSharp.Testing.StubResponse!>! responder) -> void
+DynaSharp.Testing.StubHandler.StubHandler(System.Func<DynaSharp.Testing.RecordedRequest!, System.Threading.CancellationToken, System.Threading.Tasks.Task<DynaSharp.Testing.StubResponse!>!>! responder) -> void
+DynaSharp.Testing.StubResponse
+DynaSharp.Testing.StubResponse.Body.get -> string!
+DynaSharp.Testing.StubResponse.Body.init -> void
+DynaSharp.Testing.StubResponse.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+DynaSharp.Testing.StubResponse.Headers.init -> void
+DynaSharp.Testing.StubResponse.StatusCode.get -> System.Net.HttpStatusCode
+DynaSharp.Testing.StubResponse.StatusCode.init -> void
+DynaSharp.Testing.StubResponse.StubResponse() -> void
+static DynaSharp.Testing.StubResponse.Attributes<T>(T? attributes) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.BatchItems<T>(string! tableName, System.Collections.Generic.IEnumerable<T>! items) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.ConditionalCheckFailed() -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.ConditionalCheckFailed<T>(T? item) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.ConditionalCheckFailedReason<T>(T? item) -> DynaSharp.CancellationReason!
+static DynaSharp.Testing.StubResponse.Delete(DynaSharp.Item! key) -> DynaSharp.Requests.WriteRequest!
+static DynaSharp.Testing.StubResponse.Delete(DynaSharp.Mapping.IKey! key) -> DynaSharp.Requests.WriteRequest!
+static DynaSharp.Testing.StubResponse.DynamoDbError(string! errorCode, string! message, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest, string? requestId = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Item<T>(T? item) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Items<T>(System.Collections.Generic.IEnumerable<T>! items, DynaSharp.Item! lastEvaluatedKey, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Items<T>(System.Collections.Generic.IEnumerable<T>! items, DynaSharp.Mapping.IKey! lastEvaluatedKey, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Items<T>(System.Collections.Generic.IEnumerable<T>! items, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Json(string! json, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.OK, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? headers = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.KeyOf(DynaSharp.Mapping.IKey! key) -> DynaSharp.Item!
+static DynaSharp.Testing.StubResponse.KeyOf<T>(T entity) -> DynaSharp.Item!
+static DynaSharp.Testing.StubResponse.Keys(params System.ReadOnlySpan<DynaSharp.Item!> keys) -> DynaSharp.Requests.KeysAndAttributes!
+static DynaSharp.Testing.StubResponse.Keys(params System.ReadOnlySpan<DynaSharp.Mapping.IKey!> keys) -> DynaSharp.Requests.KeysAndAttributes!
+static DynaSharp.Testing.StubResponse.Put<T>(T item) -> DynaSharp.Requests.WriteRequest!
+static DynaSharp.Testing.StubResponse.Reason(DynaSharp.TransactionFailure failure) -> DynaSharp.CancellationReason!
+static DynaSharp.Testing.StubResponse.TransactionCanceled(params System.ReadOnlySpan<DynaSharp.CancellationReason!> reasons) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TransactionCanceled(params System.ReadOnlySpan<DynaSharp.TransactionFailure> reasons) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Unprocessed(string! tableName, DynaSharp.Requests.KeysAndAttributes! keys) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Unprocessed(string! tableName, params System.ReadOnlySpan<DynaSharp.Requests.WriteRequest!> writes) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Unprocessed<T>(string! tableName, DynaSharp.Requests.KeysAndAttributes! keys, System.Collections.Generic.IEnumerable<T>! found) -> DynaSharp.Testing.StubResponse!

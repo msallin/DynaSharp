@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Wire-format vectors produced by botocore, see Operations/generate_operation_vectors.py. -->
+    <EmbeddedResource Include="Operations/operation_vectors.json" LogicalName="operation_vectors.json" />
+    <!-- Key encodings and rejections from an independent oracle in Python, see Keys/generate_key_vectors.py. -->
+    <EmbeddedResource Include="Keys/key_vectors.json" LogicalName="key_vectors.json" />
+    <!-- Expected results of botocore, written by Credentials/generate_shared_file_vectors.py. -->
+    <EmbeddedResource Include="Credentials/SharedFileVectors.json" LogicalName="SharedFileVectors.json" />
+    <!-- Responses recorded from real DynamoDB by the DynamoDB Conformance Suite (Apache-2.0), see NOTICE. -->
+    <EmbeddedResource Include="Serialization/real_aws_responses.json" LogicalName="real_aws_responses.json" />
+  </ItemGroup>
+
+  <!-- Snapshots of generated code. Neither kind is a source file; the received ones are written beside the verified ones on a mismatch. -->
+  <ItemGroup>
+    <Compile Remove="**/*.verified.cs;**/*.received.cs" />
+    <None Include="**/*.verified.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Where the snapshot comparer finds the verified files, see Generators/SnapshotComparer.cs. -->
+    <AssemblyMetadata Include="ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Driver tests run the generator in-process; the same Roslyn version as the generator, which is the oldest one it supports. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- The code fix of DYNA210 runs against a real workspace. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+    <!-- As an analyzer, so entities in the test assembly are mapped by the real generator; as an assembly, for the driver tests. -->
+    <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" />
+  </ItemGroup>
+
+</Project>

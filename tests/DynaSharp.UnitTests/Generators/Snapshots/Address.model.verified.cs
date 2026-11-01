@@ -1,0 +1,84 @@
+TypeModel
+Namespace: Shop
+Name: Address
+Identifier: Address
+FullName: global::Shop.Address
+Keyword: record
+HintName: Shop.Address.g.cs
+ContainingTypes: []
+Constructor: ConstructorModel
+  Parameters: 
+    - ConstructorParameter
+      PropertyName: Street
+      DefaultLiteral: null
+    - ConstructorParameter
+      PropertyName: City
+      DefaultLiteral: null
+    - ConstructorParameter
+      PropertyName: Zip
+      DefaultLiteral: null
+  DeclareDefaultConstructor: False
+  NeedsFieldsConstructor: False
+Properties: 
+  - PropertyModel
+    Name: Street
+    Identifier: Street
+    ValueType: string
+    AttributeName: Street
+    AttributeNameUtf8Length: 6
+    Converter: ConverterModel
+      WriteConverter: global::DynaSharp.Serialization.StringConverter
+      ReadConverter: global::DynaSharp.Serialization.StringConverter
+      EmptySet: null
+      WriteForwarder: null
+    Write: Always
+    Missing: Throw
+    IsConstructorParameter: True
+    IsWriteOnly: False
+    RestoredFromKey: null
+    FallbackKey: null
+    ParameterName: street
+    IsPublic: True
+  - PropertyModel
+    Name: City
+    Identifier: City
+    ValueType: string
+    AttributeName: City
+    AttributeNameUtf8Length: 4
+    Converter: ConverterModel
+      WriteConverter: global::DynaSharp.Serialization.StringConverter
+      ReadConverter: global::DynaSharp.Serialization.StringConverter
+      EmptySet: null
+      WriteForwarder: null
+    Write: Always
+    Missing: Throw
+    IsConstructorParameter: True
+    IsWriteOnly: False
+    RestoredFromKey: null
+    FallbackKey: null
+    ParameterName: city
+    IsPublic: True
+  - PropertyModel
+    Name: Zip
+    Identifier: Zip
+    ValueType: string?
+    AttributeName: Zip
+    AttributeNameUtf8Length: 3
+    Converter: ConverterModel
+      WriteConverter: global::DynaSharp.Serialization.StringConverter
+      ReadConverter: global::DynaSharp.Serialization.NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>
+      EmptySet: null
+      WriteForwarder: null
+    Write: WhenNotNull
+    Missing: KeepCurrent
+    IsConstructorParameter: True
+    IsWriteOnly: False
+    RestoredFromKey: null
+    FallbackKey: null
+    ParameterName: zip
+    IsPublic: True
+Entity: null
+Enums: []
+HidesInheritedKeys: False
+HidesInheritedAttrs: False
+HidesInheritedIndexes: False

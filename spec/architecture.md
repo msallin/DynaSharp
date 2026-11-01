@@ -1,0 +1,424 @@
+# DynaSharp - architecture
+
+How the code is built today, for a maintainer taking it over. `requirements.md` says why and what, `api.md` states the public contract,
+`diagnostics.md` explains the compile-time rules to users, and `tasks.md` records decisions and findings. `history/` holds the design documents
+as they were written; they are not updated and describe dropped designs next to live ones. Class remarks are the detail behind this document,
+and it points at them instead of repeating them.
+
+## 1. Module map
+
+| Project | Target | Role | Depends on |
+|---|---|---|---|
+| `src/DynaSharp` | `net11.0` | The library, one assembly, internal by default | Nothing at run time; the generator as a build order only |
+| `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and one code fix in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0 (a floor, see `Directory.Packages.props`), no project |
+| `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `RecordingHandler` | `DynaSharp`, and its internals |
+| `tests/DynaSharp.UnitTests` | `net11.0` | Unit, generator and analyzer tests, the only coverage source | All three, the generator as analyzer and as assembly |
+| `tests/DynaSharp.IntegrationTests` | `net11.0` | The same tests on each emulator, and the recipes of `patterns.md` | Docker, Testcontainers |
+| `tests/DynaSharp.AotSmoke` | `net11.0` | Publishes with Native AOT and runs | `DynaSharp`, `DynaSharp.Testing` |
+| `tests/DynaSharp.PackageSmoke` | `net11.0` | Consumes the real nupkg; outside the solution | `artifacts/packages` |
+| `benchmarks/`, `samples/` | `net11.0` | Comparison with other clients; a runnable tour | `DynaSharp` |
+
+`InternalsVisibleTo` of `DynaSharp`: `DynaSharp.Testing`, `DynaSharp.UnitTests`, `DynaSharp.Benchmarks`. The generator grants it to the unit tests. A generated file
+reaches only public members, which is why `ConverterChecks`, `KeyWriter` and the like are public.
+
+The folders of `src/DynaSharp`, top to bottom. A folder is not always a namespace: `Fluent` holds the public commands in `DynaSharp` and their
+machinery in the internal `DynaSharp.Fluent`, and `Shared` and `Exceptions` are in `DynaSharp`.
+
+```text
+DynamoDbClient, DynamoDbStreamsClient, Streams        public entry points
+Fluent, Expressions           Requests, Operations    the two APIs, siblings
+                  \           /
+                   Http                               ClientCore, DynamoDbPipeline, IWireCall
+     /        /       |       \        \
+Signing  Credentials  Retries  Errors  Telemetry      what an attempt needs
+Configuration                                         options, environment, shared files, into ClientConfiguration
+Serialization, Mapping, Keys, Shared                  the codec: one reader, one writer, converters, encodings, values
+```
+
+| Folder | Holds | Mainly uses |
+|---|---|---|
+| `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for the pool of `CommandState` |
+| `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
+| `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
+| `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
+| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
+| `Expressions` | Condition structs, `Attr`, `Expr`, `SortKey`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
+| `Mapping` | Attributes and the contract of section 6 | `Serialization` |
+| `Serialization` | `DynamoDbReader`, `DynamoDbWriter`, converters, `PooledByteBuffer`, `ItemShape`, `ShapeTable` | `Mapping` |
+| `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat` | Nothing of ours |
+| `Shared` | `AttributeValue`, `Item`, capacity types, shared enums | `Mapping`, `Serialization`, `Requests` |
+| `Retries` | `RetryPolicy`, `RetryQuota`, `FailureClassifier`, `ClockSkewCorrection` | Nothing of ours |
+| `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache` | `Configuration`, `Telemetry` |
+| `Configuration` | `ClientConfiguration`, `SharedConfigFiles`, `IniFile` | `Credentials`, `Retries` |
+| `Signing` | `SigV4Signer` | `Credentials`, `Http` |
+| `Errors` | `ErrorMapper` | `Operations`, `Serialization` |
+| `Telemetry` | `OperationTelemetry`, `DynaSharpTelemetry`, `TelemetryNames`, log messages | `Errors`, `Http`, `Requests` |
+
+There are cycles between folders, because it is one assembly: `Mapping` and `Serialization` name each other, and `Http` and `Fluent` do through the
+command pool. `src/BannedSymbols.txt` is what enforces no unsafe code and no reflection, and the analyzers fail the build on it.
+
+## 2. The request path
+
+Everything that reaches the wire goes through `DynamoDbPipeline.SendAsync<TCall, TResponse>`, the one retry loop. Its remarks and those of `IWireCall<T>` are the
+reference. `ClientCore` owns the configuration, the `HttpClient`, the pipeline and the pool of command states, and both public clients are thin over it.
+
+1. `call.GetTableName()`, the span and the start time, then a `CallBuffers` from a bounded pool.
+2. `call.WriteBody(buffers)` once, inside the span. The body is hashed once with SHA-256. Every attempt sends these bytes.
+3. `AttemptAsync`, per attempt: rent a timeout source, get credentials, take the corrected signing time, build and sign a new `HttpRequestMessage`, send with
+   `ResponseHeadersRead`, read the body into the pooled `buffers.Response`, then `call.ReadResponse` or `MapError`.
+4. On failure `Decide`: `FailureClassifier` sorts the exception, `RetryPolicy.Decide` answers, and the counters and warnings happen here. A retry waits on the client's `TimeProvider`.
+5. After the loop `RecordResponse`, outside it on purpose, so a failure there is not retried.
+6. In `finally`: duration, span, buffers, then `call.Release()`, exactly once and last.
+
+Rules that are easy to break:
+
+- The pipeline is generic over a struct, so a call has no delegate and no allocation of its own. A default interface member on `IWireCall<T>` would box. A new member goes to all five implementations.
+- `SendAsync` and `AttemptAsync` use `PoolingAsyncValueTaskMethodBuilder`, so their `ValueTask` is awaited exactly once. That is why terminals are never awaited twice and never stored.
+- `Parse` turns `JsonException`, `InvalidOperationException` and `FormatException` into an unrecognized response. `DynamoDbMappingException` derives from `Exception` and goes through unchanged, and it is not retried.
+- `SetActivityTags`, `SetResponseTags`, `GetConsumedCapacity` and `DescribeRejection` must not throw: the span is already open.
+- Clock skew travels through a private `ClockCorrectedException`, which never leaves the pipeline. A resend counts against `MaxAttempts`, uses no wait and no quota.
+- `ClockSkewCorrection` is a `TimeProvider`, created once per client in `ClientConfiguration.Resolve`. The pipeline signs on it and corrects it, and the default chain that `Resolve` creates judges expiry on it, because an expiry is a time of the service. Its timers and timestamps are those of the local clock. A provider the application creates knows nothing of it and uses the local clock.
+- `ExpiredTokenException` and `ExpiredToken` are permanent for `FailureClassifier`, and yet `MapError` tells a provider with the optional `IRefreshableCredentialsProvider` to drop the credentials of the request, whether or not an attempt is left. If it says that this helps, a private `CredentialsDroppedException` carries the rejection to the loop, which resends under the rules of clock skew, plus one: once per call, because the new credentials may be just as stale. The fetch is not part of this: the next attempt looks up credentials as always, inside its timeout, so a failure surfaces as `CredentialsUnavailableException`.
+- `RefreshingCredentialsCache.Drop` compares instances, so credentials that were replaced in the meantime are left alone, and it forgets the credentials instead of fetching, so the concurrent requests that fail together all end in the one flight of the cache. `DefaultCredentialsProvider` forwards to its chosen source and never moves on to another one.
+- `CreateRequest` adds the content type as raw text, because the signature covers it as sent. The signer has no other caller, so it validates nothing.
+
+| Call | Kind | Body lives in | Who releases what |
+|---|---|---|---|
+| `RequestCall<TOperation, TRequest, TResponse>` | Request API | `CallBuffers.Request` | Nothing to release |
+| `RawCall` | `SendRawAsync` | `CallBuffers.Request`, copied from the caller | Nothing to release |
+| `CommandCall<TOperation, TResponse>` | One-item command | The `CommandState` | The call releases the state |
+| `PageCall<TOperation, T>` | One page of a read | The `CommandState` | Nothing: the state outlives the page, and the read releases it |
+| `ActionCall<TOperation, TResponse>` | Request of a batch or transaction | The state, or `CallBuffers` for a batch | The call if `TOperation.EndsCommand`, otherwise `BatchDriver` |
+
+Retries are AWS standard mode, tuned: `FailureClassifier` lists what is throttling, transient or a timeout, and the remarks of `DynamoDbClientOptions.MaxAttempts` are its public
+description, so a change in one changes the other. `RetryPolicy` holds the numbers. The per-call `.MaxAttempts(n)` reaches the loop through `IWireCall<T>.MaxAttempts`, with 0 for
+the client's value.
+
+`DynamoDbClient.RetryOnConflictAsync` is the one retry a caller has to ask for, and it sits above the pipeline, which never sees it: `ConflictRetry` runs a delegate, `FailureClassifier.IsConflict` says what runs it
+again, and `RetryPolicy.GetConflictDelay` says how long it waits, on the client's clock, with the jitter of the policy and nothing from the quota. A run is any number of calls with their own attempts. The remarks of the method are the contract.
+
+Telemetry is one span per request (`DynamoDB.GetItem`), `db.client.operation.duration`, `dynasharp.client.operation.retries` and `.throttles`,
+`dynasharp.client.conflict.retries` and `.exhausted`, and `dynasharp.client.consumed_capacity`, all from `OperationTelemetry`, one per client. A batch of three requests is three spans. A conflict retry has no span of its own: the
+failed calls of a run have theirs under the span of the caller, so another one would add a level and no fact, and its counters take the operation and the table from the exception. Logs exist for what no single request sees: resolved configuration,
+retries given up, a corrected clock, a batch that gave up, a conflict retry that gave up, credential refresh. Neither ever carries a key or a value.
+
+The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and `RequestCall` forwards to it.
+
+## 3. The command layer
+
+### Handles and state
+
+A command is a `readonly ref struct` of three fields: a `CommandState`, a version and a `TableModel`. The state is a pooled class holding the request as UTF-8, and it is what
+crosses the `await`. The remarks on `CommandState` explain the version protocol and the ownership of a state, and they stay the reference.
+
+- `CommandState.Enter` checks the version and consumes the handle; each fluent method does `Enter`, changes the state and returns a new handle.
+- `CommandState.Check` checks and leaves the handle valid. `ExpressionHandler` uses it, because the compiler runs the handler before the method it belongs to.
+- `Release` is the only way back to the pool, and a compare-and-swap on the version lets one holder through. A new field goes into `Release` as well.
+- A command that is built and abandoned is collected with its arrays. It costs one pool entry, not a leak.
+- A state keeps arrays up to 16 KB when idle, and a client keeps up to 64 idle states.
+
+`TableModel` holds what never changes in pre-encoded form (`BodyStart`, `KeyStart`, `SortKeyStart`), so a command copies bytes. `Table<T>` is a `TableModel` with a type; `Of<T>()` caches
+one view per type. `TableModel.Writes` is an `EntityWrites` only for an entity with a version or a key template, so every other command pays one null check. It also finds the indexes of literals, once, in `LiteralKeys`.
+
+### Body and expressions
+
+The fixed parts go to `CommandState.Body` as they are known. An item goes through `DynamoDbWriter` on `BodyJson` and stays open until `Finish`, so `With` can add attributes.
+Expressions go to separate segments, because one call feeds a clause and two maps at once. `Finish` closes the item and appends options and expressions in one pass: `WriteMembers`, then `}`.
+
+`ExpressionWriter` holds one buffer per `Clause` (`Set`, `Remove`, `Add`, `Delete`, `Condition`, `KeyCondition`, `Filter`, `Projection`), the name map, the value map and a pending buffer. Names and values are
+deduplicated by comparing bytes, with no hash and no box. An interpolated expression lands in pending first, because its handler runs before the method that says which clause it is for;
+`CommitPending` then checks that it names an attribute. `AppendPath` is the path syntax, and `PathSyntax` in the analyzer is a copy of it. The discriminator of an update and the keys of an index of literals use `SetMissingAttribute`,
+which walks the clauses to see whether an action already targets the attribute.
+
+A paged read writes its members once and remembers the offset in `_pageMark`; each page truncates back to it and appends a new `ExclusiveStartKey`. A transaction writes
+a set of expressions per action and clears them in `EndAction`, so `#n0` means something else in each action.
+
+`RejectedRequest` explains a `ValidationException`: it re-reads the body as sent and maps placeholders to names, and to the types of values.
+
+### Write rules
+
+`WriteRules` is where a clause cannot decide alone. `Table<T>.Put`, `Update`, `Delete` and their transaction forms mark the state, later clauses may change the verdict, and
+`WriteRules.Settle` decides at the terminal and at the end of each transaction action (`CommandState.EndAction`).
+
+| Marked by | State | Settled as |
+|---|---|---|
+| `WriteItem` of a versioned entity | `UnsettledVersion`, `EntityVersion`, `StoredVersion`, `PutEntity`, `WritePutEntity` | `AppendVersion`. `IgnoreVersion` restarts the item without the bump, through `CommandState.RestartItem` |
+| `ExpectVersion` for a write by key | `UnsettledVersion` | Throws unless `IfVersion` or `IgnoreVersion` came |
+| `ExpectVersionOf` for `Delete(entity)` | `UnsettledVersion`, `EntityVersion` | `AppendVersion` of what the entity held |
+| `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator, last |
+| `Set`, `Remove`, `NoteUnknownValue` by handle | `KeyInputs` | `KeyInputChanges.Apply`: checks every template, writes or removes derived attributes and keys of literals beside them, checks sparse siblings |
+| `NoteBatchWrite` | `UnsettledVersion` | Throws unless `IgnoreVersion` came |
+
+The order in `Settle` matters: the version first, then keys, then indexes of literals, then the discriminator, so that each sees the actions before it and the discriminator ends the `SET`. `ForgetEntity` exists because a transaction reuses the state for its next action.
+`VersionChecked` is what makes `IgnoreVersion` after `IfVersion` throw. Raw paths go past all of this on purpose. `api.md` section 8 is the contract.
+
+Building a one-item command, a batch or a transaction allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, and boxed values and a key string on an update of a key input. `CommandAllocationTests` pins that per
+command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTests` and `FanOutStressTests` hammer the pooled state.
+
+## 4. Reads
+
+**Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`.
+
+**Query and Scan.** `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
+it gets it. `PageCall.ReadResponse` copies `LastEvaluatedKey` into `CommandState.PageKey` only after the whole response parsed, so a retry of a page sends what the first attempt sent. `PageResponse`
+locates that key and does not parse it. `OnceEnumerable<T>` makes an enumeration single-use and releases the state however it ends, also for an enumerator disposed before its first `MoveNextAsync`. `ToPage` makes a
+`ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts exactly one JSON object of attribute values, because it reaches the body as raw bytes.
+
+**Parallel scan.** `ParallelScan` runs one `CommandState` per segment from `StartSegment`, each on a task handing pages over a channel with room for one, so at most n requests and about 2n pages exist.
+Its remarks say how failures and an early end work. `MixedScanCommand` shares it.
+
+**Fan-out.** `FanOutQueryCommand<T>` holds a template state that never goes out, and a `FanOutPlan`. `FanOutRead<T>` has the terminals, `FanOutMerge<T>` the k-way merge over a heap, `FanOutCursor<T>` one partition,
+`FanOutKeys` the keys of held items in pooled buffers, read from the JSON and not from the items. `NumberOrder` writes DynamoDB numbers in a byte-comparable form, so the merge compares only bytes.
+`FanOutToken` is the composite position inside an ordinary `ContinuationToken`. `BoundedReads` limits concurrency. `StartPartition` copies the template with `CopyRead`, and a new read option has to be
+copied there. The remarks of `FanOutMerge` explain why nothing reads ahead.
+
+**Mixed reads.** `Mixed<T1, ...>` implements `IDynamoDbDocument<...>`, so the normal page path reads it. `MixedSchema` is built once per type combination, holds the `IN` filter, the required projection and
+`FindType`, which reads a copy of the reader as a checkpoint to find `_type` and then lets the type read from the start. A problem with a combination is stored and thrown at `Of<...>()`, never from a type
+initializer. The mixed commands repeat the read clauses by hand per arity, and a test keeps them forwarding every clause.
+
+**`Item`.** `AttributeValueConverter` reads an `Item` as parallel arrays over a shared `ItemShape`, found through the process-wide `ShapeTable` of 2048 slots, so a page of alike items holds its names once. Nothing
+in the table grows, and its remarks say what happens when shapes outnumber its slots.
+
+## 5. Batches and transactions
+
+Both are commands of several actions on one state, with bytes in `Body` and offsets in `ActionList`, which also holds the distinct tables, `Carry`, the token and what a batch read so far. `IActionOperation<TResponse>`
+differs from `ICommandOperation<TResponse>` in that a request can name several tables and in `EndsCommand`.
+
+**Batches.** `BatchWriteOperation.AddPut` and `AddDelete` write each action once. `BatchDriver.SendAsync` owns the state and releases it. It cuts actions into requests with `FindEnd`, 100 keys or 25 writes, the latter also by
+bytes. Each request is an `ActionCall` with its own attempts. DynamoDB returns what it left in the form of `RequestItems`, so `Carry` holds that JSON and the next request sends it back unparsed. Progress resets the stall
+count, and `MaxStalledRounds` bounds rounds in a row without progress, because a large `BatchGet` legitimately takes many rounds. `BackoffAsync` reuses the throttling backoff on the client's clock and takes nothing from the
+retry quota. A throttle on the last attempt of a request becomes the incomplete exception, because the caller would otherwise lose what was already written. `GiveUp` parses `Carry` only then.
+
+**Transactions.** `Transaction.AddAction` ends the action before it and starts the next, so an action stays open for its clauses, and it enforces the limit of 100. The verbs are extension methods of `TransactWriteExtensions` over
+`ITransactWriteChain<T>` and `ITransactWriteStep<T>`, whose members are internal, because instance methods would repeat every verb on four structs. `TransactWriteOperation.End` writes `ClientRequestToken` into the
+body once per send, which is what makes retries idempotent. `TransactMarker` and `TransactSlot<T>` are action indexes. `TransactGetOperation` copies the response to its own array, because `TransactGetResult` outlives the
+pipeline's buffer and parses on demand. `TableModel.ForTransactions` stands for the tables of a transaction that has no table of its own.
+
+## 6. The mapping contract
+
+Generated code lives in the consumer's assembly and compiles against public members of `DynaSharp`. Generator and runtime ship in one package, so this contract has no compatibility rule across versions, but
+every member below is reached from text in an emitter, and a rename shows up in snapshots and in nothing else.
+
+| Runtime member | Who uses it |
+|---|---|
+| `IDynamoDbDocument<T>.WriteAttributes`, `ReadAttributes` | `Table<T>`, `DocumentConverter<T>`, `Item.From`, `To<T>`. Implemented by generated types, `Item` and `Mixed<...>` |
+| `IDynamoDbDocument<T>.WriteNextVersion`, `IDynamoDbEntity<T>.ReadVersion` | `WriteRules`. `static virtual`, and static so that a struct entity is not boxed for them. Emitted only for a `[Version]` |
+| `IDynamoDbEntity<T>.Info`, `WriteKey` | `DynamoDbClient.CreateTable<T>`, `Get(entity)`, `Delete(entity)`, `Index(name)` |
+| `IDynamoDbDiscriminated<T>` | A marker; the constraint of mixed reads. `EntityEmitter` puts it on the declaration when the entity has a discriminator value |
+| `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string |
+| `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense; `TableExtensions.Query`, which takes it |
+| `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel` and `EntityWrites` |
+| `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
+| `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
+| `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
+| `ConverterChecks.ExpectDiscriminator`, `TryFindString`, `DynamoDbMappingException` | Generated reads |
+
+Reader contract: `ReadAttributes` starts after the opening brace and consumes the closing one, so one method serves an item, a list element and a map. Converters are static abstract and structs,
+so a generic instantiation gets its own code. An enum gets a `file` struct in the generated file, and `Attrs` nests a public forwarder because no public signature can name a `file` type.
+
+`KeyTemplates` in `Info` holds every key attribute made of properties, once: a template of the table without a delegate, an index template with `static values => Keys.X.Format(...)`, a plain index key without one, and a key of
+literals of any index. A plain key of the table is left out, so an entity with neither pays nothing. `KeyTemplateEmitter` writes this and its remarks explain each case. The value of an input is boxed until the terminal, which is the
+price of one delegate shape for all templates.
+
+Writes go `WriteKey`, then index keys, then the discriminator, then attributes, as the snapshot `SectionFour.Shop.Order.g.verified.cs` shows. A versioned entity gets `__WriteAttributes(writer, entity, version)`,
+which both write paths call, so `WriteAttributes` stays a plain copy. The next version goes through a `checked` cast. A read keeps `var __item = reader`, a struct copy, and after the loop parses the
+fallback key of what is unset. A generated constructor taking `in __Fields` is what assigns `init`, `required` and private setters conditionally and keeps initializers; `ConstructorEmitter` says why.
+
+## 7. The generator
+
+`DynaSharpGenerator` registers two pipelines, for entities and documents, each from `ForAttributeWithMetadataName`. Attributes are ordinary public types in `DynaSharp.dll`, found by metadata name in `WellKnownNames`.
+
+| Stage | Code | Output |
+|---|---|---|
+| Parse | `KeyTemplateParser`: text to nodes, pure and tested on text alone | `TemplateParse` |
+| Collect | `TypeRules.Check`, `PropertyCollector`, `ConstructorBinder`, `ConverterResolver`, `EnumRegistry` | `PropertyFacts`, the constructor, converters |
+| Bind | `KeyTemplateBinder`, `KeyInputCatalog`, `KeyInputs/*`, `EntityKeyBuilder`: placeholders to encodings, delimiters, buffer length, and all rules across keys and indexes | `KeyModel`, `IndexModel`, `EntityModel` |
+| Model | `ModelBuilder.Compose` | `TypeModel` in a `BuildResult` with diagnostics |
+| Emit | `EntityEmitter` owns the file. `ConstructorEmitter`, `WriteEmitter`, `ReadEmitter`, `KeysEmitter` with `KeyBuilderEmitter` and `AttrsEmitter`, `KeyTemplateEmitter`, `EnumEmitter` fill it | One `.g.cs` per type |
+
+`ModelBuilder.Build` runs for every matching type on every compilation change, so it stays cheap, and nothing it returns refers to a symbol or a syntax tree. An error yields a null model and no output for that type. All problems are
+reported at once through `DiagnosticBag`, with places as `Spot` values. `KeyEncoding` subclasses in `Model/Encodings` are polymorphic and not a switch, because an arm that throws on a closed set is a branch no test
+can reach. The same goes for dictionaries in `ConverterResolver`.
+
+Incrementality rests on value equality: `EquatableArray<T>` compares by content, and an equal `BuildResult` stops everything downstream. Models and diagnostics take separate paths. Only the diagnostic path combines with
+`CompilationProvider`, and `DiagnosticReporter` is the only code after the transform that touches the compilation, resolving a `Spot` to a location in a real tree so that `#pragma` and `.editorconfig` work. `HintNames.FindClashes` looks at all
+types together through `Collect()` and yields one value that is nearly always empty, so a new type does not touch the output of the others. `IncrementalityTests` pins this per kind of edit, and `TrackedOutputWalker`
+checks that no tracked output holds a symbol or a plain array.
+
+Emitters write text with `\n` and never `SyntaxFactory`, so snapshots do not move with the compiler. Generated code targets C# 11, is compiled by consumers with implicit usings off, and fully qualifies every name. Its limits are in the
+remarks of `KeysEmitter`. `#pragma warning disable` in the header covers `CS0612`, `CS0618`, `CS1591` and `CS8618`.
+
+The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target net11, so the floor only has to be at or below their compiler. Dependabot ignores that package, and test code compiles against the same version.
+
+## 8. Key grammar
+
+`requirements.md`, section "Key grammar", is the contract and is not repeated here. Pointers:
+
+| Topic | Code |
+|---|---|
+| Template syntax | `KeyTemplateParser`, whose remarks show the grammar with an example |
+| Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
+| Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
+| Compile-time rules (`DYNA100` to `DYNA115`) | `KeyTemplateBinder`, `EntityKeyBuilder` |
+| Generated builders | `KeyBuilderEmitter` |
+| `KeyFormatException` | `Keys/KeyFormatException.cs`, in namespace `DynaSharp`; it names the placeholder, never the value |
+
+The encoded form is an on-disk contract. `Parse` and `Format` must stay exact inverses, and changing an encoding is a data migration.
+
+## 9. Analyzers and what they mirror
+
+Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp declares by namespace, so a new command needs no list. `spec/diagnostics.md` is the user-facing page, reached by the help links in `Descriptors`.
+
+| Rule | Analyzer | Mirrors | Kept in step by |
+|---|---|---|---|
+| `DYNA201` | `CommandLifetimeAnalyzer`, `CommandFlow` | The compiler's ref struct rules, CS4007, CS4012, CS9202, CS8175, CS9108. CS4007 comes from lowering, after analyzers ran, so the flow is rebuilt on the control flow graph. CS8345 stops the compiler first and has docs only | `CommandLifetimeAnalyzerTests`, the `Mistakes` project of `PackageSmoke` |
+| `DYNA202` | `ReadTerminalAnalyzer` | Which types are reads, known by having `ItemsAsync` | `ReadTerminalAnalyzerTests` |
+| `DYNA210`, `DYNA211`, `DYNA212` | `ExpressionAnalyzer`, `ExpressionLexer`, `ExpressionParser` | DynamoDB's condition and update grammar, and the keyword list of `ExpressionWriter` | `ExpressionCorpus`, a test comparing the two keyword lists |
+| `DYNA213` | `PathAnalyzer` | The generator's model, through `ModelBuilder.ModelOf`, which also reads types from metadata | `PathAnalyzerTests` |
+| `DYNA214` | `PathAnalyzer`, `PathSyntax` | `ExpressionWriter.AppendPath` | `PathSyntaxTests`, which runs both |
+
+A path parameter is known by its name, `path` or `paths`, so a new method that takes a path follows that or goes unchecked. `DYNA212` and `DYNA214` are warnings for 0.x: the grammar is a copy of the service's from 2026, and a false
+error in a consumer's build can only be fixed by a new package. `ExpressionParser` accepts everything DynamoDB might, for the same reason. `WrapInAttrCodeFix` is the only class that needs Workspaces, and only an IDE loads
+it; the note on `RS1038` in the generator's project file explains why that holds.
+
+## 10. Tests and oracles
+
+Gates: build with warnings as errors, `dotnet format --verify-no-changes`, unit tests with 100 % line and branch coverage over `DynaSharp`, `DynaSharp.Generators` and `DynaSharp.Testing` (`coverage.config`,
+`build/CoverageGate.cs`), integration tests on both emulators, the AOT publish and the package smoke test. Stryker has a break threshold of 90 % and runs before a milestone closes.
+The Stryker pass and the AOT publish are paused by the owner until the mandatory pass before the first push; see the decision in `tasks.md`.
+
+A test that derives its expectation from the code proves little, so each area has an independent source of truth.
+
+| Area | Test | Oracle |
+|---|---|---|
+| SigV4 | `Signing/SigV4SignerTests` | `generate_sigv4_vectors.py`, botocore `SigV4Auth` |
+| Operation wire format | `Operations/*OperationTests` | `generate_operation_vectors.py`, botocore's serializer and parser |
+| Shared config and credentials files | `Credentials` | `generate_shared_file_vectors.py`, botocore |
+| Retry classification | `Retries` | botocore's `retries/standard.py`, by reading. Clock skew and expired tokens have no such source: botocore neither corrects nor refreshes on a response, so the oracle is the AWS SDKs |
+| DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
+| Key encodings | `Keys/KeyVectorTests`, `Key*PropertyTests` | `generate_key_vectors.py` with Python `decimal`; properties with a fixed seed: order is preserved, parse inverts format |
+| Key order against storage | Integration, `Keys` and `Mapping` | The emulators sort, so the ordering claim is checked by something else |
+| Command bodies | `Fluent/*Tests`, `WriteRulesTests`, `DiscriminatorWriteTests` | Bodies written by hand from `api.md`, never from the writer |
+| Generated code | `Generators/Snapshots/*.verified.cs`, compiled at C# 11 and latest | The reviewed snapshot, and compile-and-run tests in `Mapping` with hand-written JSON |
+| Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
+| Compile guards | `Fluent/CompileGuardTests` | The compiler, asked in-process whether a misuse fails and which overload binds |
+| Analyzer grammar | `Generators/Analyzers/ExpressionCorpus` | The Developer Guide, botocore's examples, DynamoDB Local 3.3.2 |
+| Behavior of the service | `tests/DynaSharp.IntegrationTests` | Dynoxide and DynamoDB Local. `Backends/Gaps.cs` names what each lacks, and such a test is skipped there |
+| Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators |
+| Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
+| Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
+
+Snapshots use `SnapshotComparer`, a local comparer: a mismatch writes `*.received.cs`, and `DYNASHARP_ACCEPT_SNAPSHOTS=1` accepts. `*.verified.*` stay LF. Allocation claims live in `CommandAllocationTests` and the benchmarks
+in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so run it from the worktree. `dotnet format` runs no generator that is not built, so a generated type is no entity to it, and a variable of `PartitionKey<T>` passed to `Query` is a `CS1503` it reports, which is why such code in this repository passes the key inline or through a generic helper. Neither emulator produces `UnprocessedItems`, `TransactionConflict` or several shards, so these paths are tested with stubs only.
+
+## 11. How to add
+
+**An operation of the request API.**
+1. `Requests/XRequest.cs`, `XResponse.cs`, with member names from botocore's service model.
+2. `Operations/XOperation.cs`, implementing `IOperation<,>`, with shared parts in `OperationJson`.
+3. `Requests/DynamoDbRequests.cs`, or `Streams/DynamoDbStreamsClient.cs`.
+4. New enums in `Operations/WireNames.cs`, with `Unknown` or `Unspecified` as the zero value.
+5. `tests/DynaSharp.UnitTests/Operations/generate_operation_vectors.py` and `XOperationTests.cs`; an integration test in `IntegrationTests/Operations`.
+6. `api.md` section 1 if it adds a namespace or a rule, `requirements.md` if it changes scope.
+
+**A command for an operation.**
+1. `Fluent/XCommand.cs`, a `readonly ref struct` copying the shape of `PutCommand<T>`: `Enter`, the `CommandHandle` conversion, `DebuggerText`, `ToRequestJson`, `GetAwaiter`.
+2. `Fluent/XOperation.cs` for `ICommandOperation<T>`, or `IActionOperation<T>` for several actions.
+3. The verb on `Table<T>` or `Index<T>`, or in `TableExtensions` when it depends on `T`.
+4. Tests by hand-written body, `CommandAllocationTests`, `CompileGuardTests`; an integration test in `IntegrationTests/Commands`.
+5. `api.md`. A read needs `ItemsAsync` to count as one for `DYNA202`.
+
+**An option of a command.**
+1. A property in `CommandState`, its reset in `Release`, and its output in `WriteMembers` or `WriteRequestOptions`.
+2. The clause on each command that has it, with `Enter`. An interface in `Fluent/I*.cs` if helpers should reach it.
+3. A read option: `CopyRead` or the caller in `StartSegment` and `StartPartition`, and the clause on `FanOutQueryCommand<T>` and all six `Mixed*Command` files.
+4. A per-call setting of the loop: a member on `IWireCall<T>` and all five calls.
+5. Tests, and the clause table of `api.md` section 5.
+
+**A converter.**
+1. `Serialization/Converters/XConverter.cs`, a `public readonly struct` implementing `IDynamoDbConverter<T>`. Add `IAddableConverter` for a number or set. Use `ConverterChecks.Expect`.
+2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key.
+3. `tests/DynaSharp.UnitTests/Serialization/Converters/XConverterTests.cs`, every wrong-type path and a counting pool for rented arrays.
+4. An integration case in `Support/ConverterCase.cs`, a snapshot if the emitted call differs, and the AOT smoke if it brings a new generic shape.
+
+**A key format.**
+1. `requirements.md`, the format table and encodings, first. It is a data contract.
+2. `Keys/KeyWriter.cs`, `KeyReader.cs`, `KeyText.cs` if it validates text.
+3. `Model/Encodings/XEncoding.cs`, a `KeyEncoding` with `WriteCall`, `TryReadCall` and `IsLossless`; the width is what decides delimiter checks.
+4. `Parsing/KeyInputs/*` and `Parsing/KeyInputCatalog.cs`, with `DYNA104` or `DYNA105` for what does not fit.
+5. `tests/DynaSharp.UnitTests/Keys/generate_key_vectors.py` first, then `KeyVectorTests`, a `Key*PropertyTests`, a shape in `KeyShapes` with its snapshots, `BETWEEN` and `begins_with` in `IntegrationTests`.
+
+**A diagnostic.**
+1. A field in `Diagnostics/Descriptors.cs`, listed in `All`.
+2. `AnalyzerReleases.Unshipped.md`, which is where every new rule starts. `DescriptorTests` compares severity, category and title.
+3. Report it from `TypeRules`, `EntityKeyBuilder`, `KeyTemplateBinder` or an analyzer's `SupportedDiagnostics`.
+4. A positive and a negative test in `Generators/Diagnostics` or `Generators/Analyzers`, and the `Descriptors` snapshot.
+5. With a help link: a section in `spec/diagnostics.md`, whose anchor `DescriptorTests` checks. A rule that a consumer's build must show also goes into `PackageSmoke/Mistakes` and its project file.
+
+## 12. Glossary
+
+| Word | Meaning |
+|---|---|
+| Action | One put, update, delete, check or get inside a batch or transaction |
+| Carry | What the last batch response left unprocessed, as raw JSON (`ActionList.Carry`) |
+| Chain, step | `TransactWriteCommand` or a `PutStep`, `UpdateStep`, `ConditionStep`: a link of a transaction |
+| Claim | `AttributeClaim`, who already uses an attribute name while a type is modeled |
+| Clause | One expression segment of `ExpressionWriter` (`Clause` enum). Also a fluent method that adds to a command |
+| Command | A ref struct handle over a `CommandState` |
+| Document, entity | A mapped type without keys, and one with keys |
+| Enter, Check | Use up a handle, or only validate it (`CommandState`) |
+| Fallback key | The lossless key a read parses when a stored input is missing (`PropertyModel.FallbackKey`) |
+| Fan-out | One query per partition key, merged by sort key |
+| Floor | Roslyn 5.0.0, the oldest compiler API the generator builds on |
+| Gate | The nullable inputs a key of a sparse index needs before it is written (`KeyModel.Gates`) |
+| Handle | The value a fluent call returns; valid while its version matches the state |
+| Hint | In a fan-out token, the key of a partition's next item, for the merge only. In the generator, the name of a generated file |
+| Hole | A `{...}` of an interpolated expression |
+| Input | A property that feeds a key template |
+| Index of literals | An index with nothing but keys of literals, so it holds every item of the entity, and every update writes its keys (`EntityWrites.LiteralKeys`) |
+| Key of literals | A template without placeholders, such as `FEATURED` |
+| Marker | `TransactMarker`, which finds an action in a cancelled transaction. Also the item `Unique` writes |
+| Mark | The offset where a paged body ends before its start key (`_pageMark`) |
+| Oracle | An independent source of expected results |
+| Owes | What a write must still do before it goes out: `OwesDiscriminator`, and "what a write owes" in `WriteRules` |
+| Pending | The buffer an interpolated expression lands in before its clause is known |
+| Plan | `FanOutPlan`, the partitions and key attributes of a fan-out, apart from its request |
+| Recipe | A design pattern as a scenario test, not a type |
+| Round, stalled | One request of a batch; one that made no progress |
+| Sandbox | The test helpers in `IntegrationTests` that give each test its own table |
+| Segment | A clause's buffer. In a scan, one of `TotalSegments` |
+| Settle | `WriteRules.Settle`, which turns what a write marked into expressions or a throw at the terminal |
+| Shape | `ItemShape`, the attribute names of an `Item`, shared across items |
+| Sink | `ExpressionSink`, what a condition renders into |
+| Slot | `TransactSlot<T>`, where a read of `TransactGet` is found. Also an entry of `ShapeTable` |
+| Spot | A file path and a span as a value, standing in for a `Location` in the generator |
+| State | `CommandState`, the pooled wire form of a command |
+| Template | A key template. In a fan-out, the state every partition copies |
+| Terminal | The method that ends a chain: `SendAsync`, `ItemsAsync`, `ToRequestJson` and the like |
+| View | `Table<TOther>` from `Of<T>()`, the same table seen by another type |
+| Wire call | An `IWireCall<T>` struct on the pipeline |
+
+## 13. Decisions you must not undo without reading why
+
+Each entry names where the reasons are. "Decisions" and "Findings" are sections of `tasks.md`, and dates are its rows.
+
+1. **Commands are ref structs over versioned pooled state.** Safety, not bytes: a plain handle over pooled state corrupts across requests. Decisions 2026-10-31, and `history/api-design.md` section 3.
+2. **The request API is a sibling, and no layer stacks on another.** Decisions 2026-10-31, API decision by the owner.
+3. **One serialization path.** `DynamoDbReader`, `DynamoDbWriter` and converters are the only DynamoDB-JSON code. `requirements.md`, key design rules, and the plan review at the end of Findings.
+4. **The handler is the test seam, with no interface on the client or the table.** Decisions 2026-10-31.
+5. **Handles, no expression trees.** Allocation and AOT. Decisions 2026-10-31, and `history/api-layers-proposal.md` for the measurements.
+6. **Key values are rejected, never escaped, and `_type` is a required dedicated attribute.** Key injection, and the silent migration of a default name. Decisions 2026-10-31, key grammar rows.
+7. **Batch retries are bounded by rounds without progress, and a throttle on the last attempt surfaces as incomplete.** Decisions 2026-11-01.
+8. **`TransactWrite` verbs are extension methods.** Otherwise every verb repeats on four structs. The price is a worse error, which `DYNA202` repairs. Decisions 2026-11-01.
+9. **The generated entity has no seam to the key emitter.** A partial-method guard would silently drop keys. Decisions 2026-11-01.
+10. **`#_type = if_not_exists(#_type, :t)`, not a plain `SET`.** An update through the wrong table must not rewrite another type. `history/generator-design.md`, amendments from the recipes.
+11. **A `char` converts to a string value, with no `[Obsolete]` on the operator.** The attribute broke consumers' TUnit tests. Decisions 2026-11-01.
+12. **Snapshots use a local comparer, not Verify.** Verify 33 needs a declaration only the owner can make. Decisions 2026-11-01.
+13. **`HttpClient` stays, and the response stream is read synchronously.** The saving of `HttpMessageInvoker` is not worth another disposal contract. Decisions 2026-11-01.
+14. **A token is client input and is not signed.** Decisions 2026-11-01.
+15. **`DYNA212` and `DYNA214` are warnings for 0.x.** Findings, maintainability review.
+16. **`src/` stays parseable by Roslyn 5.9, and the generator stays on C# 12.** Stryker compiles with that version. `AGENTS.md`, and `history/generator-design.md` section 9.
+17. **No string `switch` of 7 or more cases, and no throwing arm on a closed set.** Hidden branches break the coverage gate. Findings, entry C, and the remarks of `KeyEncoding`.
+18. **Pooled buffers are returned uncleared.** Decisions 2026-10-31.
+19. **A skew resend counts against `MaxAttempts`.** 1 must mean one request. M1b review findings, L2.
+20. **`Query` by `PartitionKey<T>` is an extension method.** An extension applies only when no member does, so no call that compiled before can change what it binds to, which `CompileGuardTests` pins. The cost is a worse error on a receiver that has no `Query` at all. `api.md` section 6.

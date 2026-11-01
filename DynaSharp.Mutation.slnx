@@ -1,0 +1,7 @@
+<Solution>
+  <!-- What Stryker builds. In solution mode it ignores test-projects and would run the Docker tests against every mutant. -->
+  <Project Path="src/DynaSharp/DynaSharp.csproj" />
+  <Project Path="src/DynaSharp.Generators/DynaSharp.Generators.csproj" />
+  <Project Path="src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+  <Project Path="tests/DynaSharp.UnitTests/DynaSharp.UnitTests.csproj" />
+</Solution>

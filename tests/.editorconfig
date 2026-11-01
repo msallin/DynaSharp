@@ -1,0 +1,48 @@
+# Overrides for test, smoke and benchmark code. Inherits everything from the root.
+[*.cs]
+# CA1707: test method names use Method_Scenario_ExpectedResult.
+dotnet_diagnostic.CA1707.severity = none
+# CA2007: ConfigureAwait. There is no synchronization context in test hosts.
+dotnet_diagnostic.CA2007.severity = none
+# CS1591 / SA1600 / SA1611 / SA1615: XML docs are for the public library API, not for tests.
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1615.severity = none
+# CA1515: test classes are discovered by the framework and may stay public.
+dotnet_diagnostic.CA1515.severity = none
+# CA1822: test methods are instance methods by framework convention.
+dotnet_diagnostic.CA1822.severity = none
+# CA2025: tests start a call, drive the handler or the clock, and await the call afterwards, still inside the using scope.
+dotnet_diagnostic.CA2025.severity = none
+# CA1812: generated code creates mapped types, and dotnet format analyzes without it.
+dotnet_diagnostic.CA1812.severity = none
+
+# The entities of the key tests stand for what consumers declare, so their shapes and names are the point, and they must parse as C# 11.
+[DynaSharp.{UnitTests/Mapping/KeyModels,IntegrationTests/Mapping/ShopModel,AotSmoke/Shapes}.cs]
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1008.severity = none
+dotnet_diagnostic.CA1028.severity = none
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1050.severity = none
+dotnet_diagnostic.CA1052.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1720.severity = none
+dotnet_diagnostic.CA1815.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA2227.severity = none
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE0028.severity = none
+dotnet_diagnostic.IDE0301.severity = none
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1300.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1602.severity = none
+
+# A recipe reads top to bottom on one page: the tests, then the entities they need.
+[DynaSharp.IntegrationTests/Recipes/*.cs]
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1402.severity = none
+

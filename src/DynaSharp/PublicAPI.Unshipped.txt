@@ -1,0 +1,10 @@
+#nullable enable
+DynaSharp.Credentials.ContainerCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.DefaultCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.InstanceMetadataCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.IRefreshableCredentialsProvider
+DynaSharp.Credentials.IRefreshableCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!

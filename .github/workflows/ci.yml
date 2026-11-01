@@ -1,0 +1,154 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # For the mutation job, see there. The other jobs run on this event too.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build, test, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # MinVer needs tags and history
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - run: dotnet tool restore
+      - run: dotnet restore DynaSharp.slnx --locked-mode
+
+      # Locked mode creates a lock file that is missing instead of failing, so a project added without one would pass.
+      - name: Restore must not change the tree
+        run: |
+          changes=$(git status --porcelain)
+          if [ -n "$changes" ]; then
+            echo "Restore created or changed files; commit the lock files:"
+            echo "$changes"
+            exit 1
+          fi
+
+      # dotnet format analyzes with the generator as an analyzer, so it needs that dll. Without it a generated type is not an entity yet.
+      - run: dotnet build src/DynaSharp.Generators --no-restore
+      - run: dotnet format DynaSharp.slnx --verify-no-changes --no-restore
+      - run: dotnet build DynaSharp.slnx -c Release --no-restore
+
+      # The solution also holds the integration tests, which need Docker and run in their own job.
+      - name: Unit tests with coverage
+        run: >
+          dotnet test --project tests/DynaSharp.UnitTests -c Release --no-build
+          --coverage --coverage-settings "$GITHUB_WORKSPACE/coverage.config" --coverage-output coverage.cobertura.xml
+
+      - name: Coverage gate (100 % line and branch)
+        run: dotnet run build/CoverageGate.cs -- TestResults/coverage.cobertura.xml 100
+
+      - run: dotnet pack src/DynaSharp -c Release --no-build -o artifacts/packages
+      - run: dotnet pack src/DynaSharp.Testing -c Release --no-build -o artifacts/packages
+
+      # Packaging mistakes in the generator are silent: a package without it still builds. This restores DynaSharp from
+      # artifacts/packages like a user would, checks that the compiler is given the generator from the package, and runs.
+      - name: Package smoke test
+        run: dotnet run --project tests/DynaSharp.PackageSmoke -c Release
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/
+
+  integration:
+    name: Integration tests (Dynoxide, DynamoDB Local)
+    runs-on: ubuntu-latest
+    env:
+      DYNASHARP_BACKENDS: dynoxide,dynamodb-local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore tests/DynaSharp.IntegrationTests --locked-mode
+      - run: dotnet build tests/DynaSharp.IntegrationTests -c Release --no-restore
+
+      # The same tests run against both emulators; the images are pinned in tests/DynaSharp.IntegrationTests/Backends/*/Dockerfile.
+      - name: Integration tests
+        run: dotnet test --project tests/DynaSharp.IntegrationTests -c Release --no-build
+
+      # The sample is documentation that runs. Running it against both emulators keeps it from rotting.
+      - name: Start the sample's emulators
+        run: |
+          docker compose -f samples/compose.yaml --profile dynamodb-local up -d
+          for port in 8000 8001; do
+            timeout 60 bash -c "until curl -s -o /dev/null http://localhost:$port; do sleep 1; done"
+          done
+      - run: dotnet restore samples/DynaSharp.Sample --locked-mode
+      - run: dotnet build samples/DynaSharp.Sample -c Release --no-restore
+      - name: Sample against Dynoxide
+        run: dotnet run --project samples/DynaSharp.Sample -c Release --no-build
+      - name: Sample against DynamoDB Local
+        run: dotnet run --project samples/DynaSharp.Sample -c Release --no-build
+        env:
+          AWS_ENDPOINT_URL_DYNAMODB: http://localhost:8001
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: integration-test-results
+          path: TestResults/
+
+  aot:
+    name: Native AOT smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet publish tests/DynaSharp.AotSmoke -c Release -r linux-x64 -o artifacts/aot
+      - run: ./artifacts/aot/DynaSharp.AotSmoke
+
+  # On demand only, out of the path of a pull request or a push, so no job may need this one.
+  # Stryker still runs once by hand before the first push.
+  mutation:
+    name: Mutation testing
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet tool restore
+      - name: Stryker (break below 90 %)
+        run: dotnet stryker --reporter markdown --reporter html
+      - name: Publish summary
+        if: always()
+        run: cat StrykerOutput/*/reports/*.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: mutation-report
+          path: StrykerOutput/*/reports/

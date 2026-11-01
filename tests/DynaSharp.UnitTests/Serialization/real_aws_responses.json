@@ -1,0 +1,89 @@
+{
+  "note": "Responses recorded from real DynamoDB (eu-west-2) by the DynamoDB Conformance Suite, https://github.com/paritysuite/dynamodb-conformance, Apache-2.0, see NOTICE. Converted: only the body members listed under wire are kept (no metadata), and binary values, which the suite stored as {b64, byteLength}, are written back as base64 text. Item members keep the order AWS sent.",
+  "responses": [
+    {
+      "name": "proj_get_a1",
+      "operation": "GetItem",
+      "description": "Nested map with two sibling leaves",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe proj_get_a1",
+      "wire": "{\"Item\":{\"a\":{\"M\":{\"b\":{\"S\":\"bb\"},\"c\":{\"S\":\"cc\"}}}}}"
+    },
+    {
+      "name": "proj_get_a3",
+      "operation": "GetItem",
+      "description": "List of maps whose keys come back in different orders",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe proj_get_a3",
+      "wire": "{\"Item\":{\"l\":{\"L\":[{\"M\":{\"x\":{\"S\":\"x0\"},\"y\":{\"S\":\"y0\"}}},{\"M\":{\"y\":{\"S\":\"y1\"},\"x\":{\"S\":\"x1\"}}}]}}}"
+    },
+    {
+      "name": "proj_get_a4",
+      "operation": "GetItem",
+      "description": "Two top-level attributes: a map holding a map, and a list of maps",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe proj_get_a4",
+      "wire": "{\"Item\":{\"a\":{\"M\":{\"b\":{\"S\":\"bb\"},\"c\":{\"S\":\"cc\"},\"d\":{\"M\":{\"e\":{\"S\":\"ee\"}}}}},\"l\":{\"L\":[{\"M\":{\"x\":{\"S\":\"x0\"},\"y\":{\"S\":\"y0\"}}},{\"M\":{\"y\":{\"S\":\"y1\"},\"x\":{\"S\":\"x1\"}}}]}}}"
+    },
+    {
+      "name": "esm_put_ss_only",
+      "operation": "GetItem",
+      "description": "String set whose only member is the empty string",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_ss_only",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-ss-only\"},\"attr\":{\"SS\":[\"\"]}}}"
+    },
+    {
+      "name": "esm_put_ss_mixed",
+      "operation": "GetItem",
+      "description": "String set with an empty member next to a regular one",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_ss_mixed",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-ss-mixed\"},\"attr\":{\"SS\":[\"\",\"a\"]}}}"
+    },
+    {
+      "name": "esm_put_bs_only",
+      "operation": "GetItem",
+      "description": "Binary set whose only member has zero length",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_bs_only",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-bs-only\"},\"attr\":{\"BS\":[\"\"]}}}"
+    },
+    {
+      "name": "esm_put_bs_mixed",
+      "operation": "GetItem",
+      "description": "Binary set with a zero-length member next to a regular one",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_bs_mixed",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-bs-mixed\"},\"attr\":{\"BS\":[\"\",\"AQ==\"]}}}"
+    },
+    {
+      "name": "esm_put_map_ss",
+      "operation": "GetItem",
+      "description": "String set with an empty member inside a map",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_map_ss",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-map-ss\"},\"outer\":{\"M\":{\"inner\":{\"SS\":[\"\"]}}}}}"
+    },
+    {
+      "name": "esm_put_list_ss",
+      "operation": "GetItem",
+      "description": "String set with an empty member inside a list",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_put_list_ss",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-put-list-ss\"},\"items\":{\"L\":[{\"SS\":[\"\"]}]}}}"
+    },
+    {
+      "name": "esm_upd_del_last",
+      "operation": "GetItem",
+      "description": "Item that kept only its key after the last set member was deleted",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_upd_del_last",
+      "wire": "{\"Item\":{\"pk\":{\"S\":\"esm-upd-del-last\"}}}"
+    },
+    {
+      "name": "esm_query_contains_hit",
+      "operation": "Query",
+      "description": "Query response with one item holding a set with an empty member",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_query_contains_hit",
+      "wire": "{\"Items\":[{\"pk\":{\"S\":\"esm-contains\"},\"tags\":{\"SS\":[\"\",\"a\"]},\"sk\":{\"S\":\"with-empty\"}}],\"Count\":1,\"ScannedCount\":1}"
+    },
+    {
+      "name": "esm_query_contains_miss",
+      "operation": "Query",
+      "description": "Query response with no items",
+      "source": "captures/2026-07-13-empty-set-member.json, region eu-west-2, probe esm_query_contains_miss",
+      "wire": "{\"Items\":[],\"Count\":0,\"ScannedCount\":1}"
+    }
+  ]
+}

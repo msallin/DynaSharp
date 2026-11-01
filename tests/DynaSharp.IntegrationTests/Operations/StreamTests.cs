@@ -1,0 +1,362 @@
+using System.Numerics;
+using DynaSharp.IntegrationTests.Backends;
+using DynaSharp.IntegrationTests.Support;
+using DynaSharp.Requests;
+using DynaSharp.Streams;
+
+namespace DynaSharp.IntegrationTests.Operations;
+
+/// <summary>DynamoDbStreamsClient end to end: a table with a stream, writes, and the records read back.</summary>
+[MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
+public sealed class StreamTests(Backend backend)
+{
+    [Test]
+    public async Task ListStreams_TableWithStream_ReturnsItsStream()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewAndOldImages));
+
+        // Act
+        var response = await sandbox.Streams.ListStreamsAsync(new ListStreamsRequest { TableName = table });
+
+        // Assert
+        var stream = response.Streams.Single();
+        await Assert.That(stream.TableName).IsEqualTo(table);
+        await Assert.That(stream.StreamArn).Contains($"table/{table}/stream/", StringComparison.Ordinal);
+        await Assert.That(string.IsNullOrEmpty(stream.StreamLabel)).IsFalse();
+    }
+
+    [Test]
+    public async Task ListStreams_TableWithoutStream_ReturnsNoStreams()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync();
+
+        // Act
+        var response = await sandbox.Streams.ListStreamsAsync(new ListStreamsRequest { TableName = table });
+
+        // Assert
+        await Assert.That((response.Streams.Count, response.LastEvaluatedStreamArn)).IsEqualTo((0, null));
+    }
+
+    [Test]
+    public async Task ListStreams_LatestStreamArnOfTheTable_IsTheListedStream()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        var described = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table;
+
+        // Act
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Assert
+        await Assert.That(arn).IsEqualTo(described.LatestStreamArn);
+    }
+
+    [Test]
+    public async Task DescribeStream_EnabledStream_ReportsStatusViewTypeAndOneShard()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+
+        // Assert
+        await Assert.That((description.StreamArn, description.TableName, description.StreamStatus, description.StreamViewType))
+            .IsEqualTo((arn, table, StreamStatus.Enabled, StreamViewType.NewImage));
+        await Assert.That(description.Shards.Count).IsEqualTo(1);
+        await Assert.That(string.IsNullOrEmpty(description.Shards[0].ShardId)).IsFalse();
+        await Assert.That(description.Shards[0].ParentShardId).IsNull();
+    }
+
+    [Test]
+    public async Task DescribeStream_NewStreamWithoutRecords_ShardHasAStartingSequenceNumber()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.StartingSequenceNumberOfAnEmptyShard);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+
+        // Assert
+        await Assert.That(string.IsNullOrEmpty(description.Shards[0].SequenceNumberRange!.StartingSequenceNumber)).IsFalse();
+    }
+
+    [Test]
+    public async Task DescribeStream_EnabledStream_ReportsTheKeySchemaOfTheTable()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.StreamDescriptionKeySchema);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+
+        // Assert
+        await Assert.That(description.KeySchema).IsEquivalentTo([new KeySchemaElement("pk", KeyType.Hash)]);
+    }
+
+    [Test]
+    public async Task DescribeStream_OpenShard_HasNoEndingSequenceNumber()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OpenShardWithoutEndingSequenceNumber);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Key("a") });
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+
+        // Assert
+        await Assert.That(description.Shards[0].SequenceNumberRange!.EndingSequenceNumber).IsNull();
+    }
+
+    [Test]
+    public async Task GetRecords_InsertModifyRemove_DeliversThreeRecordsInOrderWithBothImages()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewAndOldImages));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var records = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Insert, OperationType.Modify, OperationType.Remove]);
+        var insert = records[0].DynamoDb!;
+        var modify = records[1].DynamoDb!;
+        var remove = records[2].DynamoDb!;
+        await Assert.That((insert.Keys!["pk"].AsString(), insert.NewImage!["v"].AsNumber(), insert.OldImage)).IsEqualTo(("a", "1", null));
+        await Assert.That((modify.NewImage!["v"].AsNumber(), modify.OldImage!["v"].AsNumber())).IsEqualTo(("2", "1"));
+        await Assert.That((remove.NewImage, remove.OldImage!["v"].AsNumber())).IsEqualTo((null, "2"));
+        await Assert.That(records.Select(static record => record.DynamoDb!.StreamViewType).Distinct()).IsEquivalentTo([StreamViewType.NewAndOldImages]);
+    }
+
+    [Test]
+    public async Task GetRecords_Records_CarryIdentifiersSourceAndAscendingSequenceNumbers()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var records = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.EventSource).Distinct().Single()).IsEqualTo("aws:dynamodb");
+        await Assert.That(records.Select(static record => record.EventId).Distinct().Count()).IsEqualTo(3);
+        await Assert.That(records.All(static record => !string.IsNullOrEmpty(record.EventVersion) && !string.IsNullOrEmpty(record.Region))).IsTrue();
+        var sequence = records.Select(static record => BigInteger.Parse(record.DynamoDb!.SequenceNumber!, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        await Assert.That(sequence.Zip(sequence.Skip(1), static (before, after) => after > before).All(static ascending => ascending)).IsTrue();
+        await Assert.That(records.All(static record => record.DynamoDb!.SizeBytes > 0 && record.DynamoDb.ApproximateCreationDateTime is not null)).IsTrue();
+    }
+
+    [Test]
+    [Arguments(StreamViewType.KeysOnly, false, false)]
+    [Arguments(StreamViewType.NewImage, true, false)]
+    [Arguments(StreamViewType.OldImage, false, true)]
+    public async Task GetRecords_ViewType_DecidesWhichImagesAModifyCarries(StreamViewType viewType, bool hasNewImage, bool hasOldImage)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(viewType));
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("a", "1") });
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("a", "2") });
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+
+        // Act
+        var records = await StreamReading.ReadAsync(sandbox.Streams, arn, 2);
+
+        // Assert
+        var modify = records[1].DynamoDb!;
+        await Assert.That((records[1].EventName, modify.Keys!["pk"].AsString(), modify.NewImage is not null, modify.OldImage is not null))
+            .IsEqualTo((OperationType.Modify, "a", hasNewImage, hasOldImage));
+    }
+
+    [Test]
+    public async Task GetRecords_Limit_ReturnsAtMostLimitRecordsAndAnIteratorForTheRest()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
+        {
+            StreamArn = arn,
+            ShardId = shard.ShardId,
+            ShardIteratorType = ShardIteratorType.TrimHorizon,
+        })).ShardIterator;
+
+        // Act
+        var first = await sandbox.Streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator, Limit = 1 });
+        var rest = await StreamReading.ReadFromAsync(sandbox.Streams, first.NextShardIterator!, 2);
+
+        // Assert
+        await Assert.That(first.Records.Count).IsEqualTo(1);
+        await Assert.That(first.Records[0].EventName).IsEqualTo(OperationType.Insert);
+        await Assert.That(rest.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Modify, OperationType.Remove]);
+    }
+
+    [Test]
+    public async Task GetShardIterator_AfterSequenceNumber_StartsBehindThatRecord()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var all = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+
+        // Act
+        var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
+        {
+            StreamArn = arn,
+            ShardId = shard.ShardId,
+            ShardIteratorType = ShardIteratorType.AfterSequenceNumber,
+            SequenceNumber = all[0].DynamoDb!.SequenceNumber,
+        })).ShardIterator;
+        var records = await StreamReading.ReadFromAsync(sandbox.Streams, iterator, 2);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Modify, OperationType.Remove]);
+    }
+
+    [Test]
+    public async Task GetShardIterator_AtSequenceNumber_StartsWithThatRecord()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var all = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+
+        // Act
+        var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
+        {
+            StreamArn = arn,
+            ShardId = shard.ShardId,
+            ShardIteratorType = ShardIteratorType.AtSequenceNumber,
+            SequenceNumber = all[1].DynamoDb!.SequenceNumber,
+        })).ShardIterator;
+        var records = await StreamReading.ReadFromAsync(sandbox.Streams, iterator, 2);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Modify, OperationType.Remove]);
+    }
+
+    [Test]
+    public async Task GetShardIterator_Latest_SkipsExistingRecordsAndSeesNewOnes()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("before", "x") });
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
+        {
+            StreamArn = arn,
+            ShardId = shard.ShardId,
+            ShardIteratorType = ShardIteratorType.Latest,
+        })).ShardIterator;
+
+        // Act
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("after", "y") });
+        var records = await StreamReading.ReadFromAsync(sandbox.Streams, iterator, 1);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.DynamoDb!.Keys!["pk"].AsString())).IsEquivalentTo(["after"]);
+    }
+
+    [Test]
+    public async Task GetRecords_ShardOfADisabledStream_IsClosedAndEndsWithoutANextIterator()
+    {
+        // Arrange: the client has no UpdateTable, so the stream is switched off by hand
+        Gaps.SkipIfMissing(backend, Gap.ClosedShardsAfterDisablingTheStream);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        (await sandbox.Emulator.Raw.SendAsync("UpdateTable", $$$$$"""{"TableName":"{{{{{table}}}}}","StreamSpecification":{"StreamEnabled":false}}""")).EnsureSuccess();
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var shard = description.Shards[0];
+        var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
+        {
+            StreamArn = arn,
+            ShardId = shard.ShardId,
+            ShardIteratorType = ShardIteratorType.TrimHorizon,
+        })).ShardIterator;
+
+        // Act
+        var page = await sandbox.Streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator });
+
+        // Assert
+        await Assert.That(description.StreamStatus).IsEqualTo(StreamStatus.Disabled);
+        await Assert.That(string.IsNullOrEmpty(shard.SequenceNumberRange!.EndingSequenceNumber)).IsFalse();
+        await Assert.That((page.Records.Count, page.NextShardIterator)).IsEqualTo((3, null));
+    }
+
+    [Test]
+    public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+
+        // Act
+        var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest
+        {
+            StreamArn = "arn:aws:dynamodb:us-east-1:000000000000:table/no-such-table/stream/2020-01-01T00:00:00.000",
+        }));
+
+        // Assert
+        await Assert.That(failure.ErrorCode).IsEqualTo("ResourceNotFoundException");
+    }
+
+    [Test]
+    public async Task GetRecords_InvalidIterator_ThrowsValidationException()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+
+        // Act
+        var failure = await Items.FailureOfAsync<ValidationException>(() => sandbox.Streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = "not-an-iterator" }));
+
+        // Assert
+        await Assert.That(failure.ErrorCode).IsEqualTo("ValidationException");
+    }
+
+    private static async Task WriteInsertModifyRemoveAsync(Sandbox sandbox, string table)
+    {
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("a", AttributeValue.FromNumber(1)) });
+        await sandbox.Client.UpdateItemAsync(new UpdateItemRequest
+        {
+            TableName = table,
+            Key = Items.Key("a"),
+            UpdateExpression = "SET v = :v",
+            ExpressionAttributeValues = Items.Values((":v", AttributeValue.FromNumber(2))),
+        });
+        await sandbox.Client.DeleteItemAsync(new DeleteItemRequest { TableName = table, Key = Items.Key("a") });
+    }
+}

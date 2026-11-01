@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Published with Native AOT in CI. Any trim or AOT warning in DynaSharp fails the publish. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Executables have no consumers for an XML doc file; publishing it also trips an SDK copy bug. -->
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <!-- Listed so the lock file covers the AOT compiler packages for every platform we build on. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+    <!-- The generator reaches a project only through the package, so in the repo it is referenced as an analyzer. -->
+    <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
