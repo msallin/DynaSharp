@@ -20,12 +20,12 @@ public sealed class ErrorMappingTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
-        const string json = """{"TableName":"table-that-does-not-exist","Key":{"pk":{"S":"a"}}}""";
+        var json = $$$$$"""{"TableName":"{{{{{Tables.Missing}}}}}","Key":{"pk":{"S":"a"}}}""";
 
         // Act
         var raw = await sandbox.Emulator.Raw.SendAsync("GetItem", json);
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.GetItemAsync(
-            new GetItemRequest { TableName = "table-that-does-not-exist", Key = Items.Key("a") }));
+            new GetItemRequest { TableName = Tables.Missing, Key = Items.Key("a") }));
 
         // Assert
         await Assert.That((failure.ErrorCode, failure.StatusCode)).IsEqualTo(("ResourceNotFoundException", HttpStatusCode.BadRequest));
@@ -148,7 +148,7 @@ public sealed class ErrorMappingTests(Backend backend)
 
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.GetItemAsync(
-            new GetItemRequest { TableName = "table-that-does-not-exist", Key = Items.Key("a") }));
+            new GetItemRequest { TableName = Tables.Missing, Key = Items.Key("a") }));
 
         // Assert
         await Assert.That(string.IsNullOrEmpty(failure.RequestId)).IsFalse();

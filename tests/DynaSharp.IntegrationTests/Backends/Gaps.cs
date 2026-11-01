@@ -1,6 +1,11 @@
+using DynaSharp.IntegrationTests.Support;
+
 namespace DynaSharp.IntegrationTests.Backends;
 
-/// <summary>Behavior of real DynamoDB that a backend does not implement. A test that needs it is skipped on that backend.</summary>
+/// <summary>
+/// Behavior a test needs that a backend does not have, so the test is skipped on that backend. Mostly that is behavior of real DynamoDB that an emulator does not implement.
+/// The values at the end go the other way, see <see cref="Gaps"/>.
+/// </summary>
 /// <remarks>When adding a gap: add the value, and the backends that lack it with the reason in <see cref="Gaps"/>.</remarks>
 public enum Gap
 {
@@ -42,6 +47,18 @@ public enum Gap
 
     /// <summary>A transaction reports the capacity of every item it writes: two write units per item of up to 1 KB, also for several items of one table.</summary>
     TransactionCapacityPerItem,
+
+    /// <summary>A stream has one shard, so a test knows where its records are. What only the emulators do: a table of real DynamoDB has several partitions.</summary>
+    OneShardPerStream,
+
+    /// <summary>The time to live of a table can change again right after a change. What only the emulators do: real DynamoDB allows one change an hour.</summary>
+    TimeToLiveChangesAgainAtOnce,
+
+    /// <summary>A table is gone, and its name free, when DeleteTable returns. What only the emulators do: real DynamoDB takes it through DELETING.</summary>
+    TableGoneAtOnce,
+
+    /// <summary>A stream ARN of an account nobody has answers ResourceNotFoundException. What only the emulators do: real DynamoDB checks the account first.</summary>
+    StreamOfAnUnknownAccountIsNotFound,
 }
 
 /// <summary>
@@ -50,6 +67,19 @@ public enum Gap
 /// observe differs: it rejects consistent reads on a global secondary index and reports the doubled read capacity, so no test
 /// needs a gap for it.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="Backend.RealAws"/> has every gap of the emulators covered, since each is a statement of what DynamoDB does: such a test runs there, which is what checks the statement. No
+/// test needs <see cref="Gap.TransactionConflict"/>, <see cref="Gap.TransactionInProgress"/> or <see cref="Gap.MultiShardStreams"/>, because nothing can make them happen on demand, on an
+/// emulator or on real AWS.
+/// </para>
+/// <para>
+/// Real AWS can also produce what no emulator does, and a test must not call that a failure: a throttle, <c>UnprocessedItems</c> and <c>UnprocessedKeys</c>, <c>TransactionConflict</c>,
+/// several shards, a table that is busy, and reads that lag behind writes. Where the tests can bear it, the setup absorbs it for all of them: the clients retry, <see cref="Tables"/> waits
+/// for tables, <see cref="StreamReading"/> reads every shard, and <see cref="SettlingHandler"/> lets writes settle. A test that needs what only an emulator does has a gap of its own, at the end of <see cref="Gap"/>.
+/// A real rejection that the first runs still bring up is a new row here or a wider test, and never a weaker assertion for everybody.
+/// </para>
+/// </remarks>
 public static class Gaps
 {
     private static readonly Dictionary<(Backend Backend, Gap Gap), string> Known = new()
@@ -67,6 +97,10 @@ public static class Gaps
         [(Backend.Dynoxide, Gap.DescribeLimits)] = "Dynoxide answers DescribeLimits with UnknownOperationException.",
         [(Backend.DynamoDbLocal, Gap.UpdateTableClass)] = "DynamoDB Local rejects an UpdateTable that only changes the table class with 'Nothing to update'.",
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
+        [(Backend.RealAws, Gap.OneShardPerStream)] = "A stream of real DynamoDB can have several shards, and the records of the test may be in any of them.",
+        [(Backend.RealAws, Gap.TimeToLiveChangesAgainAtOnce)] = "Real DynamoDB refuses a second change of the time to live of a table within an hour.",
+        [(Backend.RealAws, Gap.TableGoneAtOnce)] = "Real DynamoDB keeps a table in DELETING for a while, and its name stays taken until it is gone.",
+        [(Backend.RealAws, Gap.StreamOfAnUnknownAccountIsNotFound)] = "IAM refuses the ARN of another account before DynamoDB looks for the stream.",
     };
 
     /// <summary>Skips the running test when <paramref name="backend"/> lacks <paramref name="gap"/>.</summary>
@@ -79,4 +113,10 @@ public static class Gaps
             Skip.Test($"{backend}: {reason}");
         }
     }
+
+    /// <summary>Tells whether a backend lacks a behavior.</summary>
+    /// <param name="backend">The backend.</param>
+    /// <param name="gap">The behavior.</param>
+    /// <returns><see langword="true"/> if a test that needs it is skipped there.</returns>
+    internal static bool IsMissing(Backend backend, Gap gap) => Known.ContainsKey((backend, gap));
 }

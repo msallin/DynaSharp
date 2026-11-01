@@ -83,11 +83,12 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
 
     /// <summary>Builds credentials from the document.</summary>
     /// <param name="credentials">The credentials, when the method returns <see langword="null"/>.</param>
+    /// <param name="tokenField">What the source calls the session token, for the message about a missing field.</param>
     /// <returns>
     /// <see langword="null"/> on success, otherwise what is wrong: the names of the missing fields, or that the expiration is not a
     /// timestamp. Never contains values.
     /// </returns>
-    public string? TryCreateCredentials(out AwsCredentials? credentials)
+    public string? TryCreateCredentials(out AwsCredentials? credentials, string tokenField = "Token")
     {
         credentials = null;
         var missing = new List<string>(4);
@@ -103,7 +104,7 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
 
         if (string.IsNullOrEmpty(Token))
         {
-            missing.Add("Token");
+            missing.Add(tokenField);
         }
 
         if (string.IsNullOrEmpty(Expiration))
@@ -124,6 +125,10 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
         credentials = new AwsCredentials(AccessKeyId!, SecretAccessKey!, Token, expiration);
         return null;
     }
+
+    /// <summary>Returns the name of the type: the generated text of a record would print the secret and the session token.</summary>
+    /// <returns>The name of the type.</returns>
+    public override string ToString() => nameof(CredentialsDocument);
 
     // The reader is on a property name; moves to the value and returns it if it is a string.
     private static string? ReadString(ref Utf8JsonReader reader)

@@ -15,8 +15,12 @@ public sealed class DefaultCredentialsProviderTests
     private const string ProfileKeyId = "AKIAPROFILEEXAMPLE";
     private const string ContainerKeyId = "ASIACONTAINEREXAMPLE";
     private const string InstanceMetadataKeyId = "ASIAIMDSEXAMPLE";
+    private const string WebIdentityKeyId = "ASIAWEBIDENTITYEXAMPLE";
+    private const string TokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token";
+    private const string RoleArn = "arn:aws:iam::123456789012:role/pod";
 
     private static readonly (string Name, string Value)[] SharedFiles = [("AWS_SHARED_CREDENTIALS_FILE", CredentialsPath), ("AWS_CONFIG_FILE", ConfigPath)];
+    private static readonly (string Name, string Value)[] WebIdentity = [("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)];
 
     [Test]
     [NotInParallel(TestClient.ProcessEnvironment)]
@@ -359,29 +363,146 @@ public sealed class DefaultCredentialsProviderTests
     }
 
     [Test]
-    public async Task GetCredentialsAsync_WebIdentityConfiguredWithoutEnvironmentCredentials_FailsInsteadOfUsingTheNode()
+    public async Task GetCredentialsAsync_WebIdentityConfigured_AsksStsInTheRegionOfTheClient()
     {
-        // Arrange (IRSA on EKS: moving on would use the credentials of the node)
-        var world = new World(variables: [("AWS_WEB_IDENTITY_TOKEN_FILE", "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"), ("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/pod"), .. SharedFiles]);
+        // Arrange (IRSA on EKS)
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")]);
 
         // Act
-        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That((exception.Message.StartsWith("AWS_WEB_IDENTITY_TOKEN_FILE is set (web identity federation", StringComparison.Ordinal), world.Handler.Requests.Count)).IsEqualTo((true, 0));
+        await Assert.That((credentials.AccessKeyId, world.Handler.Requests.Single().RequestUri!.Host)).IsEqualTo((WebIdentityKeyId, "sts.eu-west-1.amazonaws.com"));
     }
 
     [Test]
-    public async Task GetCredentialsAsync_WebIdentityConfiguredWithoutEnvironmentCredentials_MessageSaysWhatToDoInstead()
+    public async Task GetCredentialsAsync_WebIdentityAndEveryLaterSource_UsesWebIdentity()
     {
-        // Arrange
-        var world = new World(variables: [("AWS_WEB_IDENTITY_TOKEN_FILE", "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"), .. SharedFiles]);
+        // Arrange (a pod with a profile on its image, and Pod Identity on its node: botocore tries web identity before them)
+        var world = new World(
+            variables: [.. WebIdentity, ("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/x"), .. SharedFiles],
+            files: [(TokenPath, "the-token"), (CredentialsPath, $"[default]\naws_access_key_id = {ProfileKeyId}\naws_secret_access_key = {SecretAccessKey}\n")]);
+
+        // Act
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.AccessKeyId).IsEqualTo(WebIdentityKeyId);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RoleArnWithoutTokenFile_SkipsWebIdentity()
+    {
+        // Arrange (EKS Pod Identity: no token file, and the container endpoint answers)
+        var world = new World(variables: [("AWS_ROLE_ARN", RoleArn), ("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/x"), .. SharedFiles]);
+
+        // Act
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.AccessKeyId).IsEqualTo(ContainerKeyId);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_TokenFileWithoutRole_StopsTheChain()
+    {
+        // Arrange (moving on would use the credentials of the node)
+        var world = new World(variables: [("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/x"), .. SharedFiles], files: [(TokenPath, "the-token")]);
 
         // Act
         var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
 
         // Assert
-        await Assert.That(exception.Message).EndsWith("Pass credentials in the client options, or use environment variables, a profile with access keys, or EKS Pod Identity.", StringComparison.Ordinal);
+        await Assert.That((exception.Message.StartsWith("AWS_WEB_IDENTITY_TOKEN_FILE is set but AWS_ROLE_ARN is not", StringComparison.Ordinal), world.Handler.Requests.Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_TokenFileMissing_StopsTheChain()
+    {
+        // Arrange
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles]);
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That((exception.Message, world.MetadataRequests)).IsEqualTo(("The web identity token file does not exist.", 0));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_StsRejectsTheToken_StopsTheChain()
+    {
+        // Arrange
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")], stsAnswer: static _ => new StubResponse
+        {
+            StatusCode = System.Net.HttpStatusCode.Forbidden,
+            Body = "<ErrorResponse><Error><Code>AccessDenied</Code></Error></ErrorResponse>",
+        });
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That((exception.Message.Contains("AccessDenied", StringComparison.Ordinal), world.MetadataRequests)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_StsCredentialsExpiredOnTheClockOfTheChain_StopsTheChain()
+    {
+        // Arrange (a client hands the chain the clock it corrects, so that is the clock an expiry is judged on)
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")], stsAnswer: static now => new StubResponse
+        {
+            Body = $"<R><AssumeRoleWithWebIdentityResult><Credentials><AccessKeyId>a</AccessKeyId><SecretAccessKey>b</SecretAccessKey><SessionToken>c</SessionToken><Expiration>{Timestamp(now.AddMinutes(-1))}</Expiration></Credentials></AssumeRoleWithWebIdentityResult></R>",
+        });
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That((exception.Message.Contains("already expired", StringComparison.Ordinal), world.MetadataRequests)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_WebIdentityChosen_GoesStraightToItOnTheNextCall()
+    {
+        // Arrange
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")]);
+        var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        var second = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((ReferenceEquals(first, second), world.Handler.Requests.Count)).IsEqualTo((true, 1));
+    }
+
+    [Test]
+    public async Task TryInvalidate_WebIdentityChosen_FetchesAgain()
+    {
+        // Arrange
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")]);
+        var rejected = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        var dropped = world.Provider.TryInvalidate(rejected);
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((dropped, world.Handler.Requests.Count)).IsEqualTo((true, 2));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_WebIdentityChosen_LogsItAsTheSource()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory();
+        var world = new World(variables: [.. WebIdentity, .. SharedFiles], files: [(TokenPath, "the-token")], loggerFactory: logs);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries.Single().Message).IsEqualTo("Credentials come from the web identity token file.");
     }
 
     [Test]
@@ -698,6 +819,7 @@ public sealed class DefaultCredentialsProviderTests
         private readonly bool _refuseConnections;
         private readonly bool _hangOnTokenRequest;
         private readonly Func<TimeProvider, CancellationToken, Task<StubResponse>>? _containerAnswer;
+        private readonly Func<DateTimeOffset, StubResponse> _stsAnswer;
         private int _fileReads;
 
         public World(
@@ -706,13 +828,15 @@ public sealed class DefaultCredentialsProviderTests
             ILoggerFactory? loggerFactory = null,
             bool refuseConnections = false,
             bool hangOnTokenRequest = false,
-            Func<TimeProvider, CancellationToken, Task<StubResponse>>? containerAnswer = null)
+            Func<TimeProvider, CancellationToken, Task<StubResponse>>? containerAnswer = null,
+            Func<DateTimeOffset, StubResponse>? stsAnswer = null)
         {
             _variables = variables.ToDictionary(v => v.Name, v => v.Value);
             _files = (files ?? []).ToDictionary(f => f.Path, f => f.Content);
             _refuseConnections = refuseConnections;
             _hangOnTokenRequest = hangOnTokenRequest;
             _containerAnswer = containerAnswer;
+            _stsAnswer = stsAnswer ?? StsSuccess;
             Time = new ManualTimeProvider();
             Handler = new StubHandler(RespondAsync);
             Provider = new DefaultCredentialsProvider(
@@ -725,7 +849,8 @@ public sealed class DefaultCredentialsProviderTests
                 Handler,
                 Time,
                 loggerFactory ?? NullLoggerFactory.Instance,
-                new Random(1));
+                new Random(1),
+                AwsRegion.FromName("eu-west-1"));
         }
 
         public ManualTimeProvider Time { get; }
@@ -765,6 +890,11 @@ public sealed class DefaultCredentialsProviderTests
             }
         }
 
+        private static StubResponse StsSuccess(DateTimeOffset now) => new()
+        {
+            Body = $"<R><AssumeRoleWithWebIdentityResult><Credentials><AccessKeyId>{WebIdentityKeyId}</AccessKeyId><SecretAccessKey>{SecretAccessKey}</SecretAccessKey><SessionToken>{SessionToken}</SessionToken><Expiration>{Timestamp(now.AddHours(1))}</Expiration></Credentials></AssumeRoleWithWebIdentityResult></R>",
+        };
+
         private string? GetVariable(string name)
         {
             lock (_variables)
@@ -778,6 +908,11 @@ public sealed class DefaultCredentialsProviderTests
             if (_refuseConnections)
             {
                 throw new HttpRequestException(HttpRequestError.ConnectionError, "refused");
+            }
+
+            if (request.RequestUri!.Host.StartsWith("sts.", StringComparison.Ordinal))
+            {
+                return _stsAnswer(Time.GetUtcNow());
             }
 
             if (request.RequestUri!.Authority == "169.254.170.2")

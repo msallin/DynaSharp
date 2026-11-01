@@ -57,6 +57,11 @@ DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.get -> DynaSharp.Requests.Scalar
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.init -> void
 DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.Credentials.WebIdentityCredentialsProvider
+DynaSharp.Credentials.WebIdentityCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
+DynaSharp.Credentials.WebIdentityCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider() -> void
+DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, DynaSharp.AwsRegion! region, string? roleSessionName = null) -> void
 DynaSharp.Requests.CreateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
 DynaSharp.Requests.DeleteTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
 DynaSharp.IUpdatable<TSelf>.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> TSelf

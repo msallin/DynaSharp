@@ -23,7 +23,7 @@ internal sealed class CommandSandbox : IAsyncDisposable
 
     public Table<Item> Shop { get; }
 
-    public Uri Endpoint => _sandbox.Emulator.Endpoint;
+    public Emulator Emulator => _sandbox.Emulator;
 
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The object that is returned owns the sandbox.")]
     public static async Task<CommandSandbox> StartAsync(Backend backend)

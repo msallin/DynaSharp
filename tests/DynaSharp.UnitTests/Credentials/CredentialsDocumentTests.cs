@@ -177,6 +177,19 @@ public sealed class CredentialsDocumentTests
     }
 
     [Test]
+    public async Task ToString_FullDocument_LeavesTheSecretsOut()
+    {
+        // Arrange
+        var document = new CredentialsDocument("access-key", "secret-key", "session-token", "2021-01-16T00:51:53Z", null);
+
+        // Act
+        var text = new StsDocument(document, null).ToString();
+
+        // Assert
+        await Assert.That((text.Contains("secret-key", StringComparison.Ordinal), text.Contains("session-token", StringComparison.Ordinal))).IsEqualTo((false, false));
+    }
+
+    [Test]
     [Arguments("""{"SecretAccessKey":"s","Token":"t","Expiration":"2021-01-16T00:51:53Z"}""", "the response does not contain AccessKeyId")]
     [Arguments("""{"AccessKeyId":"a","Token":"t","Expiration":"2021-01-16T00:51:53Z"}""", "the response does not contain SecretAccessKey")]
     [Arguments("""{"AccessKeyId":"a","SecretAccessKey":"s","Expiration":"2021-01-16T00:51:53Z"}""", "the response does not contain Token")]
@@ -212,6 +225,19 @@ public sealed class CredentialsDocumentTests
 
         // Assert
         await Assert.That(credentials!.Expiration).IsEqualTo(new DateTimeOffset(year, month, day, hour, minute, second, millisecond, TimeSpan.Zero));
+    }
+
+    [Test]
+    public async Task TryCreateCredentials_NamedTokenField_NamesItInTheMessage()
+    {
+        // Arrange
+        var document = new CredentialsDocument("key", "secret", null, "2030-01-01T00:00:00Z", null);
+
+        // Act
+        var problem = document.TryCreateCredentials(out _, "SessionToken");
+
+        // Assert
+        await Assert.That(problem).IsEqualTo("the response does not contain SessionToken");
     }
 
     private static CredentialsDocument Parse(string json) =>

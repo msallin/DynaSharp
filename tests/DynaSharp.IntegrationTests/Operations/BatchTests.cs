@@ -116,7 +116,7 @@ public sealed class BatchTests(Backend backend)
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.BatchWriteItemAsync(new BatchWriteItemRequest
         {
-            RequestItems = new Dictionary<string, IReadOnlyList<WriteRequest>> { ["table-that-does-not-exist"] = [Put(Items.Item("a", "1"))] },
+            RequestItems = new Dictionary<string, IReadOnlyList<WriteRequest>> { [Tables.Missing] = [Put(Items.Item("a", "1"))] },
         }));
 
         // Assert

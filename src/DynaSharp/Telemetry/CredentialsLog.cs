@@ -28,4 +28,10 @@ internal static partial class CredentialsLog
         Level = LogLevel.Warning,
         Message = "DynamoDB rejected the credentials from the {Source} as expired. They are dropped and fetched again.")]
     public static partial void ExpiredCredentialsDropped(ILogger logger, string source);
+
+    [LoggerMessage(
+        EventId = 24,
+        Level = LogLevel.Warning,
+        Message = "STS rejected the token of the {Source} as expired. The file is read again and the request is sent once more.")]
+    public static partial void WebIdentityTokenExpired(ILogger logger, string source);
 }

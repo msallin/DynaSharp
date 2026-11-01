@@ -557,9 +557,11 @@ telemetry; raw paths and interpolated expressions on typed commands; `Item.From`
 `DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. There is
 no consumer, by scope.
 
-Credentials: `DefaultCredentialsProvider` is the chain of environment, shared files, container endpoint and instance metadata. A source that applies but is broken
-fails instead of falling through. `EnvironmentCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`,
-`InstanceMetadataCredentialsProvider` and `StaticCredentialsProvider` are the single sources.
+Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
+source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,
+`ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` and `StaticCredentialsProvider` are the single sources. `WebIdentityCredentialsProvider` takes its settings from
+`AWS_WEB_IDENTITY_TOKEN_FILE`, `AWS_ROLE_ARN` and `AWS_ROLE_SESSION_NAME`, or as `new WebIdentityCredentialsProvider(tokenFile, roleArn, region, roleSessionName)`. The profile keys
+`web_identity_token_file` and `role_arn` are not read, and a profile that has them fails. The token goes to the regional STS endpoint of the client's region, and `AWS_STS_REGIONAL_ENDPOINTS=legacy` selects the global endpoint for the regions botocore keeps there.
 
 Out of the API on purpose: an interface on `Table<T>` or `DynamoDbClient`, `Save`, identity maps, lazy loading, any read before a write, `ToRequest()` on an item command, `==` on
 attributes, views and streaming callbacks over a response, compile-time expression templates. A write through `Table<Item>` is what it says: no `_type` and no

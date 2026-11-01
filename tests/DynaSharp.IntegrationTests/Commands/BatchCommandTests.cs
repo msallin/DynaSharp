@@ -112,7 +112,7 @@ public sealed class BatchCommandTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
-        var missing = sandbox.Client.Table("table-that-does-not-exist", "pk");
+        var missing = sandbox.Client.Table(Tables.Missing, "pk");
 
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(async () => await missing.BatchWrite().Delete("a").SendAsync());

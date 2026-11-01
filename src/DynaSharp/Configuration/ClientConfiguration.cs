@@ -131,7 +131,7 @@ internal sealed record ClientConfiguration
             Endpoint = endpoint,
             EndpointSource = endpointSource,
             Credentials = options.Credentials
-                ?? new DefaultCredentialsProvider(getEnvironmentVariable, readFile, credentialsHandler, clock, loggerFactory, null),
+                ?? new DefaultCredentialsProvider(getEnvironmentVariable, readFile, credentialsHandler, clock, loggerFactory, null, region),
             AttemptTimeout = attemptTimeout,
             MaxAttempts = options.MaxAttempts,
             TimeProvider = options.TimeProvider,
@@ -140,7 +140,13 @@ internal sealed record ClientConfiguration
         };
     }
 
-    private static (AwsRegion Region, string Source) ResolveRegion(DynamoDbClientOptions options, Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
+    /// <summary>Finds the region: the options, then <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the selected profile.</summary>
+    /// <param name="options">The options.</param>
+    /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="readFile">Reads the shared AWS files.</param>
+    /// <returns>The region and where it came from.</returns>
+    /// <exception cref="InvalidOperationException">No region is set, or the one that is set is invalid. The message says what was tried.</exception>
+    internal static (AwsRegion Region, string Source) ResolveRegion(DynamoDbClientOptions options, Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
     {
         if (options.Region is not null)
         {

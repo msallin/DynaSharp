@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
+using DynaSharp.Credentials;
 
 namespace DynaSharp.IntegrationTests.Backends;
 
 /// <summary>
 /// Starts each selected emulator once per test run, on first use, and stops them when the run ends. Tests share an emulator and
-/// keep apart by using a table of their own (see <c>Sandbox</c>).
+/// keep apart by using a table of their own (see <c>Sandbox</c>). Real AWS has no container, and goes through here for the same two moments of a run.
 /// </summary>
 internal static class Emulators
 {
@@ -25,8 +25,8 @@ internal static class Emulators
         return running.Emulator;
     }
 
-    /// <summary>Stops every emulator this run started.</summary>
-    /// <returns>A task that completes when the containers are gone.</returns>
+    /// <summary>Stops every emulator this run started, and deletes what is left of its tables on real AWS.</summary>
+    /// <returns>A task that completes when the containers and the tables are gone.</returns>
     [After(HookType.Assembly)]
     public static async Task StopAllAsync()
     {
@@ -35,8 +35,7 @@ internal static class Emulators
             if (start.Value.IsCompletedSuccessfully)
             {
                 var running = await start.Value;
-                running.Http.Dispose();
-                await running.Container.DisposeAsync();
+                await running.Stop();
             }
         }
     }
@@ -72,8 +71,12 @@ internal static class Emulators
         _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown backend."),
     };
 
+    private static Task<Running> StartAsync(Backend backend) => backend == Backend.RealAws ? ConnectToRealAwsAsync() : StartContainerAsync(backend);
+
+    private static async Task<Running> ConnectToRealAwsAsync() => new Running(await RealAws.ConnectAsync(), RealAws.DeleteTablesOfThisRunAsync);
+
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Owned by the Running record, disposed with the container.")]
-    private static async Task<Running> StartAsync(Backend backend)
+    private static async Task<Running> StartContainerAsync(Backend backend)
     {
         var builder = new ContainerBuilder(ReadImage(backend)).WithPortBinding(ContainerPort, assignRandomHostPort: true);
         if (backend == Backend.DynamoDbLocal)
@@ -89,8 +92,23 @@ internal static class Emulators
         var http = new HttpClient();
         var raw = new RawDynamoDb(endpoint, http);
         await WaitUntilReadyAsync(raw, backend);
-        return new Running(new Emulator(backend, endpoint, raw, new RawDynamoDb(endpoint, http, RawDynamoDb.StreamsTargetPrefix)), container, http);
+        var emulator = new Emulator(backend, () => CreateOptions(endpoint), raw, new RawDynamoDb(endpoint, http, RawDynamoDb.StreamsTargetPrefix));
+        return new Running(emulator, async () =>
+        {
+            http.Dispose();
+            await container.DisposeAsync();
+        });
     }
+
+    // MaxAttempts of 1: an emulator has no reason to fail a request twice, so a failure shows up at once.
+    private static DynamoDbClientOptions CreateOptions(Uri endpoint) => new()
+    {
+        Region = AwsRegion.FromName("us-east-1"),
+        ServiceUrl = endpoint,
+        Credentials = new StaticCredentialsProvider(new AwsCredentials("test", "test")),
+        MaxAttempts = 1,
+        AttemptTimeout = TimeSpan.FromMinutes(2),
+    };
 
     // A container reports "started" before the emulator listens. The Dynoxide image has no shell, so no wait strategy that
     // runs a command inside it works; asking the API itself works for both.
@@ -115,5 +133,5 @@ internal static class Emulators
         }
     }
 
-    private sealed record Running(Emulator Emulator, IContainer Container, HttpClient Http);
+    private sealed record Running(Emulator Emulator, Func<Task> Stop);
 }

@@ -34,5 +34,5 @@
 ## Commands
 - `dotnet build DynaSharp.slnx` (warnings are errors), `dotnet format DynaSharp.slnx --verify-no-changes`
 - `dotnet test --project tests/DynaSharp.UnitTests`, `dotnet stryker`
-- `dotnet test --project tests/DynaSharp.IntegrationTests` (needs Docker; `DYNASHARP_BACKENDS` selects `dynoxide` (default), `dynamodb-local` or both, comma separated)
+- `dotnet test --project tests/DynaSharp.IntegrationTests` (needs Docker; `DYNASHARP_BACKENDS` selects `dynoxide` (default), `dynamodb-local` or both, comma separated. `aws` is real DynamoDB, costs money, needs no Docker and is not part of `all`; `.github/workflows/real-aws.yml` runs it)
 - `dotnet publish tests/DynaSharp.AotSmoke -c Release -r linux-x64` (fails on any AOT/trim warning)

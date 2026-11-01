@@ -40,17 +40,18 @@ public sealed record DynamoDbClientOptions
     /// <summary>
     /// Gets the credentials provider. When <see langword="null"/>, the client uses the default chain of the AWS SDKs
     /// (<see cref="DefaultCredentialsProvider"/>), which takes the first source that has credentials: the
-    /// <c>AWS_ACCESS_KEY_ID</c>, <c>AWS_SECRET_ACCESS_KEY</c> and <c>AWS_SESSION_TOKEN</c> environment variables; the profile
+    /// <c>AWS_ACCESS_KEY_ID</c>, <c>AWS_SECRET_ACCESS_KEY</c> and <c>AWS_SESSION_TOKEN</c> environment variables; the web identity
+    /// token file named by <c>AWS_WEB_IDENTITY_TOKEN_FILE</c>, which is how IAM roles for service accounts work on EKS; the profile
     /// selected by <c>AWS_PROFILE</c> in the shared credentials and config files; the container credentials endpoint of ECS and
     /// EKS; the instance metadata service of EC2. Nothing is looked up before the first request, and a source that applies but
     /// is broken fails the request instead of falling through to the next one. To use one source only, or to turn off the
-    /// network lookups, pass an <see cref="EnvironmentCredentialsProvider"/>, <see cref="ProfileCredentialsProvider"/>,
+    /// network lookups, pass an <see cref="EnvironmentCredentialsProvider"/>, <see cref="WebIdentityCredentialsProvider"/>, <see cref="ProfileCredentialsProvider"/>,
     /// <see cref="ContainerCredentialsProvider"/>, <see cref="InstanceMetadataCredentialsProvider"/> or
     /// <see cref="StaticCredentialsProvider"/>.
     /// </summary>
     /// <remarks>
     /// Every client that is created without this setting makes its own <see cref="DefaultCredentialsProvider"/>, with its own
-    /// cache of credentials. On Amazon EC2 and ECS that means one set of requests to the metadata service or the container endpoint,
+    /// cache of credentials. On Amazon EC2, ECS and EKS that means one set of requests to the metadata service, the container endpoint or STS,
     /// and one refresh before expiry, per client; a <see cref="DynamoDbClient"/> and a <see cref="Streams.DynamoDbStreamsClient"/> already
     /// make two. An application that creates more than one client there should create one provider and pass it in the options of all
     /// of them: providers are thread-safe, and the clients then share the cached credentials. A provider that the application creates

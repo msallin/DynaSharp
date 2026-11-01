@@ -1,0 +1,126 @@
+name: real-aws
+
+# Runs the integration tests against real DynamoDB, by hand only, because it costs money. This is IRSA end to end, with no AWS SDK and no
+# action from AWS: GitHub issues an OIDC token, the step below writes it to a file, and the tests find AWS_WEB_IDENTITY_TOKEN_FILE and AWS_ROLE_ARN
+# like a pod on EKS does, so the default credential chain of DynaSharp trades the token at STS.
+#
+# Without the repository variable AWS_ROLE_ARN this only leaves a notice. The owner of the AWS account creates once:
+#
+# 1. An IAM OIDC identity provider with the URL https://token.actions.githubusercontent.com and the audience sts.amazonaws.com.
+#
+# 2. An IAM role with this trust policy, limited to this repository (replace the account id):
+#
+#      {
+#        "Version": "2012-10-17",
+#        "Statement": [{
+#          "Effect": "Allow",
+#          "Principal": { "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com" },
+#          "Action": "sts:AssumeRoleWithWebIdentity",
+#          "Condition": {
+#            "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+#            "StringLike": { "token.actions.githubusercontent.com:sub": "repo:msallin/DynaSharp:*" }
+#          }
+#        }]
+#      }
+#
+# 3. On that role, this permissions policy, limited to tables with the prefix of the tests, Tables.Prefix in tests/DynaSharp.IntegrationTests/Support/Tables.cs.
+#    The three actions of the second statement have no table to be limited to:
+#
+#      {
+#        "Version": "2012-10-17",
+#        "Statement": [
+#          {
+#            "Effect": "Allow",
+#            "Action": "dynamodb:*",
+#            "Resource": [
+#              "arn:aws:dynamodb:*:123456789012:table/dynasharp-it-*",
+#              "arn:aws:dynamodb:*:123456789012:table/dynasharp-it-*/index/*",
+#              "arn:aws:dynamodb:*:123456789012:table/dynasharp-it-*/stream/*"
+#            ]
+#          },
+#          {
+#            "Effect": "Allow",
+#            "Action": ["dynamodb:ListTables", "dynamodb:ListStreams", "dynamodb:DescribeLimits"],
+#            "Resource": "*"
+#          }
+#        ]
+#      }
+#
+# 4. The repository variable AWS_ROLE_ARN with the ARN of the role, and if us-east-1 is not wanted, the repository variable AWS_REGION.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time. Runs keep apart by their table names, but the tests of ListTables see all tables of the account.
+concurrency:
+  group: real-aws
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  not-configured:
+    name: Skip, no role configured
+    if: vars.AWS_ROLE_ARN == ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice title=real-aws skipped::The repository variable AWS_ROLE_ARN is not set, so no test ran. The top of .github/workflows/real-aws.yml says what to create."
+
+  tests:
+    name: Integration tests (real AWS)
+    if: vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    # Below the six hours after which a later run takes the tables of this one for orphans.
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DYNASHARP_BACKENDS: aws
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore tests/DynaSharp.IntegrationTests --locked-mode
+      - run: dotnet build tests/DynaSharp.IntegrationTests -c Release --no-restore
+
+      # The token of GitHub lasts minutes, and the credentials an hour, so a long run needs a new token for its refreshes. The loop plays the part of the
+      # kubelet: it replaces the file in one move, before the token expires, and the provider reads the file at every fetch.
+      - name: Integration tests
+        shell: bash
+        env:
+          AWS_WEB_IDENTITY_TOKEN_FILE: ${{ runner.temp }}/web-identity-token
+        run: |
+          fetch_token() {
+            curl --silent --show-error --fail --retry 3 \
+              --header "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+              | jq --raw-output --exit-status '.value' > "$AWS_WEB_IDENTITY_TOKEN_FILE.new" \
+              && mv "$AWS_WEB_IDENTITY_TOKEN_FILE.new" "$AWS_WEB_IDENTITY_TOKEN_FILE"
+          }
+
+          umask 077
+          fetch_token
+          ( while sleep 240; do fetch_token || echo "::warning::The OIDC token could not be renewed."; done ) &
+          renewal=$!
+          trap 'kill "$renewal"' EXIT
+
+          dotnet test --project tests/DynaSharp.IntegrationTests -c Release --no-build
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: real-aws-test-results
+          path: TestResults/

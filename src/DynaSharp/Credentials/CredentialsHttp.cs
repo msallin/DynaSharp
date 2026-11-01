@@ -3,9 +3,10 @@ using System.Net;
 namespace DynaSharp.Credentials;
 
 /// <summary>
-/// The HTTP client of the credential endpoints (container credentials, instance metadata). It is separate from the DynamoDB
-/// traffic: <see cref="DynamoDbClientOptions.HttpHandler"/> never sees these requests, and these requests never use the proxy,
-/// follow redirects or keep cookies. A redirect would send the authorization token to another host.
+/// The HTTP clients of the credential endpoints. They are separate from the DynamoDB traffic: <see cref="DynamoDbClientOptions.HttpHandler"/>
+/// never sees these requests, and these requests never follow redirects or keep cookies. A redirect would send the token to another host.
+/// The container endpoint and instance metadata are link-local, so their client never uses the proxy. AWS STS is a public endpoint that is often
+/// reached through an egress proxy, so it has a client of its own that uses the default proxy of the process.
 /// </summary>
 internal static class CredentialsHttp
 {
@@ -20,6 +21,14 @@ internal static class CredentialsHttp
             AllowAutoRedirect = false,
             UseCookies = false,
             UseProxy = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        });
+
+    private static readonly HttpClient ProxiedClient = CreateClient(
+        new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
             PooledConnectionLifetime = TimeSpan.FromMinutes(2),
         });
 
@@ -40,6 +49,11 @@ internal static class CredentialsHttp
     /// <param name="handler">The handler to send through, or <see langword="null"/> for the shared client.</param>
     /// <returns>The client. Do not dispose it.</returns>
     public static HttpClient GetClient(HttpMessageHandler? handler) => handler is null ? SharedClient : CreateClient(handler);
+
+    /// <summary>Returns the client that uses the default proxy, or a client over <paramref name="handler"/> (for tests) if there is one.</summary>
+    /// <param name="handler">The handler to send through, or <see langword="null"/> for the shared client.</param>
+    /// <returns>The client. Do not dispose it.</returns>
+    public static HttpClient GetProxiedClient(HttpMessageHandler? handler) => handler is null ? ProxiedClient : CreateClient(handler);
 
     /// <summary>Sends a request and reads the whole response, in at most <paramref name="timeout"/>.</summary>
     /// <param name="client">The client.</param>

@@ -279,7 +279,7 @@ public sealed class TransactionTests(Backend backend)
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.TransactWriteItemsAsync(new TransactWriteItemsRequest
         {
-            TransactItems = [new TransactWriteItem { Put = new TransactPut { TableName = "table-that-does-not-exist", Item = Items.Item("a", "x") } }],
+            TransactItems = [new TransactWriteItem { Put = new TransactPut { TableName = Tables.Missing, Item = Items.Item("a", "x") } }],
         }));
 
         // Assert
@@ -379,7 +379,7 @@ public sealed class TransactionTests(Backend backend)
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.TransactGetItemsAsync(new TransactGetItemsRequest
         {
-            TransactItems = [new TransactGetItem { Get = new TransactGet { TableName = "table-that-does-not-exist", Key = Items.Key("a") } }],
+            TransactItems = [new TransactGetItem { Get = new TransactGet { TableName = Tables.Missing, Key = Items.Key("a") } }],
         }));
 
         // Assert

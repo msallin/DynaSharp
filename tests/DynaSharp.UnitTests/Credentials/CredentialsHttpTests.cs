@@ -21,6 +21,32 @@ public sealed class CredentialsHttpTests
     }
 
     [Test]
+    public async Task GetProxiedClient_NoHandler_UsesTheDefaultProxyAndNeitherRedirectsNorKeepsCookies()
+    {
+        // Arrange (STS is often reached through an egress proxy, and a redirect would send the web identity token to another host)
+
+        // Act
+        var client = CredentialsHttp.GetProxiedClient(null);
+
+        // Assert
+        var handler = (SocketsHttpHandler)HttpClientInspector.HandlerOf(client);
+        await Assert.That((handler.UseProxy, handler.Proxy, handler.AllowAutoRedirect, handler.UseCookies)).IsEqualTo((true, (IWebProxy?)null, false, false));
+    }
+
+    [Test]
+    public async Task GetProxiedClient_Handler_SendsThroughIt()
+    {
+        // Arrange
+        using var handler = new DisposalTrackingHandler();
+
+        // Act
+        var client = CredentialsHttp.GetProxiedClient(handler);
+
+        // Assert
+        await Assert.That(HttpClientInspector.HandlerOf(client)).IsSameReferenceAs(handler);
+    }
+
+    [Test]
     public async Task GetClient_NoHandler_RecyclesConnectionsAfterTwoMinutes()
     {
         // Arrange

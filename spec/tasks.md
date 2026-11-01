@@ -329,12 +329,20 @@ After G1 and F2. `Project` stays as it is: leaving out a `required` member would
 - [ ] **Analyzer.** A warning with its own diagnostic when `Project` on a typed read leaves out a `required` member that is no key input and is not restored from a key.
 - [ ] **`Select(handle)`.** On `GetCommand<T>`, `QueryCommand<T>` and `ScanCommand<T>`: one handle, projects that attribute and reads its value, without the entity. `Return(attr)` is the model. A missing attribute follows the type of the handle: null for a nullable one, `DynamoDbMappingException` otherwise. More than one handle is a later step.
 
+### D1 - web identity and real AWS
+
+Branch `m3/d1-web-identity`, merged. Never run against AWS, because no role exists yet.
+
+- [x] `WebIdentityCredentialsProvider` at botocore's place in the chain, for IRSA. Checked against vectors from botocore's serializer and parser. `AWS_STS_REGIONAL_ENDPOINTS=legacy` uses the global endpoint only for botocore's `LEGACY_GLOBAL_STS_REGIONS`.
+- [x] The `aws` backend of the integration tests and `.github/workflows/real-aws.yml` on `workflow_dispatch`, which take their role from the repository variable `AWS_ROLE_ARN`. The header of the workflow says what the role needs.
+- [ ] First run on real AWS, which needs the role. It checks the STS exchange, the renewal loop of the workflow, and the settling times in `SettlingHandler`. Then IRSA on EKS in a real service.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
       fine print). Plug it into the backend-parametrized scenario tests. Host it behind a small HTTP listener
       (test tool, `HttpListener`) so the Parity Suite tiers 1 and 2 can run against it; track its score.
-- [ ] M5: web identity (IRSA, STS XML), SSO, `credential_process`, assume role
+- [ ] M5: SSO, `credential_process`, assume role
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
 
 ## M7 - DynaSharp.Coordination (after M3)

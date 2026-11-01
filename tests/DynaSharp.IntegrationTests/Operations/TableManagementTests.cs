@@ -124,10 +124,10 @@ public sealed class TableManagementTests(Backend backend)
         await using var sandbox = await Sandbox.StartAsync(backend);
 
         // Act
-        var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = "table-that-does-not-exist" }));
+        var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = Tables.Missing }));
 
         // Assert
-        await Assert.That((failure.ErrorCode, failure.OperationName, failure.TableName)).IsEqualTo(("ResourceNotFoundException", (string?)"DescribeTimeToLive", (string?)"table-that-does-not-exist"));
+        await Assert.That((failure.ErrorCode, failure.OperationName, failure.TableName)).IsEqualTo(("ResourceNotFoundException", (string?)"DescribeTimeToLive", (string?)Tables.Missing));
     }
 
     [Test]
@@ -429,12 +429,12 @@ public sealed class TableManagementTests(Backend backend)
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.UpdateTableAsync(new UpdateTableRequest
         {
-            TableName = "table-that-does-not-exist",
+            TableName = Tables.Missing,
             BillingMode = BillingMode.PayPerRequest,
         }));
 
         // Assert
-        await Assert.That((failure.ErrorCode, failure.OperationName, failure.TableName)).IsEqualTo(("ResourceNotFoundException", (string?)"UpdateTable", (string?)"table-that-does-not-exist"));
+        await Assert.That((failure.ErrorCode, failure.OperationName, failure.TableName)).IsEqualTo(("ResourceNotFoundException", (string?)"UpdateTable", (string?)Tables.Missing));
     }
 
     [Test]

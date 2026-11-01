@@ -60,6 +60,7 @@ public sealed class StreamTests(Backend backend)
     public async Task DescribeStream_EnabledStream_ReportsStatusViewTypeAndOneShard()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
@@ -194,6 +195,7 @@ public sealed class StreamTests(Backend backend)
     public async Task GetRecords_Limit_ReturnsAtMostLimitRecordsAndAnIteratorForTheRest()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await WriteInsertModifyRemoveAsync(sandbox, table);
@@ -220,6 +222,7 @@ public sealed class StreamTests(Backend backend)
     public async Task GetShardIterator_AfterSequenceNumber_StartsBehindThatRecord()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await WriteInsertModifyRemoveAsync(sandbox, table);
@@ -245,6 +248,7 @@ public sealed class StreamTests(Backend backend)
     public async Task GetShardIterator_AtSequenceNumber_StartsWithThatRecord()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await WriteInsertModifyRemoveAsync(sandbox, table);
@@ -270,6 +274,7 @@ public sealed class StreamTests(Backend backend)
     public async Task GetShardIterator_Latest_SkipsExistingRecordsAndSeesNewOnes()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("before", "x") });
@@ -295,6 +300,7 @@ public sealed class StreamTests(Backend backend)
     {
         // Arrange: the client has no UpdateTable, so the stream is switched off by hand
         Gaps.SkipIfMissing(backend, Gap.ClosedShardsAfterDisablingTheStream);
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await WriteInsertModifyRemoveAsync(sandbox, table);
@@ -322,6 +328,7 @@ public sealed class StreamTests(Backend backend)
     public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.StreamOfAnUnknownAccountIsNotFound);
         await using var sandbox = await Sandbox.StartAsync(backend);
 
         // Act

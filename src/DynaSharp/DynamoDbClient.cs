@@ -61,8 +61,8 @@ public sealed class DynamoDbClient : IDisposable
     /// <remarks>
     /// Credentials are not looked up here, but with the first request. A client without credentials is created successfully and
     /// fails its first request with a <see cref="CredentialsUnavailableException"/>. When <see cref="DynamoDbClientOptions.Credentials"/>
-    /// is not set, the client uses a <see cref="DefaultCredentialsProvider"/>: environment variables, then the shared AWS files,
-    /// then the container credentials endpoint (ECS, EKS Pod Identity), then the instance metadata service (EC2). It logs the source
+    /// is not set, the client uses a <see cref="DefaultCredentialsProvider"/>: environment variables, then a web identity token file
+    /// (IRSA on EKS), then the shared AWS files, then the container credentials endpoint (ECS, EKS Pod Identity), then the instance metadata service (EC2). It logs the source
     /// it chose and failed refreshes to <see cref="DynamoDbClientOptions.LoggerFactory"/>. The only file read when the client is
     /// created is the shared AWS config file, and only when no region is set in the options or the environment.
     /// </remarks>

@@ -1,6 +1,7 @@
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Retries;
+using DynaSharp.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
@@ -680,6 +681,21 @@ public sealed class ClientConfigurationTests
 
         // Assert
         await Assert.That(logs.Entries.Single().Message).IsEqualTo("Credentials come from the environment variables.");
+    }
+
+    [Test]
+    public async Task Resolve_NoCredentialsInOptions_DefaultChainAsksStsInTheRegionOfTheOptions()
+    {
+        // Arrange (AWS_REGION says otherwise: for the client, the options win)
+        using var sts = new StubHandler(_ => new StubResponse { StatusCode = System.Net.HttpStatusCode.Forbidden, Body = "<ErrorResponse><Error><Code>AccessDenied</Code></Error></ErrorResponse>" });
+        var environment = Environment(("AWS_REGION", "us-west-2"), ("AWS_WEB_IDENTITY_TOKEN_FILE", "/token"), ("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/pod"));
+        var configuration = ClientConfiguration.Resolve(new DynamoDbClientOptions { Region = AwsRegion.FromName("ap-south-1") }, environment, Files(("/token", "the-token")), AwsService.DynamoDb, sts);
+
+        // Act
+        await Assert.That(async () => await configuration.Credentials.GetCredentialsAsync(CancellationToken.None)).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(sts.Requests.Single().RequestUri!.Host).IsEqualTo("sts.ap-south-1.amazonaws.com");
     }
 
     [Test]

@@ -34,7 +34,7 @@ public sealed class AtomicCounterTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
-        using var flaky = new LostResponseClient(sandbox.Endpoint);
+        using var flaky = new LostResponseClient(sandbox.Emulator);
 
         // Act (one call, which is allowed its default attempts)
         var count = await flaky.Client.Table<PageViews>(sandbox.Shop.Name).Update(PageViews.Keys.Of(Home)).Add(PageViews.Attrs.Count, 1L).Return(PageViews.Attrs.Count).SendAsync();
@@ -48,7 +48,7 @@ public sealed class AtomicCounterTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
-        using var flaky = new LostResponseClient(sandbox.Endpoint);
+        using var flaky = new LostResponseClient(sandbox.Emulator);
         var counters = flaky.Client.Table<PageViews>(sandbox.Shop.Name);
 
         // Act

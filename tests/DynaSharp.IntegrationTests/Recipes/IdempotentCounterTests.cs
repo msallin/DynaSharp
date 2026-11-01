@@ -34,7 +34,7 @@ public sealed class IdempotentCounterTests(Backend backend)
     {
         // Arrange (where the atomic counter counts twice, the retry here fails its own condition)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
-        using var flaky = new LostResponseClient(sandbox.Endpoint);
+        using var flaky = new LostResponseClient(sandbox.Emulator);
 
         // Act
         await CountAsync(flaky.Client.Table<DailyTally>(sandbox.Shop.Name), Today, "request-1");

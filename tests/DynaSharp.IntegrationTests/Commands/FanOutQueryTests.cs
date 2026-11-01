@@ -1,5 +1,4 @@
 using System.Globalization;
-using DynaSharp.Credentials;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Mapping;
 using DynaSharp.IntegrationTests.Support;
@@ -280,10 +279,10 @@ public sealed class FanOutQueryTests(Backend backend)
         await sandbox.PutOrdersAsync("a", 6);
         await sandbox.PutOrdersAsync("b", 6);
         await sandbox.PutOrdersAsync("c", 6);
-        using var counted = new CountedClient(sandbox.Emulator.Endpoint);
+        using var counted = new CountedClient(sandbox.Emulator);
 
         // Act
-        await foreach (var unused in counted.Table(sandbox.TableName).Query(["a", "b", "c"]).Limit(2).ItemsAsync())
+        await foreach (var unused in counted.Table(sandbox.TableName).Query(["a", "b", "c"]).Consistent().Limit(2).ItemsAsync())
         {
             break;
         }
@@ -303,12 +302,12 @@ public sealed class FanOutQueryTests(Backend backend)
             await sandbox.Shop.Put(new Item { ["pk"] = "b", ["sk"] = ReadSandbox.OrderKey(i + 100) }).SendAsync();
         }
 
-        using var counted = new CountedClient(sandbox.Emulator.Endpoint);
+        using var counted = new CountedClient(sandbox.Emulator);
         var seen = 0;
         var sentAtTheLastItemOfA = 0;
 
         // Act
-        await foreach (var unused in counted.Table(sandbox.TableName).Query(["a", "b"]).Limit(2).ItemsAsync())
+        await foreach (var unused in counted.Table(sandbox.TableName).Query(["a", "b"]).Consistent().Limit(2).ItemsAsync())
         {
             seen++;
             if (seen == 6)
@@ -334,7 +333,7 @@ public sealed class FanOutQueryTests(Backend backend)
             }
         }
 
-        using var counted = new CountedClient(sandbox.Emulator.Endpoint);
+        using var counted = new CountedClient(sandbox.Emulator);
         string[] days = ["day0", "day1", "day2", "day3"];
         var table = counted.Table(sandbox.TableName);
         var afterFirstPage = 0;
@@ -344,7 +343,7 @@ public sealed class FanOutQueryTests(Backend backend)
             (token, size) =>
             {
                 afterFirstPage = token.HasValue ? afterFirstPage : counted.Requests;
-                return table.Query(days).PageAsync(size, token);
+                return table.Query(days).Consistent().PageAsync(size, token);
             },
             2);
 
@@ -389,7 +388,7 @@ public sealed class FanOutQueryTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await ReadSandbox.StartAsync(backend);
-        using var counted = new CountedClient(sandbox.Emulator.Endpoint);
+        using var counted = new CountedClient(sandbox.Emulator);
 
         // Act
         var items = await Read.ToListAsync(counted.Table(sandbox.TableName).Query(NoPartitions).ItemsAsync());
@@ -482,22 +481,15 @@ public sealed class FanOutQueryTests(Backend backend)
         }
     }
 
-    // A client of the same emulator that counts what goes over the wire.
+    // A client of the same backend that counts what goes over the wire. Its reads are consistent: real DynamoDB may still be replicating the writes of the sandbox, which this client knows nothing of.
     private sealed class CountedClient : IDisposable
     {
         private readonly CountingHandler _handler = new();
         private readonly DynamoDbClient _client;
 
-        public CountedClient(Uri endpoint)
+        public CountedClient(Emulator emulator)
         {
-            _client = new DynamoDbClient(new DynamoDbClientOptions
-            {
-                Region = AwsRegion.FromName("us-east-1"),
-                ServiceUrl = endpoint,
-                Credentials = new StaticCredentialsProvider(new AwsCredentials("test", "test")),
-                MaxAttempts = 1,
-                HttpHandler = _handler,
-            });
+            _client = new DynamoDbClient(emulator.CreateOptions() with { MaxAttempts = 1, HttpHandler = _handler });
         }
 
         public int Requests => _handler.Requests;

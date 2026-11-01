@@ -139,7 +139,7 @@ public sealed class ConflictRetryTests(Backend backend)
         // Arrange (only the writes go through the client that loses a response: the first attempt takes effect, the second fails on it, and the delegate runs on top of its own write)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var tallies = await StartAsync(sandbox);
-        using var flaky = new LostResponseClient(sandbox.Endpoint);
+        using var flaky = new LostResponseClient(sandbox.Emulator);
         var writes = flaky.Client.Table<Tally>(sandbox.Shop.Name);
 
         // Act
@@ -160,7 +160,7 @@ public sealed class ConflictRetryTests(Backend backend)
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var tallies = await StartAsync(sandbox);
-        using var flaky = new LostResponseClient(sandbox.Endpoint);
+        using var flaky = new LostResponseClient(sandbox.Emulator);
         var writes = flaky.Client.Table<Tally>(sandbox.Shop.Name);
 
         // Act

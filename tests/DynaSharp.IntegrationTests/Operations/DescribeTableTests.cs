@@ -84,7 +84,7 @@ public sealed class DescribeTableTests(Backend backend)
 
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(
-            () => sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = "does-not-exist-table" }));
+            () => sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = Tables.Missing }));
 
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("ResourceNotFoundException");

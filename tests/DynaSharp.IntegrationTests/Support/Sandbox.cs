@@ -1,4 +1,3 @@
-using DynaSharp.Credentials;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.Mapping;
 using DynaSharp.Requests;
@@ -7,44 +6,40 @@ using DynaSharp.Streams;
 namespace DynaSharp.IntegrationTests.Support;
 
 /// <summary>
-/// What one test works with: clients for the emulator of its backend and the tables it created. Nothing is shared between tests
-/// but the emulator, so tests may run in parallel and in any order. Dispose it at the end of the test to drop its tables.
+/// What one test works with: clients for its backend and the tables it created. Nothing is shared between tests
+/// but the backend, so tests may run in parallel and in any order. Dispose it at the end of the test to drop its tables.
 /// </summary>
 internal sealed class Sandbox : IAsyncDisposable
 {
     private readonly List<string> _tables = [];
+    private readonly SettlingHandler? _handler;
 
-    private Sandbox(Emulator emulator, DynamoDbClient client, DynamoDbStreamsClient streams)
+    private Sandbox(Emulator emulator, DynamoDbClient client, DynamoDbStreamsClient streams, SettlingHandler? handler)
     {
         Emulator = emulator;
         Client = client;
         Streams = streams;
+        _handler = handler;
     }
 
-    /// <summary>Gets the emulator the test runs against.</summary>
+    /// <summary>Gets the backend the test runs against.</summary>
     public Emulator Emulator { get; }
 
-    /// <summary>Gets a client for the emulator. It does not retry, so a failure shows up at once.</summary>
+    /// <summary>Gets a client for the backend. For an emulator it does not retry, so a failure shows up at once.</summary>
     public DynamoDbClient Client { get; }
 
-    /// <summary>Gets a DynamoDB Streams client for the same endpoint. Both emulators serve streams on the port of the table API.</summary>
+    /// <summary>Gets a DynamoDB Streams client for the same backend. Both emulators serve streams on the port of the table API.</summary>
     public DynamoDbStreamsClient Streams { get; }
 
-    /// <summary>Starts the emulator of <paramref name="backend"/> if needed and creates the clients for it.</summary>
+    /// <summary>Starts the backend if needed and creates the clients for it.</summary>
     /// <param name="backend">The backend of the test.</param>
     /// <returns>The sandbox.</returns>
     public static async Task<Sandbox> StartAsync(Backend backend)
     {
         var emulator = await Emulators.GetAsync(backend);
-        var options = new DynamoDbClientOptions
-        {
-            Region = AwsRegion.FromName("us-east-1"),
-            ServiceUrl = emulator.Endpoint,
-            Credentials = new StaticCredentialsProvider(new AwsCredentials("test", "test")),
-            MaxAttempts = 1,
-            AttemptTimeout = TimeSpan.FromMinutes(2),
-        };
-        return new Sandbox(emulator, new DynamoDbClient(options), new DynamoDbStreamsClient(options));
+        var handler = backend == Backend.RealAws ? new SettlingHandler() : null;
+        var options = emulator.CreateOptions() with { HttpHandler = handler };
+        return new Sandbox(emulator, new DynamoDbClient(options), new DynamoDbStreamsClient(options), handler);
     }
 
     /// <summary>Creates a table with a unique name that is dropped when the sandbox is disposed.</summary>
@@ -97,5 +92,6 @@ internal sealed class Sandbox : IAsyncDisposable
 
         Client.Dispose();
         Streams.Dispose();
+        _handler?.Dispose();
     }
 }

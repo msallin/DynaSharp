@@ -6,6 +6,7 @@ using DynaSharp.Credentials;
 using DynaSharp.Requests;
 using DynaSharp.Streams;
 using DynaSharp.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.Expr;
 
 // Exercises the public API in a Native AOT binary: stubbed GetItem, PutItem, DescribeTable and an error, through the
@@ -403,6 +404,39 @@ foreach (var id in voucherIds)
 commandHandler.Enqueue(StubResponse.Json("{}"));
 await looped.SendAsync();
 Check(commandHandler.Requests[^1].BodyText.Contains("VOUCHER#v-6", StringComparison.Ordinal), "a transaction goes on from a command that holds a step");
+
+// The answer of STS is XML, the one format here that does not go through System.Text.Json, and XmlReader is a large part of the BCL to keep through trimming.
+const string stsResponse = """
+    <AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+      <AssumeRoleWithWebIdentityResult>
+        <AssumedRoleUser><Arn>arn:aws:sts::123456789012:assumed-role/orders/s</Arn></AssumedRoleUser>
+        <Credentials>
+          <SessionToken>IQoJb3JpZ2luX2VjEEM/Example==</SessionToken>
+          <SecretAccessKey>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</SecretAccessKey>
+          <Expiration>2099-01-01T00:00:00Z</Expiration>
+          <AccessKeyId>ASIAIOSFODNN7EXAMPLE</AccessKeyId>
+        </Credentials>
+      </AssumeRoleWithWebIdentityResult>
+    </AssumeRoleWithWebIdentityResponse>
+    """;
+using var stsHandler = new StubHandler(_ => new StubResponse { Body = stsResponse });
+var webIdentity = new WebIdentityCredentialsProvider(
+    name => name switch
+    {
+        "AWS_WEB_IDENTITY_TOKEN_FILE" => "/token",
+        "AWS_ROLE_ARN" => "arn:aws:iam::123456789012:role/orders",
+        _ => null,
+    },
+    _ => "the-token",
+    stsHandler,
+    TimeProvider.System,
+    NullLogger.Instance,
+    AwsRegion.FromName("eu-central-2"));
+var assumed = await webIdentity.GetCredentialsAsync(CancellationToken.None);
+Check(assumed.AccessKeyId == "ASIAIOSFODNN7EXAMPLE" && assumed.SessionToken == "IQoJb3JpZ2luX2VjEEM/Example==" && assumed.Expiration?.Year == 2099, "web identity reads the XML of STS");
+Check(stsHandler.Requests[^1].BodyText.Contains("WebIdentityToken=the-token", StringComparison.Ordinal), "web identity posts the token as a form");
+Check(StsDocument.TryParse("<ErrorResponse><Error><Code>AccessDenied</Code></Error></ErrorResponse>"u8.ToArray(), out var stsError) && stsError.ErrorCode == "AccessDenied", "web identity reads an error of STS");
+Check(!StsDocument.TryParse("<!DOCTYPE a><a/>"u8.ToArray(), out _), "web identity refuses a document type definition");
 
 // [OmitEmpty]: a handle whose converter wraps another through a type parameter, and one item from a query, over a page that a filter left empty.
 var memos = users.Of<Memo>();

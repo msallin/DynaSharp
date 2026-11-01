@@ -15,7 +15,7 @@ Keep:
 Fix:
 - Reflection-based mapping, which rules out Native AOT and costs startup time. DynaSharp uses a source generator.
 - No credential chain in the core: anything beyond static keys needs the AWS SDK package. DynaSharp resolves
-  credentials itself (environment, profiles, ECS/EKS, IMDS, later web identity and SSO).
+  credentials itself (environment, web identity, profiles, ECS/EKS, IMDS, later SSO).
 - Weak testability for consumers. DynaSharp makes the HTTP wire the test seam: stub it, record it, or run against an
   in-memory fake.
 - No observability. DynaSharp emits OpenTelemetry-compatible traces, metrics and logs from day one.
@@ -57,8 +57,9 @@ Fix:
   hi/lo allocator.
 - **Configuration**: region and endpoint from options or environment (`AWS_REGION`, `AWS_DEFAULT_REGION`,
   `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL`); endpoint override for DynamoDB Local.
-- **Credentials**: static; environment; shared config/credentials files; ECS and EKS Pod Identity container endpoint;
-  IMDSv2. Later: web identity (IRSA, needs STS), SSO, `credential_process`, assume role.
+- **Credentials**: static; environment; web identity from a token file through STS (IRSA on EKS); shared config/credentials files;
+  ECS and EKS Pod Identity container endpoint; IMDSv2. Later: web identity through the profile keys `web_identity_token_file` and
+  `role_arn`, SSO, `credential_process`, assume role.
 - **Resilience**: per-attempt timeout (surfaces as `TimeoutException`, distinct from cancellation); AWS standard
   retry semantics tuned for DynamoDB; clock-skew correction; typed exceptions per DynamoDB error code.
 - **Testing support** (`DynaSharp.Testing` package): `StubHandler` (canned responses, captured requests, fault
@@ -273,7 +274,7 @@ against the emulators, which check the ordering claim against something other th
 - Test layers: unit; in-memory integration (stub/recording handler, later the fake); container integration;
   scenario tests across backends. Integration and scenario tests are written once and parametrized by backend:
   Dynoxide (default locally, starts in milliseconds), DynamoDB Local (additionally in the PR pipeline), the in-memory
-  fake (once it exists), real AWS (optional, manual).
+  fake (once it exists), real AWS (`DYNASHARP_BACKENDS=aws`, manual, through `.github/workflows/real-aws.yml`).
 - External conformance material: the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance)
   (Apache-2.0) is used to measure the fake's functional conformance, and its recorded AWS responses (if usable) as
   real DynamoDB JSON for serialization tests, with attribution.

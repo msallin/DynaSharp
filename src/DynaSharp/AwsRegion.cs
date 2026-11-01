@@ -21,11 +21,12 @@ public sealed record AwsRegion
     private static readonly SearchValues<char> AllowedCharacters =
         SearchValues.Create("abcdefghijklmnopqrstuvwxyz0123456789-");
 
-    private AwsRegion(string name, Uri dynamoDbEndpoint, Uri dynamoDbStreamsEndpoint)
+    private AwsRegion(string name, Uri dynamoDbEndpoint, Uri dynamoDbStreamsEndpoint, Uri stsEndpoint)
     {
         Name = name;
         DynamoDbEndpoint = dynamoDbEndpoint;
         DynamoDbStreamsEndpoint = dynamoDbStreamsEndpoint;
+        StsEndpoint = stsEndpoint;
     }
 
     /// <summary>
@@ -44,6 +45,9 @@ public sealed record AwsRegion
     /// <c>https://streams.dynamodb.us-east-1.amazonaws.com/</c>. It is a different host from <see cref="DynamoDbEndpoint"/>.
     /// </summary>
     public Uri DynamoDbStreamsEndpoint { get; }
+
+    /// <summary>Gets the regional HTTPS endpoint of AWS STS, for example <c>https://sts.us-east-1.amazonaws.com/</c>.</summary>
+    internal Uri StsEndpoint { get; }
 
     /// <summary>
     /// Creates a region from its name.
@@ -67,7 +71,7 @@ public sealed record AwsRegion
         }
 
         var domain = name.StartsWith(ChinaPrefix, StringComparison.Ordinal) ? "amazonaws.com.cn" : "amazonaws.com";
-        return new AwsRegion(name, new Uri($"https://dynamodb.{name}.{domain}/"), new Uri($"https://streams.dynamodb.{name}.{domain}/"));
+        return new AwsRegion(name, new Uri($"https://dynamodb.{name}.{domain}/"), new Uri($"https://streams.dynamodb.{name}.{domain}/"), new Uri($"https://sts.{name}.{domain}/"));
     }
 
     /// <summary>

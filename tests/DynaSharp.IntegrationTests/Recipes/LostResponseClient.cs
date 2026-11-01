@@ -1,4 +1,4 @@
-using DynaSharp.Credentials;
+using DynaSharp.IntegrationTests.Backends;
 
 namespace DynaSharp.IntegrationTests.Recipes;
 
@@ -11,17 +11,10 @@ internal sealed class LostResponseClient : IDisposable
     private readonly LosingHandler _handler = new();
 
     /// <summary>Initializes a new instance of the <see cref="LostResponseClient"/> class.</summary>
-    /// <param name="endpoint">The emulator.</param>
-    public LostResponseClient(Uri endpoint)
+    /// <param name="emulator">The backend.</param>
+    public LostResponseClient(Emulator emulator)
     {
-        Client = new DynamoDbClient(new DynamoDbClientOptions
-        {
-            Region = AwsRegion.FromName("us-east-1"),
-            ServiceUrl = endpoint,
-            Credentials = new StaticCredentialsProvider(new AwsCredentials("test", "test")),
-            MaxAttempts = 2,
-            HttpHandler = _handler,
-        });
+        Client = new DynamoDbClient(emulator.CreateOptions() with { MaxAttempts = 2, HttpHandler = _handler });
     }
 
     /// <summary>Gets the client.</summary>

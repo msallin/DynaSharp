@@ -68,13 +68,14 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 Without `Credentials`, the client uses the default chain of the AWS SDKs and takes the first source that has credentials:
 
 1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
-2. the profile selected by `AWS_PROFILE` in the shared credentials and config files
-3. the container credentials endpoint of ECS and EKS
-4. the instance metadata service of EC2
+2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`: IAM roles for service accounts on EKS, and any other OpenID Connect issuer the account trusts
+3. the profile selected by `AWS_PROFILE` in the shared credentials and config files
+4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
+5. the instance metadata service of EC2
 
-A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`.
+A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`.
 
-Assume role, SSO, web identity and `credential_process` are not supported yet.
+Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported yet.
 
 ### Defining an entity
 

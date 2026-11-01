@@ -1,3 +1,4 @@
+using System.Globalization;
 using DynaSharp.Requests;
 
 namespace DynaSharp.IntegrationTests.Support;
@@ -6,14 +7,44 @@ namespace DynaSharp.IntegrationTests.Support;
 /// Creates and deletes the tables of the tests through the client's CreateTable and DeleteTable. This is the one place that knows
 /// how a test table is made. Raw HTTP stays available through the emulator for tests that need the unmapped response.
 /// </summary>
+/// <remarks>
+/// Every name starts with <see cref="Prefix"/>, which is what the IAM role of real AWS is limited to, then the time and the id of the run, as in
+/// <c>dynasharp-it-20261101T120000-1a2b3c4d-...</c>. Each emulator run starts empty, so there this is only a name. On real AWS it tells the tables of this run, and those of runs that died.
+/// </remarks>
 internal static class Tables
 {
     /// <summary>The name of the global secondary index of a table made with <see cref="TableSpec.WithGlobalIndex"/>.</summary>
     public const string GlobalIndexName = "gsi";
 
+    /// <summary>What the name of every table starts with.</summary>
+    public const string Prefix = "dynasharp-it-";
+
+    private const string StartFormat = "yyyyMMdd'T'HHmmss";
+
+    private static readonly string RunPrefix =
+        $"{Prefix}{DateTime.UtcNow.ToString(StartFormat, CultureInfo.InvariantCulture)}-{Guid.NewGuid().ToString("N")[..8]}-";
+
+    /// <summary>Gets the name of a table that does not exist. It has the prefix, so that a limited role gets to hear that from DynamoDB and not from IAM.</summary>
+    public static string Missing { get; } = RunPrefix + "does-not-exist";
+
     /// <summary>Creates a name that no other test uses.</summary>
     /// <returns>The table name.</returns>
-    public static string UniqueName() => $"t{Guid.NewGuid():N}";
+    public static string UniqueName() => $"{RunPrefix}{Guid.NewGuid():N}";
+
+    /// <summary>Tells whether a table was made by this run.</summary>
+    /// <param name="name">The name of the table.</param>
+    /// <returns><see langword="true"/> if it was.</returns>
+    public static bool IsOfThisRun(string name) => name.StartsWith(RunPrefix, StringComparison.Ordinal);
+
+    /// <summary>Tells whether a table comes from a run that started before a given time. Any other table of the account is not one of these.</summary>
+    /// <param name="name">The name of the table.</param>
+    /// <param name="time">The time.</param>
+    /// <returns><see langword="true"/> if the table has the prefix and its run started earlier.</returns>
+    public static bool StartedBefore(string name, DateTimeOffset time) =>
+        name.StartsWith(Prefix, StringComparison.Ordinal)
+        && name.Length >= Prefix.Length + StartFormat.Length - 2
+        && DateTimeOffset.TryParseExact(name.AsSpan(Prefix.Length, StartFormat.Length - 2), StartFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var start)
+        && start < time;
 
     /// <summary>Creates a table with a unique name and waits until it is active.</summary>
     /// <param name="client">The client of the emulator.</param>
@@ -47,13 +78,13 @@ internal static class Tables
     /// <param name="name">The name of the table.</param>
     /// <param name="condition">What the description must show.</param>
     /// <returns>The description for which the condition held.</returns>
-    /// <exception cref="OperationCanceledException">The condition did not hold within a minute.</exception>
+    /// <exception cref="OperationCanceledException">The condition did not hold within ten minutes. An emulator takes milliseconds; real DynamoDB builds an index that long.</exception>
     public static async Task<TableDescription> WaitUntilAsync(DynamoDbClient client, string name, Func<TableDescription, bool> condition)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10));
         while (true)
         {
-            var description = (await client.DescribeTableAsync(new DescribeTableRequest { TableName = name }, timeout.Token)).Table!;
+            var description = (await client.DescribeTableAsync(name, timeout.Token)).Table!;
             if (condition(description))
             {
                 return description;
@@ -69,12 +100,27 @@ internal static class Tables
     public static bool IsSettled(TableDescription description) =>
         description.TableStatus == TableStatus.Active && description.GlobalSecondaryIndexes.All(static index => index.IndexStatus == IndexStatus.Active);
 
-    /// <summary>Deletes a table.</summary>
-    /// <param name="client">The client of the emulator.</param>
+    /// <summary>Deletes a table, waiting for as long as it is busy: real DynamoDB refuses while a table is created or updated.</summary>
+    /// <param name="client">The client of the backend.</param>
     /// <param name="name">The name of the table.</param>
-    /// <returns>A task that completes when the emulator accepted the deletion.</returns>
-    public static async Task DeleteAsync(DynamoDbClient client, string name) =>
-        await client.DeleteTableAsync(new DeleteTableRequest { TableName = name });
+    /// <returns>A task that completes when the backend accepted the deletion.</returns>
+    /// <exception cref="OperationCanceledException">The table was still busy after five minutes.</exception>
+    public static async Task DeleteAsync(DynamoDbClient client, string name)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        while (true)
+        {
+            try
+            {
+                await client.DeleteTableAsync(new DeleteTableRequest { TableName = name }, timeout.Token);
+                return;
+            }
+            catch (ResourceInUseException)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), timeout.Token);
+            }
+        }
+    }
 
     /// <summary>Builds the CreateTable request for a shape.</summary>
     /// <param name="name">The name of the table.</param>
@@ -130,6 +176,11 @@ internal static class Tables
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(System.Security.Cryptography.RandomNumberGenerator.GetInt32(20, 150)));
             }
+            catch (LimitExceededException) when (attempt < 25)
+            {
+                // Real DynamoDB limits the tables that change at the same time, which a run may touch. Space frees up as fast as tables turn active.
+                await Task.Delay(TimeSpan.FromSeconds(attempt));
+            }
         }
     }
 
@@ -163,19 +214,7 @@ internal static class Tables
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown key attribute type."),
     };
 
-    // Dynoxide answers CreateTable with CREATING and activates the table right after; DynamoDB Local answers ACTIVE at once.
-    private static async Task WaitUntilActiveAsync(DynamoDbClient client, string name)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        while (true)
-        {
-            var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = name }, timeout.Token);
-            if (response.Table!.TableStatus == TableStatus.Active)
-            {
-                return;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(25), timeout.Token);
-        }
-    }
+    // Dynoxide answers CreateTable with CREATING and activates the table right after; DynamoDB Local answers ACTIVE at once. Real DynamoDB takes
+    // tens of seconds, more with indexes, and for its first moments may not even know the table, which the wait of a table bears with.
+    private static async Task WaitUntilActiveAsync(DynamoDbClient client, string name) => await client.Table(name, "pk").WaitUntilActiveAsync();
 }

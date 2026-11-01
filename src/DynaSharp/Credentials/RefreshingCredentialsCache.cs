@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace DynaSharp.Credentials;
 
 /// <summary>
-/// Holds the temporary credentials of a remote source (container endpoint, instance metadata) and refreshes them before they
+/// Holds the temporary credentials of a remote source (container endpoint, instance metadata, web identity) and refreshes them before they
 /// expire, with the windows of botocore's <c>RefreshableCredentials</c>.
 /// </summary>
 /// <remarks>

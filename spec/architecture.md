@@ -13,12 +13,12 @@ and it points at them instead of repeating them.
 | `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and one code fix in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0 (a floor, see `Directory.Packages.props`), no project |
 | `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `RecordingHandler` | `DynaSharp`, and its internals |
 | `tests/DynaSharp.UnitTests` | `net11.0` | Unit, generator and analyzer tests, the only coverage source | All three, the generator as analyzer and as assembly |
-| `tests/DynaSharp.IntegrationTests` | `net11.0` | The same tests on each emulator, and the recipes of `patterns.md` | Docker, Testcontainers |
+| `tests/DynaSharp.IntegrationTests` | `net11.0` | The same tests on each emulator, on demand on real AWS, and the recipes of `patterns.md` | Docker, Testcontainers |
 | `tests/DynaSharp.AotSmoke` | `net11.0` | Publishes with Native AOT and runs | `DynaSharp`, `DynaSharp.Testing` |
 | `tests/DynaSharp.PackageSmoke` | `net11.0` | Consumes the real nupkg; outside the solution | `artifacts/packages` |
 | `benchmarks/`, `samples/` | `net11.0` | Comparison with other clients; a runnable tour | `DynaSharp` |
 
-`InternalsVisibleTo` of `DynaSharp`: `DynaSharp.Testing`, `DynaSharp.UnitTests`, `DynaSharp.Benchmarks`. The generator grants it to the unit tests. A generated file
+`InternalsVisibleTo` of `DynaSharp`: `DynaSharp.Testing`, `DynaSharp.UnitTests`, `DynaSharp.Benchmarks`, `DynaSharp.AotSmoke`. The generator grants it to the unit tests. A generated file
 reaches only public members, which is why `ConverterChecks`, `KeyWriter` and the like are public.
 
 The folders of `src/DynaSharp`, top to bottom. A folder is not always a namespace: `Fluent` holds the public commands in `DynaSharp` and their
@@ -48,7 +48,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat` | Nothing of ours |
 | `Shared` | `AttributeValue`, `Item`, capacity types, shared enums | `Mapping`, `Serialization`, `Requests` |
 | `Retries` | `RetryPolicy`, `RetryQuota`, `FailureClassifier`, `ClockSkewCorrection` | Nothing of ours |
-| `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache` | `Configuration`, `Telemetry` |
+| `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache`, `CredentialsHttp`, the documents of the sources (`CredentialsDocument`, `StsDocument`) | `Configuration`, `Telemetry` |
 | `Configuration` | `ClientConfiguration`, `SharedConfigFiles`, `IniFile` | `Credentials`, `Retries` |
 | `Signing` | `SigV4Signer` | `Credentials`, `Http` |
 | `Errors` | `ErrorMapper` | `Operations`, `Serialization` |
@@ -81,6 +81,8 @@ Rules that are easy to break:
 - `ExpiredTokenException` and `ExpiredToken` are permanent for `FailureClassifier`, and yet `MapError` tells a provider with the optional `IRefreshableCredentialsProvider` to drop the credentials of the request, whether or not an attempt is left. If it says that this helps, a private `CredentialsDroppedException` carries the rejection to the loop, which resends under the rules of clock skew, plus one: once per call, because the new credentials may be just as stale. The fetch is not part of this: the next attempt looks up credentials as always, inside its timeout, so a failure surfaces as `CredentialsUnavailableException`.
 - `RefreshingCredentialsCache.Drop` compares instances, so credentials that were replaced in the meantime are left alone, and it forgets the credentials instead of fetching, so the concurrent requests that fail together all end in the one flight of the cache. `DefaultCredentialsProvider` forwards to its chosen source and never moves on to another one.
 - `CreateRequest` adds the content type as raw text, because the signature covers it as sent. The signer has no other caller, so it validates nothing.
+- `WebIdentityCredentialsProvider` calls STS without a signature, on `CredentialsHttp.GetProxiedClient`, because STS may sit behind an egress proxy, unlike the link-local endpoints of the shared client. The token is a bearer credential, so that client follows no redirect, and the `Message` of an STS error goes nowhere: `StsDocument` does not even keep it, because the service may quote the request in it.
+- `StsDocument` reads with `ReadElementContentAsString`, which moves past the element. Its loop calls `Read` only for what it does not consume, or it would skip every sibling that follows without whitespace.
 
 | Call | Kind | Body lives in | Who releases what |
 |---|---|---|---|
@@ -311,6 +313,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | Operation wire format | `Operations/*OperationTests` | `generate_operation_vectors.py`, botocore's serializer and parser |
 | `required` on response records | `Operations/ResponseRecordsTests` | `generate_required_members.py`, the `required` lists of botocore's service models, both ways, from each `XResponse` down through its properties |
 | Shared config and credentials files | `Credentials` | `generate_shared_file_vectors.py`, botocore |
+| Web identity wire format | `Credentials/StsVectorTests` | `generate_sts_vectors.py`: a botocore STS client with the `query` protocol sends, parses and classifies, over a hook that answers |
 | Retry classification | `Retries` | botocore's `retries/standard.py`, by reading. Clock skew and expired tokens have no such source: botocore neither corrects nor refreshes on a response, so the oracle is the AWS SDKs |
 | DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
 | Key encodings | `Keys/KeyVectorTests`, `Key*PropertyTests` | `generate_key_vectors.py` with Python `decimal`; properties with a fixed seed: order is preserved, parse inverts format |
@@ -320,13 +323,15 @@ A test that derives its expectation from the code proves little, so each area ha
 | Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
 | Compile guards | `Fluent/CompileGuardTests` | The compiler, asked in-process whether a misuse fails and which overload binds |
 | Analyzer grammar | `Generators/Analyzers/ExpressionCorpus` | The Developer Guide, botocore's examples, DynamoDB Local 3.3.2 |
-| Behavior of the service | `tests/DynaSharp.IntegrationTests` | Dynoxide and DynamoDB Local. `Backends/Gaps.cs` names what each lacks, and such a test is skipped there |
+| Behavior of the service | `tests/DynaSharp.IntegrationTests` | Dynoxide and DynamoDB Local, and DynamoDB itself on demand. `Backends/Gaps.cs` names what each lacks, and such a test is skipped there |
 | Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators |
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
 | Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
 
 Snapshots use `SnapshotComparer`, a local comparer: a mismatch writes `*.received.cs`, and `DYNASHARP_ACCEPT_SNAPSHOTS=1` accepts. `*.verified.*` stay LF. `KeysEmitterTests` cuts the file of `KeyShapes.KeyFormats` into a snapshot per key builder, `KeyShapes.KeyFormats.Keys.*`, and one for the rest. Allocation claims live in `CommandAllocationTests` and the benchmarks
 in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so run it from the worktree. `dotnet format` runs no generator that is not built, so a generated type is no entity to it, and a variable of `PartitionKey<T>` passed to `Query` is a `CS1503` it reports, which is why such code in this repository passes the key inline or through a generic helper. Neither emulator produces `UnprocessedItems`, `TransactionConflict` or several shards, so these paths are tested with stubs only.
+
+`DYNASHARP_BACKENDS=aws` selects `Backend.RealAws`, and `.github/workflows/real-aws.yml` runs it by hand, on a role of its own. The workflow fetches the OIDC token of GitHub into a file and replaces the file while it runs, so it is IRSA end to end with no AWS SDK: `Backends/RealAws.cs` uses the default chain and region. All table names start with `Tables.Prefix`, which is what the role is limited to. A sandbox deletes its tables, the end of a run deletes what is left of them, and the start of a run deletes the tables of runs older than six hours that died. `Gaps.cs` says how each gap stands on real AWS, and has the gaps that go the other way: what only an emulator does. `SettlingHandler` holds back eventually consistent reads for a moment after a write, because the tests read right after they write, which an emulator allows. Real DynamoDB is no oracle in the gates, as nothing runs it automatically.
 
 ## 11. How to add
 

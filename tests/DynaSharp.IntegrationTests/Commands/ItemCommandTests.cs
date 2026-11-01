@@ -538,13 +538,13 @@ public sealed class ItemCommandTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
-        var table = sandbox.Client.Table("no-such-table", "pk");
+        var table = sandbox.Client.Table(Tables.Missing, "pk");
 
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(async () => await table.Get("a").SendAsync());
 
         // Assert
-        await Assert.That((failure.OperationName, failure.TableName)).IsEqualTo(((string?)"GetItem", (string?)"no-such-table"));
+        await Assert.That((failure.OperationName, failure.TableName)).IsEqualTo(((string?)"GetItem", (string?)Tables.Missing));
     }
 
     // The analyzer refuses this text in an interpolated string, so the handler is driven by hand, as the compiler would.

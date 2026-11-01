@@ -2,7 +2,8 @@ namespace DynaSharp.IntegrationTests.Backends;
 
 /// <summary>
 /// Chooses the backends of a run from the environment variable <c>DYNASHARP_BACKENDS</c>: a comma separated list of
-/// <c>dynoxide</c> and <c>dynamodb-local</c>, or <c>all</c>. Unset or empty means Dynoxide only, which keeps local runs fast.
+/// <c>dynoxide</c>, <c>dynamodb-local</c> and <c>aws</c>, or <c>all</c> for all emulators. Unset or empty means Dynoxide only, which keeps local
+/// runs fast. <c>all</c> leaves <c>aws</c> out, because that one costs money and has to be asked for by name.
 /// </summary>
 public static class BackendSelection
 {
@@ -16,6 +17,7 @@ public static class BackendSelection
     {
         ["dynoxide"] = Backend.Dynoxide,
         ["dynamodb-local"] = Backend.DynamoDbLocal,
+        ["aws"] = Backend.RealAws,
     };
 
     /// <summary>The data source of every test class: the backends the current run selected.</summary>
@@ -38,7 +40,7 @@ public static class BackendSelection
         {
             if (string.Equals(entry, All, StringComparison.OrdinalIgnoreCase))
             {
-                selected.AddRange(Names.Values);
+                selected.AddRange(Names.Values.Where(static backend => backend != Backend.RealAws));
             }
             else if (Names.TryGetValue(entry, out var backend))
             {

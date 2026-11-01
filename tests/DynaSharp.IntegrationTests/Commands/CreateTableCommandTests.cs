@@ -4,7 +4,7 @@ using DynaSharp.Requests;
 
 namespace DynaSharp.IntegrationTests.Commands;
 
-/// <summary>Whether the emulators take the schema that <see cref="CreateTableCommand"/> makes from entities, and whether those entities can then use it. The bodies are pinned by the unit tests.</summary>
+/// <summary>Whether the backends take the schema that <see cref="CreateTableCommand"/> makes from entities, and whether those entities can then use it. The bodies are pinned by the unit tests.</summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
 public sealed class CreateTableCommandTests(Backend backend)
 {
@@ -230,7 +230,7 @@ public sealed class CreateTableCommandTests(Backend backend)
     // The table goes when it goes, and the call says so: a loop over a bound, without a pause, because each round is a request.
     private static async Task WaitUntilGoneAsync(Table<Item> table)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         try
         {
             while (true)

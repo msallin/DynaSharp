@@ -197,6 +197,7 @@ public sealed class TableOperationTests(Backend backend)
     public async Task DeleteTable_ExistingTable_ReturnsItsDescriptionAndTheTableIsGone()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.TableGoneAtOnce);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
 
@@ -213,6 +214,7 @@ public sealed class TableOperationTests(Backend backend)
     public async Task DeleteTable_ThenCreateWithTheSameName_Succeeds()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.TableGoneAtOnce);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("a", "from the first table") });
@@ -233,7 +235,7 @@ public sealed class TableOperationTests(Backend backend)
         await using var sandbox = await Sandbox.StartAsync(backend);
 
         // Act
-        var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.DeleteTableAsync(new DeleteTableRequest { TableName = "table-that-does-not-exist" }));
+        var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.DeleteTableAsync(new DeleteTableRequest { TableName = Tables.Missing }));
 
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("ResourceNotFoundException");
@@ -261,6 +263,7 @@ public sealed class TableOperationTests(Backend backend)
     public async Task UpdateTimeToLive_EnableThenDisable_ReturnsTheDisabledSpecification()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.TimeToLiveChangesAgainAtOnce);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         await sandbox.Client.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest { TableName = table, TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = "expires" } });
@@ -302,7 +305,7 @@ public sealed class TableOperationTests(Backend backend)
         // Act
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest
         {
-            TableName = "table-that-does-not-exist",
+            TableName = Tables.Missing,
             TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = "expires" },
         }));
 
