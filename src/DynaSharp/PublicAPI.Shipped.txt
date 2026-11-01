@@ -487,7 +487,6 @@ DynaSharp.Mapping.DynamoDbEntityAttribute.DynamoDbEntityAttribute() -> void
 DynaSharp.Mapping.DynamoDbEntityInfo
 DynaSharp.Mapping.DynamoDbEntityInfo.Discriminator.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.DiscriminatorAttributeName.get -> string!
-DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.Indexes.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.KeyTemplates.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyName.get -> string!
@@ -497,8 +496,6 @@ DynaSharp.Mapping.DynamoDbIgnoreAttribute
 DynaSharp.Mapping.DynamoDbIgnoreAttribute.DynamoDbIgnoreAttribute() -> void
 DynaSharp.Mapping.DynamoDbIndexInfo
 DynaSharp.Mapping.DynamoDbIndexInfo.<Clone>$() -> DynaSharp.Mapping.DynamoDbIndexInfo!
-DynaSharp.Mapping.DynamoDbIndexInfo.Deconstruct(out string! IndexName, out string! PartitionKeyName, out string? SortKeyName, out bool Sparse) -> void
-DynaSharp.Mapping.DynamoDbIndexInfo.DynamoDbIndexInfo(string! IndexName, string! PartitionKeyName, string? SortKeyName, bool Sparse) -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.Equals(DynaSharp.Mapping.DynamoDbIndexInfo? other) -> bool
 DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.get -> string!
 DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.init -> void

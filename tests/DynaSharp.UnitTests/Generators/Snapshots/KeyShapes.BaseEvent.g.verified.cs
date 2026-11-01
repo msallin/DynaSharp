@@ -13,7 +13,9 @@ partial class BaseEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.BaseEve
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "EVENT",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

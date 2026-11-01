@@ -13,7 +13,9 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "KEYWORDS",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

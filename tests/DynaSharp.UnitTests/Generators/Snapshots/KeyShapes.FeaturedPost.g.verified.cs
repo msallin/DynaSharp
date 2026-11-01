@@ -13,11 +13,13 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "POST",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true),
-            new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false),
+            new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

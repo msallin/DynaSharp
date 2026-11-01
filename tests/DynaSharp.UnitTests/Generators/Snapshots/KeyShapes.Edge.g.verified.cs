@@ -13,10 +13,12 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "EDGE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false),
+            new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

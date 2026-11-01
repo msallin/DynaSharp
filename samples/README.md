@@ -18,6 +18,6 @@ docker compose -f samples/compose.yaml --profile dynamodb-local up -d
 AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8001 dotnet run --project samples/DynaSharp.Sample
 ```
 
-The sample reads the endpoint from `AWS_ENDPOINT_URL_DYNAMODB`. Each run works in a table of its own and leaves it behind for
-you to look at, so you can run it as often as you like. Stopping the emulators removes the tables:
+The sample reads the endpoint from `AWS_ENDPOINT_URL_DYNAMODB`. Each run works in a table of its own and deletes it at the end,
+so you can run it as often as you like. Stopping the emulators removes what a failed run left behind:
 `docker compose -f samples/compose.yaml --profile dynamodb-local down`.

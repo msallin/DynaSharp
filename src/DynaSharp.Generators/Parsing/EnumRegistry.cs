@@ -29,6 +29,11 @@ internal sealed class EnumRegistry
         && AttributeReader.Find(named, FlagsAttribute) is null
         && AttributeReader.Find(named, WellKnownNames.ConverterAttribute) is null;
 
+    /// <summary>Whether a generated converter stores an enum as a number, as it does for <c>[Flags]</c>, whose combinations have no name.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>True for a number, false for a name.</returns>
+    public static bool IsStoredAsNumber(ITypeSymbol type) => AttributeReader.Find(type, FlagsAttribute) is not null;
+
     public EquatableArray<EnumModel> ToEquatableArray() => new([.. _enums.Values]);
 
     public string ConverterOf(INamedTypeSymbol type)
@@ -42,7 +47,7 @@ internal sealed class EnumRegistry
         var model = new EnumModel(
             fullName,
             UniqueConverterName(type),
-            AttributeReader.Find(type, FlagsAttribute) is not null,
+            IsStoredAsNumber(type),
             Names.Of(type.EnumUnderlyingType!),
             Members(type));
         _enums.Add(fullName, model);

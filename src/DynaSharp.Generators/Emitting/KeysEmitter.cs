@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace DynaSharp.Generators;
 
 /// <summary>
@@ -13,9 +11,8 @@ namespace DynaSharp.Generators;
 /// </remarks>
 internal static class KeysEmitter
 {
-    public static void Emit(StringBuilder body, TypeModel type)
+    public static void Emit(IndentedCode code, TypeModel type)
     {
-        var code = new IndentedCode(body);
         code.Blank();
         AttrsEmitter.Emit(code, type);
         if (type.Entity is not { } entity)

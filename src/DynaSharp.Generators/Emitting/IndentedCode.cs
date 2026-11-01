@@ -2,18 +2,21 @@ using System.Text;
 
 namespace DynaSharp.Generators;
 
-/// <summary>Writes the members of a type as indented lines, for code nested deeper than the flat text of <see cref="CodeText"/> reads well.</summary>
-/// <param name="text">The body of the type.</param>
-internal sealed class IndentedCode(StringBuilder text)
+/// <summary>
+/// Writes generated code as indented lines: an emitter says how deep a line goes and never spells the spaces. Lines end in <c>\n</c> on every platform,
+/// so the output does not depend on the build machine.
+/// </summary>
+/// <param name="text">Where the code goes.</param>
+/// <param name="depth">How deep it starts. The default is for members of a type: a body sits at one indent, however deep the type is nested.</param>
+internal sealed class IndentedCode(StringBuilder text, int depth = 1)
 {
     private const int IndentWidth = 4;
 
-    // Members of a type: a body sits at one indent, however deep the type is nested.
-    private int _depth = 1;
+    private int _depth = depth;
 
-    public void Line(string line) => text.Append(' ', _depth * IndentWidth).Line(line);
+    public void Line(string line) => text.Append(' ', _depth * IndentWidth).Append(line).Append('\n');
 
-    public void Blank() => text.Line();
+    public void Blank() => text.Append('\n');
 
     /// <summary>Writes the blank line between two members of a list, which the first one goes without.</summary>
     /// <param name="isFirst">Whether no member was written yet. It starts out <see langword="true"/> and this clears it.</param>
@@ -27,15 +30,23 @@ internal sealed class IndentedCode(StringBuilder text)
         isFirst = false;
     }
 
+    /// <summary>Goes one level deeper where no brace does: the statements of a <c>case</c>, the arguments of a call.</summary>
+    public void Indent() => _depth++;
+
+    /// <summary>Ends what <see cref="Indent"/> started.</summary>
+    public void Outdent() => _depth--;
+
     public void Open()
     {
         Line("{");
-        _depth++;
+        Indent();
     }
 
-    public void Close()
+    /// <summary>Ends what <see cref="Open"/> started.</summary>
+    /// <param name="closer">The closing line, which is more than a brace after an initializer or a switch expression: <c>},</c> or <c>};</c>.</param>
+    public void Close(string closer = "}")
     {
-        _depth--;
-        Line("}");
+        Outdent();
+        Line(closer);
     }
 }

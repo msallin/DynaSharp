@@ -13,12 +13,14 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "NOTICE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false),
-            new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false),
-            new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false),
+            new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
+            new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

@@ -13,11 +13,13 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "NICK",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("ByNickAndAge", "shared", "bynickandagesk", true),
-            new __Map.DynamoDbIndexInfo("ByNick", "shared", null, true),
+            new __Map.DynamoDbIndexInfo("ByNickAndAge", "shared", "bynickandagesk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("ByNick", "shared", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

@@ -1344,6 +1344,82 @@ for _name, _wire in STREAM_VIEW_TYPES.items():
         )
     )
 
+# What CreateTableCommand makes of the entities of SchemaEntities.cs in the tests: a table is on demand with everything projected
+# unless told otherwise, and a global index has capacity of its own on a table with capacity.
+ALL = {"ProjectionType": "ALL"}
+GSI1_KEY = [KEY("gsi1pk", "HASH"), KEY("gsi1sk", "RANGE")]
+BY_TRACKING_KEY = [KEY("bytrackingpk", "HASH")]
+SHOP_TABLE_KEY = [KEY("pk", "HASH"), KEY("sk", "RANGE")]
+LSI1 = {"IndexName": "LSI1", "KeySchema": [KEY("pk", "HASH"), KEY("lsi1sk", "RANGE")], "Projection": ALL}
+SCHEMA_ORDER_ATTRIBUTES = [
+    ATTR("pk", "S"),
+    ATTR("sk", "S"),
+    ATTR("gsi1pk", "S"),
+    ATTR("gsi1sk", "S"),
+    ATTR("bytrackingpk", "S"),
+    ATTR("lsi1sk", "S"),
+]
+CAPACITY = {"ReadCapacityUnits": 5, "WriteCapacityUnits": 7}
+
+COMMAND_REQUESTS += [
+    request(
+        "CreateTable",
+        "TableWithoutAnEntity",
+        {
+            "AttributeDefinitions": [ATTR("pk", "S"), ATTR("sk", "S")],
+            "TableName": "Shop",
+            "KeySchema": SHOP_TABLE_KEY,
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    ),
+    request(
+        "CreateTable",
+        "UnionOfThreeEntities",
+        {
+            "AttributeDefinitions": SCHEMA_ORDER_ATTRIBUTES + [ATTR("byemailpk", "S"), ATTR("Category", "S"), ATTR("Stock", "N")],
+            "TableName": "Shop",
+            "KeySchema": SHOP_TABLE_KEY,
+            "GlobalSecondaryIndexes": [
+                {"IndexName": "GSI1", "KeySchema": GSI1_KEY, "Projection": ALL},
+                {"IndexName": "ByTracking", "KeySchema": BY_TRACKING_KEY, "Projection": ALL},
+                {"IndexName": "ByEmail", "KeySchema": [KEY("byemailpk", "HASH")], "Projection": ALL},
+                {"IndexName": "ByStock", "KeySchema": [KEY("Category", "HASH"), KEY("Stock", "RANGE")], "Projection": ALL},
+            ],
+            "LocalSecondaryIndexes": [LSI1],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    ),
+    request(
+        "CreateTable",
+        "ProvisionedWithGlobalAndLocalIndexes",
+        {
+            "AttributeDefinitions": SCHEMA_ORDER_ATTRIBUTES,
+            "TableName": "Shop",
+            "KeySchema": SHOP_TABLE_KEY,
+            "GlobalSecondaryIndexes": [
+                {"IndexName": "GSI1", "KeySchema": GSI1_KEY, "Projection": ALL, "ProvisionedThroughput": CAPACITY},
+                {"IndexName": "ByTracking", "KeySchema": BY_TRACKING_KEY, "Projection": ALL, "ProvisionedThroughput": CAPACITY},
+            ],
+            "LocalSecondaryIndexes": [LSI1],
+            "BillingMode": "PROVISIONED",
+            "ProvisionedThroughput": CAPACITY,
+        },
+    ),
+    request(
+        "CreateTable",
+        "NumberAndBinaryKeys",
+        {
+            "AttributeDefinitions": [ATTR("Sensor", "N"), ATTR("Stamp", "B"), ATTR("ExpiresAt", "N")],
+            "TableName": "Readings",
+            "KeySchema": [KEY("Sensor", "HASH"), KEY("Stamp", "RANGE")],
+            "LocalSecondaryIndexes": [
+                {"IndexName": "ByExpiry", "KeySchema": [KEY("Sensor", "HASH"), KEY("ExpiresAt", "RANGE")], "Projection": ALL},
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+    ),
+]
+
 # ListTables, DescribeTimeToLive and UpdateTable. The API reference has the syntax of these operations but no worked requests that
 # this file could quote, so the vectors are crafted from the documented syntax and have no source.
 BY_STATUS_KEY = [KEY("status", "HASH"), KEY("createdAt", "RANGE")]

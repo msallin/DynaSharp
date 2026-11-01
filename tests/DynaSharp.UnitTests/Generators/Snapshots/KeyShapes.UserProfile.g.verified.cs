@@ -13,7 +13,9 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "PROFILE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

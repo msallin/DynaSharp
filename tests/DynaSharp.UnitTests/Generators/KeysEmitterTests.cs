@@ -1,18 +1,25 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using DynaSharp.Generators;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace DynaSharp.UnitTests.Generators;
 
 /// <summary>
 /// The key emitter as text: what it writes for each shape of a key in <c>Mapping/KeyModels.cs</c>, compiled at the oldest and the newest language
-/// version. The test assembly has the same types from its own build, so here they live in a namespace of their own.
+/// version. The test assembly has the same types from its own build, so here they live in a namespace of their own. <c>KeyFormats</c> has a builder for
+/// every row of the format table, so its file is cut into a snapshot per builder, and a change to one format shows in one file.
 /// </summary>
-public sealed class KeysEmitterTests
+public sealed partial class KeysEmitterTests
 {
     private const string TestNamespace = "namespace DynaSharp.UnitTests.Mapping.KeyEntities;";
 
     private const string ShapeNamespace = "namespace KeyShapes;";
+
+    private const string CutFile = "KeyShapes.KeyFormats.g";
+
+    private const string BuilderSnapshotPrefix = "KeyShapes.KeyFormats.Keys.";
 
     private static string KeyShapes => File.ReadAllText(Path.Combine(SnapshotComparer.ProjectDirectory, "Mapping", "KeyModels.cs"))
         .Replace(TestNamespace, ShapeNamespace, StringComparison.Ordinal);
@@ -24,10 +31,28 @@ public sealed class KeysEmitterTests
         var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        foreach (var source in output.Result.Results[0].GeneratedSources)
+        foreach (var (name, text) in output.Result.Results[0].GeneratedSources.SelectMany(Snapshots))
         {
-            SnapshotComparer.Verify(source.HintName.Replace(".g.cs", ".g", StringComparison.Ordinal), source.SourceText.ToString());
+            SnapshotComparer.Verify(name, text);
         }
+    }
+
+    [Test]
+    public async Task Run_KeyFormats_HasASnapshotPerBuilderAndNoOther()
+    {
+        // Arrange
+        var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), LanguageVersion.Latest);
+        var builders = output.Result.Results[0].GeneratedSources
+            .SelectMany(Snapshots)
+            .Select(static snapshot => snapshot.Name)
+            .Where(static name => name.StartsWith(BuilderSnapshotPrefix, StringComparison.Ordinal));
+
+        // Act
+        var files = Directory.GetFiles(Path.Combine(SnapshotComparer.ProjectDirectory, "Generators", "Snapshots"), BuilderSnapshotPrefix + "*.verified.cs")
+            .Select(static path => Path.GetFileName(path).Replace(".verified.cs", string.Empty, StringComparison.Ordinal));
+
+        // Assert (the comparer only looks at what is generated, so a file that a builder left behind, or a cut that found nothing, shows here)
+        await Assert.That(files).IsEquivalentTo(builders);
     }
 
     [Test]
@@ -183,10 +208,28 @@ public sealed class KeysEmitterTests
         await Assert.That(body.Contains("BufferLength = 67;", StringComparison.Ordinal) && body.Contains("BufferLength = 256;", StringComparison.Ordinal)).IsTrue();
     }
 
+    // Every character of a generated file is in one snapshot: a builder in its own, and what is left in the one of the file.
+    private static IEnumerable<(string Name, string Text)> Snapshots(GeneratedSourceResult source)
+    {
+        var name = source.HintName.Replace(".g.cs", ".g", StringComparison.Ordinal);
+        var text = source.SourceText.ToString();
+        if (name != CutFile)
+        {
+            return [(name, text)];
+        }
+
+        var builders = Builder().Matches(text).Select(static match => (BuilderSnapshotPrefix + match.Groups["name"].Value, match.Value));
+        return [.. builders, (name, Builder().Replace(text, string.Empty))];
+    }
+
     private static string Body(TypeModel type)
     {
         var body = new StringBuilder();
-        KeysEmitter.Emit(body, type);
+        KeysEmitter.Emit(new IndentedCode(body), type);
         return body.ToString();
     }
+
+    // What one run of KeyBuilderEmitter writes: a blank line, the record of the parsed values and the builder, whose closing brace is the first at its indent.
+    [GeneratedRegex(@"^\n(?: {8}///[^\n]*\n)+ {8}public readonly record struct (?<name>\w+)Parts\([^\n]*\n\n(?: {8}///[^\n]*\n)+ {8}public static class \k<name>\n.*?^ {8}\}\n", RegexOptions.Multiline | RegexOptions.Singleline)]
+    private static partial Regex Builder();
 }

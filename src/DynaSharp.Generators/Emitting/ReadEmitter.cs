@@ -12,58 +12,56 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal static class ReadEmitter
 {
-    private const string Indent = "                            ";
-
-    public static void Emit(StringBuilder body, TypeModel type)
+    public static void Emit(IndentedCode code, TypeModel type)
     {
         var read = type.Properties.Where(static property => !property.IsWriteOnly).ToList();
         var hasFields = read.Count > 0 || type.Constructor.NeedsFieldsConstructor;
-        body.Line();
-        body.Line($"    static {type.FullName} __Map.IDynamoDbDocument<{type.FullName}>.ReadAttributes(ref __Ser.DynamoDbReader reader)");
-        body.Line("    {");
+        code.Blank();
+        code.Line($"static {type.FullName} __Map.IDynamoDbDocument<{type.FullName}>.ReadAttributes(ref __Ser.DynamoDbReader reader)");
+        code.Open();
         if (hasFields)
         {
-            body.Line("        __Fields fields = default;");
+            code.Line("__Fields fields = default;");
         }
 
         var fallbacks = read.Where(static property => property.FallbackKey is not null).GroupBy(static property => property.FallbackKey!).ToList();
         if (fallbacks.Count > 0)
         {
-            body.Line("        var __item = reader;");
+            code.Line("var __item = reader;");
         }
 
-        body.Line("        string? attribute = null;");
-        body.Line("        try");
-        body.Line("        {");
-        body.Line("            while (reader.TryReadAttributeName())");
-        body.Line("            {");
-        EmitDispatch(body, Candidates(type, read));
-        body.Line("                attribute = null;");
-        body.Line("                reader.SkipAttributeValue();");
-        body.Line("            }");
-        body.Line("        }");
-        body.Line("        catch (global::System.Exception exception) when (global::DynaSharp.DynamoDbMappingException.IsConversionFailure(exception))");
-        body.Line("        {");
-        body.Line($"            throw new global::DynaSharp.DynamoDbMappingException({CodeText.Literal(type.Name)}, attribute, exception);");
-        body.Line("        }");
-        body.Line();
+        code.Line("string? attribute = null;");
+        code.Line("try");
+        code.Open();
+        code.Line("while (reader.TryReadAttributeName())");
+        code.Open();
+        EmitDispatch(code, Candidates(type, read));
+        code.Line("attribute = null;");
+        code.Line("reader.SkipAttributeValue();");
+        code.Close();
+        code.Close();
+        code.Line("catch (global::System.Exception exception) when (global::DynaSharp.DynamoDbMappingException.IsConversionFailure(exception))");
+        code.Open();
+        code.Line($"throw new global::DynaSharp.DynamoDbMappingException({CodeText.Literal(type.Name)}, attribute, exception);");
+        code.Close();
+        code.Blank();
         for (var group = 0; group < fallbacks.Count; group++)
         {
-            EmitFallback(body, type, fallbacks[group], CodeText.Number(group));
+            EmitFallback(code, type, fallbacks[group], CodeText.Number(group));
         }
 
         foreach (var property in read.Where(static property => property.Missing == MissingBehavior.Throw))
         {
             var attribute = CodeText.Literal(property.RestoredFromKey ?? property.AttributeName);
-            body.Line($"        if (!fields.{property.Name}__set) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}); }}");
+            code.Line($"if (!fields.{property.Name}__set) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}); }}");
         }
 
-        body.Line($"        return {ConstructorEmitter.Creation(type)};");
-        body.Line("    }");
+        code.Line($"return {ConstructorEmitter.Creation(type)};");
+        code.Close();
 
         if (hasFields)
         {
-            EmitFields(body, read);
+            EmitFields(code, read);
         }
     }
 
@@ -113,73 +111,75 @@ internal static class ReadEmitter
     }
 
     // A key that is absent, of another type or of another shape restores nothing, so what an item lacks fails or defaults here as it does without a key.
-    private static void EmitFallback(StringBuilder body, TypeModel type, IGrouping<string, PropertyModel> properties, string group)
+    private static void EmitFallback(IndentedCode code, TypeModel type, IGrouping<string, PropertyModel> properties, string group)
     {
         var key = type.Entity!.Keys().First(candidate => candidate.AttributeName == properties.Key);
-        body.Line($"        if (({string.Join(" || ", properties.Select(static property => $"!fields.{property.Name}__set"))})");
-        body.Line($"            && __Ser.ConverterChecks.TryFindString(__item, {CodeText.Utf8(properties.Key)}, out var __text{group})");
-        body.Line($"            && Keys.{key.BuilderName}.TryParse(__text{group}, out var __restored{group}))");
-        body.Line("        {");
+        code.Line($"if (({string.Join(" || ", properties.Select(static property => $"!fields.{property.Name}__set"))})");
+        code.Line($"    && __Ser.ConverterChecks.TryFindString(__item, {CodeText.Utf8(properties.Key)}, out var __text{group})");
+        code.Line($"    && Keys.{key.BuilderName}.TryParse(__text{group}, out var __restored{group}))");
+        code.Open();
         foreach (var property in properties)
         {
-            body.Line($"            if (!fields.{property.Name}__set) {{ fields.{property.Identifier} = __restored{group}.{property.Identifier}; fields.{property.Name}__set = true; }}");
+            code.Line($"if (!fields.{property.Name}__set) {{ fields.{property.Identifier} = __restored{group}.{property.Identifier}; fields.{property.Name}__set = true; }}");
         }
 
-        body.Line("        }");
-        body.Line();
+        code.Close();
+        code.Blank();
     }
 
-    private static void EmitDispatch(StringBuilder body, List<ReadCandidate> candidates)
+    private static void EmitDispatch(IndentedCode code, List<ReadCandidate> candidates)
     {
         if (candidates.Count == 0)
         {
             return;
         }
 
-        body.Line("                var name = reader.GetAttributeNameUtf8();");
-        body.Line("                switch (name.Length)");
-        body.Line("                {");
+        code.Line("var name = reader.GetAttributeNameUtf8();");
+        code.Line("switch (name.Length)");
+        code.Open();
         foreach (var length in candidates.OrderBy(static candidate => candidate.Attribute, StringComparer.Ordinal).GroupBy(static candidate => candidate.Utf8Length).OrderBy(static group => group.Key))
         {
-            body.Line($"                    case {CodeText.Number(length.Key)}:");
+            code.Line($"case {CodeText.Number(length.Key)}:");
+            code.Indent();
             foreach (var candidate in length)
             {
-                EmitCandidate(body, candidate);
+                EmitCandidate(code, candidate);
             }
 
-            body.Line("                        break;");
+            code.Line("break;");
+            code.Outdent();
         }
 
-        body.Line("                }");
-        body.Line();
+        code.Close();
+        code.Blank();
     }
 
-    private static void EmitCandidate(StringBuilder body, ReadCandidate candidate)
+    private static void EmitCandidate(IndentedCode code, ReadCandidate candidate)
     {
-        body.Line($"                        if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(candidate.Attribute)}))");
-        body.Line("                        {");
-        body.Line($"{Indent}attribute = {CodeText.Literal(candidate.Attribute)};");
+        code.Line($"if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(candidate.Attribute)}))");
+        code.Open();
+        code.Line($"attribute = {CodeText.Literal(candidate.Attribute)};");
         foreach (var line in candidate.Lines)
         {
-            body.Line(Indent + line);
+            code.Line(line);
         }
 
-        body.Line($"{Indent}continue;");
-        body.Line("                        }");
-        body.Line();
+        code.Line("continue;");
+        code.Close();
+        code.Blank();
     }
 
-    private static void EmitFields(StringBuilder body, List<PropertyModel> read)
+    private static void EmitFields(IndentedCode code, List<PropertyModel> read)
     {
-        body.Line();
-        body.Line("    private struct __Fields");
-        body.Line("    {");
+        code.Blank();
+        code.Line("private struct __Fields");
+        code.Open();
         foreach (var property in read)
         {
-            body.Line($"        public {property.ValueType} {property.Identifier}; public bool {property.Name}__set;");
+            code.Line($"public {property.ValueType} {property.Identifier}; public bool {property.Name}__set;");
         }
 
-        body.Line("    }");
+        code.Close();
     }
 
     /// <summary>What a read does for one attribute name.</summary>

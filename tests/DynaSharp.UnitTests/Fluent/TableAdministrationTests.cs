@@ -1,4 +1,5 @@
 using DynaSharp.Testing;
+using DynaSharp.UnitTests.Telemetry;
 using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -37,6 +38,80 @@ public sealed class TableAdministrationTests
 
         // Assert
         await Assert.That(failure).IsNotNull();
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_Table_AsksForItsNameAndReturnsTheDescriptionWithoutWaiting()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableDescription":{"TableName":"Shop","TableStatus":"DELETING"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table("Shop", "pk").DeleteTableAsync();
+
+        // Assert
+        await Assert.That((description.TableStatus, handler.Requests.Single().Operation, handler.Requests.Single().BodyText)).IsEqualTo((TableStatus.Deleting, "DeleteTable", """{"TableName":"Shop"}"""));
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_ViewOfAnEntity_DeletesTheTable()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableDescription":{"TableName":"Shop"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table<SchemaOrder>("Shop").DeleteTableAsync();
+
+        // Assert
+        await Assert.That(handler.Requests.Single().BodyText).IsEqualTo("""{"TableName":"Shop"}""");
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_Missing_ThrowsThatException()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ResourceNotFoundException", "Gone."));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await shop.DeleteTableAsync());
+
+        // Assert
+        await Assert.That(failure.OperationName).IsEqualTo("DeleteTable");
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_DisposedClient_ThrowsNamingTheClient()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        client.Dispose();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ObjectDisposedException>(async () => await shop.DeleteTableAsync());
+
+        // Assert
+        await Assert.That((failure.ObjectName, handler.Requests.Count)).IsEqualTo((typeof(DynamoDbClient).FullName!, 0));
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_AnyTable_HasTheSpanOfTheOperation()
+    {
+        // Arrange
+        using var capture = new ActivityCapture();
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableDescription":{"TableName":"Shop"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table("Shop", "pk").DeleteTableAsync();
+
+        // Assert
+        await Assert.That(capture.All.Single().OperationName).IsEqualTo("DynamoDB.DeleteTable");
     }
 
     [Test]

@@ -1,4 +1,6 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
+using DynaSharp.UnitTests.Fluent;
 
 namespace DynaSharp.UnitTests.Mapping;
 
@@ -31,6 +33,60 @@ public sealed class DynamoDbEntityInfoTests
     }
 
     [Test]
+    public async Task Constructor_NoKeyTypes_SaysNothingAboutThem()
+    {
+        // Arrange, Act
+        var info = new DynamoDbEntityInfo(null, "pk", "sk", [new DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false)]);
+
+        // Assert
+        var index = info.Indexes.Single();
+        await Assert.That((info.PartitionKeyType, info.SortKeyType, index.PartitionKeyType, index.SortKeyType, index.IsLocal))
+            .IsEqualTo((ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, false));
+    }
+
+    [Test]
+    public async Task Constructor_KeyTypes_KeepsThem()
+    {
+        // Arrange, Act
+        var info = new DynamoDbEntityInfo(null, "pk", "sk", [], partitionKeyType: ScalarAttributeType.Number, sortKeyType: ScalarAttributeType.Binary);
+
+        // Assert
+        await Assert.That((info.PartitionKeyType, info.SortKeyType)).IsEqualTo((ScalarAttributeType.Number, ScalarAttributeType.Binary));
+    }
+
+    [Test]
+    public async Task Info_GeneratedEntity_NamesTheTypesOfItsKeysAndItsLocalIndexes()
+    {
+        // Arrange, Act
+        var info = GeneratedInfo<SchemaReading>();
+
+        // Assert
+        var index = info.Indexes.Single();
+        await Assert.That((info.PartitionKeyType, info.SortKeyType, index.IsLocal, index.PartitionKeyName, index.PartitionKeyType, index.SortKeyType))
+            .IsEqualTo((ScalarAttributeType.Number, ScalarAttributeType.Binary, true, "Sensor", ScalarAttributeType.Number, ScalarAttributeType.Number));
+    }
+
+    [Test]
+    public async Task Info_GeneratedEntityWithoutASortKey_SaysNothingAboutOne()
+    {
+        // Arrange, Act
+        var info = GeneratedInfo<SchemaFlat>();
+
+        // Assert
+        await Assert.That((info.PartitionKeyType, info.SortKeyName, info.SortKeyType)).IsEqualTo((ScalarAttributeType.String, (string?)null, ScalarAttributeType.Unknown));
+    }
+
+    [Test]
+    public async Task Info_GeneratedIndexWithoutASortKey_SaysNothingAboutOne()
+    {
+        // Arrange, Act
+        var index = GeneratedInfo<SchemaOrder>().Indexes.Single(static candidate => candidate.IndexName == "ByTracking");
+
+        // Assert
+        await Assert.That((index.IsLocal, index.Sparse, index.PartitionKeyType, index.SortKeyType)).IsEqualTo((false, true, ScalarAttributeType.String, ScalarAttributeType.Unknown));
+    }
+
+    [Test]
     public async Task Constructor_NoKeyTemplates_HasAnEmptyList()
     {
         // Arrange, Act
@@ -54,4 +110,7 @@ public sealed class DynamoDbEntityInfoTests
         await Assert.That((kept.AttributeName, kept.Text, kept.IsTableKey, kept.Inputs.Single(), kept.Format!(["a"])))
             .IsEqualTo(("gsi1pk", "S#{State}", false, new DynamoDbKeyInput("State", "state"), "S#a"));
     }
+
+    private static DynamoDbEntityInfo GeneratedInfo<T>()
+        where T : IDynamoDbEntity<T> => T.Info;
 }

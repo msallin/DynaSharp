@@ -32,10 +32,15 @@ internal static class Tables
     /// <returns>The response of CreateTable.</returns>
     public static async Task<CreateTableResponse> CreateAsync(DynamoDbClient client, CreateTableRequest request)
     {
-        var response = await CreateWithRetryAsync(client, request);
+        var response = await RepeatOnInternalFailureAsync(() => client.CreateTableAsync(request));
         await WaitUntilActiveAsync(client, request.TableName);
         return response;
     }
+
+    /// <summary>Sends a command that creates a table, repeated like every other creation here.</summary>
+    /// <param name="command">The command.</param>
+    /// <returns>The description the command returns.</returns>
+    public static Task<TableDescription> SendAsync(CreateTableCommand command) => RepeatOnInternalFailureAsync(async () => await command.SendAsync());
 
     /// <summary>Describes the table until <paramref name="condition"/> holds for it, for the changes that UpdateTable makes asynchronously.</summary>
     /// <param name="client">The client of the emulator.</param>
@@ -107,31 +112,19 @@ internal static class Tables
     /// <param name="client">The client of the emulator.</param>
     /// <param name="request">The update.</param>
     /// <returns>The response of UpdateTable.</returns>
-    public static async Task<UpdateTableResponse> UpdateAsync(DynamoDbClient client, UpdateTableRequest request)
-    {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await client.UpdateTableAsync(request);
-            }
-            catch (DynamoDbException exception) when (exception.ErrorCode == "InternalFailure" && attempt < 25)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(System.Security.Cryptography.RandomNumberGenerator.GetInt32(20, 150)));
-            }
-        }
-    }
+    public static Task<UpdateTableResponse> UpdateAsync(DynamoDbClient client, UpdateTableRequest request) =>
+        RepeatOnInternalFailureAsync(() => client.UpdateTableAsync(request));
 
     // DynamoDB Local answers some CreateTable calls with InternalFailure (HTTP 500) while other tables are being created or deleted at
     // the same time, which parallel tests do all the time. The table does not exist after such an answer, so the call is repeated.
     // The client does not retry on its own (MaxAttempts is 1 in the tests) and would not repeat it as a throttle either.
-    private static async Task<CreateTableResponse> CreateWithRetryAsync(DynamoDbClient client, CreateTableRequest request)
+    private static async Task<T> RepeatOnInternalFailureAsync<T>(Func<Task<T>> call)
     {
         for (var attempt = 1; ; attempt++)
         {
             try
             {
-                return await client.CreateTableAsync(request);
+                return await call();
             }
             catch (DynamoDbException exception) when (exception.ErrorCode == "InternalFailure" && attempt < 25)
             {

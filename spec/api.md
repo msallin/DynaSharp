@@ -166,7 +166,7 @@ Custom converters implement `IDynamoDbConverter<T>` with static members on a str
 
 ## 5. Commands
 
-Every method of a table starts a command, a `readonly ref struct` over pooled state. A command is built and sent in one expression: `diagnostics.md`
+Every method of a table that reads or writes items starts a command, a `readonly ref struct` over pooled state. `CreateTable()` starts an ordinary class, `CreateTableCommand`, because administration is no hot path, and it has no `MaxAttempts`. A command is built and sent in one expression: `diagnostics.md`
 lists what the compiler refuses and what to write instead. Every fluent call uses up its handle and returns a new one, so using one twice
 throws `InvalidOperationException`. The method that returns a command is the template of a request, and a helper takes and returns one:
 
@@ -521,7 +521,7 @@ Credentials: `DefaultCredentialsProvider` is the chain of environment, shared fi
 fails instead of falling through. `EnvironmentCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`,
 `InstanceMetadataCredentialsProvider` and `StaticCredentialsProvider` are the single sources.
 
-Out of the API on purpose: an interface on `Table<T>` or `DynamoDbClient`, `Save`, identity maps, lazy loading, any read before a write, `ToRequest()`, `==` on
+Out of the API on purpose: an interface on `Table<T>` or `DynamoDbClient`, `Save`, identity maps, lazy loading, any read before a write, `ToRequest()` on an item command, `==` on
 attributes, views and streaming callbacks over a response, compile-time expression templates. A write through `Table<Item>` is what it says: no `_type` and no
 key check.
 
@@ -544,7 +544,8 @@ using var client = new DynamoDbClient(options with { HttpHandler = stub, MaxAtte
 
 The helpers go through `WriteAttributes`, so they cannot drift from the codec. `ToRequestJson()` is the second seam: what a chain would send, without a client.
 
-## Decided against for 0.1.0
+## Table administration and conflicts
 
-`Table<T>` create and delete, because one entity cannot describe a single-table schema. A later helper could fill a `CreateTableRequest` from several entities. A conflict retry helper waits for
-real usage to show its shape. Both would be additive.
+`orders.CreateTable().Including<Customer>().SendAsync(ct)` creates a table from what the entities declare: one entity cannot describe a single-table schema, so the table's indexes are the union over the entities named. Two entities that give an attribute two types throw at `Including`. `Provisioned(read, write)`, `WaitUntilActive()` and `IfNotExists()` shape it, and `ToRequest()` hands over a `CreateTableRequest` for what it does not cover, such as streams. A custom converter on a plain key counts as a string unless it implements `IAddableConverter`. `IfNotExists()` does not compare schemas, and takes a `DELETING` table for success. `DeleteTableAsync` deletes all items and does not wait.
+
+`client.RetryOnConflictAsync(ct => ..., ct)` runs a delegate again on `ConditionalCheckFailedException`, `TransactionConflictException`, and a cancelled transaction with those reasons, up to 5 runs by default, with a small jitter through the client's `TimeProvider`. Nothing else retries a conflict. The delegate must read again, or the retry changes nothing. A conditional write whose response is lost fails its own pipeline retry, and the helper then applies the change again: `.MaxAttempts(1)` on the write avoids that.

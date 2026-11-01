@@ -13,7 +13,9 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "FIXED",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

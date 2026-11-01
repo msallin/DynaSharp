@@ -13,7 +13,9 @@ partial class SiteSettings : __Map.IDynamoDbDiscriminated<global::KeyShapes.Site
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "SETTINGS",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

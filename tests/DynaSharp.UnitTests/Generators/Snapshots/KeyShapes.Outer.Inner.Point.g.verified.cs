@@ -17,7 +17,9 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "POINT",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

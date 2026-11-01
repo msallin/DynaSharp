@@ -13,7 +13,9 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "DERIVED",
         partitionKeyName: "Id",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

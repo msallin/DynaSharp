@@ -29,9 +29,6 @@ namespace DynaSharp;
 public sealed class Table<T>
     where T : IDynamoDbDocument<T>
 {
-    // A table turns active within minutes, and only the largest restores take longer: those know what to pass.
-    private static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
-
     private ConcurrentDictionary<Type, object>? _views;
 
     internal Table(TableModel model)
@@ -206,7 +203,7 @@ public sealed class Table<T>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns an error other than <see cref="ResourceNotFoundException"/>; a throttling or server error only after the last attempt.</exception>
     public ValueTask<TableDescription> WaitUntilActiveAsync(CancellationToken cancellationToken = default) =>
-        TableAdministration.WaitUntilActiveAsync(Model, DefaultActiveTimeout, cancellationToken);
+        TableAdministration.WaitUntilActiveAsync(Model, TableAdministration.DefaultActiveTimeout, cancellationToken);
 
     /// <summary>
     /// Waits until the table is <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
@@ -234,6 +231,36 @@ public sealed class Table<T>
     /// <exception cref="DynamoDbException">DynamoDB returns an error other than <see cref="ResourceNotFoundException"/>; a throttling or server error only after the last attempt.</exception>
     public ValueTask<TableDescription> WaitUntilActiveAsync(TimeSpan timeout, CancellationToken cancellationToken = default) =>
         TableAdministration.WaitUntilActiveAsync(Model, timeout, cancellationToken);
+
+    /// <summary>
+    /// Starts the creation of this table from what its entity declares: <c>await orders.CreateTable().Including&lt;Customer&gt;().SendAsync(ct);</c>. One entity does not describe a single table, whose indexes are
+    /// the union over its entities, so <see cref="CreateTableCommand.Including{TOther}"/> names the others. A table without an entity starts from the key names it was opened with. See <see cref="CreateTableCommand"/>.
+    /// </summary>
+    /// <returns>The command, which sends nothing until <see cref="CreateTableCommand.SendAsync"/>.</returns>
+    public CreateTableCommand CreateTable() => new(Model, typeof(T).ToString());
+
+    /// <summary>
+    /// Deletes this table and <b>all the items in it</b> (<c>DeleteTable</c>), which cannot be undone except from a backup. To delete one item, see <see cref="Delete(AttributeValue, AttributeValue)"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The table is gone only some time later, and this call does not wait for that: it returns the description of a table that is normally <see cref="TableStatus.Deleting"/>, and while it is, creating a table
+    /// of that name fails with <see cref="ResourceInUseException"/>. It is gone when <see cref="DescribeAsync"/> throws <see cref="ResourceNotFoundException"/>.
+    /// </para>
+    /// <para>
+    /// A table with deletion protection cannot be deleted. A repeat after a lost response can fail with <see cref="ResourceNotFoundException"/> or <see cref="ResourceInUseException"/>, because the table is
+    /// already going away. The stream of the table stays readable for 24 hours.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the call. A deletion DynamoDB accepted stays accepted.</param>
+    /// <returns>The description of the table as it goes away.</returns>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="ResourceInUseException">The table is being created or updated, or is already being deleted.</exception>
+    /// <exception cref="LimitExceededException">The account creates or deletes tables too fast.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table has deletion protection.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<TableDescription> DeleteTableAsync(CancellationToken cancellationToken = default) => TableAdministration.DeleteAsync(Model, cancellationToken);
 
     /// <summary>
     /// Starts a batch get of many items of this table by their keys (<c>BatchGetItem</c>), of any number: the command cuts them into requests of 100 and

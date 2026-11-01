@@ -13,13 +13,15 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "MIXED",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "Code",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false),
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true),
-            new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true),
-            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
+            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

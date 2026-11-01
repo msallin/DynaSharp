@@ -13,7 +13,9 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "OWN",
         partitionKeyName: "Id",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

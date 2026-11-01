@@ -13,11 +13,13 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "LOGLINE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true),
-            new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false),
+            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

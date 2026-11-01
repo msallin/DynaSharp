@@ -22,6 +22,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
 
     private const string SetArrayConverter = Serialization + "SetArrayConverter<";
 
+    private const string EpochSecondsConverter = Serialization + "EpochSecondsConverter";
+
     private static readonly HashSet<string> Numbers =
     [
         "sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "float", "double", "decimal",
@@ -86,6 +88,31 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
             || AttributeReader.Find(type, WellKnownNames.ConverterAttribute) is not null;
     }
 
+    /// <summary>
+    /// Finds how a plain key is stored. A built-in says so by what it is. A custom converter can only say so by <c>IAddableConverter</c>, which marks a number or a set, and a set
+    /// is no key. Nothing tells what any other custom converter writes.
+    /// </summary>
+    /// <param name="property">The property, with its converter resolved.</param>
+    /// <returns>The type, or <see cref="KeyWireType.Unknown"/> for a custom converter that does not say.</returns>
+    public static KeyWireType WireTypeOf(PropertyFacts property)
+    {
+        var (inner, _) = Types.Unwrap(property.Type);
+        var attribute = property.Converter ?? AttributeReader.Find(inner, WellKnownNames.ConverterAttribute);
+        if (attribute?.ConstructorArguments.FirstOrDefault().Value is not ITypeSymbol converter)
+        {
+            return WireTypeOf(inner);
+        }
+
+        var name = Names.Of(converter);
+        if (name == EpochSecondsConverter || converter.AllInterfaces.Any(static candidate => candidate.ToDisplayString() == WellKnownNames.AddableInterface))
+        {
+            return KeyWireType.Number;
+        }
+
+        // A built-in named in the attribute writes what it writes without the attribute.
+        return name.StartsWith(Serialization, StringComparison.Ordinal) ? WireTypeOf(inner) : KeyWireType.Unknown;
+    }
+
     /// <summary>Resolves the converter of a property.</summary>
     /// <returns>The converter, or null when there is none, which has been reported.</returns>
     public ResolvedConverter? Resolve(PropertyFacts property)
@@ -118,6 +145,18 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
 
         var forwarder = WritesExplicitly(property, inner) ? Wrapped(inner, converter) : null;
         return new ResolvedConverter(new ConverterModel(converter, read, null, forwarder), write, _isPublic);
+    }
+
+    // What the built-in converter of a key type writes, a string unless it is listed here. A new entry in KeyScalars that writes anything else has to show here too.
+    private static KeyWireType WireTypeOf(ITypeSymbol type)
+    {
+        var code = Names.Of(type);
+        if (Numbers.Contains(code) || (type.TypeKind == TypeKind.Enum && EnumRegistry.IsStoredAsNumber(type)))
+        {
+            return KeyWireType.Number;
+        }
+
+        return code is "byte[]" or "global::System.ReadOnlyMemory<byte>" ? KeyWireType.Binary : KeyWireType.String;
     }
 
     private static string Wrapped(ITypeSymbol inner, string converter) =>

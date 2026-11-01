@@ -13,7 +13,9 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "LEDGER",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

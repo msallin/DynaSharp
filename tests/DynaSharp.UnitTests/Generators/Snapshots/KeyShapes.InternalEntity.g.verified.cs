@@ -13,7 +13,9 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "INTERNAL",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

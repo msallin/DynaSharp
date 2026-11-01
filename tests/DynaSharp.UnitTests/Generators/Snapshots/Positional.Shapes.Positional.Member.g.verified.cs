@@ -13,7 +13,9 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "MEMBER",
         partitionKeyName: "Id",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

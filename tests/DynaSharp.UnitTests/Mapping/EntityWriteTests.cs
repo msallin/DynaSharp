@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 
 namespace DynaSharp.UnitTests.Mapping;
 
@@ -255,7 +256,7 @@ public sealed class EntityWriteTests
         var index = Info<Purchase>().Indexes.Single();
 
         // Assert
-        await Assert.That(index).IsEqualTo(new DynamoDbIndexInfo("ByStatus", "Status", null, Sparse: false));
+        await Assert.That(index).IsEqualTo(new DynamoDbIndexInfo("ByStatus", "Status", null, Sparse: false, PartitionKeyType: ScalarAttributeType.String));
     }
 
     [Test]

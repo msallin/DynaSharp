@@ -13,12 +13,14 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "ORDER",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false),
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true),
-            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

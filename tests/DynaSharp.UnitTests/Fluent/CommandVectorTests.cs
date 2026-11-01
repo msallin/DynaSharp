@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Operations;
+using DynaSharp.UnitTests.Serialization;
 using static DynaSharp.Expr;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -164,6 +166,10 @@ public sealed partial class CommandVectorTests
     // The command for each vector written for the commands.
     private static readonly Dictionary<(string Operation, string Name), Func<DynamoDbClient, string>> CommandOnly = new()
     {
+        [("CreateTable", "TableWithoutAnEntity")] = client => Written(client.Table("Shop", "pk", "sk").CreateTable()),
+        [("CreateTable", "UnionOfThreeEntities")] = client => Written(client.Table<SchemaOrder>("Shop").CreateTable().Including<SchemaCustomer>().Including<SchemaProduct>()),
+        [("CreateTable", "ProvisionedWithGlobalAndLocalIndexes")] = client => Written(client.Table<SchemaOrder>("Shop").CreateTable().Provisioned(read: 5, write: 7)),
+        [("CreateTable", "NumberAndBinaryKeys")] = client => Written(client.Table("Readings", "Sensor", "Stamp").CreateTable().Including<SchemaReading>()),
         [("GetItem", "Key")] = client => Shop(client).Get("CUSTOMER#alice", "PROFILE").ToRequestJson(),
         [("GetItem", "NumberKey")] = client => Shop(client).Get(7, 2.5m).ToRequestJson(),
         [("GetItem", "ConsistentProjection")] = client => Shop(client).Get("CUSTOMER#alice", "PROFILE").Consistent().Project("fullName", "address.city", "lines[0].sku").ReturnCapacity().ToRequestJson(),
@@ -309,6 +315,24 @@ public sealed partial class CommandVectorTests
         // Assert
         await Assert.That(handler.Requests.Single().Headers["X-Amz-Target"]).IsEqualTo(OperationVectors.Request("UpdateItem", "Minimal").Target);
     }
+
+    [Test]
+    public async Task DeleteTableAsync_Table_WritesWhatBotocoreWrites()
+    {
+        // Arrange
+        var expected = OperationVectors.Request("DeleteTable", "DeleteATableFromApiReference");
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableDescription":{"TableName":"Reply"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table("Reply", "Id", "ReplyDateTime").DeleteTableAsync();
+
+        // Assert
+        var request = handler.Requests.Single();
+        await Assert.That((request.Headers["X-Amz-Target"], JsonComparer.Differences(expected.Body, request.BodyText))).IsEqualTo((expected.Target, string.Empty));
+    }
+
+    private static string Written(CreateTableCommand command) => TestJson.Write(writer => CreateTableOperation.WriteRequest(writer, command.ToRequest()));
 
     private static BatchGetCommand<Item> Numbered(BatchGetCommand<Item> command, int count)
     {

@@ -13,10 +13,12 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "NOTE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true),
+            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: "Revision",
         discriminatorAttributeName: "_type",

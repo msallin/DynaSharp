@@ -13,7 +13,9 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "KEYONLY",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

@@ -1,5 +1,6 @@
 using DynaSharp.Credentials;
 using DynaSharp.IntegrationTests.Backends;
+using DynaSharp.Mapping;
 using DynaSharp.Requests;
 using DynaSharp.Streams;
 
@@ -64,6 +65,19 @@ internal sealed class Sandbox : IAsyncDisposable
         var response = await Tables.CreateAsync(Client, request);
         _tables.Add(request.TableName);
         return response;
+    }
+
+    /// <summary>Sends a command that creates a table, which is dropped when the sandbox is disposed.</summary>
+    /// <typeparam name="T">What the table reads and writes.</typeparam>
+    /// <param name="table">The table.</param>
+    /// <param name="command">The command, one of <paramref name="table"/>.</param>
+    /// <returns>The description the command returns.</returns>
+    public async Task<TableDescription> CreateTableAsync<T>(Table<T> table, CreateTableCommand command)
+        where T : IDynamoDbDocument<T>
+    {
+        var description = await Tables.SendAsync(command);
+        _tables.Add(table.Name);
+        return description;
     }
 
     /// <inheritdoc/>

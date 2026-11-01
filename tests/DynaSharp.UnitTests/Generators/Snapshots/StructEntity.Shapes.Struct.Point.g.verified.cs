@@ -13,7 +13,9 @@ partial struct Point : __Map.IDynamoDbDiscriminated<global::Shapes.Struct.Point>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "POINT",
         partitionKeyName: "Id",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace DynaSharp.Generators;
 
 /// <summary>
@@ -10,84 +8,82 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal static class WriteEmitter
 {
-    private const string Indent = "        ";
-
     private const string VersionParameter = "__version";
 
-    public static void Emit(StringBuilder body, TypeModel type)
+    public static void Emit(IndentedCode code, TypeModel type)
     {
         if (type.Entity is { } entity)
         {
-            EmitWriteKey(body, type, entity);
+            EmitWriteKey(code, type, entity);
         }
 
         var version = type.Entity?.VersionProperty is { } name ? type.Property(name) : null;
-        body.Line();
+        code.Blank();
         if (version is null)
         {
-            body.Line($"    static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
+            code.Line($"static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
         }
         else
         {
-            EmitVersionedWrites(body, type, version);
-            body.Line($"    private static void __WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity, {version.ValueType} {VersionParameter})");
+            EmitVersionedWrites(code, type, version);
+            code.Line($"private static void __WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity, {version.ValueType} {VersionParameter})");
         }
 
-        body.Line("    {");
+        code.Open();
         var variables = new VariableNames();
         if (type.Entity is not null)
         {
-            EmitKeyAttributes(body, type.Entity, variables);
+            EmitKeyAttributes(code, type.Entity, variables);
         }
 
         foreach (var property in type.Properties)
         {
-            EmitProperty(body, property, variables, property == version ? VersionParameter : $"entity.{property.Identifier}");
+            EmitProperty(code, property, variables, property == version ? VersionParameter : $"entity.{property.Identifier}");
         }
 
-        body.Line("    }");
+        code.Close();
     }
 
     // A plain write gives the version as it stands, and a put gives the next one. A value that does not fit the property fails here, not on a read of the item.
-    private static void EmitVersionedWrites(StringBuilder body, TypeModel type, PropertyModel version)
+    private static void EmitVersionedWrites(IndentedCode code, TypeModel type, PropertyModel version)
     {
-        body.Line($"    static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity) => __WriteAttributes(writer, entity, entity.{version.Identifier});");
-        body.Line();
-        body.Line($"    static long __Map.IDynamoDbDocument<{type.FullName}>.WriteNextVersion(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
-        body.Line("    {");
-        body.Line($"        var held = entity.{version.Identifier};");
-        body.Line($"        __WriteAttributes(writer, entity, checked(({version.ValueType})(held + 1)));");
-        body.Line("        return checked((long)held);");
-        body.Line("    }");
-        body.Line();
-        body.Line($"    static long __Map.IDynamoDbEntity<{type.FullName}>.ReadVersion({type.FullName} entity) => checked((long)entity.{version.Identifier});");
-        body.Line();
+        code.Line($"static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity) => __WriteAttributes(writer, entity, entity.{version.Identifier});");
+        code.Blank();
+        code.Line($"static long __Map.IDynamoDbDocument<{type.FullName}>.WriteNextVersion(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
+        code.Open();
+        code.Line($"var held = entity.{version.Identifier};");
+        code.Line($"__WriteAttributes(writer, entity, checked(({version.ValueType})(held + 1)));");
+        code.Line("return checked((long)held);");
+        code.Close();
+        code.Blank();
+        code.Line($"static long __Map.IDynamoDbEntity<{type.FullName}>.ReadVersion({type.FullName} entity) => checked((long)entity.{version.Identifier});");
+        code.Blank();
     }
 
-    private static void EmitWriteKey(StringBuilder body, TypeModel type, EntityModel entity)
+    private static void EmitWriteKey(IndentedCode code, TypeModel type, EntityModel entity)
     {
-        body.Line();
-        body.Line($"    static void __Map.IDynamoDbEntity<{type.FullName}>.WriteKey(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
-        body.Line("    {");
-        EmitTableKey(body, type, entity.PartitionKey);
+        code.Blank();
+        code.Line($"static void __Map.IDynamoDbEntity<{type.FullName}>.WriteKey(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
+        code.Open();
+        EmitTableKey(code, type, entity.PartitionKey);
         if (entity.SortKey is { } sortKey)
         {
-            EmitTableKey(body, type, sortKey);
+            EmitTableKey(code, type, sortKey);
         }
 
-        body.Line("    }");
+        code.Close();
     }
 
-    private static void EmitTableKey(StringBuilder body, TypeModel type, KeyModel key)
+    private static void EmitTableKey(IndentedCode code, TypeModel type, KeyModel key)
     {
         if (key.PlainProperty is { } name)
         {
             var property = type.Property(name);
-            EmitConverterCall(body, Indent, property, $"entity.{property.Identifier}");
+            EmitConverterCall(code, property, $"entity.{property.Identifier}");
         }
         else
         {
-            EmitTemplateKey(body, Indent, key, []);
+            EmitTemplateKey(code, key, []);
         }
     }
 
@@ -95,32 +91,32 @@ internal static class WriteEmitter
     private static List<KeyModel> WithOwnAttribute(params KeyModel?[] keys) =>
         [.. keys.OfType<KeyModel>().Where(static key => key is { PlainProperty: null, SharesAttribute: false })];
 
-    private static void EmitKeyAttributes(StringBuilder body, EntityModel entity, VariableNames variables)
+    private static void EmitKeyAttributes(IndentedCode code, EntityModel entity, VariableNames variables)
     {
         foreach (var key in WithOwnAttribute(entity.PartitionKey, entity.SortKey))
         {
-            EmitTemplateKey(body, Indent, key, []);
+            EmitTemplateKey(code, key, []);
         }
 
         foreach (var index in entity.Indexes)
         {
-            EmitIndex(body, index, variables);
+            EmitIndex(code, index, variables);
         }
 
         if (entity.Discriminator is { } discriminator)
         {
-            body.Line($"{Indent}writer.WriteAttributeName({CodeText.Utf8(entity.DiscriminatorAttribute)});");
-            body.Line($"{Indent}writer.WriteString({CodeText.Utf8(discriminator)});");
+            code.Line($"writer.WriteAttributeName({CodeText.Utf8(entity.DiscriminatorAttribute)});");
+            code.Line($"writer.WriteString({CodeText.Utf8(discriminator)});");
         }
     }
 
-    private static void EmitIndex(StringBuilder body, IndexModel index, VariableNames variables)
+    private static void EmitIndex(IndentedCode code, IndexModel index, VariableNames variables)
     {
         // A local index shares the partition key of the table, which is written already.
         var written = WithOwnAttribute(index.IsLocal ? null : index.PartitionKey, index.SortKey);
         foreach (var key in written.Where(static key => key.Gates.Count > 0))
         {
-            EmitSharedKey(body, key, variables);
+            EmitSharedKey(code, key, variables);
         }
 
         var keys = written.Where(static key => key.Gates.Count == 0).ToList();
@@ -128,24 +124,24 @@ internal static class WriteEmitter
         if (inputs.Count > 0)
         {
             var conditions = inputs.Select(static input => $"entity.{Names.Identifier(input.Key)} is {{ }} {input.Value}");
-            body.Line($"{Indent}if ({string.Join(" && ", conditions)})");
-            body.Line($"{Indent}{{");
+            code.Line($"if ({string.Join(" && ", conditions)})");
+            code.Open();
         }
 
         foreach (var key in keys)
         {
-            EmitTemplateKey(body, inputs.Count > 0 ? Indent + "    " : Indent, key, inputs);
+            EmitTemplateKey(code, key, inputs);
         }
 
         if (inputs.Count > 0)
         {
-            body.Line($"{Indent}}}");
+            code.Close();
         }
     }
 
     // The inputs of the key are in every gate, so they are what binds the values. Anything left of a gate is another index's business, and only tested:
     // if (entity.Nick is { } __v0 && ((entity.Age is not null) || (entity.City is not null)))
-    private static void EmitSharedKey(StringBuilder body, KeyModel key, VariableNames variables)
+    private static void EmitSharedKey(IndentedCode code, KeyModel key, VariableNames variables)
     {
         var inputs = key.Template!.Segments
             .OfType<PlaceholderSegment>()
@@ -160,30 +156,30 @@ internal static class WriteEmitter
 
         if (conditions.Count == 0)
         {
-            EmitTemplateKey(body, Indent, key, inputs);
+            EmitTemplateKey(code, key, inputs);
             return;
         }
 
-        body.Line($"{Indent}if ({string.Join(" && ", conditions)})");
-        body.Line($"{Indent}{{");
-        EmitTemplateKey(body, Indent + "    ", key, inputs);
-        body.Line($"{Indent}}}");
+        code.Line($"if ({string.Join(" && ", conditions)})");
+        code.Open();
+        EmitTemplateKey(code, key, inputs);
+        code.Close();
     }
 
-    private static void EmitTemplateKey(StringBuilder body, string indent, KeyModel key, Dictionary<string, string> inputs)
+    private static void EmitTemplateKey(IndentedCode code, KeyModel key, Dictionary<string, string> inputs)
     {
         var values = key.Template!.Segments
             .OfType<PlaceholderSegment>()
             .Select(placeholder => inputs.TryGetValue(placeholder.Property, out var input) ? input : $"entity.{Names.Identifier(placeholder.Property)}");
-        body.Line($"{indent}writer.WriteAttributeName({CodeText.Utf8(key.AttributeName)});");
-        body.Line($"{indent}Keys.{key.BuilderName}.Write({string.Join(", ", values.Prepend("writer"))});");
+        code.Line($"writer.WriteAttributeName({CodeText.Utf8(key.AttributeName)});");
+        code.Line($"Keys.{key.BuilderName}.Write({string.Join(", ", values.Prepend("writer"))});");
     }
 
-    private static void EmitProperty(StringBuilder body, PropertyModel property, VariableNames variables, string value)
+    private static void EmitProperty(IndentedCode code, PropertyModel property, VariableNames variables, string value)
     {
         if (property.Write == WriteCondition.Always)
         {
-            EmitConverterCall(body, Indent, property, value);
+            EmitConverterCall(code, property, value);
         }
         else if (property.Write != WriteCondition.Never)
         {
@@ -194,17 +190,17 @@ internal static class WriteEmitter
                 WriteCondition.WhenNotEmptyCount => "{ Count: > 0 }",
                 _ => "{ Length: > 0 }",
             };
-            body.Line($"{Indent}if ({value} is {pattern} {variable})");
-            body.Line($"{Indent}{{");
-            EmitConverterCall(body, Indent + "    ", property, variable);
-            body.Line($"{Indent}}}");
+            code.Line($"if ({value} is {pattern} {variable})");
+            code.Open();
+            EmitConverterCall(code, property, variable);
+            code.Close();
         }
     }
 
-    private static void EmitConverterCall(StringBuilder body, string indent, PropertyModel property, string value)
+    private static void EmitConverterCall(IndentedCode code, PropertyModel property, string value)
     {
-        body.Line($"{indent}writer.WriteAttributeName({CodeText.Utf8(property.AttributeName)});");
-        body.Line($"{indent}{property.Converter!.WriteCall(value)};");
+        code.Line($"writer.WriteAttributeName({CodeText.Utf8(property.AttributeName)});");
+        code.Line($"{property.Converter!.WriteCall(value)};");
     }
 
     /// <summary>Hands out the names of pattern variables within one method.</summary>

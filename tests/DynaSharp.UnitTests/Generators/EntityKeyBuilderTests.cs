@@ -57,6 +57,105 @@ public sealed class EntityKeyBuilderTests
     }
 
     [Test]
+    public async Task Build_TemplateKey_IsAString()
+    {
+        // Arrange (an integer in a template is text)
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("{Id:d4}")] public partial class E { public int Id { get; set; } }""";
+
+        // Act
+        var entity = Analysis.Model(Source, "global::Shop.E").Entity!;
+
+        // Assert
+        await Assert.That(entity.PartitionKey.WireType).IsEqualTo(KeyWireType.String);
+    }
+
+    [Test]
+    [Arguments("public string V { get; set; } = \"\";", nameof(KeyWireType.String))]
+    [Arguments("public Guid V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public DateTimeOffset V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public DateTime V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public DateOnly V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public TimeOnly V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public TimeSpan V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public byte V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public int V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public long V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public decimal V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public double V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public byte[] V { get; set; } = [];", nameof(KeyWireType.Binary))]
+    [Arguments("public ReadOnlyMemory<byte> V { get; set; }", nameof(KeyWireType.Binary))]
+    [Arguments("public Color V { get; set; }", nameof(KeyWireType.String))]
+    [Arguments("public Modes V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("[DynamoDbConverter(typeof(EpochSecondsConverter))] public DateTimeOffset V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("[DynamoDbConverter(typeof(NumberConverter<int>))] public int V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("[DynamoDbConverter(typeof(StringConverter))] public string V { get; set; } = \"\";", nameof(KeyWireType.String))]
+    [Arguments("[DynamoDbConverter(typeof(BinaryConverter))] public byte[] V { get; set; } = [];", nameof(KeyWireType.Binary))]
+    [Arguments("[DynamoDbConverter(typeof(SaysNothing))] public bool V { get; set; }", nameof(KeyWireType.Unknown))]
+    [Arguments("[DynamoDbConverter(typeof(SaysNumber))] public bool V { get; set; }", nameof(KeyWireType.Number))]
+    [Arguments("public Money V { get; set; }", nameof(KeyWireType.Unknown))]
+    public async Task Build_PlainKey_HasTheWireTypeOfWhatItsConverterWrites(string member, string expected)
+    {
+        // Arrange
+        var source = $$"""
+            public enum Color { Red }
+            [Flags] public enum Modes { None = 0, Fast = 1 }
+            public readonly struct SaysNothing : IDynamoDbConverter<bool>
+            {
+                public static void Write(DynamoDbWriter writer, bool value) { }
+                public static bool Read(ref DynamoDbReader reader, AttributeType type) => default;
+            }
+            public readonly struct SaysNumber : IDynamoDbConverter<bool>, IAddableConverter
+            {
+                public static void Write(DynamoDbWriter writer, bool value) { }
+                public static bool Read(ref DynamoDbReader reader, AttributeType type) => default;
+            }
+            [DynamoDbConverter(typeof(MoneyText))] public readonly struct Money { }
+            public readonly struct MoneyText : IDynamoDbConverter<Money>
+            {
+                public static void Write(DynamoDbWriter writer, Money value) { }
+                public static Money Read(ref DynamoDbReader reader, AttributeType type) => default;
+            }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("{V}", AttributeName = "V")]
+            public partial class E { {{member}} }
+            """;
+
+        // Act
+        var entity = Analysis.Model(source, "global::Shop.E").Entity!;
+
+        // Assert
+        await Assert.That(entity.PartitionKey.WireType.ToString()).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Build_NullablePlainKeyOfASparseIndex_HasTheWireTypeOfTheValue()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), GlobalIndexKey("ByRank", PartitionKey = "{Rank}", PartitionKeyAttributeName = "Rank", Sparse = true)]
+            public partial class E { public int? Rank { get; set; } }
+            """;
+
+        // Act
+        var entity = Analysis.Model(Source, "global::Shop.E").Entity!;
+
+        // Assert
+        await Assert.That(entity.Indexes.Single().PartitionKey.WireType).IsEqualTo(KeyWireType.Number);
+    }
+
+    [Test]
+    public async Task Build_ConverterAttributeWithoutItsArgument_LeavesTheCompilerToReportIt()
+    {
+        // Arrange (the source does not compile, and the generator sees it on every keystroke)
+        const string Source = """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey, DynamoDbConverter] public int V { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).DoesNotContain("CS8785");
+    }
+
+    [Test]
     [Arguments("string", "public string V { get; set; } = \"\";")]
     [Arguments("enum", "public Color V { get; set; }")]
     [Arguments("byte[]", "public byte[] V { get; set; } = [];")]

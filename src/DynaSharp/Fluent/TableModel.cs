@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DynaSharp.Http;
+using DynaSharp.Mapping;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.Fluent;
@@ -67,6 +68,9 @@ internal sealed class TableModel
 
     /// <summary>Gets what a write of the entity owes its version and its keys, or <see langword="null"/> if there is nothing, which a table without an entity never has.</summary>
     public EntityWrites? Writes { get; init; }
+
+    /// <summary>Gets what the entity of the table declares, or <see langword="null"/> for a table without an entity, which is what creating the table starts from.</summary>
+    public DynamoDbEntityInfo? Entity { get; init; }
 
     /// <summary>
     /// Gets the attributes a typed read needs in its projection: the discriminator, which the read checks, and the keys, which an entity is restored

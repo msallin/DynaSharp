@@ -1,14 +1,11 @@
 using System.Globalization;
-using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace DynaSharp.Generators;
 
-/// <summary>Writes generated code as text. Lines end in <c>\n</c> on every platform, so the output does not depend on the build machine.</summary>
+/// <summary>Spells values as the text of generated code.</summary>
 internal static class CodeText
 {
-    public static StringBuilder Line(this StringBuilder text, string line = "") => text.Append(line).Append('\n');
-
     /// <summary>A C# string literal: <c>a"b</c> gives <c>"a\"b"</c>.</summary>
     public static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 

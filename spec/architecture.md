@@ -41,7 +41,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
 | `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
-| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
+| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, `TableAdministration`, `TableSchema`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
 | `Expressions` | Condition structs, `Attr`, `Expr`, `SortKey`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
 | `Mapping` | Attributes and the contract of section 6 | `Serialization` |
 | `Serialization` | `DynamoDbReader`, `DynamoDbWriter`, converters, `PooledByteBuffer`, `ItemShape`, `ShapeTable` | `Mapping` |
@@ -155,6 +155,12 @@ The order in `Settle` matters: the version first, then keys, then indexes of lit
 Building a one-item command, a batch or a transaction allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, and boxed values and a key string on an update of a key input. `CommandAllocationTests` pins that per
 command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTests` and `FanOutStressTests` hammer the pooled state.
 
+### Table administration
+
+`DescribeAsync`, `WaitUntilActiveAsync`, `DeleteTableAsync` and `CreateTableCommand` run the operations of the request API through `ClientCore.ExecuteAsync`, so they have its spans and metrics and write no JSON of their own. `TableAdministration` holds them.
+
+`CreateTableCommand` is the one command that is an ordinary class over no pooled state: it crosses `await`, it can be kept, and a clause changes it and returns it. That is deliberate, because this is not a hot path, and it is why it has no `ToRequestJson` but `ToRequest`, whose record goes into the request API. `TableSchema` holds the union of the entities: `TableModel.Entity` starts it, and each `Including<T>` adds to it and throws at that call on a disagreement. A type of `ScalarAttributeType.Unknown` stays open, so a type stated by an entity fills it in and never conflicts, and what stays open is a string in the request. That is how `Table<Item>`, a type written by hand and a custom converter behave alike. Attribute names and the kind of an index are what entities have to agree on; templates are not compared, because an overloaded index is several templates over one attribute. `IfNotExists` leaves the description to the wait if there is one, which bears with a table `DescribeTable` does not see yet.
+
 ## 4. Reads
 
 **Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`.
@@ -207,7 +213,7 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `IDynamoDbDiscriminated<T>` | A marker; the constraint of mixed reads. `EntityEmitter` puts it on the declaration when the entity has a discriminator value |
 | `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string |
 | `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense; `TableExtensions.Query`, which takes it |
-| `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel` and `EntityWrites` |
+| `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema` |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
 | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
 | `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
@@ -219,6 +225,9 @@ so a generic instantiation gets its own code. An enum gets a `file` struct in th
 `KeyTemplates` in `Info` holds every key attribute made of properties, once: a template of the table without a delegate, an index template with `static values => Keys.X.Format(...)`, a plain index key without one, and a key of
 literals of any index. A plain key of the table is left out, so an entity with neither pays nothing. `KeyTemplateEmitter` writes this and its remarks explain each case. The value of an input is boxed until the terminal, which is the
 price of one delegate shape for all templates.
+
+`Info` also says how each key is stored, for `TableSchema`. A template is a string. A plain key is what its converter writes, which `ConverterResolver.WireTypeOf` finds at compile time and `KeyModel.WireType` carries. A
+custom converter gives that away only through `IAddableConverter`, which makes the key a number, so any other is `Unknown`: the generator cannot read what `Write` does.
 
 Writes go `WriteKey`, then index keys, then the discriminator, then attributes, as the snapshot `SectionFour.Shop.Order.g.verified.cs` shows. A versioned entity gets `__WriteAttributes(writer, entity, version)`,
 which both write paths call, so `WriteAttributes` stays a plain copy. The next version goes through a `checked` cast. A read keeps `var __item = reader`, a struct copy, and after the loop parses the
@@ -245,7 +254,7 @@ Incrementality rests on value equality: `EquatableArray<T>` compares by content,
 types together through `Collect()` and yields one value that is nearly always empty, so a new type does not touch the output of the others. `IncrementalityTests` pins this per kind of edit, and `TrackedOutputWalker`
 checks that no tracked output holds a symbol or a plain array.
 
-Emitters write text with `\n` and never `SyntaxFactory`, so snapshots do not move with the compiler. Generated code targets C# 11, is compiled by consumers with implicit usings off, and fully qualifies every name. Its limits are in the
+Emitters write text through `IndentedCode`, which holds the depth, with `\n` and never `SyntaxFactory`, so snapshots do not move with the compiler. Generated code targets C# 11, is compiled by consumers with implicit usings off, and fully qualifies every name. Its limits are in the
 remarks of `KeysEmitter`. `#pragma warning disable` in the header covers `CS0612`, `CS0618`, `CS1591` and `CS8618`.
 
 The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target net11, so the floor only has to be at or below their compiler. Dependabot ignores that package, and test code compiles against the same version.
@@ -298,7 +307,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
 | Key encodings | `Keys/KeyVectorTests`, `Key*PropertyTests` | `generate_key_vectors.py` with Python `decimal`; properties with a fixed seed: order is preserved, parse inverts format |
 | Key order against storage | Integration, `Keys` and `Mapping` | The emulators sort, so the ordering claim is checked by something else |
-| Command bodies | `Fluent/*Tests`, `WriteRulesTests`, `DiscriminatorWriteTests` | Bodies written by hand from `api.md`, never from the writer |
+| Command bodies | `Fluent/*Tests`, `WriteRulesTests`, `DiscriminatorWriteTests`, `CommandVectorTests` | Bodies written by hand from `api.md`, never from the writer, and the command vectors of `generate_operation_vectors.py` |
 | Generated code | `Generators/Snapshots/*.verified.cs`, compiled at C# 11 and latest | The reviewed snapshot, and compile-and-run tests in `Mapping` with hand-written JSON |
 | Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
 | Compile guards | `Fluent/CompileGuardTests` | The compiler, asked in-process whether a misuse fails and which overload binds |
@@ -308,7 +317,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
 | Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
 
-Snapshots use `SnapshotComparer`, a local comparer: a mismatch writes `*.received.cs`, and `DYNASHARP_ACCEPT_SNAPSHOTS=1` accepts. `*.verified.*` stay LF. Allocation claims live in `CommandAllocationTests` and the benchmarks
+Snapshots use `SnapshotComparer`, a local comparer: a mismatch writes `*.received.cs`, and `DYNASHARP_ACCEPT_SNAPSHOTS=1` accepts. `*.verified.*` stay LF. `KeysEmitterTests` cuts the file of `KeyShapes.KeyFormats` into a snapshot per key builder, `KeyShapes.KeyFormats.Keys.*`, and one for the rest. Allocation claims live in `CommandAllocationTests` and the benchmarks
 in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so run it from the worktree. `dotnet format` runs no generator that is not built, so a generated type is no entity to it, and a variable of `PartitionKey<T>` passed to `Query` is a `CS1503` it reports, which is why such code in this repository passes the key inline or through a generic helper. Neither emulator produces `UnprocessedItems`, `TransactionConflict` or several shards, so these paths are tested with stubs only.
 
 ## 11. How to add
@@ -337,7 +346,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 
 **A converter.**
 1. `Serialization/Converters/XConverter.cs`, a `public readonly struct` implementing `IDynamoDbConverter<T>`. Add `IAddableConverter` for a number or set. Use `ConverterChecks.Expect`.
-2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key.
+2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key, and one that does not write a string goes into `WireTypeOf` as well.
 3. `tests/DynaSharp.UnitTests/Serialization/Converters/XConverterTests.cs`, every wrong-type path and a counting pool for rented arrays.
 4. An integration case in `Support/ConverterCase.cs`, a snapshot if the emitted call differs, and the AOT smoke if it brings a new generic shape.
 

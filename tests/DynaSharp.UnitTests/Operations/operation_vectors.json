@@ -7970,6 +7970,336 @@
         }
       },
       "body": "{\"TableName\": \"Shop\", \"FilterExpression\": \"begins_with(sk, :prefix) AND amount > :min\", \"ProjectionExpression\": \"sk, amount\", \"ExpressionAttributeValues\": {\":prefix\": {\"S\": \"ORDER#\"}, \":min\": {\"N\": \"100\"}}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
+      "name": "TableWithoutAnEntity",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S"
+          }
+        ],
+        "TableName": "Shop",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"sk\", \"AttributeType\": \"S\"}], \"TableName\": \"Shop\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"sk\", \"KeyType\": \"RANGE\"}], \"BillingMode\": \"PAY_PER_REQUEST\"}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
+      "name": "UnionOfThreeEntities",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "gsi1pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "gsi1sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "bytrackingpk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "lsi1sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "byemailpk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "Category",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "Stock",
+            "AttributeType": "N"
+          }
+        ],
+        "TableName": "Shop",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "GSI1",
+            "KeySchema": [
+              {
+                "AttributeName": "gsi1pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "gsi1sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          },
+          {
+            "IndexName": "ByTracking",
+            "KeySchema": [
+              {
+                "AttributeName": "bytrackingpk",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          },
+          {
+            "IndexName": "ByEmail",
+            "KeySchema": [
+              {
+                "AttributeName": "byemailpk",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          },
+          {
+            "IndexName": "ByStock",
+            "KeySchema": [
+              {
+                "AttributeName": "Category",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "Stock",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "LocalSecondaryIndexes": [
+          {
+            "IndexName": "LSI1",
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "lsi1sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"gsi1pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"gsi1sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"bytrackingpk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"lsi1sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"byemailpk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"Category\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"Stock\", \"AttributeType\": \"N\"}], \"TableName\": \"Shop\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"sk\", \"KeyType\": \"RANGE\"}], \"GlobalSecondaryIndexes\": [{\"IndexName\": \"GSI1\", \"KeySchema\": [{\"AttributeName\": \"gsi1pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"gsi1sk\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}, {\"IndexName\": \"ByTracking\", \"KeySchema\": [{\"AttributeName\": \"bytrackingpk\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}, {\"IndexName\": \"ByEmail\", \"KeySchema\": [{\"AttributeName\": \"byemailpk\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}, {\"IndexName\": \"ByStock\", \"KeySchema\": [{\"AttributeName\": \"Category\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"Stock\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}], \"LocalSecondaryIndexes\": [{\"IndexName\": \"LSI1\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"lsi1sk\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}], \"BillingMode\": \"PAY_PER_REQUEST\"}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
+      "name": "ProvisionedWithGlobalAndLocalIndexes",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "gsi1pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "gsi1sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "bytrackingpk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "lsi1sk",
+            "AttributeType": "S"
+          }
+        ],
+        "TableName": "Shop",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "GSI1",
+            "KeySchema": [
+              {
+                "AttributeName": "gsi1pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "gsi1sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            },
+            "ProvisionedThroughput": {
+              "ReadCapacityUnits": 5,
+              "WriteCapacityUnits": 7
+            }
+          },
+          {
+            "IndexName": "ByTracking",
+            "KeySchema": [
+              {
+                "AttributeName": "bytrackingpk",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            },
+            "ProvisionedThroughput": {
+              "ReadCapacityUnits": 5,
+              "WriteCapacityUnits": 7
+            }
+          }
+        ],
+        "LocalSecondaryIndexes": [
+          {
+            "IndexName": "LSI1",
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "lsi1sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "BillingMode": "PROVISIONED",
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 7
+        }
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"gsi1pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"gsi1sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"bytrackingpk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"lsi1sk\", \"AttributeType\": \"S\"}], \"TableName\": \"Shop\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"sk\", \"KeyType\": \"RANGE\"}], \"GlobalSecondaryIndexes\": [{\"IndexName\": \"GSI1\", \"KeySchema\": [{\"AttributeName\": \"gsi1pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"gsi1sk\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}, \"ProvisionedThroughput\": {\"ReadCapacityUnits\": 5, \"WriteCapacityUnits\": 7}}, {\"IndexName\": \"ByTracking\", \"KeySchema\": [{\"AttributeName\": \"bytrackingpk\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}, \"ProvisionedThroughput\": {\"ReadCapacityUnits\": 5, \"WriteCapacityUnits\": 7}}], \"LocalSecondaryIndexes\": [{\"IndexName\": \"LSI1\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"lsi1sk\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}], \"BillingMode\": \"PROVISIONED\", \"ProvisionedThroughput\": {\"ReadCapacityUnits\": 5, \"WriteCapacityUnits\": 7}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
+      "name": "NumberAndBinaryKeys",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "Sensor",
+            "AttributeType": "N"
+          },
+          {
+            "AttributeName": "Stamp",
+            "AttributeType": "B"
+          },
+          {
+            "AttributeName": "ExpiresAt",
+            "AttributeType": "N"
+          }
+        ],
+        "TableName": "Readings",
+        "KeySchema": [
+          {
+            "AttributeName": "Sensor",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Stamp",
+            "KeyType": "RANGE"
+          }
+        ],
+        "LocalSecondaryIndexes": [
+          {
+            "IndexName": "ByExpiry",
+            "KeySchema": [
+              {
+                "AttributeName": "Sensor",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "ExpiresAt",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"Sensor\", \"AttributeType\": \"N\"}, {\"AttributeName\": \"Stamp\", \"AttributeType\": \"B\"}, {\"AttributeName\": \"ExpiresAt\", \"AttributeType\": \"N\"}], \"TableName\": \"Readings\", \"KeySchema\": [{\"AttributeName\": \"Sensor\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"Stamp\", \"KeyType\": \"RANGE\"}], \"LocalSecondaryIndexes\": [{\"IndexName\": \"ByExpiry\", \"KeySchema\": [{\"AttributeName\": \"Sensor\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"ExpiresAt\", \"KeyType\": \"RANGE\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}], \"BillingMode\": \"PAY_PER_REQUEST\"}"
     }
   ],
   "responses": [

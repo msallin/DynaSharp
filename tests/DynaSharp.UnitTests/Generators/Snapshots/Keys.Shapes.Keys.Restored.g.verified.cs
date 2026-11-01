@@ -13,10 +13,12 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "RESTORED",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: "sk",
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

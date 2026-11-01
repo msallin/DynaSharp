@@ -35,6 +35,8 @@ internal static class WellKnownNames
 
     public const string SetElementInterface = "DynaSharp.Serialization.IDynamoDbSetElementConverter<T>";
 
+    public const string AddableInterface = "DynaSharp.Serialization.IAddableConverter";
+
     public const string AttributeNameArgument = "AttributeName";
 
     public const string ExpressionHandler = "DynaSharp.Expressions.ExpressionHandler";

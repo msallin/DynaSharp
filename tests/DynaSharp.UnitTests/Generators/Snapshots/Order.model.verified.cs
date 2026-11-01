@@ -263,6 +263,7 @@ Entity: EntityModel
     PlainProperty: null
     SharesAttribute: False
     Gates: []
+    WireType: String
   SortKey: KeyModel
     AttributeName: sk
     BuilderName: Sk
@@ -297,6 +298,7 @@ Entity: EntityModel
     PlainProperty: null
     SharesAttribute: False
     Gates: []
+    WireType: String
   Indexes: 
     - IndexModel
       IndexName: GSI1
@@ -323,6 +325,7 @@ Entity: EntityModel
         PlainProperty: null
         SharesAttribute: False
         Gates: []
+        WireType: String
       SortKey: KeyModel
         AttributeName: gsi1sk
         BuilderName: Gsi1Sk
@@ -345,6 +348,7 @@ Entity: EntityModel
         PlainProperty: null
         SharesAttribute: False
         Gates: []
+        WireType: String
       Sparse: False
       IsLocal: False
       NullableInputs: []
@@ -371,6 +375,7 @@ Entity: EntityModel
         PlainProperty: null
         SharesAttribute: False
         Gates: []
+        WireType: String
       SortKey: KeyModel
         AttributeName: gsi2sk
         BuilderName: Gsi2Sk
@@ -393,6 +398,7 @@ Entity: EntityModel
         PlainProperty: null
         SharesAttribute: False
         Gates: []
+        WireType: String
       Sparse: True
       IsLocal: False
       NullableInputs: 

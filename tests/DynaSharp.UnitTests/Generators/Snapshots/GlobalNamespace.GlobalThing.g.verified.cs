@@ -11,7 +11,9 @@ partial class GlobalThing : __Map.IDynamoDbDiscriminated<global::GlobalThing>
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "GLOBAL",
         partitionKeyName: "Id",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
         },

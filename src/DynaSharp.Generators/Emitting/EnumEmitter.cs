@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace DynaSharp.Generators;
 
 /// <summary>
@@ -13,113 +11,115 @@ internal static class EnumEmitter
 
     private const string GlobalPrefix = "global::";
 
-    public static void Emit(StringBuilder file, EnumModel model)
+    public static void Emit(IndentedCode code, EnumModel model)
     {
-        file.Line();
-        file.Line($"file readonly struct {model.ConverterName} : __Ser.IDynamoDbConverter<{model.FullName}>, __Ser.IDynamoDbSetElementConverter<{model.FullName}>");
-        file.Line("{");
+        code.Blank();
+        code.Line($"file readonly struct {model.ConverterName} : __Ser.IDynamoDbConverter<{model.FullName}>, __Ser.IDynamoDbSetElementConverter<{model.FullName}>");
+        code.Open();
         if (model.StoreAsNumber)
         {
-            EmitByValue(file, model);
+            EmitByValue(code, model);
         }
         else
         {
-            EmitByName(file, model);
+            EmitByName(code, model);
         }
 
-        file.Line("}");
+        code.Close();
     }
 
-    private static void EmitByValue(StringBuilder file, EnumModel model)
+    private static void EmitByValue(IndentedCode code, EnumModel model)
     {
-        EmitSetType(file, "NumberSet");
-        EmitWrite(file, model, $"writer.WriteNumber(({model.UnderlyingType})value)");
-        EmitRead(file, model, "Number");
-        EmitWriteElement(file, model, $"writer.WriteNumberSetElement(({model.UnderlyingType})value)");
-        file.Line();
-        file.Line($"    public static {model.FullName} ReadElement(ref __Ser.DynamoDbReader reader) => ({model.FullName})reader.GetNumber<{model.UnderlyingType}>();");
+        EmitSetType(code, "NumberSet");
+        EmitWrite(code, model, $"writer.WriteNumber(({model.UnderlyingType})value)");
+        EmitRead(code, model, "Number");
+        EmitWriteElement(code, model, $"writer.WriteNumberSetElement(({model.UnderlyingType})value)");
+        code.Blank();
+        code.Line($"public static {model.FullName} ReadElement(ref __Ser.DynamoDbReader reader) => ({model.FullName})reader.GetNumber<{model.UnderlyingType}>();");
     }
 
-    private static void EmitByName(StringBuilder file, EnumModel model)
+    private static void EmitByName(IndentedCode code, EnumModel model)
     {
         var display = model.FullName.Substring(GlobalPrefix.Length).Replace("@", string.Empty);
-        EmitSetType(file, "StringSet");
-        file.Line();
-        file.Line($"    public static global::System.ReadOnlySpan<byte> FindName({model.FullName} value) => value switch");
-        file.Line("    {");
+        EmitSetType(code, "StringSet");
+        code.Blank();
+        code.Line($"public static global::System.ReadOnlySpan<byte> FindName({model.FullName} value) => value switch");
+        code.Open();
         foreach (var member in model.Members.Where(static member => member.IsCanonical))
         {
-            file.Line($"        {model.FullName}.{member.Identifier} => {CodeText.Utf8(member.Name)},");
+            code.Line($"{model.FullName}.{member.Identifier} => {CodeText.Utf8(member.Name)},");
         }
 
-        file.Line("        _ => default,");
-        file.Line("    };");
-        file.Line();
-        file.Line($"    public static global::System.ReadOnlySpan<byte> GetName({model.FullName} value)");
-        file.Line("    {");
-        file.Line("        var name = FindName(value);");
-        file.Line($"        return name.IsEmpty ? throw global::DynaSharp.DynamoDbMappingException.UndefinedEnumValue({CodeText.Literal(display)}) : name;");
-        file.Line("    }");
-        EmitTryParseName(file, model);
-        EmitWrite(file, model, "writer.WriteString(GetName(value))");
-        EmitRead(file, model, "String");
-        EmitWriteElement(file, model, "writer.WriteStringSetElement(GetName(value))");
-        file.Line();
-        file.Line($"    public static {model.FullName} ReadElement(ref __Ser.DynamoDbReader reader) =>");
-        file.Line($"        TryParseName(reader.GetStringUtf8(), out var value) ? value : throw new global::System.FormatException({CodeText.Literal($"The text is not a member of {display}.")});");
+        code.Line("_ => default,");
+        code.Close("};");
+        code.Blank();
+        code.Line($"public static global::System.ReadOnlySpan<byte> GetName({model.FullName} value)");
+        code.Open();
+        code.Line("var name = FindName(value);");
+        code.Line($"return name.IsEmpty ? throw global::DynaSharp.DynamoDbMappingException.UndefinedEnumValue({CodeText.Literal(display)}) : name;");
+        code.Close();
+        EmitTryParseName(code, model);
+        EmitWrite(code, model, "writer.WriteString(GetName(value))");
+        EmitRead(code, model, "String");
+        EmitWriteElement(code, model, "writer.WriteStringSetElement(GetName(value))");
+        code.Blank();
+        code.Line($"public static {model.FullName} ReadElement(ref __Ser.DynamoDbReader reader) =>");
+        code.Line($"    TryParseName(reader.GetStringUtf8(), out var value) ? value : throw new global::System.FormatException({CodeText.Literal($"The text is not a member of {display}.")});");
     }
 
-    private static void EmitTryParseName(StringBuilder file, EnumModel model)
+    private static void EmitTryParseName(IndentedCode code, EnumModel model)
     {
-        file.Line();
-        file.Line($"    public static bool TryParseName(global::System.ReadOnlySpan<byte> name, out {model.FullName} value)");
-        file.Line("    {");
+        code.Blank();
+        code.Line($"public static bool TryParseName(global::System.ReadOnlySpan<byte> name, out {model.FullName} value)");
+        code.Open();
         if (model.Members.Count > 0)
         {
-            file.Line("        switch (name.Length)");
-            file.Line("        {");
+            code.Line("switch (name.Length)");
+            code.Open();
             foreach (var length in model.Members.OrderBy(static member => member.Name, StringComparer.Ordinal).GroupBy(static member => member.Utf8Length).OrderBy(static group => group.Key))
             {
-                file.Line($"            case {CodeText.Number(length.Key)}:");
+                code.Line($"case {CodeText.Number(length.Key)}:");
+                code.Indent();
                 foreach (var member in length)
                 {
-                    file.Line($"                if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(member.Name)})) {{ value = {model.FullName}.{member.Identifier}; return true; }}");
+                    code.Line($"if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(member.Name)})) {{ value = {model.FullName}.{member.Identifier}; return true; }}");
                 }
 
-                file.Line("                break;");
+                code.Line("break;");
+                code.Outdent();
             }
 
-            file.Line("        }");
-            file.Line();
+            code.Close();
+            code.Blank();
         }
 
-        file.Line("        value = default;");
-        file.Line("        return false;");
-        file.Line("    }");
+        code.Line("value = default;");
+        code.Line("return false;");
+        code.Close();
     }
 
-    private static void EmitSetType(StringBuilder file, string setType) =>
-        file.Line($"    public static {AttributeType} SetType => {AttributeType}.{setType};");
+    private static void EmitSetType(IndentedCode code, string setType) =>
+        code.Line($"public static {AttributeType} SetType => {AttributeType}.{setType};");
 
-    private static void EmitWrite(StringBuilder file, EnumModel model, string call)
+    private static void EmitWrite(IndentedCode code, EnumModel model, string call)
     {
-        file.Line();
-        file.Line($"    public static void Write(__Ser.DynamoDbWriter writer, {model.FullName} value) => {call};");
+        code.Blank();
+        code.Line($"public static void Write(__Ser.DynamoDbWriter writer, {model.FullName} value) => {call};");
     }
 
-    private static void EmitWriteElement(StringBuilder file, EnumModel model, string call)
+    private static void EmitWriteElement(IndentedCode code, EnumModel model, string call)
     {
-        file.Line();
-        file.Line($"    public static void WriteElement(__Ser.DynamoDbWriter writer, {model.FullName} value) => {call};");
+        code.Blank();
+        code.Line($"public static void WriteElement(__Ser.DynamoDbWriter writer, {model.FullName} value) => {call};");
     }
 
-    private static void EmitRead(StringBuilder file, EnumModel model, string wireType)
+    private static void EmitRead(IndentedCode code, EnumModel model, string wireType)
     {
-        file.Line();
-        file.Line($"    public static {model.FullName} Read(ref __Ser.DynamoDbReader reader, {AttributeType} type)");
-        file.Line("    {");
-        file.Line($"        __Ser.ConverterChecks.Expect(type, {AttributeType}.{wireType});");
-        file.Line("        return ReadElement(ref reader);");
-        file.Line("    }");
+        code.Blank();
+        code.Line($"public static {model.FullName} Read(ref __Ser.DynamoDbReader reader, {AttributeType} type)");
+        code.Open();
+        code.Line($"__Ser.ConverterChecks.Expect(type, {AttributeType}.{wireType});");
+        code.Line("return ReadElement(ref reader);");
+        code.Close();
     }
 }

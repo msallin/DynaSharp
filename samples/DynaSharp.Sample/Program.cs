@@ -30,43 +30,19 @@ var byStatus = orders.Index(Order.Indexes.ByStatus);
 var byTracking = orders.Index(Order.Indexes.ByTracking);
 
 // ------------------------------------------------------------------------------------------------------------------------
-Output.Section("1. Creating the table: the one call that drops to DynaSharp.Requests");
+Output.Section("1. Creating the table, and the one call that drops to DynaSharp.Requests");
 
-// Table<T> reads and writes items and does not manage tables. Below it sits the request API: every DynamoDB operation as a
-// request and a response that mirror the service, as extension methods that "using DynaSharp.Requests" brings in. It is there for
-// administration and anything else the tables do not model, and this is what it looks like. Only key attributes are declared; the
-// entities know their names, so nothing here repeats them.
+// One table holds all five types, so no single entity describes it: its indexes are the union of what they declare, and Including
+// names the others. Key names, indexes and attribute types come from the entities, so nothing here repeats them. Billing is on
+// demand and an index holds all attributes, unless told otherwise. Two entities that disagree about a key throw here, before any
+// request. ToRequest gives what this would send, for what it does not model, such as a stream or tags.
 try
 {
-    await client.CreateTableAsync(
-        new CreateTableRequest
-        {
-            TableName = tableName,
-            BillingMode = BillingMode.PayPerRequest,
-            AttributeDefinitions =
-            [
-                Text(orders.PartitionKeyName), Text(orders.SortKeyName!),
-                Text(byStatus.PartitionKeyName), Text(byStatus.SortKeyName!),
-                Text(byTracking.PartitionKeyName),
-            ],
-            KeySchema = [new(orders.PartitionKeyName, KeyType.Hash), new(orders.SortKeyName!, KeyType.Range)],
-            GlobalSecondaryIndexes =
-            [
-                new()
-                {
-                    IndexName = byStatus.Name,
-                    KeySchema = [new(byStatus.PartitionKeyName, KeyType.Hash), new(byStatus.SortKeyName!, KeyType.Range)],
-                    Projection = new() { ProjectionType = ProjectionType.All },
-                },
-                new()
-                {
-                    IndexName = byTracking.Name,
-                    KeySchema = [new(byTracking.PartitionKeyName, KeyType.Hash)],
-                    Projection = new() { ProjectionType = ProjectionType.All },
-                },
-            ],
-        },
-        ct);
+    var description = await orders.CreateTable()
+        .Including<Product>().Including<Customer>().Including<Cart>().Including<EmailClaim>()
+        .WaitUntilActive()
+        .SendAsync(ct);
+    Output.Say($"Table {description.TableName} is {description.TableStatus}, with {description.GlobalSecondaryIndexes.Count} global indexes");
 }
 catch (HttpRequestException exception)
 {
@@ -75,8 +51,17 @@ catch (HttpRequestException exception)
     return 1;
 }
 
-var description = await products.WaitUntilActiveAsync(ct);
-Output.Say($"Table {description.TableName} is {description.TableStatus}, with {description.GlobalSecondaryIndexes.Count} global indexes");
+// Below the tables sits the request API: every DynamoDB operation as a request and a response that mirror the service, as extension
+// methods that "using DynaSharp.Requests" brings in. It is there for what the tables do not model, and this is what it looks like.
+// Time to live is such a thing: DynamoDB deletes an abandoned cart some time after Cart.ExpiresAt, once the table is told to.
+var expiry = await client.UpdateTimeToLiveAsync(
+    new UpdateTimeToLiveRequest
+    {
+        TableName = tableName,
+        TimeToLiveSpecification = new() { Enabled = true, AttributeName = Cart.Attrs.ExpiresAt.Path },
+    },
+    ct);
+Output.Say($"Items expire by the attribute {expiry.TimeToLiveSpecification!.AttributeName}");
 
 // ------------------------------------------------------------------------------------------------------------------------
 Output.Section("2. BatchWrite: filling the catalog");
@@ -331,7 +316,7 @@ Output.Section("13. A version: one cart in two browser tabs");
 
 // A [Version] property turns every write of the entity into a compare-and-swap, with no lock and no read in between. A put takes the
 // version from the entity, where 0 means new, and stores the next one. The entity stays as it is; the result says what was stored.
-var created = await carts.Put(new Cart { CustomerId = "bob", Lines = [new("MS-02", 1, 39.50m)] }).SendAsync(ct);
+var created = await carts.Put(new Cart { CustomerId = "bob", Lines = [new("MS-02", 1, 39.50m)], ExpiresAt = monday.AddDays(30) }).SendAsync(ct);
 Output.Say($"Bob's cart is at version {created.Version}");
 
 // A key does not carry a version, so an update by key says which one it read. Leaving that out throws before anything is sent, and
@@ -397,9 +382,11 @@ Output.Section("15. What goes over the wire");
 // DynamoDB rejects something, and what a test can assert on without a client.
 Output.Say(products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price, 79.00m).If(Product.Attrs.Stock.Gt(0)).ToRequestJson());
 
-// Table<T> does not delete tables either, and the tour goes to DynaSharp.Requests once. So the table stays for you to look at, until
-// the emulator stops.
-Output.Say($"Table {tableName} stays in the emulator");
-return 0;
+// ------------------------------------------------------------------------------------------------------------------------
+Output.Section("16. Deleting the table");
 
-static AttributeDefinition Text(string name) => new(name, ScalarAttributeType.String);
+// This deletes the table with every item in it. It does not wait: the table is gone only some time later, and until then a new table
+// of this name cannot be created. An item is deleted by Delete, which is why this one has the long name.
+var deleted = await orders.DeleteTableAsync(ct);
+Output.Say($"Table {deleted.TableName} is {deleted.TableStatus}");
+return 0;

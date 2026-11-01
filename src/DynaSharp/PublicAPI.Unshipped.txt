@@ -8,3 +8,25 @@ DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.Cance
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+DynaSharp.CreateTableCommand
+DynaSharp.CreateTableCommand.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.Requests.TableDescription!>
+DynaSharp.CreateTableCommand.IfNotExists() -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.Including<TOther>() -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.Provisioned(long read, long write) -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.CreateTableCommand.ToRequest() -> DynaSharp.Requests.CreateTableRequest!
+DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
+DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
+DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
+DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
+DynaSharp.Mapping.DynamoDbIndexInfo.Deconstruct(out string! IndexName, out string! PartitionKeyName, out string? SortKeyName, out bool Sparse, out bool IsLocal, out DynaSharp.Requests.ScalarAttributeType PartitionKeyType, out DynaSharp.Requests.ScalarAttributeType SortKeyType) -> void
+DynaSharp.Mapping.DynamoDbIndexInfo.DynamoDbIndexInfo(string! IndexName, string! PartitionKeyName, string? SortKeyName, bool Sparse, bool IsLocal = false, DynaSharp.Requests.ScalarAttributeType PartitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType SortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
+DynaSharp.Mapping.DynamoDbIndexInfo.IsLocal.get -> bool
+DynaSharp.Mapping.DynamoDbIndexInfo.IsLocal.init -> void
+DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
+DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyType.init -> void
+DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
+DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.init -> void
+DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
+DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>

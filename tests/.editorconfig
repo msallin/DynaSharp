@@ -41,6 +41,10 @@ dotnet_diagnostic.SA1601.severity = none
 dotnet_diagnostic.SA1402.severity = none
 dotnet_diagnostic.SA1602.severity = none
 
+# The entities of the schema tests differ by a line or two, and read best side by side.
+[DynaSharp.{UnitTests/Fluent,IntegrationTests/Commands}/SchemaEntities.cs]
+dotnet_diagnostic.SA1402.severity = none
+
 # A recipe reads top to bottom on one page: the tests, then the entities they need.
 [DynaSharp.IntegrationTests/Recipes/*.cs]
 dotnet_diagnostic.SA1201.severity = none

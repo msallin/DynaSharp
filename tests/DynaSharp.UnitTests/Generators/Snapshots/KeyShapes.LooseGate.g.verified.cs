@@ -13,11 +13,13 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
     private static readonly __Map.DynamoDbEntityInfo __Info = new(
         discriminator: "LOOSE",
         partitionKeyName: "pk",
+        partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         sortKeyName: null,
+        sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false),
-            new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true),
+            new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",

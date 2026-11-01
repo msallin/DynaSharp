@@ -13,10 +13,12 @@ namespace DynaSharp.Generators;
 /// For the key that writes an attribute several indexes share, what each of them needs: the nullable inputs of a sparse index, nothing for any other.
 /// One complete gate is enough, because one index without its key would lose the item. Empty for a key of one index.
 /// </param>
+/// <param name="WireType">How the key is stored: a string for a template, what the converter writes for a plain key.</param>
 internal sealed record KeyModel(
     string AttributeName,
     string BuilderName,
     KeyTemplate? Template,
     string? PlainProperty,
     bool SharesAttribute,
-    EquatableArray<EquatableArray<string>> Gates = default);
+    EquatableArray<EquatableArray<string>> Gates = default,
+    KeyWireType WireType = KeyWireType.String);

@@ -336,6 +336,6 @@ public sealed class DynamoDbClient : IDisposable
         where T : IDynamoDbEntity<T>
     {
         var info = T.Info;
-        return new Table<T>(new TableModel(core, name, info.PartitionKeyName, info.SortKeyName, info.Discriminator, info.DiscriminatorAttributeName) { Writes = EntityWrites.Of(typeof(T).ToString(), info) });
+        return new Table<T>(new TableModel(core, name, info.PartitionKeyName, info.SortKeyName, info.Discriminator, info.DiscriminatorAttributeName) { Writes = EntityWrites.Of(typeof(T).ToString(), info), Entity = info });
     }
 }

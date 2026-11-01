@@ -24,74 +24,91 @@ internal static class EntityEmitter
     private static string Render(TypeModel type)
     {
         var file = new StringBuilder(Header);
+        var code = new IndentedCode(file, depth: 0);
         if (type.Namespace is not null)
         {
-            file.Line($"namespace {type.Namespace};").Line();
+            code.Line($"namespace {type.Namespace};");
+            code.Blank();
         }
 
+        // The braces of a containing type do not indent: a body sits at one indent, however deep the type is nested.
         foreach (var outer in type.ContainingTypes)
         {
-            file.Line($"partial {outer.Keyword} {outer.Identifier}").Line("{");
+            code.Line($"partial {outer.Keyword} {outer.Identifier}");
+            code.Line("{");
         }
 
         var role = type.Entity is null ? "IDynamoDbDocument" : type.Entity.Discriminator is null ? "IDynamoDbEntity" : "IDynamoDbDiscriminated";
-        file.Line($"partial {type.Keyword} {type.Identifier} : __Map.{role}<{type.FullName}>").Line("{");
+        code.Line($"partial {type.Keyword} {type.Identifier} : __Map.{role}<{type.FullName}>");
+        code.Line("{");
 
         // Every member starts with a blank line, so the first one is cut off below.
         var body = new StringBuilder();
+        var members = new IndentedCode(body);
         if (type.Entity is not null)
         {
-            EmitInfo(body, type, type.Entity);
+            EmitInfo(members, type, type.Entity);
         }
 
-        ConstructorEmitter.Emit(body, type);
-        WriteEmitter.Emit(body, type);
-        ReadEmitter.Emit(body, type);
-        KeysEmitter.Emit(body, type);
-        file.Append(body.ToString(1, body.Length - 1)).Line("}");
-        file.Append(string.Concat(Enumerable.Repeat("}\n", type.ContainingTypes.Count)));
+        ConstructorEmitter.Emit(members, type);
+        WriteEmitter.Emit(members, type);
+        ReadEmitter.Emit(members, type);
+        KeysEmitter.Emit(members, type);
+        file.Append(body.ToString(1, body.Length - 1));
+        code.Line("}");
+        for (var depth = 0; depth < type.ContainingTypes.Count; depth++)
+        {
+            code.Line("}");
+        }
 
         foreach (var enumType in type.Enums)
         {
-            EnumEmitter.Emit(file, enumType);
+            EnumEmitter.Emit(code, enumType);
         }
 
         return file.ToString();
     }
 
-    private static void EmitInfo(StringBuilder body, TypeModel type, EntityModel entity)
+    private static string WireType(KeyModel? key) => $"global::DynaSharp.Requests.ScalarAttributeType.{key?.WireType ?? KeyWireType.Unknown}";
+
+    private static void EmitInfo(IndentedCode code, TypeModel type, EntityModel entity)
     {
         var version = entity.VersionProperty is { } property ? type.Property(property).AttributeName : null;
-        body.Line();
-        body.Line("    private static readonly __Map.DynamoDbEntityInfo __Info = new(");
-        body.Line($"        discriminator: {CodeText.OptionalLiteral(entity.Discriminator)},");
-        body.Line($"        partitionKeyName: {CodeText.Literal(entity.PartitionKey.AttributeName)},");
-        body.Line($"        sortKeyName: {CodeText.OptionalLiteral(entity.SortKey?.AttributeName)},");
-        body.Line("        indexes: new __Map.DynamoDbIndexInfo[]");
-        body.Line("        {");
+        code.Blank();
+        code.Line("private static readonly __Map.DynamoDbEntityInfo __Info = new(");
+        code.Indent();
+        code.Line($"discriminator: {CodeText.OptionalLiteral(entity.Discriminator)},");
+        code.Line($"partitionKeyName: {CodeText.Literal(entity.PartitionKey.AttributeName)},");
+        code.Line($"partitionKeyType: {WireType(entity.PartitionKey)},");
+        code.Line($"sortKeyName: {CodeText.OptionalLiteral(entity.SortKey?.AttributeName)},");
+        code.Line($"sortKeyType: {WireType(entity.SortKey)},");
+        code.Line("indexes: new __Map.DynamoDbIndexInfo[]");
+        code.Open();
         foreach (var index in entity.Indexes)
         {
             var names = $"{CodeText.Literal(index.IndexName)}, {CodeText.Literal(index.PartitionKey.AttributeName)}, {CodeText.OptionalLiteral(index.SortKey?.AttributeName)}";
-            body.Line($"            new __Map.DynamoDbIndexInfo({names}, {(index.Sparse ? "true" : "false")}),");
+            var kind = $"{(index.Sparse ? "true" : "false")}, {(index.IsLocal ? "true" : "false")}";
+            code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}),");
         }
 
-        body.Line("        },");
-        body.Line($"        versionAttributeName: {CodeText.OptionalLiteral(version)},");
+        code.Close("},");
+        code.Line($"versionAttributeName: {CodeText.OptionalLiteral(version)},");
         var templates = KeyTemplateEmitter.Lines(type, entity);
-        body.Line($"        discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? ");" : ",")}");
+        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? ");" : ",")}");
         if (templates.Count > 0)
         {
-            body.Line("        keyTemplates: new __Map.DynamoDbKeyTemplate[]");
-            body.Line("        {");
+            code.Line("keyTemplates: new __Map.DynamoDbKeyTemplate[]");
+            code.Open();
             foreach (var template in templates)
             {
-                body.Line($"            {template},");
+                code.Line($"{template},");
             }
 
-            body.Line("        });");
+            code.Close("});");
         }
 
-        body.Line();
-        body.Line($"    static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<{type.FullName}>.Info => __Info;");
+        code.Outdent();
+        code.Blank();
+        code.Line($"static __Map.DynamoDbEntityInfo __Map.IDynamoDbEntity<{type.FullName}>.Info => __Info;");
     }
 }

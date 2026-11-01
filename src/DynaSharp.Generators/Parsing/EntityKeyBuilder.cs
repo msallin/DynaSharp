@@ -204,7 +204,7 @@ internal sealed class EntityKeyBuilder(
             bag.Report(Descriptors.ComputedInIndex, spot, property.Name);
         }
 
-        var key = new KeyModel(property.AttributeName, builderName, null, property.Name, SharesAttribute: false);
+        var key = new KeyModel(property.AttributeName, builderName, null, property.Name, SharesAttribute: false, WireType: ConverterResolver.WireTypeOf(property));
         _keys.Add(key);
         return key;
     }
