@@ -114,6 +114,6 @@ partial class Tree : __Map.IDynamoDbDocument<global::Shapes.Collections.Tree>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.Collections.Tree>, global::DynaSharp.Serialization.ListConverter<global::Shapes.Collections.Tree, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Tree>>> Children => new("Children");
 
         /// <summary>The attribute <c>Parent</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Collections.Tree, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Tree>> Parent => new("Parent");
+        public static global::DynaSharp.Attr<global::Shapes.Collections.Tree, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shapes.Collections.Tree, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Tree>>> Parent => new("Parent");
     }
 }

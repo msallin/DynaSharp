@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using Formats = DynaSharp.AotSmoke.KeyFormats.Keys;
 
@@ -197,7 +198,7 @@ internal static class ShapeChecks
         handler.Enqueue(StubResponse.Json("{\"Items\":[" + Item.From(order) + "],\"Count\":1,\"ScannedCount\":2}"));
         var page = await orders.Query(KeyedOrder.Keys.Pk.Format(User), SortKey.BeginsWith(KeyedOrder.Keys.Sk.Prefix()))
             .Filter(KeyedOrder.Attrs.Status.Eq(Plan.Pro).And(KeyedOrder.Attrs.Total.Gt(1m)))
-            .Project(KeyedOrder.Attrs.Status, KeyedOrder.Attrs.ShipTo.At(PostalAddress.Attrs.City))
+            .Project(KeyedOrder.Attrs.CreatedAt, KeyedOrder.Attrs.Status, KeyedOrder.Attrs.Total, KeyedOrder.Attrs.ShipTo.At(PostalAddress.Attrs.City))
             .Descending()
             .PageAsync();
         check(page.Items.Single().OrderId == Id && handler.Requests[^1].BodyText.Contains("\"ProjectionExpression\"", StringComparison.Ordinal), "Query filters and projects by handles");
@@ -208,6 +209,26 @@ internal static class ShapeChecks
 
         handler.Enqueue(StubResponse.Json("{\"Count\":3,\"ScannedCount\":3}"));
         check(await orders.Index("LSI1").Scan().CountAsync() == 3, "an index can be counted");
+
+        handler.Enqueue(StubResponse.Json(stored));
+        var selected = await orders.Get(key).Consistent().Select(KeyedOrder.Attrs.Total).SendAsync();
+        check(selected.Found && selected.Value == order.Total && handler.Requests[^1].BodyText.Contains("\"_type\"", StringComparison.Ordinal), "Select reads one value of a Get beside the discriminator");
+
+        handler.Enqueue(StubResponse.Json("{\"Item\":{}}"));
+        var nothing = await orders.Get(key).Select(KeyedOrder.Attrs.TrackingId).SendAsync();
+        check(nothing is { Found: true, Value: null }, "Select of a nullable value type gives null for a missing attribute");
+
+        handler.Enqueue(StubResponse.Json("{\"Items\":[{\"ShipTo\":{\"M\":{\"City\":{\"S\":\"Thun\"}}}},{\"Status\":{\"S\":\"Pro\"}}],\"Count\":2,\"ScannedCount\":2}"));
+        var cities = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(new Attr<string?, NullableReferenceConverter<string, StringConverter>>("ShipTo.City")).ItemsAsync().ToListAsync();
+        check(cities is ["Thun", null], "Select of a nested path reads through the map, and a nullable reference is null");
+
+        handler.Enqueue(StubResponse.Json("{\"Items\":[{\"Status\":{\"S\":\"Pro\"}}],\"Count\":1,\"ScannedCount\":1}"));
+        var firstStatus = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(KeyedOrder.Attrs.Status).ItemAsync();
+        check(firstStatus is { Found: true, Value: Plan.Pro }, "Select of an enum reads through its converter");
+
+        handler.Enqueue(StubResponse.Json("{\"Items\":[{\"Tags\":{\"SS\":[\"a\"]}},{}],\"Count\":2,\"ScannedCount\":2}"));
+        var tagged = await orders.Scan().Select(KeyedOrder.Attrs.Tags).PageAsync();
+        check(tagged.Items is [{ Count: 1 }, { Count: 0 }], "Select of a set reads a missing one as empty");
 
         handler.Enqueue(StubResponse.Json("{\"Attributes\":{\"Quantity\":{\"N\":\"3\"}}}"));
         var quantity = await orders.Update(key)
@@ -243,7 +264,7 @@ internal static class ShapeChecks
         check(written.Written == 4, "a batch mixes entities and generated keys");
 
         handler.Enqueue(StubResponse.Json("{\"Responses\":{\"Shop\":[" + Item.From(order) + "]}}"));
-        var found = await orders.BatchGet().Key(key).Project(KeyedOrder.Attrs.Status).SendAsync();
+        var found = await orders.BatchGet().Key(key).Project(KeyedOrder.Attrs.CreatedAt, KeyedOrder.Attrs.Status, KeyedOrder.Attrs.Total).SendAsync();
         check(found.Items.Single().Status == Plan.Pro, "BatchGet takes a generated key and a handle");
 
         handler.Enqueue(StubResponse.Json("{\"Responses\":[" + stored + ",{\"Item\":" + Item.From(point) + "}]}"));

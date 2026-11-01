@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 
 namespace DynaSharp;
 
@@ -98,6 +99,54 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
         state.Expressions.Project(attributes);
         return new(state, state.Table);
     }
+
+    /// <summary>
+    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Scan().Select(Order.Attrs.Total).ItemsAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, so it saves bandwidth, not capacity: DynamoDB
+    /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The chain ends here but for its terminal, as with <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Consistent"/>, <see cref="Segment"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// </para>
+    /// <para>
+    /// A missing attribute follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default.
+    /// In a nested path the last handle decides, so <c>ShipTo.At(Address.Attrs.City)</c> throws for an item without <c>ShipTo</c> when <c>City</c> cannot be null, which reading <c>ShipTo</c> itself would not.
+    /// </para>
+    /// <para>
+    /// A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
+    /// the property from it, and this throws, which <c>DYNA209</c> reports.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps. A list element cannot be read: DynamoDB returns a shortened list, in which its position is not known.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public ScanSelectCommand<TValue, TConverter> Select<TValue, TConverter>(Attr<TValue, TConverter> attribute)
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
+
+    /// <summary>Reads one nullable attribute instead of the entity, which gives null for an item without it. See <see cref="Select{TValue, TConverter}(Attr{TValue, TConverter})"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public ScanSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
+
+    /// <summary>Reads one nullable attribute instead of the entity, which gives null for an item without it. See <see cref="Select{TValue, TConverter}(Attr{TValue, TConverter})"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public ScanSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute)
+        where TValue : class
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
@@ -256,6 +305,14 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(segments, 1, parameterName);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(segments, MaxSegments, parameterName);
+    }
+
+    private CommandState Selecting(string attribute)
+    {
+        Fluent.Selection.ThrowIfNoAttribute(attribute);
+        var state = Enter();
+        state.SelectAttribute(attribute, checksDiscriminator: false);
+        return state;
     }
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);

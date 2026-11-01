@@ -120,6 +120,26 @@ public interface IUpdatable<TSelf>
     public TSelf Add<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter;
 
+    /// <summary>Adds to a nullable number (<c>ADD</c>), see <see cref="Add{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter, of a number: <c>ADD</c> takes nothing else, so an attribute of another type is a compile error.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="value">The number.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public TSelf Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter;
+
+    /// <summary>Adds elements to a nullable set (<c>ADD</c>), see <see cref="Add{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter, of a set: <c>ADD</c> takes nothing else, so an attribute of another type is a compile error.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="value">The set.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public TSelf Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : class
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter;
+
     /// <summary>Removes elements from a set (<c>DELETE</c>). A set that ends up empty disappears, as DynamoDB has no empty sets.</summary>
     /// <param name="path">The name or document path.</param>
     /// <param name="elements">The elements, as a set.</param>

@@ -207,10 +207,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Tenant => new("Tenant");
 
         /// <summary>The attribute <c>Seller</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Seller => new("Seller");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Seller => new("Seller");
 
         /// <summary>The attribute <c>Buyer</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Buyer => new("Buyer");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Buyer => new("Buyer");
     }
 
     /// <summary>The key builders of <c>GatedSale</c>.</summary>

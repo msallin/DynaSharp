@@ -185,13 +185,17 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <inheritdoc/>
     public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
-        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter
-    {
-        var state = Enter();
-        WriteRules.NoteUnknownValue(state, attribute.Path);
-        state.Expressions.Add<TValue, TConverter>(attribute.Path, value);
-        return new(state, state.Table);
-    }
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
+
+    /// <inheritdoc/>
+    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
+
+    /// <inheritdoc/>
+    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : class
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
     public UpdateCommand<T> Delete(string path, AttributeValue elements)
@@ -390,6 +394,15 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>
     /// <returns>The state.</returns>
     internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+
+    private UpdateCommand<T> Adding<TValue, TConverter>(string path, TValue value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        WriteRules.NoteUnknownValue(state, path);
+        state.Expressions.Add<TValue, TConverter>(path, value);
+        return new(state, state.Table);
+    }
 
     private ReturnCommand<TValue, TConverter> Returning<TValue, TConverter>(string attribute)
         where TConverter : IDynamoDbConverter<TValue>

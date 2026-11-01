@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 
 namespace DynaSharp;
 
@@ -53,8 +54,8 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     }
 
     /// <summary>
-    /// Reads only some attributes. It saves bandwidth, not capacity: DynamoDB charges for the whole item. Reading into an entity needs what
-    /// the entity requires, so a projection is mostly for <see cref="Item"/>.
+    /// Reads only some attributes. It saves bandwidth, not capacity: DynamoDB charges for the whole item. A read of an entity needs its discriminator and its
+    /// keys, so they join the projection on their own, and it needs whatever else the entity requires, so a projection is mostly for <see cref="Item"/>.
     /// </summary>
     /// <param name="paths">The names or document paths. Reserved words need no care, and a second call adds to the first.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -76,6 +77,54 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
         state.Expressions.Project(attributes);
         return new(state, state.Table);
     }
+
+    /// <summary>
+    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>var total = await orders.Get(key).Select(Order.Attrs.Total).SendAsync(ct);</c>. It projects the attribute, with the discriminator of an entity, which tells the item from an item of another type as a read of the entity does, so it saves bandwidth, not capacity: DynamoDB
+    /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The chain ends here but for its terminal, as with <c>Return</c>: <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// </para>
+    /// <para>
+    /// A missing attribute follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default.
+    /// In a nested path the last handle decides, so <c>ShipTo.At(Address.Attrs.City)</c> throws for an item without <c>ShipTo</c> when <c>City</c> cannot be null, which reading <c>ShipTo</c> itself would not.
+    /// </para>
+    /// <para>
+    /// A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
+    /// the property from it, and this throws, which <c>DYNA209</c> reports.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps. A list element cannot be read: DynamoDB returns a shortened list, in which its position is not known.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public GetSelectCommand<TValue, TConverter> Select<TValue, TConverter>(Attr<TValue, TConverter> attribute)
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
+
+    /// <summary>Reads one nullable attribute instead of the entity, which gives null for an item without it. See <see cref="Select{TValue, TConverter}(Attr{TValue, TConverter})"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public GetSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
+
+    /// <summary>Reads one nullable attribute instead of the entity, which gives null for an item without it. See <see cref="Select{TValue, TConverter}(Attr{TValue, TConverter})"/>.</summary>
+    /// <typeparam name="TValue">The type of the attribute.</typeparam>
+    /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
+    public GetSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute)
+        where TValue : class
+        where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
     /// <summary>Asks for the consumed capacity, which goes to <see cref="GetResult{T}.ConsumedCapacity"/> and the capacity metric.</summary>
     /// <param name="detail">How much detail to return.</param>
@@ -106,7 +155,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// <exception cref="DynamoDbMappingException">The item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<GetResult<T>> SendAsync(CancellationToken cancellationToken = default) =>
-        Enter().SendAsync<GetOperation<T>, GetResult<T>>(cancellationToken);
+        Prepare().SendAsync<GetOperation<T>, GetResult<T>>(cancellationToken);
 
     /// <summary>
     /// Sends the command and returns the item, or <see langword="null"/> if none has the key: <c>var order = await orders.Get(key).ItemAsync(ct);</c>. It is the same request as
@@ -122,7 +171,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// <exception cref="DynamoDbMappingException">The item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<T?> ItemAsync(CancellationToken cancellationToken = default) =>
-        Enter().SendAsync<GetValueOperation<T>, T?>(cancellationToken);
+        Prepare().SendAsync<GetValueOperation<T>, T?>(cancellationToken);
 
     /// <summary>Lets <c>await</c> send the command, for <c>await table.Get(pk, sk)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>
@@ -135,7 +184,22 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// </summary>
     /// <returns>The request body.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
-    public string ToRequestJson() => Enter().RenderJson();
+    public string ToRequestJson() => Prepare().RenderJson();
+
+    private CommandState Selecting(string attribute)
+    {
+        Fluent.Selection.ThrowIfNoAttribute(attribute);
+        var state = Enter();
+        state.SelectAttribute(attribute, state.Table.Discriminator is not null);
+        return state;
+    }
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+
+    private CommandState Prepare()
+    {
+        var state = Enter();
+        state.Table.AddRequiredNames(state);
+        return state;
+    }
 }

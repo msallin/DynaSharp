@@ -543,7 +543,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         public static global::DynaSharp.Attr<global::DynaSharp.AttributeValue, global::DynaSharp.Serialization.AttributeValueConverter> Raw => new("Raw");
 
         /// <summary>The attribute <c>MaybeRaw</c>.</summary>
-        public static global::DynaSharp.Attr<global::DynaSharp.AttributeValue, global::DynaSharp.Serialization.AttributeValueConverter> MaybeRaw => new("MaybeRaw");
+        public static global::DynaSharp.Attr<global::DynaSharp.AttributeValue, global::DynaSharp.Serialization.OptionalConverter<global::DynaSharp.AttributeValue, global::DynaSharp.Serialization.AttributeValueConverter>> MaybeRaw => new("MaybeRaw");
 
         /// <summary>The attribute <c>Numbers</c>.</summary>
         public static global::DynaSharp.Attr<int[], global::DynaSharp.Serialization.ArrayConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Numbers => new("Numbers");
@@ -588,7 +588,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlyDictionary<string, global::Shapes.Collections.Leaf>, global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Leaf>>> Leaf => new("Leaf");
 
         /// <summary>The attribute <c>Maybe</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Leaf>> Maybe => new("Maybe");
+        public static global::DynaSharp.Attr<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Leaf>>> Maybe => new("Maybe");
 
         /// <summary>The attribute <c>Pair</c>.</summary>
         public static global::DynaSharp.Attr<(int, int), global::Shapes.Collections.PairConverter> Pair => new("Pair");
@@ -597,7 +597,7 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         public static global::DynaSharp.Attr<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter> Coded => new("Coded");
 
         /// <summary>The attribute <c>MaybeCoded</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter> MaybeCoded => new("MaybeCoded");
+        public static global::DynaSharp.Attr<global::Shapes.Collections.Code, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter>> MaybeCoded => new("MaybeCoded");
 
         /// <summary>The attribute <c>Codes</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.Collections.Code>, global::DynaSharp.Serialization.ListConverter<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter>> Codes => new("Codes");

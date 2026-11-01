@@ -183,7 +183,7 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         public static global::DynaSharp.Attr<global::Shapes.Flags.Rights, __Shapes_Flags_RightsConverter> Rights => new("Rights");
 
         /// <summary>The attribute <c>Wide</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Flags.Wide, __Shapes_Flags_WideConverter> Wide => new("Wide");
+        public static global::DynaSharp.Attr<global::Shapes.Flags.Wide, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.Flags.Wide, __Shapes_Flags_WideConverter>> Wide => new("Wide");
 
         /// <summary>The attribute <c>Each</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<global::Shapes.Flags.Rights>, global::DynaSharp.Serialization.HashSetConverter<global::Shapes.Flags.Rights, __Shapes_Flags_RightsConverter>> Each => new("Each");
@@ -195,13 +195,13 @@ partial class Grant : __Map.IDynamoDbDocument<global::Shapes.Flags.Grant>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<global::Shapes.Flags.Color>, global::DynaSharp.Serialization.HashSetConverter<global::Shapes.Flags.Color, __Shapes_Flags_ColorConverter>> Colors => new("Colors");
 
         /// <summary>The attribute <c>Others</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlySet<global::Shapes.Flags.Color>, global::DynaSharp.Serialization.ReadOnlySetConverter<global::Shapes.Flags.Color, __Shapes_Flags_ColorConverter>> Others => new("Others");
+        public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlySet<global::Shapes.Flags.Color>, global::DynaSharp.Serialization.OptionalReferenceConverter<global::System.Collections.Generic.IReadOnlySet<global::Shapes.Flags.Color>, global::DynaSharp.Serialization.ReadOnlySetConverter<global::Shapes.Flags.Color, __Shapes_Flags_ColorConverter>>> Others => new("Others");
 
         /// <summary>The attribute <c>Sparse</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.Flags.Color?>, global::DynaSharp.Serialization.ListConverter<global::Shapes.Flags.Color?, global::DynaSharp.Serialization.NullableConverter<global::Shapes.Flags.Color, __Shapes_Flags_ColorConverter>>> Sparse => new("Sparse");
 
         /// <summary>The attribute <c>None</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Flags.Nothing, __Shapes_Flags_NothingConverter> None => new("None");
+        public static global::DynaSharp.Attr<global::Shapes.Flags.Nothing, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.Flags.Nothing, __Shapes_Flags_NothingConverter>> None => new("None");
 
         /// <summary>The converter of <c>global::Shapes.Flags.Rights</c>, in a form that a handle can name.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

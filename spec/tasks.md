@@ -324,10 +324,11 @@ Owner's decision of 2026-11-01. One package, branch `m3/g1-additions`.
 
 ### G2 - typed projection
 
-After G1 and F2. `Project` stays as it is: leaving out a `required` member would give a null the compiler rules out.
+Branch `m3/g2-projection`, merged. `Project` stays as it is: leaving out what the entity needs throws `DynamoDbMappingException`.
 
-- [ ] **Analyzer.** A warning with its own diagnostic when `Project` on a typed read leaves out a `required` member that is no key input and is not restored from a key.
-- [ ] **`Select(handle)`.** On `GetCommand<T>`, `QueryCommand<T>` and `ScanCommand<T>`: one handle, projects that attribute and reads its value, without the entity. `Return(attr)` is the model. A missing attribute follows the type of the handle: null for a nullable one, `DynamoDbMappingException` otherwise. More than one handle is a later step.
+- [x] **Analyzer.** `DYNA208` warns when a typed read that ends in the same chain leaves out what it would throw without: a `required` member that does not read as null or empty, a constructor parameter without a default, the input of a lossy key. `DYNA209` warns on `Select` of a stored input of a table key, which throws, because an item made by `Update` does not hold the attribute.
+- [x] **`Select(handle)`.** On `GetCommand<T>`, `QueryCommand<T>` and `ScanCommand<T>`: one handle, projects that attribute and reads its value, without the entity. `Return(attr)` is the model: clauses go before it and the command that comes back has terminals only. `SelectResult<TValue>` tells a missing item from a missing attribute. A missing attribute follows the type of the handle: null for a nullable one, `DynamoDbMappingException` otherwise, and empty for a set. The handle of a nullable property carries that in its converter. More than one handle is a later step.
+- [x] **Typed `Get` and `BatchGet` with `Project`** add the discriminator and the keys, as `api.md` says, which they did not.
 
 ### D1 - web identity and real AWS
 

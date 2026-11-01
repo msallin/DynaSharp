@@ -158,7 +158,7 @@ partial struct Point : __Map.IDynamoDbDiscriminated<global::Shapes.Struct.Point>
         public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.NumberConverter<double>> X => new("X");
 
         /// <summary>The attribute <c>Y</c>.</summary>
-        public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.NumberConverter<double>> Y => new("Y");
+        public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.OptionalConverter<double, global::DynaSharp.Serialization.NumberConverter<double>>> Y => new("Y");
 
         /// <summary>The attribute <c>Tag</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.GuidConverter> Tag => new("Tag");

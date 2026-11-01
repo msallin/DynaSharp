@@ -158,10 +158,10 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");
 
         /// <summary>The attribute <c>owner</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Owner => new("owner");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("owner");
 
         /// <summary>The attribute <c>rank</c>.</summary>
-        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Rank => new("rank");
+        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.OptionalConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Rank => new("rank");
     }
 
     /// <summary>The key builders of <c>OwnedThing</c>.</summary>

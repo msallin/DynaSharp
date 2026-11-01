@@ -247,16 +247,16 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
         public static global::DynaSharp.Attr<global::Shapes.Positional.Tier, __Shapes_Positional_TierConverter> Tier => new("Tier");
 
         /// <summary>The attribute <c>Nick</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Nick => new("Nick");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Nick => new("Nick");
 
         /// <summary>The attribute <c>Badges</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>> Badges => new("Badges");
+        public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.OptionalReferenceConverter<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>>> Badges => new("Badges");
 
         /// <summary>The attribute <c>Scores</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<int>, global::DynaSharp.Serialization.HashSetConverter<int, global::DynaSharp.Serialization.NumberSetElement<int>>> Scores => new("Scores");
 
         /// <summary>The attribute <c>Home</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.Positional.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Positional.Address>> Home => new("Home");
+        public static global::DynaSharp.Attr<global::Shapes.Positional.Address, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shapes.Positional.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Positional.Address>>> Home => new("Home");
 
         /// <summary>The converter of <c>global::Shapes.Positional.Tier</c>, in a form that a handle can name.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

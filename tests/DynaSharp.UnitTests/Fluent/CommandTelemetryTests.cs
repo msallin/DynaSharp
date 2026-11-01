@@ -112,6 +112,48 @@ public sealed class CommandTelemetryTests
     }
 
     [Test]
+    public async Task SendAsync_SelectOfAGet_HasTheTagsOfTheRequestApi()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"total":{"N":"1"}},"ConsumedCapacity":{"TableName":"Users","CapacityUnits":1.0}}"""));
+
+        // Act
+        var request = await RunAsync(handler, client => client.GetItemAsync(new GetItemRequest { TableName = "Users", Key = new Dictionary<string, AttributeValue> { ["pk"] = "a" }, ConsistentRead = true, ProjectionExpression = "total", ReturnConsumedCapacity = ReturnConsumedCapacity.Total }));
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Get("a").Consistent().ReturnCapacity().Select(Attr<int>("total")).SendAsync());
+
+        // Assert
+        await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
+    }
+
+    [Test]
+    public async Task PageAsync_SelectOfAQuery_HasTheTagsOfTheRequestApi()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"total":{"N":"1"}}],"Count":1,"ScannedCount":3,"ConsumedCapacity":{"TableName":"Users","CapacityUnits":1.0}}"""));
+
+        // Act
+        var request = await RunAsync(handler, client => client.QueryAsync(new QueryRequest { TableName = "Users", IndexName = "ByName", KeyConditionExpression = "#n0 = :v0", ProjectionExpression = "total", ConsistentRead = true, Limit = 5, ScanIndexForward = false, ReturnConsumedCapacity = ReturnConsumedCapacity.Total, ExpressionAttributeNames = new Dictionary<string, string> { ["#n0"] = "name" }, ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":v0"] = "a" } }));
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Index("ByName", "pk", "name").Query("a").Consistent().Limit(5).Descending().ReturnCapacity().Select(Attr<int>("total")).PageAsync());
+
+        // Assert
+        await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
+    }
+
+    [Test]
+    public async Task PageAsync_SelectOfAScan_HasTheTagsOfTheRequestApi()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"total":{"N":"1"}}],"Count":1,"ScannedCount":3}"""));
+
+        // Act
+        var request = await RunAsync(handler, client => client.ScanAsync(new ScanRequest { TableName = "Users", ProjectionExpression = "total", Limit = 5, Segment = 1, TotalSegments = 4 }));
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Scan().Limit(5).Segment(1, of: 4).Select(Attr<int>("total")).PageAsync());
+
+        // Assert
+        await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
+    }
+
+    [Test]
     public async Task CountAsync_Query_HasTheTagsOfTheRequestApi()
     {
         // Arrange

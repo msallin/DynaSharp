@@ -315,6 +315,24 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor ProjectionLeavesOutRequired = new(
+        "DYNA208",
+        "Project leaves out a required member",
+        "This Project leaves out '{0}' of '{1}', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it{2}.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor SelectOfKeyInput = new(
+        "DYNA209",
+        "Select of a property that a key of the table holds",
+        "'{0}' of '{1}' is held by the key '{2}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly DiagnosticDescriptor StringInNamePosition = new(
         "DYNA210",
         "String where a name belongs",
@@ -380,7 +398,7 @@ internal static class Descriptors
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey,
-        CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
+        CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

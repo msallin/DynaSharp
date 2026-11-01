@@ -39,6 +39,10 @@ public static class Code
 
     public static void Dyna207() => _ = Orders.Index("Nope");
 
+    public static IAsyncEnumerable<Shipment> Dyna208() => Shipments.Scan().Project("Weight").ItemsAsync();
+
+    public static string Dyna209() => Shipments.Get("a").Select(Shipment.Attrs.Id).ToRequestJson();
+
     public static void Dyna210() => Shop.Update("a").If($"{"status"} = {"open"}");
 
     public static void Dyna211() => Shop.Update("a").If($"attribute_exists(#pk)");
@@ -57,4 +61,6 @@ public static class Code
     private static readonly Table<Order> Orders = null!;
 
     private static readonly Table<Invoice> Invoices = null!;
+
+    private static readonly Table<Shipment> Shipments = null!;
 }

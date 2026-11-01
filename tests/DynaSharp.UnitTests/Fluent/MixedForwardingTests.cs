@@ -10,6 +10,9 @@ public sealed class MixedForwardingTests
     // A query gives one item that a mixed read would have to say the type of, so it is left out on purpose.
     private const string NotOfferedByAMixedQuery = "ItemAsync";
 
+    // One attribute of one type is the point of it, and a mixed read has several types.
+    private const string NotOfSeveralTypes = "Select";
+
     // What a mixed read leaves out on purpose. An entry that a mixed read does offer fails too, so the list stays true.
     private static readonly Dictionary<string, string> NotOffered = new(StringComparer.Ordinal)
     {
@@ -31,7 +34,7 @@ public sealed class MixedForwardingTests
         var offered = PublicMethods(mixed).Select(Signature).ToHashSet(StringComparer.Ordinal);
 
         // Act
-        var missing = PublicMethods(read).Where(method => !offered.Contains(Signature(method))).Select(static method => method.Name).Order(StringComparer.Ordinal);
+        var missing = PublicMethods(read).Where(method => method.Name != NotOfSeveralTypes && !offered.Contains(Signature(method))).Select(static method => method.Name).Order(StringComparer.Ordinal);
 
         // Assert
         var expected = read == typeof(QueryCommand<>) ? NotOffered.Keys.Append(NotOfferedByAMixedQuery) : NotOffered.Keys;

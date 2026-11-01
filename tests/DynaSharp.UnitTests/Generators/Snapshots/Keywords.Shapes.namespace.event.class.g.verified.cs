@@ -266,13 +266,13 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         public static global::DynaSharp.Attr<global::Shapes.@namespace.@event.@enum, __Shapes_namespace_event_enumConverter> @base => new("base");
 
         /// <summary>The attribute <c>this</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.@namespace.@event.@enum, __Shapes_namespace_event_enumConverter> @this => new("this");
+        public static global::DynaSharp.Attr<global::Shapes.@namespace.@event.@enum, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.@namespace.@event.@enum, __Shapes_namespace_event_enumConverter>> @this => new("this");
 
         /// <summary>The attribute <c>größe</c>.</summary>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> @double => new("größe");
 
         /// <summary>The attribute <c>fixed</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.@namespace.@event.@object, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.@namespace.@event.@object>> @fixed => new("fixed");
+        public static global::DynaSharp.Attr<global::Shapes.@namespace.@event.@object, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shapes.@namespace.@event.@object, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.@namespace.@event.@object>>> @fixed => new("fixed");
 
         /// <summary>The attribute <c>fields</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> fields => new("fields");

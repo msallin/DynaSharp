@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using DynaSharp.Http;
-using DynaSharp.Mapping;
 using DynaSharp.Serialization;
 using DynaSharp.Telemetry;
 
@@ -15,7 +14,6 @@ namespace DynaSharp.Fluent;
 /// <param name="state">The state of the read.</param>
 internal readonly struct PageCall<TOperation, T>(CommandState state) : IWireCall<PageData<T>>
     where TOperation : ICommandOperation<PageData<T>>
-    where T : IDynamoDbDocument<T>
 {
     public string OperationName => TOperation.Name;
 

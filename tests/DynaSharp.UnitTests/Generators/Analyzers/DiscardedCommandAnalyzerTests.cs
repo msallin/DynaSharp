@@ -49,6 +49,8 @@ public sealed class DiscardedCommandAnalyzerTests
     [Arguments("""[|orders.Put(order)|];""")]
     [Arguments("""[|shop.Put()|];""")]
     [Arguments("""[|shop.Get("a")|];""")]
+    [Arguments("""[|shop.Get("a").Select(Attr<int>("n"))|];""")]
+    [Arguments("""[|shop.Query("a").Select(Attr<int>("n"))|];""")]
     [Arguments("""[|shop.Update("a")|];""")]
     [Arguments("""[|shop.Delete("a")|];""")]
     [Arguments("""[|shop.Query("a")|];""")]

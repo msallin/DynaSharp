@@ -192,13 +192,13 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter> Net => new("Net");
 
         /// <summary>The attribute <c>Gross</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter> Gross => new("Gross");
+        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>> Gross => new("Gross");
 
         /// <summary>The attribute <c>Fee</c>.</summary>
         public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.OnlyWriteIsExplicit> Fee => new("Fee");
 
         /// <summary>The attribute <c>Label</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter> Label => new("Label");
+        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Tag, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>> Label => new("Label");
 
         /// <summary>The attribute <c>Labels</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.ExplicitConverters.Tag>, global::DynaSharp.Serialization.ListConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>> Labels => new("Labels");

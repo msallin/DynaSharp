@@ -11,6 +11,8 @@ public sealed class ReadTerminalAnalyzerTests
     [Arguments("""[|await shop.Query("a").Limit(1)|];""")]
     [Arguments("""[|await shop.Scan().Parallel(8)|];""")]
     [Arguments("""[|await (shop.Query("a"))|];""")]
+    [Arguments("""[|await shop.Query("a").Select(Attr<int>("n"))|];""")]
+    [Arguments("""[|await shop.Scan().Select(Attr<int>("n"))|];""")]
     public async Task Analyze_AwaitOfAReadCommand_ReportsTheAwait(string statement)
     {
         // Arrange
@@ -27,6 +29,7 @@ public sealed class ReadTerminalAnalyzerTests
     [Arguments("""shop.Query("a").[|SendAsync|]();""")]
     [Arguments("""shop.Scan().[|SendAsync|](CancellationToken.None);""")]
     [Arguments("""shop.Query("a").Filter(Attr("x").Exists()).[|SendAsync|]();""")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).[|SendAsync|]();""")]
     public async Task Analyze_SendOfAReadCommand_ReportsTheName(string statement)
     {
         // Arrange

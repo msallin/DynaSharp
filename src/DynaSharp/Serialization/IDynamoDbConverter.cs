@@ -65,4 +65,16 @@ public interface IDynamoDbConverter<T>
     /// <param name="value">The value.</param>
     /// <returns><see langword="true"/> if the value counts as null.</returns>
     public static virtual bool IsOmitted(T value) => false;
+
+    /// <summary>
+    /// Finds out what a read of one attribute gives when the item does not have it. No value is the answer for most types, and the read then throws <see cref="DynamoDbMappingException"/> rather than
+    /// make one up. A nullable type answers with null, because null is left out on write, and a set with an empty set, because DynamoDB has none.
+    /// </summary>
+    /// <param name="value">The value, if there is one.</param>
+    /// <returns><see langword="true"/> if a missing attribute has a value of this type.</returns>
+    public static virtual bool TryReadMissing(out T value)
+    {
+        value = default!;
+        return false;
+    }
 }

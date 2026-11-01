@@ -180,13 +180,17 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <inheritdoc/>
     public UpdateStep Add<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
-        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter
-    {
-        var state = Enter();
-        WriteRules.NoteUnknownValue(state, attribute.Path);
-        state.Expressions.Add<TValue, TConverter>(attribute.Path, value);
-        return new(state);
-    }
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
+
+    /// <inheritdoc/>
+    public UpdateStep Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : struct
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
+
+    /// <inheritdoc/>
+    public UpdateStep Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+        where TValue : class
+        where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
     public UpdateStep Delete(string path, AttributeValue elements)
@@ -281,6 +285,15 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         ArgumentOutOfRangeException.ThrowIfLessThan(attempts, 1);
         var state = Enter();
         state.MaxAttempts = attempts;
+        return new(state);
+    }
+
+    private UpdateStep Adding<TValue, TConverter>(string path, TValue value)
+        where TConverter : IDynamoDbConverter<TValue>
+    {
+        var state = Enter();
+        WriteRules.NoteUnknownValue(state, path);
+        state.Expressions.Add<TValue, TConverter>(path, value);
         return new(state);
     }
 

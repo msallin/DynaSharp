@@ -349,6 +349,114 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_SelectOfAGet_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var handles = client.Table<Handles>("Shop");
+
+        // Act
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Get(PartitionKey, SortKey).Consistent().Select(Handles.Attrs.Total).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_SelectOfAQuery_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var handles = client.Table<Handles>("Shop");
+
+        // Act
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey).Limit(5).Select(Handles.Attrs.Nickname).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_SelectOfAScan_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var handles = client.Table<Handles>("Shop");
+
+        // Act
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Scan().Select(Handles.Attrs.Count).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    // The attribute is at the end of what comes back, behind the discriminator, so this walks all of it twice, which is what a read of a Get costs.
+    [Test]
+    public async Task Read_SelectOfAGet_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var state = client.Table<Handles>("Shop").Get(PartitionKey, SortKey).Select(Handles.Attrs.Count).Handle.State!;
+        var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}},"Count":{"N":"7"}}}""");
+
+        // Act
+        var allocated = Measure((state, json), static input =>
+        {
+            var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
+            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Value;
+        });
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Read_SelectOfANestedPath_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var state = client.Table<Handles>("Shop").Get(PartitionKey, SortKey).Select(new Attr<int, DynaSharp.Serialization.NumberConverter<int>>("Home.Count")).Handle.State!;
+        var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}}}}""");
+
+        // Act
+        var allocated = Measure((state, json), static input =>
+        {
+            var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
+            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Value;
+        });
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    // A page is an array of what it holds, in a typed read as here, and a value costs nothing beside it.
+    [Test]
+    public async Task Read_SelectOfAPage_AllocatesTheArrayOfThePage()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var state = client.Table<Handles>("Shop").Query(PartitionKey).Select(Handles.Attrs.Count).Handle.State!;
+        var json = Encoding.UTF8.GetBytes("""{"Items":[{"Count":{"N":"1"}},{"Count":{"N":"2"}}],"Count":2,"ScannedCount":2}""");
+        var array = Measure(2, static length => new int[length].Length);
+
+        // Act
+        var allocated = Measure((state, json), static input =>
+        {
+            var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
+            return DynaSharp.Fluent.QuerySelectPageOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Count;
+        });
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(array);
+    }
+
+    [Test]
     public async Task Build_DeleteWithCondition_AllocatesNothing()
     {
         // Arrange

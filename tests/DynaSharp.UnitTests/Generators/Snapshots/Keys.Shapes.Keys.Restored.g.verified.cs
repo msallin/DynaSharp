@@ -192,7 +192,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Size => new("Size");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
     }
 
     /// <summary>The key builders of <c>Restored</c>.</summary>

@@ -180,10 +180,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");
 
         /// <summary>The attribute <c>Nick</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Nick => new("Nick");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Nick => new("Nick");
 
         /// <summary>The attribute <c>Age</c>.</summary>
-        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Age => new("Age");
+        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.OptionalConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Age => new("Age");
     }
 
     /// <summary>The key builders of <c>NickName</c>.</summary>

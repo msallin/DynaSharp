@@ -75,6 +75,50 @@ public sealed class GetCommandTests
     }
 
     [Test]
+    public async Task ToRequestJson_TypedProjection_AddsTheDiscriminatorAndTheKeys()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Customer>("Shop").Get("a", "b").Project(Customer.Attrs.FullName).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}},"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TypedWithoutProjection_AddsNoProjection()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Customer>("Shop").Get("a", "b").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}}}""");
+    }
+
+    [Test]
+    public async Task ItemAsync_TypedProjection_FindsAnItemOfAnotherType()
+    {
+        // Arrange (the discriminator comes back because the projection asked for it, which is how a read tells the item it found from what it wanted)
+        using var handler = new StubHandler(request => request.BodyText.Contains("_type", StringComparison.Ordinal)
+            ? StubResponse.Json("""{"Item":{"_type":{"S":"ORDER"},"fullName":{"S":"a"},"pk":{"S":"CUSTOMER#a"}}}""")
+            : StubResponse.Json("""{"Item":{"fullName":{"S":"a"},"pk":{"S":"CUSTOMER#a"}}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await client.Table<Customer>("Shop").Get("a", "b").Project(Customer.Attrs.FullName).ItemAsync());
+
+        // Assert
+        await Assert.That(failure.AttributeName).IsEqualTo("_type");
+    }
+
+    [Test]
     public async Task ToRequestJson_GeneratedKey_WritesItsAttributes()
     {
         // Arrange

@@ -111,8 +111,8 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     }
 
     /// <summary>
-    /// Reads only some attributes. It saves bandwidth, not capacity: DynamoDB charges for the whole items. Reading into an entity needs what the entity
-    /// requires, so a projection is mostly for <see cref="Item"/>.
+    /// Reads only some attributes. It saves bandwidth, not capacity: DynamoDB charges for the whole items. A read of an entity needs its discriminator and its
+    /// keys, so they join the projection on their own, and it needs whatever else the entity requires, so a projection is mostly for <see cref="Item"/>.
     /// </summary>
     /// <param name="paths">The names or document paths. Reserved words need no care, and a second call adds to the first.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -187,7 +187,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a server error only after the last attempt.</exception>
     public ValueTask<BatchGetResult<T>> SendAsync(CancellationToken cancellationToken = default)
     {
-        var state = Enter();
+        var state = Prepare();
         state.Actions.Results = new List<T>(state.Actions.Count);
         return BatchDriver.SendAsync<BatchGetOperation<T>, BatchGetResult<T>>(state, cancellationToken);
     }
@@ -203,7 +203,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// </summary>
     /// <returns>The request body.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
-    public string ToRequestJson() => BatchDriver.RenderJson<BatchGetOperation<T>, BatchGetResult<T>>(Enter());
+    public string ToRequestJson() => BatchDriver.RenderJson<BatchGetOperation<T>, BatchGetResult<T>>(Prepare());
 
     private static void AddKey<TKey>(CommandState state, TKey key)
         where TKey : IKey<T>
@@ -218,4 +218,11 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     }
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+
+    private CommandState Prepare()
+    {
+        var state = Enter();
+        state.Table.AddRequiredNames(state);
+        return state;
+    }
 }

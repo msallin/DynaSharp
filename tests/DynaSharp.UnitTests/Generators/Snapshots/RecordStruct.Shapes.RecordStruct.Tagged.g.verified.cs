@@ -92,6 +92,6 @@ partial record struct Tagged : __Map.IDynamoDbDocument<global::Shapes.RecordStru
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Id => new("Id");
 
         /// <summary>The attribute <c>Label</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Label => new("Label");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Label => new("Label");
     }
 }

@@ -1,4 +1,5 @@
 using System.Reflection;
+using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Serialization;
 using static DynaSharp.Expr;
@@ -26,6 +27,71 @@ public sealed class GeneratedAttrsTests
 
         // Assert
         await Assert.That(path).IsEqualTo("line\nbreak\"");
+    }
+
+    [Test]
+    public async Task Attrs_NullableValueType_SaysSoInTheConverter()
+    {
+        // Arrange, Act
+        var type = Handles.Attrs.Total.GetType();
+
+        // Assert
+        await Assert.That(type).IsEqualTo(typeof(Attr<long, OptionalConverter<long, NumberConverter<long>>>));
+    }
+
+    [Test]
+    public async Task Attrs_NullableReferenceType_SaysSoInTheConverter()
+    {
+        // Arrange, Act
+        var type = Handles.Attrs.Nickname.GetType();
+
+        // Assert
+        await Assert.That(type).IsEqualTo(typeof(Attr<string, OptionalReferenceConverter<string, StringConverter>>));
+    }
+
+    [Test]
+    public async Task Add_NullableNumber_WritesTheAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Handles>("Shop").Update("a", "b").Add(Handles.Attrs.Total, 3L).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("ADD #n0 :v0");
+    }
+
+    [Test]
+    public async Task Add_NullableSet_WritesTheAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tags = new Attr<HashSet<string>, OptionalReferenceConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
+
+        // Act
+        var json = client.Table<Handles>("Shop").Update("a", "b").Add(tags, ["x"]).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("ADD #n0 :v0");
+    }
+
+    [Test]
+    public async Task Add_InATransaction_WritesTheActionsOfNullableAttributes()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tags = new Attr<HashSet<string>, OptionalReferenceConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
+        var table = client.Table<Handles>("Shop");
+
+        // Act
+        var json = client.TransactWrite().Update(table, "a", "b").Add(Handles.Attrs.Total, 3L).Add(tags, ["x"]).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("ADD #n0 :v0, #n1 :v1");
     }
 
     [Test]

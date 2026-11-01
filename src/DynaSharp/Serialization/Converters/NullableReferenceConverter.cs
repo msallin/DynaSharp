@@ -24,4 +24,11 @@ public readonly struct NullableReferenceConverter<T, TConverter> : IDynamoDbConv
     /// <inheritdoc/>
     public static T? Read(ref DynamoDbReader reader, AttributeType type) =>
         type == AttributeType.Null ? null : TConverter.Read(ref reader, type);
+
+    /// <inheritdoc/>
+    public static bool TryReadMissing(out T? value)
+    {
+        value = null;
+        return true;
+    }
 }

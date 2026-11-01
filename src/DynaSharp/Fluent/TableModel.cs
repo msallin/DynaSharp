@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Mapping;
@@ -40,6 +41,7 @@ internal sealed class TableModel
         KeyStart = [.. ",\"Key\":{\""u8, .. Encode(partitionKeyName), .. "\":"u8];
         SortKeyStart = sortKeyName is null ? [] : [.. ",\""u8, .. Encode(sortKeyName), .. "\":"u8];
         RequestItemsStart = [.. "\""u8, .. Encode(name), .. "\":"u8];
+        DiscriminatorUtf8 = discriminator is null ? [] : Encoding.UTF8.GetBytes(discriminator);
     }
 
     /// <summary>Gets the client.</summary>
@@ -59,6 +61,9 @@ internal sealed class TableModel
 
     /// <summary>Gets the attribute of the discriminator.</summary>
     public string? DiscriminatorAttributeName { get; }
+
+    /// <summary>Gets a value indicating whether a query sees items of other types, because its key condition stands where the discriminator filter would, and a read has to look at each item.</summary>
+    public bool QueryChecksDiscriminator => Discriminator is not null && DiscriminatorIsKey;
 
     /// <summary>Gets the secondary index this model reads, if it is one.</summary>
     public string? IndexName { get; }
@@ -81,6 +86,9 @@ internal sealed class TableModel
     /// <summary>Gets what the entity of the table declares, or <see langword="null"/> for a table without an entity, which is what creating the table starts from.</summary>
     public DynamoDbEntityInfo? Entity { get; init; }
 
+    /// <summary>Gets the name a read of an item goes by in a failure, the one generated code gives its type, so that a read of one attribute fails as a read of the entity does.</summary>
+    public string ReadTypeName { get; init; } = nameof(Item);
+
     /// <summary>
     /// Gets the attributes a typed read needs in its projection: the discriminator, which the read checks, and the keys, which an entity is restored
     /// from. An <see cref="Item"/> needs none.
@@ -98,6 +106,9 @@ internal sealed class TableModel
 
     /// <summary>Gets what names the table in the <c>RequestItems</c> of a batch: <c>"Shop":</c>.</summary>
     public byte[] RequestItemsStart { get; }
+
+    /// <summary>Gets the value of the discriminator as UTF-8, which a read of one attribute compares an item with.</summary>
+    public byte[] DiscriminatorUtf8 { get; }
 
     private bool DiscriminatorIsKey => IsKey(DiscriminatorAttributeName);
 
@@ -216,7 +227,7 @@ internal sealed class TableModel
     /// <param name="isGlobal">Whether the entity says that the index is global. A local index has the partition key of its table, so another partition key says the same.</param>
     /// <returns>The model.</returns>
     public TableModel ForIndex(string indexName, string partitionKeyName, string? sortKeyName, bool isGlobal = false) =>
-        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this, isGlobal || partitionKeyName != PartitionKeyName);
+        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this, isGlobal || partitionKeyName != PartitionKeyName) { ReadTypeName = ReadTypeName };
 
     /// <summary>Stops a consistent read of a global index before it goes out, which DynamoDB would reject at the end of a round trip.</summary>
     /// <exception cref="InvalidOperationException">This model reads an index that is known to be global.</exception>

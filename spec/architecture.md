@@ -156,7 +156,7 @@ a set of expressions per action and clears them in `EndAction`, so `#n0` means s
 The order in `Settle` matters: the version first, then keys, then indexes of literals, then the discriminator, so that each sees the actions before it and the discriminator ends the `SET`. `ForgetEntity` exists because a transaction reuses the state for its next action.
 `VersionChecked` is what makes `IgnoreVersion` after `IfVersion` throw. Raw paths go past all of this on purpose. `api.md` section 8 is the contract.
 
-Building a one-item command, a batch or a transaction allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, boxed values and a key string on an update of a key input, and the box of the generated key on an update of an entity whose index wants more of an input than the text of its key holds. `CommandAllocationTests` pins that per
+Building a one-item command, a batch or a transaction, and reading one attribute, allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, boxed values and a key string on an update of a key input, and the box of the generated key on an update of an entity whose index wants more of an input than the text of its key holds. `CommandAllocationTests` pins that per
 command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTests` and `FanOutStressTests` hammer the pooled state.
 
 ### Table administration
@@ -167,13 +167,17 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 
 ## 4. Reads
 
-**Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`.
+**Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`. Like every typed read it adds what it needs to a projection at the terminal, through `TableModel.AddRequiredNames`, and so does `BatchGet`.
 
 **Query and Scan.** `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. `BeginKeyQuery` does that for a key that writes itself: the key goes through the body and leaves it,
 and `ExpressionWriter.AppendKeyCondition` copies its names and values into the maps, because they are JSON already. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
 it gets it. `PageCall.ReadResponse` copies `LastEvaluatedKey` into `CommandState.PageKey` only after the whole response parsed, so a retry of a page sends what the first attempt sent. `PageResponse`
 locates that key and does not parse it. `OnceEnumerable<T>` makes an enumeration single-use and releases the state however it ends, also for an enumerator disposed before its first `MoveNextAsync`. `ToPage` makes a
 `ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts exactly one JSON object of attribute values, because it reaches the body as raw bytes.
+
+**One attribute.** `Select` is `CommandState.SelectAttribute`, which writes the projection once, because no clause can follow it, and `GetSelectCommand`, `QuerySelectCommand` and `ScanSelectCommand`, which have terminals and nothing else. A page reads each item through an `IItemReader<T>`, a static member of a struct, so `PagedRead` and `PageCall` take any `T`: `DocumentItem<T>` is
+`T.ReadAttributes` and `SelectedItem<TValue, TConverter>` is the attribute, found by `AttributePath`, which `UpdateValueOperation` shares. `ChecksDiscriminator` says that no filter kept other types away, which is a `Get` and a query keyed by the discriminator, and then a copy of the reader walks the item once more. What a missing attribute means is `IDynamoDbConverter<T>.TryReadMissing`, and which converter that is the overload of `Select` decides: the
+wrappers of section 6 make it `NullableConverter<T, TConverter>` or `NullableReferenceConverter<T, TConverter>`, whose `T?` is what the command gives. `TableModel.ReadTypeName` is the name generated code gives its type, so that a failure reads as that of the entity.
 
 **Parallel scan.** `ParallelScan` runs one `CommandState` per segment from `StartSegment`, each on a task handing pages over a channel with room for one, so at most n requests and about 2n pages exist.
 Its remarks say how failures and an early end work. `MixedScanCommand` shares it.
@@ -221,6 +225,8 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema`, and by `TableExtensions` for the name of a key builder and the kind of an index |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
 | `OmitEmptyConverter<TConverter>`, `IDynamoDbConverter<T>.IsOmitted` | The type of the handle of a property with `[OmitEmpty]`, and `WriteRules`, which ask it through the type parameter. `static virtual`, and false by default, so that a struct converter compiles the question away. The write of the property is a generated `{ Length: > 0 }` and goes through its own converter |
+| `IDynamoDbConverter<T>.TryReadMissing` | `SelectedItem<TValue, TConverter>`. `static virtual`, and false by default, as `IsOmitted`. The null wrappers answer with null and the set converters with an empty set, which is what `MissingBehavior` says for an entity |
+| `OptionalConverter<T, TConverter>`, `OptionalReferenceConverter<T, TConverter>` | The type of the handle of a nullable property, which `AttrsEmitter` writes. A handle holds `T` without the `?`, for `Set` and the conditions, and a `string?` is a `string` at run time, so this is the one place that tells such a handle from another. A signature that names a converter has to see through it: the overloads of `Add` for `IAddableConverter`, those of `AttrExtensions.BeginsWith`, and `DYNA216` |
 | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
 | `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
 | `ConverterChecks.ExpectDiscriminator`, `TryFindString`, `DynamoDbMappingException` | Generated reads |
@@ -294,6 +300,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA205` | `EntityCommandAnalyzer`, on the generator's model through `ModelCatalog` | `KeyInputChanges.Check`, for a table key | `EntityCommandAnalyzerTests` |
 | `DYNA206` | `EntityCommandAnalyzer` | `WriteRules.Settle`, which throws for the same put | `EntityCommandAnalyzerTests` |
 | `DYNA207` | `EntityCommandAnalyzer` | `TableExtensions.Index`, which throws for the same name | `EntityCommandAnalyzerTests` |
+| `DYNA208`, `DYNA209` | `ProjectionAnalyzer`, on the generator's model through `ModelCatalog` | `MissingBehavior.Throw` and what generated reads restore from a key, `TableModel.AddRequiredNames` for which keys a read adds | `ProjectionAnalyzerTests`, and every test of the repository that projects an entity and reads it from an emulator |
 | `DYNA210`, `DYNA211`, `DYNA212` | `ExpressionAnalyzer`, `ExpressionLexer`, `ExpressionParser` | DynamoDB's condition and update grammar, and the keyword list of `ExpressionWriter` | `ExpressionCorpus`, a test comparing the two keyword lists |
 | `DYNA213` | `PathAnalyzer` | The generator's model, through `ModelBuilder.ModelOf`, which also reads types from metadata | `PathAnalyzerTests` |
 | `DYNA214` | `PathAnalyzer`, `PathSyntax` | `ExpressionWriter.AppendPath` | `PathSyntaxTests`, which runs both |

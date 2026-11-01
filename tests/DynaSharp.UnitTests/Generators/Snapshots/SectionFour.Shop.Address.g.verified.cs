@@ -101,6 +101,6 @@ partial record Address : __Map.IDynamoDbDocument<global::Shop.Address>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> City => new("City");
 
         /// <summary>The attribute <c>Zip</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Zip => new("Zip");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Zip => new("Zip");
     }
 }

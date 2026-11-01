@@ -211,6 +211,9 @@ internal sealed class CommandState
     /// <summary>Gets or sets the attribute that the response is read for, when one attribute is all a command returns.</summary>
     public string? ReturnPath { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether a read of one attribute has to look at the discriminator of each item, because no filter did.</summary>
+    public bool ChecksDiscriminator { get; set; }
+
     /// <summary>
     /// Gets or sets the capacity of the response, for the span and the metric. It stays here, not in the result, because the result of a
     /// command that returns one attribute is that attribute.
@@ -501,6 +504,27 @@ internal sealed class CommandState
         }
     }
 
+    /// <summary>Narrows a read to one attribute. The chain ends here, because the type of the command that follows has no clause left, so nothing adds to the projection later.</summary>
+    /// <param name="path">The attribute.</param>
+    /// <param name="checksDiscriminator">Whether the discriminator has to come back, for a read that no filter narrows to the items of its type.</param>
+    /// <exception cref="InvalidOperationException">The read has a projection already.</exception>
+    /// <exception cref="ArgumentException">The path is not valid.</exception>
+    public void SelectAttribute(string path, bool checksDiscriminator)
+    {
+        if (Expressions[Clause.Projection].WrittenCount > 0)
+        {
+            throw new InvalidOperationException($"This read of {Table.Name} gives one attribute, so it has no use for Project.");
+        }
+
+        Expressions.Project(new ReadOnlySpan<string>(in path));
+        ReturnPath = path;
+        ChecksDiscriminator = checksDiscriminator;
+        if (checksDiscriminator)
+        {
+            Expressions.AddToProjection(Table.DiscriminatorAttributeName!);
+        }
+    }
+
     /// <summary>Sends the command. The caller entered the state, and from here on the call owns it: the pipeline releases it, whatever happens.</summary>
     /// <typeparam name="TOperation">The operation.</typeparam>
     /// <typeparam name="TResponse">What the call returns.</typeparam>
@@ -569,6 +593,7 @@ internal sealed class CommandState
         ReturnCapacity = default;
         ReturnMetrics = default;
         ReturnPath = null;
+        ChecksDiscriminator = false;
         ResponseCapacity = null;
         ItemKeys = null;
         _core.ReturnCommand(this);

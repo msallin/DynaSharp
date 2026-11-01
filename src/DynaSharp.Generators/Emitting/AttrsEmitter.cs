@@ -52,9 +52,15 @@ internal static class AttrsEmitter
 
         // The handle says it in its type, so that a property without [OmitEmpty] pays nothing, in a handle or in a command.
         converter = handle.OmitsEmpty ? $"{Serialization}OmitEmptyConverter<{converter}>" : converter;
+
+        // A handle holds the type without its ?, for Set and the conditions, so this is the one place that tells a nullable property from another.
+        converter = handle.Converter.ReadConverter == handle.Converter.WriteConverter ? converter : $"{Serialization}{Optional(handle)}<{handle.InnerValueType()}, {converter}>";
         code.Line($"/// <summary>The attribute <c>{CodeText.Xml(handle.AttributeName)}</c>.</summary>");
         code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{handle.InnerValueType()}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");
     }
+
+    private static string Optional(PropertyModel handle) =>
+        handle.Converter!.ReadConverter.StartsWith(Serialization + "NullableConverter<", StringComparison.Ordinal) ? "OptionalConverter" : "OptionalReferenceConverter";
 
     private static string Accessibility(bool isPublic) => isPublic ? "public" : "internal";
 

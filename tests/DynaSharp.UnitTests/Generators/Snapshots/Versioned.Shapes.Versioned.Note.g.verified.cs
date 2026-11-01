@@ -185,7 +185,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");
 
         /// <summary>The attribute <c>Owner</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Owner => new("Owner");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("Owner");
 
         /// <summary>The attribute <c>Revision</c>.</summary>
         public static global::DynaSharp.Attr<short, global::DynaSharp.Serialization.NumberConverter<short>> Revision => new("Revision");

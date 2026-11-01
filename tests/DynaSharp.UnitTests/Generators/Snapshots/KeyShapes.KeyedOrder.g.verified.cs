@@ -325,13 +325,13 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
         public static global::DynaSharp.Attr<decimal, global::DynaSharp.Serialization.NumberConverter<decimal>> Total => new("Total");
 
         /// <summary>The attribute <c>TrackingId</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.GuidConverter> TrackingId => new("TrackingId");
+        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.OptionalConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>> TrackingId => new("TrackingId");
 
         /// <summary>The attribute <c>ShippedAt</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter> ShippedAt => new("ShippedAt");
+        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.OptionalConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>> ShippedAt => new("ShippedAt");
 
         /// <summary>The attribute <c>ShipTo</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>> ShipTo => new("ShipTo");
+        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.OptionalReferenceConverter<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>>> ShipTo => new("ShipTo");
 
         /// <summary>The attribute <c>Quantity</c>.</summary>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Quantity => new("Quantity");

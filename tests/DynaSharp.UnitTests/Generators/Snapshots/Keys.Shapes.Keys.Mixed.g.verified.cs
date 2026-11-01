@@ -254,10 +254,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
         public static global::DynaSharp.Attr<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter> Created => new("Created");
 
         /// <summary>The attribute <c>Nick</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Nick => new("Nick");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Nick => new("Nick");
 
         /// <summary>The attribute <c>Parent</c>.</summary>
-        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Parent => new("Parent");
+        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.OptionalConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Parent => new("Parent");
 
         /// <summary>The attribute <c>age</c>.</summary>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Computed => new("age");

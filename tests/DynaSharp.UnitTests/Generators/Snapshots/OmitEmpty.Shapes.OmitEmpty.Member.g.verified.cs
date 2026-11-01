@@ -197,16 +197,16 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");
 
         /// <summary>The attribute <c>Nick</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>> Nick => new("Nick");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>>> Nick => new("Nick");
 
         /// <summary>The attribute <c>Label</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Label => new("Label");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Label => new("Label");
 
         /// <summary>The attribute <c>Motto</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Motto => new("Motto");
 
         /// <summary>The attribute <c>Home</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.OmitEmpty.Home, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.OmitEmpty.Home>> Home => new("Home");
+        public static global::DynaSharp.Attr<global::Shapes.OmitEmpty.Home, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shapes.OmitEmpty.Home, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.OmitEmpty.Home>>> Home => new("Home");
     }
 
     /// <summary>The key builders of <c>Member</c>.</summary>

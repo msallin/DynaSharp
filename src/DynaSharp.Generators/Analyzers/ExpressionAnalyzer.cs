@@ -22,6 +22,9 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
     // What a number or a boolean cannot be an operand of: both functions want a string or a binary value, and contains also a set or a list.
     private static readonly string[] TextFunctions = ["begins_with", "contains"];
 
+    // A nullable property says so by a wrapper around its converter.
+    private static readonly HashSet<string> OptionalConverters = ["OptionalConverter", "OptionalReferenceConverter"];
+
     // The built-in converters that do not store text. Those of a consumer are not known.
     private static readonly HashSet<string> NoTextConverters = ["NumberConverter", "EpochSecondsConverter", "BoolConverter"];
 
@@ -146,7 +149,10 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         private static bool HoldsNoText(IOperation appendCall) =>
             appendCall is IInvocationOperation call
             && (call.Arguments[0].Value is IConversionOperation conversion ? conversion.Operand : call.Arguments[0].Value).Type is INamedTypeSymbol { Name: AttrType, TypeArguments.Length: 2 } handle
-            && NoTextConverters.Contains(handle.TypeArguments[1].Name);
+            && NoTextConverters.Contains(StoredBy(handle.TypeArguments[1]).Name);
+
+        private static ITypeSymbol StoredBy(ITypeSymbol converter) =>
+            converter is INamedTypeSymbol { TypeArguments.Length: 2 } optional && OptionalConverters.Contains(optional.Name) ? optional.TypeArguments[1] : converter;
 
         private static ExpressionPart HolePart(IOperation appendCall)
         {

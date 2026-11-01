@@ -407,16 +407,16 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Count => new("Count");
 
         /// <summary>The attribute <c>Total</c>.</summary>
-        public static global::DynaSharp.Attr<long, global::DynaSharp.Serialization.NumberConverter<long>> Total => new("Total");
+        public static global::DynaSharp.Attr<long, global::DynaSharp.Serialization.OptionalConverter<long, global::DynaSharp.Serialization.NumberConverter<long>>> Total => new("Total");
 
         /// <summary>The attribute <c>Nickname</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Nickname => new("Nickname");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Nickname => new("Nickname");
 
         /// <summary>The attribute <c>Plan</c>.</summary>
         public static global::DynaSharp.Attr<global::KeyShapes.Plan, __KeyShapes_PlanConverter> Plan => new("Plan");
 
         /// <summary>The attribute <c>PreviousPlan</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.Plan, __KeyShapes_PlanConverter> PreviousPlan => new("PreviousPlan");
+        public static global::DynaSharp.Attr<global::KeyShapes.Plan, global::DynaSharp.Serialization.OptionalConverter<global::KeyShapes.Plan, __KeyShapes_PlanConverter>> PreviousPlan => new("PreviousPlan");
 
         /// <summary>The attribute <c>History</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlyList<global::KeyShapes.Plan>, global::DynaSharp.Serialization.ReadOnlyListConverter<global::KeyShapes.Plan, __KeyShapes_PlanConverter>> History => new("History");
@@ -434,13 +434,13 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlySet<int>, global::DynaSharp.Serialization.ReadOnlySetConverter<int, global::DynaSharp.Serialization.NumberSetElement<int>>> Scores => new("Scores");
 
         /// <summary>The attribute <c>Home</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>> Home => new("Home");
+        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.OptionalReferenceConverter<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>>> Home => new("Home");
 
         /// <summary>The attribute <c>renamed</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Original => new("renamed");
 
         /// <summary>The attribute <c>ExpiresAt</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter> ExpiresAt => new("ExpiresAt");
+        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.OptionalConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter>> ExpiresAt => new("ExpiresAt");
 
         /// <summary>The attribute <c>line\nbreak"</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Awkward => new("line\nbreak\"");

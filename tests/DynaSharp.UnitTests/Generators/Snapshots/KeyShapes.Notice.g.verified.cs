@@ -190,7 +190,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Text => new("Text");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
     }
 
     /// <summary>The key builders of <c>Notice</c>.</summary>

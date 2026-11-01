@@ -381,6 +381,10 @@ public sealed class DynamoDbClient : IDisposable
         where T : IDynamoDbEntity<T>
     {
         var info = T.Info;
-        return new Table<T>(new TableModel(core, name, info.PartitionKeyName, info.SortKeyName, info.Discriminator, info.DiscriminatorAttributeName) { Writes = EntityWrites.Of(typeof(T).ToString(), info), Entity = info });
+        var type = typeof(T).ToString();
+
+        // Shop.Orders+Order goes by Order.
+        var readTypeName = type[(type.LastIndexOfAny(['.', '+']) + 1)..];
+        return new Table<T>(new TableModel(core, name, info.PartitionKeyName, info.SortKeyName, info.Discriminator, info.DiscriminatorAttributeName) { Writes = EntityWrites.Of(type, info), Entity = info, ReadTypeName = readTypeName });
     }
 }

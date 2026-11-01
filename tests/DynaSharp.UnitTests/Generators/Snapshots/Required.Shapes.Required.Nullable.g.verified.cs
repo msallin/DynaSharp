@@ -80,6 +80,6 @@ partial record Nullable : __Map.IDynamoDbDocument<global::Shapes.Required.Nullab
     public static class Attrs
     {
         /// <summary>The attribute <c>Maybe</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Maybe => new("Maybe");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Maybe => new("Maybe");
     }
 }

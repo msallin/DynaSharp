@@ -189,7 +189,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Title => new("Title");
 
         /// <summary>The attribute <c>FeaturedOn</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter> FeaturedOn => new("FeaturedOn");
+        public static global::DynaSharp.Attr<global::System.DateOnly, global::DynaSharp.Serialization.OptionalConverter<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>> FeaturedOn => new("FeaturedOn");
     }
 
     /// <summary>The key builders of <c>FeaturedPost</c>.</summary>

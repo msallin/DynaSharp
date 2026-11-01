@@ -93,6 +93,6 @@ partial record struct Flat : __Map.IDynamoDbDocument<global::Shapes.RecordStruct
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Floor => new("Floor");
 
         /// <summary>The attribute <c>Rent</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.RecordStruct.Money, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.RecordStruct.Money>> Rent => new("Rent");
+        public static global::DynaSharp.Attr<global::Shapes.RecordStruct.Money, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.RecordStruct.Money, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.RecordStruct.Money>>> Rent => new("Rent");
     }
 }

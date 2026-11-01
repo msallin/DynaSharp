@@ -98,6 +98,6 @@ partial record PostalAddress : __Map.IDynamoDbDocument<global::KeyShapes.PostalA
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> City => new("City");
 
         /// <summary>The attribute <c>Street</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.Street, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.Street>> Street => new("Street");
+        public static global::DynaSharp.Attr<global::KeyShapes.Street, global::DynaSharp.Serialization.OptionalReferenceConverter<global::KeyShapes.Street, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.Street>>> Street => new("Street");
     }
 }

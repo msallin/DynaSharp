@@ -102,6 +102,35 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
+    public async Task ToRequestJson_TypedProjection_AddsTheDiscriminatorAndTheKeys()
+    {
+        // Arrange
+        using var handler = new StubHandler(AnswerKeys);
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Customer>("Shop").BatchGet().Key("a", "b").Project(Customer.Attrs.FullName).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(
+            """{"RequestItems":{"Shop":{"Keys":[{"pk":{"S":"a"},"sk":{"S":"b"}}],"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}}}""");
+    }
+
+    [Test]
+    public async Task SendAsync_TypedProjection_AddsTheDiscriminatorAndTheKeys()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.Json("""{"Responses":{"Shop":[]}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table<Customer>("Shop").BatchGet().Key("a", "b").Project(Customer.Attrs.FullName).SendAsync();
+
+        // Assert
+        await Assert.That(handler.Requests.Single().BodyText).Contains("""#n0, #n1, #n2, #n3""");
+    }
+
+    [Test]
     public async Task SendAsync_OptionsAfterTheKeys_GoIntoEveryRequest()
     {
         // Arrange

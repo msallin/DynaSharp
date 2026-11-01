@@ -39,6 +39,13 @@ public readonly struct SetArrayConverter<T, TElement> : IDynamoDbConverter<T[]>,
     /// <exception cref="System.Text.Json.JsonException"><paramref name="type"/> is not the kind of set <typeparamref name="TElement"/> reads, or an element fails to read.</exception>
     public static T[] Read(ref DynamoDbReader reader, AttributeType type) => Read(ref reader, type, ArrayPool<T>.Shared);
 
+    /// <inheritdoc/>
+    public static bool TryReadMissing(out T[] value)
+    {
+        value = [];
+        return true;
+    }
+
     // The pool is a parameter so a counting pool can prove every rented array comes back.
     internal static T[] Read(ref DynamoDbReader reader, AttributeType type, ArrayPool<T> pool)
     {

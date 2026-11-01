@@ -197,7 +197,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::Shapes.Class.Accoun
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Plan => new("Plan");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
 
         /// <summary>The attribute <c>Aliases</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IList<string>, global::DynaSharp.Serialization.MutableListConverter<string, global::DynaSharp.Serialization.StringConverter>> Aliases => new("Aliases");

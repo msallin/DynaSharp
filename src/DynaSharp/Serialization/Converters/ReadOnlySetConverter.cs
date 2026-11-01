@@ -38,6 +38,13 @@ public readonly struct ReadOnlySetConverter<T, TElement> : IDynamoDbConverter<IR
     /// <exception cref="System.Text.Json.JsonException"><paramref name="type"/> is not the kind of set <typeparamref name="TElement"/> reads, or an element fails to read.</exception>
     public static IReadOnlySet<T> Read(ref DynamoDbReader reader, AttributeType type) => Read(ref reader, type, ArrayPool<T>.Shared);
 
+    /// <inheritdoc/>
+    public static bool TryReadMissing(out IReadOnlySet<T> value)
+    {
+        value = new HashSet<T>();
+        return true;
+    }
+
     // The pool is a parameter so a counting pool can prove every rented array comes back.
     internal static IReadOnlySet<T> Read(ref DynamoDbReader reader, AttributeType type, ArrayPool<T> pool) =>
         HashSetConverter<T, TElement>.Read(ref reader, type, pool);

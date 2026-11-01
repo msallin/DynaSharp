@@ -364,13 +364,13 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         public static global::DynaSharp.Attr<decimal, global::DynaSharp.Serialization.NumberConverter<decimal>> Total => new("Total");
 
         /// <summary>The attribute <c>TrackingId</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.GuidConverter> TrackingId => new("TrackingId");
+        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.OptionalConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>> TrackingId => new("TrackingId");
 
         /// <summary>The attribute <c>ShippedAt</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter> ShippedAt => new("ShippedAt");
+        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.OptionalConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>> ShippedAt => new("ShippedAt");
 
         /// <summary>The attribute <c>ShipTo</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shop.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shop.Address>> ShipTo => new("ShipTo");
+        public static global::DynaSharp.Attr<global::Shop.Address, global::DynaSharp.Serialization.OptionalReferenceConverter<global::Shop.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shop.Address>>> ShipTo => new("ShipTo");
 
         /// <summary>The attribute <c>Lines</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IReadOnlyList<global::Shop.LineItem>, global::DynaSharp.Serialization.ReadOnlyListConverter<global::Shop.LineItem, global::DynaSharp.Serialization.DocumentConverter<global::Shop.LineItem>>> Lines => new("Lines");
@@ -379,7 +379,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>> Tags => new("Tags");
 
         /// <summary>The attribute <c>ttl</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter> ExpiresAt => new("ttl");
+        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.OptionalConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter>> ExpiresAt => new("ttl");
 
         /// <summary>The attribute <c>Revision</c>.</summary>
         public static global::DynaSharp.Attr<long, global::DynaSharp.Serialization.NumberConverter<long>> Revision => new("Revision");

@@ -285,7 +285,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Sequence => new("Sequence");
 
         /// <summary>The attribute <c>Owner</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Owner => new("Owner");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("Owner");
 
         /// <summary>The attribute <c>Tag</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Tag => new("Tag");
@@ -294,7 +294,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         public static global::DynaSharp.Attr<global::System.DateTime, global::DynaSharp.Serialization.DateTimeConverter> When => new("When");
 
         /// <summary>The attribute <c>Text</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Text => new("Text");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Text => new("Text");
     }
 
     /// <summary>The key builders of <c>LogLine</c>.</summary>

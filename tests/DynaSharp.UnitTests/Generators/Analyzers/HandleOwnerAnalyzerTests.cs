@@ -84,6 +84,8 @@ public sealed class HandleOwnerAnalyzerTests
     [Arguments("""invoices.Put(null!).If([|Subscription.Attrs.Seats|].Gt(1));""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
     [Arguments("""invoices.Delete("a").If([|Subscription.Attrs.Seats|].Gt(1));""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
     [Arguments("""invoices.Get("a").Project([|Subscription.Attrs.Seats|]);""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
+    [Arguments("""invoices.Get("a").Select([|Subscription.Attrs.Seats|]);""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
+    [Arguments("""invoices.Scan().Select([|Subscription.Attrs.Plan|]);""", "Subscription.Attrs.Plan", "Subscription", "Invoice")]
     [Arguments("""invoices.Query("a").Project(Invoice.Attrs.Total, [|Subscription.Attrs.Seats|]);""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
     [Arguments("""invoices.Update("a").Set([|Subscription.Attrs.ShipTo|].At(Address.Attrs.City), "x");""", "Subscription.Attrs.ShipTo", "Subscription", "Invoice")]
     [Arguments("""invoices.Scan().Filter([|Address.Attrs.City|].Eq("x"));""", "Address.Attrs.City", "Address", "Invoice")]

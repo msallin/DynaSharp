@@ -396,6 +396,8 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""Update("a").If($"contains({[|Attr<int>("n")|]}, {"1"})");""", "contains")]
     [Arguments("""Update("a").If($"NOT contains( {[|new Attr<bool, BoolConverter>("n")|]}, {"1"})");""", "contains")]
     [Arguments("""Scan().Filter($"begins_with({[|new Attr<DateTimeOffset, EpochSecondsConverter>("n")|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Update("a").If($"contains({[|new Attr<int, OptionalConverter<int, NumberConverter<int>>>("n")|]}, {"1"})");""", "contains")]
+    [Arguments("""Update("a").If($"begins_with({[|new Attr<bool, OptionalConverter<bool, BoolConverter>>("n")|]}, {"1"})");""", "begins_with")]
     public async Task Analyze_TextFunctionOnANumber_ReportsTheHandle(string chain, string function)
     {
         // Arrange
@@ -412,6 +414,8 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""Update("a").If($"begins_with({Attr("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"contains({new Attr<string, StringConverter>("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"contains({new Attr<Guid, GuidConverter>("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"contains({new Attr<string, OptionalReferenceConverter<string, StringConverter>>("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"contains({new Attr<Dictionary<string, int>, DictionaryConverter<int, NumberConverter<int>>>("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"size({Attr<int>("n")}) > {1}");""")]
     [Arguments("""Update("a").If($"{Attr<int>("n")} > {1}");""")]
     [Arguments("""Update("a").If($"contains({Attr("list")}, {Attr<int>("n").Value(1)})");""")]

@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using DynaSharp.Mapping;
 
 namespace DynaSharp.Fluent;
 
@@ -11,7 +10,6 @@ namespace DynaSharp.Fluent;
 /// <typeparam name="T">How the items are read.</typeparam>
 internal static class PagedRead<TOperation, T>
     where TOperation : ICommandOperation<PageData<T>>
-    where T : IDynamoDbDocument<T>
 {
     /// <summary>Sends the next page. The key of the page before is in the state, and the key of this one lands there.</summary>
     /// <param name="state">The state of the read.</param>
@@ -61,6 +59,17 @@ internal static class PagedRead<TOperation, T>
     [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
     public static async ValueTask<T?> FirstAsync(CommandState state, CancellationToken cancellationToken)
     {
+        var first = await FindAsync(state, cancellationToken).ConfigureAwait(false);
+        return first.Found ? first.Value : default;
+    }
+
+    /// <summary>Reads pages as <see cref="FirstAsync"/> does, and says whether there was an item, for a type whose default value is a value.</summary>
+    /// <param name="state">The state of the read.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The first item and whether there is one, with the capacity of the last page, a task that the caller awaits exactly once.</returns>
+    [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+    public static async ValueTask<SelectResult<T>> FindAsync(CommandState state, CancellationToken cancellationToken)
+    {
         var version = state.Version;
         try
         {
@@ -70,12 +79,12 @@ internal static class PagedRead<TOperation, T>
                 page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
                 if (page.Items.Length > 0)
                 {
-                    return page.Items[0];
+                    return new SelectResult<T>(page.Items[0], found: true, state.ResponseCapacity);
                 }
             }
             while (page.HasMore);
 
-            return default;
+            return new SelectResult<T>(default!, found: false, state.ResponseCapacity);
         }
         finally
         {

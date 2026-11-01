@@ -268,6 +268,38 @@ public sealed class CompileGuardTests
     [Arguments("""new Attr<System.DateTimeOffset, EpochSecondsConverter>("n").BeginsWith("1");""", "CS0619")]
     [Arguments("""new Attr<byte[], BinaryConverter>("n").BeginsWith("1");""", "CS0619")]
     [Arguments("""new Attr<System.ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>("n").BeginsWith("1");""", "CS0619")]
+    [Arguments("""shop.Get("a").Select(Attr<int>("n")).Project("x");""", "CS1061")]
+    [Arguments("""shop.Get("a").Select(Attr<int>("n")).Select(Attr<int>("m"));""", "CS1061")]
+    [Arguments("""shop.Get("a").Select(Attr<int>("n")).Consistent();""", "CS1061")]
+    [Arguments("""shop.Get("a").Select(Attr<int>("n")).MaxAttempts(1);""", "CS1061")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).Project("x");""", "CS1061")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).Select(Attr<int>("m"));""", "CS1061")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).Filter(Attr("x").Exists());""", "CS1061")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).Limit(1);""", "CS1061")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).Descending();""", "CS1061")]
+    [Arguments("""await shop.Query("a").Select(Attr<int>("n")).CountAsync();""", "CS1061")]
+    [Arguments("""await shop.Query("a").Select(Attr<int>("n"));""", "CS0315")]
+    [Arguments("""shop.Scan().Select(Attr<int>("n")).Project("x");""", "CS1061")]
+    [Arguments("""shop.Scan().Select(Attr<int>("n")).Select(Attr<int>("m"));""", "CS1061")]
+    [Arguments("""shop.Scan().Select(Attr<int>("n")).Filter(Attr("x").Exists());""", "CS1061")]
+    [Arguments("""shop.Scan().Select(Attr<int>("n")).Parallel(2);""", "CS1061")]
+    [Arguments("""await shop.Scan().Select(Attr<int>("n")).ItemAsync();""", "CS1061")]
+    [Arguments("""await shop.Scan().Select(Attr<int>("n")).CountAsync();""", "CS1061")]
+    [Arguments("""await shop.Scan().Select(Attr<int>("n"));""", "CS0315")]
+    [Arguments("""shop.Scan().Parallel(2).Select(Attr<int>("n"));""", "CS1061")]
+    [Arguments("""shop.Query(shards).Select(Attr<int>("n"));""", "CS1061")]
+    [Arguments("""shop.Query("a").Of<Invoice, Payment>().Select(Attr<int>("n"));""", "CS1061")]
+    [Arguments("""shop.Scan().Of<Invoice, Payment>().Select(Attr<int>("n"));""", "CS1061")]
+    [Arguments("""shop.BatchGet().Key("a").Select(Attr<int>("n"));""", "CS1061")]
+    [Arguments("""shop.Get("a").Select(Attr("n"));""", "CS0411")]
+    [Arguments("""shop.Get("a").Select(Attr<int>("a"), Attr<int>("b"));""", "CS1501")]
+    [Arguments("""shop.Of<KeyOnlyPlan>().Get("a").Select(KeyOnlyPlan.Attrs.Plan);""", "CS0117")]
+    [Arguments("""new Attr<int, OptionalConverter<int, NumberConverter<int>>>("n").BeginsWith("1");""", "CS0619")]
+    [Arguments("""new Attr<bool, OptionalConverter<bool, BoolConverter>>("n").BeginsWith("t");""", "CS0619")]
+    [Arguments("""new Attr<System.DateTimeOffset, OptionalConverter<System.DateTimeOffset, EpochSecondsConverter>>("n").BeginsWith("1");""", "CS0619")]
+    [Arguments("""new Attr<byte[], OptionalReferenceConverter<byte[], BinaryConverter>>("n").BeginsWith("1");""", "CS0619")]
+    [Arguments("""new Attr<System.ReadOnlyMemory<byte>, OptionalConverter<System.ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>>("n").BeginsWith("1");""", "CS0619")]
+    [Arguments("""shop.Update("a").Add(Handles.Attrs.Nickname, "x");""", "CS0315")]
     [Arguments("""new Attr<string, StringConverter>("n").BeginsWith(new byte[] { 1 });""", "CS0311")]
     [Arguments("""KeyedOrder.Keys.Pk.BeginsWith();""", "CS1501")]
     [Arguments("""UserProfile.Keys.Sk.BeginsWith();""", "CS1501")]
@@ -470,6 +502,20 @@ public sealed class CompileGuardTests
     [Arguments("""System.ReadOnlySpan<string> keys = ["a", "b"]; await foreach (var item in shop.Query(keys).ItemsAsync()) { }""")]
     [Arguments("""await foreach (var item in shop.Query(shards).MaxAttempts(1).ReturnCapacity().ItemsAsync()) { }""")]
     [Arguments("""Page<Item> page = await shop.Query(shards).ReturnCapacity(ReturnConsumedCapacity.Indexes).PageAsync(1); ConsumedCapacity? capacity = page.ConsumedCapacity;""")]
+    [Arguments("""shop.Update("a").Add(Handles.Attrs.Total, 1L);""")]
+    [Arguments("""shop.Update("a").Add(new Attr<System.Collections.Generic.HashSet<string>, OptionalReferenceConverter<System.Collections.Generic.HashSet<string>, HashSetConverter<string, StringSetElement>>>("n"), []);""")]
+    [Arguments("""client.TransactWrite().Update(shop, "a").Add(Handles.Attrs.Total, 1L).Add(new Attr<System.Collections.Generic.HashSet<string>, OptionalReferenceConverter<System.Collections.Generic.HashSet<string>, HashSetConverter<string, StringSetElement>>>("n"), []);""")]
+    [Arguments("""_ = Handles.Attrs.Nickname.BeginsWith("a");""")]
+    [Arguments("""_ = new Attr<byte[], OptionalReferenceConverter<byte[], BinaryConverter>>("n").BeginsWith(new System.ReadOnlyMemory<byte>(new byte[1]));""")]
+    [Arguments("""_ = new Attr<System.ReadOnlyMemory<byte>, OptionalConverter<System.ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>>("n").BeginsWith(new System.ReadOnlyMemory<byte>(new byte[1]));""")]
+    [Arguments("""int value = (await shop.Get("a").Consistent().ReturnCapacity().MaxAttempts(1).Select(Attr<int>("n")).SendAsync(default)).Value;""")]
+    [Arguments("""SelectResult<long?> total = await shop.Of<Handles>().Get("a").Select(Handles.Attrs.Total);""")]
+    [Arguments("""string? name = (await shop.Of<Handles>().Get("a").Select(Handles.Attrs.Nickname).SendAsync()).Value;""")]
+    [Arguments("""await foreach (int value in shop.Query("a").Filter(Attr("x").Exists()).Limit(1).Descending().Consistent().ReturnCapacity().MaxAttempts(1).Select(Attr<int>("n")).ItemsAsync(default)) { }""")]
+    [Arguments("""SelectResult<int> first = await shop.Query("a").Select(Attr<int>("n")).ItemAsync(default);""")]
+    [Arguments("""await foreach (Page<int> page in shop.Query("a").Select(Attr<int>("n")).PagesAsync(default)) { }""")]
+    [Arguments("""Page<long?> page = await shop.Of<Handles>().Scan().Segment(0, of: 2).Filter(Attr("x").Exists()).Select(Handles.Attrs.Total).PageAsync(default, default);""")]
+    [Arguments("""await foreach (string? value in index.Query("a").Select(Handles.Attrs.Nickname).ItemsAsync()) { }""")]
     public async Task Compile_WhatTheGuardsLeaveOpen_Compiles(string statement)
     {
         // Arrange
@@ -605,6 +651,36 @@ public sealed class CompileGuardTests
 
         // Assert
         await Assert.That(warnings).Contains("CS8620");
+    }
+
+    [Test]
+    [Arguments("""string name = (await shop.Of<Handles>().Get("a").Select(Handles.Attrs.Nickname)).Value;""")]
+    [Arguments("""await foreach (string name in shop.Of<Handles>().Scan().Select(Handles.Attrs.Nickname).ItemsAsync()) { }""")]
+    public async Task Compile_ValueOfANullableHandle_IsNullable(string statement)
+    {
+        // Arrange
+        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+
+        // Act
+        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+
+        // Assert
+        await Assert.That(warnings).Contains("CS8600");
+    }
+
+    [Test]
+    [Arguments("""string name = (await shop.Of<Handles>().Get("a").Select(Handles.Attrs.Id)).Value;""")]
+    [Arguments("""await foreach (string name in shop.Of<Handles>().Scan().Select(Handles.Attrs.Id).ItemsAsync()) { }""")]
+    public async Task Compile_ValueOfAHandleThatCannotBeNull_IsNotNullable(string statement)
+    {
+        // Arrange
+        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+
+        // Act
+        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+
+        // Assert
+        await Assert.That(warnings).DoesNotContain("CS8600");
     }
 
     [Test]

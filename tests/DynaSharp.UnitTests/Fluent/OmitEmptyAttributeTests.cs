@@ -510,6 +510,6 @@ public sealed class OmitEmptyAttributeTests
         var pair = (withIt, withoutIt);
 
         // Assert
-        await Assert.That(pair).IsEqualTo((typeof(Attr<string, OmitEmptyConverter<StringConverter>>), typeof(Attr<string, StringConverter>)));
+        await Assert.That(pair).IsEqualTo((typeof(Attr<string, OptionalReferenceConverter<string, OmitEmptyConverter<StringConverter>>>), typeof(Attr<string, OptionalReferenceConverter<string, StringConverter>>)));
     }
 }
