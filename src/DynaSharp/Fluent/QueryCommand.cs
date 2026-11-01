@@ -164,7 +164,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// </summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per page.</param>
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default) =>
         PagedRead<QueryPageOperation<T>, T>.Items(Prepare(), cancellationToken);
 
@@ -174,7 +174,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// </summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result.</param>
     /// <returns>The pages, which can be enumerated once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<Page<T>> PagesAsync(CancellationToken cancellationToken = default) =>
         PagedRead<QueryPageOperation<T>, T>.Pages(Prepare(), cancellationToken);
 
@@ -185,7 +185,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same query.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example a position of another query; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -200,7 +200,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// </summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The number of items that pass the filter. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -214,7 +214,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => Prepare().RenderJson();
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);

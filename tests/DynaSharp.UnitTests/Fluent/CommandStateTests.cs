@@ -10,6 +10,21 @@ namespace DynaSharp.UnitTests.Fluent;
 public sealed class CommandStateTests
 {
     [Test]
+    public async Task SendAsync_CommandThatWasRendered_SaysThatRenderingUsedItUp()
+    {
+        // Arrange (logging the request of a command that is sent next, which fails only when debug is on)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var message = MessageOfSendAfterRender(shop);
+
+        // Assert
+        await Assert.That((message.Contains("rendered", StringComparison.Ordinal), message.Contains("ToRequestJson() ends a command", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, true, 0));
+    }
+
+    [Test]
     public async Task Extend_HandleThatWasExtended_ThrowsNamingOperationAndTable()
     {
         // Arrange
@@ -21,7 +36,7 @@ public sealed class CommandStateTests
         var message = MessageOfStaleExtend(shop);
 
         // Assert
-        await Assert.That(message).IsEqualTo("This UpdateItem on Shop was already sent or extended. A command is built in one chain and sent once; to send it again, build it again.");
+        await Assert.That(message).IsEqualTo("This UpdateItem on Shop was already sent, extended or rendered. ToRequestJson() ends a command as sending does, and a command is built in one chain and used once; to use it again, build it again.");
     }
 
     [Test]
@@ -376,7 +391,7 @@ public sealed class CommandStateTests
         var text = state.Describe(version);
 
         // Assert
-        await Assert.That(text).IsEqualTo("(sent or extended)");
+        await Assert.That(text).IsEqualTo("(sent, extended or rendered)");
     }
 
     [Test]
@@ -444,6 +459,21 @@ public sealed class CommandStateTests
         catch (InvalidOperationException)
         {
             return false;
+        }
+    }
+
+    private static string MessageOfSendAfterRender(Table<Item> shop)
+    {
+        var command = shop.Put(new Item { ["pk"] = "a" });
+        _ = command.ToRequestJson();
+        try
+        {
+            _ = command.SendAsync().AsTask();
+            return string.Empty;
+        }
+        catch (InvalidOperationException exception)
+        {
+            return exception.Message;
         }
     }
 

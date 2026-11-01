@@ -1,6 +1,6 @@
 namespace DynaSharp.Expressions;
 
-/// <summary>Either condition, in parentheses, so it composes with anything.</summary>
+/// <summary>Either condition, in parentheses, so it composes with anything. A chain of these is one group: <c>(a OR b OR c)</c>.</summary>
 /// <typeparam name="TLeft">The first condition.</typeparam>
 /// <typeparam name="TRight">The second condition.</typeparam>
 public readonly struct Or<TLeft, TRight> : ICondition
@@ -21,12 +21,5 @@ public readonly struct Or<TLeft, TRight> : ICondition
     public static implicit operator Condition(Or<TLeft, TRight> condition) => Condition.Of(condition);
 
     /// <inheritdoc/>
-    public void Render(ref ExpressionSink sink)
-    {
-        sink.Text("("u8);
-        _left.Render(ref sink);
-        sink.Text(" OR "u8);
-        _right.Render(ref sink);
-        sink.Text(")"u8);
-    }
+    public void Render(ref ExpressionSink sink) => ExpressionSink.WriteGroup(ref sink, _left, _right, ExpressionGroup.Or);
 }

@@ -53,7 +53,7 @@ internal static class Tables
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
         while (true)
         {
-            var description = (await client.DescribeTableAsync(new DescribeTableRequest { TableName = name }, timeout.Token)).Table;
+            var description = (await client.DescribeTableAsync(new DescribeTableRequest { TableName = name }, timeout.Token)).Table!;
             if (condition(description))
             {
                 return description;
@@ -170,7 +170,7 @@ internal static class Tables
         while (true)
         {
             var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = name }, timeout.Token);
-            if (response.Table.TableStatus == TableStatus.Active)
+            if (response.Table!.TableStatus == TableStatus.Active)
             {
                 return;
             }

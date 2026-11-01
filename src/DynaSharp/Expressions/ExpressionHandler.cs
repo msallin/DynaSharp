@@ -28,7 +28,7 @@ public readonly ref struct ExpressionHandler
     /// <param name="literalLength">The number of literal characters.</param>
     /// <param name="formattedCount">The number of holes.</param>
     /// <param name="command">The command the expression belongs to.</param>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ExpressionHandler(int literalLength, int formattedCount, CommandHandle command)
     {

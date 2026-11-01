@@ -1,4 +1,3 @@
-using System.Text.Json;
 using DynaSharp.Operations;
 using DynaSharp.Streams;
 using DynaSharp.UnitTests.Serialization;
@@ -139,29 +138,29 @@ public sealed class GetShardIteratorOperationTests
     }
 
     [Test]
-    public async Task ReadResponse_NoIterator_ThrowsJsonException()
+    public async Task ReadResponse_NoIterator_HasNone()
     {
         // Arrange
         const string json = """{"Unknown":1}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The GetShardIterator response has no ShardIterator.", StringComparison.Ordinal);
+        await Assert.That(response.ShardIterator).IsNull();
     }
 
     [Test]
-    public async Task ReadResponse_NullIterator_ThrowsJsonException()
+    public async Task ReadResponse_NullIterator_HasNone()
     {
         // Arrange
         const string json = """{"ShardIterator":null}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).Throws<JsonException>().WithMessageContaining("found null", StringComparison.Ordinal);
+        await Assert.That(response.ShardIterator).IsNull();
     }
 
     private static GetShardIteratorRequest Request(ShardIteratorType type) => new() { StreamArn = StreamArn, ShardId = ShardId, ShardIteratorType = type };

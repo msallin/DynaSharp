@@ -79,7 +79,7 @@ public sealed class ScanCommandTests
         var message = RenderTwice(shop);
 
         // Assert
-        await Assert.That(message).StartsWith("This Scan on Shop was already sent or extended.");
+        await Assert.That(message).StartsWith("This Scan on Shop was already sent, extended or rendered.");
     }
 
     [Test]

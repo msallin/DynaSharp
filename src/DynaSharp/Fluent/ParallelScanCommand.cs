@@ -48,7 +48,7 @@ public readonly ref struct ParallelScanCommand<T>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result.</param>
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default)
     {
         var state = CommandState.Enter(_state, _version, Operation, _table);

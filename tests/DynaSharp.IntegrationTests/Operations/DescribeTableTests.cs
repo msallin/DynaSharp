@@ -19,7 +19,7 @@ public sealed class DescribeTableTests(Backend backend)
         var response = await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table });
 
         // Assert
-        var description = response.Table;
+        var description = response.Table!;
         await Assert.That((description.TableName, description.TableStatus)).IsEqualTo((table, TableStatus.Active));
         await Assert.That(description.KeySchema).IsEquivalentTo([new KeySchemaElement("pk", KeyType.Hash)]);
         await Assert.That(description.AttributeDefinitions).IsEquivalentTo([new AttributeDefinition("pk", ScalarAttributeType.String)]);
@@ -33,7 +33,7 @@ public sealed class DescribeTableTests(Backend backend)
         var table = await sandbox.CreateTableAsync(TableSpec.Sequence);
 
         // Act
-        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table;
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table!;
 
         // Assert
         await Assert.That(string.Join(",", description.KeySchema.Select(static element => $"{element.AttributeName}:{element.KeyType}"))).IsEqualTo("pk:Hash,sk:Range");
@@ -54,7 +54,7 @@ public sealed class DescribeTableTests(Backend backend)
         var table = await sandbox.CreateTableAsync(new TableSpec(PartitionKeyType: KeyAttributeType.Binary));
 
         // Act
-        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table;
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table!;
 
         // Assert
         await Assert.That(description.AttributeDefinitions[0].AttributeType).IsEqualTo(ScalarAttributeType.Binary);
@@ -69,7 +69,7 @@ public sealed class DescribeTableTests(Backend backend)
         var table = await sandbox.CreateTableAsync();
 
         // Act
-        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table;
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table!;
 
         // Assert
         await Assert.That(description.TableArn).Contains($":table/{table}");

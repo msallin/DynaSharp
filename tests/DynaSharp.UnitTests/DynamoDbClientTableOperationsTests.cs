@@ -45,7 +45,7 @@ public sealed class DynamoDbClientTableOperationsTests
         var response = await client.CreateTableAsync(TestClient.CreateTable());
 
         // Assert
-        await Assert.That((response.TableDescription.TableName, response.TableDescription.TableStatus)).IsEqualTo(("Thread", TableStatus.Creating));
+        await Assert.That((response.TableDescription!.TableName, response.TableDescription!.TableStatus)).IsEqualTo(("Thread", TableStatus.Creating));
     }
 
     [Test]
@@ -162,7 +162,7 @@ public sealed class DynamoDbClientTableOperationsTests
         var response = await client.DeleteTableAsync(TestClient.DeleteTable());
 
         // Assert
-        await Assert.That(response.TableDescription.TableStatus).IsEqualTo(TableStatus.Deleting);
+        await Assert.That(response.TableDescription!.TableStatus).IsEqualTo(TableStatus.Deleting);
     }
 
     [Test]

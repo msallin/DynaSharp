@@ -200,7 +200,7 @@ public sealed class MixedQueryCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -220,7 +220,7 @@ public sealed class MixedQueryCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -235,7 +235,7 @@ public sealed class MixedQueryCommandTests
             .Filter($"{Attr(OutsideTheEntity)} > {1}").Filter(Attr("y").Exists()).NotDeleted().Project(OutsideTheEntity).Project(Attr("y")).Limit(5).Descending().Consistent().ReturnCapacity().MaxAttempts(1).Once().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"ScanIndexForward":false,"KeyConditionExpression":"#n0 = :v0","FilterExpression":"(((#n1 IN (:v1, :v2)) AND (#n2 > :v3)) AND (attribute_exists(#n3))) AND (attribute_not_exists(#n4))","ProjectionExpression":"#n2, #n3, #n1, #n0, #n5","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type","#n2":"x","#n3":"y","#n4":"deletedAt","#n5":"sk"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"ALPHA"},":v2":{"S":"BETA"},":v3":{"N":"1"}},"ReturnConsumedCapacity":"TOTAL"}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"ScanIndexForward":false,"KeyConditionExpression":"#n0 = :v0","FilterExpression":"(#n1 IN (:v1, :v2)) AND (#n2 > :v3) AND (attribute_exists(#n3)) AND (attribute_not_exists(#n4))","ProjectionExpression":"#n2, #n3, #n1, #n0, #n5","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type","#n2":"x","#n3":"y","#n4":"deletedAt","#n5":"sk"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"ALPHA"},":v2":{"S":"BETA"},":v3":{"N":"1"}},"ReturnConsumedCapacity":"TOTAL"}""");
     }
 
     [Test]

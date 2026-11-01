@@ -5,8 +5,10 @@ namespace DynaSharp.Requests;
 /// </summary>
 public sealed record LocalSecondaryIndexDescription
 {
-    /// <summary>Gets the index name.</summary>
-    public required string IndexName { get; init; }
+    /// <summary>
+    /// Gets the index name. DynamoDB sends it with every index: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? IndexName { get; init; }
 
     /// <summary>Gets the key of the index.</summary>
     public IReadOnlyList<KeySchemaElement> KeySchema { get; init; } = [];

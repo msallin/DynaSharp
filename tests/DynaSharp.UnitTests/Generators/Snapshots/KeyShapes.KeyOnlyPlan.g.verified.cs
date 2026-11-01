@@ -69,7 +69,7 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
                         {
                             attribute = "pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw new global::DynaSharp.DynamoDbMappingException("KeyOnlyPlan", "pk"); }
+                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyOnlyPlan", "pk"); }
                             fields.Plan = __parts0.Plan;
                             fields.Plan__set = true;
                             reader.ReadEndAttribute();

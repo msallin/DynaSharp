@@ -15,8 +15,10 @@ namespace DynaSharp.Streams;
 /// </remarks>
 public sealed record Shard
 {
-    /// <summary>Gets the identifier of the shard.</summary>
-    public required string ShardId { get; init; }
+    /// <summary>
+    /// Gets the identifier of the shard. DynamoDB sends it with every shard: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? ShardId { get; init; }
 
     /// <summary>Gets the first and last sequence number of the shard, or <see langword="null"/> if DynamoDB did not report them.</summary>
     public SequenceNumberRange? SequenceNumberRange { get; init; }

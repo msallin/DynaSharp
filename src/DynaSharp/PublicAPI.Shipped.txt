@@ -833,7 +833,6 @@ DynaSharp.Requests.CreateTableResponse
 DynaSharp.Requests.CreateTableResponse.<Clone>$() -> DynaSharp.Requests.CreateTableResponse!
 DynaSharp.Requests.CreateTableResponse.CreateTableResponse() -> void
 DynaSharp.Requests.CreateTableResponse.Equals(DynaSharp.Requests.CreateTableResponse? other) -> bool
-DynaSharp.Requests.CreateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription!
 DynaSharp.Requests.CreateTableResponse.TableDescription.init -> void
 DynaSharp.Requests.DeleteGlobalSecondaryIndexAction
 DynaSharp.Requests.DeleteGlobalSecondaryIndexAction.<Clone>$() -> DynaSharp.Requests.DeleteGlobalSecondaryIndexAction!
@@ -889,7 +888,6 @@ DynaSharp.Requests.DeleteTableResponse
 DynaSharp.Requests.DeleteTableResponse.<Clone>$() -> DynaSharp.Requests.DeleteTableResponse!
 DynaSharp.Requests.DeleteTableResponse.DeleteTableResponse() -> void
 DynaSharp.Requests.DeleteTableResponse.Equals(DynaSharp.Requests.DeleteTableResponse? other) -> bool
-DynaSharp.Requests.DeleteTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription!
 DynaSharp.Requests.DeleteTableResponse.TableDescription.init -> void
 DynaSharp.Requests.DescribeTableRequest
 DynaSharp.Requests.DescribeTableRequest.<Clone>$() -> DynaSharp.Requests.DescribeTableRequest!
@@ -901,7 +899,6 @@ DynaSharp.Requests.DescribeTableResponse
 DynaSharp.Requests.DescribeTableResponse.<Clone>$() -> DynaSharp.Requests.DescribeTableResponse!
 DynaSharp.Requests.DescribeTableResponse.DescribeTableResponse() -> void
 DynaSharp.Requests.DescribeTableResponse.Equals(DynaSharp.Requests.DescribeTableResponse? other) -> bool
-DynaSharp.Requests.DescribeTableResponse.Table.get -> DynaSharp.Requests.TableDescription!
 DynaSharp.Requests.DescribeTableResponse.Table.init -> void
 DynaSharp.Requests.DescribeTimeToLiveRequest
 DynaSharp.Requests.DescribeTimeToLiveRequest.<Clone>$() -> DynaSharp.Requests.DescribeTimeToLiveRequest!
@@ -958,7 +955,6 @@ DynaSharp.Requests.GlobalSecondaryIndexDescription.Backfilling.get -> bool
 DynaSharp.Requests.GlobalSecondaryIndexDescription.Backfilling.init -> void
 DynaSharp.Requests.GlobalSecondaryIndexDescription.Equals(DynaSharp.Requests.GlobalSecondaryIndexDescription? other) -> bool
 DynaSharp.Requests.GlobalSecondaryIndexDescription.GlobalSecondaryIndexDescription() -> void
-DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexName.get -> string!
 DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexName.init -> void
 DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexStatus.get -> DynaSharp.Requests.IndexStatus
 DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexStatus.init -> void
@@ -1052,7 +1048,6 @@ DynaSharp.Requests.LocalSecondaryIndex.Projection.init -> void
 DynaSharp.Requests.LocalSecondaryIndexDescription
 DynaSharp.Requests.LocalSecondaryIndexDescription.<Clone>$() -> DynaSharp.Requests.LocalSecondaryIndexDescription!
 DynaSharp.Requests.LocalSecondaryIndexDescription.Equals(DynaSharp.Requests.LocalSecondaryIndexDescription? other) -> bool
-DynaSharp.Requests.LocalSecondaryIndexDescription.IndexName.get -> string!
 DynaSharp.Requests.LocalSecondaryIndexDescription.IndexName.init -> void
 DynaSharp.Requests.LocalSecondaryIndexDescription.KeySchema.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Requests.KeySchemaElement!>!
 DynaSharp.Requests.LocalSecondaryIndexDescription.KeySchema.init -> void
@@ -1275,7 +1270,6 @@ DynaSharp.Requests.TableDescription.TableArn.init -> void
 DynaSharp.Requests.TableDescription.TableClass.get -> DynaSharp.Requests.TableClass
 DynaSharp.Requests.TableDescription.TableClass.init -> void
 DynaSharp.Requests.TableDescription.TableDescription() -> void
-DynaSharp.Requests.TableDescription.TableName.get -> string!
 DynaSharp.Requests.TableDescription.TableName.init -> void
 DynaSharp.Requests.TableDescription.TableSizeBytes.get -> long
 DynaSharp.Requests.TableDescription.TableSizeBytes.init -> void
@@ -1508,7 +1502,6 @@ DynaSharp.Requests.UpdateTableRequest.UpdateTableRequest() -> void
 DynaSharp.Requests.UpdateTableResponse
 DynaSharp.Requests.UpdateTableResponse.<Clone>$() -> DynaSharp.Requests.UpdateTableResponse!
 DynaSharp.Requests.UpdateTableResponse.Equals(DynaSharp.Requests.UpdateTableResponse? other) -> bool
-DynaSharp.Requests.UpdateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription!
 DynaSharp.Requests.UpdateTableResponse.TableDescription.init -> void
 DynaSharp.Requests.UpdateTableResponse.UpdateTableResponse() -> void
 DynaSharp.Requests.UpdateTimeToLiveRequest
@@ -1732,7 +1725,6 @@ DynaSharp.Streams.DescribeStreamResponse
 DynaSharp.Streams.DescribeStreamResponse.<Clone>$() -> DynaSharp.Streams.DescribeStreamResponse!
 DynaSharp.Streams.DescribeStreamResponse.DescribeStreamResponse() -> void
 DynaSharp.Streams.DescribeStreamResponse.Equals(DynaSharp.Streams.DescribeStreamResponse? other) -> bool
-DynaSharp.Streams.DescribeStreamResponse.StreamDescription.get -> DynaSharp.Streams.StreamDescription!
 DynaSharp.Streams.DescribeStreamResponse.StreamDescription.init -> void
 DynaSharp.Streams.DynamoDbStreamsClient
 DynaSharp.Streams.DynamoDbStreamsClient.DescribeStreamAsync(DynaSharp.Streams.DescribeStreamRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Streams.DescribeStreamResponse!>!
@@ -1775,7 +1767,6 @@ DynaSharp.Streams.GetShardIteratorResponse
 DynaSharp.Streams.GetShardIteratorResponse.<Clone>$() -> DynaSharp.Streams.GetShardIteratorResponse!
 DynaSharp.Streams.GetShardIteratorResponse.Equals(DynaSharp.Streams.GetShardIteratorResponse? other) -> bool
 DynaSharp.Streams.GetShardIteratorResponse.GetShardIteratorResponse() -> void
-DynaSharp.Streams.GetShardIteratorResponse.ShardIterator.get -> string!
 DynaSharp.Streams.GetShardIteratorResponse.ShardIterator.init -> void
 DynaSharp.Streams.ListStreamsRequest
 DynaSharp.Streams.ListStreamsRequest.<Clone>$() -> DynaSharp.Streams.ListStreamsRequest!
@@ -1824,7 +1815,6 @@ DynaSharp.Streams.Shard.ParentShardId.init -> void
 DynaSharp.Streams.Shard.SequenceNumberRange.get -> DynaSharp.Streams.SequenceNumberRange?
 DynaSharp.Streams.Shard.SequenceNumberRange.init -> void
 DynaSharp.Streams.Shard.Shard() -> void
-DynaSharp.Streams.Shard.ShardId.get -> string!
 DynaSharp.Streams.Shard.ShardId.init -> void
 DynaSharp.Streams.ShardFilter
 DynaSharp.Streams.ShardFilter.<Clone>$() -> DynaSharp.Streams.ShardFilter!
@@ -1854,7 +1844,6 @@ DynaSharp.Streams.StreamDescription.LastEvaluatedShardId.get -> string?
 DynaSharp.Streams.StreamDescription.LastEvaluatedShardId.init -> void
 DynaSharp.Streams.StreamDescription.Shards.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Streams.Shard!>!
 DynaSharp.Streams.StreamDescription.Shards.init -> void
-DynaSharp.Streams.StreamDescription.StreamArn.get -> string!
 DynaSharp.Streams.StreamDescription.StreamArn.init -> void
 DynaSharp.Streams.StreamDescription.StreamDescription() -> void
 DynaSharp.Streams.StreamDescription.StreamLabel.get -> string?
@@ -1892,7 +1881,6 @@ DynaSharp.Streams.StreamStatus.Unknown = 0 -> DynaSharp.Streams.StreamStatus
 DynaSharp.Streams.StreamSummary
 DynaSharp.Streams.StreamSummary.<Clone>$() -> DynaSharp.Streams.StreamSummary!
 DynaSharp.Streams.StreamSummary.Equals(DynaSharp.Streams.StreamSummary? other) -> bool
-DynaSharp.Streams.StreamSummary.StreamArn.get -> string!
 DynaSharp.Streams.StreamSummary.StreamArn.init -> void
 DynaSharp.Streams.StreamSummary.StreamLabel.get -> string?
 DynaSharp.Streams.StreamSummary.StreamLabel.init -> void
@@ -2384,7 +2372,6 @@ static DynaSharp.ConditionStep.implicit operator DynaSharp.TransactWriteCommand(
 static DynaSharp.ConsumedCapacity.operator !=(DynaSharp.ConsumedCapacity? left, DynaSharp.ConsumedCapacity? right) -> bool
 static DynaSharp.ConsumedCapacity.operator ==(DynaSharp.ConsumedCapacity? left, DynaSharp.ConsumedCapacity? right) -> bool
 static DynaSharp.ContinuationToken.FromKey(System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>! key) -> DynaSharp.ContinuationToken
-static DynaSharp.ContinuationToken.Parse(string! text) -> DynaSharp.ContinuationToken
 static DynaSharp.ContinuationToken.TryParse(string? text, out DynaSharp.ContinuationToken token) -> bool
 static DynaSharp.ContinuationToken.operator !=(DynaSharp.ContinuationToken left, DynaSharp.ContinuationToken right) -> bool
 static DynaSharp.ContinuationToken.operator ==(DynaSharp.ContinuationToken left, DynaSharp.ContinuationToken right) -> bool

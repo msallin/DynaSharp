@@ -447,7 +447,7 @@ public sealed class TransactGetCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactGetItems on several tables was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactGetItems on several tables was already sent, extended or rendered");
     }
 
     [Test]

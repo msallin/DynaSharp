@@ -175,7 +175,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <param name="segments">The number of segments, which is also the most requests in flight at once, from 1 to 1,000,000.</param>
     /// <returns>The command of the parallel scan, which replaces this one.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="segments"/> is outside its range.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or <see cref="Segment"/> chose one segment.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or <see cref="Segment"/> chose one segment.</exception>
     public ParallelScanCommand<T> Parallel(int segments)
     {
         ThrowIfOutOfRange(segments, nameof(segments));
@@ -196,7 +196,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// </summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per page.</param>
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default) =>
         PagedRead<ScanPageOperation<T>, T>.Items(Prepare(), cancellationToken);
 
@@ -206,7 +206,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// </summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result.</param>
     /// <returns>The pages, which can be enumerated once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<Page<T>> PagesAsync(CancellationToken cancellationToken = default) =>
         PagedRead<ScanPageOperation<T>, T>.Pages(Prepare(), cancellationToken);
 
@@ -217,7 +217,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same scan, and the same segment.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example a position of another scan; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -232,7 +232,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// </summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The number of items that pass the filter. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -246,7 +246,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// The text contains the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => Prepare().RenderJson();
 
     private static void ThrowIfOutOfRange(int segments, string parameterName)

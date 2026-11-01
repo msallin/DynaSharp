@@ -78,7 +78,8 @@ There are three ways in, and the shape of a call tells them apart.
 | A bad expression fails | At DynamoDB | At DynamoDB, with the rendered expression attached | At compile time for handles, at DynamoDB for raw paths |
 
 `Table<T>` is the primary API. The request API is a sibling, for administration, unmodeled parameters and migration, not a layer beneath it:
-both run on the same pipeline with the same telemetry. Its member names follow the service model in botocore. An `Item` goes into any request, because it implements
+both run on the same pipeline with the same telemetry. Its member names follow the service model in botocore, and so does what it requires: a response record marks `required` only what the model does, and a
+member the model leaves optional is nullable or reads as its default, even one DynamoDB sends in practice, such as `TableDescription.TableName` or `CreateTableResponse.TableDescription`. An `Item` goes into any request, because it implements
 `IReadOnlyDictionary<string, AttributeValue>`, and `ContinuationToken.ToKey()` and `FromKey(...)` bridge paging.
 
 ## 2. Client
@@ -117,7 +118,7 @@ Index<Item> byStatusMixed = shop.Index<Order>(Order.Indexes.StatusIndex);   // n
 
 `Table<T>` is sealed, immutable and thread-safe. `T` is `Item` or a generated type, and it decides only how an item is written and read.
 `Of<T>()` and `client.Table<T>()` require an entity, not a keyless document. Opening a table makes no request. `DescribeAsync(ct)` and
-`WaitUntilActiveAsync(timeout, ct)` cover the two administrative calls a table user makes; the timeout defaults to 5 minutes.
+`WaitUntilActiveAsync(timeout, ct)` cover the two administrative calls a table user makes; the timeout defaults to 5 minutes. A response without a description gives one with the name of the table and `TableStatus.Unknown`, which a wait does not take for active.
 
 `Index<T>` has `Query` and `Scan`, so a write through an index does not compile. `orders.Index(name)` and `shop.Index<Order>(name)` throw `ArgumentException` for
 an index the entity does not declare.
@@ -227,7 +228,7 @@ await foreach (Order order in orders
 {
 }
 
-Page<Order> page = await orders.Query(pk).Limit(25).PageAsync(ContinuationToken.Parse(fromClient), ct);
+Page<Order> page = await orders.Query(pk).Limit(25).PageAsync(ContinuationToken.Parse(fromClient), ct);    // null on the first page
 string? next = page.HasMore ? page.Next.ToString() : null;
 int total = await orders.Query(pk).CountAsync(ct);
 await foreach (Page<Order> p in orders.Query(pk).PagesAsync(ct)) { }
@@ -252,8 +253,8 @@ does that job, because DynamoDB refuses a filter on a key.
 
 `Page<T>` has `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next`. `ItemsAsync` drops capacity; a caller who wants it pages.
 
-`ContinuationToken` is a position: `default` is the start, `Parse` and `TryParse` take what `ToString()` gave, and `Parse("")` gives the
-default, so a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
+`ContinuationToken` is a position: `default` is the start, `Parse` and `TryParse` take what `ToString()` gave, and null or `""` give the
+default, so the first request of a client needs no check, and a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
 values of the last item, as `LastEvaluatedKey` does. `ToKey()` and `FromKey(key)` convert to and from a key of the request API.
 
 ## 7. Writes
@@ -293,8 +294,8 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 
 `WriteResult<T>` has `Attributes`, `HasAttributes`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`.
 
-A retry repeats a write. `Add`, `list_append` and arithmetic in `SET` are applied twice if a response was lost, so `MaxAttempts(1)` or a condition makes
-them exactly-once. After a lost response a conditional write judges what its first attempt wrote, which the `SendAsync` docs of each command spell out.
+A retry repeats a write. `Add`, `list_append` and arithmetic in `SET` are applied twice if a response was lost. `MaxAttempts(1)` makes them at most once, because a lost response then
+reports a failure after the write was applied, and a condition makes them exact. After a lost response a conditional write judges what its first attempt wrote, which the `SendAsync` docs of each command spell out.
 
 `Set` by handle takes a nullable value, and null is a `Remove`, for every attribute: `string?` for a reference type, and `Guid?` through an overload for a value type, which is a `Set` when it has a
 value and costs what that costs. On a key input the rules of section 8 are those of the `Set` or `Remove` it turns into. `SetIfNotExists`, `Add` and `Delete` by handle reject null: a value type
@@ -307,7 +308,8 @@ hatch for attributes outside the entity, and the checks of section 8 do not appl
 
 | Write | Rule |
 |---|---|
-| `Put(entity)` | Version 0 adds `attribute_not_exists(<version>)`, any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Put(entity)` | Version 0 adds `attribute_not_exists(<version>)`, on the version and not on the key, so it replaces an item without a version attribute. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Put(entity).IfNotExists()` | Legal at version 0. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called |
 | `Update(key)` | `.IfVersion(n)` adds the condition and `SET <version> = :new` with `n + 1`. Without it the terminal throws `InvalidOperationException` naming the entity, unless `.IgnoreVersion()` was called. There is no `Update(entity)` |
 | `Delete(key)` | The same rule, with the condition alone |
 | `Delete(entity)` | Takes the version from the entity, as `IfVersion(entity.Version)`. `IfVersion(n)` replaces it, and `IgnoreVersion()` opts out |
@@ -359,7 +361,8 @@ private static readonly Condition Open = Condition.Of(Attr("status").Eq("open"))
 shop.Update(pk, sk).If(Open & Attr("version").Eq(3));
 ```
 
-Struct conditions cover comparisons, existence, `BeginsWith` and `Between`, compose with `And`, `Or`, `Negate` and allocate nothing. Interpolation covers the
+Struct conditions cover comparisons, existence, `BeginsWith` and `Between`, compose with `And`, `Or`, `Negate` and allocate nothing. A chain of one operator renders as one group, `(a OR b OR c)`, and conditions
+added one by one as `(a) AND (b) AND (c)`. Interpolation covers the
 rest of the grammar (`size`, `contains`, `attribute_type`, `list_append`, arithmetic in `SET`). In a hole, an `Attr` stands for its name, and a value,
 an `AttributeValue`, a number or `handle.Value(x)`, for a value. A string in a hole is a value, so a name needs `Attr` (`DYNA210`), and an expression that
 names no attribute throws `ArgumentException`.
@@ -475,8 +478,9 @@ only when the merge needs it, so an early `break` does not read the rest, and at
 partition key throws `ArgumentException`. An empty list reads nothing.
 
 `PageAsync(pageSize, after, ct)` returns a `Page<T>` whose `Next` is a composite token with one entry per partition: its start key and the key of its next
-item as a hint, or done. The hint spares a read of a partition the merge does not need yet, and never reaches a request. Tokens parse like plain ones,
-and a token of a different partition list fails a count check; nothing is signed. If the table changes between pages, an item written before a hinted key
+item as a hint, or done, and the direction of the read. The hint spares a read of a partition the merge does not need yet, and never reaches a request. Tokens parse like plain ones.
+A token of a different partition list fails a count check, one of the other direction is rejected, and all that is wrong with its shape throws `FormatException`, as `Parse` does, before a request goes out, so a web handler has one
+thing to catch locally. `ValidationException` remains for a start key only DynamoDB can judge, and nothing is signed. If the table changes between pages, an item written before a hinted key
 can come later than its place. `Page.ConsumedCapacity` adds every response of that `PageAsync`.
 
 It is not a snapshot, and there is no `PagesAsync` and no `Parallel`.
@@ -484,11 +488,11 @@ It is not a snapshot, and there is no `PagesAsync` and no `Parallel`.
 ## 14. Item and AttributeValue
 
 `Item` is the flat item, a sealed mutable `IReadOnlyDictionary<string, AttributeValue>` that compares by content, and implements `IDynamoDbDocument<Item>`, which
-is what makes `Table<Item>` the same engine. Build it with the indexer. `item["x"]` throws `KeyNotFoundException` naming the attribute. `GetString`, `GetNumber<T>`,
+is what makes `Table<Item>` the same engine. Build it with the indexer, and `Remove(name)` takes an attribute out and says whether it was there. `item["x"]` throws `KeyNotFoundException` naming the attribute. `GetString`, `GetNumber<T>`,
 `GetBool`, `GetBinary`, `GetMap`, `GetList`, `GetStringSet`, `GetNumberSet` and `GetBinarySet` return null for a missing attribute and for DynamoDB NULL, and throw
 `InvalidOperationException` for another type; a number that does not fit throws `FormatException` or `OverflowException`. These messages name the attribute, never the value. `ToString()`
-returns DynamoDB JSON, which does contain values. `Item.From(value)` and `item.To<T>()` convert to and from a mapped type. An `Item` inside an `AttributeValue` is
-read-only, and `new Item(other)` makes an editable copy. Read items have no attribute order, hand-built ones keep insertion order, and `Equals` is the only
+returns DynamoDB JSON, which does contain values. `Item.From(value)` and `item.To<T>()` convert to and from a mapped type. An `Item` inside an `AttributeValue`, which is what `GetMap` returns, is
+read-only, which only shows at run time: the type is the same, because a type of its own would repeat every getter. `new Item(other)` makes an editable copy. Read items have no attribute order, hand-built ones keep insertion order, and `Equals` is the only
 sanctioned comparison. Its hash follows its content, so it does not belong in a `HashSet`.
 
 `AttributeValue` is a struct with implicit conversions from `string`, `bool`, `int`, `long`, `double`, `decimal`, `byte[]` and `char`, which is a one-character
@@ -504,7 +508,7 @@ knows has its class, in `DynaSharp`, and any other is a plain `DynamoDbException
 | A bad key of `Table<Item>`: empty string, empty binary, or a sort key on a table opened without one | `ArgumentException` at the call |
 | A typed key built from bad input | `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value |
 | A rejected request of a command | `ValidationException`, with `Expressions`, `ExpressionNames` (`#n0 = status`) and `ExpressionValueTypes` (`:v0` is `S`), and one line in `Message`: `Expression: #n0 = :v0, where #n0 = status, :v0 (S)`. Values are not attached. Inside a transaction or a batch get the entries have a prefix such as `TransactItems[2].` |
-| An item that does not fit the type | `DynamoDbMappingException` with `EntityType` and `AttributeName`, also for an item of another type; the discriminator value is named, because it is a type tag |
+| An item that does not fit the type | `DynamoDbMappingException` with `EntityType` and `AttributeName`, also for an item of another type; the discriminator value is named, because it is a type tag. A stored key that does not fit its template says so, with no value |
 | A transaction | Section 11. `ConditionalCheckFailed` and `ValidationError` do not pass on a retry, `TransactionConflict` and `Throttled` may |
 
 Compile errors stand in for what would otherwise be a `ValidationException` or a mapping failure: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on

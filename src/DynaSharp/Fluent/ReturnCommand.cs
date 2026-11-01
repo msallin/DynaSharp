@@ -40,7 +40,7 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The attribute as it is after the update. Await it once.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The command was already sent or extended, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
     /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
@@ -65,7 +65,7 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => WriteRules.Settle(Enter()).RenderJson();
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);

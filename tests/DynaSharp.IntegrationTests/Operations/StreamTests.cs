@@ -47,7 +47,7 @@ public sealed class StreamTests(Backend backend)
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
-        var described = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table;
+        var described = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table })).Table!;
 
         // Act
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
@@ -65,10 +65,10 @@ public sealed class StreamTests(Backend backend)
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
 
         // Act
-        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!;
 
         // Assert
-        await Assert.That((description.StreamArn, description.TableName, description.StreamStatus, description.StreamViewType))
+        await Assert.That((description.StreamArn!, description.TableName, description.StreamStatus, description.StreamViewType))
             .IsEqualTo((arn, table, StreamStatus.Enabled, StreamViewType.NewImage));
         await Assert.That(description.Shards.Count).IsEqualTo(1);
         await Assert.That(string.IsNullOrEmpty(description.Shards[0].ShardId)).IsFalse();
@@ -85,7 +85,7 @@ public sealed class StreamTests(Backend backend)
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
 
         // Act
-        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!;
 
         // Assert
         await Assert.That(string.IsNullOrEmpty(description.Shards[0].SequenceNumberRange!.StartingSequenceNumber)).IsFalse();
@@ -101,7 +101,7 @@ public sealed class StreamTests(Backend backend)
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
 
         // Act
-        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!;
 
         // Assert
         await Assert.That(description.KeySchema).IsEquivalentTo([new KeySchemaElement("pk", KeyType.Hash)]);
@@ -118,7 +118,7 @@ public sealed class StreamTests(Backend backend)
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
 
         // Act
-        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!;
 
         // Assert
         await Assert.That(description.Shards[0].SequenceNumberRange!.EndingSequenceNumber).IsNull();
@@ -198,13 +198,13 @@ public sealed class StreamTests(Backend backend)
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await WriteInsertModifyRemoveAsync(sandbox, table);
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
-        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
         var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = arn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.TrimHorizon,
-        })).ShardIterator;
+        })).ShardIterator!;
 
         // Act
         var first = await sandbox.Streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator, Limit = 1 });
@@ -225,16 +225,16 @@ public sealed class StreamTests(Backend backend)
         await WriteInsertModifyRemoveAsync(sandbox, table);
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
         var all = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
-        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
 
         // Act
         var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = arn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.AfterSequenceNumber,
             SequenceNumber = all[0].DynamoDb!.SequenceNumber,
-        })).ShardIterator;
+        })).ShardIterator!;
         var records = await StreamReading.ReadFromAsync(sandbox.Streams, iterator, 2);
 
         // Assert
@@ -250,16 +250,16 @@ public sealed class StreamTests(Backend backend)
         await WriteInsertModifyRemoveAsync(sandbox, table);
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
         var all = await StreamReading.ReadAsync(sandbox.Streams, arn, 3);
-        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
 
         // Act
         var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = arn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.AtSequenceNumber,
             SequenceNumber = all[1].DynamoDb!.SequenceNumber,
-        })).ShardIterator;
+        })).ShardIterator!;
         var records = await StreamReading.ReadFromAsync(sandbox.Streams, iterator, 2);
 
         // Assert
@@ -274,13 +274,13 @@ public sealed class StreamTests(Backend backend)
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
         await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("before", "x") });
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
-        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription.Shards[0];
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
         var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = arn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.Latest,
-        })).ShardIterator;
+        })).ShardIterator!;
 
         // Act
         await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("after", "y") });
@@ -300,14 +300,14 @@ public sealed class StreamTests(Backend backend)
         await WriteInsertModifyRemoveAsync(sandbox, table);
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
         (await sandbox.Emulator.Raw.SendAsync("UpdateTable", $$$$$"""{"TableName":"{{{{{table}}}}}","StreamSpecification":{"StreamEnabled":false}}""")).EnsureSuccess();
-        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription;
+        var description = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!;
         var shard = description.Shards[0];
         var iterator = (await sandbox.Streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = arn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.TrimHorizon,
-        })).ShardIterator;
+        })).ShardIterator!;
 
         // Act
         var page = await sandbox.Streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator });

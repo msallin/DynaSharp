@@ -456,7 +456,7 @@ public sealed class UpdateCommandTests
         var json = fixture.Shop.Update("a", "b").If(Attr("a").Exists()).If(Attr("b").Exists()).IfExists().ToRequestJson();
 
         // Assert
-        await Assert.That(json).Contains("\"ConditionExpression\":\"((attribute_exists(#n0)) AND (attribute_exists(#n1))) AND (attribute_exists(#n2))\"");
+        await Assert.That(json).Contains("\"ConditionExpression\":\"(attribute_exists(#n0)) AND (attribute_exists(#n1)) AND (attribute_exists(#n2))\"");
     }
 
     [Test]

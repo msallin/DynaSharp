@@ -1,0 +1,87 @@
+{
+  "generator": "generate_required_members.py",
+  "botocore": "1.42.21",
+  "note": "Generated from botocore's service models. Do not edit by hand.",
+  "required": {
+    "ArchivalSummary": [],
+    "AttributeDefinition": [
+      "AttributeName",
+      "AttributeType"
+    ],
+    "AttributeValue": [],
+    "BatchGetItemOutput": [],
+    "BatchWriteItemOutput": [],
+    "BillingModeSummary": [],
+    "Capacity": [],
+    "ConsumedCapacity": [],
+    "CreateTableOutput": [],
+    "DeleteItemOutput": [],
+    "DeleteRequest": [
+      "Key"
+    ],
+    "DeleteTableOutput": [],
+    "DescribeStreamOutput": [],
+    "DescribeTableOutput": [],
+    "DescribeTimeToLiveOutput": [],
+    "GetItemOutput": [],
+    "GetRecordsOutput": [],
+    "GetShardIteratorOutput": [],
+    "GlobalSecondaryIndexDescription": [],
+    "GlobalSecondaryIndexWarmThroughputDescription": [],
+    "GlobalTableWitnessDescription": [],
+    "Identity": [],
+    "ItemCollectionMetrics": [],
+    "ItemResponse": [],
+    "KeySchemaElement": [
+      "AttributeName",
+      "KeyType"
+    ],
+    "KeysAndAttributes": [
+      "Keys"
+    ],
+    "ListStreamsOutput": [],
+    "ListTablesOutput": [],
+    "LocalSecondaryIndexDescription": [],
+    "OnDemandThroughput": [],
+    "OnDemandThroughputOverride": [],
+    "Projection": [],
+    "ProvisionedThroughputDescription": [],
+    "ProvisionedThroughputOverride": [],
+    "PutItemOutput": [],
+    "PutRequest": [
+      "Item"
+    ],
+    "QueryOutput": [],
+    "Record": [],
+    "ReplicaDescription": [],
+    "ReplicaGlobalSecondaryIndexDescription": [],
+    "RestoreSummary": [
+      "RestoreDateTime",
+      "RestoreInProgress"
+    ],
+    "SSEDescription": [],
+    "ScanOutput": [],
+    "SequenceNumberRange": [],
+    "Shard": [],
+    "Stream": [],
+    "StreamDescription": [],
+    "StreamRecord": [],
+    "StreamSpecification": [
+      "StreamEnabled"
+    ],
+    "TableClassSummary": [],
+    "TableDescription": [],
+    "TableWarmThroughputDescription": [],
+    "TimeToLiveDescription": [],
+    "TimeToLiveSpecification": [
+      "AttributeName",
+      "Enabled"
+    ],
+    "TransactGetItemsOutput": [],
+    "TransactWriteItemsOutput": [],
+    "UpdateItemOutput": [],
+    "UpdateTableOutput": [],
+    "UpdateTimeToLiveOutput": [],
+    "WriteRequest": []
+  }
+}

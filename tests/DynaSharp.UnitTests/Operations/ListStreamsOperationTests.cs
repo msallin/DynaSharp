@@ -144,16 +144,16 @@ public sealed class ListStreamsOperationTests
     }
 
     [Test]
-    public async Task ReadResponse_StreamWithoutArn_ThrowsJsonException()
+    public async Task ReadResponse_StreamWithoutArn_HasNoArn()
     {
         // Arrange
         const string json = """{"Streams":[{"TableName":"Forum"}]}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("A stream has no StreamArn.", StringComparison.Ordinal);
+        await Assert.That((response.Streams.Single().StreamArn, response.Streams.Single().TableName)).IsEqualTo(((string?)null, "Forum"));
     }
 
     [Test]

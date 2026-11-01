@@ -395,7 +395,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
                         {
                             attribute = "custompk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.CustomPk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw new global::DynaSharp.DynamoDbMappingException("KeyFormats", "custompk"); }
+                            if (!Keys.CustomPk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyFormats", "custompk"); }
                             fields.Address = __parts0.Address;
                             fields.Address__set = true;
                             reader.ReadEndAttribute();

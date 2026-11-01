@@ -20,7 +20,7 @@ public readonly struct Not<TInner> : ICondition
     public void Render(ref ExpressionSink sink)
     {
         sink.Text("NOT ("u8);
-        _inner.Render(ref sink);
+        ExpressionSink.WriteInside(ref sink, _inner);
         sink.Text(")"u8);
     }
 }

@@ -45,7 +45,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     /// like any call on it, so the command is the one handle left, and a clause of the action can no longer follow. What the action still owes, such as a version, is checked by the next verb.
     /// </summary>
     /// <param name="step">The step, which this replaces.</param>
-    /// <exception cref="InvalidOperationException">The step was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The step was already sent, extended or rendered.</exception>
     public static implicit operator TransactWriteCommand(UpdateStep step) => new(step.Enter());
 
     /// <inheritdoc/>

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Serialization;
 using DynaSharp.Streams;
@@ -69,7 +68,7 @@ internal readonly struct ListStreamsOperation : IOperation<ListStreamsRequest, L
             {
                 if (reader.AttributeNameEquals("StreamArn"u8))
                 {
-                    streamArn = OperationJson.ReadRequiredString(ref reader);
+                    streamArn = OperationJson.ReadString(ref reader);
                 }
                 else if (reader.AttributeNameEquals("TableName"u8))
                 {
@@ -87,7 +86,7 @@ internal readonly struct ListStreamsOperation : IOperation<ListStreamsRequest, L
 
             streams.Add(new StreamSummary
             {
-                StreamArn = streamArn ?? throw new JsonException("A stream has no StreamArn."),
+                StreamArn = streamArn,
                 TableName = tableName,
                 StreamLabel = streamLabel,
             });

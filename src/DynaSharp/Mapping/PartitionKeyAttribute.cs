@@ -5,10 +5,16 @@ namespace DynaSharp.Mapping;
 /// attribute named <c>pk</c>. On a property it takes no template and declares a plain key: the property's own attribute is the key.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Literals in a template are printable ASCII, <c>{{</c> and <c>}}</c> are literal braces, and a placeholder is
 /// <c>{Property}</c> or <c>{Property:format}</c>. A variable-width value that contains a character next to a placeholder throws
 /// <see cref="KeyFormatException"/>, because <c>1#ORDER</c> in <c>USER#{Id}</c> could address another item. DynamoDB keeps a
 /// partition key for the life of the item, so a template input cannot be updated.
+/// </para>
+/// <para>
+/// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
+/// <c>{At}</c> is <c>ms</c>: it keeps milliseconds, so two times within one millisecond give one key, unless the rest of the key differs. Only <c>ticks</c> is lossless.
+/// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
 public sealed class PartitionKeyAttribute : Attribute

@@ -557,7 +557,7 @@ public sealed class TransactWriteCommandTests
         var failure = TestClient.Catch(() => SendTwice(client, shop));
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent, extended or rendered");
     }
 
     [Test]
@@ -577,7 +577,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactWriteItems on several tables was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactWriteItems on several tables was already sent, extended or rendered");
     }
 
     [Test]
@@ -742,7 +742,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent, extended or rendered");
     }
 
     [Test]
@@ -763,7 +763,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent, extended or rendered");
     }
 
     [Test]
@@ -784,7 +784,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent or extended");
+        await Assert.That(failure.Message).Contains("TransactWriteItems on Shop was already sent, extended or rendered");
     }
 
     [Test]
@@ -805,7 +805,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -848,7 +848,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -869,7 +869,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -931,7 +931,7 @@ public sealed class TransactWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]

@@ -144,6 +144,9 @@ internal sealed class CommandState
     /// <summary>Gets or sets a value indicating whether the write in progress already says which version it expects, which cannot be taken back.</summary>
     public bool VersionChecked { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the write in progress asks that no item has its key, which a version above 0 contradicts, see <see cref="WriteRules"/>.</summary>
+    public bool ItemMustNotExist { get; set; }
+
     /// <summary>Gets or sets the version the write stores, for its result.</summary>
     public long? StoredVersion { get; set; }
 
@@ -232,7 +235,7 @@ internal sealed class CommandState
         if (state._version != version)
         {
             throw new InvalidOperationException(
-                $"This {operation} on {table!.Name} was already sent or extended. A command is built in one chain and sent once; to send it again, build it again.");
+                $"This {operation} on {table!.Name} was already sent, extended or rendered. ToRequestJson() ends a command as sending does, and a command is built in one chain and used once; to use it again, build it again.");
         }
 
         return state;
@@ -500,6 +503,7 @@ internal sealed class CommandState
         WritePutEntity = null;
         VersionIgnored = false;
         VersionChecked = false;
+        ItemMustNotExist = false;
         StoredVersion = null;
         Table = null!;
         _itemOpen = false;
@@ -539,7 +543,7 @@ internal sealed class CommandState
     {
         if (version != _version || Table is null)
         {
-            return "(sent or extended)";
+            return "(sent, extended or rendered)";
         }
 
         BodyJson.Flush();

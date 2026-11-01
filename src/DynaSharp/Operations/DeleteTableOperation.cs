@@ -19,5 +19,5 @@ internal readonly struct DeleteTableOperation : IOperation<DeleteTableRequest, D
     }
 
     public static DeleteTableResponse ReadResponse(ref DynamoDbReader reader) =>
-        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader, Name) };
+        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader) };
 }

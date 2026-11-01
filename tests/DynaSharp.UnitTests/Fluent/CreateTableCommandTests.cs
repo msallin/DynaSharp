@@ -633,6 +633,22 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_ResponseWithoutADescription_DescribesTheTable()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("{}"));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table("Shop", "pk").CreateTable().SendAsync();
+
+        // Assert
+        await Assert.That((description.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)))).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable"));
+    }
+
+    [Test]
     public async Task SendAsync_IfNotExistsAndTheTableIsNew_DescribesNothing()
     {
         // Arrange

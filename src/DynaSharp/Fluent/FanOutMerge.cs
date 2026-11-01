@@ -77,10 +77,10 @@ internal sealed class FanOutMerge<T> : IDisposable
 
     /// <summary>Puts every partition in its place. No request goes out.</summary>
     /// <param name="after">The position to continue from, or the default value for the start.</param>
-    /// <exception cref="ArgumentException"><paramref name="after"/> is no position of this fan-out.</exception>
+    /// <exception cref="FormatException"><paramref name="after"/> is no position of this fan-out.</exception>
     public void Open(ContinuationToken after)
     {
-        var entries = FanOutToken.Read(after, _cursors.Length);
+        var entries = FanOutToken.Read(after, _cursors.Length, _descending);
         for (var position = 0; position < _cursors.Length; position++)
         {
             var entry = entries is null ? default : entries[position];
@@ -123,7 +123,7 @@ internal sealed class FanOutMerge<T> : IDisposable
 
     /// <summary>Writes the token of what is left.</summary>
     /// <returns>The token, or the default value if nothing is left.</returns>
-    public ContinuationToken Next() => _live == 0 ? default : FanOutToken.Write(_cursors);
+    public ContinuationToken Next() => _live == 0 ? default : FanOutToken.Write(_cursors, _descending);
 
     /// <summary>Gives back what the partitions own. No request is in flight when a read ends.</summary>
     public void Dispose()

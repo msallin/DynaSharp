@@ -17,22 +17,22 @@ public interface IUpdatable<TSelf>
     public TSelf Set(string path, AttributeValue value);
 
     /// <summary>
-    /// Sets an attribute, creating it if it does not exist (<c>SET</c>). A null value is a <see cref="Remove{TValue, TConverter}(Attr{TValue, TConverter})"/>, for every attribute, because a generated
-    /// entity writes no attribute for a null property either.
+    /// Sets an attribute, creating it if it does not exist (<c>SET</c>), and keeps every key made from it consistent, or throws when the command ends. A null value is a
+    /// <see cref="Remove{TValue, TConverter}(Attr{TValue, TConverter})"/>, for every attribute, because a generated entity writes no attribute for a null property either.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be set: then the
+    /// <b>Key templates.</b> The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be set: then the
     /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and what is missing, because the index
     /// would go stale. An input of a key of the table is rejected the same way, because DynamoDB cannot update a key.
     /// </para>
     /// <para>
-    /// An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
+    /// <b>Sparse indexes.</b> An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
     /// naming it, because the item would silently stay out of the index. A key that an update cannot write, such as one made of an input of the table key, makes such an item enter the
     /// index by a <c>Put</c>, which writes every key. A key of literals, of any index, is no such key: it is written in the same <c>SET</c>, and removed with the other key.
     /// </para>
     /// <para>
-    /// <c>Add</c> and <c>SetIfNotExists</c> by the handle of such a property throw too: the value they leave is not known here, so the key cannot follow. In a transaction the check runs
+    /// <b>Add and SetIfNotExists.</b> By the handle of such a property they throw too: the value they leave is not known here, so the key cannot follow. In a transaction the check runs
     /// when the action ends, at the next verb.
     /// </para>
     /// </remarks>

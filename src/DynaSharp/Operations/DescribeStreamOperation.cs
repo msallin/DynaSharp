@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Requests;
 using DynaSharp.Serialization;
@@ -55,7 +54,7 @@ internal readonly struct DescribeStreamOperation : IOperation<DescribeStreamRequ
             }
         }
 
-        return new DescribeStreamResponse { StreamDescription = description ?? throw new JsonException("The DescribeStream response has no StreamDescription.") };
+        return new DescribeStreamResponse { StreamDescription = description };
     }
 
     public static void SetActivityTags(Activity activity, DescribeStreamRequest request) => ReadTags.SetLimit(activity, request.Limit);
@@ -76,7 +75,7 @@ internal readonly struct DescribeStreamOperation : IOperation<DescribeStreamRequ
         {
             if (reader.AttributeNameEquals("StreamArn"u8))
             {
-                streamArn = OperationJson.ReadRequiredString(ref reader);
+                streamArn = OperationJson.ReadString(ref reader);
             }
             else if (reader.AttributeNameEquals("StreamLabel"u8))
             {
@@ -118,7 +117,7 @@ internal readonly struct DescribeStreamOperation : IOperation<DescribeStreamRequ
 
         return new StreamDescription
         {
-            StreamArn = streamArn ?? throw new JsonException("The stream description has no StreamArn."),
+            StreamArn = streamArn,
             StreamLabel = streamLabel,
             StreamStatus = streamStatus,
             StreamViewType = streamViewType,
@@ -143,7 +142,7 @@ internal readonly struct DescribeStreamOperation : IOperation<DescribeStreamRequ
             {
                 if (reader.AttributeNameEquals("ShardId"u8))
                 {
-                    shardId = OperationJson.ReadRequiredString(ref reader);
+                    shardId = OperationJson.ReadString(ref reader);
                 }
                 else if (reader.AttributeNameEquals("SequenceNumberRange"u8))
                 {
@@ -161,7 +160,7 @@ internal readonly struct DescribeStreamOperation : IOperation<DescribeStreamRequ
 
             shards.Add(new Shard
             {
-                ShardId = shardId ?? throw new JsonException("A shard has no ShardId."),
+                ShardId = shardId,
                 SequenceNumberRange = sequenceNumberRange,
                 ParentShardId = parentShardId,
             });

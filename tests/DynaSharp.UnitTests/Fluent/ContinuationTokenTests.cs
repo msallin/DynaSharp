@@ -36,20 +36,20 @@ public sealed class ContinuationTokenTests
     }
 
     [Test]
-    public async Task Parse_Null_Throws()
+    public async Task Parse_Null_IsTheDefaultValue()
     {
-        // Arrange
+        // Arrange (the first page of a web client has no token)
         string? text = null;
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentNullException>(() => Task.FromResult(ContinuationToken.Parse(text!)));
+        var token = ContinuationToken.Parse(text);
 
         // Assert
-        await Assert.That(failure.ParamName).IsEqualTo("text");
+        await Assert.That(token).IsEqualTo(default(ContinuationToken));
     }
 
     [Test]
-    public async Task TryParse_Null_IsFalse()
+    public async Task TryParse_Null_IsTheDefaultValue()
     {
         // Arrange
         string? text = null;
@@ -58,7 +58,7 @@ public sealed class ContinuationTokenTests
         var parsed = ContinuationToken.TryParse(text, out var token);
 
         // Assert
-        await Assert.That((parsed, token)).IsEqualTo((false, default(ContinuationToken)));
+        await Assert.That((parsed, token)).IsEqualTo((true, default(ContinuationToken)));
     }
 
     [Test]

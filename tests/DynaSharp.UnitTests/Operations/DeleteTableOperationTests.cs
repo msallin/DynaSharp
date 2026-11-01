@@ -1,4 +1,3 @@
-using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
@@ -104,23 +103,23 @@ public sealed class DeleteTableOperationTests
         var vector = OperationVectors.Response("DeleteTable", "DeleteATableFromApiReference");
 
         // Act
-        var table = Read(vector.Wire).TableDescription;
+        var table = Read(vector.Wire).TableDescription!;
 
         // Assert
         await Assert.That((table.TableName, table.TableStatus)).IsEqualTo(("Reply", TableStatus.Deleting));
     }
 
     [Test]
-    public async Task ReadResponse_NoTableDescription_ThrowsJsonException()
+    public async Task ReadResponse_NoTableDescription_HasNone()
     {
         // Arrange
         const string json = """{"Unknown":[1]}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The DeleteTable response has no TableDescription.", StringComparison.Ordinal);
+        await Assert.That(response.TableDescription).IsNull();
     }
 
     private static DeleteTableResponse Read(string json) => TestJson.Read(json, static (ref reader) => DeleteTableOperation.ReadResponse(ref reader));

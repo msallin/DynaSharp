@@ -309,6 +309,121 @@ public sealed class ItemTests
     }
 
     [Test]
+    public async Task Remove_AnAttribute_TakesItOutAndKeepsTheOrderOfTheRest()
+    {
+        // Arrange
+        var item = new Item { ["a"] = 1, ["b"] = 2, ["c"] = 3 };
+
+        // Act
+        var removed = item.Remove("b");
+
+        // Assert
+        await Assert.That((removed, item.Count, string.Join(",", item.Keys), item.ContainsKey("b"), item.GetNumber<int>("c"))).IsEqualTo((true, 2, "a,c", false, (int?)3));
+    }
+
+    [Test]
+    public async Task Remove_AnAttributeItDoesNotHave_ReturnsFalseAndChangesNothing()
+    {
+        // Arrange
+        var item = new Item { ["a"] = 1 };
+
+        // Act
+        var removed = item.Remove("missing");
+
+        // Assert
+        await Assert.That((removed, item.Count)).IsEqualTo((false, 1));
+    }
+
+    [Test]
+    public async Task Remove_NullName_Throws()
+    {
+        // Arrange
+        var item = new Item { ["a"] = 1 };
+
+        // Act
+        var act = () => item.Remove(null!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Remove_ThenAddTheName_PutsItLast()
+    {
+        // Arrange
+        var item = new Item { ["a"] = 1, ["b"] = 2 };
+
+        // Act
+        item.Remove("a");
+        item["a"] = 3;
+
+        // Assert
+        await Assert.That((string.Join(",", item.Keys), item.GetNumber<int>("a"), item.Count)).IsEqualTo(("b,a", (int?)3, 2));
+    }
+
+    [Test]
+    public async Task Remove_LastAttribute_LeavesAnEmptyItem()
+    {
+        // Arrange
+        var item = new Item { ["a"] = 1 };
+        Item empty = [];
+
+        // Act
+        item.Remove("a");
+
+        // Assert
+        await Assert.That((item.Count, item.Keys.Any(), item.Equals(empty))).IsEqualTo((0, false, true));
+    }
+
+    [Test]
+    public async Task Remove_FromAReadItem_LeavesTheItemsThatShareItsNamesAlone()
+    {
+        // Arrange (items of one response share their names)
+        var first = TestJson.ReadItem("""{"a":{"N":"1"},"b":{"N":"2"}}""");
+        var second = TestJson.ReadItem("""{"a":{"N":"3"},"b":{"N":"4"}}""");
+
+        // Act
+        first.Remove("a");
+        first["c"] = 5;
+
+        // Assert
+        await Assert.That((string.Join(",", first.Keys), string.Join(",", second.Keys), second.GetNumber<int>("a"))).IsEqualTo(("b,c", "a,b", (int?)3));
+    }
+
+    [Test]
+    public async Task Remove_ManyAttributes_FindsWhatIsLeftThroughItsIndex()
+    {
+        // Arrange (above 32 attributes an item looks names up in an index)
+        var item = new Item();
+        for (var i = 0; i < 40; i++)
+        {
+            item["a" + i.ToString(System.Globalization.CultureInfo.InvariantCulture)] = i;
+        }
+
+        var built = item["a39"];
+
+        // Act
+        item.Remove("a0");
+
+        // Assert
+        await Assert.That((item.Count, item["a39"], item.ContainsKey("a0"))).IsEqualTo((39, built, false));
+    }
+
+    [Test]
+    public async Task Remove_FromAMapOfAnAttributeValue_Throws()
+    {
+        // Arrange
+        var item = new Item { ["m"] = AttributeValue.FromMap([KeyValuePair.Create("a", (AttributeValue)1)]) };
+        var map = item.GetMap("m")!;
+
+        // Act
+        var act = () => map.Remove("a");
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("Copy it into a new Item", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task IndexerSet_ExistingAttributeOfReadItem_LeavesTheItemThatSharesItsShapeAlone()
     {
         // Arrange

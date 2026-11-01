@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Buffers.Text;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DynaSharp.Serialization;
 
@@ -23,8 +22,8 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// A token of a fan-out query holds two keys per partition, where it continues and what comes next, or the fact that the partition is done, so it is as long as the list of partitions.
-/// It goes through <see cref="Parse"/> like any other. <c>PageAsync</c> of the fan-out then checks it against its partitions by their number and against the keys of the read, and
-/// DynamoDB checks the start keys.
+/// It holds the direction of the read as well. It goes through <see cref="Parse"/> like any other. <c>PageAsync</c> of the fan-out then checks it against the number of its partitions, its direction and the
+/// keys of the read, with a <see cref="FormatException"/> as from <see cref="Parse"/>, and DynamoDB checks the start keys.
 /// </para>
 /// <para>Two tokens are equal if their text is. <see cref="ToKey"/> and <see cref="FromKey"/> are the bridge to <c>ExclusiveStartKey</c> and <c>LastEvaluatedKey</c> of the request API.</para>
 /// </remarks>
@@ -41,35 +40,29 @@ public readonly record struct ContinuationToken
     /// <summary>Gets a value indicating whether this token holds a position. The default value does not: it stands for the start of a read, and for the end in <see cref="Page{T}.Next"/>.</summary>
     public bool HasValue => _text is not null;
 
-    /// <summary>Reads a token from its text. The result of parsing an empty string is the default value, so <see cref="ToString"/> always round-trips.</summary>
-    /// <param name="text">What <see cref="ToString"/> returned.</param>
+    /// <summary>
+    /// Reads a token from its text. <see langword="null"/> and an empty string are the default value, which is the start of a read, so the first request of a client, which has no token,
+    /// needs no check, and <see cref="ToString"/> always round-trips.
+    /// </summary>
+    /// <param name="text">What <see cref="ToString"/> returned, or nothing.</param>
     /// <returns>The token.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="text"/> is <see langword="null"/>.</exception>
     /// <exception cref="FormatException"><paramref name="text"/> is not the text of a token. The message does not quote it, because it comes from a client.</exception>
-    public static ContinuationToken Parse(string text)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        return TryParse(text, out var token)
+    public static ContinuationToken Parse(string? text) =>
+        TryParse(text, out var token)
             ? token
             : throw new FormatException("This is not a continuation token: it did not come from Next.ToString() of a page, or it was cut short or altered on the way.");
-    }
 
     /// <summary>
-    /// Reads a token from its text. Everything a token holds goes into a request, so the text must decode to exactly one key of attribute values; anything
-    /// else in it is rejected here, whatever a client sends.
+    /// Reads a token from its text, as <see cref="Parse"/> does, so <see langword="null"/> and an empty string are the default value. Everything a token holds goes into a request, so the text
+    /// must decode to exactly one key of attribute values; anything else in it is rejected here, whatever a client sends.
     /// </summary>
-    /// <param name="text">What <see cref="ToString"/> returned.</param>
+    /// <param name="text">What <see cref="ToString"/> returned, or nothing.</param>
     /// <param name="token">The token, or the default value if the text is not one.</param>
-    /// <returns><see langword="true"/> if the text is a token.</returns>
-    public static bool TryParse([NotNullWhen(true)] string? text, out ContinuationToken token)
+    /// <returns><see langword="true"/> if the text is a token or there is none.</returns>
+    public static bool TryParse(string? text, out ContinuationToken token)
     {
         token = default;
-        if (text is null)
-        {
-            return false;
-        }
-
-        if (text.Length > 0)
+        if (!string.IsNullOrEmpty(text))
         {
             if (!IsKey(text))
             {

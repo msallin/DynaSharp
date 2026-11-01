@@ -9,12 +9,12 @@ namespace DynaSharp.Serialization;
 /// Converters are static: the source generator calls them directly through the type parameter, without instances,
 /// virtual calls or delegates. Built-in converters and <see cref="AttributeValue"/> use the same contract; they are
 /// structs, because a struct type argument gives every use its own compiled code, so the call is direct and can be
-/// inlined, where a class would share one instantiation and look the method up at run time. Implement it on a struct
-/// as well (static classes cannot implement interfaces; a class works but is slower) and reference it from the entity,
+/// inlined, where a class would share one instantiation and look the method up at run time. Implement it on a
+/// <c>readonly record struct</c> as well, which also satisfies CA1815 (static classes cannot implement interfaces; a class works but is slower), and reference it from the entity,
 /// for example to store a <see cref="Uri"/> as its original text:
 /// </para>
 /// <code>
-/// public readonly struct UriConverter : IDynamoDbConverter&lt;Uri&gt;
+/// public readonly record struct UriConverter : IDynamoDbConverter&lt;Uri&gt;
 /// {
 ///     public static void Write(DynamoDbWriter writer, Uri value) =>
 ///         writer.WriteString(value.OriginalString);
@@ -39,7 +39,7 @@ namespace DynaSharp.Serialization;
 public interface IDynamoDbConverter<T>
 {
     /// <summary>Writes a value as one complete attribute value, for example with <see cref="DynamoDbWriter.WriteNumber{TNumber}(TNumber)"/>.</summary>
-    /// <param name="writer">The writer, positioned where a value is expected (after an attribute name, or inside a list).</param>
+    /// <param name="writer">The writer, positioned where a value is expected (after an attribute name, or inside a list). It is a ref struct, so it is never null and needs no check.</param>
     /// <param name="value">The value.</param>
     public static abstract void Write(DynamoDbWriter writer, T value);
 

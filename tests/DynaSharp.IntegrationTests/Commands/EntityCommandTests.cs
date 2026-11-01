@@ -24,6 +24,39 @@ public sealed class EntityCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task Put_FirstWriteOverAnItemWithoutAVersion_ReplacesItAndStartsCounting()
+    {
+        // Arrange (the condition of a first write is on the version attribute, not on the key)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        await sandbox.Shop.Put(new Item { ["pk"] = "TALLY#a", ["sk"] = "TOTAL", ["Count"] = 7 }).SendAsync();
+        var tallies = sandbox.Shop.Of<Tally>();
+
+        // Act
+        var existing = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+        await tallies.Put(existing! with { Count = 8 }).SendAsync();
+        var stored = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((existing.Revision, stored!.Count, stored.Revision)).IsEqualTo((0L, 8, 1L));
+    }
+
+    [Test]
+    public async Task Put_NewVersionedEntityIfNotExists_WritesOnceAndFailsOnTheItemItFinds()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var tallies = sandbox.Shop.Of<Tally>();
+        await tallies.Put(new Tally { Id = "a", Count = 1 }).IfNotExists().SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await tallies.Put(new Tally { Id = "a", Count = 2 }).IfNotExists().SendAsync());
+        var stored = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((failure is not null, stored!.Count, stored.Revision)).IsEqualTo((true, 1, 1L));
+    }
+
+    [Test]
     public async Task Put_Entity_WritesItsDiscriminator()
     {
         // Arrange

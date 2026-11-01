@@ -123,7 +123,172 @@ public sealed class ConditionTests
         var rendered = Render(condition);
 
         // Assert
-        await Assert.That(rendered).IsEqualTo("NOT ((#n0 = :v0 AND (#n1 = :v1 OR #n2 = :v2)))");
+        await Assert.That(rendered).IsEqualTo("NOT (#n0 = :v0 AND (#n1 = :v1 OR #n2 = :v2))");
+    }
+
+    [Test]
+    public async Task Render_OrChain_IsOneGroup()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Or(Attr("b").Eq(2)).Or(Attr("c").Eq(3));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 = :v0 OR #n1 = :v1 OR #n2 = :v2)");
+    }
+
+    [Test]
+    public async Task Render_AndChain_IsOneGroup()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).And(Attr("b").Eq(2)).And(Attr("c").Eq(3)).And(Attr("d").Eq(4));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 = :v0 AND #n1 = :v1 AND #n2 = :v2 AND #n3 = :v3)");
+    }
+
+    [Test]
+    public async Task Render_ChainOnTheRight_IsOneGroup()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Or(Attr("b").Eq(2).Or(Attr("c").Eq(3)));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 = :v0 OR #n1 = :v1 OR #n2 = :v2)");
+    }
+
+    [Test]
+    public async Task Render_ChainsOnBothSides_AreOneGroup()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).And(Attr("b").Eq(2)).And(Attr("c").Eq(3).And(Attr("d").Eq(4)));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 = :v0 AND #n1 = :v1 AND #n2 = :v2 AND #n3 = :v3)");
+    }
+
+    [Test]
+    public async Task Render_DifferentOperators_StayGroups()
+    {
+        // Arrange (AND binds tighter than OR, and the parentheses say so)
+        var orInAnd = Attr("a").Eq(1).Or(Attr("b").Eq(2)).And(Attr("c").Eq(3));
+        var andInOr = Attr("a").Eq(1).And(Attr("b").Eq(2)).Or(Attr("c").Eq(3));
+        var rightOrInAnd = Attr("a").Eq(1).And(Attr("b").Eq(2).Or(Attr("c").Eq(3)));
+
+        // Act
+        string[] rendered = [Render(orInAnd), Render(andInOr), Render(rightOrInAnd)];
+
+        // Assert
+        await Assert.That(rendered).IsEquivalentTo(
+        [
+            "((#n0 = :v0 OR #n1 = :v1) AND #n2 = :v2)",
+            "((#n0 = :v0 AND #n1 = :v1) OR #n2 = :v2)",
+            "(#n0 = :v0 AND (#n1 = :v1 OR #n2 = :v2))",
+        ]);
+    }
+
+    [Test]
+    public async Task Render_NegatedTermInAChain_StaysATerm()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Or(Attr("b").Eq(2)).Negate().Or(Attr("c").Eq(3)).Or(Attr("d").Eq(4));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert (the Or that a Not holds is no term of the Or around it)
+        await Assert.That(rendered).IsEqualTo("(NOT (#n0 = :v0 OR #n1 = :v1) OR #n2 = :v2 OR #n3 = :v3)");
+    }
+
+    [Test]
+    public async Task Render_NegationOfATerm_HasOnePairOfParentheses()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Negate();
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("NOT (#n0 = :v0)");
+    }
+
+    [Test]
+    public async Task Render_DoubleNegation_KeepsBothNots()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Or(Attr("b").Eq(2)).Negate().Negate();
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("NOT (NOT (#n0 = :v0 OR #n1 = :v1))");
+    }
+
+    [Test]
+    public async Task Render_BetweenInAChain_KeepsItsAnd()
+    {
+        // Arrange
+        var condition = Attr("a").Between(1, 2).And(Attr("b").Eq(3)).And(Attr("c").Between(4, 5));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 BETWEEN :v0 AND :v1 AND #n1 = :v2 AND #n2 BETWEEN :v3 AND :v4)");
+    }
+
+    [Test]
+    public async Task Render_HeapChain_IsOneGroup()
+    {
+        // Arrange
+        Condition condition = Attr("a").Eq(1);
+
+        // Act
+        condition |= Attr("b").Eq(2);
+        condition |= Attr("c").Eq(3);
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("(#n0 = :v0 OR #n1 = :v1 OR #n2 = :v2)");
+    }
+
+    [Test]
+    public async Task Render_TextOfACustomConditionThatLooksLikeAGroup_StaysAsItIs()
+    {
+        // Arrange (only a group this library wrote is known to be one)
+        var condition = new Verbatim("(x OR y)").Or(Attr("a").Exists()).Or(new Verbatim("(p AND q)"));
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("((x OR y) OR attribute_exists(#n0) OR (p AND q))");
+    }
+
+    [Test]
+    public async Task Render_GroupFollowedByACustomConditionThatWritesNothing_KeepsTheGroup()
+    {
+        // Arrange
+        var condition = Attr("a").Eq(1).Or(Attr("b").Eq(2)).Or(new Verbatim(string.Empty)).Negate();
+
+        // Act
+        var rendered = Render(condition);
+
+        // Assert
+        await Assert.That(rendered).IsEqualTo("NOT (#n0 = :v0 OR #n1 = :v1 OR )");
     }
 
     [Test]
@@ -151,7 +316,7 @@ public sealed class ConditionTests
         var rendered = Render(!condition);
 
         // Assert
-        await Assert.That(rendered).IsEqualTo("NOT (((attribute_exists(#n0) OR begins_with(#n1, :v0)) AND #n2 BETWEEN :v1 AND :v2))");
+        await Assert.That(rendered).IsEqualTo("NOT ((attribute_exists(#n0) OR begins_with(#n1, :v0)) AND #n2 BETWEEN :v1 AND :v2)");
     }
 
     [Test]

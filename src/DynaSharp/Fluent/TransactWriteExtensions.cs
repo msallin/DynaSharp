@@ -322,20 +322,31 @@ public static class TransactWriteExtensions
 
     /// <summary>
     /// Makes this action depend on no item having its key (<c>attribute_not_exists</c> on the partition key of its table). Otherwise the whole transaction is
-    /// cancelled. The table is the one of the action, so it takes no argument.
+    /// cancelled. The table is the one of the action, so it takes no argument. An entity with a <see cref="Mapping.VersionAttribute"/> must then hold version 0: the next verb or the terminal throws
+    /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called, because no item can lack its key and hold a version.
     /// </summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>
     /// <param name="step">The step, which this replaces.</param>
     /// <returns>The step.</returns>
     public static TStep IfNotExists<TStep>(this TStep step)
-        where TStep : ITransactWriteStep<TStep>, allows ref struct => WhenItem(step, exists: false);
+        where TStep : ITransactWriteStep<TStep>, allows ref struct
+    {
+        var state = step.Enter();
+        WriteRules.IfNotExists(state);
+        return TStep.Continue(state);
+    }
 
     /// <summary>Makes this action depend on an item having its key (<c>attribute_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled.</summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>
     /// <param name="step">The step, which this replaces.</param>
     /// <returns>The step.</returns>
     public static TStep IfExists<TStep>(this TStep step)
-        where TStep : ITransactWriteStep<TStep>, allows ref struct => WhenItem(step, exists: true);
+        where TStep : ITransactWriteStep<TStep>, allows ref struct
+    {
+        var state = step.Enter();
+        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: true);
+        return TStep.Continue(state);
+    }
 
     /// <summary>
     /// Puts the existing item on <see cref="TransactionCanceledException.ItemFor"/> when the condition of this action fails, which saves a read to find out why. It
@@ -360,7 +371,7 @@ public static class TransactWriteExtensions
     /// <param name="chain">The command or step.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it has no action, which DynamoDB would reject.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has no action, which DynamoDB would reject.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="TransactionCanceledException">DynamoDB cancelled the transaction, and nothing was written. The exception says why, per action.</exception>
     /// <exception cref="IdempotentParameterMismatchException">The token was used within the last 10 minutes for other actions.</exception>
@@ -390,7 +401,7 @@ public static class TransactWriteExtensions
     /// <typeparam name="TChain">The type of the command or step.</typeparam>
     /// <param name="chain">The command or step.</param>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it has no action, which DynamoDB would reject.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has no action, which DynamoDB would reject.</exception>
     public static string ToRequestJson<TChain>(this TChain chain)
         where TChain : ITransactWriteChain<TChain>, allows ref struct
     {
@@ -425,13 +436,5 @@ public static class TransactWriteExtensions
         key.WriteKey(state.StartKey());
         state.EndKey();
         return state;
-    }
-
-    private static TStep WhenItem<TStep>(TStep step, bool exists)
-        where TStep : ITransactWriteStep<TStep>, allows ref struct
-    {
-        var state = step.Enter();
-        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists);
-        return TStep.Continue(state);
     }
 }

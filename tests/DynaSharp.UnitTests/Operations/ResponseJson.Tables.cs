@@ -8,11 +8,11 @@ namespace DynaSharp.UnitTests.Operations;
 // out here and not taken from the library, so that the comparison with botocore checks the library's mapping.
 internal static partial class ResponseJson
 {
-    public static string Describe(CreateTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription));
+    public static string Describe(CreateTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription!));
 
-    public static string Describe(DeleteTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription));
+    public static string Describe(DeleteTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription!));
 
-    public static string Describe(UpdateTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription));
+    public static string Describe(UpdateTableResponse response) => Build(json => WriteTableEnvelope(json, response.TableDescription!));
 
     public static string Describe(ListTablesResponse response) => Build(json =>
     {
@@ -118,7 +118,7 @@ internal static partial class ResponseJson
     private static void WriteTableEnvelope(Utf8JsonWriter json, TableDescription table)
     {
         json.WriteStartObject("TableDescription");
-        json.WriteString("TableName", table.TableName);
+        WriteString(json, "TableName", table.TableName);
         WriteString(json, "TableArn", table.TableArn);
         WriteString(json, "TableStatus", GetWireName(table.TableStatus));
         WriteKeySchema(json, "KeySchema", table.KeySchema);
@@ -147,7 +147,7 @@ internal static partial class ResponseJson
         foreach (var index in table.LocalSecondaryIndexes)
         {
             json.WriteStartObject();
-            json.WriteString("IndexName", index.IndexName);
+            WriteString(json, "IndexName", index.IndexName);
             WriteKeySchema(json, "KeySchema", index.KeySchema);
             WriteProjection(json, index.Projection);
             json.WriteEndObject();
@@ -158,7 +158,7 @@ internal static partial class ResponseJson
         foreach (var index in table.GlobalSecondaryIndexes)
         {
             json.WriteStartObject();
-            json.WriteString("IndexName", index.IndexName);
+            WriteString(json, "IndexName", index.IndexName);
             WriteString(json, "IndexStatus", GetWireName(index.IndexStatus));
             json.WriteBoolean("Backfilling", index.Backfilling);
             WriteKeySchema(json, "KeySchema", index.KeySchema);

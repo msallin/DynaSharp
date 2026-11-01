@@ -185,7 +185,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// </remarks>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per item.</param>
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default) => FanOutRead<T>.Items(Prepare(), _plan!, cancellationToken);
 
     /// <summary>
@@ -211,8 +211,8 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageSize"/> is below 1.</exception>
-    /// <exception cref="ArgumentException"><paramref name="after"/> is not a position of a fan-out, or of one with this number of partitions. It comes from a client, so this is what bad input from there looks like, when the awaited task ends.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="FormatException"><paramref name="after"/> is not a position of a fan-out, or of one with this number of partitions and this direction, the same as <see cref="ContinuationToken.Parse"/> for text that is no token. It comes from a client, so this is what bad input from there looks like, when the awaited task ends.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects a request, for example a position of another query; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -230,7 +230,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// </summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The number of items that pass the filter. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has a projection, which is no use for a count and which DynamoDB rejects.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects a request; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -243,7 +243,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// one string, and is meant for tests and debugging. The text contains the key and the values. With no partitions, <c>:pk</c> has no value.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson()
     {
         var state = Prepare();

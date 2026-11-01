@@ -9,8 +9,11 @@ namespace DynaSharp.Requests;
 /// </remarks>
 public sealed record IndexProjection
 {
-    /// <summary>Gets which attributes are projected.</summary>
-    public required ProjectionType ProjectionType { get; init; }
+    /// <summary>
+    /// Gets which attributes are projected. A request has to set it, because <see cref="Requests.ProjectionType.Unknown"/> cannot be sent, and that is also what a response reads as
+    /// when it omits the member.
+    /// </summary>
+    public ProjectionType ProjectionType { get; init; }
 
     /// <summary>
     /// Gets the names of the attributes to project besides the keys when <see cref="ProjectionType"/> is

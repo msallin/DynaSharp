@@ -121,7 +121,7 @@ public sealed class DeleteCommandTests
         var json = client.Table("Shop", "pk", "sk").Delete("a", "b").If(Attr("n").Eq(0)).If($"{Attr("m")} > {1}").IfExists().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Start + ""","ConditionExpression":"((#n0 = :v0) AND (#n1 > :v1)) AND (attribute_exists(#n2))","ExpressionAttributeNames":{"#n0":"n","#n1":"m","#n2":"pk"},"ExpressionAttributeValues":{":v0":{"N":"0"},":v1":{"N":"1"}}}""");
+        await Assert.That(json).IsEqualTo(Start + ""","ConditionExpression":"(#n0 = :v0) AND (#n1 > :v1) AND (attribute_exists(#n2))","ExpressionAttributeNames":{"#n0":"n","#n1":"m","#n2":"pk"},"ExpressionAttributeValues":{":v0":{"N":"0"},":v1":{"N":"1"}}}""");
     }
 
     [Test]

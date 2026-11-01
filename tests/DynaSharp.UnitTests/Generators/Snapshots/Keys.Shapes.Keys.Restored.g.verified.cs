@@ -86,7 +86,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                         {
                             attribute = "pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw new global::DynaSharp.DynamoDbMappingException("Restored", "pk"); }
+                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Restored", "pk"); }
                             fields.User = __parts0.User;
                             fields.User__set = true;
                             reader.ReadEndAttribute();
@@ -97,7 +97,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                         {
                             attribute = "sk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts2)) { throw new global::DynaSharp.DynamoDbMappingException("Restored", "sk"); }
+                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts2)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Restored", "sk"); }
                             fields.At = __parts2.At;
                             fields.At__set = true;
                             fields.Id = __parts2.Id;
@@ -139,7 +139,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                         {
                             attribute = "gsi1pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Gsi1Pk.TryParse(reader.GetStringUtf8(), out var __parts1)) { throw new global::DynaSharp.DynamoDbMappingException("Restored", "gsi1pk"); }
+                            if (!Keys.Gsi1Pk.TryParse(reader.GetStringUtf8(), out var __parts1)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Restored", "gsi1pk"); }
                             fields.State = __parts1.State;
                             fields.State__set = true;
                             reader.ReadEndAttribute();

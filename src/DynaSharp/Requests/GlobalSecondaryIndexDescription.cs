@@ -9,8 +9,10 @@ namespace DynaSharp.Requests;
 /// </remarks>
 public sealed record GlobalSecondaryIndexDescription
 {
-    /// <summary>Gets the index name.</summary>
-    public required string IndexName { get; init; }
+    /// <summary>
+    /// Gets the index name. DynamoDB sends it with every index: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? IndexName { get; init; }
 
     /// <summary>
     /// Gets the lifecycle state. Poll <c>DescribeTable</c> until it is <see cref="Requests.IndexStatus.Active"/> before querying the

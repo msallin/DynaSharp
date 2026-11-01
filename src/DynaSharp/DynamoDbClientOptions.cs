@@ -99,6 +99,10 @@ public sealed record DynamoDbClientOptions
     /// ends a wait at once.
     /// </para>
     /// <para>
+    /// A failure that comes back at once and is not throttling, such as a refused connection, uses up the default of 4 attempts within about a second, because the three waits add up
+    /// to at most 175 ms. So a test fixture that waits on a TCP port fails inside that window when a proxy opens the port before the service listens: wait on an HTTP response.
+    /// </para>
+    /// <para>
     /// Every client has a retry quota of 500 tokens that is shared by all its operations. A retry takes 5 tokens (10 after a timeout);
     /// a successful request gives back 1, or what its last retry took. When the quota is empty, failed requests are no longer
     /// retried and their errors surface at once, until successful requests have refilled it. This keeps a client from adding load
@@ -109,7 +113,7 @@ public sealed record DynamoDbClientOptions
     /// lost (a timeout, a dropped connection), the retry repeats a write that was already applied. Idempotent writes such as
     /// <c>PutItem</c> or <c>DeleteItem</c> are safe to repeat; updates that depend on the current value (<c>ADD</c> on a number,
     /// <c>list_append</c>, <c>SET x = x + :n</c>) are applied twice. Guard such updates with a condition expression, for example on
-    /// a version attribute, or set <see cref="MaxAttempts"/> to 1 for the client that issues them.
+    /// a version attribute. Setting <see cref="MaxAttempts"/> to 1 makes them at most once, not exact: a lost response then reports a failure after the update was applied.
     /// </para>
     /// <para>
     /// If DynamoDB rejects a request as signed with a wrong time (the local clock is more than 4 minutes off) and its <c>Date</c>
@@ -132,6 +136,7 @@ public sealed record DynamoDbClientOptions
     /// <summary>
     /// Gets the local clock, used for request signatures, timeouts and retry delays. Signatures and the expiry of the credentials of the
     /// default chain use it plus the correction that the client learned, see <see cref="MaxAttempts"/>. Defaults to <see cref="TimeProvider.System"/>.
+    /// It also runs <see cref="AttemptTimeout"/>, so a fake clock that a test moves can time out a request in flight: such a test sets <see cref="AttemptTimeout"/> to <see cref="Timeout.InfiniteTimeSpan"/>.
     /// </summary>
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
 

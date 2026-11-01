@@ -5,6 +5,8 @@ namespace DynaSharp.Streams;
 /// </summary>
 public sealed record DescribeStreamResponse
 {
-    /// <summary>Gets the description of the stream with one page of its shards.</summary>
-    public required StreamDescription StreamDescription { get; init; }
+    /// <summary>
+    /// Gets the description of the stream with one page of its shards. DynamoDB sends one with every response: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public StreamDescription? StreamDescription { get; init; }
 }

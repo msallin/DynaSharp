@@ -144,8 +144,8 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     }
 
     /// <summary>
-    /// Adds to a number (<c>ADD</c>). An attribute that does not exist starts from zero. A retry after a lost response repeats the addition, so
-    /// a counter that must be exact needs <see cref="MaxAttempts"/> of 1.
+    /// Adds to a number (<c>ADD</c>). An attribute that does not exist starts from zero. A retry after a lost response repeats the addition. <see cref="MaxAttempts"/> of 1 makes it at
+    /// most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a version, makes it exact.
     /// </summary>
     /// <typeparam name="TNumber">The type of the number.</typeparam>
     /// <param name="path">The name or document path.</param>
@@ -332,7 +332,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The command was already sent or extended, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or a change by handle cannot
     /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
@@ -354,7 +354,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => WriteRules.Settle(Enter()).RenderJson();
 
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>

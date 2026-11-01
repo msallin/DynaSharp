@@ -178,7 +178,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <summary>Sends the batch, as one request per 100 keys. A batch without keys sends nothing and returns an empty result, and a key without an item is no error.</summary>
     /// <param name="cancellationToken">Cancels the batch, also while it waits between rounds.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="BatchGetIncompleteException{T}">DynamoDB left keys unanswered after every round, or a table stayed throttled on the last attempt of a request.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects a request, for example because it holds a key twice; the exception shows the projection.</exception>
@@ -202,7 +202,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// and is meant for tests and debugging. The text contains the keys.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchGetOperation<T>, BatchGetResult<T>>(Enter());
 
     private static void AddKey<TKey>(CommandState state, TKey key)

@@ -64,7 +64,7 @@ internal readonly struct CreateTableOperation : IOperation<CreateTableRequest, C
     }
 
     public static CreateTableResponse ReadResponse(ref DynamoDbReader reader) =>
-        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader, Name) };
+        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader) };
 
     public static void SetActivityTags(Activity activity, CreateTableRequest request) =>
         OperationTelemetry.RecordProvisionedThroughput(activity, request.ProvisionedThroughput);

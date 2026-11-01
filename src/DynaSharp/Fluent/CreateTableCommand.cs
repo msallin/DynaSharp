@@ -152,7 +152,7 @@ public sealed class CreateTableCommand
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ValueTaskAwaiter<TableDescription> GetAwaiter() => SendAsync().GetAwaiter();
 
-    // Null for a table that exists. Its description is left to the caller, because a wait reads it anyway, and bears with a table that DescribeTable does not see yet.
+    // Null for a table that exists, or for a response without a description. It is left to the caller, because a wait reads it anyway, and bears with a table that DescribeTable does not see yet.
     private async ValueTask<TableDescription?> CreateAsync(CancellationToken cancellationToken)
     {
         try

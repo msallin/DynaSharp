@@ -868,6 +868,23 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
+    public async Task PutAll_KeyThatFailsItsTemplate_ThrowsBeforeAnythingIsSent()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        var day = new DateOnly(2026, 10, 31);
+        Ticket[] items = [new() { Id = "t1", OpenedAt = day }, new() { Id = "a#b", OpenedAt = day }];
+
+        // Act
+        var failure = TestClient.Catch(() => tickets.BatchWrite().PutAll(items));
+
+        // Assert
+        await Assert.That((failure is KeyFormatException, handler.Requests.Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
     public async Task PutAll_OfAnEntityWithAVersion_ThrowsAtTheTerminalWithoutIgnoreVersion()
     {
         // Arrange
@@ -1004,7 +1021,7 @@ public sealed class BatchWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]
@@ -1024,7 +1041,7 @@ public sealed class BatchWriteCommandTests
         });
 
         // Assert
-        await Assert.That(failure.Message).Contains("already sent or extended");
+        await Assert.That(failure.Message).Contains("already sent, extended or rendered");
     }
 
     [Test]

@@ -7,8 +7,10 @@ namespace DynaSharp.Streams;
 /// </summary>
 public sealed record StreamDescription
 {
-    /// <summary>Gets the ARN of the stream.</summary>
-    public required string StreamArn { get; init; }
+    /// <summary>
+    /// Gets the ARN of the stream. DynamoDB sends it with every description: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? StreamArn { get; init; }
 
     /// <summary>
     /// Gets the label of the stream: a timestamp of its creation. DynamoDB sends it with every description: <see langword="null"/> only if the response omits it.

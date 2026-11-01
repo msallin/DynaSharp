@@ -62,7 +62,7 @@ var put = await client.PutItemAsync(new PutItemRequest
 });
 Check(put.Attributes is not null && put.Attributes["visits"].AsNumber<int>() == 41, "PutItem returns the replaced item");
 
-var table = (await client.DescribeTableAsync(new DescribeTableRequest { TableName = "Users" })).Table;
+var table = (await client.DescribeTableAsync(new DescribeTableRequest { TableName = "Users" })).Table!;
 Check(table.TableStatus == TableStatus.Active && table.ItemCount == 2 && table.KeySchema.Count == 1, "DescribeTable returns the table");
 
 try
@@ -103,7 +103,7 @@ var created = await client.CreateTableAsync(new CreateTableRequest
     BillingMode = BillingMode.PayPerRequest,
     StreamSpecification = new() { StreamEnabled = true, StreamViewType = StreamViewType.NewImage },
 });
-Check(created.TableDescription.GlobalSecondaryIndexes.Single().Backfilling && created.TableDescription.StreamSpecification?.StreamViewType == StreamViewType.NewImage, "CreateTable returns the indexes and the stream");
+Check(created.TableDescription!.GlobalSecondaryIndexes.Single().Backfilling && created.TableDescription!.StreamSpecification?.StreamViewType == StreamViewType.NewImage, "CreateTable returns the indexes and the stream");
 Check(handler.Requests[^1].BodyText.Contains("\"StreamViewType\":\"NEW_IMAGE\"", StringComparison.Ordinal), "the CreateTable body has the stream specification");
 
 // DynamoDB Streams: another target prefix, another service name in the telemetry, records with images.

@@ -115,7 +115,7 @@ public sealed class DynamoDbStreamsClientOperationsTests
         using var client = TestClient.CreateStreams(handler);
 
         // Act
-        var description = (await client.DescribeStreamAsync(TestClient.DescribeStream())).StreamDescription;
+        var description = (await client.DescribeStreamAsync(TestClient.DescribeStream())).StreamDescription!;
 
         // Assert
         await Assert.That((description.Shards.Count, description.StreamStatus, description.StreamViewType)).IsEqualTo((4, StreamStatus.Enabled, StreamViewType.NewAndOldImages));

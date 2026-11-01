@@ -120,6 +120,14 @@ internal static class WriteRules
         state.StoredVersion = next;
     }
 
+    /// <summary>Adds the condition that no item has the key. It is noted as well, because an entity may hold a version that says the opposite, and <see cref="IgnoreVersion"/> can still take that back.</summary>
+    /// <param name="state">The state, whose table is the one of the write.</param>
+    public static void IfNotExists(CommandState state)
+    {
+        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
+        state.ItemMustNotExist = true;
+    }
+
     /// <summary>Lets the write go out without looking at the version. A put of an entity then stores the entity as it is, so its item is written again.</summary>
     /// <param name="state">The state.</param>
     /// <exception cref="InvalidOperationException">The write already has <c>IfVersion</c>, whose condition stands in the expressions.</exception>
@@ -144,16 +152,24 @@ internal static class WriteRules
     /// <summary>Ends what a write owes before it goes out. It runs at the terminal of a command and at the end of each action of a transaction.</summary>
     /// <param name="state">The state.</param>
     /// <returns>The state, for a chain.</returns>
-    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
+    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it asks for a new item with a version above 0, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
     public static CommandState Settle(CommandState state)
     {
         state.VersionChecked = false;
+        var mustNotExist = state.ItemMustNotExist;
+        state.ItemMustNotExist = false;
         if (state.UnsettledVersion is { } table)
         {
             if (state.EntityVersion is not { } held)
             {
                 throw new InvalidOperationException(
                     $"{table.Writes!.EntityName} has a [Version] attribute, and this write does not say how it treats it. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion(); a batch cannot carry a condition, so it only has IgnoreVersion().");
+            }
+
+            if (mustNotExist && held > 0)
+            {
+                throw new InvalidOperationException(
+                    $"This write of {table.Writes!.EntityName} holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().");
             }
 
             state.Expressions.AppendVersion(table.Writes!.VersionAttributeName!, held);

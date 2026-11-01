@@ -99,7 +99,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// <summary>Sends the command. A missing item is not an error: <see cref="GetResult{T}.Found"/> is <see langword="false"/>.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the key does not fit the table.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -115,7 +115,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// </summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The item. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the key does not fit the table.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
@@ -134,7 +134,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => Enter().RenderJson();
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);

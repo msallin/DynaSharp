@@ -1,4 +1,3 @@
-using System.Text.Json;
 using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
@@ -35,6 +34,6 @@ internal readonly struct DescribeTableOperation : IOperation<DescribeTableReques
             }
         }
 
-        return new DescribeTableResponse { Table = table ?? throw new JsonException("The DescribeTable response has no Table.") };
+        return new DescribeTableResponse { Table = table };
     }
 }

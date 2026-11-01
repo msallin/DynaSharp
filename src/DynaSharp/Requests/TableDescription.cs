@@ -7,8 +7,10 @@ namespace DynaSharp.Requests;
 /// </summary>
 public sealed record TableDescription
 {
-    /// <summary>Gets the table name.</summary>
-    public required string TableName { get; init; }
+    /// <summary>
+    /// Gets the table name. DynamoDB sends it with every description: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? TableName { get; init; }
 
     /// <summary>
     /// Gets the table ARN. DynamoDB sends it with every description: <see langword="null"/> only if the response omits it.

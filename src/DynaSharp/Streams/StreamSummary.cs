@@ -9,8 +9,10 @@ namespace DynaSharp.Streams;
 /// </remarks>
 public sealed record StreamSummary
 {
-    /// <summary>Gets the ARN of the stream, which identifies it in all other operations.</summary>
-    public required string StreamArn { get; init; }
+    /// <summary>
+    /// Gets the ARN of the stream, which identifies it in all other operations. DynamoDB sends it with every stream: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public string? StreamArn { get; init; }
 
     /// <summary>
     /// Gets the name of the table the stream belongs to. DynamoDB sends it with every stream: <see langword="null"/> only if the response omits it.

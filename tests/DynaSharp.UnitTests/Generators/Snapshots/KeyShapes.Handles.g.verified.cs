@@ -164,7 +164,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                         {
                             attribute = "sk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw new global::DynaSharp.DynamoDbMappingException("Handles", "sk"); }
+                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Handles", "sk"); }
                             fields.Slot = __parts0.Slot;
                             fields.Slot__set = true;
                             reader.ReadEndAttribute();

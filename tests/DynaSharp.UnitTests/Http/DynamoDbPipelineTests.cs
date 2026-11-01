@@ -280,7 +280,7 @@ public sealed class DynamoDbPipelineTests
         var response = await client.DescribeTableAsync(TestClient.DescribeTable("Music"));
 
         // Assert
-        await Assert.That((response.Table.TableName, response.Table.TableStatus)).IsEqualTo(("Music", TableStatus.Active));
+        await Assert.That((response.Table!.TableName, response.Table!.TableStatus)).IsEqualTo(("Music", TableStatus.Active));
     }
 
     [Test]

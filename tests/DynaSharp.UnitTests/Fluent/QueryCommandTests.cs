@@ -203,7 +203,7 @@ public sealed class QueryCommandTests
         var message = FilterOnStaleHandle(shop);
 
         // Assert
-        await Assert.That(message).StartsWith("This Query on Shop was already sent or extended.");
+        await Assert.That(message).StartsWith("This Query on Shop was already sent, extended or rendered.");
     }
 
     [Test]
@@ -414,7 +414,7 @@ public sealed class QueryCommandTests
         var message = RenderTwice(shop);
 
         // Assert
-        await Assert.That(message).StartsWith("This Query on Shop was already sent or extended.");
+        await Assert.That(message).StartsWith("This Query on Shop was already sent, extended or rendered.");
     }
 
     [Test]
@@ -829,7 +829,7 @@ public sealed class QueryCommandTests
         var message = EnumerateFromAStaleHandle(shop);
 
         // Assert
-        await Assert.That(message).StartsWith("This Query on Shop was already sent or extended.");
+        await Assert.That(message).StartsWith("This Query on Shop was already sent, extended or rendered.");
     }
 
     [Test]

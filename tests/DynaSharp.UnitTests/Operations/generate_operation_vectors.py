@@ -2540,6 +2540,8 @@ RESPONSES += [
         STREAMS_REFERENCE.format(operation="GetShardIterator", example="Retrieve a Shard Iterator For a Stream"),
     ),
     response("GetShardIterator", "UnknownProperties", {"Unknown": UNKNOWN_NESTED, "ShardIterator": "iterator", "Other": [1]}),
+    # The model requires nothing here, so an answer without an iterator is valid.
+    response("GetShardIterator", "NoIterator", {}),
     # GetRecords
     response(
         "GetRecords",

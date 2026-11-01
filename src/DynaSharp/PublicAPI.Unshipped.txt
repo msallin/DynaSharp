@@ -17,6 +17,7 @@ DynaSharp.CreateTableCommand.SendAsync(System.Threading.CancellationToken cancel
 DynaSharp.CreateTableCommand.ToRequest() -> DynaSharp.Requests.CreateTableRequest!
 DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
+DynaSharp.Item.Remove(string! name) -> bool
 DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
@@ -30,3 +31,17 @@ DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.get -> DynaSharp.Requests.Scalar
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.init -> void
 DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.Requests.CreateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.Requests.DeleteTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.Requests.DescribeTableResponse.Table.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.Requests.GlobalSecondaryIndexDescription.IndexName.get -> string?
+DynaSharp.Requests.LocalSecondaryIndexDescription.IndexName.get -> string?
+DynaSharp.Requests.TableDescription.TableName.get -> string?
+DynaSharp.Requests.UpdateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
+DynaSharp.Streams.DescribeStreamResponse.StreamDescription.get -> DynaSharp.Streams.StreamDescription?
+DynaSharp.Streams.GetShardIteratorResponse.ShardIterator.get -> string?
+DynaSharp.Streams.Shard.ShardId.get -> string?
+DynaSharp.Streams.StreamDescription.StreamArn.get -> string?
+DynaSharp.Streams.StreamSummary.StreamArn.get -> string?
+static DynaSharp.ContinuationToken.Parse(string? text) -> DynaSharp.ContinuationToken
+static DynaSharp.DynamoDbMappingException.KeyDoesNotFit(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!

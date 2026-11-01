@@ -10,6 +10,9 @@ public sealed class WriteRulesTests
 {
     private const string Key = """{"pk":{"S":"TICKET#t1"},"sk":{"S":"AT#2026-10-31"}}""";
 
+    private const string LoadedAndNew =
+        "This write of DynaSharp.UnitTests.Fluent.Ticket holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().";
+
     private static readonly DateOnly Day = new(2026, 10, 31);
 
     [Test]
@@ -83,6 +86,114 @@ public sealed class WriteRulesTests
         // Assert
         await Assert.That(json).Contains("""
             "ConditionExpression":"(attribute_exists(#n0)) AND (#n1 = :v0)","ExpressionAttributeNames":{"#n0":"pk","#n1":"Revision"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutIfNotExistsOfALoadedEntity_ThrowsSayingWhatToDo()
+    {
+        // Arrange (no item can lack its key and hold version 3, so this could only ever fail at DynamoDB)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var act = () => tickets.Put(Held(3)).IfNotExists().ToRequestJson();
+
+        // Assert
+        await Assert.That(act).Throws<InvalidOperationException>().WithMessage(LoadedAndNew, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_PutIfNotExistsOfALoadedEntity_SendsNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(async () => await tickets.Put(Held(1)).IfNotExists().SendAsync());
+
+        // Assert
+        await Assert.That((failure.Message, handler.Requests.Count)).IsEqualTo((LoadedAndNew, 0));
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutIfNotExistsOfANewEntity_RequiresBoth()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Ticket>("Shop").Put(Held(0)).IfNotExists().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ConditionExpression":"(attribute_not_exists(#n0)) AND (attribute_not_exists(#n1))","ExpressionAttributeNames":{"#n0":"pk","#n1":"Revision"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_TransactionPutIfNotExistsOfALoadedEntity_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var act = () => client.TransactWrite().Put(tickets, Held(3)).IfNotExists().ToRequestJson();
+
+        // Assert
+        await Assert.That(act).Throws<InvalidOperationException>().WithMessage(LoadedAndNew, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Put_ActionAfterAPutIfNotExistsOfALoadedEntity_ThrowsAtTheEndOfThatAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var act = () => client.TransactWrite().Put(tickets, Held(3)).IfNotExists().Put(tickets, Held(0)).ToRequestJson();
+
+        // Assert
+        await Assert.That(act).Throws<InvalidOperationException>().WithMessage(LoadedAndNew, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ToRequestJson_TransactionUniqueOfALoadedEntity_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var act = () => client.TransactWrite().Unique(tickets, Held(3), out _).ToRequestJson();
+
+        // Assert
+        await Assert.That(act).Throws<InvalidOperationException>().WithMessage(LoadedAndNew, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ToRequestJson_LoadedEntityInTheActionAfterAnIfNotExists_IsLegal()
+    {
+        // Arrange (what one action says of its item says nothing of the next)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var json = client.TransactWrite().Put(tickets, Held(0)).IfNotExists().Put(tickets, Held(3)).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ConditionExpression":"#n0 = :v0"
             """);
     }
 

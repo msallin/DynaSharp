@@ -113,6 +113,7 @@ crosses the `await`. The remarks on `CommandState` explain the version protocol 
 
 - `CommandState.Enter` checks the version and consumes the handle; each fluent method does `Enter`, changes the state and returns a new handle.
 - `CommandState.Check` checks and leaves the handle valid. `ExpressionHandler` uses it, because the compiler runs the handler before the method it belongs to.
+- `ToRequestJson` is a terminal like `SendAsync`. `Settle` and `Finish` change the state for good: they append conditions, close the open item and write the options into `Body`, and a transaction or a batch ends its actions. Leaving the command usable would take a copy of a state with its open writer, key inputs and actions, on every path that renders, which is more than a debug aid is worth, so the stale message names rendering instead. It cannot be told from the state which way a handle went stale, because the state goes back to the pool at once.
 - `Release` is the only way back to the pool, and a compare-and-swap on the version lets one holder through. A new field goes into `Release` as well.
 - A command that is built and abandoned is collected with its arrays. It costs one pool entry, not a leak.
 - A state keeps arrays up to 16 KB when idle, and a client keeps up to 64 idle states.
@@ -127,7 +128,7 @@ Expressions go to separate segments, because one call feeds a clause and two map
 
 `ExpressionWriter` holds one buffer per `Clause` (`Set`, `Remove`, `Add`, `Delete`, `Condition`, `KeyCondition`, `Filter`, `Projection`), the name map, the value map and a pending buffer. Names and values are
 deduplicated by comparing bytes, with no hash and no box. An interpolated expression lands in pending first, because its handler runs before the method that says which clause it is for;
-`CommitPending` then checks that it names an attribute. `AppendPath` is the path syntax, and `PathSyntax` in the analyzer is a copy of it. The discriminator of an update and the keys of an index of literals use `SetMissingAttribute`,
+`CommitPending` then checks that it names an attribute, and joins conditions as `(a) AND (b) AND (c)`, with `_chains` saying which clause is such a chain. Inside one condition, `ExpressionSink.WriteGroup` flattens a chain of one operator: a struct condition cannot ask what type its term is without a box, so the sink remembers where the last group it wrote starts and ends, and a term that is exactly that text loses its parentheses, while text of a custom condition stays. `AppendPath` is the path syntax, and `PathSyntax` in the analyzer is a copy of it. The discriminator of an update and the keys of an index of literals use `SetMissingAttribute`,
 which walks the clauses to see whether an action already targets the attribute.
 
 A paged read writes its members once and remembers the offset in `_pageMark`; each page truncates back to it and appends a new `ExclusiveStartKey`. A transaction writes
@@ -143,6 +144,7 @@ a set of expressions per action and clears them in `EndAction`, so `#n0` means s
 | Marked by | State | Settled as |
 |---|---|---|
 | `WriteItem` of a versioned entity | `UnsettledVersion`, `EntityVersion`, `StoredVersion`, `PutEntity`, `WritePutEntity` | `AppendVersion`. `IgnoreVersion` restarts the item without the bump, through `CommandState.RestartItem` |
+| `IfNotExists` of a put or a step | `ItemMustNotExist` | Throws if `UnsettledVersion` holds a version above 0, which no missing item can have |
 | `ExpectVersion` for a write by key | `UnsettledVersion` | Throws unless `IfVersion` or `IgnoreVersion` came |
 | `ExpectVersionOf` for `Delete(entity)` | `UnsettledVersion`, `EntityVersion` | `AppendVersion` of what the entity held |
 | `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator, last |
@@ -302,6 +304,7 @@ A test that derives its expectation from the code proves little, so each area ha
 |---|---|---|
 | SigV4 | `Signing/SigV4SignerTests` | `generate_sigv4_vectors.py`, botocore `SigV4Auth` |
 | Operation wire format | `Operations/*OperationTests` | `generate_operation_vectors.py`, botocore's serializer and parser |
+| `required` on response records | `Operations/ResponseRecordsTests` | `generate_required_members.py`, the `required` lists of botocore's service models, both ways, from each `XResponse` down through its properties |
 | Shared config and credentials files | `Credentials` | `generate_shared_file_vectors.py`, botocore |
 | Retry classification | `Retries` | botocore's `retries/standard.py`, by reading. Clock skew and expired tokens have no such source: botocore neither corrects nor refreshes on a response, so the oracle is the AWS SDKs |
 | DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
@@ -327,7 +330,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 2. `Operations/XOperation.cs`, implementing `IOperation<,>`, with shared parts in `OperationJson`.
 3. `Requests/DynamoDbRequests.cs`, or `Streams/DynamoDbStreamsClient.cs`.
 4. New enums in `Operations/WireNames.cs`, with `Unknown` or `Unspecified` as the zero value.
-5. `tests/DynaSharp.UnitTests/Operations/generate_operation_vectors.py` and `XOperationTests.cs`; an integration test in `IntegrationTests/Operations`.
+5. `tests/DynaSharp.UnitTests/Operations/generate_operation_vectors.py` and `XOperationTests.cs`; the operation in `OPERATIONS` of `generate_required_members.py`; an integration test in `IntegrationTests/Operations`.
 6. `api.md` section 1 if it adds a namespace or a rule, `requirements.md` if it changes scope.
 
 **A command for an operation.**

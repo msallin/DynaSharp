@@ -12,7 +12,7 @@ internal static class StreamReading
     public static async Task<string> FindStreamArnAsync(DynamoDbStreamsClient streams, string table)
     {
         var response = await streams.ListStreamsAsync(new ListStreamsRequest { TableName = table });
-        return response.Streams.Single().StreamArn;
+        return response.Streams.Single().StreamArn!;
     }
 
     /// <summary>Reads records from the start of the first shard until <paramref name="count"/> records have arrived.</summary>
@@ -24,14 +24,14 @@ internal static class StreamReading
     /// <exception cref="InvalidOperationException">The shard ended with fewer records.</exception>
     public static async Task<IReadOnlyList<ChangeRecord>> ReadAsync(DynamoDbStreamsClient streams, string streamArn, int count)
     {
-        var description = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = streamArn })).StreamDescription;
+        var description = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = streamArn })).StreamDescription!;
         var shard = description.Shards[0];
         var iterator = (await streams.GetShardIteratorAsync(new GetShardIteratorRequest
         {
             StreamArn = streamArn,
-            ShardId = shard.ShardId,
+            ShardId = shard.ShardId!,
             ShardIteratorType = ShardIteratorType.TrimHorizon,
-        })).ShardIterator;
+        })).ShardIterator!;
 
         return await ReadFromAsync(streams, iterator, count);
     }

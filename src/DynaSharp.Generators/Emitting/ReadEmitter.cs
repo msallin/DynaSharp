@@ -98,7 +98,7 @@ internal static class ReadEmitter
         var lines = new List<string>
         {
             "__Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);",
-            $"if (!Keys.{key.BuilderName}.TryParse(reader.GetStringUtf8(), out var {parts})) {{ throw new global::DynaSharp.DynamoDbMappingException({CodeText.Literal(type.Name)}, {attribute}); }}",
+            $"if (!Keys.{key.BuilderName}.TryParse(reader.GetStringUtf8(), out var {parts})) {{ throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit({CodeText.Literal(type.Name)}, {attribute}); }}",
         };
         foreach (var property in properties)
         {

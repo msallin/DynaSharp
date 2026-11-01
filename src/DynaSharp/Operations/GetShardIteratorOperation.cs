@@ -1,4 +1,3 @@
-using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Serialization;
 using DynaSharp.Streams;
@@ -36,7 +35,7 @@ internal readonly struct GetShardIteratorOperation : IOperation<GetShardIterator
         {
             if (reader.AttributeNameEquals("ShardIterator"u8))
             {
-                shardIterator = OperationJson.ReadRequiredString(ref reader);
+                shardIterator = OperationJson.ReadString(ref reader);
             }
             else
             {
@@ -44,6 +43,6 @@ internal readonly struct GetShardIteratorOperation : IOperation<GetShardIterator
             }
         }
 
-        return new GetShardIteratorResponse { ShardIterator = shardIterator ?? throw new JsonException("The GetShardIterator response has no ShardIterator.") };
+        return new GetShardIteratorResponse { ShardIterator = shardIterator };
     }
 }

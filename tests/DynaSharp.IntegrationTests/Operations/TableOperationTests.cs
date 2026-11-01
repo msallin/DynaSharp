@@ -19,7 +19,7 @@ public sealed class TableOperationTests(Backend backend)
         var response = await sandbox.CreateTableAsync(Tables.Request(name, TableSpec.PartitionOnly));
 
         // Assert
-        var description = response.TableDescription;
+        var description = response.TableDescription!;
         await Assert.That(description.TableName).IsEqualTo(name);
         await Assert.That(description.TableStatus is TableStatus.Creating or TableStatus.Active).IsTrue();
         await Assert.That(description.TableArn).Contains($":table/{name}", StringComparison.Ordinal);
@@ -70,7 +70,7 @@ public sealed class TableOperationTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(request);
-        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = name })).Table;
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = name })).Table!;
 
         // Assert
         var local = description.LocalSecondaryIndexes.Single();
@@ -147,7 +147,7 @@ public sealed class TableOperationTests(Backend backend)
         var response = await sandbox.CreateTableAsync(Tables.Request(name, TableSpec.WithStream(viewType)));
 
         // Assert
-        var description = response.TableDescription;
+        var description = response.TableDescription!;
         await Assert.That(description.StreamSpecification).IsEqualTo(new StreamSpecification { StreamEnabled = true, StreamViewType = viewType });
         await Assert.That(description.LatestStreamArn).Contains($"table/{name}/stream/", StringComparison.Ordinal);
     }
@@ -205,7 +205,7 @@ public sealed class TableOperationTests(Backend backend)
         var failure = await Items.FailureOfAsync<ResourceNotFoundException>(() => sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = table }));
 
         // Assert
-        await Assert.That(response.TableDescription.TableName).IsEqualTo(table);
+        await Assert.That(response.TableDescription!.TableName).IsEqualTo(table);
         await Assert.That(failure.ErrorCode).IsEqualTo("ResourceNotFoundException");
     }
 

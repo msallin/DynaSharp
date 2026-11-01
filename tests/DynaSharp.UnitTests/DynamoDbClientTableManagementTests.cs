@@ -214,7 +214,7 @@ public sealed class DynamoDbClientTableManagementTests
         var response = await client.UpdateTableAsync(TestClient.UpdateTable("Orders"));
 
         // Assert
-        await Assert.That((response.TableDescription.TableStatus, response.TableDescription.BillingModeSummary?.BillingMode)).IsEqualTo((TableStatus.Updating, (BillingMode?)BillingMode.PayPerRequest));
+        await Assert.That((response.TableDescription!.TableStatus, response.TableDescription!.BillingModeSummary?.BillingMode)).IsEqualTo((TableStatus.Updating, (BillingMode?)BillingMode.PayPerRequest));
     }
 
     [Test]

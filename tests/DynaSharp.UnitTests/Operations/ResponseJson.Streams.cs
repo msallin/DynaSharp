@@ -12,7 +12,7 @@ internal static partial class ResponseJson
         foreach (var stream in response.Streams)
         {
             json.WriteStartObject();
-            json.WriteString("StreamArn", stream.StreamArn);
+            WriteString(json, "StreamArn", stream.StreamArn);
             WriteString(json, "TableName", stream.TableName);
             WriteString(json, "StreamLabel", stream.StreamLabel);
             json.WriteEndObject();
@@ -24,9 +24,9 @@ internal static partial class ResponseJson
 
     public static string Describe(DescribeStreamResponse response) => Build(json =>
     {
-        var description = response.StreamDescription;
+        var description = response.StreamDescription!;
         json.WriteStartObject("StreamDescription");
-        json.WriteString("StreamArn", description.StreamArn);
+        WriteString(json, "StreamArn", description.StreamArn);
         WriteString(json, "StreamLabel", description.StreamLabel);
         WriteString(json, "StreamStatus", description.StreamStatus switch
         {
@@ -44,7 +44,7 @@ internal static partial class ResponseJson
         foreach (var shard in description.Shards)
         {
             json.WriteStartObject();
-            json.WriteString("ShardId", shard.ShardId);
+            WriteString(json, "ShardId", shard.ShardId);
             if (shard.SequenceNumberRange is { } range)
             {
                 json.WriteStartObject("SequenceNumberRange");
@@ -62,7 +62,7 @@ internal static partial class ResponseJson
         json.WriteEndObject();
     });
 
-    public static string Describe(GetShardIteratorResponse response) => Build(json => json.WriteString("ShardIterator", response.ShardIterator));
+    public static string Describe(GetShardIteratorResponse response) => Build(json => WriteString(json, "ShardIterator", response.ShardIterator));
 
     public static string Describe(GetRecordsResponse response) => Build(json =>
     {

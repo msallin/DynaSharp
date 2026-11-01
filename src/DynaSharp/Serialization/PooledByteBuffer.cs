@@ -140,6 +140,17 @@ internal sealed class PooledByteBuffer : IBufferWriter<byte>, IDisposable
     /// <param name="length">The number of bytes to keep. It is a position this buffer reached before, so it is not checked.</param>
     public void Truncate(int length) => WrittenCount = length;
 
+    /// <summary>Takes the first and the last byte off what follows an offset, moving the rest down.</summary>
+    /// <remarks>
+    /// With the offset of the parenthesis in <c>x AND (a OR b)</c> that leaves <c>x AND a OR b</c>.
+    /// </remarks>
+    /// <param name="offset">The offset of the first byte. The last one is the end of what was written.</param>
+    public void Unwrap(int offset)
+    {
+        _buffer.AsSpan(offset + 1, WrittenCount - offset - 2).CopyTo(_buffer.AsSpan(offset));
+        WrittenCount -= 2;
+    }
+
     /// <summary>Appends one byte.</summary>
     /// <param name="value">The byte.</param>
     public void Append(byte value)

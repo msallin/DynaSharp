@@ -14,6 +14,10 @@ namespace DynaSharp.Mapping;
 /// <c>.IgnoreVersion()</c> only.
 /// </para>
 /// <para>
+/// A first write, at version 0, renders <c>attribute_not_exists</c> on the version attribute and not on the key. So it also replaces an existing item that has no version attribute, such as one
+/// written by other code, which reads as version 0. Add <c>.IfNotExists()</c> if such an item must stay; above version 0 that combination throws, because no item can lack its key and hold a version.
+/// </para>
+/// <para>
 /// A write that loses the race fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>. Nothing is
 /// read or retried by itself. The table without a schema and the requests of <c>DynaSharp.Requests</c> know no entity, so they do not enforce a version.
 /// </para>

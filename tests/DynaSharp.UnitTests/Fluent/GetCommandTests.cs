@@ -304,7 +304,7 @@ public sealed class GetCommandTests
         });
 
         // Assert
-        await Assert.That((failure.Message.Contains("already sent or extended", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, 0));
+        await Assert.That((failure.Message.Contains("already sent, extended or rendered", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, 0));
     }
 
     [Test]

@@ -11175,6 +11175,14 @@
     },
     {
       "service": "dynamodbstreams",
+      "operation": "GetShardIterator",
+      "name": "NoIterator",
+      "source": null,
+      "wire": "{}",
+      "parsed": {}
+    },
+    {
+      "service": "dynamodbstreams",
       "operation": "GetRecords",
       "name": "RetrieveStreamRecordsFromApiReference",
       "source": "DynamoDB Streams API reference, GetRecords, example 'Retrieve stream records from a shard'",

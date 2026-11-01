@@ -5,9 +5,15 @@ namespace DynaSharp.Mapping;
 /// attribute named <c>sk</c>. On a property it takes no template and declares a plain key: the property's own attribute is the key.
 /// </summary>
 /// <remarks>
+/// <para>
 /// DynamoDB compares string keys by their UTF-8 bytes. Numbers therefore need a fixed format such as <c>{Id:d10}</c> to sort
 /// numerically, and a template that has no placeholders, such as <c>PROFILE</c>, is legal. The template syntax is described on
 /// <see cref="PartitionKeyAttribute"/>.
+/// </para>
+/// <para>
+/// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
+/// <c>{At}</c> is <c>ms</c>: it keeps milliseconds, so two times within one millisecond give one key, unless the rest of the key differs. Only <c>ticks</c> is lossless.
+/// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
 public sealed class SortKeyAttribute : Attribute

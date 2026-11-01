@@ -13,28 +13,31 @@ internal static class TableAdministration
     private static readonly TimeSpan FirstDelay = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan LongestDelay = TimeSpan.FromSeconds(5);
 
+    // Task.Delay truncates to milliseconds and returns at once below one, so this is the shortest wait that really waits. On a clock a test drives, a shorter one would never move it, and the loop would never yield.
+    private static readonly TimeSpan ShortestDelay = TimeSpan.FromMilliseconds(1);
+
     /// <summary>Describes a table.</summary>
     /// <param name="table">The table.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The description.</returns>
+    /// <returns>The description. For a response without one, see <see cref="NoDescription"/>.</returns>
     public static async ValueTask<TableDescription> DescribeAsync(TableModel table, CancellationToken cancellationToken)
     {
         var response = await table.Core
             .ExecuteAsync<DescribeTableOperation, DescribeTableRequest, DescribeTableResponse>(new DescribeTableRequest { TableName = table.Name }, cancellationToken)
             .ConfigureAwait(false);
-        return response.Table;
+        return response.Table ?? NoDescription(table);
     }
 
     /// <summary>Deletes a table.</summary>
     /// <param name="table">The table.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The description of the table, which is going away.</returns>
+    /// <returns>The description of the table, which is going away. For a response without one, see <see cref="NoDescription"/>.</returns>
     public static async ValueTask<TableDescription> DeleteAsync(TableModel table, CancellationToken cancellationToken)
     {
         var response = await table.Core
             .ExecuteAsync<DeleteTableOperation, DeleteTableRequest, DeleteTableResponse>(new DeleteTableRequest { TableName = table.Name }, cancellationToken)
             .ConfigureAwait(false);
-        return response.TableDescription;
+        return response.TableDescription ?? NoDescription(table);
     }
 
     /// <summary>Polls a table on the clock of the client until it is active.</summary>
@@ -72,8 +75,11 @@ internal static class TableAdministration
                 throw new TimeoutException($"The table {table.Name} was not ACTIVE after {timeout}.", missing);
             }
 
-            await Task.Delay(delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
             delay = delay * 2 < LongestDelay ? delay * 2 : LongestDelay;
         }
     }
+
+    // The service model requires no member of these responses. A description that says nothing has the status Unknown, so a wait goes on, and a caller is spared a null DynamoDB does not send in practice.
+    private static TableDescription NoDescription(TableModel table) => new() { TableName = table.Name };
 }

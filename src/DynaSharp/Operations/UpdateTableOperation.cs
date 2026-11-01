@@ -38,7 +38,7 @@ internal readonly struct UpdateTableOperation : IOperation<UpdateTableRequest, U
     }
 
     public static UpdateTableResponse ReadResponse(ref DynamoDbReader reader) =>
-        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader, Name) };
+        new() { TableDescription = TableJson.ReadTableDescriptionEnvelope(ref reader) };
 
     public static void SetActivityTags(Activity activity, UpdateTableRequest request) =>
         OperationTelemetry.RecordProvisionedThroughput(activity, request.ProvisionedThroughput);

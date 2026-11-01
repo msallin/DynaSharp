@@ -48,6 +48,9 @@ internal sealed class ExpressionWriter
     private int _nameCount;
     private int _valueCount;
 
+    // The clauses, one bit each, that are a chain of conditions already: (a) AND (b).
+    private int _chains;
+
     /// <summary>Initializes a new instance of the <see cref="ExpressionWriter"/> class.</summary>
     /// <param name="pool">The pool of the arrays, which are rented when they are first written to.</param>
     public ExpressionWriter(ArrayPool<byte> pool)
@@ -253,11 +256,16 @@ internal sealed class ExpressionWriter
         else
         {
             // (a) AND (b), so that neither side can change what the other means. The first condition goes without, and that is most of them.
-            // A side that is one group already stays as it is, because DynamoDB rejects redundant parentheses.
-            if (!IsOneGroup(text.WrittenSpan))
+            // A side that is one group already stays as it is, because DynamoDB rejects redundant parentheses. A chain goes on as it is: (a) AND (b) AND (c).
+            var chain = 1 << (int)clause;
+            if ((_chains & chain) == 0)
             {
-                text.Prepend((byte)'(');
-                text.Append((byte)')');
+                _chains |= chain;
+                if (!IsOneGroup(text.WrittenSpan))
+                {
+                    text.Prepend((byte)'(');
+                    text.Append((byte)')');
+                }
             }
 
             text.Append(" AND "u8);
@@ -464,6 +472,7 @@ internal sealed class ExpressionWriter
     {
         _names.Append(other._names.WrittenSpan);
         _values.Append(other._values.WrittenSpan);
+        _chains = other._chains;
         for (var i = 0; i < _clauses.Length; i++)
         {
             _clauses[i].Append(other._clauses[i].WrittenSpan);
@@ -540,6 +549,7 @@ internal sealed class ExpressionWriter
 
         _nameCount = 0;
         _valueCount = 0;
+        _chains = 0;
     }
 
     /// <summary>Gives all arrays back to the pool.</summary>

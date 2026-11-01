@@ -56,7 +56,7 @@ internal sealed class MixedSchema
     /// <param name="command">The query.</param>
     /// <returns>The state of the read, for a command of the mix.</returns>
     /// <exception cref="ArgumentException">The combination cannot be told apart, see <see cref="FindProblem"/>.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public CommandState StartQuery(CommandHandle command)
     {
         var state = Enter(command);
@@ -72,7 +72,7 @@ internal sealed class MixedSchema
     /// <param name="command">The scan.</param>
     /// <returns>The state of the read, for a command of the mix.</returns>
     /// <exception cref="ArgumentException">The combination cannot be told apart, see <see cref="FindProblem"/>.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public CommandState StartScan(CommandHandle command)
     {
         var state = Enter(command);
@@ -85,7 +85,7 @@ internal sealed class MixedSchema
     /// the chain ends. The handle stays good for the terminal that follows.
     /// </summary>
     /// <param name="command">The read.</param>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public void CompleteProjection(CommandHandle command)
     {
         CommandState.Check(command.State, command.Version, command.Operation, command.Table).Expressions.CompleteProjection(_requiredNames);

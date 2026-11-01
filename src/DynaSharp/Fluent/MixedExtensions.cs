@@ -17,7 +17,7 @@ public static class MixedExtensions
     /// <param name="command">The query.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">Two types have one discriminator, or keep it in different attributes, which DynamoDB could not filter on with one <c>IN</c>.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public static MixedQueryCommand<T1, T2> Of<T1, T2>(this QueryCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
@@ -63,7 +63,7 @@ public static class MixedExtensions
     /// <param name="command">The scan.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">Two types have one discriminator, or keep it in different attributes, which DynamoDB could not filter on with one <c>IN</c>.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public static MixedScanCommand<T1, T2> Of<T1, T2>(this ScanCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>

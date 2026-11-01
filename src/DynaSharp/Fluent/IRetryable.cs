@@ -7,7 +7,7 @@ public interface IRetryable<TSelf>
 {
     /// <summary>
     /// Sets the number of attempts of this call including the first, in place of <see cref="DynamoDbClientOptions.MaxAttempts"/>. A retry after a
-    /// lost response repeats a write that may have been applied, so <c>1</c> is the only way to make an <c>ADD</c> count exactly once.
+    /// lost response repeats a write that may have been applied, so <c>1</c> makes an <c>ADD</c> count at most once, and a lost response then reports a failure after the write was applied.
     /// </summary>
     /// <param name="attempts">The number of attempts.</param>
     /// <returns>The command, which replaces this one.</returns>

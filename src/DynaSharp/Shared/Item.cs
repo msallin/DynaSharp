@@ -15,7 +15,7 @@ namespace DynaSharp;
 /// <remarks>
 /// <para>
 /// Build one with an initializer, <c>new Item { ["pk"] = "user-1", ["age"] = 42 }</c>; values convert implicitly, see
-/// <see cref="AttributeValue"/>. The indexer sets or replaces an attribute and <see cref="Add"/> refuses a name that exists.
+/// <see cref="AttributeValue"/>. The indexer sets or replaces an attribute, <see cref="Add"/> refuses a name that exists, and <see cref="Remove"/> takes one out.
 /// </para>
 /// <para>
 /// Read one with the indexer, which throws for a missing attribute, or with the getters such as <see cref="GetString"/> and
@@ -190,6 +190,30 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         }
     }
 
+    /// <summary>Removes an attribute. The others keep their order.</summary>
+    /// <param name="name">The attribute name.</param>
+    /// <returns><see langword="true"/> if the item had the attribute.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">This is a map that is part of an <see cref="AttributeValue"/>.</exception>
+    public bool Remove(string name)
+    {
+        ThrowIfReadOnly();
+        var position = Shape.Find(name, Count);
+        if (position < 0)
+        {
+            return false;
+        }
+
+        // The names can be shared with other items and have an index that holds positions, so what stays goes into a shape of its own.
+        var left = Count - position - 1;
+        var shape = Shape.CopyToPrivate(position, _values.Length);
+        Shape.Names.AsSpan(position + 1, left).CopyTo(shape.Names.AsSpan(position));
+        Shape = shape;
+        _values.AsSpan(position + 1, left).CopyTo(_values.AsSpan(position));
+        _values[--Count] = default;
+        return true;
+    }
+
     /// <summary>Determines whether the item has an attribute, including one with the DynamoDB null value.</summary>
     /// <param name="key">The attribute name.</param>
     /// <returns><see langword="true"/> if the item has the attribute.</returns>
@@ -275,12 +299,12 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         return null;
     }
 
-    /// <summary>Gets a map attribute, for nested access such as <c>item.GetMap("address")?.GetString("city")</c>.</summary>
+    /// <summary>
+    /// Gets a map attribute as a read-only <see cref="Item"/>, for nested access such as <c>item.GetMap("address")?.GetString("city")</c>. It compiles like any item, but writing into it throws
+    /// <see cref="InvalidOperationException"/>: copy it with <see cref="Item(IEnumerable{KeyValuePair{string, AttributeValue}})"/>, change the copy and store that.
+    /// </summary>
     /// <param name="name">The attribute name. A dot has no special meaning: attribute names may contain dots.</param>
-    /// <returns>
-    /// The map, or <see langword="null"/> if the attribute is missing or has the DynamoDB null value. It is part of an immutable value, so
-    /// writing into it throws <see cref="InvalidOperationException"/>; see the remarks on <see cref="Item"/>.
-    /// </returns>
+    /// <returns>The map, or <see langword="null"/> if the attribute is missing or has the DynamoDB null value.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The attribute has another type. The message names the attribute.</exception>
     public Item? GetMap(string name) => TryGetTyped(name, AttributeType.Map, out var value) ? (Item)value.Value! : null;
@@ -452,13 +476,17 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         return true;
     }
 
-    private void ThrowIfNotWritable(AttributeValue value)
+    private void ThrowIfReadOnly()
     {
         if (_isReadOnly)
         {
             throw new InvalidOperationException("This map is part of an AttributeValue, which is immutable. Copy it into a new Item and store that.");
         }
+    }
 
+    private void ThrowIfNotWritable(AttributeValue value)
+    {
+        ThrowIfReadOnly();
         if (value.Type == AttributeType.None)
         {
             throw new ArgumentException("A default AttributeValue has no type and cannot be part of an item.", nameof(value));

@@ -73,7 +73,7 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
                         {
                             attribute = "pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw new global::DynaSharp.DynamoDbMappingException("HalfKept", "pk"); }
+                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("HalfKept", "pk"); }
                             fields.Id = __parts0.Id;
                             fields.Id__set = true;
                             reader.ReadEndAttribute();

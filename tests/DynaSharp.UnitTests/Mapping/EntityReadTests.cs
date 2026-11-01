@@ -281,6 +281,19 @@ public sealed class EntityReadTests
     }
 
     [Test]
+    public async Task ReadAttributes_KeyThatDoesNotFitItsTemplate_ThrowsSayingSoWithoutTheValue()
+    {
+        // Arrange (a key is the only source of this property, so nothing else can stand in)
+        const string Json = """{"pk":{"S":"not-a-plan"}}""";
+
+        // Act
+        var failure = Assert.Throws<DynamoDbMappingException>(() => EntityJson.Read<KeyOnlyPlan>(Json));
+
+        // Assert
+        await Assert.That((failure.AttributeName, failure.Message)).IsEqualTo(((string?)"pk", "The key \"pk\" does not fit the key template of KeyOnlyPlan."));
+    }
+
+    [Test]
     public async Task ReadAttributes_RequiredInputOfALossyFormat_ThrowsNamingTheAttribute()
     {
         // Arrange (At is in the sort key by the format ms, which is no way back to the ticks)

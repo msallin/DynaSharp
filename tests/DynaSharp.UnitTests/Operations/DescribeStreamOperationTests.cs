@@ -152,10 +152,10 @@ public sealed class DescribeStreamOperationTests
         var vector = OperationVectors.Response("DescribeStream", "RetrieveInformationAboutAStreamFromApiReference");
 
         // Act
-        var shards = Read(vector.Wire).StreamDescription.Shards;
+        var shards = Read(vector.Wire).StreamDescription!.Shards;
 
         // Assert
-        await Assert.That(shards.Where(shard => shard.SequenceNumberRange?.EndingSequenceNumber is null).Select(shard => shard.ShardId)).IsEquivalentTo(["shardId-00000001414608446368-3a1afbaf"]);
+        await Assert.That(shards.Where(shard => shard.SequenceNumberRange?.EndingSequenceNumber is null).Select(shard => shard.ShardId!)).IsEquivalentTo(["shardId-00000001414608446368-3a1afbaf"]);
     }
 
     [Test]
@@ -165,7 +165,7 @@ public sealed class DescribeStreamOperationTests
         var vector = OperationVectors.Response("DescribeStream", "RetrieveInformationAboutAStreamFromApiReference");
 
         // Act
-        var description = Read(vector.Wire).StreamDescription;
+        var description = Read(vector.Wire).StreamDescription!;
 
         // Assert
         await Assert.That(description.CreationRequestDateTime).IsEqualTo(new DateTimeOffset(2015, 5, 20, 20, 51, 10, 252, TimeSpan.Zero));
@@ -178,7 +178,7 @@ public sealed class DescribeStreamOperationTests
         var vector = OperationVectors.Response("DescribeStream", "RetrieveInformationAboutAStreamFromApiReference");
 
         // Act
-        var shards = Read(vector.Wire).StreamDescription.Shards;
+        var shards = Read(vector.Wire).StreamDescription!.Shards;
 
         // Assert
         await Assert.That(shards[1].ParentShardId).IsEqualTo(shards[0].ShardId);
@@ -192,7 +192,7 @@ public sealed class DescribeStreamOperationTests
         var json = $$$"""{"StreamDescription":{"StreamArn":"arn","StreamStatus":"{{{status.Wire}}}"}}""";
 
         // Act
-        var description = Read(json).StreamDescription;
+        var description = Read(json).StreamDescription!;
 
         // Assert
         await Assert.That(description.StreamStatus).IsEqualTo(status.Value);
@@ -206,7 +206,7 @@ public sealed class DescribeStreamOperationTests
         var json = $$$"""{"StreamDescription":{"StreamArn":"arn","StreamViewType":"{{{type.Wire}}}"}}""";
 
         // Act
-        var description = Read(json).StreamDescription;
+        var description = Read(json).StreamDescription!;
 
         // Assert
         await Assert.That(description.StreamViewType).IsEqualTo(type.Value);
@@ -219,7 +219,7 @@ public sealed class DescribeStreamOperationTests
         var json = $$$"""{"StreamDescription":{"StreamArn":"{{{StreamArn}}}"}}""";
 
         // Act
-        var description = Read(json).StreamDescription;
+        var description = Read(json).StreamDescription!;
 
         // Assert
         await Assert.That((description.StreamStatus, description.StreamViewType, description.CreationRequestDateTime, description.TableName, description.KeySchema.Count, description.Shards.Count, description.LastEvaluatedShardId))
@@ -227,42 +227,42 @@ public sealed class DescribeStreamOperationTests
     }
 
     [Test]
-    public async Task ReadResponse_NoStreamDescription_ThrowsJsonException()
+    public async Task ReadResponse_NoStreamDescription_HasNone()
     {
         // Arrange
         const string json = """{"Unknown":1}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The DescribeStream response has no StreamDescription.", StringComparison.Ordinal);
+        await Assert.That(response.StreamDescription).IsNull();
     }
 
     [Test]
-    public async Task ReadResponse_DescriptionWithoutArn_ThrowsJsonException()
+    public async Task ReadResponse_DescriptionWithoutArn_HasNoArn()
     {
         // Arrange
         const string json = """{"StreamDescription":{"TableName":"Forum"}}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The stream description has no StreamArn.", StringComparison.Ordinal);
+        await Assert.That((response.StreamDescription!.StreamArn, response.StreamDescription.TableName)).IsEqualTo(((string?)null, "Forum"));
     }
 
     [Test]
-    public async Task ReadResponse_ShardWithoutId_ThrowsJsonException()
+    public async Task ReadResponse_ShardWithoutId_HasNoId()
     {
         // Arrange
         const string json = """{"StreamDescription":{"StreamArn":"arn","Shards":[{"ParentShardId":"p"}]}}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("A shard has no ShardId.", StringComparison.Ordinal);
+        await Assert.That((response.StreamDescription!.Shards.Single().ShardId, response.StreamDescription.Shards.Single().ParentShardId)).IsEqualTo(((string?)null, "p"));
     }
 
     [Test]
@@ -298,7 +298,7 @@ public sealed class DescribeStreamOperationTests
         const string json = """{"StreamDescription":{"StreamArn":"arn","Shards":[{"ShardId":"s"}],"KeySchema":[{"AttributeName":"pk","KeyType":"HASH"}]}}""";
 
         // Act
-        var description = Read(json).StreamDescription;
+        var description = Read(json).StreamDescription!;
 
         // Assert
         await Assert.That(description.Shards is IList<Shard> { IsReadOnly: true } && description.KeySchema is IList<KeySchemaElement> { IsReadOnly: true }).IsTrue();

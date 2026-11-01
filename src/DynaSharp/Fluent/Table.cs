@@ -188,7 +188,7 @@ public sealed class Table<T>
 
     /// <summary>Reads the description of the table: status, key schema, indexes and approximate counts, which DynamoDB updates about every six hours.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The description.</returns>
+    /// <returns>The description. A response without one gives the name of this table and <see cref="TableStatus.Unknown"/>.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist, or it was created a moment ago: this call is eventually consistent.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
@@ -253,7 +253,7 @@ public sealed class Table<T>
     /// </para>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the call. A deletion DynamoDB accepted stays accepted.</param>
-    /// <returns>The description of the table as it goes away.</returns>
+    /// <returns>The description of the table as it goes away. A response without one gives the name of this table and <see cref="TableStatus.Unknown"/>.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ResourceInUseException">The table is being created or updated, or is already being deleted.</exception>

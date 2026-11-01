@@ -165,7 +165,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// </summary>
     /// <param name="request">The stream, the shard and the position.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>The iterator.</returns>
+    /// <returns>The iterator, or a response without one, which the service model allows: there is nothing to read from the shard then.</returns>
     /// <remarks>
     /// <para>
     /// An iterator is valid for 15 minutes and is meant to be used in a chain: each <see cref="GetRecordsAsync"/> returns the next

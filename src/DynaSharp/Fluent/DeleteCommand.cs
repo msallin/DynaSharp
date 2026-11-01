@@ -124,7 +124,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     /// <summary>Sends the command. A retry repeats the delete, which is safe unless <see cref="ReturnOld"/> or a condition depends on the first one having failed.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or a delete by key of an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or a delete by key of an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ConditionalCheckFailedException">A condition did not hold, so nothing was deleted.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
@@ -144,7 +144,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => WriteRules.Settle(Enter()).RenderJson();
 
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>

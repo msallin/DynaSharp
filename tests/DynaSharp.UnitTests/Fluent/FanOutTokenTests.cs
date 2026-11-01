@@ -4,7 +4,7 @@ using DynaSharp.Testing;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-// A token comes from a client. Whatever the text holds, it ends in an ArgumentException before a request goes out, or it reaches a request as values of a key and nothing else.
+// A token comes from a client. Whatever the text holds, it ends in a FormatException before a request goes out, or it reaches a request as values of a key and nothing else.
 public sealed class FanOutTokenTests
 {
     private static readonly AttributeValue[] TwoPartitions = ["p0", "p1"];
@@ -113,6 +113,74 @@ public sealed class FanOutTokenTests
     }
 
     [Test]
+    public async Task Next_ADescendingRead_RecordsTheDirection()
+    {
+        // Arrange
+        var wire = new FanOutWire().Put("p0", "1", "2");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var page = await client.Table("Shop", "pk", "sk").Query(["p0"]).Descending().Limit(10).PageAsync(1);
+
+        // Assert
+        await Assert.That(Text(page.Next)).IsEqualTo("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"2"}}},{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}}]}]},"descending":{"BOOL":true}}""");
+    }
+
+    [Test]
+    public async Task PageAsync_TokenOfADescendingRead_ReadsOnDescending()
+    {
+        // Arrange
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2", "4");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var first = await shop.Query(TwoPartitions).Descending().PageAsync(2);
+
+        // Act
+        var second = await shop.Query(TwoPartitions).Descending().PageAsync(2, ContinuationToken.Parse(first.Next.ToString()));
+
+        // Assert
+        await Assert.That(second.Items.SortKeys()).IsEqualTo("2,1");
+    }
+
+    [Test]
+    public async Task PageAsync_TokenOfAnAscendingReadOnADescendingOne_ThrowsBeforeAnyRequest()
+    {
+        // Arrange (the position would mean another place, and items would come with no error)
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2", "4");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var token = (await shop.Query(TwoPartitions).PageAsync(1)).Next;
+        var sent = handler.Requests.Count;
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await shop.Query(TwoPartitions).Descending().PageAsync(1, token));
+
+        // Assert
+        await Assert.That((failure.Message, handler.Requests.Count)).IsEqualTo(("This position comes from a fan-out query in the other direction. A position goes with the direction of the read it came from.", sent));
+    }
+
+    [Test]
+    public async Task PageAsync_TokenOfADescendingReadOnAnAscendingOne_ThrowsBeforeAnyRequest()
+    {
+        // Arrange
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2", "4");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var token = (await shop.Query(TwoPartitions).Descending().PageAsync(1)).Next;
+        var sent = handler.Requests.Count;
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await shop.Query(TwoPartitions).PageAsync(1, token));
+
+        // Assert
+        await Assert.That((failure.Message.Contains("other direction", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, sent));
+    }
+
+    [Test]
     public async Task PageAsync_TokenOfAnotherNumberOfPartitions_ThrowsNamingTheNumbers()
     {
         // Arrange
@@ -124,10 +192,10 @@ public sealed class FanOutTokenTests
         var sent = handler.Requests.Count;
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(async () => await shop.Query(["p0", "p1", "p2"]).PageAsync(1, token));
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await shop.Query(["p0", "p1", "p2"]).PageAsync(1, token));
 
         // Assert
-        await Assert.That((failure.Message.Contains("holds 2 partitions and the query has 3", StringComparison.Ordinal), failure.ParamName, handler.Requests.Count)).IsEqualTo((true, "after", sent));
+        await Assert.That((failure.Message.Contains("holds 2 partitions and the query has 3", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, sent));
     }
 
     [Test]
@@ -139,16 +207,20 @@ public sealed class FanOutTokenTests
         var token = ContinuationToken.FromKey(new Item { ["pk"] = "p0", ["sk"] = "1" });
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
 
         // Assert
-        await Assert.That((failure.ParamName, handler.Requests.Count)).IsEqualTo(("after", 0));
+        await Assert.That((failure.Message.Contains("no position of a fan-out query", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, 0));
     }
 
     [Test]
     [Arguments("""{"fanOut":{"S":"x"}}""")]
     [Arguments("""{"other":{"L":[{"NULL":true},{"NULL":true}]}}""")]
     [Arguments("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]},"TableName":{"S":"Other"}}""")]
+    [Arguments("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]},"descending":{"BOOL":false}}""")]
+    [Arguments("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]},"descending":{"S":"yes"}}""")]
+    [Arguments("""{"descending":{"BOOL":true}}""")]
+    [Arguments("""{"descending":{"BOOL":true},"other":{"L":[{"NULL":true},{"NULL":true}]}}""")]
     [Arguments("""{"fanOut":{"L":[{"S":"x"},{"NULL":true}]}}""")]
     [Arguments("""{"fanOut":{"L":[{"BOOL":true},{"NULL":true}]}}""")]
     [Arguments("""{"fanOut":{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"NULL":true}]}}""")]
@@ -181,10 +253,10 @@ public sealed class FanOutTokenTests
         var token = ContinuationToken.Parse(Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json)));
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
 
         // Assert
-        await Assert.That((failure.ParamName, failure.Message.Contains("p0", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo(("after", false, 0));
+        await Assert.That((failure.Message.Contains("p0", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((false, 0));
     }
 
     [Test]
@@ -197,7 +269,7 @@ public sealed class FanOutTokenTests
         var token = ContinuationToken.Parse(Base64Url.EncodeToString("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"S":"x"}]}}"""u8));
 
         // Act
-        await TestClient.CaptureAsync<ArgumentException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
+        await TestClient.CaptureAsync<FormatException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
         client.Dispose();
 
         // Assert

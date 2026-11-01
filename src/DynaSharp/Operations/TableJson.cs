@@ -17,9 +17,8 @@ internal static class TableJson
 {
     /// <summary>Reads the response of <c>CreateTable</c>, <c>UpdateTable</c> or <c>DeleteTable</c>: an object with the table description.</summary>
     /// <param name="reader">The reader, positioned before the response object.</param>
-    /// <param name="operationName">The operation, for the message when the description is missing.</param>
-    /// <returns>The table description.</returns>
-    public static TableDescription ReadTableDescriptionEnvelope(ref DynamoDbReader reader, string operationName)
+    /// <returns>The table description, or <see langword="null"/> if the response has none.</returns>
+    public static TableDescription? ReadTableDescriptionEnvelope(ref DynamoDbReader reader)
     {
         TableDescription? table = null;
         reader.ReadStartItem();
@@ -35,7 +34,7 @@ internal static class TableJson
             }
         }
 
-        return table ?? throw new JsonException($"The {operationName} response has no TableDescription.");
+        return table;
     }
 
     /// <summary>Reads a table description object; properties that are not known are skipped.</summary>
@@ -66,7 +65,7 @@ internal static class TableJson
         {
             if (reader.AttributeNameEquals("TableName"u8))
             {
-                tableName = OperationJson.ReadRequiredString(ref reader);
+                tableName = OperationJson.ReadString(ref reader);
             }
             else if (reader.AttributeNameEquals("TableArn"u8))
             {
@@ -140,7 +139,7 @@ internal static class TableJson
 
         return new TableDescription
         {
-            TableName = tableName ?? throw new JsonException("The table description has no TableName."),
+            TableName = tableName,
             TableArn = tableArn,
             TableStatus = tableStatus,
             KeySchema = keySchema,
@@ -415,7 +414,7 @@ internal static class TableJson
             {
                 if (reader.AttributeNameEquals("IndexName"u8))
                 {
-                    indexName = OperationJson.ReadRequiredString(ref reader);
+                    indexName = OperationJson.ReadString(ref reader);
                 }
                 else if (reader.AttributeNameEquals("KeySchema"u8))
                 {
@@ -433,7 +432,7 @@ internal static class TableJson
 
             indexes.Add(new LocalSecondaryIndexDescription
             {
-                IndexName = indexName ?? throw new JsonException("A local secondary index has no IndexName."),
+                IndexName = indexName,
                 KeySchema = keySchema,
                 Projection = projection,
             });
@@ -458,7 +457,7 @@ internal static class TableJson
             {
                 if (reader.AttributeNameEquals("IndexName"u8))
                 {
-                    indexName = OperationJson.ReadRequiredString(ref reader);
+                    indexName = OperationJson.ReadString(ref reader);
                 }
                 else if (reader.AttributeNameEquals("ProvisionedThroughput"u8))
                 {
@@ -488,7 +487,7 @@ internal static class TableJson
 
             indexes.Add(new GlobalSecondaryIndexDescription
             {
-                IndexName = indexName ?? throw new JsonException("A global secondary index has no IndexName."),
+                IndexName = indexName,
                 IndexStatus = indexStatus,
                 Backfilling = backfilling,
                 KeySchema = keySchema,

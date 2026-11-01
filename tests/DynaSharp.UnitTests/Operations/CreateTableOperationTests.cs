@@ -524,49 +524,49 @@ public sealed class CreateTableOperationTests
         var vector = OperationVectors.Response("CreateTable", "CreateATableFromApiReference");
 
         // Act
-        var table = Read(vector.Wire).TableDescription;
+        var table = Read(vector.Wire).TableDescription!;
 
         // Assert
         await Assert.That(table.LocalSecondaryIndexes.Single().IndexName).IsEqualTo("LastPostIndex");
     }
 
     [Test]
-    public async Task ReadResponse_NoTableDescription_ThrowsJsonException()
+    public async Task ReadResponse_NoTableDescription_HasNone()
     {
         // Arrange
         const string json = "{}";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The CreateTable response has no TableDescription.", StringComparison.Ordinal);
+        await Assert.That(response.TableDescription).IsNull();
     }
 
     [Test]
-    public async Task ReadResponse_LocalSecondaryIndexWithoutName_ThrowsJsonException()
+    public async Task ReadResponse_LocalSecondaryIndexWithoutName_HasNoName()
     {
         // Arrange
         const string json = """{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"KeySchema":[]}]}}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("A local secondary index has no IndexName.", StringComparison.Ordinal);
+        await Assert.That(response.TableDescription!.LocalSecondaryIndexes.Single().IndexName).IsNull();
     }
 
     [Test]
-    public async Task ReadResponse_GlobalSecondaryIndexWithoutName_ThrowsJsonException()
+    public async Task ReadResponse_GlobalSecondaryIndexWithoutName_HasNoName()
     {
         // Arrange
         const string json = """{"TableDescription":{"TableName":"Users","GlobalSecondaryIndexes":[{"IndexStatus":"ACTIVE"}]}}""";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("A global secondary index has no IndexName.", StringComparison.Ordinal);
+        await Assert.That(response.TableDescription!.GlobalSecondaryIndexes.Single().IndexName).IsNull();
     }
 
     [Test]
@@ -577,7 +577,7 @@ public sealed class CreateTableOperationTests
         var json = $$$"""{"TableDescription":{"TableName":"Users","GlobalSecondaryIndexes":[{"IndexName":"ByStatus","IndexStatus":"{{{status.Wire}}}"}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.GlobalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.GlobalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.IndexStatus).IsEqualTo(status.Value);
@@ -591,7 +591,7 @@ public sealed class CreateTableOperationTests
         var json = $$$"""{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"IndexName":"ByDate","Projection":{"ProjectionType":"{{{type.Wire}}}"}}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.LocalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.LocalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.Projection?.ProjectionType).IsEqualTo(type.Value);
@@ -604,7 +604,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"IndexName":"ByDate","Projection":{"ProjectionType":"VECTOR"}}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.LocalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.LocalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.Projection?.ProjectionType).IsEqualTo(ProjectionType.Unknown);
@@ -617,7 +617,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","GlobalSecondaryIndexes":[{"IndexName":"ByStatus","Projection":{"ProjectionType":"INCLUDE","NonKeyAttributes":["b","a"],"Extra":1}}]}}""";
 
         // Act
-        var projection = Read(json).TableDescription.GlobalSecondaryIndexes.Single().Projection;
+        var projection = Read(json).TableDescription!.GlobalSecondaryIndexes.Single().Projection;
 
         // Assert
         await Assert.That(projection?.NonKeyAttributes).IsEquivalentTo(["b", "a"]);
@@ -656,7 +656,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","GlobalSecondaryIndexes":[{"IndexName":"ByStatus","Backfilling":true,"Unknown":{"a":[1]}}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.GlobalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.GlobalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.Backfilling).IsTrue();
@@ -669,7 +669,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"IndexSizeBytes":5,"IndexName":"ByDate","Unknown":{"a":[1]}}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.LocalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.LocalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.IndexName).IsEqualTo("ByDate");
@@ -682,7 +682,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"IndexName":"ByDate","Projection":{"Extra":{"a":1},"ProjectionType":"ALL"}}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.LocalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.LocalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That(index.Projection?.ProjectionType).IsEqualTo(ProjectionType.All);
@@ -695,7 +695,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","GlobalSecondaryIndexes":[{"IndexName":"ByStatus"}]}}""";
 
         // Act
-        var index = Read(json).TableDescription.GlobalSecondaryIndexes.Single();
+        var index = Read(json).TableDescription!.GlobalSecondaryIndexes.Single();
 
         // Assert
         await Assert.That((index.Projection, index.KeySchema.Count)).IsEqualTo(((IndexProjection?)null, 0));
@@ -711,7 +711,7 @@ public sealed class CreateTableOperationTests
         var json = $$$$"""{"TableDescription":{"TableName":"Users","BillingModeSummary":{"BillingMode":"{{{{wire}}}}","Extra":1}}}""";
 
         // Act
-        var summary = Read(json).TableDescription.BillingModeSummary;
+        var summary = Read(json).TableDescription!.BillingModeSummary;
 
         // Assert
         await Assert.That(summary?.BillingMode).IsEqualTo(expected);
@@ -724,7 +724,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","BillingModeSummary":{"LastUpdateToPayPerRequestDateTime":1.421866952062E9}}}""";
 
         // Act
-        var summary = Read(json).TableDescription.BillingModeSummary;
+        var summary = Read(json).TableDescription!.BillingModeSummary;
 
         // Assert
         await Assert.That(summary?.LastUpdateToPayPerRequestDateTime).IsEqualTo(new DateTimeOffset(2015, 1, 21, 19, 2, 32, 62, TimeSpan.Zero));
@@ -737,7 +737,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","BillingModeSummary":{}}}""";
 
         // Act
-        var summary = Read(json).TableDescription.BillingModeSummary;
+        var summary = Read(json).TableDescription!.BillingModeSummary;
 
         // Assert
         await Assert.That((summary?.BillingMode, summary?.LastUpdateToPayPerRequestDateTime)).IsEqualTo(((BillingMode?)BillingMode.Unspecified, (DateTimeOffset?)null));
@@ -751,7 +751,7 @@ public sealed class CreateTableOperationTests
         var json = $$$$"""{"TableDescription":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"{{{{type.Wire}}}}","Extra":1}}}""";
 
         // Act
-        var specification = Read(json).TableDescription.StreamSpecification;
+        var specification = Read(json).TableDescription!.StreamSpecification;
 
         // Assert
         await Assert.That((specification?.StreamEnabled, specification?.StreamViewType)).IsEqualTo(((bool?)true, (StreamViewType?)type.Value));
@@ -764,7 +764,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","StreamSpecification":{"StreamEnabled":false,"StreamViewType":"SOMETHING_NEW"}}}""";
 
         // Act
-        var specification = Read(json).TableDescription.StreamSpecification;
+        var specification = Read(json).TableDescription!.StreamSpecification;
 
         // Assert
         await Assert.That(specification?.StreamViewType).IsEqualTo(StreamViewType.Unspecified);
@@ -777,7 +777,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","StreamSpecification":{}}}""";
 
         // Act
-        var specification = Read(json).TableDescription.StreamSpecification;
+        var specification = Read(json).TableDescription!.StreamSpecification;
 
         // Assert
         await Assert.That((specification?.StreamEnabled, specification?.StreamViewType)).IsEqualTo(((bool?)false, (StreamViewType?)StreamViewType.Unspecified));
@@ -790,7 +790,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","LatestStreamArn":"arn:stream","LatestStreamLabel":"label","DeletionProtectionEnabled":true}}""";
 
         // Act
-        var table = Read(json).TableDescription;
+        var table = Read(json).TableDescription!;
 
         // Assert
         await Assert.That((table.LatestStreamArn, table.LatestStreamLabel, table.DeletionProtectionEnabled)).IsEqualTo(("arn:stream", "label", true));
@@ -803,7 +803,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users"}}""";
 
         // Act
-        var table = Read(json).TableDescription;
+        var table = Read(json).TableDescription!;
 
         // Assert
         await Assert.That((table.BillingModeSummary, table.StreamSpecification, table.LatestStreamArn, table.LatestStreamLabel, table.DeletionProtectionEnabled, table.LocalSecondaryIndexes.Count, table.GlobalSecondaryIndexes.Count))
@@ -817,7 +817,7 @@ public sealed class CreateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Users","LocalSecondaryIndexes":[{"IndexName":"a"}],"GlobalSecondaryIndexes":[{"IndexName":"b"}]}}""";
 
         // Act
-        var table = Read(json).TableDescription;
+        var table = Read(json).TableDescription!;
 
         // Assert
         await Assert.That(table.LocalSecondaryIndexes is IList<LocalSecondaryIndexDescription> { IsReadOnly: true } && table.GlobalSecondaryIndexes is IList<GlobalSecondaryIndexDescription> { IsReadOnly: true }).IsTrue();

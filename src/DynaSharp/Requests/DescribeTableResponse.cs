@@ -5,6 +5,8 @@ namespace DynaSharp.Requests;
 /// </summary>
 public sealed record DescribeTableResponse
 {
-    /// <summary>Gets the table description.</summary>
-    public required TableDescription Table { get; init; }
+    /// <summary>
+    /// Gets the table description. DynamoDB sends one with every response: <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public TableDescription? Table { get; init; }
 }

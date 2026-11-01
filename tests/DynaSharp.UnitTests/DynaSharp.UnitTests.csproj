@@ -12,6 +12,8 @@
   <ItemGroup>
     <!-- Wire-format vectors produced by botocore, see Operations/generate_operation_vectors.py. -->
     <EmbeddedResource Include="Operations/operation_vectors.json" LogicalName="operation_vectors.json" />
+    <!-- What the botocore service models require of a response, see Operations/generate_required_members.py. -->
+    <EmbeddedResource Include="Operations/required_members.json" LogicalName="required_members.json" />
     <!-- Key encodings and rejections from an independent oracle in Python, see Keys/generate_key_vectors.py. -->
     <EmbeddedResource Include="Keys/key_vectors.json" LogicalName="key_vectors.json" />
     <!-- Expected results of botocore, written by Credentials/generate_shared_file_vectors.py. -->

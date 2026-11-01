@@ -26,6 +26,52 @@ public sealed class TableAdministrationTests
     }
 
     [Test]
+    public async Task DescribeAsync_ResponseWithoutATable_ReturnsTheNameAndNoStatus()
+    {
+        // Arrange (the service model requires nothing of a response)
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table("Shop", "pk").DescribeAsync();
+
+        // Assert
+        await Assert.That((description.TableName, description.TableStatus)).IsEqualTo(("Shop", TableStatus.Unknown));
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_ResponseWithoutADescription_ReturnsTheNameAndNoStatus()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table("Shop", "pk").DeleteTableAsync();
+
+        // Assert
+        await Assert.That((description.TableName, description.TableStatus)).IsEqualTo(("Shop", TableStatus.Unknown));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_ResponseWithoutATable_KeepsWaiting()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("{}"));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync().AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+
+        // Assert
+        await Assert.That((await waiting).TableStatus).IsEqualTo(TableStatus.Active);
+    }
+
+    [Test]
     public async Task DescribeAsync_Missing_ThrowsThatException()
     {
         // Arrange
@@ -166,6 +212,25 @@ public sealed class TableAdministrationTests
 
         // Assert (the last delay is cut to the bound, and the table gets one last look at it)
         await Assert.That((string.Join(",", delays.Select(static delay => delay.TotalMilliseconds)), handler.Requests.Count, failure.InnerException)).IsEqualTo(("100,200,400,300", 5, null));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_LessThanAMillisecondLeft_WaitsAMillisecondOnTheClock()
+    {
+        // Arrange (Task.Delay truncates to milliseconds, so without a floor the clock stands still; the stub ends the spin, which would hang the test)
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        using var handler = new StubHandler(_ => ++calls > 100 ? throw new InvalidOperationException("The wait spins.") : StubResponse.Json(Creating));
+        using var client = TestClient.Create(handler, time);
+        var bound = TimeSpan.FromMilliseconds(100.5);
+
+        // Act
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync(bound).AsTask();
+        var delays = await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => waiting);
+
+        // Assert
+        await Assert.That((string.Join(",", delays.Select(static delay => delay.TotalMilliseconds)), calls, failure.InnerException)).IsEqualTo(("100,1", 3, null));
     }
 
     [Test]

@@ -49,7 +49,7 @@ public sealed class MixedScanCommandTests
             .Filter($"{Attr(OutsideTheEntity)} > {1}").Filter(Attr("y").Exists()).NotDeleted().Project(OutsideTheEntity).Project(Attr("y")).Limit(5).Consistent().ReturnCapacity().MaxAttempts(1).Once().Segment(1, of: 4).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"Segment":1,"TotalSegments":4,"FilterExpression":"(((#n0 IN (:v0, :v1)) AND (#n1 > :v2)) AND (attribute_exists(#n2))) AND (attribute_not_exists(#n3))","ProjectionExpression":"#n1, #n2, #n0, #n4, #n5","ExpressionAttributeNames":{"#n0":"_type","#n1":"x","#n2":"y","#n3":"deletedAt","#n4":"pk","#n5":"sk"},"ExpressionAttributeValues":{":v0":{"S":"ALPHA"},":v1":{"S":"BETA"},":v2":{"N":"1"}},"ReturnConsumedCapacity":"TOTAL"}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"Segment":1,"TotalSegments":4,"FilterExpression":"(#n0 IN (:v0, :v1)) AND (#n1 > :v2) AND (attribute_exists(#n2)) AND (attribute_not_exists(#n3))","ProjectionExpression":"#n1, #n2, #n0, #n4, #n5","ExpressionAttributeNames":{"#n0":"_type","#n1":"x","#n2":"y","#n3":"deletedAt","#n4":"pk","#n5":"sk"},"ExpressionAttributeValues":{":v0":{"S":"ALPHA"},":v1":{"S":"BETA"},":v2":{"N":"1"}},"ReturnConsumedCapacity":"TOTAL"}""");
     }
 
     [Test]

@@ -4,8 +4,8 @@ namespace DynaSharp;
 
 /// <summary>
 /// A condition on the heap, for one that is kept in a field or assembled at run time, where the changing static type of the struct
-/// conditions gets in the way. <c>&amp;</c>, <c>|</c> and <c>!</c> compose it, and a struct condition on either side converts:
-/// <c>.If(Open &amp; Attr("version").Eq(v))</c>. Instances are immutable, so one can be shared between threads and commands.
+/// conditions gets in the way. Struct conditions compose with <c>.And()</c>, <c>.Or()</c> and <c>.Negate()</c>, and <c>a.Eq(1) &amp; b.Gt(2)</c> does not compile: <c>&amp;</c>, <c>|</c> and <c>!</c> need a
+/// <see cref="Condition"/>, which a struct on the other side then converts to, as in <c>.If(Open &amp; Attr("version").Eq(v))</c>. Instances are immutable, so one can be shared between threads and commands.
 /// </summary>
 public abstract class Condition : ICondition
 {

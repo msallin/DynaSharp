@@ -147,7 +147,7 @@ public sealed class TableManagementTests(Backend backend)
         var description = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
 
         // Assert
-        await Assert.That(response.TableDescription.TableName).IsEqualTo(table);
+        await Assert.That(response.TableDescription!.TableName).IsEqualTo(table);
         await Assert.That(description.ProvisionedThroughput).IsEqualTo(new ProvisionedThroughputDescription { ReadCapacityUnits = 5, WriteCapacityUnits = 6 });
     }
 
@@ -259,7 +259,7 @@ public sealed class TableManagementTests(Backend backend)
         });
 
         // Assert
-        await Assert.That(description.GlobalSecondaryIndexes.Select(static index => index.IndexName)).IsEquivalentTo(["by-color"]);
+        await Assert.That(description.GlobalSecondaryIndexes.Select(static index => index.IndexName!)).IsEquivalentTo(["by-color"]);
         await Assert.That(red.Items.Select(static item => item["pk"].AsString()).Order(StringComparer.Ordinal)).IsEquivalentTo(["a", "c"]);
     }
 

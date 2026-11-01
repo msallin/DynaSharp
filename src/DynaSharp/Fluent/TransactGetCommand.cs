@@ -118,7 +118,7 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
     /// <summary>Sends the transaction. A key without an item is no error: its slot reads as not found. DynamoDB rejects a transaction without gets.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="TransactionCanceledException">DynamoDB cancelled the transaction, for example for a conflict with a write in progress. It may pass on a retry of your own.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because it holds a key twice.</exception>
@@ -141,7 +141,7 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
     /// and debugging. The text contains the keys.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson()
     {
         var state = Enter();

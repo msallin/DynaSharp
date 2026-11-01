@@ -42,6 +42,87 @@ public sealed class ExpressionWriterTests
     }
 
     [Test]
+    public async Task CommitPending_ThreeConditions_AreOneChain()
+    {
+        // Arrange
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+
+        // Act
+        writer.AppendCondition(Clause.Condition, Expr.Attr("a").Eq(1));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("b").Eq(2));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("c").Eq(3));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("d").Eq(4));
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Condition])).IsEqualTo("(#n0 = :v0) AND (#n1 = :v1) AND (#n2 = :v2) AND (#n3 = :v3)");
+    }
+
+    [Test]
+    public async Task CommitPending_FirstConditionIsAGroup_StaysOneGroup()
+    {
+        // Arrange (DynamoDB Local rejects parentheses around a group)
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+
+        // Act
+        writer.AppendCondition(Clause.Condition, Expr.Attr("a").Eq(1).Or(Expr.Attr("b").Eq(2)));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("c").Eq(3));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("d").Eq(4).Or(Expr.Attr("e").Eq(5)));
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Condition])).IsEqualTo("(#n0 = :v0 OR #n1 = :v1) AND (#n2 = :v2) AND (#n3 = :v3 OR #n4 = :v4)");
+    }
+
+    [Test]
+    public async Task CommitPending_ClausesOfTheirOwn_ChainApart()
+    {
+        // Arrange
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.AppendCondition(Clause.Condition, Expr.Attr("a").Eq(1));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("b").Eq(2));
+
+        // Act
+        writer.AppendCondition(Clause.Filter, Expr.Attr("c").Eq(3));
+        writer.AppendCondition(Clause.Filter, Expr.Attr("d").Eq(4));
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Filter])).IsEqualTo("(#n2 = :v2) AND (#n3 = :v3)");
+    }
+
+    [Test]
+    public async Task Clear_AfterAChain_StartsANewOne()
+    {
+        // Arrange
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.AppendCondition(Clause.Condition, Expr.Attr("a").Eq(1));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("b").Eq(2));
+
+        // Act
+        writer.Clear(1024);
+        writer.AppendCondition(Clause.Condition, Expr.Attr("c").Eq(3));
+        writer.AppendCondition(Clause.Condition, Expr.Attr("d").Eq(4));
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Condition])).IsEqualTo("(#n0 = :v0) AND (#n1 = :v1)");
+    }
+
+    [Test]
+    public async Task CopyFrom_AChain_GoesOnAsOne()
+    {
+        // Arrange
+        var original = new ExpressionWriter(ArrayPool<byte>.Shared);
+        original.AppendCondition(Clause.Filter, Expr.Attr("a").Eq(1));
+        original.AppendCondition(Clause.Filter, Expr.Attr("b").Eq(2));
+        var copy = new ExpressionWriter(ArrayPool<byte>.Shared);
+
+        // Act
+        copy.CopyFrom(original);
+        copy.AppendCondition(Clause.Filter, Expr.Attr("c").Eq(3));
+
+        // Assert
+        await Assert.That(Text(copy[Clause.Filter])).IsEqualTo("(#n0 = :v0) AND (#n1 = :v1) AND (#n2 = :v2)");
+    }
+
+    [Test]
     public async Task IsWordByte_AgainstTheLexer_DiffersFrom0x80On()
     {
         // Arrange

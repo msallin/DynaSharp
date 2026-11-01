@@ -93,7 +93,10 @@ public sealed class StubResponse
     public static StubResponse Items<T>(IEnumerable<T> items, int? scannedCount = null)
         where T : IDynamoDbDocument<T> => Page(items, null, scannedCount);
 
-    /// <summary>Creates a page that more pages follow: the read goes on from <paramref name="lastEvaluatedKey"/>, also when a filter left the page empty.</summary>
+    /// <summary>
+    /// Creates a page that more pages follow: the read goes on from <paramref name="lastEvaluatedKey"/>, also when a filter left the page empty. A fan-out also takes this key as a hint for its merge,
+    /// so a made-up sort key reorders the items there: use the overload that takes an <see cref="IKey"/>.
+    /// </summary>
     /// <typeparam name="T">The type of the items: a generated entity or <see cref="DynaSharp.Item"/>.</typeparam>
     /// <param name="items">The items, which may be none.</param>
     /// <param name="lastEvaluatedKey">The key of the last item DynamoDB read, as <see cref="KeyOf{T}"/> makes it from an entity.</param>

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.Json;
 using DynaSharp.Http;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
@@ -307,16 +306,16 @@ public sealed class UpdateTableOperationTests
     }
 
     [Test]
-    public async Task ReadResponse_NoTableDescription_ThrowsJsonException()
+    public async Task ReadResponse_NoTableDescription_HasNone()
     {
         // Arrange
         const string json = "{}";
 
         // Act
-        var act = () => Read(json);
+        var response = Read(json);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The UpdateTable response has no TableDescription.", StringComparison.Ordinal);
+        await Assert.That(response.TableDescription).IsNull();
     }
 
     [Test]
@@ -326,7 +325,7 @@ public sealed class UpdateTableOperationTests
         var vector = OperationVectors.Response("UpdateTable", "OnDemandReportsZeroCapacity");
 
         // Act
-        var table = Read(vector.Wire).TableDescription;
+        var table = Read(vector.Wire).TableDescription!;
 
         // Assert
         await Assert.That((table.ProvisionedThroughput, table.TableClass)).IsEqualTo((new ProvisionedThroughputDescription { ReadCapacityUnits = 0, WriteCapacityUnits = 0 }, TableClass.StandardInfrequentAccess));
@@ -339,7 +338,7 @@ public sealed class UpdateTableOperationTests
         var vector = OperationVectors.Response("UpdateTable", "ProvisionedCapacityAndTableClass");
 
         // Act
-        var index = Read(vector.Wire).TableDescription.GlobalSecondaryIndexes[1];
+        var index = Read(vector.Wire).TableDescription!.GlobalSecondaryIndexes[1];
 
         // Assert
         await Assert.That((index.IndexStatus, index.ProvisionedThroughput)).IsEqualTo((IndexStatus.Deleting, new ProvisionedThroughputDescription()));
@@ -352,7 +351,7 @@ public sealed class UpdateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Orders"}}""";
 
         // Act
-        var table = Read(json).TableDescription;
+        var table = Read(json).TableDescription!;
 
         // Assert
         await Assert.That((table.ProvisionedThroughput, table.TableClass)).IsEqualTo(((ProvisionedThroughputDescription?)null, TableClass.Unspecified));
@@ -365,7 +364,7 @@ public sealed class UpdateTableOperationTests
         const string json = """{"TableDescription":{"TableName":"Orders","TableClassSummary":{"TableClass":"SOMETHING_NEW"}}}""";
 
         // Act
-        var table = Read(json).TableDescription;
+        var table = Read(json).TableDescription!;
 
         // Assert
         await Assert.That(table.TableClass).IsEqualTo(TableClass.Unspecified);

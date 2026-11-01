@@ -9,22 +9,28 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>BatchWriteItem</c> under construction: puts and deletes of any number, also of other types and other tables in the same batch, as in
-/// <c>shop.BatchWrite().Put(item).Delete(pk, sk).Put(orders, order)</c>. Chain them and end with <see cref="SendAsync"/> in one expression.
+/// <c>shop.BatchWrite().Put(item).Delete(pk, sk).Put(orders, order)</c>. It is not atomic, runs in requests of 25 writes, sends again what DynamoDB left unprocessed, and gives up with a
+/// <see cref="BatchIncompleteException"/>. Chain the writes and end with <see cref="SendAsync"/> in one expression.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>A batch is not atomic.</b> Each write succeeds or fails on its own, and when the batch ends early the writes before that stay applied. A batch has no
+/// <b>Not atomic.</b> Each write succeeds or fails on its own, and when the batch ends early the writes before that stay applied. A batch has no
 /// conditions and no update either: what needs those is a <see cref="TransactWriteCommand"/>, and costs twice the capacity.
 /// </para>
 /// <para>
-/// DynamoDB takes 25 writes and 16 MB in a request, and an item can have 400 KB. The command cuts the batch into requests that fit, which run one after
-/// the other, and sends again what DynamoDB left unprocessed, after a backoff with jitter on <see cref="DynamoDbClientOptions.TimeProvider"/>. It gives
-/// up after 8 requests in a row that get nothing done, or as many as <see cref="MaxStalledRounds"/> says, with a <see cref="BatchIncompleteException"/> that holds
-/// what was not written. A round that writes something does not count against that. A retry repeats a put or a delete, which is safe: the item ends up as it was
-/// written.
+/// <b>Requests of 25 writes.</b> DynamoDB takes 25 writes and 16 MB in a request, and an item can have 400 KB. The command cuts the batch into requests that fit, which run one after
+/// the other.
 /// </para>
 /// <para>
-/// DynamoDB rejects a request that holds one key twice with a <see cref="ValidationException"/>, and the command does not look for duplicates: an item can
+/// <b>Unprocessed writes go out again.</b> That happens after a backoff with jitter on <see cref="DynamoDbClientOptions.TimeProvider"/>. A retry repeats a put or a delete, which is safe: the
+/// item ends up as it was written.
+/// </para>
+/// <para>
+/// <b>It gives up</b> after 8 requests in a row that get nothing done, or as many as <see cref="MaxStalledRounds"/> says, with a <see cref="BatchIncompleteException"/> that holds
+/// what was not written. A round that writes something does not count against that.
+/// </para>
+/// <para>
+/// <b>A key twice.</b> DynamoDB rejects a request that holds one key twice with a <see cref="ValidationException"/>, and the command does not look for duplicates: an item can
 /// hold its key anywhere, and a write costs no read of it here. So a key that occurs twice in one request fails that request, with the requests before
 /// it applied, and one that occurs in two requests is written twice, in order.
 /// </para>
@@ -67,10 +73,14 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
         return new(state, state.Table);
     }
 
-    /// <summary>Adds a put of each item, any number of them. They are written here and now, so the sequence is enumerated once, before anything is sent.</summary>
+    /// <summary>
+    /// Adds a put of each item, any number of them. The whole batch is written into memory here and now, so the sequence is enumerated once, and nothing is sent until the terminal: an item that
+    /// fails here leaves nothing written, and it fails the whole batch.
+    /// </summary>
     /// <param name="items">The items, which must hold the key attributes.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="items"/> or one of them is <see langword="null"/>.</exception>
+    /// <exception cref="KeyFormatException">A key template rejects a value of an item. It names the placeholder, not the item.</exception>
     public BatchWriteCommand<T> PutAll(IEnumerable<T> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -248,7 +258,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <summary>Sends the batch, in as many requests as it takes. A batch without writes sends nothing and returns an empty result.</summary>
     /// <param name="cancellationToken">Cancels the batch, also while it waits between rounds. What was written before stays written.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended, or it writes an entity with a <see cref="VersionAttribute"/> without <see cref="IgnoreVersion"/>.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it writes an entity with a <see cref="VersionAttribute"/> without <see cref="IgnoreVersion"/>.</exception>
     /// <exception cref="BatchIncompleteException">DynamoDB left writes unprocessed after every round, or a table stayed throttled on the last attempt of a request. The exception holds what was not written.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects a request, for example because it holds a key twice, or an item above 400 KB. The requests before it stay applied.</exception>
@@ -267,7 +277,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// and is meant for tests and debugging. The text contains the items.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent or extended.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchWriteOperation, BatchWriteResult>(WriteRules.Settle(Enter()));
 
     private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
