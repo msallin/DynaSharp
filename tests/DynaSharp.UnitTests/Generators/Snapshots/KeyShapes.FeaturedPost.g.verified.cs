@@ -18,8 +18,8 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "FeaturedPk" },
+            new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "EverythingPk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
@@ -231,7 +231,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
 
             /// <summary>Formats the complete key as a key of <c>FeaturedPost</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -312,7 +312,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
             public static string Format() => "FEATURED";
 
             /// <summary>Formats the complete key as a key of <c>FeaturedPost</c>, which a query of another entity does not take.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format());
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format(), "featuredpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -491,7 +491,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
             public static string Format() => "ALL";
 
             /// <summary>Formats the complete key as a key of <c>FeaturedPost</c>, which a query of another entity does not take.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format());
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.FeaturedPost>(Format(), "everythingpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

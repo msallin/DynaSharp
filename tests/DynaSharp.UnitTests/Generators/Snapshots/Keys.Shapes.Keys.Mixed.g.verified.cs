@@ -18,16 +18,17 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
+            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
+            new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "Gsi3Pk" },
+            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
         keyTemplates: new __Map.DynamoDbKeyTemplate[]
         {
             new __Map.DynamoDbKeyTemplate("pk", "USER#{User}", true, new[] { new __Map.DynamoDbKeyInput("User", null) }),
+            new __Map.DynamoDbKeyTemplate("Code", "{Code}", true, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }) { Parse = static __key => new object?[] { __Ser.ConverterChecks.ReadValue<string, global::DynaSharp.Serialization.StringConverter>(__key) } },
             new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::Shapes.Keys.Status)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("sk", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }, static __values => Keys.Gsi1Sk.Format((string)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("gsi2pk", "NICK#{Nick}", false, new[] { new __Map.DynamoDbKeyInput("Nick", "Nick") }, static __values => Keys.Gsi2Pk.Format((string)__values[0]!)),
@@ -316,7 +317,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
 
             /// <summary>Formats the complete key as a key of <c>Mixed</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string user) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(user));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string user) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(user), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -412,7 +413,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
 
             /// <summary>Formats the complete key as a key of <c>Mixed</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(global::Shapes.Keys.Status status) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(status));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(global::Shapes.Keys.Status status) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(status), "gsi1pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -614,7 +615,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
 
             /// <summary>Formats the complete key as a key of <c>Mixed</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string nick) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(nick));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string nick) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(nick), "gsi2pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -800,7 +801,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
 
             /// <summary>Formats the complete key as a key of <c>Mixed</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string nick) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(nick));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed> Of(string nick) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Mixed>(Format(nick), "gsi2pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

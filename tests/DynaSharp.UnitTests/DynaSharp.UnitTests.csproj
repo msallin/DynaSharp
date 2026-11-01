@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- Entities of tests never share a table, and two of a name in different test areas are not one mistake. -->
+    <NoWarn>$(NoWarn);DYNA026</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

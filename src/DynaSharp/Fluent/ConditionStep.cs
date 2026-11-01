@@ -72,7 +72,7 @@ public readonly ref struct ConditionStep : ITransactWriteStep<ConditionStep>
     }
 
     /// <summary>
-    /// Makes this action depend on the version of the item. Otherwise the whole transaction is cancelled, and the marker of this action says that this was the reason. A key does not
+    /// Makes this action depend on the item having this version. If it has another, the whole transaction is cancelled, and the marker of this action says that this was the reason. A key does not
     /// carry a version, so a delete of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or <see cref="IgnoreVersion"/>, and the next verb throws
     /// <see cref="InvalidOperationException"/> without it. A condition check needs neither, and this makes it a check on the version.
     /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats a transaction together with the read of the version.

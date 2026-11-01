@@ -18,8 +18,8 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
+            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
         },
         versionAttributeName: "Revision",
         discriminatorAttributeName: "_type",
@@ -438,7 +438,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
             /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(userId));
+            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(userId), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -694,7 +694,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
             /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::Shop.OrderStatus status) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(status));
+            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::Shop.OrderStatus status) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(status), "gsi1pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -880,7 +880,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
             /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(trackingId));
+            public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(trackingId), "gsi2pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

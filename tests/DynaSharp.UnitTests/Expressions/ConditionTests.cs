@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Text;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
+using DynaSharp.Serialization;
 using static DynaSharp.Expr;
 
 namespace DynaSharp.UnitTests.Expressions;
@@ -107,7 +108,7 @@ public sealed class ConditionTests
         var prefix = "ORDER#";
 
         // Act
-        var rendered = new[] { Render(Attr("sk").BeginsWith(prefix)), Render(Attr<int>("sk").BeginsWith(prefix)) };
+        var rendered = new[] { Render(Attr("sk").BeginsWith(prefix)), Render(new Attr<string, StringConverter>("sk").BeginsWith(prefix)) };
 
         // Assert
         await Assert.That(rendered.Distinct().Single()).IsEqualTo("begins_with(#n0, :v0)");

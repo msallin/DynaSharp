@@ -1,4 +1,5 @@
 using DynaSharp.IntegrationTests.Backends;
+using DynaSharp.Serialization;
 using static DynaSharp.Expr;
 
 namespace DynaSharp.IntegrationTests.Commands;
@@ -8,6 +9,10 @@ namespace DynaSharp.IntegrationTests.Commands;
 public sealed class ConditionKindTests(Backend backend)
 {
     private static readonly Condition Open = Condition.Of(Attr("status").Eq("open"));
+
+    private static readonly byte[] BlobStart = [1, 2];
+
+    private static readonly byte[] BlobOther = [2, 1];
 
     private static readonly Dictionary<string, Func<Table<Item>, ValueTask<WriteResult<Item>>>> Holding = new()
     {
@@ -25,6 +30,7 @@ public sealed class ConditionKindTests(Backend backend)
         ["Exists"] = static shop => Target(shop).If(Attr("status").Exists()).SendAsync(),
         ["NotExists"] = static shop => Target(shop).If(Attr("missing").NotExists()).SendAsync(),
         ["BeginsWith"] = static shop => Target(shop).If(Attr("status").BeginsWith("op")).SendAsync(),
+        ["BeginsWithBinary"] = static shop => Target(shop).If(new Attr<byte[], BinaryConverter>("blob").BeginsWith(BlobStart)).SendAsync(),
         ["And"] = static shop => Target(shop).If(Attr("status").Eq("open").And(Attr("n").Gt(1))).SendAsync(),
         ["Or"] = static shop => Target(shop).If(Attr("status").Eq("closed").Or(Attr("n").Gt(1))).SendAsync(),
         ["Not"] = static shop => Target(shop).If(Attr("status").Eq("closed").Negate()).SendAsync(),
@@ -61,6 +67,7 @@ public sealed class ConditionKindTests(Backend backend)
         ["Exists"] = static shop => Target(shop).If(Attr("missing").Exists()).SendAsync(),
         ["NotExists"] = static shop => Target(shop).If(Attr("status").NotExists()).SendAsync(),
         ["BeginsWith"] = static shop => Target(shop).If(Attr("status").BeginsWith("cl")).SendAsync(),
+        ["BeginsWithBinary"] = static shop => Target(shop).If(new Attr<byte[], BinaryConverter>("blob").BeginsWith(BlobOther)).SendAsync(),
         ["And"] = static shop => Target(shop).If(Attr("status").Eq("open").And(Attr("n").Gt(100))).SendAsync(),
         ["Or"] = static shop => Target(shop).If(Attr("status").Eq("closed").Or(Attr("n").Gt(100))).SendAsync(),
         ["Not"] = static shop => Target(shop).If(Attr("status").Eq("open").Negate()).SendAsync(),
@@ -130,6 +137,7 @@ public sealed class ConditionKindTests(Backend backend)
             ["sk"] = "s",
             ["status"] = "open",
             ["n"] = 10,
+            ["blob"] = new byte[] { 1, 2, 3 },
             ["tags"] = AttributeValue.FromStringSet(["a", "b"]),
             ["address"] = AttributeValue.FromMap([KeyValuePair.Create("city", (AttributeValue)"Bern")]),
             ["lines"] = AttributeValue.FromList(["x", "y"]),

@@ -7,7 +7,7 @@ namespace DynaSharp.Generators;
 /// <param name="namesAreUnique">False for <c>[Flags]</c> and aliased members, whose names are not one-to-one.</param>
 /// <param name="converter">Registers the generated converter and gives its name. It is not needed for <c>d&lt;w&gt;</c>.</param>
 internal sealed class EnumInput(string typeName, string valueType, IntegerType underlying, bool namesAreUnique, Func<string> converter)
-    : KeyInputType(typeName)
+    : KeyInputType(typeName, "no format for the member name, or d<w>, such as d3, for its value")
 {
     private const int MaxWidth = 20;
 

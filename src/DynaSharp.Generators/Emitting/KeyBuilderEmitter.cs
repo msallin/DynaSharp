@@ -117,7 +117,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
             code.Line(InvalidValue);
         }
 
-        code.Line($"public static {partitionKey} Of({Signature(_placeholders)}) => new {partitionKey}(Format({Arguments(_placeholders)}));");
+        code.Line($"public static {partitionKey} Of({Signature(_placeholders)}) => new {partitionKey}(Format({Arguments(_placeholders)}), {CodeText.Literal(key.AttributeName)});");
         code.Blank();
     }
 

@@ -418,7 +418,7 @@ public sealed class VersionedWriteTests(Backend backend)
     }
 
     [Test]
-    public async Task Update_OneKeyOfASparseIndexThatRepeatsTheTableKey_ThrowsAndAPutBringsTheItemIn()
+    public async Task Update_OneKeyOfASparseIndexThatRepeatsTheTableKey_BringsTheItemIn()
     {
         // Arrange
         await using var shop = await ShopSandbox.StartAsync(backend);
@@ -427,13 +427,11 @@ public sealed class VersionedWriteTests(Backend backend)
         var byHandler = shop.Claims.Index(Claim.Indexes.Gsi2);
 
         // Act
-        var failure = await Items.FailureOfAsync<InvalidOperationException>(async () => await shop.Claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "hal").SendAsync());
-        var refused = await Read.ToListAsync(byHandler.Query(Claim.Keys.Gsi2Pk.Format("hal")).ItemsAsync());
-        await shop.Claims.Put(claim with { Handler = "hal" }).SendAsync();
+        await shop.Claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "hal").SendAsync();
         var found = await Read.ToListAsync(byHandler.Query(Claim.Keys.Gsi2Pk.Format("hal")).ItemsAsync());
 
         // Assert
-        await Assert.That((failure.Message.Contains("Put", StringComparison.Ordinal), refused.Count, found.Single().Id)).IsEqualTo((true, 0, "c1"));
+        await Assert.That(found.Single().Id).IsEqualTo("c1");
     }
 
     [Test]

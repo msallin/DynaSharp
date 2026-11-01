@@ -30,7 +30,7 @@ internal static class PageResponse
         {
             if (reader.AttributeNameEquals("Items"u8))
             {
-                items = ReadItems<T>(ref reader, keys);
+                items = ReadItems<T>(ref reader, keys, state.Table);
             }
             else if (reader.AttributeNameEquals("Count"u8))
             {
@@ -64,7 +64,7 @@ internal static class PageResponse
     public static void SetRequestTags(Activity activity, CommandState state) =>
         ReadTags.Set(activity, state.ConsistentRead, state.Expressions.ResolveProjection(), state.Table.IndexName, state.Limit > 0 ? state.Limit : null, state.Select);
 
-    private static T[] ReadItems<T>(ref DynamoDbReader reader, FanOutKeys? keys)
+    private static T[] ReadItems<T>(ref DynamoDbReader reader, FanOutKeys? keys, TableModel table)
         where T : IDynamoDbDocument<T>
     {
         // The items of a page tend to have the same attributes, and only this path knows the shape of the item before.
@@ -74,6 +74,7 @@ internal static class PageResponse
         }
 
         OperationJson.ReadStartArray(ref reader);
+        var first = reader;
         var items = new ArrayBuilder<T>(ArrayPool<T>.Shared);
         try
         {
@@ -89,6 +90,11 @@ internal static class PageResponse
             }
 
             return items.ToArray();
+        }
+        catch (DynamoDbMappingException failure)
+        {
+            failure.Key = FailedItem.KeyOf(first, items.Count, table);
+            throw;
         }
         finally
         {

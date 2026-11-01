@@ -169,7 +169,7 @@ internal sealed class ModelBuilder
     {
         if (AttributeReader.Find(_type, WellKnownNames.DiscriminatorAttribute) is not { } attribute)
         {
-            _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name);
+            _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name, _type.Name.ToUpperInvariant());
             return new DiscriminatorInfo(null, DefaultDiscriminatorAttribute);
         }
 

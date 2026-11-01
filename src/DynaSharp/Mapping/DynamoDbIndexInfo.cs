@@ -18,4 +18,8 @@ public sealed record DynamoDbIndexInfo(
     bool Sparse,
     bool IsLocal = false,
     ScalarAttributeType PartitionKeyType = ScalarAttributeType.Unknown,
-    ScalarAttributeType SortKeyType = ScalarAttributeType.Unknown);
+    ScalarAttributeType SortKeyType = ScalarAttributeType.Unknown)
+{
+    /// <summary>Gets the name of the key builder of the partition key under <c>Keys</c>, for a message that says which one to use, or <see langword="null"/> for a plain key, which has none.</summary>
+    public string? PartitionKeyBuilder { get; init; }
+}

@@ -1,3 +1,45 @@
+DYNA001 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA002 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA003 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA004 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA005 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA006 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA007 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA008 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA009 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA010 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA011 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA012 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA013 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA014 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA015 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA016 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA017 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA018 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA019 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA020 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA021 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA022 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA023 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA024 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA025 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA026 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA100 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA101 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA102 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA103 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA104 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA105 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA106 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA107 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA108 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA109 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA110 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA111 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA112 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA113 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA114 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA115 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA201 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA202 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA210 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
@@ -5,6 +47,8 @@ DYNA211 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#exp
 DYNA212 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA213 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA214 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA215 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA216 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -24,17 +68,18 @@ DYNA016 | Error | DynaSharp.Mapping | Type is not accessible | Type '{0}' used b
 DYNA017 | Error | DynaSharp.Mapping | Property cannot be a key | Property '{0}' of type '{1}' cannot be a DynamoDB key, which must be a string, number or binary
 DYNA018 | Error | DynaSharp.Mapping | Index is invalid | Index '{0}' is invalid: {1}
 DYNA019 | Error | DynaSharp.Mapping | Type is outside a nullable context | Type '{0}' must be in an enabled nullable context, otherwise nullable properties cannot be told from others
-DYNA020 | Error | DynaSharp.Mapping | Entity has no discriminator | Entity '{0}' has no discriminator. Add [Discriminator("NAME")], or [Discriminator(OptOut = true)] for a table written by other tools.
+DYNA020 | Error | DynaSharp.Mapping | Entity has no discriminator | Entity '{0}' has no discriminator. Add [Discriminator("{1}")], or [Discriminator(OptOut = true)] for a table written by other tools.
 DYNA021 | Error | DynaSharp.Mapping | Plain key is ignored | Property '{0}' is a plain key, so it cannot be [DynamoDbIgnore]
 DYNA022 | Error | DynaSharp.Mapping | Discriminator is invalid | [Discriminator] on '{0}' is invalid: {1}
 DYNA023 | Error | DynaSharp.Mapping | [Version] property is part of a key | [Version] property '{0}' is part of a key. A write changes the version, and a key cannot follow it.
 DYNA024 | Error | DynaSharp.Mapping | Enum has no members | Property '{0}' has enum type '{1}', which has no members, so every write throws. Add a member, make the property nullable, or add a [DynamoDbConverter].
 DYNA025 | Error | DynaSharp.Mapping | Type has the name of a generated class | Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.
+DYNA026 | Warning | DynaSharp.Mapping | Two entities share a discriminator | Entity '{0}' has the discriminator '{1}' in the attribute '{2}', as '{3}' has, so on one table their items cannot be told apart. Give one of them another value, unless they never share a table.
 DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
 DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
 DYNA102 | Error | DynaSharp.Keys | Unknown property in a key template | Key template references unknown property '{0}'
 DYNA103 | Error | DynaSharp.Keys | Type cannot be used in a key | Property '{0}' of type '{1}' cannot be used in a key
-DYNA104 | Error | DynaSharp.Keys | Format does not fit the type | Format '{0}' does not fit type '{1}'
+DYNA104 | Error | DynaSharp.Keys | Format does not fit the type | Format '{0}' does not fit type '{1}'. It takes {2}.
 DYNA105 | Error | DynaSharp.Keys | Format is out of range | Format '{0}' is out of range
 DYNA106 | Error | DynaSharp.Keys | Placeholders cannot be told apart | '{0}' is variable-width and '{1}' follows with no literal between them, so the key cannot be parsed
 DYNA107 | Error | DynaSharp.Keys | Nullable input in a key | Nullable '{0}' is used in a key that is not Sparse
@@ -53,3 +98,5 @@ DYNA211 | Error | DynaSharp.Expressions | Placeholder in an expression | DynaSha
 DYNA212 | Warning | DynaSharp.Expressions | Expression syntax error | The expression is not valid: {0}
 DYNA213 | Warning | DynaSharp.Expressions | Path matches no attribute | Path '{0}' matches no attribute of '{1}'. Check the spelling, unless the attribute is outside the entity.
 DYNA214 | Warning | DynaSharp.Expressions | Attribute path is not valid | Attribute path '{0}' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c
+DYNA215 | Warning | DynaSharp.Expressions | Handle of another type | '{0}' is an attribute of '{1}', and this command is on '{2}', so DynamoDB looks for it on items that do not have it. Use a handle of that type, or a raw path for an attribute outside it.
+DYNA216 | Warning | DynaSharp.Expressions | Text function on a number | {0} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text.

@@ -18,28 +18,28 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("V02", "v02pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V03", "v03pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V04", "v04pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V05", "v05pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V06", "v06pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V07", "v07pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V08", "v08pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V09", "v09pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V10", "v10pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V11", "v11pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V12", "v12pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V13", "v13pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V14", "v14pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V15", "v15pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V16", "v16pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
-            new __Map.DynamoDbIndexInfo("V17", "v17pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown),
+            new __Map.DynamoDbIndexInfo("V02", "v02pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V02Pk" },
+            new __Map.DynamoDbIndexInfo("V03", "v03pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V03Pk" },
+            new __Map.DynamoDbIndexInfo("V04", "v04pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V04Pk" },
+            new __Map.DynamoDbIndexInfo("V05", "v05pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V05Pk" },
+            new __Map.DynamoDbIndexInfo("V06", "v06pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V06Pk" },
+            new __Map.DynamoDbIndexInfo("V07", "v07pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V07Pk" },
+            new __Map.DynamoDbIndexInfo("V08", "v08pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V08Pk" },
+            new __Map.DynamoDbIndexInfo("V09", "v09pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V09Pk" },
+            new __Map.DynamoDbIndexInfo("V10", "v10pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V10Pk" },
+            new __Map.DynamoDbIndexInfo("V11", "v11pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V11Pk" },
+            new __Map.DynamoDbIndexInfo("V12", "v12pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V12Pk" },
+            new __Map.DynamoDbIndexInfo("V13", "v13pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V13Pk" },
+            new __Map.DynamoDbIndexInfo("V14", "v14pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V14Pk" },
+            new __Map.DynamoDbIndexInfo("V15", "v15pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V15Pk" },
+            new __Map.DynamoDbIndexInfo("V16", "v16pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V16Pk" },
+            new __Map.DynamoDbIndexInfo("V17", "v17pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V17Pk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
         keyTemplates: new __Map.DynamoDbKeyTemplate[]
         {
-            new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+            new __Map.DynamoDbKeyTemplate("pk", "USER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
             new __Map.DynamoDbKeyTemplate("v02pk", "PROFILE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.V02Pk.Format()),
             new __Map.DynamoDbKeyTemplate("v03pk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V03Pk.Format((string)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("v04pk", "TENANT#{Tenant}#USER#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant"), new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.V04Pk.Format((string)__values[0]!, (string)__values[1]!)),
@@ -538,7 +538,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -619,7 +619,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
             public static string Format() => "PROFILE";
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format());
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(), "v02pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -699,7 +699,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(id), "v03pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -794,7 +794,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string tenant, string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(tenant, id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string tenant, string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(tenant, id), "v04pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -895,7 +895,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string country, string canton) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(country, canton));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string country, string canton) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(country, canton), "v05pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -996,7 +996,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(createdAt, orderId));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(createdAt, orderId), "v06pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1096,7 +1096,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(decimal total) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(total));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(decimal total) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(total), "v07pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1190,7 +1190,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(decimal total) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(total));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(decimal total) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(total), "v08pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1286,7 +1286,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string x) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(x));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string x) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(x), "v09pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1384,7 +1384,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string x) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(x));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string x) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(x), "v10pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1480,7 +1480,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long number) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(number));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long number) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(number), "v11pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1576,7 +1576,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long number) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(number));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long number) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(number), "v12pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1673,7 +1673,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long sequence, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(sequence, name));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long sequence, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(sequence, name), "v13pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1774,7 +1774,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long sequence, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(sequence, name));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(long sequence, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(sequence, name), "v14pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1876,7 +1876,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string a, string b, string c) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(a, b, c));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string a, string b, string c) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(a, b, c), "v15pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1979,7 +1979,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string a, string b) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(a, b));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string a, string b) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(a, b), "v16pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -2078,7 +2078,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
             /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string city, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(city, name));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(string city, string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(city, name), "v17pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

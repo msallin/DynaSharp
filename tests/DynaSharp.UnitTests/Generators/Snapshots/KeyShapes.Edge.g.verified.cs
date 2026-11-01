@@ -18,7 +18,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Inverted", "sk", "pk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "InvertedPk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
@@ -202,7 +202,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
             /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string source) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(source));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string source) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(source), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -429,7 +429,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
 
             /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string target) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(target));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string target) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(target), "sk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

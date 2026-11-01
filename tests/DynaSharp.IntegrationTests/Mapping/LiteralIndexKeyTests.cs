@@ -70,6 +70,51 @@ public sealed class LiteralIndexKeyTests(Backend backend)
     }
 
     [Test]
+    public async Task Update_NotTouchingALocalIndexWithALiteralSortKey_TakesTheItemItCreatesIntoTheIndex()
+    {
+        // Arrange
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var labeled = sandbox.Shop.Of<LabeledPost>();
+
+        // Act
+        await labeled.Update(LabeledPost.Keys.Of("a")).Set(LabeledPost.Attrs.Note, "x").SendAsync();
+        var found = await labeled.Index(LabeledPost.Indexes.Lsi1).Query(LabeledPost.Keys.Pk.Of("a")).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That((found.Single().Id, found.Single().Note)).IsEqualTo(("a", (string?)"x"));
+    }
+
+    [Test]
+    public async Task Query_ConsistentReadOfALocalIndex_SeesTheWriteBeforeIt()
+    {
+        // Arrange (a local index takes what a global one refuses)
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var labeled = sandbox.Shop.Of<LabeledPost>();
+        await labeled.Put(new LabeledPost { Id = "a" }).SendAsync();
+
+        // Act
+        var found = await labeled.Index(LabeledPost.Indexes.Lsi1).Query(LabeledPost.Keys.Pk.Of("a")).Consistent().ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That(found.Single().Id).IsEqualTo("a");
+    }
+
+    [Test]
+    public async Task Update_NotTouchingAnIndexOnATableKeyWithALiteralSortKey_TakesTheItemItCreatesIntoTheIndex()
+    {
+        // Arrange
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var tabled = sandbox.Shop.Of<TabledPost>();
+
+        // Act
+        await tabled.Update(TabledPost.Keys.Of("a")).Set(TabledPost.Attrs.Note, "x").SendAsync();
+        var found = await tabled.Index(ShopSandbox.ByPartitionAndLabel).Query(TabledPost.Keys.Pk.Of("a")).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That((found.Single().Id, found.Single().Note)).IsEqualTo(("a", (string?)"x"));
+    }
+
+    [Test]
     public async Task Update_OfAnItemInAnIndexOfLiterals_KeepsItThere()
     {
         // Arrange

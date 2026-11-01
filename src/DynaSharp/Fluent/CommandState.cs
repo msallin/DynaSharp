@@ -74,6 +74,9 @@ internal sealed class CommandState
     // Where the open item starts in the body.
     private int _itemStart;
 
+    // Where the object of the key of the action that is being written starts in the body.
+    private int _keyStart;
+
     // Where the body of a paged read ends before its start key. Zero until the first page is written.
     private int _pageMark;
 
@@ -126,6 +129,12 @@ internal sealed class CommandState
     /// <summary>Gets or sets the version an entity holds, which settles <see cref="UnsettledVersion"/> unless the write says otherwise, see <see cref="WriteRules"/>.</summary>
     public long? EntityVersion { get; set; }
 
+    /// <summary>
+    /// Gets or sets the generated key of an update, boxed, for an entity with an index that wants more of an input than the text of the key gives back. Every other update reads its key from
+    /// <see cref="Body"/> when it needs it, see <see cref="ReadKey"/>, so this stays empty and costs nothing.
+    /// </summary>
+    public object? HeldKey { get; set; }
+
     /// <summary>Gets or sets a value indicating whether an update has yet to write the discriminator of its entity, see <see cref="WriteRules"/>.</summary>
     public bool OwesDiscriminator { get; set; }
 
@@ -146,6 +155,9 @@ internal sealed class CommandState
 
     /// <summary>Gets or sets a value indicating whether the write in progress asks that no item has its key, which a version above 0 contradicts, see <see cref="WriteRules"/>.</summary>
     public bool ItemMustNotExist { get; set; }
+
+    /// <summary>Gets or sets the version the write in progress expects by <c>IfVersion</c>, or 0 for none, which is no contradiction of <see cref="ItemMustNotExist"/> either.</summary>
+    public long ExpectedVersion { get; set; }
 
     /// <summary>Gets or sets the version the write stores, for its result.</summary>
     public long? StoredVersion { get; set; }
@@ -267,6 +279,7 @@ internal sealed class CommandState
     {
         // ,"Key":{"pk":{"S":"a"},"sk":{"S":"b"}}
         var table = Table;
+        _keyStart = Body.WrittenCount + ",\"Key\":"u8.Length;
         WriteKey(table, table.KeyStart, partitionKey, sortKey);
     }
 
@@ -285,6 +298,7 @@ internal sealed class CommandState
     public DynamoDbWriter StartKey()
     {
         Body.Append(",\"Key\":"u8);
+        _keyStart = Body.WrittenCount;
         BodyJson.WriteStartObject();
         return new DynamoDbWriter(BodyJson);
     }
@@ -294,6 +308,15 @@ internal sealed class CommandState
     {
         BodyJson.WriteEndObject();
         EndWrite(BodyJson);
+    }
+
+    /// <summary>Reads back the key of an update that is about to settle, which nothing follows in the body yet, because its expressions wait in their own segments.</summary>
+    /// <returns>The key attributes.</returns>
+    public Item ReadKey()
+    {
+        var reader = new DynamoDbReader(Body.WrittenSpan[_keyStart..]);
+        reader.ReadStartItem();
+        return AttributeValueConverter.ReadAttributes(ref reader);
     }
 
     /// <summary>
@@ -497,6 +520,7 @@ internal sealed class CommandState
         _keyInputs?.Clear();
         UnsettledVersion = null;
         EntityVersion = null;
+        HeldKey = null;
         OwesDiscriminator = false;
         OwesLiteralKeys = false;
         PutEntity = null;
@@ -504,10 +528,12 @@ internal sealed class CommandState
         VersionIgnored = false;
         VersionChecked = false;
         ItemMustNotExist = false;
+        ExpectedVersion = 0;
         StoredVersion = null;
         Table = null!;
         _itemOpen = false;
         _itemStart = 0;
+        _keyStart = 0;
         _pageMark = 0;
         MaxAttempts = 0;
         MaxStalledRounds = 0;

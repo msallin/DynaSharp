@@ -18,9 +18,9 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
+            new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
+            new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
@@ -396,7 +396,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
 
             /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(userId));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(userId), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -652,7 +652,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
 
             /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::KeyShapes.Plan status) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(status));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::KeyShapes.Plan status) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(status), "gsi1pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -838,7 +838,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
 
             /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(trackingId));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(trackingId), "gsi2pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

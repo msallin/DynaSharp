@@ -1,7 +1,7 @@
 namespace DynaSharp.Requests;
 
 /// <summary>
-/// The type of a key attribute. Keys can only be strings, numbers or binary.
+/// The type of a key attribute. Keys can only be strings, numbers or binary, which DynamoDB and the AWS SDKs call <c>S</c>, <c>N</c> and <c>B</c>.
 /// </summary>
 public enum ScalarAttributeType
 {

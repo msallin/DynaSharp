@@ -23,7 +23,7 @@ internal readonly struct GetOperation<T> : ICommandOperation<GetResult<T>>
             if (reader.AttributeNameEquals("Item"u8))
             {
                 reader.ReadStartItem();
-                item = T.ReadAttributes(ref reader);
+                item = ReadItem(ref reader, state);
                 found = true;
             }
             else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
@@ -42,4 +42,18 @@ internal readonly struct GetOperation<T> : ICommandOperation<GetResult<T>>
 
     public static void SetActivityTags(Activity activity, CommandState state) =>
         ReadTags.SetProjection(activity, state.ConsistentRead, state.Expressions.ResolveProjection());
+
+    // The key of the item is the one of the request, which stays until the call ends.
+    private static T ReadItem(ref DynamoDbReader reader, CommandState state)
+    {
+        try
+        {
+            return T.ReadAttributes(ref reader);
+        }
+        catch (DynamoDbMappingException failure)
+        {
+            failure.Key = state.ReadKey();
+            throw;
+        }
+    }
 }

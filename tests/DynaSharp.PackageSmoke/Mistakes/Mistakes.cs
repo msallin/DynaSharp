@@ -32,5 +32,11 @@ public static class Code
 
     public static void Dyna214() => Shop.Update("a").Remove("a..b");
 
+    public static void Dyna215() => Invoices.Scan().Filter(Order.Attrs.Total.Gt(1m));
+
+    public static void Dyna216() => Orders.Update("a").If($"contains({Order.Attrs.Total}, {1})");
+
     private static readonly Table<Order> Orders = null!;
+
+    private static readonly Table<Invoice> Invoices = null!;
 }

@@ -18,14 +18,14 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
         keyTemplates: new __Map.DynamoDbKeyTemplate[]
         {
             new __Map.DynamoDbKeyTemplate("pk", "USER#{User}", true, new[] { new __Map.DynamoDbKeyInput("User", null) }),
-            new __Map.DynamoDbKeyTemplate("sk", "{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", null), new __Map.DynamoDbKeyInput("Id", null) }),
+            new __Map.DynamoDbKeyTemplate("sk", "{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", null), new __Map.DynamoDbKeyInput("Id", null) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
             new __Map.DynamoDbKeyTemplate("gsi1pk", "STATE#{State}", false, new[] { new __Map.DynamoDbKeyInput("State", null) }, static __values => Keys.Gsi1Pk.Format((global::Shapes.Keys.Status)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("gsi1sk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", null) }, static __values => Keys.Gsi1Sk.Format((global::System.Guid)__values[0]!)),
         });
@@ -241,7 +241,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
 
             /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(string user) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(user));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(string user) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(user), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -471,7 +471,7 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
 
             /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(global::Shapes.Keys.Status state) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(state));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(global::Shapes.Keys.Status state) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(state), "gsi1pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

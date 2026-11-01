@@ -125,12 +125,15 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
 
     /// <summary>
     /// Asks for a strongly consistent read, which sees every write that succeeded before it and costs twice the capacity. A read is eventually consistent
-    /// otherwise. A global secondary index is always eventually consistent, and DynamoDB rejects this option on one with a <see cref="ValidationException"/>.
+    /// otherwise. A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with another
+    /// partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">The index is known to be global.</exception>
     public QueryCommand<T> Consistent()
     {
         var state = Enter();
+        state.Table.ThrowIfNotConsistent();
         state.ConsistentRead = true;
         return new(state, state.Table);
     }

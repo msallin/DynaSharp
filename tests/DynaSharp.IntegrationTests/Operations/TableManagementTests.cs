@@ -221,6 +221,7 @@ public sealed class TableManagementTests(Backend backend)
     }
 
     [Test]
+    [NotInParallel] // DynamoDB Local answers calls around a new index with InternalFailure while other tables change.
     public async Task UpdateTable_CreateGlobalSecondaryIndex_IndexFillsFromTheTableAndCanBeQueried()
     {
         // Arrange
@@ -264,6 +265,7 @@ public sealed class TableManagementTests(Backend backend)
     }
 
     [Test]
+    [NotInParallel] // DynamoDB Local answers calls around a new index with InternalFailure while other tables change.
     public async Task UpdateTable_CreateGlobalSecondaryIndexOnProvisionedTable_ReportsTheIndexCapacity()
     {
         // Arrange

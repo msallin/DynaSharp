@@ -1013,7 +1013,7 @@ public sealed class TypeDiagnosticsTests
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA020 Error: Entity 'E' has no discriminator. Add [Discriminator(\"NAME\")], or [Discriminator(OptOut = true)] for a table written by other tools."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA020 Error: Entity 'E' has no discriminator. Add [Discriminator(\"E\")], or [Discriminator(OptOut = true)] for a table written by other tools."));
     }
 
     [Test]

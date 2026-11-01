@@ -120,7 +120,32 @@ internal static class KeysEmitter
         }
 
         code.Close();
+        EmitValueOf(code, entity, inputs);
         code.Close();
+    }
+
+    // An entity whose keys give their inputs back has no use for this, and the default of the interface says so.
+    private static void EmitValueOf(IndentedCode code, EntityModel entity, List<KeyInput> inputs)
+    {
+        var held = KeyTemplateEmitter.HeldInputs(entity);
+        if (held.Count > 0)
+        {
+            code.Blank();
+            code.Line("/// <inheritdoc/>");
+            code.Line("public object? ValueOf(string propertyName)");
+            code.Open();
+            foreach (var property in held)
+            {
+                code.Line($"if (propertyName == {CodeText.Literal(property)})");
+                code.Open();
+                code.Line($"return _{inputs.FindIndex(known => known.Property == property)};");
+                code.Close();
+                code.Blank();
+            }
+
+            code.Line("return null;");
+            code.Close();
+        }
     }
 
     // A key of literals has none: a struct may not declare an internal constructor without parameters.

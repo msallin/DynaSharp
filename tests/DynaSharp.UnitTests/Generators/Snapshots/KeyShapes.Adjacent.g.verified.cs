@@ -179,7 +179,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
             public static string Format() => "P";
 
             /// <summary>Formats the complete key as a key of <c>Adjacent</c>, which a query of another entity does not take.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.Adjacent> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.Adjacent>(Format());
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Adjacent> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.Adjacent>(Format(), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

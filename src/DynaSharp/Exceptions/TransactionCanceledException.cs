@@ -60,7 +60,8 @@ public sealed class TransactionCanceledException : DynamoDbException
     /// <param name="marker">The marker of the action.</param>
     /// <returns>
     /// The reason. <see cref="TransactionFailure.None"/> if this action caused no problem, which does not mean it took effect: nothing did.
-    /// <see cref="TransactionFailure.Unknown"/> for a code this library does not know, and when DynamoDB sent no reason for the action.
+    /// <see cref="TransactionFailure.Unknown"/> for a code this library does not know, and when DynamoDB sent no reason for the action. <see cref="Failures"/> tells the two apart: it lists an unknown
+    /// code as an entry with that reason, whose <see cref="TransactionActionFailure.Index"/> finds the code in <see cref="CancellationReasons"/>, and a transaction without reasons has no entries.
     /// </returns>
     /// <exception cref="ArgumentException">The marker is a default value, so the action was never added.</exception>
     public TransactionFailure ReasonFor(TransactMarker marker) => ReasonAt(marker) is { } reason ? ToFailure(reason.Code) : TransactionFailure.Unknown;

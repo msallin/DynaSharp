@@ -2,7 +2,7 @@ namespace DynaSharp.Generators;
 
 /// <summary><c>decimal</c>: <c>plain</c> by default, and <c>n&lt;i&gt;.&lt;f&gt;</c> with <c>1 &lt;= i</c> and <c>i + f &lt;= 28</c>.</summary>
 /// <param name="typeName">The type as messages show it.</param>
-internal sealed class DecimalInput(string typeName) : KeyInputType(typeName)
+internal sealed class DecimalInput(string typeName) : KeyInputType(typeName, "plain, the default, or n<i>.<f>, such as n10.2")
 {
     private const string Plain = "plain";
 

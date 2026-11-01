@@ -18,7 +18,7 @@ public sealed class DescriptorTests
         var text = new StringBuilder();
 
         // Act
-        foreach (var descriptor in Descriptors.All.Where(static descriptor => descriptor.HelpLinkUri.Length > 0))
+        foreach (var descriptor in Descriptors.All)
         {
             text.Append(CultureInfo.InvariantCulture, $"{descriptor.Id} | {descriptor.HelpLinkUri}\n");
         }
@@ -65,15 +65,14 @@ public sealed class DescriptorTests
     }
 
     [Test]
-    public async Task HelpLink_EveryLink_PointsAtASectionOfTheDiagnosticsPageThatNamesTheRule()
+    public async Task HelpLink_EveryRule_PointsAtASectionOfTheDiagnosticsPageThatNamesTheRule()
     {
         // Arrange
         var directory = typeof(DescriptorTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().Single(a => a.Key == "ProjectDirectory").Value!;
         var sections = SectionsOf(await File.ReadAllLinesAsync(Path.Combine(directory, "..", "..", "spec", "diagnostics.md")));
-        var linked = Descriptors.All.Where(static descriptor => descriptor.HelpLinkUri.Length > 0).ToList();
 
         // Act
-        var broken = linked.Where(descriptor => !IsCoveredBy(sections, descriptor)).Select(static descriptor => descriptor.Id);
+        var broken = Descriptors.All.Where(descriptor => !IsCoveredBy(sections, descriptor)).Select(static descriptor => descriptor.Id);
 
         // Assert
         await Assert.That(broken).IsEmpty();

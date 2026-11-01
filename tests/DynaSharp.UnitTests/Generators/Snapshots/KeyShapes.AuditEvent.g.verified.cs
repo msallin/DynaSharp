@@ -185,7 +185,7 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
 
             /// <summary>Formats the complete key as a key of <c>AuditEvent</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.AuditEvent> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.AuditEvent>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.AuditEvent> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.AuditEvent>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

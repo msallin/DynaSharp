@@ -83,7 +83,7 @@ public sealed partial class CommandVectorTests
         [("Scan", "SegmentZeroOfOne")] = client => client.Table("Users", "pk").Scan().Segment(0, of: 1).ToRequestJson(),
         [("Scan", "SegmentBounds")] = client => client.Table("Users", "pk").Scan().Segment(999999, of: 1000000).ToRequestJson(),
         [("Scan", "LimitIntMax")] = client => client.Table("Users", "pk").Scan().Limit(int.MaxValue).ToRequestJson(),
-        [("Scan", "SecondaryIndex")] = client => client.Table("Orders", "pk").Index("ByStatus", "status").Scan().Consistent().ToRequestJson(),
+        [("Scan", "SecondaryIndex")] = client => client.Table("Orders", "pk").Index("ByStatus", "pk", "status").Scan().Consistent().ToRequestJson(),
         [("BatchGetItem", "Minimal")] = client => client.Table("Users", "pk").BatchGet().Key("user-1").ToRequestJson(),
         [("BatchGetItem", "TableArnAsKey")] = client => client.Table(OperationVectors.TableArn, "pk").BatchGet().Key("user-1").ReturnCapacity().ToRequestJson(),
         [("BatchGetItem", "BinaryAndNumberKeys")] = client => client.Table("Blobs", "pk", "sk").BatchGet()

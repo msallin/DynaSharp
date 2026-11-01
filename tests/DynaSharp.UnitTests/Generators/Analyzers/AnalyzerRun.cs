@@ -34,7 +34,7 @@ internal static class AnalyzerRun
 
         """;
 
-    private static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = [new CommandLifetimeAnalyzer(), new ExpressionAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer()];
+    private static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = [new CommandLifetimeAnalyzer(), new DiscriminatorAnalyzer(), new ExpressionAnalyzer(), new HandleOwnerAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer()];
 
     /// <summary>A whole source with this member in the class <c>Code</c>, which has a field <c>shop</c> of type <c>Table&lt;Item&gt;</c>.</summary>
     public static string Member(string member, string outside = "") => Header + member + "\n}\n" + outside;

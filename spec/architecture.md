@@ -41,7 +41,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
 | `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
-| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, `TableAdministration`, `TableSchema`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
+| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, `FailedItem`, `TableAdministration`, `TableSchema`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
 | `Expressions` | Condition structs, `Attr`, `Expr`, `SortKey`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
 | `Mapping` | Attributes and the contract of section 6 | `Serialization` |
 | `Serialization` | `DynamoDbReader`, `DynamoDbWriter`, converters, `PooledByteBuffer`, `ItemShape`, `ShapeTable` | `Mapping` |
@@ -74,7 +74,7 @@ Rules that are easy to break:
 
 - The pipeline is generic over a struct, so a call has no delegate and no allocation of its own. A default interface member on `IWireCall<T>` would box. A new member goes to all five implementations.
 - `SendAsync` and `AttemptAsync` use `PoolingAsyncValueTaskMethodBuilder`, so their `ValueTask` is awaited exactly once. That is why terminals are never awaited twice and never stored.
-- `Parse` turns `JsonException`, `InvalidOperationException` and `FormatException` into an unrecognized response. `DynamoDbMappingException` derives from `Exception` and goes through unchanged, and it is not retried.
+- `Parse` turns `JsonException`, `InvalidOperationException` and `FormatException` into an unrecognized response. `DynamoDbMappingException` derives from `Exception` and goes through unchanged, and it is not retried. Its `Key` is filled where items are read: `GetOperation` from the request, `PageResponse` and `BatchGetOperation` through `FailedItem`, from a copy of the reader per array.
 - `SetActivityTags`, `SetResponseTags`, `GetConsumedCapacity` and `DescribeRejection` must not throw: the span is already open.
 - Clock skew travels through a private `ClockCorrectedException`, which never leaves the pipeline. A resend counts against `MaxAttempts`, uses no wait and no quota.
 - `ClockSkewCorrection` is a `TimeProvider`, created once per client in `ClientConfiguration.Resolve`. The pipeline signs on it and corrects it, and the default chain that `Resolve` creates judges expiry on it, because an expiry is a time of the service. Its timers and timestamps are those of the local clock. A provider the application creates knows nothing of it and uses the local clock.
@@ -148,13 +148,13 @@ a set of expressions per action and clears them in `EndAction`, so `#n0` means s
 | `ExpectVersion` for a write by key | `UnsettledVersion` | Throws unless `IfVersion` or `IgnoreVersion` came |
 | `ExpectVersionOf` for `Delete(entity)` | `UnsettledVersion`, `EntityVersion` | `AppendVersion` of what the entity held |
 | `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator, last |
-| `Set`, `Remove`, `NoteUnknownValue` by handle | `KeyInputs` | `KeyInputChanges.Apply`: checks every template, writes or removes derived attributes and keys of literals beside them, checks sparse siblings |
+| `Set`, `Remove`, `NoteUnknownValue` by handle | `KeyInputs` | `KeyInputChanges.Apply`: checks every template, writes or removes derived attributes and keys of literals beside them, checks sparse siblings. Values of the table key come from `CommandState.ReadKey` and `DynamoDbKeyTemplate.Parse`, or from `HeldKey` for an entity with `EntityWrites.HoldsKey` |
 | `NoteBatchWrite` | `UnsettledVersion` | Throws unless `IgnoreVersion` came |
 
 The order in `Settle` matters: the version first, then keys, then indexes of literals, then the discriminator, so that each sees the actions before it and the discriminator ends the `SET`. `ForgetEntity` exists because a transaction reuses the state for its next action.
 `VersionChecked` is what makes `IgnoreVersion` after `IfVersion` throw. Raw paths go past all of this on purpose. `api.md` section 8 is the contract.
 
-Building a one-item command, a batch or a transaction allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, and boxed values and a key string on an update of a key input. `CommandAllocationTests` pins that per
+Building a one-item command, a batch or a transaction allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, boxed values and a key string on an update of a key input, and the box of the generated key on an update of an entity whose index wants more of an input than the text of its key holds. `CommandAllocationTests` pins that per
 command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTests` and `FanOutStressTests` hammer the pooled state.
 
 ### Table administration
@@ -213,9 +213,9 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `IDynamoDbDocument<T>.WriteNextVersion`, `IDynamoDbEntity<T>.ReadVersion` | `WriteRules`. `static virtual`, and static so that a struct entity is not boxed for them. Emitted only for a `[Version]` |
 | `IDynamoDbEntity<T>.Info`, `WriteKey` | `DynamoDbClient.CreateTable<T>`, `Get(entity)`, `Delete(entity)`, `Index(name)` |
 | `IDynamoDbDiscriminated<T>` | A marker; the constraint of mixed reads. `EntityEmitter` puts it on the declaration when the entity has a discriminator value |
-| `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string |
-| `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense; `TableExtensions.Query`, which takes it |
-| `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema` |
+| `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string. `ValueOf` exists only for an entity with `DynamoDbKeyTemplate.LosesValues` |
+| `PartitionKey<T>` | The generated `Keys.X.Of`, through a constructor hidden from IntelliSense, with the attribute it is for; `TableExtensions.Query`, which takes it and compares that attribute with what it reads |
+| `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema`, and by `TableExtensions` for the name of a key builder and the kind of an index |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
 | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
 | `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
@@ -225,7 +225,7 @@ Reader contract: `ReadAttributes` starts after the opening brace and consumes th
 so a generic instantiation gets its own code. An enum gets a `file` struct in the generated file, and `Attrs` nests a public forwarder because no public signature can name a `file` type.
 
 `KeyTemplates` in `Info` holds every key attribute made of properties, once: a template of the table without a delegate, an index template with `static values => Keys.X.Format(...)`, a plain index key without one, and a key of
-literals of any index. A plain key of the table is left out, so an entity with neither pays nothing. `KeyTemplateEmitter` writes this and its remarks explain each case. The value of an input is boxed until the terminal, which is the
+literals of any index. A plain key of the table is left out, so an entity with neither pays nothing, unless an index template repeats it. A key of the table with an input an index template repeats carries `Parse`, which reads the input from the key. `KeyTemplateEmitter` writes this and its remarks explain each case. The value of an input is boxed until the terminal, which is the
 price of one delegate shape for all templates.
 
 `Info` also says how each key is stored, for `TableSchema`. A template is a string. A plain key is what its converter writes, which `ConverterResolver.WireTypeOf` finds at compile time and `KeyModel.WireType` carries. A
@@ -278,15 +278,18 @@ The encoded form is an on-disk contract. `Parse` and `Format` must stay exact in
 
 ## 9. Analyzers and what they mirror
 
-Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp declares by namespace, so a new command needs no list. `spec/diagnostics.md` is the user-facing page, reached by the help links in `Descriptors`.
+Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp declares by namespace, so a new command needs no list. `spec/diagnostics.md` is the user-facing page, reached by the help link every rule has in `Descriptors`.
 
 | Rule | Analyzer | Mirrors | Kept in step by |
 |---|---|---|---|
+| `DYNA026` | `DiscriminatorAnalyzer` | The generator's reading of `[Discriminator]`, on symbols, at the end of a compilation, because only that sees all entities | `DiscriminatorAnalyzerTests` |
 | `DYNA201` | `CommandLifetimeAnalyzer`, `CommandFlow` | The compiler's ref struct rules, CS4007, CS4012, CS9202, CS8175, CS9108. CS4007 comes from lowering, after analyzers ran, so the flow is rebuilt on the control flow graph. CS8345 stops the compiler first and has docs only | `CommandLifetimeAnalyzerTests`, the `Mistakes` project of `PackageSmoke` |
 | `DYNA202` | `ReadTerminalAnalyzer` | Which types are reads, known by having `ItemsAsync` | `ReadTerminalAnalyzerTests` |
 | `DYNA210`, `DYNA211`, `DYNA212` | `ExpressionAnalyzer`, `ExpressionLexer`, `ExpressionParser` | DynamoDB's condition and update grammar, and the keyword list of `ExpressionWriter` | `ExpressionCorpus`, a test comparing the two keyword lists |
 | `DYNA213` | `PathAnalyzer` | The generator's model, through `ModelBuilder.ModelOf`, which also reads types from metadata | `PathAnalyzerTests` |
 | `DYNA214` | `PathAnalyzer`, `PathSyntax` | `ExpressionWriter.AppendPath` | `PathSyntaxTests`, which runs both |
+| `DYNA215` | `HandleOwnerAnalyzer` | The shape of generated `Attrs`, a static property of a nested class of a mapped type | `HandleOwnerAnalyzerTests` |
+| `DYNA216` | `ExpressionAnalyzer` | Which built-in converters store no text, and the overloads of `AttrExtensions.BeginsWith` that do not compile | `ExpressionAnalyzerTests`, `CompileGuardTests` |
 
 A path parameter is known by its name, `path` or `paths`, so a new method that takes a path follows that or goes unchecked. `DYNA212` and `DYNA214` are warnings for 0.x: the grammar is a copy of the service's from 2026, and a false
 error in a consumer's build can only be fixed by a new package. `ExpressionParser` accepts everything DynamoDB might, for the same reason. `WrapInAttrCodeFix` is the only class that needs Workspaces, and only an IDE loads
@@ -365,7 +368,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 2. `AnalyzerReleases.Unshipped.md`, which is where every new rule starts. `DescriptorTests` compares severity, category and title.
 3. Report it from `TypeRules`, `EntityKeyBuilder`, `KeyTemplateBinder` or an analyzer's `SupportedDiagnostics`.
 4. A positive and a negative test in `Generators/Diagnostics` or `Generators/Analyzers`, and the `Descriptors` snapshot.
-5. With a help link: a section in `spec/diagnostics.md`, whose anchor `DescriptorTests` checks. A rule that a consumer's build must show also goes into `PackageSmoke/Mistakes` and its project file.
+5. A help link, to the section of its family in `spec/diagnostics.md`, which names the rule: `DescriptorTests` checks both. A rule that a consumer's build must show also goes into `PackageSmoke/Mistakes` and its project file.
 
 ## 12. Glossary
 
@@ -387,7 +390,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 | Hint | In a fan-out token, the key of a partition's next item, for the merge only. In the generator, the name of a generated file |
 | Hole | A `{...}` of an interpolated expression |
 | Input | A property that feeds a key template |
-| Index of literals | An index with nothing but keys of literals, so it holds every item of the entity, and every update writes its keys (`EntityWrites.LiteralKeys`) |
+| Index of literals | An index whose keys are literals or keys of the table, so it holds every item of the entity, and every update writes its literals (`EntityWrites.LiteralKeys`) |
 | Key of literals | A template without placeholders, such as `FEATURED` |
 | Marker | `TransactMarker`, which finds an action in a cancelled transaction. Also the item `Unique` writes |
 | Mark | The offset where a paged body ends before its start key (`_pageMark`) |

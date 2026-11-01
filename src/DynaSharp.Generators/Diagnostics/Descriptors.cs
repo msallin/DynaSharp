@@ -9,7 +9,7 @@ namespace DynaSharp.Generators;
 internal static class Descriptors
 {
     public static readonly DiagnosticDescriptor NotPartial = new(
-        "DYNA001", "Type is not partial", "Type '{0}' must be partial, as must its containing types", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA001", "Type is not partial", "Type '{0}' must be partial, as must its containing types", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NoPartitionKey = new(
         "DYNA002",
@@ -17,13 +17,14 @@ internal static class Descriptors
         "Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor UnsupportedType = new(
-        "DYNA003", "Unsupported property type", "Property '{0}' has unsupported type '{1}'. {2}.", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA003", "Unsupported property type", "Property '{0}' has unsupported type '{1}'. {2}.", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor DuplicateAttributeName = new(
-        "DYNA004", "Attribute name is used twice", "Attribute name '{0}' is used by both '{1}' and '{2}'", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA004", "Attribute name is used twice", "Attribute name '{0}' is used by both '{1}' and '{2}'", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NoUsableConstructor = new(
         "DYNA005",
@@ -31,13 +32,14 @@ internal static class Descriptors
         "Type '{0}' has no single usable constructor. Mark one with [DynamoDbConstructor].",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor UnboundParameter = new(
-        "DYNA006", "Constructor parameter has no property", "Constructor parameter '{0}' has no matching mapped property", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA006", "Constructor parameter has no property", "Constructor parameter '{0}' has no matching mapped property", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor UnmappableType = new(
-        "DYNA007", "Type cannot be mapped", "Type '{0}' cannot be mapped: {1}", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA007", "Type cannot be mapped", "Type '{0}' cannot be mapped: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidConverter = new(
         "DYNA008",
@@ -45,31 +47,32 @@ internal static class Descriptors
         "Converter '{0}' does not implement IDynamoDbConverter<{1}> or has no accessible definition",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor DuplicateKey = new(
-        "DYNA009", "Key is declared twice", "Key '{0}' is declared more than once", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA009", "Key is declared twice", "Key '{0}' is declared more than once", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidAttributeName = new(
-        "DYNA010", "Attribute name is invalid", "Attribute name '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA010", "Attribute name is invalid", "Attribute name '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidVersion = new(
-        "DYNA011", "[Version] is not valid here", "[Version] requires a single integer property without a converter; '{0}' is not valid", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA011", "[Version] is not valid here", "[Version] requires a single integer property without a converter; '{0}' is not valid", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NotValidOnDocument = new(
-        "DYNA012", "Attribute is not valid on a document", "[{0}] is not valid on a document", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA012", "Attribute is not valid on a document", "[{0}] is not valid on a document", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor EntityAndDocument = new(
-        "DYNA013", "Both entity and document", "Type '{0}' cannot be both an entity and a document", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA013", "Both entity and document", "Type '{0}' cannot be both an entity and a document", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor MemberConflict = new(
-        "DYNA014", "Generated member conflicts", "Generated member '{0}' conflicts with a member of '{1}'", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA014", "Generated member conflicts", "Generated member '{0}' conflicts with a member of '{1}'", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor LanguageVersionTooLow = new(
-        "DYNA015", "C# version is too low", "DynaSharp generated code needs C# 11 or later; this project uses {0}", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA015", "C# version is too low", "DynaSharp generated code needs C# 11 or later; this project uses {0}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InaccessibleType = new(
-        "DYNA016", "Type is not accessible", "Type '{0}' used by '{1}' is not accessible to generated code", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA016", "Type is not accessible", "Type '{0}' used by '{1}' is not accessible to generated code", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidKeyType = new(
         "DYNA017",
@@ -77,10 +80,11 @@ internal static class Descriptors
         "Property '{0}' of type '{1}' cannot be a DynamoDB key, which must be a string, number or binary",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidIndex = new(
-        "DYNA018", "Index is invalid", "Index '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA018", "Index is invalid", "Index '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NullableContextDisabled = new(
         "DYNA019",
@@ -88,21 +92,23 @@ internal static class Descriptors
         "Type '{0}' must be in an enabled nullable context, otherwise nullable properties cannot be told from others",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NoDiscriminator = new(
         "DYNA020",
         "Entity has no discriminator",
-        "Entity '{0}' has no discriminator. Add [Discriminator(\"NAME\")], or [Discriminator(OptOut = true)] for a table written by other tools.",
+        "Entity '{0}' has no discriminator. Add [Discriminator(\"{1}\")], or [Discriminator(OptOut = true)] for a table written by other tools.",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor IgnoredPlainKey = new(
-        "DYNA021", "Plain key is ignored", "Property '{0}' is a plain key, so it cannot be [DynamoDbIgnore]", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA021", "Plain key is ignored", "Property '{0}' is a plain key, so it cannot be [DynamoDbIgnore]", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InvalidDiscriminator = new(
-        "DYNA022", "Discriminator is invalid", "[Discriminator] on '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true);
+        "DYNA022", "Discriminator is invalid", "[Discriminator] on '{0}' is invalid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor VersionInKey = new(
         "DYNA023",
@@ -110,7 +116,8 @@ internal static class Descriptors
         "[Version] property '{0}' is part of a key. A write changes the version, and a key cannot follow it.",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor EnumWithoutMembers = new(
         "DYNA024",
@@ -118,7 +125,8 @@ internal static class Descriptors
         "Property '{0}' has enum type '{1}', which has no members, so every write throws. Add a member, make the property nullable, or add a [DynamoDbConverter].",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor NamedLikeGeneratedClass = new(
         "DYNA025",
@@ -126,25 +134,36 @@ internal static class Descriptors
         "Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.",
         Mapping,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor DuplicateDiscriminator = new(
+        "DYNA026",
+        "Two entities share a discriminator",
+        "Entity '{0}' has the discriminator '{1}' in the attribute '{2}', as '{3}' has, so on one table their items cannot be told apart. Give one of them another value, unless they never share a table.",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp,
+        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
-        "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor LiteralNotAscii = new(
-        "DYNA101", "Key template literal is not ASCII", "Key template literal must be printable ASCII", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA101", "Key template literal is not ASCII", "Key template literal must be printable ASCII", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor UnknownProperty = new(
-        "DYNA102", "Unknown property in a key template", "Key template references unknown property '{0}'", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA102", "Unknown property in a key template", "Key template references unknown property '{0}'", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor UnsupportedKeyInput = new(
-        "DYNA103", "Type cannot be used in a key", "Property '{0}' of type '{1}' cannot be used in a key", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA103", "Type cannot be used in a key", "Property '{0}' of type '{1}' cannot be used in a key", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor FormatDoesNotFit = new(
-        "DYNA104", "Format does not fit the type", "Format '{0}' does not fit type '{1}'", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA104", "Format does not fit the type", "Format '{0}' does not fit type '{1}'. It takes {2}.", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor FormatOutOfRange = new(
-        "DYNA105", "Format is out of range", "Format '{0}' is out of range", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA105", "Format is out of range", "Format '{0}' is out of range", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor NoLiteralBetween = new(
         "DYNA106",
@@ -152,10 +171,11 @@ internal static class Descriptors
         "'{0}' is variable-width and '{1}' follows with no literal between them, so the key cannot be parsed",
         KeyGrammar,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor NullableInput = new(
-        "DYNA107", "Nullable input in a key", "Nullable '{0}' is used in a key that is not Sparse", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA107", "Nullable input in a key", "Nullable '{0}' is used in a key that is not Sparse", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor NumberWithoutFixedFormat = new(
         "DYNA108",
@@ -163,10 +183,11 @@ internal static class Descriptors
         "Number '{0}' has no fixed format in a sort key, so 10 sorts before 9. Use d<w> or n<i>, or {{{0}:plain}}.",
         KeyGrammar,
         DiagnosticSeverity.Warning,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor InvalidKeyOnly = new(
-        "DYNA109", "[KeyOnly] is not valid here", "[KeyOnly] on '{0}' is invalid: {1}", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA109", "[KeyOnly] is not valid here", "[KeyOnly] on '{0}' is invalid: {1}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor SparseWithoutNullableInput = new(
         "DYNA110",
@@ -174,13 +195,14 @@ internal static class Descriptors
         "Index '{0}' is Sparse, but all its inputs are non-nullable, so every item is indexed",
         KeyGrammar,
         DiagnosticSeverity.Warning,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor RepeatedPlaceholder = new(
-        "DYNA111", "Property is repeated in a key template", "Property '{0}' appears twice in a key template", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA111", "Property is repeated in a key template", "Property '{0}' appears twice in a key template", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor MisplacedKey = new(
-        "DYNA112", "Key on the wrong target", "A template belongs on the type, a plain key on a property", KeyGrammar, DiagnosticSeverity.Error, true);
+        "DYNA112", "Key on the wrong target", "A template belongs on the type, a plain key on a property", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor EnumNamesNotUnique = new(
         "DYNA113",
@@ -188,7 +210,8 @@ internal static class Descriptors
         "Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.",
         KeyGrammar,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor ComputedInIndex = new(
         "DYNA114",
@@ -196,7 +219,8 @@ internal static class Descriptors
         "Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current",
         KeyGrammar,
         DiagnosticSeverity.Error,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor StringBeforeDelimiter = new(
         "DYNA115",
@@ -204,7 +228,8 @@ internal static class Descriptors
         "String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order",
         KeyGrammar,
         DiagnosticSeverity.Info,
-        true);
+        true,
+        helpLinkUri: KeyHelp);
 
     public static readonly DiagnosticDescriptor CommandOutlivesExpression = new(
         "DYNA201",
@@ -263,15 +288,33 @@ internal static class Descriptors
         true,
         helpLinkUri: ExpressionHelp);
 
+    public static readonly DiagnosticDescriptor HandleOfAnotherType = new(
+        "DYNA215",
+        "Handle of another type",
+        "'{0}' is an attribute of '{1}', and this command is on '{2}', so DynamoDB looks for it on items that do not have it. Use a handle of that type, or a raw path for an attribute outside it.",
+        Expressions,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: ExpressionHelp);
+
+    public static readonly DiagnosticDescriptor TextFunctionOnNumber = new(
+        "DYNA216",
+        "Text function on a number",
+        "{0} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text.",
+        Expressions,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: ExpressionHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
         InvalidConverter, DuplicateKey, InvalidAttributeName, InvalidVersion, NotValidOnDocument, EntityAndDocument, MemberConflict,
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
-        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
+        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter,
-        CommandOutlivesExpression, ReadCommandNotAwaitable, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath,
+        CommandOutlivesExpression, ReadCommandNotAwaitable, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);
@@ -283,6 +326,10 @@ internal static class Descriptors
     private const string Commands = "DynaSharp.Commands";
 
     private const string Expressions = "DynaSharp.Expressions";
+
+    private const string EntityHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities";
+
+    private const string KeyHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates";
 
     private const string CommandHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands";
 

@@ -6,12 +6,19 @@ namespace DynaSharp.Expressions;
 public readonly struct BeginsWith : ICondition
 {
     private readonly string _path;
-    private readonly string _prefix;
+    private readonly string? _prefix;
+    private readonly ReadOnlyMemory<byte> _binaryPrefix;
 
     internal BeginsWith(string path, string prefix)
     {
         _path = path;
         _prefix = prefix;
+    }
+
+    internal BeginsWith(string path, ReadOnlyMemory<byte> prefix)
+    {
+        _path = path;
+        _binaryPrefix = prefix;
     }
 
     /// <summary>Puts the condition on the heap, so that it composes with a <see cref="Condition"/>.</summary>
@@ -24,7 +31,15 @@ public readonly struct BeginsWith : ICondition
         sink.Text("begins_with("u8);
         sink.Path(_path);
         sink.Text(", "u8);
-        sink.Value<string, StringConverter>(_prefix);
+        if (_prefix is null)
+        {
+            sink.Value<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>(_binaryPrefix);
+        }
+        else
+        {
+            sink.Value<string, StringConverter>(_prefix);
+        }
+
         sink.Text(")"u8);
     }
 }

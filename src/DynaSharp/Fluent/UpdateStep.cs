@@ -225,7 +225,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     }
 
     /// <summary>
-    /// Makes this update depend on the version of the item, and stores the next version. Otherwise the whole transaction is cancelled, and the marker of this action says that this was
+    /// Makes this update depend on the item having this version, and stores the next one. If it has another, the whole transaction is cancelled, and the marker of this action says that this was
     /// the reason. A version of 0 stands for a new item. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion"/>, and the next verb throws <see cref="InvalidOperationException"/> without it. <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>
     /// repeats a transaction together with the read of the version.

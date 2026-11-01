@@ -1,4 +1,5 @@
 using DynaSharp.IntegrationTests.Backends;
+using DynaSharp.IntegrationTests.Mapping;
 using DynaSharp.IntegrationTests.Support;
 using DynaSharp.Requests;
 using static DynaSharp.Expr;
@@ -356,14 +357,28 @@ public sealed class QueryCommandTests(Backend backend)
     }
 
     [Test]
-    public async Task ItemsAsync_GlobalIndexConsistent_IsRejected()
+    public async Task ItemsAsync_GlobalIndexConsistent_ThrowsBeforeTheRequest()
     {
         // Arrange
         await using var sandbox = await ReadSandbox.StartAsync(backend);
         var byStatus = sandbox.Shop.Index(ReadSandbox.GlobalIndex, "status", "placedAt");
 
         // Act
-        var failure = await Items.FailureOfAsync<ValidationException>(() => Read.ToListAsync(byStatus.Query("OPEN").Consistent().ItemsAsync()));
+        var failure = await Items.FailureOfAsync<InvalidOperationException>(() => Read.ToListAsync(byStatus.Query("OPEN").Consistent().ItemsAsync()));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("global secondary index");
+    }
+
+    [Test]
+    public async Task ItemsAsync_GlobalIndexConsistentThatIsNotKnownToBeGlobal_IsRejectedByDynamoDb()
+    {
+        // Arrange (with the partition key of the table it could be a local index, as far as the names say)
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var byType = sandbox.Shop.Index(ShopSandbox.ByPartitionAndType, "pk", "_type");
+
+        // Act
+        var failure = await Items.FailureOfAsync<ValidationException>(() => Read.ToListAsync(byType.Query("a").Consistent().ItemsAsync()));
 
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("ValidationException");

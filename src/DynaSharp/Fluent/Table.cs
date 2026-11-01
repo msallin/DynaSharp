@@ -124,7 +124,7 @@ public sealed class Table<T>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
     public UpdateCommand<T> Update<TKey>(TKey key)
-        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(BeginWithKey(key)), Model);
+        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(BeginWithKey(key), key), Model);
 
     /// <summary>Starts a delete of one item by its key. Deleting what does not exist is no error unless <see cref="DeleteCommand{T}.IfExists"/> asks for one.</summary>
     /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>

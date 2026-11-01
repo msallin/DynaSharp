@@ -3,7 +3,7 @@ namespace DynaSharp.Generators;
 /// <summary>Integers up to 64 bits: <c>plain</c> by default, <c>d&lt;w&gt;</c> and <c>n&lt;i&gt;</c>.</summary>
 /// <param name="typeName">The type as messages show it.</param>
 /// <param name="type">The integer type.</param>
-internal sealed class IntegerInput(string typeName, IntegerType type) : KeyInputType(typeName)
+internal sealed class IntegerInput(string typeName, IntegerType type) : KeyInputType(typeName, "plain, the default, d<w>, such as d6, or n<i>, such as n10")
 {
     private const string Plain = "plain";
 

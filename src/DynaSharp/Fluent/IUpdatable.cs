@@ -22,14 +22,16 @@ public interface IUpdatable<TSelf>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Key templates.</b> The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be set: then the
+    /// <b>Key templates.</b> The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be known: then the
     /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and what is missing, because the index
-    /// would go stale. An input of a key of the table is rejected the same way, because DynamoDB cannot update a key.
+    /// would go stale. An input of a key of the table is known from the key the update was given, and it cannot be set, because DynamoDB cannot update a key. A key given as strings is parsed
+    /// for that, so a value that its text does not hold, such as a timestamp a key cuts off at the day, comes from a generated key or not at all: then use a <c>Put</c> of the changed entity,
+    /// or a raw path.
     /// </para>
     /// <para>
     /// <b>Sparse indexes.</b> An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
-    /// naming it, because the item would silently stay out of the index. A key that an update cannot write, such as one made of an input of the table key, makes such an item enter the
-    /// index by a <c>Put</c>, which writes every key. A key of literals, of any index, is no such key: it is written in the same <c>SET</c>, and removed with the other key.
+    /// naming it, because the item would silently stay out of the index. A key of literals, of any index, and a key made only of inputs of the table key are no such keys: they are
+    /// written in the same <c>SET</c>, and removed with the other key.
     /// </para>
     /// <para>
     /// <b>Add and SetIfNotExists.</b> By the handle of such a property they throw too: the value they leave is not known here, so the key cannot follow. In a transaction the check runs

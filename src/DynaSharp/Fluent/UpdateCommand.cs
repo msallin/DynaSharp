@@ -230,12 +230,15 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         return new(state, state.Table);
     }
 
-    /// <summary>Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create.</summary>
+    /// <summary>
+    /// Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create. With <c>IfVersion(n)</c> above 0 the terminal throws
+    /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 stands for such an item and goes with this.
+    /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> IfNotExists()
     {
         var state = Enter();
-        state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
+        WriteRules.IfNotExists(state);
         return new(state, state.Table);
     }
 

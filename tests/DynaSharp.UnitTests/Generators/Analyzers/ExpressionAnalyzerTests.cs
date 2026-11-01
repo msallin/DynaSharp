@@ -391,6 +391,43 @@ public sealed class ExpressionAnalyzerTests
         await Assert.That(report).IsEmpty();
     }
 
+    [Test]
+    [Arguments("""Update("a").If($"begins_with({[|Attr<int>("n")|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Update("a").If($"contains({[|Attr<int>("n")|]}, {"1"})");""", "contains")]
+    [Arguments("""Update("a").If($"NOT contains( {[|new Attr<bool, BoolConverter>("n")|]}, {"1"})");""", "contains")]
+    [Arguments("""Scan().Filter($"begins_with({[|new Attr<DateTimeOffset, EpochSecondsConverter>("n")|]}, {"1"})");""", "begins_with")]
+    public async Task Analyze_TextFunctionOnANumber_ReportsTheHandle(string chain, string function)
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements("shop." + chain + ";");
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
+    }
+
+    [Test]
+    [Arguments("""Update("a").If($"begins_with({Attr("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"contains({new Attr<string, StringConverter>("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"contains({new Attr<Guid, GuidConverter>("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"size({Attr<int>("n")}) > {1}");""")]
+    [Arguments("""Update("a").If($"{Attr<int>("n")} > {1}");""")]
+    [Arguments("""Update("a").If($"contains({Attr("list")}, {Attr<int>("n").Value(1)})");""")]
+    [Arguments("""Update("a").If($"{"x"} = {Attr<int>("n")}");""")]
+    public async Task Analyze_TextFunctionOnText_ReportsNoSuchThing(string chain)
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements("shop." + chain + ";");
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).DoesNotContain("DYNA216");
+    }
+
     private static string NamePosition(string name) => $"DYNA210 Warning: String '{name}' is a value here, but this position needs a name. Wrap it in Attr(...).";
 
     // Set($"...") is inside the SET clause, so an update that does not start with SET has no interpolated form.

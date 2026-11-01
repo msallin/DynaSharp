@@ -4,6 +4,21 @@ DynaSharp.Credentials.DefaultCredentialsProvider.TryInvalidate(DynaSharp.Credent
 DynaSharp.Credentials.InstanceMetadataCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.IRefreshableCredentialsProvider
 DynaSharp.Credentials.IRefreshableCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.get -> bool
+DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.init -> void
+DynaSharp.Mapping.DynamoDbKeyTemplate.Parse.get -> System.Func<DynaSharp.AttributeValue, object?[]?>?
+DynaSharp.Mapping.DynamoDbKeyTemplate.Parse.init -> void
+DynaSharp.Mapping.IKey.ValueOf(string! propertyName) -> object?
+static DynaSharp.Serialization.ConverterChecks.ReadValue<T, TConverter>(DynaSharp.AttributeValue value) -> object?
+DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyBuilder.get -> string?
+DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyBuilder.init -> void
+DynaSharp.PartitionKey<TEntity>.PartitionKey(string! value, string! attributeName) -> void
+*REMOVED*DynaSharp.Attr<T, TConverter>.BeginsWith(string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<bool, DynaSharp.Serialization.BoolConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.DateTimeOffset, DynaSharp.Serialization.EpochSecondsConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith<T, TConverter>(this DynaSharp.Attr<T, TConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith<T>(this DynaSharp.Attr<T, DynaSharp.Serialization.NumberConverter<T>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+DynaSharp.DynamoDbMappingException.Key.get -> DynaSharp.Item?
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
@@ -45,3 +60,7 @@ DynaSharp.Streams.StreamDescription.StreamArn.get -> string?
 DynaSharp.Streams.StreamSummary.StreamArn.get -> string?
 static DynaSharp.ContinuationToken.Parse(string? text) -> DynaSharp.ContinuationToken
 static DynaSharp.DynamoDbMappingException.KeyDoesNotFit(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith

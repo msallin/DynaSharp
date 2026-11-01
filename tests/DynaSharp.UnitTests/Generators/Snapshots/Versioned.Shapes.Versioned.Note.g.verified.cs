@@ -18,13 +18,13 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
         },
         versionAttributeName: "Revision",
         discriminatorAttributeName: "_type",
         keyTemplates: new __Map.DynamoDbKeyTemplate[]
         {
-            new __Map.DynamoDbKeyTemplate("pk", "NOTE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+            new __Map.DynamoDbKeyTemplate("pk", "NOTE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
             new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("byownersk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
         });
@@ -227,7 +227,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
 
             /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -323,7 +323,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
 
             /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string owner) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(owner));
+            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string owner) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(owner), "byownerpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

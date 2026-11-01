@@ -57,7 +57,7 @@ public sealed class KeyInputChangesTests
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Rank, 7).ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("{Rank:d3}-{Queue}").And.Contains("sets Rank, and not Queue,");
+        await Assert.That(failure.Message).Contains("{Rank:d3}-{Queue}").And.Contains("sets Rank, and not Queue,").And.Contains("Set all of them");
     }
 
     [Test]
@@ -101,7 +101,7 @@ public sealed class KeyInputChangesTests
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk,").And.Contains("stay out");
+        await Assert.That(failure.Message).Contains("sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk,").And.Contains("stay out").And.Contains("Set what that key is made of");
     }
 
     [Test]
@@ -229,18 +229,367 @@ public sealed class KeyInputChangesTests
     }
 
     [Test]
-    public async Task ToRequestJson_SiblingMadeOfATableKeyInput_ThrowsNamingItAndThePut()
+    public async Task ToRequestJson_SiblingMadeOfATableKeyInput_WritesItFromTheKey()
     {
-        // Arrange (the sort key of ByCase repeats what the table key holds, which an update cannot write)
+        // Arrange (the sort key of ByCase repeats what the table key holds, which the update was given)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Claim>("Shop").Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "h").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"CLAIM#c1"}},"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = :v2, #n3 = if_not_exists(#n3, :v3)","ExpressionAttributeNames":{"#n0":"Handler","#n1":"bycasepk","#n2":"bycasesk","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"S":"h"},":v1":{"S":"HANDLER#h"},":v2":{"S":"CASE#c1"},":v3":{"S":"CLAIM"}}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SiblingMadeOfATableKeyInputOnARawKey_WritesItFromTheParsedKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Claim>("Shop").Update("CLAIM#c1").Set(Claim.Attrs.Handler, "h").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v2":{"S":"CASE#c1"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SiblingOnAKeyThatFitsNoTemplate_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (a sparse index would silently miss the item, and nothing can set an input of the table key)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var claims = client.Table<Claim>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "h").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update("OTHER#c1").Set(Claim.Attrs.Handler, "h").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("does not produce bycasesk,").And.Contains("Put");
+        await Assert.That(failure.Message).Contains("does not produce bycasesk,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set what");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetBesideAnInputOfTheTableKey_DerivesTheIndexKeyFromTheGeneratedKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<TenantInvoice>("Billing").Update(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Billing","Key":{"pk":{"S":"TENANT#acme"},"sk":{"S":"INV#2026-09#000002"}},"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"Status","#n1":"bystatuspk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Paid"},":v1":{"S":"TENANT#acme#STATUS#Paid"},":v2":{"S":"INVOICE"}}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetBesideAnInputOfTheTableKeyOnARawKey_DerivesTheIndexKeyFromTheParsedKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<TenantInvoice>("Billing").Update("TENANT#acme", "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"TENANT#acme#STATUS#Paid"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_InputsOfBothKeysOfTheTable_ReadsEachFromItsKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<BothKeysInput>("Shop").Update("A#a", "B#b").Set(BothKeysInput.Attrs.Mark, "m").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"m-a-b"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetOfTheInputOfTheTableKey_ThrowsTheRuleOfTheTableKey()
+    {
+        // Arrange (what the update was given is no reason to change it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).Set(TenantInvoice.Attrs.TenantId, "acme").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("cannot update a key");
+    }
+
+    [Test]
+    public async Task ToRequestJson_RawKeyThatFitsNoTemplate_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update("OTHER#acme", "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
+
+        // Assert (setting the tenant would be the error of the table key, so the message cannot say that)
+        await Assert.That(failure.Message).Contains("and not TenantId,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set all");
+    }
+
+    [Test]
+    public async Task ToRequestJson_RawKeyWithoutTheSortKeyThatHoldsTheInput_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (DynamoDB rejects such a key, and it has nothing to say about the input)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slots = client.Table<DaySlot>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update("ROOM#r1").Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_RawKeyThatIsNoString_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(1, "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TransactionStep_DerivesTheIndexKeyPerAction()
+    {
+        // Arrange (each action has its own key)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var json = client.TransactWrite()
+            .Update(invoices, TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid)
+            .Update(invoices, "TENANT#globex", "INV#2026-10#000003").Set(TenantInvoice.Attrs.Status, InvoiceState.Open)
+            .Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TransactItems":[{"Update":{"TableName":"Billing","Key":{"pk":{"S":"TENANT#acme"},"sk":{"S":"INV#2026-09#000002"}},"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"Status","#n1":"bystatuspk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Paid"},":v1":{"S":"TENANT#acme#STATUS#Paid"},":v2":{"S":"INVOICE"}}}},{"Update":{"TableName":"Billing","Key":{"pk":{"S":"TENANT#globex"},"sk":{"S":"INV#2026-10#000003"}},"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"Status","#n1":"bystatuspk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Open"},":v1":{"S":"TENANT#globex#STATUS#Open"},":v2":{"S":"INVOICE"}}}}],"ClientRequestToken":"t"}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_PlainTableKeyInATemplateOnARawKey_ReadsItThroughItsConverter()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<NumberedCounter>("Shop").Update(7).Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"KIND#hits#0007"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_PlainTableKeyInATemplateOnAGeneratedKey_ReadsItFromTheKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<NumberedCounter>("Shop").Update(NumberedCounter.Keys.Of(7)).Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"KIND#hits#0007"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_PlainTableKeyOfAnotherType_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (a string where the key holds a number, which DynamoDB rejects, and which no converter reads)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var counters = client.Table<NumberedCounter>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update("seven").Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetOfAPlainTableKey_ThrowsTheRuleOfTheTableKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var counters = client.Table<NumberedCounter>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update(NumberedCounter.Keys.Of(7)).Set(NumberedCounter.Attrs.Id, 8).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("cannot update a key");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TimestampInTheSameFormatOnARawKey_DerivesTheIndexKeyFromTheParsedKey()
+    {
+        // Arrange (parsing loses what is below a millisecond, and the index key has no use for it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<RoomSlot>("Shop").Update("ROOM#r1", "AT#2026-11-02T10:00:00.000Z").Set(RoomSlot.Attrs.Owner, "ann").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeValues":{":v0":{"S":"ann"},":v1":{"S":"OWNER#ann"},":v2":{"S":"2026-11-02T10:00:00.000Z"},":v3":{"S":"SLOT"}}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_TimestampAKeyHoldsInPartOnAGeneratedKey_TakesItFromTheKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var start = new DateTimeOffset(2026, 11, 2, 10, 30, 0, TimeSpan.Zero);
+
+        // Act
+        var json = client.Table<DaySlot>("Shop").Update(DaySlot.Keys.Of("r1", start)).Set(DaySlot.Attrs.Owner, "ann").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"OWNER#ann#AT#2026-11-02T10:30:00.0000000Z"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_TimestampAKeyHoldsInPartInATransactionStep_TakesItFromTheKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slots = client.Table<DaySlot>("Shop");
+        var start = new DateTimeOffset(2026, 11, 2, 10, 30, 0, TimeSpan.Zero);
+
+        // Act
+        var json = client.TransactWrite().Update(slots, DaySlot.Keys.Of("r1", start), out _).Set(DaySlot.Attrs.Owner, "ann").Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v1":{"S":"OWNER#ann#AT#2026-11-02T10:30:00.0000000Z"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_TimestampAKeyHoldsInPartOnARawKey_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (the day does not say what the index wants)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slots = client.Table<DaySlot>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update("ROOM#r1", "DAY#2026-11-02").Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_RawKeyAfterAGeneratedOneInATransaction_KnowsNothingOfTheKeyBefore()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slots = client.Table<DaySlot>("Shop");
+        var start = new DateTimeOffset(2026, 11, 2, 10, 30, 0, TimeSpan.Zero);
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite()
+            .Update(slots, DaySlot.Keys.Of("r1", start)).Set(DaySlot.Attrs.Owner, "ann")
+            .Update(slots, "ROOM#r2", "DAY#2026-11-02").Set(DaySlot.Attrs.Owner, "bob")
+            .Token("t").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_KeyWrittenByHand_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (a key of this kind writes itself and holds no value it could give)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var slots = client.Table<DaySlot>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update(default(HandKey)).Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SiblingOnAnIndexThatIsNotSparseOnAKeyThatFitsNoTemplate_LeavesItAlone()
+    {
+        // Arrange (the key is on every item a Put wrote, so this update has nothing to add)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<OtherSlot>("Shop").Update("ROOM#r1", "DAY#2026-11-02").Set(OtherSlot.Attrs.Owner, "ann").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"_type"}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SiblingOfASetKeyWithATableKeyInputOnAGeneratedKey_WritesIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var start = new DateTimeOffset(2026, 11, 2, 10, 30, 0, TimeSpan.Zero);
+
+        // Act
+        var json = client.Table<OtherSlot>("Shop").Update(OtherSlot.Keys.Of("r1", start)).Set(OtherSlot.Attrs.Owner, "ann").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"byownersk","#n3":"_type"}
+            """);
     }
 
     [Test]
@@ -259,9 +608,9 @@ public sealed class KeyInputChangesTests
     }
 
     [Test]
-    public async Task ToRequestJson_SiblingMadeOfAPlainTableKeyThatIsSet_CountsAsNotProduced()
+    public async Task ToRequestJson_SiblingMadeOfAPlainTableKeyThatIsSet_ThrowsTheRuleOfTheTableKey()
     {
-        // Arrange (a plain table key has no template of its own, and DynamoDB would reject its SET)
+        // Arrange (DynamoDB would reject the SET, and the index repeats that key)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var devices = client.Table<PlainDevice>("Shop");
@@ -270,13 +619,29 @@ public sealed class KeyInputChangesTests
         var failure = Assert.Throws<InvalidOperationException>(() => devices.Update("d1").Set(PlainDevice.Attrs.Rack, "r").Set(PlainDevice.Attrs.Serial, "d2").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("does not produce byracksk,");
+        await Assert.That(failure.Message).Contains("cannot update a key");
     }
 
     [Test]
-    public async Task ToRequestJson_SiblingWithAnInputOnlyAKeyHolds_Throws()
+    public async Task ToRequestJson_SiblingMadeOfAPlainTableKey_WritesItFromTheKey()
     {
-        // Arrange (no handle can set it)
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<PlainDevice>("Shop").Update("d1").Set(PlainDevice.Attrs.Rack, "r").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeNames":{"#n0":"Rack","#n1":"byrackpk","#n2":"byracksk","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"S":"r"},":v1":{"S":"RACK#r"},":v2":{"S":"SERIAL#d1"},":v3":{"S":"PLAIN"}}
+            """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_SiblingWithAnInputOnlyAKeyHolds_ThrowsNamingThePutAndARawPath()
+    {
+        // Arrange (no handle can set it, so the message cannot ask for that)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var claims = client.Table<Claim>("Shop");
@@ -285,7 +650,7 @@ public sealed class KeyInputChangesTests
         var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Auditor, "a").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("does not produce byauditsk,");
+        await Assert.That(failure.Message).Contains("does not produce byauditsk,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set what");
     }
 
     [Test]
@@ -465,6 +830,20 @@ public sealed class KeyInputChangesTests
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"NOTICE#n1"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3), #n4 = if_not_exists(#n4, :v4)","ExpressionAttributeNames":{"#n0":"Note","#n1":"boardpk","#n2":"boardsk","#n3":"everyonepk","#n4":"_type"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"NOTICES"},":v2":{"S":"ANY"},":v3":{"S":"EVERYONE"},":v4":{"S":"NOTICE"}}}""");
+    }
+
+    [Test]
+    public async Task ToRequestJson_LiteralBesideAKeyOfTheTable_CountsAsAnIndexOfLiterals()
+    {
+        // Arrange (a key of the table is on every item, so no property can bring an item into such an index)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<LabeledNote>("Shop").Update(LabeledNote.Keys.Of("n1")).Set(LabeledNote.Attrs.Note, "x").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"LABEL#n1"},"sk":{"S":"DATA"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3), #n4 = if_not_exists(#n4, :v4)","ExpressionAttributeNames":{"#n0":"Note","#n1":"onpartitionsk","#n2":"onsortpk","#n3":"bylabelsk","#n4":"_type"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"ANY"},":v2":{"S":"EVERY"},":v3":{"S":"ALL"},":v4":{"S":"LABELED"}}}""");
     }
 
     [Test]
@@ -992,7 +1371,7 @@ public sealed class KeyInputChangesTests
         var failure = Assert.Throws<InvalidOperationException>(() => wide.Update("x").Set(WideKey.Attrs.G, "7").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("and not Secret,");
+        await Assert.That(failure.Message).Contains("and not Secret,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set all");
     }
 
     [Test]
@@ -1189,4 +1568,15 @@ public sealed class KeyInputChangesTests
     }
 
     private static string Fill(string body) => body.Replace("@KEY", Key, StringComparison.Ordinal);
+
+    private readonly struct HandKey : DynaSharp.Mapping.IKey<DaySlot>
+    {
+        public void WriteKey(DynamoDbWriter writer)
+        {
+            writer.WriteAttributeName("pk"u8);
+            writer.WriteString("ROOM#r1"u8);
+            writer.WriteAttributeName("sk"u8);
+            writer.WriteString("DAY#2026-11-02"u8);
+        }
+    }
 }

@@ -65,7 +65,7 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
         {
             if (reader.AttributeNameEquals("Responses"u8))
             {
-                ReadItems(ref reader, (List<T>)actions.Results!);
+                ReadItems(ref reader, (List<T>)actions.Results!, state.Table);
             }
             else if (reader.AttributeNameEquals("UnprocessedKeys"u8))
             {
@@ -115,15 +115,25 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
     }
 
     // "Responses":{"Shop":[{"pk":{"S":"a"}},{"pk":{"S":"b"}}]}, on the one table of the command.
-    private static void ReadItems(ref DynamoDbReader reader, List<T> items)
+    private static void ReadItems(ref DynamoDbReader reader, List<T> items, TableModel table)
     {
         reader.ReadStartItem();
         while (reader.TryReadAttributeName())
         {
             OperationJson.ReadStartArray(ref reader);
-            while (reader.TryReadStartItem())
+            var first = reader;
+            var before = items.Count;
+            try
             {
-                items.Add(T.ReadAttributes(ref reader));
+                while (reader.TryReadStartItem())
+                {
+                    items.Add(T.ReadAttributes(ref reader));
+                }
+            }
+            catch (DynamoDbMappingException failure)
+            {
+                failure.Key = FailedItem.KeyOf(first, items.Count - before, table);
+                throw;
             }
         }
     }

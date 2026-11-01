@@ -18,8 +18,8 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
+            new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByWhenPk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
@@ -344,7 +344,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
 
             /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string stream) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(stream));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string stream) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(stream), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -650,7 +650,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
 
             /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string owner) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(owner));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string owner) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(owner), "byownerpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -877,7 +877,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
 
             /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(global::System.DateTime when) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(when));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(global::System.DateTime when) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(when), "bywhenpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

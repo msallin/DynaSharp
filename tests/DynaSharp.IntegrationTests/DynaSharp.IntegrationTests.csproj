@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- Every test has a table of its own, so the entities of this project never share one. -->
+    <NoWarn>$(NoWarn);DYNA026</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

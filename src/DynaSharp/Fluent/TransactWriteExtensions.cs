@@ -141,7 +141,7 @@ public static class TransactWriteExtensions
     public static UpdateStep Update<TChain, T, TKey>(this TChain chain, Table<T> table, TKey key)
         where TChain : ITransactWriteChain<TChain>, allows ref struct
         where T : IDynamoDbDocument<T>
-        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, key, out _)));
+        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, key, out _), key));
 
     /// <summary>Adds an update by a generated key, and hands out its marker.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
@@ -156,7 +156,7 @@ public static class TransactWriteExtensions
     public static UpdateStep Update<TChain, T, TKey>(this TChain chain, Table<T> table, TKey key, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct
         where T : IDynamoDbDocument<T>
-        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, key, out marker)));
+        where TKey : IKey<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, key, out marker), key));
 
     /// <summary>Adds a delete by a key of attribute values. Deleting what does not exist is no failure unless <see cref="IfExists"/> asks for one.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>

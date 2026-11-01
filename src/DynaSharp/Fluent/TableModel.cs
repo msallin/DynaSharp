@@ -21,7 +21,8 @@ internal sealed class TableModel
     /// <param name="discriminatorAttributeName">The attribute of the discriminator, which a table of an entity always names, even if the entity has no discriminator.</param>
     /// <param name="indexName">The secondary index this model reads, if it is one.</param>
     /// <param name="table">The model of the table of an index.</param>
-    public TableModel(ClientCore core, string name, string partitionKeyName, string? sortKeyName, string? discriminator = null, string? discriminatorAttributeName = null, string? indexName = null, TableModel? table = null)
+    /// <param name="isGlobalIndex">Whether the index is known to be global.</param>
+    public TableModel(ClientCore core, string name, string partitionKeyName, string? sortKeyName, string? discriminator = null, string? discriminatorAttributeName = null, string? indexName = null, TableModel? table = null, bool isGlobalIndex = false)
     {
         Core = core;
         Name = name;
@@ -30,6 +31,8 @@ internal sealed class TableModel
         Discriminator = discriminator;
         DiscriminatorAttributeName = discriminatorAttributeName;
         IndexName = indexName;
+        IsGlobalIndex = isGlobalIndex;
+        ItemKeyNames = table?.ItemKeyNames ?? (sortKeyName is null ? [partitionKeyName] : [partitionKeyName, sortKeyName]);
         RequiredNames = discriminatorAttributeName is null ? [] : NamesOfATypedRead(table, discriminator is null ? null : discriminatorAttributeName, partitionKeyName, sortKeyName);
         BodyStart = indexName is null
             ? [.. "{\"TableName\":\""u8, .. Encode(name), .. "\""u8]
@@ -59,6 +62,12 @@ internal sealed class TableModel
 
     /// <summary>Gets the secondary index this model reads, if it is one.</summary>
     public string? IndexName { get; }
+
+    /// <summary>Gets a value indicating whether this model reads an index that is known to be global.</summary>
+    public bool IsGlobalIndex { get; }
+
+    /// <summary>Gets the attributes that identify an item: the keys of the table, also for an index, where two items can have one key.</summary>
+    public string[] ItemKeyNames { get; }
 
     /// <summary>
     /// Gets a value indicating whether an update has an action on the discriminator, because it can create the item. That is every update of a type with one, unless the attribute is a key
@@ -191,9 +200,20 @@ internal sealed class TableModel
     /// <param name="indexName">The name of the index.</param>
     /// <param name="partitionKeyName">The attribute name of its partition key.</param>
     /// <param name="sortKeyName">The attribute name of its sort key, if it has one.</param>
+    /// <param name="isGlobal">Whether the entity says that the index is global. A local index has the partition key of its table, so another partition key says the same.</param>
     /// <returns>The model.</returns>
-    public TableModel ForIndex(string indexName, string partitionKeyName, string? sortKeyName) =>
-        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this);
+    public TableModel ForIndex(string indexName, string partitionKeyName, string? sortKeyName, bool isGlobal = false) =>
+        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this, isGlobal || partitionKeyName != PartitionKeyName);
+
+    /// <summary>Stops a consistent read of a global index before it goes out, which DynamoDB would reject at the end of a round trip.</summary>
+    /// <exception cref="InvalidOperationException">This model reads an index that is known to be global.</exception>
+    public void ThrowIfNotConsistent()
+    {
+        if (IsGlobalIndex)
+        {
+            throw new InvalidOperationException($"{IndexName} is a global secondary index, which DynamoDB only reads eventually consistently, so it rejects Consistent(). Read the table or a local index for that.");
+        }
+    }
 
     /// <summary>Completes the projection of a typed read with what the read needs. It runs when the chain ends, because a projection can grow until then.</summary>
     /// <param name="state">The state of the read.</param>

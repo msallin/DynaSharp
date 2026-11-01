@@ -67,7 +67,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(table);
         var index = IndexOf<T>(name);
-        return new(table, name, index.PartitionKeyName, index.SortKeyName);
+        return new(table, name, index.PartitionKeyName, index.SortKeyName, !index.IsLocal);
     }
 
     /// <summary>
@@ -85,7 +85,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(table);
         var index = IndexOf<TEntity>(name);
-        return new(table, name, index.PartitionKeyName, index.SortKeyName);
+        return new(table, name, index.PartitionKeyName, index.SortKeyName, !index.IsLocal);
     }
 
     /// <summary>
@@ -97,11 +97,12 @@ public static class TableExtensions
     /// <param name="partitionKey">The partition key.</param>
     /// <param name="sortKey">The condition on the sort key, or the default value to read the whole partition.</param>
     /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">The key is the default value, or there is a condition on a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">The key is the default value, it was built for another attribute, or there is a condition on a sort key and the table has none.</exception>
     public static QueryCommand<T> Query<T>(this Table<T> table, PartitionKey<T> partitionKey, SortKey sortKey = default)
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(table);
+        ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
         return table.Query(partitionKey.Value, sortKey);
     }
 
@@ -111,11 +112,12 @@ public static class TableExtensions
     /// <param name="partitionKey">The partition key.</param>
     /// <param name="sortKey">The condition on the sort key, or the default value to read the whole partition.</param>
     /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">The key is the default value, or there is a condition on a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">The key is the default value, it was built for another attribute, or there is a condition on a sort key and the table has none.</exception>
     public static QueryCommand<Item> Query<TEntity>(this Table<Item> table, PartitionKey<TEntity> partitionKey, SortKey sortKey = default)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(table);
+        ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
         return table.Query(partitionKey.Value, sortKey);
     }
 
@@ -126,12 +128,12 @@ public static class TableExtensions
     /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is the default value or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">A partition key is the default value, was built for another attribute or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
     public static FanOutQueryCommand<T> Query<T>(this Table<T> table, IEnumerable<PartitionKey<T>> partitionKeys, SortKey sortKey = default)
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(FormattedKeys(partitionKeys).AsSpan(), sortKey);
+        return table.Query(FormattedKeys(partitionKeys, table.PartitionKeyName, table.Name).AsSpan(), sortKey);
     }
 
     /// <summary>Starts a query of several partitions of a table without a schema, by the keys of any entity. See <see cref="Table{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -141,28 +143,30 @@ public static class TableExtensions
     /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is the default value or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">A partition key is the default value, was built for another attribute or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
     public static FanOutQueryCommand<Item> Query<TEntity>(this Table<Item> table, IEnumerable<PartitionKey<TEntity>> partitionKeys, SortKey sortKey = default)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(FormattedKeys(partitionKeys).AsSpan(), sortKey);
+        return table.Query(FormattedKeys(partitionKeys, table.PartitionKeyName, table.Name).AsSpan(), sortKey);
     }
 
     /// <summary>
     /// Starts a query of one partition of an index by a typed key: <c>byStatus.Query(Order.Keys.ByStatusPk.Of(status))</c>. The key of another entity is a compile error. The partition key of the
-    /// table is of the same type, so that one is not, see <see cref="PartitionKey{TEntity}"/>. See <see cref="Index{T}.Query(AttributeValue, SortKey)"/> for what is different about reading an index.
+    /// table is of the same type, so that one fails here, see <see cref="PartitionKey{TEntity}"/>, unless the index has that attribute as well. See <see cref="Index{T}.Query(AttributeValue, SortKey)"/>
+    /// for what is different about reading an index.
     /// </summary>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="index">The index.</param>
     /// <param name="partitionKey">The partition key of the index.</param>
     /// <param name="sortKey">The condition on the sort key of the index, or the default value to read the whole partition.</param>
     /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">The key is the default value, or there is a condition on a sort key and the index has none.</exception>
+    /// <exception cref="ArgumentException">The key is the default value, it was built for another attribute, or there is a condition on a sort key and the index has none.</exception>
     public static QueryCommand<T> Query<T>(this Index<T> index, PartitionKey<T> partitionKey, SortKey sortKey = default)
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(index);
+        ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
         return index.Query(partitionKey.Value, sortKey);
     }
 
@@ -172,11 +176,12 @@ public static class TableExtensions
     /// <param name="partitionKey">The partition key of the index.</param>
     /// <param name="sortKey">The condition on the sort key of the index, or the default value to read the whole partition.</param>
     /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">The key is the default value, or there is a condition on a sort key and the index has none.</exception>
+    /// <exception cref="ArgumentException">The key is the default value, it was built for another attribute, or there is a condition on a sort key and the index has none.</exception>
     public static QueryCommand<Item> Query<TEntity>(this Index<Item> index, PartitionKey<TEntity> partitionKey, SortKey sortKey = default)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(index);
+        ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
         return index.Query(partitionKey.Value, sortKey);
     }
 
@@ -187,12 +192,12 @@ public static class TableExtensions
     /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is the default value or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
+    /// <exception cref="ArgumentException">A partition key is the default value, was built for another attribute or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
     public static FanOutQueryCommand<T> Query<T>(this Index<T> index, IEnumerable<PartitionKey<T>> partitionKeys, SortKey sortKey = default)
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(FormattedKeys(partitionKeys).AsSpan(), sortKey);
+        return index.Query(FormattedKeys(partitionKeys, index.PartitionKeyName, index.Name).AsSpan(), sortKey);
     }
 
     /// <summary>Starts a query of several partitions of an index without a schema, by the keys of any entity. See <see cref="Index{T}.Query(IEnumerable{AttributeValue}, SortKey)"/>.</summary>
@@ -202,12 +207,12 @@ public static class TableExtensions
     /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is the default value or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
+    /// <exception cref="ArgumentException">A partition key is the default value, was built for another attribute or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
     public static FanOutQueryCommand<Item> Query<TEntity>(this Index<Item> index, IEnumerable<PartitionKey<TEntity>> partitionKeys, SortKey sortKey = default)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(FormattedKeys(partitionKeys).AsSpan(), sortKey);
+        return index.Query(FormattedKeys(partitionKeys, index.PartitionKeyName, index.Name).AsSpan(), sortKey);
     }
 
     /// <summary>Starts a get of the item under the key of an entity, which is how a reload reads.</summary>
@@ -341,11 +346,43 @@ public static class TableExtensions
         throw new ArgumentException($"{typeof(TEntity)} declares no index \"{name}\".", nameof(name));
     }
 
-    private static string[] FormattedKeys<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys)
+    private static string[] FormattedKeys<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys, string attributeName, string readName)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(partitionKeys);
-        return [.. partitionKeys.Select(static key => key.Value)];
+        var keys = new List<string>();
+        foreach (var key in partitionKeys)
+        {
+            ThrowIfOtherAttribute(key, attributeName, readName);
+            keys.Add(key.Value);
+        }
+
+        return [.. keys];
+    }
+
+    // The table and index of a key have one type, so this is the check the compiler cannot make, and a key of the wrong attribute would come back empty without a word from DynamoDB.
+    private static void ThrowIfOtherAttribute<TEntity>(PartitionKey<TEntity> partitionKey, string attributeName, string readName)
+        where TEntity : IDynamoDbEntity<TEntity>
+    {
+        if (partitionKey.AttributeName is { } builtFor && builtFor != attributeName)
+        {
+            throw new ArgumentException(
+                $"This key was built for the attribute {builtFor}, and a query of {readName} reads {attributeName}, so it would find nothing. {BuilderOf<TEntity>(attributeName)}",
+                nameof(partitionKey));
+        }
+    }
+
+    // Generated keys have the names of the model, so the name of a builder comes from the entity. A plain key has no builder, and it is its own input.
+    private static string BuilderOf<TEntity>(string attributeName)
+        where TEntity : IDynamoDbEntity<TEntity>
+    {
+        var info = TEntity.Info;
+        var builder = info.KeyTemplates.Any(template => template.IsTableKey && template.AttributeName == attributeName && template.Inputs.All(input => input.AttributeName != attributeName) && attributeName == info.PartitionKeyName)
+            ? "Pk"
+            : info.Indexes.FirstOrDefault(index => index.PartitionKeyName == attributeName)?.PartitionKeyBuilder;
+        return builder is null
+            ? "Pass the value of that attribute as an AttributeValue."
+            : $"Use {typeof(TEntity)}.Keys.{builder}.Of(...).";
     }
 
     private static PutCommand<Item> Attribute<TValue, TConverter>(this PutCommand<Item> command, string name, TValue value)

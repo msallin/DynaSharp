@@ -76,6 +76,35 @@ public static class ConverterChecks
         return false;
     }
 
+    /// <summary>
+    /// Reads a plain key of the table through its converter, for the code the source generator emits when an index key is made of it. The value goes through the wire format, so it cannot
+    /// drift from what a response reads.
+    /// </summary>
+    /// <typeparam name="T">The .NET type of the key.</typeparam>
+    /// <typeparam name="TConverter">The converter of the key.</typeparam>
+    /// <param name="value">The key.</param>
+    /// <returns>The value, or <see langword="null"/> if the converter does not read it, which is a key that DynamoDB will reject.</returns>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static object? ReadValue<T, TConverter>(AttributeValue value)
+        where TConverter : IDynamoDbConverter<T>
+    {
+        using var buffer = new PooledByteBuffer(256);
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            AttributeValueConverter.Write(new DynamoDbWriter(json), value);
+        }
+
+        var reader = new DynamoDbReader(buffer.WrittenSpan);
+        try
+        {
+            return reader.ReadAttribute<T, TConverter>();
+        }
+        catch (Exception exception) when (DynamoDbMappingException.IsConversionFailure(exception))
+        {
+            return null;
+        }
+    }
+
     private static JsonException WrongType(AttributeType actual, AttributeType expected) =>
         new($"Expected a DynamoDB attribute value of type {expected} but found {actual}.");
 }

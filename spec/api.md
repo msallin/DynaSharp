@@ -208,7 +208,7 @@ command, sends nothing and renders the body with everything enforced, for tests 
 | `MaxAttempts(n)` | This call only |
 | `ReturnCapacity(detail = Total)` | All commands; the result carries it, except on `ReturnCommand<,>`, where only the metric does |
 | `ReturnMetrics()` | Put, Update, Delete, `BatchWrite`, a transaction |
-| `Consistent()` | Get, Query, Scan, fan-out, mixed reads, `BatchGet` |
+| `Consistent()` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. `InvalidOperationException` on an index known to be global: one opened through its entity, or by hand with another partition key than the table. An index of the partition key of the table opened by hand is left to DynamoDB |
 | `Project(paths)`, `Project(attrs)` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. A typed read adds the discriminator and the keys it needs |
 | `Filter`, `Limit(n)` | Query, Scan, fan-out, mixed reads. `Limit` is per page, as DynamoDB means it |
 | `Descending()` | Query, fan-out, mixed query |
@@ -239,7 +239,9 @@ await foreach (Item item in shop.Scan().Parallel(segments: 8).ItemsAsync(ct)) { 
 ```
 
 `Table<T>` and `Index<T>` take a `PartitionKey<T>` in `Query`, so `orders.Query(Customer.Keys.Pk.Of("a"))` does not compile; the partition key of a table and of its index have one type, so the
-compiler does not tell those two apart. `Table<Item>` and `Index<Item>` take a `PartitionKey<TEntity>` of any entity, so `shop.Query(Order.Keys.Pk.Of(id)).Of<Customer, Order>()` reads
+compiler does not tell those two apart. A key remembers the attribute it was built for, and `Query` throws `ArgumentException` naming the key builder to use when that is not the attribute it reads, because
+such a query would come back empty without a word from DynamoDB. An index with the attribute of the table, a local one among them, takes the key of the table, and so does a fan-out by what each key says. An
+overloaded index takes the key of every entity on it. `Table<Item>` and `Index<Item>` take a `PartitionKey<TEntity>` of any entity, so `shop.Query(Order.Keys.Pk.Of(id)).Of<Customer, Order>()` reads
 naturally. These are extension methods of `TableExtensions`, so a call that binds to a member keeps binding to it, and the `AttributeValue` overload stays as the escape hatch.
 
 `ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `SortKey` offers only what a key
@@ -309,6 +311,7 @@ hatch for attributes outside the entity, and the checks of section 8 do not appl
 | Write | Rule |
 |---|---|
 | `Put(entity)` | Version 0 adds `attribute_not_exists(<version>)`, on the version and not on the key, so it replaces an item without a version attribute. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
 | `Put(entity).IfNotExists()` | Legal at version 0. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called |
 | `Update(key)` | `.IfVersion(n)` adds the condition and `SET <version> = :new` with `n + 1`. Without it the terminal throws `InvalidOperationException` naming the entity, unless `.IgnoreVersion()` was called. There is no `Update(entity)` |
 | `Delete(key)` | The same rule, with the condition alone |
@@ -326,21 +329,25 @@ the terminal, and raw paths are not checked.
 
 | The update | Result |
 |---|---|
-| Sets all inputs of an index template | Writes the derived attribute in the same `SET` |
-| Sets some inputs of a template | `InvalidOperationException` naming the template and what is missing |
-| Touches an input of a template key of the table | `InvalidOperationException`: DynamoDB cannot update a key |
+| Knows all inputs of an index template, by setting them or from the key it was given | Writes the derived attribute in the same `SET` |
+| Lacks an input of a template that it could set | `InvalidOperationException` naming the template and what is missing, and asking to set it |
+| Lacks an input that it cannot set | `InvalidOperationException` naming the template and what is missing, and pointing at a `Put` of the changed entity or a raw path |
+| Touches an input of a key of the table | `InvalidOperationException`: DynamoDB cannot update a key |
 | Changes an input by `Add` or `SetIfNotExists` | `InvalidOperationException`: the value is not known here |
 | Removes an input of a sparse index | Removes the derived attributes, unless another index still holds the item |
 | Removes an input of an index that is not sparse | `InvalidOperationException` |
 | Sets one key of a sparse index and does not produce the other | `InvalidOperationException` naming the other key, because the item would silently stay out of the index |
 
-An input of the table key counts as not produced: such an item enters the index by `Put`.
+An input of the table key is known from the key the update was given, so an index key that mixes it with a property that changes follows that property, and an index key made only of such inputs counts as
+produced: it is written in the same `SET` when the update writes the other key of its index. A generated key gives the value. A key given as strings goes through the generated parser, which gives it back
+unless the format of the key loses what the index key wants, such as a timestamp a table key cuts off at the day. A sparse index that needs such a value then throws, an index that is not sparse keeps
+the key a `Put` wrote, and an entity like that holds its generated key per update, for one box. The read happens only for an update that writes such a key, so any other costs nothing.
+An index with only such keys is not written by an update that does not touch it: such an item enters it by `Put`.
 
 **Literal keys.** A key that holds only literals counts as produced, on every index. When an update writes one key of an index, a sibling made only of literals is written in the same `SET`, so
 `PartitionKey = "ALL"` can be entered by `Update`. A `Remove` that takes the item out of a sparse index removes it too. An update that does not touch such an index adds nothing to it, unless all its
-keys are literal: then no property can bring an item in, so every typed update writes those keys with `if_not_exists`, as it does the discriminator, and an update at a key held by
-another type does not overwrite them. An action of the update on the attribute itself takes precedence. An index with the partition key of the table is not one of these, even with a sort key of
-literals: such an item enters it by `Put`.
+keys are literal, or are keys of the table, which every item has. Then no property can bring an item in, so every typed update writes the literals with `if_not_exists`, as it does the discriminator,
+and an update at a key held by another type does not overwrite them. An action of the update on the attribute itself takes precedence. A local index with a sort key of literals is one of these.
 
 **Discriminator.** `UpdateItem` can create the item, and such an item must not be invisible to the typed API. An `Update` on an entity with a discriminator
 ends its `SET` with `#_type = if_not_exists(#_type, :t)`, also in a transaction, and visible in `ToRequestJson()`, unless that attribute is a key of the table. An action of the update on the
@@ -362,7 +369,10 @@ shop.Update(pk, sk).If(Open & Attr("version").Eq(3));
 ```
 
 Struct conditions cover comparisons, existence, `BeginsWith` and `Between`, compose with `And`, `Or`, `Negate` and allocate nothing. A chain of one operator renders as one group, `(a OR b OR c)`, and conditions
-added one by one as `(a) AND (b) AND (c)`. Interpolation covers the
+added one by one as `(a) AND (b) AND (c)`. `BeginsWith` by handle is an extension method of `AttrExtensions`, because the type
+of the attribute decides: a number, a boolean and a timestamp stored as a number do not compile (`CS0619`), as DynamoDB finds nothing there, an enum, a `Guid` or a date, which are stored as strings, do, and
+a binary attribute takes a binary prefix, with a string as `CS0619`.
+There is no `Contains` by handle. In an interpolated expression `DYNA216` reports the same mistake for both functions. Interpolation covers the
 rest of the grammar (`size`, `contains`, `attribute_type`, `list_append`, arithmetic in `SET`). In a hole, an `Attr` stands for its name, and a value,
 an `AttributeValue`, a number or `handle.Value(x)`, for a value. A string in a hole is a value, so a name needs `Attr` (`DYNA210`), and an expression that
 names no attribute throws `ArgumentException`.
@@ -508,12 +518,12 @@ knows has its class, in `DynaSharp`, and any other is a plain `DynamoDbException
 | A bad key of `Table<Item>`: empty string, empty binary, or a sort key on a table opened without one | `ArgumentException` at the call |
 | A typed key built from bad input | `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value |
 | A rejected request of a command | `ValidationException`, with `Expressions`, `ExpressionNames` (`#n0 = status`) and `ExpressionValueTypes` (`:v0` is `S`), and one line in `Message`: `Expression: #n0 = :v0, where #n0 = status, :v0 (S)`. Values are not attached. Inside a transaction or a batch get the entries have a prefix such as `TransactItems[2].` |
-| An item that does not fit the type | `DynamoDbMappingException` with `EntityType` and `AttributeName`, also for an item of another type; the discriminator value is named, because it is a type tag. A stored key that does not fit its template says so, with no value |
+| An item that does not fit the type | `DynamoDbMappingException` with `EntityType`, `AttributeName` and `Key`, also for an item of another type; the discriminator value is named, because it is a type tag. A stored key that does not fit its template says so, with no value. `Key` holds the key attributes of the table for the item that failed, on `Get`, `Query`, `Scan`, fan-out, `BatchGet` and mixed reads, and neither the message nor telemetry show it |
 | A transaction | Section 11. `ConditionalCheckFailed` and `ValidationError` do not pass on a retry, `TransactionConflict` and `Throttled` may |
 
-Compile errors stand in for what would otherwise be a `ValidationException` or a mapping failure: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on
-`Table<Item>` only, steps have their own clauses, `Return(attr)` ends the chain, `SortKey` has only legal operators, `Of<T>()` takes entities, and `Parallel()`
-has no `PageAsync`.
+Compile errors stand in for what would otherwise be a `ValidationException`, a mapping failure or an empty result: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on
+`Table<Item>` only, steps have their own clauses, `Return(attr)` ends the chain, `SortKey` has only legal operators, `Of<T>()` takes entities, `Parallel()`
+has no `PageAsync`, and `BeginsWith` takes no handle of a number.
 
 Escape hatches: `client.SendRawAsync("ListTables", """{"Limit":1}"""u8.ToArray(), ct)` for what nothing models, with the pipeline's signing, retries and
 telemetry; raw paths and interpolated expressions on typed commands; `Item.From` and `To<T>`.

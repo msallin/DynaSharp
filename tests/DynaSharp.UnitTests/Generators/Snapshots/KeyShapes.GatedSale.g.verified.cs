@@ -18,8 +18,8 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("BySeller", "shared", "bysellersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("ByBuyer", "shared", "bybuyersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("BySeller", "shared", "bysellersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "BySellerPk" },
+            new __Map.DynamoDbIndexInfo("ByBuyer", "shared", "bybuyersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByBuyerPk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
@@ -252,7 +252,7 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
 
             /// <summary>Formats the complete key as a key of <c>GatedSale</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -346,7 +346,7 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
 
             /// <summary>Formats the complete key as a key of <c>GatedSale</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string tenant) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(tenant));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string tenant) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(tenant), "shared");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -573,7 +573,7 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
 
             /// <summary>Formats the complete key as a key of <c>GatedSale</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string tenant) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(tenant));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale> Of(string tenant) => new global::DynaSharp.PartitionKey<global::KeyShapes.GatedSale>(Format(tenant), "shared");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

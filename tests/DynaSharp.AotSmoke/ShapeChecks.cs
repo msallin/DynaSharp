@@ -187,7 +187,7 @@ internal static class ShapeChecks
         var stored = "{\"Item\":" + Item.From(order) + "}";
 
         handler.Enqueue(StubResponse.Json("{}"));
-        await orders.Put(order).IfNotExists().SendAsync();
+        await orders.Put(order with { Revision = 0 }).IfNotExists().SendAsync();
         check(handler.Requests[^1].BodyText.Contains("\"gsi2pk\":{\"S\":\"TRACK#", StringComparison.Ordinal), "Put writes the keys of the indexes");
 
         handler.Enqueue(StubResponse.Json(stored));
@@ -252,7 +252,7 @@ internal static class ShapeChecks
 
         handler.Enqueue(StubResponse.Json("{}"));
         await client.TransactWrite()
-            .Put(orders, order).IfNotExists()
+            .Put(orders, order with { Revision = 0 }).IfNotExists()
             .Update(orders, key).Add(KeyedOrder.Attrs.Quantity, 1).If(KeyedOrder.Attrs.Quantity.Lt(10)).IfVersion(1)
             .Check(points, StructPoint.Keys.Of("p")).If(StructPoint.Attrs.X.Gt(0d))
             .Delete(points, StructPoint.Keys.Of("q"))

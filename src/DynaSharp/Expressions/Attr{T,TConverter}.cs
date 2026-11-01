@@ -79,11 +79,6 @@ public readonly struct Attr<T, TConverter>
     /// <returns>The condition.</returns>
     public AttributeExists NotExists() => new(Path, exists: false);
 
-    /// <summary>Checks with <c>begins_with</c>, which is for strings and compares bytes.</summary>
-    /// <param name="prefix">The prefix.</param>
-    /// <returns>The condition.</returns>
-    public BeginsWith BeginsWith(string prefix) => new(Path, prefix);
-
     /// <summary>Makes a value of this attribute for a hole of an interpolated expression: <c>$"{attr} = {attr.Value(x)}"</c>.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The value with its converter.</returns>

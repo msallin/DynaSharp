@@ -597,3 +597,53 @@ public partial record Notice
 
     public string? Note { get; init; }
 }
+
+/// <summary>An index that wants more of a timestamp than the table key holds, so that the generated key has to give the value to an update.</summary>
+[DynamoDbEntity]
+[Discriminator("HELDSLOT")]
+[PartitionKey("ROOM#{Room}")]
+[SortKey("DAY#{Start:yyyy-MM-dd}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}#{Rank:d3}#{Room}#AT#{Start:ticks}")]
+public partial record HeldSlot
+{
+    public required string Room { get; init; }
+
+    public required DateTimeOffset Start { get; init; }
+
+    public required string Owner { get; init; }
+
+    public required int Rank { get; init; }
+}
+
+/// <summary>An index that repeats a timestamp in the format of the table key, which the key gives back as far as the index wants it.</summary>
+[DynamoDbEntity]
+[Discriminator("SAMESLOT")]
+[PartitionKey("ROOM#{Room}")]
+[SortKey("AT#{Start}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "{Start}")]
+public partial record SameSlot
+{
+    public required string Room { get; init; }
+
+    public required DateTimeOffset Start { get; init; }
+
+    public required string Owner { get; init; }
+}
+
+/// <summary>A partition key of an index in the attribute of a property, which has no builder, and a local index over a plain key of the table.</summary>
+[DynamoDbEntity]
+[Discriminator("PLAINKEYS")]
+[GlobalIndexKey("ByCode", PartitionKey = "{Code}", PartitionKeyAttributeName = "Code")]
+[LocalIndexKey("ByTag", "TAG#{Tag}")]
+public partial record PlainKeys
+{
+    [PartitionKey]
+    public required string Id { get; init; }
+
+    [SortKey]
+    public required string Sort { get; init; }
+
+    public required string Code { get; init; }
+
+    public required string Tag { get; init; }
+}

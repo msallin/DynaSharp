@@ -10,7 +10,7 @@ namespace DynaSharp;
 /// <remarks>
 /// The message names the type and the attribute, never a value; the one exception is the discriminator of an item of another type, which
 /// is the name of that type. <see cref="Exception.InnerException"/> can be a <see cref="FormatException"/> that quotes the value, so take
-/// care when logging <see cref="Exception.ToString"/> of it.
+/// care when logging <see cref="Exception.ToString"/> of it. <see cref="Key"/> says which item it was, for code that can act on it: it holds values, and neither the message nor telemetry show them.
 /// </remarks>
 public sealed class DynamoDbMappingException : Exception
 {
@@ -35,6 +35,13 @@ public sealed class DynamoDbMappingException : Exception
 
     /// <summary>Gets the attribute the failure is about, or <see langword="null"/> if it is about the item.</summary>
     public string? AttributeName { get; }
+
+    /// <summary>
+    /// Gets the key attributes of the item that could not be read, which is how a row a new deployment wrote is found in a query of many. It is filled by <c>Get</c>, <c>Query</c>, <c>Scan</c>, a fan-out, a
+    /// batch get and a mixed read, and it is the key of the table also for a read of an index. <see langword="null"/> for an item that holds no key attribute, and for what other reads of an
+    /// item throw, whose key the caller gave. It holds values, so take care where it goes.
+    /// </summary>
+    public Item? Key { get; internal set; }
 
     /// <summary>
     /// Determines whether an exception is one that a converter throws for a value it cannot convert, which generated code wraps in a

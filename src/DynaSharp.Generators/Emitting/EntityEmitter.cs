@@ -88,7 +88,8 @@ internal static class EntityEmitter
         {
             var names = $"{CodeText.Literal(index.IndexName)}, {CodeText.Literal(index.PartitionKey.AttributeName)}, {CodeText.OptionalLiteral(index.SortKey?.AttributeName)}";
             var kind = $"{(index.Sparse ? "true" : "false")}, {(index.IsLocal ? "true" : "false")}";
-            code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}),");
+            var builder = index.PartitionKey.Template is null ? string.Empty : $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)} }}";
+            code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}){builder},");
         }
 
         code.Close("},");

@@ -161,7 +161,7 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
             public static string Format() => "P";
 
             /// <summary>Formats the complete key as a key of <c>Suffixed</c>, which a query of another entity does not take.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.Suffixed> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.Suffixed>(Format());
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Suffixed> Of() => new global::DynaSharp.PartitionKey<global::KeyShapes.Suffixed>(Format(), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

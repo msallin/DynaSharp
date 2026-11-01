@@ -91,7 +91,7 @@ public sealed class CommandTelemetryTests
 
         // Act
         var request = await RunAsync(handler, client => client.QueryAsync(new QueryRequest { TableName = "Users", IndexName = "ByName", KeyConditionExpression = "#n0 = :v0", ProjectionExpression = "fullName, address.city", ConsistentRead = true, Limit = 5, ScanIndexForward = false, ReturnConsumedCapacity = ReturnConsumedCapacity.Total, ExpressionAttributeNames = new Dictionary<string, string> { ["#n0"] = "name" }, ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":v0"] = "a" } }));
-        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Index("ByName", "name").Query("a").Project("fullName", "address.city").Consistent().Limit(5).Descending().ReturnCapacity().PageAsync());
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Index("ByName", "pk", "name").Query("a").Project("fullName", "address.city").Consistent().Limit(5).Descending().ReturnCapacity().PageAsync());
 
         // Assert
         await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
@@ -398,6 +398,29 @@ public sealed class CommandTelemetryTests
 
         // Assert
         await Assert.That((activity.Status, activity.GetTagItem("error.type"))).IsEqualTo((ActivityStatusCode.Error, (object?)"ValidationException"));
+    }
+
+    [Test]
+    public async Task SendAsync_ItemThatDoesNotFit_LeavesItsKeyOutOfTheSpan()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"TENANT#acme"},"sk":{"S":"INV#2026-09#000002"},"_type":{"S":"INVOICE"},"Status":{"S":"Refunded"}}}"""));
+
+        // Act
+        var activity = await RunAsync(handler, async client =>
+        {
+            try
+            {
+                await client.Table<TenantInvoice>("Users").Get("TENANT#acme", "INV#2026-09#000002").SendAsync();
+            }
+            catch (DynamoDbMappingException)
+            {
+                // The span is what the test looks at.
+            }
+        });
+
+        // Assert
+        await Assert.That(activity.TagObjects.Where(static tag => tag.Value?.ToString()?.Contains("acme", StringComparison.Ordinal) == true)).IsEmpty();
     }
 
     [Test]

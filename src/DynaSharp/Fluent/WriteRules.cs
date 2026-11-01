@@ -46,16 +46,37 @@ internal static class WriteRules
 
     /// <summary>
     /// Marks an update. It owes what any write by key owes a version, and because <c>UpdateItem</c> can create the item, the discriminator of the entity, without which a typed read would
-    /// not see it, and the keys of an index that has only literals, without which the item would not be in an index that holds every item. <see cref="Settle"/> writes those, because only then
+    /// not see it, and the literals of an index that no property can bring an item into, without which the item would not be in an index that holds every item. <see cref="Settle"/> writes those, because only then
     /// is it known whether the update has an action of its own on the attribute.
     /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
     /// <returns>The same state, for a chain.</returns>
     public static CommandState ExpectUpdate(CommandState state)
     {
+        state.HeldKey = null;
         state.OwesDiscriminator = state.Table.UpdateWritesDiscriminator;
         state.OwesLiteralKeys = state.Table.Writes is { LiteralKeys.Length: > 0 };
         return ExpectVersion(state);
+    }
+
+    /// <summary>
+    /// Marks an update by a generated key, see <see cref="ExpectUpdate(CommandState)"/>. The text of a key gives its inputs back whenever <see cref="KeyInputChanges"/> asks, so the key is
+    /// gone after this, unless an index of the entity wants more than the text holds. That is the one kind of entity whose update pays for a box.
+    /// </summary>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="state">The state, whose table is the one of the write.</param>
+    /// <param name="key">The key.</param>
+    /// <returns>The same state, for a chain.</returns>
+    public static CommandState ExpectUpdate<TKey>(CommandState state, TKey key)
+        where TKey : IKey
+    {
+        ExpectUpdate(state);
+        if (state.Table.Writes is { HoldsKey: true })
+        {
+            state.HeldKey = key;
+        }
+
+        return state;
     }
 
     /// <summary>
@@ -106,6 +127,7 @@ internal static class WriteRules
         state.Expressions.AppendVersion(VersionAttribute(state), version);
         state.UnsettledVersion = null;
         state.VersionChecked = true;
+        state.ExpectedVersion = version;
     }
 
     /// <summary>Adds the condition on a version and sets the next one, for an update.</summary>
@@ -158,6 +180,13 @@ internal static class WriteRules
         state.VersionChecked = false;
         var mustNotExist = state.ItemMustNotExist;
         state.ItemMustNotExist = false;
+        var expected = state.ExpectedVersion;
+        state.ExpectedVersion = 0;
+        if (mustNotExist && expected > 0)
+        {
+            throw Contradiction(state.Table);
+        }
+
         if (state.UnsettledVersion is { } table)
         {
             if (state.EntityVersion is not { } held)
@@ -168,8 +197,7 @@ internal static class WriteRules
 
             if (mustNotExist && held > 0)
             {
-                throw new InvalidOperationException(
-                    $"This write of {table.Writes!.EntityName} holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().");
+                throw Contradiction(table);
             }
 
             state.Expressions.AppendVersion(table.Writes!.VersionAttributeName!, held);
@@ -240,6 +268,9 @@ internal static class WriteRules
     /// <param name="state">The state.</param>
     /// <param name="path">The path of the handle.</param>
     public static void NoteUnknownValue(CommandState state, string path) => Note(state, path, KeyInputChange.Unknown);
+
+    private static InvalidOperationException Contradiction(TableModel table) => new(
+        $"This write of {table.Writes!.EntityName} holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().");
 
     private static void Note(CommandState state, string path, KeyInputChange change)
     {

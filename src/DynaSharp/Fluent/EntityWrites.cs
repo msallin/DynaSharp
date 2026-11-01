@@ -10,6 +10,8 @@ internal sealed class EntityWrites
 {
     private readonly HashSet<string> _keyInputs;
 
+    private readonly HashSet<string> _tableKeyInputs;
+
     private readonly string _partitionKeyName;
 
     private readonly string? _sortKeyName;
@@ -24,6 +26,8 @@ internal sealed class EntityWrites
         Indexes = [.. info.Indexes];
         LiteralKeys = FindLiteralKeys();
         _keyInputs = [.. Templates.SelectMany(static template => template.Inputs).Select(static input => input.AttributeName).OfType<string>()];
+        _tableKeyInputs = [.. Templates.Where(static template => template.IsTableKey).SelectMany(static template => template.Inputs).Select(static input => input.PropertyName)];
+        HoldsKey = Templates.Any(static template => template.LosesValues);
     }
 
     /// <summary>Gets the name of the entity, for messages.</summary>
@@ -36,13 +40,16 @@ internal sealed class EntityWrites
     public DynamoDbKeyTemplate[] Templates { get; }
 
     /// <summary>
-    /// Gets the keys of the indexes that have nothing but literals. No property of such an index can bring an item in, so that every update owes them, see <see cref="WriteRules"/>. Empty for
-    /// an entity without such an index, as most are.
+    /// Gets the literals of the indexes whose keys are literals or keys of the table. No property of such an index can bring an item in, so that every update owes them, see
+    /// <see cref="WriteRules"/>. Empty for an entity without such an index, as most are.
     /// </summary>
     public LiteralKey[] LiteralKeys { get; }
 
     /// <summary>Gets the indexes of the entity.</summary>
     public DynamoDbIndexInfo[] Indexes { get; }
+
+    /// <summary>Gets a value indicating whether an index wants more of an input of the table key than the text of the key gives back, so an update has to hold on to a generated key.</summary>
+    public bool HoldsKey { get; }
 
     /// <summary>Reads the metadata of an entity.</summary>
     /// <param name="entityName">The name of the entity.</param>
@@ -56,10 +63,23 @@ internal sealed class EntityWrites
     /// <returns><see langword="true"/> for a key input.</returns>
     public bool IsKeyInput(string path) => _keyInputs.Contains(path);
 
+    /// <summary>Finds out whether a property feeds a key of the table, whose value an update knows from the key it was given and cannot change.</summary>
+    /// <param name="input">The property.</param>
+    /// <returns><see langword="true"/> for an input of the table key.</returns>
+    public bool IsTableKeyInput(DynamoDbKeyInput input) => _tableKeyInputs.Contains(input.PropertyName);
+
     /// <summary>Finds out whether an attribute is a key of the table, which every item has and no update can write.</summary>
     /// <param name="attributeName">The attribute.</param>
     /// <returns><see langword="true"/> for a key of the table.</returns>
     public bool IsTableKey(string? attributeName) => attributeName == _partitionKeyName || attributeName == _sortKeyName;
+
+    private static void AddIfLiteral(List<LiteralKey> keys, Dictionary<string, string> literals, string? attributeName)
+    {
+        if (attributeName is not null && literals.TryGetValue(attributeName, out var value))
+        {
+            keys.Add(new LiteralKey(attributeName, value));
+        }
+    }
 
     private LiteralKey[] FindLiteralKeys()
     {
@@ -75,17 +95,12 @@ internal sealed class EntityWrites
         var keys = new List<LiteralKey>();
         foreach (var index in Indexes)
         {
-            if (literals.TryGetValue(index.PartitionKeyName, out var partitionKey))
+            // A key of the table is on every item, so it leaves the question to the keys beside it.
+            if ((IsTableKey(index.PartitionKeyName) || literals.ContainsKey(index.PartitionKeyName))
+                && (index.SortKeyName is null || IsTableKey(index.SortKeyName) || literals.ContainsKey(index.SortKeyName)))
             {
-                if (index.SortKeyName is null)
-                {
-                    keys.Add(new LiteralKey(index.PartitionKeyName, partitionKey));
-                }
-                else if (literals.TryGetValue(index.SortKeyName, out var sortKey))
-                {
-                    keys.Add(new LiteralKey(index.PartitionKeyName, partitionKey));
-                    keys.Add(new LiteralKey(index.SortKeyName, sortKey));
-                }
+                AddIfLiteral(keys, literals, index.PartitionKeyName);
+                AddIfLiteral(keys, literals, index.SortKeyName);
             }
         }
 

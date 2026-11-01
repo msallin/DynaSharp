@@ -5,7 +5,7 @@ namespace DynaSharp.Mapping;
 /// <summary>
 /// A key attribute of an entity and the properties it is made of, which is what keeps a key consistent when an update changes one of them by its handle. The
 /// generated code creates one per attribute, once per type. A table key without properties of its own and a plain table key are left out: the first cannot go
-/// stale, and DynamoDB rejects an update of the second by itself. A key of an index without properties has no inputs: it follows the other key of its index, and an index with nothing else is written by every update.
+/// stale, and DynamoDB rejects an update of the second by itself, unless an index key repeats it, and then it says how to read the value. A key of an index without properties has no inputs: it follows the other key of its index, and an index with nothing else is written by every update.
 /// </summary>
 /// <param name="attributeName">The key attribute.</param>
 /// <param name="text">The template as declared, or <c>{Property}</c> for a plain key of an index, whose attribute is the property itself.</param>
@@ -33,4 +33,16 @@ public sealed class DynamoDbKeyTemplate(string attributeName, string text, bool 
 
     /// <summary>Gets what formats the key from the values of <see cref="Inputs"/>, or <see langword="null"/> for a key that an update never writes.</summary>
     public Func<object?[], string>? Format { get; } = format;
+
+    /// <summary>
+    /// Gets what reads the values of <see cref="Inputs"/> from a key of the table, for an update that writes an index key made of them. It gives <see langword="null"/> for a key that does not fit,
+    /// and a <see langword="null"/> value for an input that the text does not give back. <see langword="null"/> for a key whose inputs no index uses.
+    /// </summary>
+    public Func<AttributeValue, object?[]?>? Parse { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether an index wants more of an input than <see cref="Parse"/> can give, such as a timestamp that this key holds to the day. An update through a generated key
+    /// then holds that key, see <see cref="IKey.ValueOf"/>.
+    /// </summary>
+    public bool LosesValues { get; init; }
 }

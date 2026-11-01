@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- One item in several mappings, which is what a comparison measures. They never share a table. -->
+    <NoWarn>$(NoWarn);DYNA026</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -15,13 +15,13 @@ namespace DynaSharp;
 public sealed class Index<T>
     where T : IDynamoDbDocument<T>
 {
-    internal Index(Table<T> table, string name, string partitionKeyName, string? sortKeyName)
+    internal Index(Table<T> table, string name, string partitionKeyName, string? sortKeyName, bool isGlobal = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(partitionKeyName);
         Table = table;
         Name = name;
-        Model = table.Model.ForIndex(name, partitionKeyName, sortKeyName);
+        Model = table.Model.ForIndex(name, partitionKeyName, sortKeyName, isGlobal);
     }
 
     /// <summary>Gets the table of the index.</summary>

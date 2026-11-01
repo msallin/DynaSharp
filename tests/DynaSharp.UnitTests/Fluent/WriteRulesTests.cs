@@ -120,6 +120,103 @@ public sealed class WriteRulesTests
     }
 
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task ToRequestJson_UpdateIfVersionAboveZeroAndIfNotExists_ThrowsInEitherOrder(bool versionFirst)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        var key = Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31));
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = versionFirst ? tickets.Update(key).IfVersion(3).IfNotExists().ToRequestJson() : tickets.Update(key).IfNotExists().IfVersion(3).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("version above 0").And.Contains("Ticket");
+    }
+
+    [Test]
+    public async Task SendAsync_UpdateIfVersionAboveZeroAndIfNotExists_SendsNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(async () => await tickets.Update(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).IfVersion(1).IfNotExists().SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, handler.Requests.Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task ToRequestJson_UpdateIfVersionZeroAndIfNotExists_RequiresBoth()
+    {
+        // Arrange (version 0 stands for an item that does not exist, so the two agree)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).IfVersion(0).IfNotExists().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("attribute_not_exists");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TransactionUpdateIfVersionAboveZeroAndIfNotExists_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        var key = Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31));
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite().Update(tickets, key).IfVersion(3).IfNotExists().Token("t").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("version above 0");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TransactionCheckIfVersionAboveZeroAndIfNotExists_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        var key = Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31));
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite().Check(tickets, key).IfVersion(3).IfNotExists().Token("t").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("version above 0");
+    }
+
+    [Test]
+    public async Task ToRequestJson_ActionAfterAnUpdateIfVersion_KnowsNothingOfItsVersion()
+    {
+        // Arrange (a transaction goes on with the same state)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var json = client.TransactWrite()
+            .Update(tickets, Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).IfVersion(3)
+            .Update(tickets, Ticket.Keys.Of("t2", new DateOnly(2026, 10, 31))).IfVersion(0).IfNotExists()
+            .Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("attribute_not_exists");
+    }
+
+    [Test]
     public async Task ToRequestJson_PutIfNotExistsOfANewEntity_RequiresBoth()
     {
         // Arrange

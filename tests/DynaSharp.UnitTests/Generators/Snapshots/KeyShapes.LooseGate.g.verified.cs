@@ -18,14 +18,14 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
         sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
         indexes: new __Map.DynamoDbIndexInfo[]
         {
-            new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
-            new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String),
+            new __Map.DynamoDbIndexInfo("Open", "openpk", "shared", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "OpenPk" },
+            new __Map.DynamoDbIndexInfo("Gated", "gatedpk", "shared", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "GatedPk" },
         },
         versionAttributeName: null,
         discriminatorAttributeName: "_type",
         keyTemplates: new __Map.DynamoDbKeyTemplate[]
         {
-            new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+            new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
             new __Map.DynamoDbKeyTemplate("openpk", "O#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.OpenPk.Format((string)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("shared", "T#{Tenant}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }, static __values => Keys.OpenSk.Format((string)__values[0]!)),
             new __Map.DynamoDbKeyTemplate("gatedpk", "G#{Note}", false, new[] { new __Map.DynamoDbKeyInput("Note", "Note") }, static __values => Keys.GatedPk.Format((string)__values[0]!)),
@@ -230,7 +230,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
             /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id), "pk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -324,7 +324,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
             /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id), "openpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -551,7 +551,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
 
             /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string note) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(note));
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string note) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(note), "gatedpk");
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

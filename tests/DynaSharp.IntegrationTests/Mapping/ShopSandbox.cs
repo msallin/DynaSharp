@@ -6,14 +6,16 @@ using DynaSharp.Requests;
 namespace DynaSharp.IntegrationTests.Mapping;
 
 /// <summary>
-/// A single table with the keys of the shop model, on a sandbox of its own: two global indexes and a local one, and two global ones that have the
-/// discriminator as a key, everything projected.
+/// A single table with the keys of the shop model, on a sandbox of its own: two global indexes and a local one, two global ones that have the
+/// discriminator as a key, and one on the partition key of the table, everything projected.
 /// </summary>
 internal sealed class ShopSandbox : IAsyncDisposable
 {
     public const string ByType = "ByType";
 
     public const string ByPartitionAndType = "ByPartitionAndType";
+
+    public const string ByPartitionAndLabel = "ByPartitionAndLabel";
 
     private readonly Sandbox _sandbox;
 
@@ -60,13 +62,13 @@ internal sealed class ShopSandbox : IAsyncDisposable
             BillingMode = BillingMode.PayPerRequest,
             AttributeDefinitions =
             [
-                Text("pk"), Text("sk"), Text("gsi1pk"), Text("gsi1sk"), Text("gsi2pk"), Text("gsi2sk"), Text("lsi1sk"), Text("_type"),
+                Text("pk"), Text("sk"), Text("gsi1pk"), Text("gsi1sk"), Text("gsi2pk"), Text("gsi2sk"), Text("lsi1sk"), Text("_type"), Text("labelsk"),
             ],
             KeySchema = [new KeySchemaElement("pk", KeyType.Hash), new KeySchemaElement("sk", KeyType.Range)],
             GlobalSecondaryIndexes =
             [
                 GlobalIndex("GSI1", "gsi1pk", "gsi1sk"), GlobalIndex("GSI2", "gsi2pk", "gsi2sk"),
-                GlobalIndex(ByType, "_type", "sk"), GlobalIndex(ByPartitionAndType, "pk", "_type"),
+                GlobalIndex(ByType, "_type", "sk"), GlobalIndex(ByPartitionAndType, "pk", "_type"), GlobalIndex(ByPartitionAndLabel, "pk", "labelsk"),
             ],
             LocalSecondaryIndexes =
             [

@@ -242,7 +242,8 @@ Interaction with indexes and discriminators:
 - Overloaded indexes work because several entity types declare different templates over the same attribute names.
 - Updates (M3): an update that sets a template input must also set the derived key attribute, or the index silently goes
   stale. The generated handles know the dependency; an update that lacks the other inputs of that template throws. An
-  input of the table's own key cannot be updated, because DynamoDB keys are immutable.
+  input of the table's own key cannot be updated, because DynamoDB keys are immutable, and it is known from the key the
+  update was given, so a template that repeats it needs no read.
 - Discriminators are a dedicated attribute (`_type`), not inferred from a key prefix: overloaded index keys and shared
   prefixes make a prefix ambiguous. `[Discriminator("ORDER")]` is required, because a default of the type name would turn
   renaming a class into a silent migration. The attribute name can be overridden, and a type can opt out for tables written

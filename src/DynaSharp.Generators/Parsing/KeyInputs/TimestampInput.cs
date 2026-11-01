@@ -3,7 +3,7 @@ namespace DynaSharp.Generators;
 /// <summary><c>DateTimeOffset</c> and <c>DateTime</c>: milliseconds by default, and every <c>KeyTimeFormat</c>.</summary>
 /// <param name="typeName">The type as messages show it.</param>
 /// <param name="isOffset">Whether the type is <c>DateTimeOffset</c>.</param>
-internal sealed class TimestampInput(string typeName, bool isOffset) : KeyInputType(typeName)
+internal sealed class TimestampInput(string typeName, bool isOffset) : KeyInputType(typeName, "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, the default, us or ticks")
 {
     private const string Default = "ms";
 

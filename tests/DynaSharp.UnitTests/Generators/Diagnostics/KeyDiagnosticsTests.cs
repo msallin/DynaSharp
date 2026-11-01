@@ -181,6 +181,7 @@ public sealed class KeyDiagnosticsTests
     [Arguments("decimal", "n4.", "decimal")]
     [Arguments("decimal", "x4.2", "decimal")]
     [Arguments("DateTimeOffset", "HH:mm", "System.DateTimeOffset")]
+    [Arguments("DateTimeOffset", "yyyyMMddHH", "System.DateTimeOffset")]
     [Arguments("DateTime", "O", "System.DateTime")]
     [Arguments("Color", "plain", "Shop.Color")]
     [Arguments("Color", "n4", "Shop.Color")]
@@ -198,7 +199,7 @@ public sealed class KeyDiagnosticsTests
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA104 Error: Format '{format}' does not fit type '{shown}'"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA104 Error: Format '{format}' does not fit type '{shown}'. It takes {FormatsOf(type)}."));
     }
 
     [Test]
@@ -728,4 +729,13 @@ public sealed class KeyDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string FormatsOf(string type) => type switch
+    {
+        "int" => "plain, the default, d<w>, such as d6, or n<i>, such as n10",
+        "decimal" => "plain, the default, or n<i>.<f>, such as n10.2",
+        "DateTimeOffset" or "DateTime" => "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, the default, us or ticks",
+        "Color" => "no format for the member name, or d<w>, such as d3, for its value",
+        _ => "no format",
+    };
 }

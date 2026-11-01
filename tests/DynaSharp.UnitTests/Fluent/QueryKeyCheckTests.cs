@@ -1,0 +1,216 @@
+using DynaSharp.Testing;
+
+namespace DynaSharp.UnitTests.Fluent;
+
+/// <summary>What <c>Query</c> does with a <see cref="PartitionKey{TEntity}"/> of the entity that was built for another attribute, which the compiler cannot see.</summary>
+public sealed class QueryKeyCheckTests
+{
+    [Test]
+    public async Task Query_TableKeyOnAnIndex_ThrowsNamingTheBuilderOfTheIndex()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => byStatus.Query(TenantInvoice.Keys.Pk.Of("acme")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("TenantInvoice.Keys.ByStatusPk.Of").And.Contains("attribute pk").And.Contains("reads bystatuspk");
+    }
+
+    [Test]
+    public async Task Query_IndexKeyOnTheTable_ThrowsNamingTheBuilderOfTheTable()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => invoices.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
+    }
+
+    [Test]
+    public async Task Query_KeyOnAPlainIndexKey_ThrowsNamingTheWayOut()
+    {
+        // Arrange (the sort key of a sparse index can be plain, and a partition key of an index too, which has no builder)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table<PlainIndexed>("Shop").Index(PlainIndexed.Indexes.ByCode);
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => index.Query(PlainIndexed.Keys.Pk.Of("a")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("as an AttributeValue");
+    }
+
+    [Test]
+    public async Task Query_IndexKeyOnAPlainTableKey_ThrowsNamingTheWayOut()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var devices = client.Table<PlainDevice>("Shop");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => devices.Query(PlainDevice.Keys.ByShelfPk.Of("s")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("as an AttributeValue");
+    }
+
+    [Test]
+    public async Task Query_TableKeyOnALocalIndex_ReadsTheAttributeOfTheTable()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table<Ticket>("Shop").Index(Ticket.Indexes.ByTitle);
+
+        // Act
+        var json = index.Query(Ticket.Keys.Pk.Of("t1")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeNames":{"#n0":"pk"
+            """);
+    }
+
+    [Test]
+    public async Task Query_TableKeyOnAnIndexWithTheSameAttribute_ReadsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table<LabeledNote>("Shop").Index(LabeledNote.Indexes.OnPartition);
+
+        // Act
+        var json = index.Query(LabeledNote.Keys.Pk.Of("n1")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "ExpressionAttributeNames":{"#n0":"pk"
+            """);
+    }
+
+    [Test]
+    public async Task Query_KeyOfAnotherEntityOnAnOverloadedIndex_ReadsIt()
+    {
+        // Arrange (the index was opened through one entity, and the attribute is what counts)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table("Shop", "pk").Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
+
+        // Act
+        var json = index.Query(OverloadedPass.Keys.Gsi1Pk.Of("g1")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v0":{"S":"GATE#g1"}
+            """);
+    }
+
+    [Test]
+    public async Task Query_TableKeyOfAnEntityOnAnIndexWithoutASchema_ThrowsNamingTheBuilder()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table("Shop", "pk").Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => index.Query(OverloadedBadge.Keys.Pk.Of("b1")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("OverloadedBadge.Keys.Gsi1Pk.Of");
+    }
+
+    [Test]
+    public async Task Query_IndexKeyOfAnEntityOnATableWithoutASchema_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => shop.Query(OverloadedBadge.Keys.Gsi1Pk.Of("h")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("OverloadedBadge.Keys.Pk.Of");
+    }
+
+    [Test]
+    public async Task Query_TableKeysOnAnIndexFanOut_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => byStatus.Query([TenantInvoice.Keys.Pk.Of("acme")]));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("TenantInvoice.Keys.ByStatusPk.Of");
+    }
+
+    [Test]
+    public async Task Query_IndexKeysOnATableFanOut_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Billing");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => invoices.Query([TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)]));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
+    }
+
+    [Test]
+    public async Task Query_FanOutsOnATableAndAnIndexWithoutASchema_Throw()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        var index = shop.Index<OverloadedBadge>(OverloadedBadge.Indexes.Gsi1);
+
+        // Act
+        var onTable = Assert.Throws<ArgumentException>(() => shop.Query([OverloadedBadge.Keys.Gsi1Pk.Of("h")]));
+        var onIndex = Assert.Throws<ArgumentException>(() => index.Query([OverloadedBadge.Keys.Pk.Of("b")]));
+
+        // Assert
+        await Assert.That((onTable.Message.Contains("Keys.Pk.Of", StringComparison.Ordinal), onIndex.Message.Contains("Keys.Gsi1Pk.Of", StringComparison.Ordinal))).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task Query_KeyThatDoesNotSayItsAttribute_IsNotChecked()
+    {
+        // Arrange (code that made a key by hand before keys said what they are for)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
+
+        // Act
+        var json = QueryOf(byStatus, new PartitionKey<TenantInvoice>("x"));
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v0":{"S":"x"}
+            """);
+    }
+
+    // dotnet format runs without the generator, which reports a named key as an error it could fix.
+    private static string QueryOf<T>(Index<T> index, PartitionKey<T> key)
+        where T : DynaSharp.Mapping.IDynamoDbEntity<T> => index.Query(key).ToRequestJson();
+}

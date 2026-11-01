@@ -126,12 +126,15 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
 
     /// <summary>
     /// Asks for a strongly consistent read of each partition, which sees every write that succeeded before that read started and costs twice the capacity. Partitions are still read
-    /// at different times. A global secondary index is always eventually consistent, and DynamoDB rejects this option on one with a <see cref="ValidationException"/>.
+    /// at different times. A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with
+    /// another partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">The index is known to be global.</exception>
     public FanOutQueryCommand<T> Consistent()
     {
         var state = Enter();
+        state.Table.ThrowIfNotConsistent();
         state.ConsistentRead = true;
         return new(state, state.Table, _plan!);
     }

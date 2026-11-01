@@ -4,7 +4,8 @@ namespace DynaSharp.Generators;
 
 /// <summary>The row of the format table for one kind of key input. When adding a type, add a class here and a case to <see cref="KeyInputCatalog"/>.</summary>
 /// <param name="typeName">The type as messages show it.</param>
-internal abstract class KeyInputType(string typeName)
+/// <param name="formats">What to write instead of a format that does not fit, for the message.</param>
+internal abstract class KeyInputType(string typeName, string formats = "")
 {
     protected string TypeName { get; } = typeName;
 
@@ -30,5 +31,5 @@ internal abstract class KeyInputType(string typeName)
 
     protected static FormatBinding OutOfRange(string format) => new(null, new KeyProblem(Descriptors.FormatOutOfRange, [format]));
 
-    protected FormatBinding DoesNotFit(string format) => new(null, new KeyProblem(Descriptors.FormatDoesNotFit, [format, TypeName]));
+    protected FormatBinding DoesNotFit(string format) => new(null, new KeyProblem(Descriptors.FormatDoesNotFit, [format, TypeName, formats]));
 }

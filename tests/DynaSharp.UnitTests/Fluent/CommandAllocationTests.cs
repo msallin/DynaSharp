@@ -128,6 +128,38 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_QueryOfAnIndexByItsPartitionKey_AllocatesNothing()
+    {
+        // Arrange (the key is made before: its string is what Format costs)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
+        var key = TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid);
+
+        // Act
+        var allocated = Measure((index, key), static input => CommandHelpers.FinishAndRelease(QueryOf(input.index, input.key)));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_TypedUpdateBesideAnIndexKeyOfATableKeyInput_AllocatesNothing()
+    {
+        // Arrange (the key would only be looked at for an update of what the index key is made of)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var invoices = client.Table<TenantInvoice>("Shop");
+
+        // Act
+        var allocated = Measure(invoices, static table => CommandHelpers.FinishAndRelease(
+            table.Update(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Note, "x")));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task Build_TypedUpdateWithAnActionOnTheDiscriminator_AllocatesNothing()
     {
         // Arrange (this is the walk over the clauses to the end, and the one that finds it)
@@ -550,6 +582,10 @@ public sealed class CommandAllocationTests
     }
 
     // Warm, then measure. A background tier-up can allocate on this thread once, so the smallest of the last rounds is what the code costs.
+    // dotnet format runs without the generator, which reports a named key as an error it could fix.
+    private static QueryCommand<T> QueryOf<T>(Index<T> index, PartitionKey<T> key)
+        where T : DynaSharp.Mapping.IDynamoDbEntity<T> => index.Query(key);
+
     private static long Measure<TState>(TState state, Func<TState, int> build)
     {
         for (var i = 0; i < Rounds; i++)
