@@ -51,21 +51,153 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
-    [Arguments("int", "int")]
-    [Arguments("string", "string")]
-    [Arguments("int?", "int?")]
-    [Arguments("System.Collections.Generic.List<string>?", "list")]
-    public async Task Build_OmitEmptyOnSomethingElseThanANullableString_ReportsDyna030(string type, string name)
+    [Arguments("int")]
+    [Arguments("int?")]
+    [Arguments("bool")]
+    [Arguments("Guid")]
+    public async Task Build_OmitEmptyOnWhatCannotBeEmpty_ReportsDyna030(string type)
     {
         // Arrange
-        _ = name;
         var source = $$"""[DynamoDbDocument] public partial class A { [[|OmitEmpty|]] public {{type}} X { get; set; } = default!; }""";
 
         // Act
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: it is no string?"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: it is no string, list, set, dictionary or array"));
+    }
+
+    [Test]
+    [Arguments("int[,]")]
+    [Arguments("ICollection<string>")]
+    public async Task Build_OmitEmptyOnACollectionThatNoBuiltInStores_ReportsDyna030(string type)
+    {
+        // Arrange (a converter stores these, and a handle has no way to ask for their count)
+        var source = $$"""
+            [DynamoDbDocument] public partial class A { [[|OmitEmpty|], DynamoDbConverter(typeof(C))] public {{type}} X { get; set; } = default!; }
+            public readonly record struct C : IDynamoDbConverter<{{type}}>
+            {
+                public static void Write(DynamoDbWriter writer, {{type}} value) { }
+                public static {{type}} Read(ref DynamoDbReader reader, AttributeType type) => default!;
+            }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: it is no string, list, set, dictionary or array"));
+    }
+
+    [Test]
+    [Arguments("string")]
+    [Arguments("string?")]
+    [Arguments("List<string>")]
+    [Arguments("List<string>?")]
+    [Arguments("IReadOnlyList<int>")]
+    [Arguments("IList<int>?")]
+    [Arguments("HashSet<string>")]
+    [Arguments("IReadOnlySet<string>?")]
+    [Arguments("Dictionary<string, int>")]
+    [Arguments("IReadOnlyDictionary<string, int>?")]
+    [Arguments("string[]")]
+    [Arguments("int[]?")]
+    [Arguments("byte[]")]
+    public async Task Build_OmitEmptyOnAStringOrACollection_ReportsNothing(string type)
+    {
+        // Arrange
+        var source = $$"""[DynamoDbDocument] public partial class A { [OmitEmpty] public {{type}} X { get; set; } = default!; }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("public required string X { get; set; }")]
+    [Arguments("public required List<string> X { get; set; }")]
+    public async Task Build_OmitEmptyOnARequiredProperty_ReportsDyna030(string member)
+    {
+        // Arrange
+        var source = $$"""[DynamoDbDocument] public partial class A { [[|OmitEmpty|]] {{member}} }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: a read throws without it, so an empty value could not be read back"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnAParameterWithoutADefault_ReportsDyna030()
+    {
+        // Arrange (the same thing as `required` for a read: nothing else gives the constructor a value)
+        const string Source = """[DynamoDbDocument] public partial record A([property: [|OmitEmpty|]] string X);""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'X' is not valid: a read throws without it, so an empty value could not be read back"));
+    }
+
+    [Test]
+    [Arguments("[OmitEmpty] public required string? X { get; set; }")]
+    [Arguments("[OmitEmpty] public required HashSet<string> X { get; set; }")]
+    public async Task Build_OmitEmptyOnARequiredPropertyThatAReadCanDoWithout_ReportsNothing(string member)
+    {
+        // Arrange (a missing attribute reads as null and as an empty set, so these do come back)
+        var source = $$"""[DynamoDbDocument] public partial class A { {{member}} }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnARequiredKeyInput_ReportsDyna030Once()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { [[|OmitEmpty|]] public required string Id { get; set; } }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it feeds a key"));
+    }
+
+    [Test]
+    [Arguments("[OmitEmpty(false)] public int X { get; set; }")]
+    [Arguments("[OmitEmpty(false)] public required string X { get; set; }")]
+    [Arguments("[OmitEmpty(true), DynamoDbAttribute(\"x\")] public string X { get; set; } = \"\";")]
+    public async Task Build_OmitEmptyThatSaysWhatIsSo_ReportsNothing(string member)
+    {
+        // Arrange (false asks for what such a property does anyway)
+        var source = $$"""[DynamoDbDocument] public partial class A { {{member}} }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyFalseOnAKeyInput_ReportsNothing()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { [OmitEmpty(false)] public string Id { get; set; } = "id"; }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -117,7 +249,7 @@ public sealed class TypeDiagnosticsTests
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it is no string?"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it is no string, list, set, dictionary or array"));
     }
 
     [Test]
@@ -768,6 +900,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("public partial class A { [[|SortKey|]] public string X { get; set; } = \"\"; }", "SortKey")]
     [Arguments("public partial class A { [[|KeyOnly|]] public string X { get; set; } = \"\"; }", "KeyOnly")]
     [Arguments("public partial class A { [[|Version|]] public long X { get; set; } }", "Version")]
+    [Arguments("""public partial class A { public int X { get; set; } [[|ComputedFrom(nameof(X))|]] public int Y => X; }""", "ComputedFrom")]
     public async Task Build_EntityAttributeOnADocument_ReportsDyna012(string declaration, string attribute)
     {
         // Arrange

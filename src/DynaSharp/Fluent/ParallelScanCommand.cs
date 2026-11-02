@@ -12,7 +12,7 @@ namespace DynaSharp;
 /// <remarks>See <see cref="GetCommand{T}"/> for what a command is and what it cannot do.</remarks>
 /// <typeparam name="T">How the items are read.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
-public readonly ref struct ParallelScanCommand<T>
+public readonly ref struct ParallelScanCommand<T> : IReadCommand
     where T : IDynamoDbDocument<T>
 {
     private const string Operation = "Scan";

@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
 
@@ -41,13 +43,37 @@ internal static class TableAdministration
         return response.TableDescription ?? NoDescription(table);
     }
 
-    /// <summary>Polls a table on the clock of the client until it and all its global secondary indexes are active. A table reads <c>ACTIVE</c> while an index backfills, so its status alone says too little.</summary>
+    /// <summary>Picks the global secondary indexes out of what entities declare. A local index exists from the creation of the table, or not at all, so nothing waits for one.</summary>
+    /// <param name="indexes">The indexes.</param>
+    /// <returns>The names.</returns>
+    public static string[] GlobalIndexNames(IEnumerable<DynamoDbIndexInfo> indexes) => [.. indexes.Where(static index => !index.IsLocal).Select(static index => index.IndexName)];
+
+    /// <summary>Finds out whether a look at a table already shows what a wait waits for.</summary>
+    /// <param name="description">The description.</param>
+    /// <param name="declared">The global secondary indexes that have to be listed.</param>
+    /// <returns><see langword="true"/> if the table and all its indexes are active, and the declared ones are among them.</returns>
+    public static bool IsActive(TableDescription description, IReadOnlyList<string> declared) => description.TableStatus == TableStatus.Active && FindPending(description, declared) is null;
+
+    /// <summary>Waits for a table as its entity declares it. See <see cref="WaitUntilActiveAsync(TableModel, IReadOnlyList{string}, TimeSpan, CancellationToken)"/>.</summary>
     /// <param name="table">The table.</param>
     /// <param name="timeout">How long to wait.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
     /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
-    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken)
+    public static ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken) =>
+        WaitUntilActiveAsync(table, GlobalIndexNames(table.Entity?.Indexes ?? []), timeout, cancellationToken);
+
+    /// <summary>
+    /// Polls a table on the clock of the client until it and all its global secondary indexes are active. A table reads <c>ACTIVE</c> while an index backfills, so its status alone says too little, and
+    /// neither does the list of a description, which may not hold an index yet that <c>UpdateTable</c> just added. So the indexes the entities declare have to be in it.
+    /// </summary>
+    /// <param name="table">The table.</param>
+    /// <param name="declared">The global secondary indexes that have to be listed.</param>
+    /// <param name="timeout">How long to wait.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>The description of the active table.</returns>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
+    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, IReadOnlyList<string> declared, TimeSpan timeout, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
         var clock = table.Core.TimeProvider;
@@ -56,12 +82,12 @@ internal static class TableAdministration
         while (true)
         {
             TableStatus? status = null;
-            GlobalSecondaryIndexDescription? pending = null;
+            PendingIndex? pending = null;
             ResourceNotFoundException? missing = null;
             try
             {
                 var description = await DescribeAsync(table, cancellationToken).ConfigureAwait(false);
-                pending = FirstPendingIndex(description);
+                pending = FindPending(description, declared);
                 if (description.TableStatus == TableStatus.Active && pending is null)
                 {
                     return description;
@@ -78,7 +104,7 @@ internal static class TableAdministration
             var left = timeout - clock.GetElapsedTime(start);
             if (left <= TimeSpan.Zero)
             {
-                throw new TableNotActiveException($"The table {table.Name} and its indexes were not ACTIVE after {timeout}: {LastLook(status, pending)}.", table.Name, status, pending?.IndexName, missing);
+                throw new TableNotActiveException($"The table {table.Name} and its indexes were not ACTIVE after {timeout}: {LastLook(status, pending)}.", table.Name, status, pending?.Name, missing);
             }
 
             await Task.Delay(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
@@ -86,29 +112,83 @@ internal static class TableAdministration
         }
     }
 
-    private static GlobalSecondaryIndexDescription? FirstPendingIndex(TableDescription description)
+    /// <summary>Makes sure that an active table has time to live on an attribute, as <see cref="CreateTableCommand.TimeToLive(string)"/> says.</summary>
+    /// <param name="table">The table.</param>
+    /// <param name="attributeName">The attribute.</param>
+    /// <param name="cancellationToken">Cancels the calls.</param>
+    /// <returns>A task that completes when time to live is on, or turning on.</returns>
+    /// <exception cref="ValidationException">DynamoDB refused, and that was not because another instance got there first.</exception>
+    public static async ValueTask EnsureTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
+    {
+        if (await TimeToLiveIsOnAsync(table, attributeName, cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        ValidationException rejected;
+        try
+        {
+            var request = new UpdateTimeToLiveRequest { TableName = table.Name, TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = attributeName } };
+            await table.Core.ExecuteAsync<UpdateTimeToLiveOperation, UpdateTimeToLiveRequest, UpdateTimeToLiveResponse>(request, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+        catch (ValidationException exception)
+        {
+            rejected = exception;
+        }
+
+        // Outside the catch: a throw after an await in one has a branch of the compiler that nothing can take.
+        if (!await TimeToLiveIsOnAsync(table, attributeName, cancellationToken).ConfigureAwait(false))
+        {
+            ExceptionDispatchInfo.Throw(rejected);
+        }
+    }
+
+    private static async ValueTask<bool> TimeToLiveIsOnAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
+    {
+        var response = await table.Core
+            .ExecuteAsync<DescribeTimeToLiveOperation, DescribeTimeToLiveRequest, DescribeTimeToLiveResponse>(new DescribeTimeToLiveRequest { TableName = table.Name }, cancellationToken)
+            .ConfigureAwait(false);
+        return response.TimeToLiveDescription is { TimeToLiveStatus: TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling } description && description.AttributeName == attributeName;
+    }
+
+    // What a response says of an index comes first, because a status says more than a name that is missing.
+    private static PendingIndex? FindPending(TableDescription description, IReadOnlyList<string> declared)
     {
         foreach (var index in description.GlobalSecondaryIndexes)
         {
             if (index.IndexStatus != IndexStatus.Active)
             {
-                return index;
+                return new PendingIndex(index.IndexName, $"was {index.IndexStatus}");
+            }
+        }
+
+        foreach (var name in declared)
+        {
+            if (!description.GlobalSecondaryIndexes.Any(index => index.IndexName == name))
+            {
+                return new PendingIndex(name, "was not listed");
             }
         }
 
         return null;
     }
 
-    private static string LastLook(TableStatus? status, GlobalSecondaryIndexDescription? pending)
+    private static string LastLook(TableStatus? status, PendingIndex? pending)
     {
         if (status is not { } seen)
         {
             return "the table was not found";
         }
 
-        return pending is null ? $"the table was {seen}" : $"the table was {seen}, and the index {pending.IndexName} was {pending.IndexStatus}";
+        return pending is { } index ? $"the table was {seen}, and the index {index.Name} {index.State}" : $"the table was {seen}";
     }
 
     // The service model requires no member of these responses. A description that says nothing has the status Unknown, so a wait goes on, and a caller is spared a null DynamoDB does not send in practice.
     private static TableDescription NoDescription(TableModel table) => new() { TableName = table.Name };
+
+    /// <summary>The index that holds a wait up.</summary>
+    /// <param name="Name">Its name.</param>
+    /// <param name="State">How the last look found it, as a message says it.</param>
+    private readonly record struct PendingIndex(string? Name, string State);
 }

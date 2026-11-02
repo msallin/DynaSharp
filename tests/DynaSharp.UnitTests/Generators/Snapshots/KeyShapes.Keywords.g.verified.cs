@@ -26,8 +26,8 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class") }),
-                new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event") }),
+                new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@class } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@event } : null },
             });
     }
 
@@ -160,8 +160,27 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Keywords</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string @class, string @event) => new PrimaryKey(@class, @event);
+        /// <summary>Creates the primary key of <c>Keywords</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string @class, string @event)
+        {
+            Pk.Check(true, @class);
+            Sk.Check(true, @event);
+            return new PrimaryKey(@class, @event);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string @class, string @event, out PrimaryKey key)
+        {
+            if (Pk.Check(false, @class) && Sk.Check(false, @event))
+            {
+                key = new PrimaryKey(@class, @event);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>Keywords</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -213,9 +232,31 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Keywords</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>Keywords</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Keywords> Of(string @class) => new global::DynaSharp.PartitionKey<global::KeyShapes.Keywords>(Format(@class), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string @class, out global::DynaSharp.PartitionKey<global::KeyShapes.Keywords> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, @class);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.Keywords>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -281,6 +322,20 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
             {
                 __key.WriteLiteral("C#"u8);
                 __key.WriteString(@class, "#"u8, "class");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string @class)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, @class);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
 
@@ -438,6 +493,20 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
             {
                 __key.WriteLiteral("E#"u8);
                 __key.WriteString(@event, "#"u8, "event");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string @event)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, @event);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
     }

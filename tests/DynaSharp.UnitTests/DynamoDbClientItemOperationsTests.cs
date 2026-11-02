@@ -187,10 +187,10 @@ public sealed class DynamoDbClientItemOperationsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var act = async () => await client.QueryAsync(Query() with { Select = (Select)99 });
+        var act = async () => await client.QueryAsync(Query() with { Select = (SelectKind)99 });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known Select.", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known SelectKind.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -201,7 +201,7 @@ public sealed class DynamoDbClientItemOperationsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.QueryAsync(Query() with { Select = (Select)99 }));
+        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.QueryAsync(Query() with { Select = (SelectKind)99 }));
 
         // Assert
         await Assert.That(handler.Requests).IsEmpty();
@@ -231,7 +231,7 @@ public sealed class DynamoDbClientItemOperationsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.QueryAsync(Query() with { Select = (Select)99 }));
+        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.QueryAsync(Query() with { Select = (SelectKind)99 }));
 
         // Assert
         await Assert.That(capture.Single().OperationName).IsEqualTo("DynamoDB.Query");
@@ -350,10 +350,10 @@ public sealed class DynamoDbClientItemOperationsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var act = async () => await client.ScanAsync(new ScanRequest { TableName = "Users", Select = (Select)99 });
+        var act = async () => await client.ScanAsync(new ScanRequest { TableName = "Users", Select = (SelectKind)99 });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known Select.", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known SelectKind.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -364,7 +364,7 @@ public sealed class DynamoDbClientItemOperationsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.ScanAsync(new ScanRequest { TableName = "Users", Select = (Select)99 }));
+        await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => client.ScanAsync(new ScanRequest { TableName = "Users", Select = (SelectKind)99 }));
 
         // Assert
         await Assert.That(handler.Requests).IsEmpty();
@@ -415,6 +415,77 @@ public sealed class DynamoDbClientItemOperationsTests
 
         // Assert
         await Assert.That(exception.Item!["version"].AsNumber<int>()).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task UpdateItemAsync_ConditionFails_NamesTheKeyOfTheRequest()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+        var request = new UpdateItemRequest
+        {
+            TableName = "Users",
+            Key = new Dictionary<string, AttributeValue> { ["pk"] = "user-1", ["sk"] = "profile" },
+            UpdateExpression = "SET a = :a",
+            ConditionExpression = "attribute_exists(pk)",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":a"] = "x" },
+        };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.UpdateItemAsync(request));
+
+        // Assert
+        await Assert.That(exception.Key).IsEqualTo(new Item(request.Key));
+    }
+
+    [Test]
+    public async Task DeleteItemAsync_ConditionFails_NamesTheKeyOfTheRequest()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+        var request = new DeleteItemRequest
+        {
+            TableName = "Users",
+            Key = new Dictionary<string, AttributeValue> { ["pk"] = "user-1", ["sk"] = "profile" },
+            ConditionExpression = "attribute_exists(pk)",
+        };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.DeleteItemAsync(request));
+
+        // Assert
+        await Assert.That(exception.Key).IsEqualTo(new Item(request.Key));
+    }
+
+    [Test]
+    public async Task PutItemAsync_ConditionFails_HasNoKey()
+    {
+        // Arrange (a request of attributes does not say which of them are the key)
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var exception = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.PutItemAsync(TestClient.PutItem()));
+
+        // Assert
+        await Assert.That(exception.Key).IsNull();
+    }
+
+    [Test]
+    public async Task UpdateItemAsync_OtherFailure_ReadsNoKey()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.DynamoDbError("ValidationException", "No."));
+        using var client = TestClient.Create(handler);
+        var request = new UpdateItemRequest { TableName = "Users", Key = new Dictionary<string, AttributeValue> { ["pk"] = "user-1" }, UpdateExpression = "SET" };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<ValidationException>(() => client.UpdateItemAsync(request));
+
+        // Assert (the caller wrote the expressions, so there is nothing to explain)
+        await Assert.That(exception.Expressions).IsNull();
     }
 
     [Test]

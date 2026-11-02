@@ -34,6 +34,11 @@ internal static class StsVectors
     /// <summary>Gets the error codes the model of botocore lists for the operation.</summary>
     public static IEnumerable<string> ModeledErrors => Document.RootElement.GetProperty("modeled_errors").EnumerateObject().Select(static error => error.Name);
 
+    /// <summary>Gets the status the model of botocore gives an error code.</summary>
+    /// <param name="code">A code of <see cref="ModeledErrors"/>.</param>
+    /// <returns>The HTTP status.</returns>
+    public static int ModeledStatus(string code) => Document.RootElement.GetProperty("modeled_errors").GetProperty(code).GetInt32();
+
     /// <summary>Gets a section as a list.</summary>
     /// <param name="section">The name of the section.</param>
     /// <returns>The entries.</returns>

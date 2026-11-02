@@ -115,9 +115,9 @@ partial record ForeignAddress : __Map.IDynamoDbDocument<global::KeyShapes.Foreig
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> City => new("City");
 
         /// <summary>The attribute <c>Street</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.Street, global::DynaSharp.Serialization.OptionalReferenceConverter<global::KeyShapes.Street, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.Street>>> Street => new("Street");
+        public static global::DynaSharp.Attr<global::KeyShapes.Street, global::DynaSharp.Serialization.NullableReferenceHandleConverter<global::KeyShapes.Street, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.Street>>> Street => new("Street");
 
         /// <summary>The attribute <c>Country</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Country => new("Country");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Country => new("Country");
     }
 }

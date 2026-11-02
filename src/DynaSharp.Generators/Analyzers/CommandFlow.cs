@@ -61,6 +61,17 @@ internal static class CommandFlow
                 && (DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) || DynaSharpTypes.IsCommand(method.ReturnType)));
     }
 
+    /// <summary>Whether an operation is a reference to a local or a parameter.</summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="variable">The local or parameter.</param>
+    /// <returns>Whether it refers to that one.</returns>
+    public static bool IsReferenceTo(IOperation operation, ISymbol variable) => operation switch
+    {
+        ILocalReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Local, variable),
+        IParameterReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Parameter, variable),
+        _ => false,
+    };
+
     private static bool Finds(ControlFlowGraph graph, IOperation reference, ISymbol variable, Rule rule)
     {
         var reads = new HashSet<SyntaxNode>();
@@ -252,13 +263,6 @@ internal static class CommandFlow
     private static bool Writes(IOperation target, ISymbol variable) =>
         IsReferenceTo(target, variable)
         || (target is IFlowCaptureReferenceOperation { Syntax: IdentifierNameSyntax name } && name.Identifier.ValueText == variable.Name);
-
-    private static bool IsReferenceTo(IOperation operation, ISymbol variable) => operation switch
-    {
-        ILocalReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Local, variable),
-        IParameterReferenceOperation reference => SymbolEqualityComparer.Default.Equals(reference.Parameter, variable),
-        _ => false,
-    };
 
     private static bool IsOutArgument(IOperation reference) =>
         reference.Syntax.Parent is ArgumentSyntax argument && argument.RefKindKeyword.IsKind(SyntaxKind.OutKeyword);

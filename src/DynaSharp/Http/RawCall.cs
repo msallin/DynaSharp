@@ -51,8 +51,8 @@ internal readonly struct RawCall(string operation, ReadOnlyMemory<byte> requestJ
 
     public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(byte[] response) => null;
 
-    // The caller wrote the expressions, so they need no explaining.
-    public void DescribeRejection(ValidationException rejection)
+    // The caller wrote the expressions, so they need no explaining, and the JSON is not parsed, so nothing here knows a key.
+    public void DescribeFailure(DynamoDbException failure)
     {
     }
 

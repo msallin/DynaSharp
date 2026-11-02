@@ -912,32 +912,36 @@ public sealed class GeneratedKeysTests
     }
 
     [Test]
-    public async Task Of_InvalidValue_FailsWhenTheKeyIsWritten()
+    public async Task Of_InvalidValue_ThrowsAtTheCall()
     {
-        // Arrange
-        var key = UserProfile.Keys.Of("a#b");
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => UserProfile.Keys.Of("a#b"));
+
+        // Assert
+        await Assert.That((exception.ParamName, exception.Message.Contains("a#b", StringComparison.Ordinal))).IsEqualTo(("Id", false));
+    }
+
+    [Test]
+    public async Task Of_InvalidValueOfTheSortKey_ThrowsAtTheCall()
+    {
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => Member.Keys.Of("t", "1", "EU", "a#b"));
+
+        // Assert
+        await Assert.That(exception.ParamName).IsEqualTo("City");
+    }
+
+    [Test]
+    public async Task WriteKey_DefaultOfAKey_FailsWhenTheKeyIsWritten()
+    {
+        // Arrange (no Of has seen it)
+        UserProfile.Keys.PrimaryKey key = default;
 
         // Act
         var act = () => KeyJson(key);
 
         // Assert
         await Assert.That(act).ThrowsExactly<KeyFormatException>();
-    }
-
-    [Test]
-    public async Task Of_InvalidValue_FailsWhenACommandTakesTheKey()
-    {
-        // Arrange
-        using var handler = new DynaSharp.Testing.StubHandler();
-        using var client = TestClient.Create(handler);
-        var profiles = client.Table<UserProfile>("Shop");
-        var key = UserProfile.Keys.Of("a#b");
-
-        // Act
-        var failure = TestClient.Catch(() => _ = profiles.Get(key).ToRequestJson());
-
-        // Assert
-        await Assert.That(failure).IsTypeOf<KeyFormatException>();
     }
 
     private static IEnumerable<(string? Name, Type Type)> Parameters(Type builder, string method) =>

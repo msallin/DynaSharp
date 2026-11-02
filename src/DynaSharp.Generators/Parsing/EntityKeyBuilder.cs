@@ -63,7 +63,9 @@ internal sealed class EntityKeyBuilder(
         }
 
         var version = VersionProperty();
+        var computedInputs = ComputedInputs(version);
         KeepKeysFromOmitting();
+        KeepKeysFromMissing();
         if (bag.HasErrors)
         {
             return null;
@@ -73,7 +75,7 @@ internal sealed class EntityKeyBuilder(
         RestoreKeyOnlyProperties();
         FindFallbackKeys();
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
-        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version);
+        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs);
     }
 
     private static IndexModel WithGates(IndexModel index, List<IndexModel> indexes) => index with
@@ -104,6 +106,7 @@ internal sealed class EntityKeyBuilder(
             KeyInputCatalog.Classify(inner, enums),
             isNullable,
             property.IsComputed,
+            property.ComputedFrom is not null,
             Types.Effective(inner) >= Types.Effective(type));
     }
 
@@ -207,7 +210,7 @@ internal sealed class EntityKeyBuilder(
     private KeyModel PropertyKey(PropertyFacts property, string builderName, KeyRole role, Spot spot)
     {
         var (inner, isNullable) = Types.Unwrap(property.Type);
-        if (property.Converter is null && !ConverterResolver.IsKeyType(inner))
+        if (property.Converter is null && property.DefaultConverter is null && !ConverterResolver.IsKeyType(inner))
         {
             bag.Report(Descriptors.InvalidKeyType, spot, property.Name, property.Type.ToDisplayString());
         }
@@ -223,7 +226,7 @@ internal sealed class EntityKeyBuilder(
             bag.Report(Descriptors.NullableInput, spot, property.Name);
         }
 
-        if (role.IsIndex && property.IsComputed)
+        if (role.IsIndex && property is { IsComputed: true, ComputedFrom: null })
         {
             bag.Report(Descriptors.ComputedInIndex, spot, property.Name);
         }
@@ -457,6 +460,66 @@ internal sealed class EntityKeyBuilder(
         return version;
     }
 
+    // After the keys and the version, because a list is valid only for a property some key uses, and every update moves the version without a handle.
+    private EquatableArray<ComputedInput> ComputedInputs(string? version)
+    {
+        var inputs = new List<ComputedInput>();
+        foreach (var property in properties.Where(static property => property.ComputedFrom is not null))
+        {
+            var names = AttributeReader.Texts(property.ComputedFrom!).ToList();
+            if (ComputedFromProblem(property, names, version) is { } problem)
+            {
+                bag.Report(Descriptors.InvalidComputedFrom, Spot.Of(property.ComputedFrom!, property.Spot), property.Name, problem);
+            }
+            else
+            {
+                var attributes = names.Select(name => _stored[name].AttributeName);
+                inputs.Add(new ComputedInput(property.Name, new EquatableArray<string>([.. names]), new EquatableArray<string>([.. attributes])));
+            }
+        }
+
+        return new EquatableArray<ComputedInput>([.. inputs]);
+    }
+
+    private string? ComputedFromProblem(PropertyFacts property, List<string> names, string? version)
+    {
+        if (!property.IsComputed)
+        {
+            return "it is not computed";
+        }
+
+        if (names.Count == 0)
+        {
+            return "it names no property";
+        }
+
+        foreach (var name in names)
+        {
+            var dependency = properties.Find(candidate => candidate.Name == name);
+            if (dependency is { IsComputed: true })
+            {
+                return $"'{name}' is computed too";
+            }
+
+            if (dependency is not { IsStored: true })
+            {
+                return $"'{name}' is not a stored property of the type";
+            }
+
+            if (name == version)
+            {
+                return $"'{name}' is the version, which an update moves without a handle";
+            }
+        }
+
+        if (names.Distinct().Count() != names.Count)
+        {
+            return $"'{names.GroupBy(static name => name).First(static group => group.Count() > 1).Key}' is named twice";
+        }
+
+        return FeedsKey(property) ? null : "no key template uses the property";
+    }
+
     // A put writes the next version, so the key would move to another item, or an index would go stale.
     private void RejectVersionInKey(PropertyFacts property)
     {
@@ -474,14 +537,25 @@ internal sealed class EntityKeyBuilder(
         {
             property.OmitsEmpty = false;
             property.Resolved = property.Resolved?.AlwaysWritten();
-            if (property.OmitEmpty is { } attribute && property.IsNullableString)
+            if (property.OmitEmpty is { } attribute && AttributeReader.IsEnabled(attribute) && property.CanBeEmpty)
             {
                 bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key");
             }
         }
     }
 
-    private bool FeedsKey(PropertyFacts property) => _keys.Exists(key => key.PlainProperty == property.Name) || HoldersOf(property).Count > 0;
+    // A property that is a key has only the converter to go by. A read that took it for missing would give an entity with another key, which the next Put writes somewhere else.
+    private void KeepKeysFromMissing()
+    {
+        foreach (var property in properties.Where(IsPlainKey))
+        {
+            property.Resolved = property.Resolved?.AlwaysRead();
+        }
+    }
+
+    private bool IsPlainKey(PropertyFacts property) => _keys.Exists(key => key.PlainProperty == property.Name);
+
+    private bool FeedsKey(PropertyFacts property) => IsPlainKey(property) || HoldersOf(property).Count > 0;
 
     private void RestoreKeyOnlyProperties()
     {
@@ -518,7 +592,7 @@ internal sealed class EntityKeyBuilder(
         }
     }
 
-    // An update stores no input of the table key, so the item it creates has the key and not the property. A nullable input is left out: null is omitted on write, so
+    // An update stores no input of the table key unless it asks, so the item it creates has the key and not the property. A nullable input is left out: null is omitted on write, so
     // its attribute missing means null, and only a sparse key can hold one.
     private void FindFallbackKeys()
     {

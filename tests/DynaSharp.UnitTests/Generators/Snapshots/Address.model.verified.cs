@@ -32,6 +32,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: True
@@ -40,7 +42,8 @@ Properties:
     FallbackKey: null
     ParameterName: street
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: City
     Identifier: City
@@ -53,6 +56,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: True
@@ -61,7 +66,8 @@ Properties:
     FallbackKey: null
     ParameterName: city
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Zip
     Identifier: Zip
@@ -74,6 +80,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: True
@@ -82,7 +90,8 @@ Properties:
     FallbackKey: null
     ParameterName: zip
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
 Entity: null
 Enums: []
 HidesInheritedKeys: False

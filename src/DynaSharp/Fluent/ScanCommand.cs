@@ -10,7 +10,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Scan</c> under construction: every item of a table or index, in no useful order, at the cost of reading them all. Chain the options and end with
-/// <see cref="ItemsAsync"/>, <see cref="PagesAsync"/>, <see cref="PageAsync"/> or <see cref="CountAsync"/> in one expression.
+/// <see cref="ItemsAsync"/>, <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +23,7 @@ namespace DynaSharp;
 /// </remarks>
 /// <typeparam name="T">How the items are read.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
-public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetryable<ScanCommand<T>>
+public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetryable<ScanCommand<T>>, IReadCommand
     where T : IDynamoDbDocument<T>
 {
     /// <summary>The most segments DynamoDB accepts.</summary>
@@ -101,7 +101,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     }
 
     /// <summary>
-    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Scan().Select(Order.Attrs.Total).ItemsAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, so it saves bandwidth, not capacity: DynamoDB
+    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Scan().Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, so it saves bandwidth, not capacity: DynamoDB
     /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
     /// </summary>
     /// <remarks>
@@ -134,7 +134,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public ScanSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute)
+    public ScanSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
@@ -145,7 +145,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public ScanSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute)
+    public ScanSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
@@ -279,6 +279,17 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<Page<T>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default) =>
         PagedRead<ScanPageOperation<T>, T>.PageAsync(Prepare(), after, cancellationToken);
+
+    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken, CancellationToken)"/> does at the default position, for a caller that has a token and no position yet.</summary>
+    /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>
+    /// <returns>The page. Await it once.</returns>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<Page<T>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
 
     /// <summary>
     /// Counts the items of all pages with <c>Select: COUNT</c>, so no item travels. It costs the capacity of reading the whole table, as many calls as a scan

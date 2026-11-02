@@ -15,6 +15,7 @@ namespace DynaSharp.Mapping;
 /// <param name="keyTemplates">The keys that are made of properties and the keys of literals of an index, which an update keeps consistent. <see langword="null"/> if there are none.</param>
 /// <param name="partitionKeyType">How the partition key is stored. <see cref="ScalarAttributeType.Unknown"/> says nothing, which creating a table reads as a string unless another entity knows better.</param>
 /// <param name="sortKeyType">How the sort key is stored, with <see cref="ScalarAttributeType.Unknown"/> if there is none or it does not say.</param>
+/// <param name="versionMissing">What an item without the version attribute means, see <see cref="VersionAttribute.Missing"/>.</param>
 /// <remarks>Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package. A type written by hand that makes one has to follow the package.</remarks>
 public sealed class DynamoDbEntityInfo(
     string? discriminator,
@@ -25,7 +26,8 @@ public sealed class DynamoDbEntityInfo(
     string discriminatorAttributeName = DynamoDbEntityInfo.DefaultDiscriminatorAttributeName,
     IReadOnlyList<DynamoDbKeyTemplate>? keyTemplates = null,
     ScalarAttributeType partitionKeyType = ScalarAttributeType.Unknown,
-    ScalarAttributeType sortKeyType = ScalarAttributeType.Unknown)
+    ScalarAttributeType sortKeyType = ScalarAttributeType.Unknown,
+    VersionMissing versionMissing = VersionMissing.Reject)
 {
     /// <summary>The attribute that holds the discriminator unless a type names another one.</summary>
     public const string DefaultDiscriminatorAttributeName = "_type";
@@ -56,6 +58,9 @@ public sealed class DynamoDbEntityInfo(
 
     /// <summary>Gets the attribute that holds the optimistic lock version, or <see langword="null"/> if the type has none.</summary>
     public string? VersionAttributeName { get; } = versionAttributeName;
+
+    /// <summary>Gets what an item without the version attribute means, see <see cref="VersionAttribute.Missing"/>.</summary>
+    public VersionMissing VersionMissing { get; } = versionMissing;
 
     /// <summary>Gets the keys that are made of properties and the keys of literals of an index. Empty if there are none, which is what lets an update skip them at no cost.</summary>
     public IReadOnlyList<DynamoDbKeyTemplate> KeyTemplates { get; } = keyTemplates ?? [];

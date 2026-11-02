@@ -30,7 +30,7 @@ internal static class KeysEmitter
         {
             if (key.Template is { } template)
             {
-                new KeyBuilderEmitter(code, key, template, isSortKey, type.Name, type.FullName).Emit();
+                new KeyBuilderEmitter(code, key, template, isSortKey, PrimaryKeys(entity).Contains(key), type.Name, type.FullName).Emit();
             }
             else
             {
@@ -105,9 +105,7 @@ internal static class KeysEmitter
         }
 
         var signature = string.Join(", ", inputs.Select(static input => $"{input.ValueType} {input.Parameter}"));
-        code.Line($"/// <summary>Creates the primary key of <c>{type.Name}</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>");
-        code.Line($"public static PrimaryKey Of({signature}) => new PrimaryKey({string.Join(", ", inputs.Select(static input => input.Parameter))});");
-        code.Blank();
+        EmitOf(code, type, keys.FindAll(static key => key.Template is { CanReject: true }), inputs, signature);
         code.Line($"/// <summary>The primary key of <c>{type.Name}</c>, which holds the values of the key and costs no string until it is written.</summary>");
         code.Line(CodeText.GeneratedCode);
         code.Line($"public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<{type.FullName}>");
@@ -130,14 +128,58 @@ internal static class KeysEmitter
         }
 
         code.Close();
-        EmitValueOf(code, entity, inputs);
+        EmitValueOf(code, type, entity, inputs);
         code.Close();
     }
 
-    // An entity whose keys give their inputs back has no use for this, and the default of the interface says so.
-    private static void EmitValueOf(IndentedCode code, EntityModel entity, List<KeyInput> inputs)
+    // A key holds its values and costs no string, so what is checked here is written to the stack and dropped, and the command renders it again. What cannot be turned away needs neither.
+    private static void EmitOf(IndentedCode code, TypeModel type, List<KeyModel> checkedKeys, List<KeyInput> inputs, string signature)
     {
-        var held = KeyTemplateEmitter.HeldInputs(entity);
+        var creation = $"new PrimaryKey({string.Join(", ", inputs.Select(static input => input.Parameter))})";
+        var summary = $"Creates the primary key of <c>{type.Name}</c>, which holds the values and costs no string until it is written.";
+        if (checkedKeys.Count == 0)
+        {
+            code.Line($"/// <summary>{summary}</summary>");
+            code.Line($"public static PrimaryKey Of({signature}) => {creation};");
+            code.Blank();
+            return;
+        }
+
+        code.Line($"/// <summary>{summary} The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>");
+        code.Line("/// <exception cref=\"global::DynaSharp.KeyFormatException\">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>");
+        code.Line($"public static PrimaryKey Of({signature})");
+        code.Open();
+        foreach (var key in checkedKeys)
+        {
+            code.Line($"{Check(type, key, "true")};");
+        }
+
+        code.Line($"return {creation};");
+        code.Close();
+        code.Blank();
+        var result = Names.Free("key", inputs.Select(static input => input.Parameter));
+        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>");
+        code.Line($"public static bool TryOf({signature}, out PrimaryKey {result})");
+        code.Open();
+        code.Line($"if ({string.Join(" && ", checkedKeys.Select(key => Check(type, key, "false")))})");
+        code.Open();
+        code.Line($"{result} = {creation};");
+        code.Line("return true;");
+        code.Close();
+        code.Blank();
+        code.Line($"{result} = default;");
+        code.Line("return false;");
+        code.Close();
+        code.Blank();
+    }
+
+    private static string Check(TypeModel type, KeyModel key, string throwOnInvalid) =>
+        $"{key.BuilderName}.Check({string.Join(", ", Inputs(type, key).Select(static input => input.Parameter).Prepend(throwOnInvalid))})";
+
+    // An entity whose keys give their inputs back has no use for this, and the default of the interface says so.
+    private static void EmitValueOf(IndentedCode code, TypeModel type, EntityModel entity, List<KeyInput> inputs)
+    {
+        var held = KeyTemplateEmitter.HeldInputs(type, entity);
         if (held.Count > 0)
         {
             code.Blank();

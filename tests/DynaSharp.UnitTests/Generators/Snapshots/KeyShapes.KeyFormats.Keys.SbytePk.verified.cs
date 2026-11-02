@@ -26,9 +26,31 @@
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>KeyFormats</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>KeyFormats</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats> Of(sbyte sByte) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats>(Format(sByte), "sbytepk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(sbyte sByte, out global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, sByte);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats>(__key.ToString(), "sbytepk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

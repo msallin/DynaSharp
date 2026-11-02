@@ -79,10 +79,81 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_NoRegion_ThrowsArgumentNullException()
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, null!);
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, (AwsRegion)null!);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("region");
+    }
+
+    [Test]
+    public async Task Constructor_ExplicitEndpoint_CreatesProviderWithoutTouchingAnything()
+    {
+        // Act
+        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri("https://sts.example.com/"), "orders-session");
+
+        // Assert
+        await Assert.That(provider).IsAssignableTo<IRefreshableCredentialsProvider>();
+    }
+
+    [Test]
+    public async Task Constructor_EndpointAndEmptyTokenFile_ThrowsArgumentException()
+    {
+        // Act
+        var act = () => new WebIdentityCredentialsProvider(string.Empty, RoleArn, new Uri("https://sts.example.com/"));
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentException>().WithParameterName("tokenFile");
+    }
+
+    [Test]
+    public async Task Constructor_NoEndpoint_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, (Uri)null!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("stsEndpoint");
+    }
+
+    [Test]
+    [Arguments("/relative", UriKind.Relative, "it is not an absolute URL")]
+    [Arguments("ftp://sts.example.com/", UriKind.Absolute, "the scheme must be http or https")]
+    [Arguments("https://user:secret@sts.example.com/", UriKind.Absolute, "it must not have user info")]
+    [Arguments("https://sts.example.com/path", UriKind.Absolute, "it must not have a path")]
+    [Arguments("https://sts.example.com/?a=1", UriKind.Absolute, "it must not have a query")]
+    [Arguments("https://sts.example.com/#a", UriKind.Absolute, "it must not have a fragment")]
+    public async Task Constructor_EndpointBreaksTheRule_ThrowsAndSaysWhy(string endpoint, UriKind kind, string reason)
+    {
+        // Act
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri(endpoint, kind));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessageContaining(reason, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Constructor_EndpointWithUserInfo_LeavesTheValueOutOfTheMessage()
+    {
+        // Act
+        var exception = TestClient.Catch(() => _ = new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri("https://user:secret@sts.example.com/")));
+
+        // Assert
+        await Assert.That(exception.Message.Contains("secret", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ExplicitEndpoint_PostsThereAndNeedsNoRegion()
+    {
+        // Arrange (no region anywhere, and the variables say otherwise: the endpoint replaces all of it)
+        var environment = Env(("AWS_ENDPOINT_URL_STS", "http://127.0.0.1:1"), ("AWS_ENDPOINT_URL", "http://127.0.0.1:2"), ("AWS_STS_REGIONAL_ENDPOINTS", "legacy"));
+        var settings = new WebIdentityCredentialsProvider.Settings(TokenPath, RoleArn, null, "orders-session", new Uri("https://sts.example.com/"));
+        var world = new World(environment, settings: settings);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Single().RequestUri).IsEqualTo(new Uri("https://sts.example.com/"));
     }
 
     [Test]

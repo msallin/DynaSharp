@@ -38,6 +38,27 @@ public sealed class ConflictRetryTests(Backend backend)
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_ConcurrentPutsOnATable_GiveEachWriterOneResult()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var tallies = await StartAsync(sandbox);
+
+        // Act
+        var results = await RunWritersAsync(() => tallies.RetryOnConflictAsync(
+            async ct =>
+            {
+                var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);
+                await tallies.Put(tally! with { Count = tally.Count + 1 }).SendAsync(ct);
+                return tally.Count + 1;
+            },
+            maxAttempts: Writers));
+
+        // Assert
+        await Assert.That((results, await StoredAsync(tallies))).IsEqualTo((OnePerWriter, (Writers, Writers + 1L)));
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_ConcurrentUpdatesWithAVersion_GiveEachWriterOneResult()
     {
         // Arrange
@@ -114,20 +135,21 @@ public sealed class ConflictRetryTests(Backend backend)
     [Test]
     public async Task RetryOnConflictAsync_VersionReadOutsideTheDelegate_FailsInEveryRun()
     {
-        // Arrange (the mistake the docs warn of: the retry changes nothing, because each run writes the same stale version)
+        // Arrange (the mistake the docs warn of: the retry changes nothing, because each run writes the same stale version. In a parameter it looks like a new item, which DYNA218 leaves alone)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var tallies = await StartAsync(sandbox);
         var stale = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync();
         await tallies.Put(stale! with { Count = 1 }).SendAsync();
         var runs = 0;
-
-        // Act
-        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(() => sandbox.Client.RetryOnConflictAsync(
+        Task WriteAsync(Tally held) => sandbox.Client.RetryOnConflictAsync(
             async ct =>
             {
                 runs++;
-                await tallies.Put(stale with { Count = 2 }).SendAsync(ct);
-            }));
+                await tallies.Put(held with { Count = 2 }).SendAsync(ct);
+            });
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(() => WriteAsync(stale));
 
         // Assert
         await Assert.That((failure is not null, runs)).IsEqualTo((true, 5));

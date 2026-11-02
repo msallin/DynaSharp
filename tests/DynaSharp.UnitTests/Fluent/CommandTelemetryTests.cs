@@ -160,7 +160,7 @@ public sealed class CommandTelemetryTests
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Count":2,"ScannedCount":3}"""));
 
         // Act
-        var request = await RunAsync(handler, client => client.QueryAsync(new QueryRequest { TableName = "Users", KeyConditionExpression = "#n0 = :v0", Select = Select.Count, ExpressionAttributeNames = new Dictionary<string, string> { ["#n0"] = "pk" }, ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":v0"] = "a" } }));
+        var request = await RunAsync(handler, client => client.QueryAsync(new QueryRequest { TableName = "Users", KeyConditionExpression = "#n0 = :v0", Select = SelectKind.Count, ExpressionAttributeNames = new Dictionary<string, string> { ["#n0"] = "pk" }, ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":v0"] = "a" } }));
         var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Query("a").CountAsync());
 
         // Assert

@@ -10,6 +10,17 @@ public sealed class KeyWriterTests
 
     public static IEnumerable<KeyVector> AcceptedWrites() => KeyVectors.Writes(error: false);
 
+    public static IEnumerable<KeyVector> RejectedWrites() => KeyVectors.Writes(error: true);
+
+    public static IEnumerable<FailingWrite> FailingWrites() =>
+    [
+        .. KeyFormatExceptionTests.FailingWrites(),
+        new("empty string", string.Empty, static (ref KeyWriter writer) => writer.WriteString(string.Empty, default, Name)),
+        new("null", string.Empty, static (ref KeyWriter writer) => writer.WriteString(null!, default, Name)),
+        new("no name of an enum", string.Empty, static (ref KeyWriter writer) => writer.WriteEnumName(default, default, Name)),
+        new("formattable that never fits", string.Empty, static (ref KeyWriter writer) => writer.WriteFormattable(default(NeverFits), default, Name)),
+    ];
+
     public static IEnumerable<(int IntegerDigits, int FractionDigits)> InvalidFixedPointFormats() =>
     [
         (0, 2), (-1, 2), (4, -1), (20, 9), (29, 0), (1, 28), (int.MaxValue, 1), (1, int.MaxValue),
@@ -345,6 +356,82 @@ public sealed class KeyWriterTests
 
         // Assert
         await Assert.That(text).IsEqualTo("4711");
+    }
+
+    [Test]
+    [MethodDataSource(nameof(FailingWrites))]
+    public async Task Write_NotThrowingAndAValueThatWouldThrow_MarksTheWriterAndLeavesItAsItWas(FailingWrite failing)
+    {
+        // Arrange, Act
+        var result = WriteWithoutThrowing(failing.Action);
+
+        // Assert
+        await Assert.That(result).IsEqualTo((true, "x"));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(RejectedWrites))]
+    public async Task Write_NotThrowingAndAVectorTheOracleRejects_MarksTheWriter(KeyVector vector)
+    {
+        // Arrange, Act
+        var (isInvalid, _) = WriteWithoutThrowing((ref KeyWriter writer) => KeyVectorRunner.Apply(vector, ref writer));
+
+        // Assert
+        await Assert.That(isInvalid).IsTrue();
+    }
+
+    [Test]
+    [MethodDataSource(nameof(AcceptedWrites))]
+    public async Task Write_NotThrowingAndAVectorTheOracleAccepts_WritesWhatTheThrowingWriterWrites(KeyVector vector)
+    {
+        // Arrange
+        var expected = Encoding.UTF8.GetString(KeyVectorRunner.Write(vector, 512));
+
+        // Act
+        var result = WriteWithoutThrowing((ref KeyWriter writer) => KeyVectorRunner.Apply(vector, ref writer));
+
+        // Assert
+        await Assert.That(result).IsEqualTo((false, "x" + expected));
+    }
+
+    [Test]
+    public async Task IsInvalid_WritesAfterARejectedValue_StaysTrue()
+    {
+        // Arrange, Act
+        var (isInvalid, _) = WriteWithoutThrowing(static (ref KeyWriter writer) =>
+        {
+            writer.WriteString(string.Empty, default, Name);
+            writer.WriteLiteral("#"u8);
+            writer.WriteString("fine", default, Name);
+        });
+
+        // Assert
+        await Assert.That(isInvalid).IsTrue();
+    }
+
+    [Test]
+    public async Task IsInvalid_NothingRejected_IsFalse()
+    {
+        // Arrange, Act
+        var (isInvalid, _) = WriteWithoutThrowing(static (ref KeyWriter writer) => writer.WriteString("fine", default, Name));
+
+        // Assert
+        await Assert.That(isInvalid).IsFalse();
+    }
+
+    private static (bool IsInvalid, string Written) WriteWithoutThrowing(KeyWriterAction action)
+    {
+        var writer = new KeyWriter(stackalloc byte[512], throwOnInvalid: false);
+        try
+        {
+            writer.WriteLiteral("x"u8);
+            action(ref writer);
+            return (writer.IsInvalid, writer.ToString());
+        }
+        finally
+        {
+            writer.Dispose();
+        }
     }
 
     private static byte[] Write(KeyWriterAction action, int bufferLength = 512) => KeyVectorRunner.Write(action, bufferLength);

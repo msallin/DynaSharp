@@ -65,7 +65,7 @@ public sealed class BatchTests(Backend backend)
 
         // Act
         var response = await sandbox.Client.BatchWriteItemAsync(new BatchWriteItemRequest { RequestItems = new Dictionary<string, IReadOnlyList<WriteRequest>> { [table] = puts } });
-        var scan = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, ConsistentRead = true, Select = Select.Count });
+        var scan = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, ConsistentRead = true, Select = SelectKind.Count });
 
         // Assert
         await Assert.That((response.UnprocessedItems.Count, scan.Count)).IsEqualTo((0, 25));

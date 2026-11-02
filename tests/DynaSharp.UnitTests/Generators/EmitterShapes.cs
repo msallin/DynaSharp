@@ -38,7 +38,7 @@ internal static class EmitterShapes
                 public int Length => Plan.Length;
 
                 [DynamoDbIgnore]
-                public string Scratch { get; set; } = "";
+                public string Scratch { get; set; } = "none";
 
                 public static int Created { get; set; }
 
@@ -152,7 +152,7 @@ internal static class EmitterShapes
                     public partial class Inner
                     {
                         [PartitionKey]
-                        public string Id { get; set; } = "";
+                        public string Id { get; set; } = "none";
 
                         public Kind Kind { get; set; }
                     }
@@ -169,7 +169,7 @@ internal static class EmitterShapes
         public partial class GlobalThing
         {
             [PartitionKey]
-            public string Id { get; set; } = "";
+            public string Id { get; set; } = "none";
 
             public GlobalColor Color { get; set; }
         }
@@ -192,7 +192,7 @@ internal static class EmitterShapes
             public partial class Base : Audited
             {
                 [PartitionKey]
-                public string Id { get; set; } = "";
+                public string Id { get; set; } = "none";
             }
 
             [DynamoDbEntity]
@@ -252,7 +252,7 @@ internal static class EmitterShapes
             public partial class @class
             {
                 [PartitionKey(AttributeName = "the\tkey")]
-                public string @string { get; set; } = "";
+                public string @string { get; set; } = "none";
 
                 public @enum @base { get; set; }
 
@@ -263,19 +263,19 @@ internal static class EmitterShapes
 
                 public @object? @fixed { get; set; }
 
-                public string fields { get; set; } = "";
+                public string fields { get; set; } = "none";
 
-                public string writer { get; set; } = "";
+                public string writer { get; set; } = "none";
 
-                public string reader { get; set; } = "";
+                public string reader { get; set; } = "none";
 
-                public string entity { get; set; } = "";
+                public string entity { get; set; } = "none";
 
-                public string attribute { get; set; } = "";
+                public string attribute { get; set; } = "none";
 
-                public string name { get; set; } = "";
+                public string name { get; set; } = "none";
 
-                public string exception { get; set; } = "";
+                public string exception { get; set; } = "none";
             }
         }
         """;
@@ -315,7 +315,7 @@ internal static class EmitterShapes
             [DynamoDbDocument]
             public partial class Leaf
             {
-                public string Name { get; set; } = "";
+                public string Name { get; set; } = "none";
             }
 
             public readonly struct PairConverter : IDynamoDbConverter<(int, int)>
@@ -338,7 +338,7 @@ internal static class EmitterShapes
             [DynamoDbDocument]
             public partial class Everything
             {
-                public string Text { get; set; } = "";
+                public string Text { get; set; } = "none";
                 public bool Flag { get; set; }
                 public byte Tiny { get; set; }
                 public long Big { get; set; }
@@ -378,7 +378,7 @@ internal static class EmitterShapes
             [DynamoDbDocument]
             public partial class Tree
             {
-                public string Name { get; set; } = "";
+                public string Name { get; set; } = "none";
                 public List<Tree> Children { get; set; } = new();
                 public Tree? Parent { get; set; }
             }
@@ -398,7 +398,7 @@ internal static class EmitterShapes
             public partial class Foreign
             {
                 [PartitionKey(AttributeName = "id")]
-                public string Id { get; set; } = "";
+                public string Id { get; set; } = "none";
             }
 
             [DynamoDbEntity]
@@ -426,9 +426,9 @@ internal static class EmitterShapes
             [SortKey("PROFILE")]
             public partial class Fixed
             {
-                public string Tenant { get; set; } = "";
+                public string Tenant { get; set; } = "none";
 
-                public string @class { get; set; } = "";
+                public string @class { get; set; } = "none";
             }
 
             [DynamoDbEntity]
@@ -441,10 +441,10 @@ internal static class EmitterShapes
             public partial class Mixed
             {
                 [KeyOnly]
-                public string User { get; set; } = "";
+                public string User { get; set; } = "none";
 
                 [SortKey]
-                public string Code { get; set; } = "";
+                public string Code { get; set; } = "none";
 
                 public Status Status { get; set; }
 
@@ -583,6 +583,89 @@ internal static class EmitterShapes
         }
         """;
 
+    public const string CountedAsMissing = Usings + """
+        namespace Shapes.Counted
+        {
+            public readonly struct Counts : IDynamoDbConverter<string>
+            {
+                public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value);
+
+                public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+
+                public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => reader.GetStringUtf8().IsEmpty;
+            }
+
+            public readonly struct CountsExplicitly : IDynamoDbConverter<int>
+            {
+                static void IDynamoDbConverter<int>.Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                static int IDynamoDbConverter<int>.Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+
+                static bool IDynamoDbConverter<int>.CountsAsMissing(in DynamoDbReader reader, AttributeType type) => type != AttributeType.Number;
+            }
+
+            public readonly struct Silent : IDynamoDbConverter<int>
+            {
+                public static void Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                public static int Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+            }
+
+            [DynamoDbConverter(typeof(LabelConverter))]
+            public readonly record struct Label(string Text);
+
+            public readonly struct LabelConverter : IDynamoDbConverter<Label>
+            {
+                public static void Write(DynamoDbWriter writer, Label value) => writer.WriteString(value.Text);
+
+                public static Label Read(ref DynamoDbReader reader, AttributeType type) => new Label(reader.GetString());
+
+                public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => reader.GetStringUtf8().IsEmpty;
+            }
+
+            [DynamoDbEntity]
+            [Discriminator("TALLY")]
+            [SortKey("SLOT#{Slot:d3}")]
+            public partial class Tally
+            {
+                [PartitionKey]
+                [DynamoDbConverter(typeof(Counts))]
+                public string Id { get; set; } = "none";
+
+                [DynamoDbConverter(typeof(CountsExplicitly))]
+                public int Slot { get; set; }
+
+                [DynamoDbConverter(typeof(Counts))]
+                public string Name { get; set; } = "none";
+
+                [DynamoDbConverter(typeof(Counts))]
+                public string? MaybeName { get; set; }
+
+                [DynamoDbConverter(typeof(Counts))]
+                public required string Kept { get; set; }
+
+                [DynamoDbConverter(typeof(CountsExplicitly))]
+                public int Score { get; set; }
+
+                [DynamoDbConverter(typeof(CountsExplicitly))]
+                public int? MaybeScore { get; set; }
+
+                [DynamoDbConverter(typeof(Silent))]
+                public int Quiet { get; set; }
+
+                [OmitEmpty]
+                [DynamoDbConverter(typeof(Counts))]
+                public string Note { get; set; } = "none";
+
+                public Label Mark { get; set; }
+
+                public Label? MaybeMark { get; set; }
+
+                public List<Label> Marks { get; set; } = new();
+            }
+        }
+        """;
+
     public const string OmittedByConverter = Usings + """
         namespace Shapes.Omitted
         {
@@ -690,6 +773,27 @@ internal static class EmitterShapes
         }
         """;
 
+    public const string VersionAllowed = Usings + """
+        namespace Shapes.VersionAllowed
+        {
+            [DynamoDbEntity]
+            [Discriminator("NOTE")]
+            [PartitionKey("NOTE#{Id}")]
+            public partial record Note
+            {
+                public required string Id { get; init; }
+
+                [Version(Missing = VersionMissing.Allow)]
+                public required short Revision { get; init; }
+            }
+
+            [DynamoDbEntity]
+            [Discriminator("TAG")]
+            [PartitionKey("TAG#{Id}")]
+            internal partial record Tag(string Id, [property: Version(Missing = VersionMissing.Allow)] uint Revision);
+        }
+        """;
+
     public const string OmitEmpty = Usings + """
         namespace Shapes.OmitEmpty
         {
@@ -700,7 +804,7 @@ internal static class EmitterShapes
             [OmitEmpty]
             public partial class Member
             {
-                public string Id { get; set; } = string.Empty;
+                public string Id { get; set; } = "none";
 
                 public string? Nick { get; set; }
 
@@ -719,6 +823,60 @@ internal static class EmitterShapes
 
                 public string? Street { get; set; }
             }
+        }
+        """;
+
+    public const string OmitEmptyCollections = Usings + """
+        namespace Shapes.OmitEmptyCollections
+        {
+            [DynamoDbDocument]
+            public partial class Basket
+            {
+                [OmitEmpty]
+                public string Name { get; set; } = "none";
+
+                [OmitEmpty]
+                public List<string> Lines { get; set; } = new List<string>();
+
+                [OmitEmpty]
+                public List<string?>? Notes { get; set; }
+
+                [OmitEmpty]
+                public IReadOnlyList<int> Scores { get; set; } = new List<int>();
+
+                [OmitEmpty]
+                public IList<int>? Marks { get; set; }
+
+                [OmitEmpty]
+                public HashSet<string> Tags { get; set; } = new HashSet<string>();
+
+                [OmitEmpty]
+                public IReadOnlySet<string>? Frozen { get; set; }
+
+                [OmitEmpty]
+                public Dictionary<string, int> Counts { get; set; } = new Dictionary<string, int>();
+
+                [OmitEmpty]
+                public IReadOnlyDictionary<string, string?>? Totals { get; set; }
+
+                [OmitEmpty]
+                public string[] Names { get; set; } = Array.Empty<string>();
+
+                [OmitEmpty]
+                public byte[]? Blob { get; set; }
+
+                [OmitEmpty]
+                [DynamoDbConverter(typeof(SetArrayConverter<int, NumberSetElement<int>>))]
+                public int[] Numbers { get; set; } = Array.Empty<int>();
+
+                [OmitEmpty]
+                public List<Status> States { get; set; } = new List<Status>();
+
+                [OmitEmpty(false)]
+                public List<string> Kept { get; set; } = new List<string>();
+            }
+
+            public enum Status { Open, Closed }
         }
         """;
 
@@ -742,8 +900,11 @@ internal static class EmitterShapes
         ["Required"] = Required,
         ["ExplicitConverters"] = ExplicitConverters,
         ["Versioned"] = Versioned,
+        ["VersionAllowed"] = VersionAllowed,
         ["OmitEmpty"] = OmitEmpty,
+        ["OmitEmptyCollections"] = OmitEmptyCollections,
         ["OmittedByConverter"] = OmittedByConverter,
+        ["CountedAsMissing"] = CountedAsMissing,
     };
 
     public static IEnumerable<string> Names() => All.Keys;

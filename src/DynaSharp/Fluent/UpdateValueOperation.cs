@@ -5,7 +5,7 @@ namespace DynaSharp.Fluent;
 
 /// <summary>
 /// <c>UpdateItem</c> with <c>UPDATED_NEW</c>, read for one attribute: <c>{"Attributes":{"count":{"N":"7"}}}</c>, and for a nested path
-/// <c>{"Attributes":{"stats":{"M":{"count":{"N":"7"}}}}}</c>. A missing attribute throws rather than reads as <see langword="default"/>, because
+/// <c>{"Attributes":{"stats":{"M":{"count":{"N":"7"}}}}}</c>. A missing attribute, or one the converter counts as missing, throws rather than reads as <see langword="default"/>, because
 /// a counter that silently reads 0 after a <c>REMOVE</c> is the bug this exists to prevent.
 /// </summary>
 /// <typeparam name="TValue">The type of the attribute.</typeparam>

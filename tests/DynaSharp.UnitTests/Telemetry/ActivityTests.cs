@@ -558,7 +558,7 @@ public sealed class ActivityTests
             ConsistentRead = true,
             ProjectionExpression = "#s",
             Limit = 25,
-            Select = Select.SpecificAttributes,
+            Select = SelectKind.SpecificAttributes,
             ScanIndexForward = false,
         };
 
@@ -575,7 +575,7 @@ public sealed class ActivityTests
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Count":0,"ScannedCount":0}"""));
-        var request = new ScanRequest { TableName = "Users", Segment = 2, TotalSegments = 8, Limit = 1000, Select = Select.Count };
+        var request = new ScanRequest { TableName = "Users", Segment = 2, TotalSegments = 8, Limit = 1000, Select = SelectKind.Count };
 
         // Act
         var activity = await RunAsync(handler, client => client.ScanAsync(request));

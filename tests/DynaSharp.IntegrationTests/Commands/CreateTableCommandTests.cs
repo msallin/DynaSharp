@@ -179,6 +179,196 @@ public sealed class CreateTableCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnAnActiveTable_SendsOneDescribeTableAndNoCreateTable()
+    {
+        // Arrange (a role without dynamodb:CreateTable gets through this, and no failed call lands in CloudTrail)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+        using var log = new OperationLog();
+        using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
+
+        // Act
+        await Tables.SendAsync(client.Table(shop.Name, "pk", "sk").CreateTable().IfNotExists().WaitUntilActive());
+
+        // Assert
+        await Assert.That(log.Operations).IsEqualTo("DescribeTable");
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndNoTable_DescribesAndCreates()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        using var log = new OperationLog();
+        using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
+        var shop = client.Table(Tables.UniqueName(), "pk", "sk");
+
+        // Act
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().IfNotExists());
+
+        // Assert
+        await Assert.That(log.Operations).IsEqualTo("DescribeTable,CreateTable");
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsFromInstancesThatStartTogether_AllGetTheActiveTable()
+    {
+        // Arrange (all of them may find nothing, and only one create can win)
+        const int Instances = 6;
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+
+        // Act
+        var descriptions = await Task.WhenAll(Enumerable.Range(0, Instances).Select(_ => Tables.SendAsync(shop.CreateTable().IfNotExists().WaitUntilActive())));
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().IfNotExists());
+
+        // Assert
+        await Assert.That(descriptions.Select(static description => description.TableStatus).Distinct().Single()).IsEqualTo(TableStatus.Active);
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_TableWithoutAnIndexTheEntityDeclares_TimesOutNamingIt()
+    {
+        // Arrange (an old table, which an entity that was given an index meets)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+        var shoppers = shop.Of<Shopper>();
+
+        // Act
+        var failure = await Items.FailureOfAsync<TableNotActiveException>(async () => await shoppers.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex)).IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"GSI1"));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_TableWithTheIndexesOfTheEntity_Returns()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shoppers = sandbox.Client.Table<Shopper>(Tables.UniqueName());
+        await sandbox.CreateTableAsync(shoppers, shoppers.CreateTable());
+
+        // Act
+        var description = await shoppers.WaitUntilActiveAsync(TimeSpan.FromMinutes(1));
+
+        // Assert
+        await Assert.That(description.GlobalSecondaryIndexes.Select(static index => index.IndexStatus).Distinct().Single()).IsEqualTo(IndexStatus.Active);
+    }
+
+    [Test]
+    public async Task SendAsync_Stream_CreatesTheTableWithIt()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+
+        // Act
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().Stream(StreamViewType.NewAndOldImages).WaitUntilActive());
+        var stream = (await shop.DescribeAsync()).StreamSpecification;
+
+        // Assert
+        await Assert.That((stream?.StreamEnabled, stream?.StreamViewType)).IsEqualTo(((bool?)true, (StreamViewType?)StreamViewType.NewAndOldImages));
+    }
+
+    [Test]
+    public async Task SendAsync_StreamAndIfNotExistsOnAnExistingTable_LeavesItWithoutOne()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+
+        // Act
+        await Tables.SendAsync(shop.CreateTable().Stream(StreamViewType.KeysOnly).IfNotExists());
+        var stream = (await shop.DescribeAsync()).StreamSpecification;
+
+        // Assert
+        await Assert.That(stream?.StreamEnabled == true).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnANewTable_TurnsItOn()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+
+        // Act
+        var description = await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
+        var timeToLive = await DescribeTimeToLiveAsync(sandbox, shop);
+
+        // Assert
+        await Assert.That((description.TableStatus, timeToLive!.TimeToLiveStatus is TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling, timeToLive.AttributeName)).IsEqualTo((TableStatus.Active, true, (string?)"expires"));
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnATableThatExists_TurnsItOn()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+        var name = new Attr("expires");
+
+        // Act
+        await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive(name));
+
+        // Assert
+        await Assert.That((await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName).IsEqualTo("expires");
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveThatIsOnAlready_ChangesNothing()
+    {
+        // Arrange (what a program does at every start)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
+        using var log = new OperationLog();
+        using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
+
+        // Act
+        await Tables.SendAsync(client.Table(shop.Name, "pk", "sk").CreateTable().IfNotExists().TimeToLive("expires"));
+
+        // Assert
+        await Assert.That(log.Operations).IsEqualTo("DescribeTable,DescribeTimeToLive");
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveFromInstancesThatStartTogether_AllGetThrough()
+    {
+        // Arrange (several of them can find it off, and DynamoDB refuses the update of all but the first)
+        const int Instances = 6;
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+
+        // Act
+        await Task.WhenAll(Enumerable.Range(0, Instances).Select(_ => Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive("expires"))));
+
+        // Assert
+        await Assert.That((await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName).IsEqualTo("expires");
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnAnotherAttribute_SurfacesWhatDynamoDbSays()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
+
+        // Act
+        var failure = await Items.FailureOfAsync<ValidationException>(async () => await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive("other")));
+
+        // Assert
+        await Assert.That((failure.OperationName, (await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName)).IsEqualTo(((string?)"UpdateTimeToLive", (string?)"expires"));
+    }
+
+    [Test]
     public async Task ToRequest_ChangedWithWith_CreatesWhatTheCommandDoesNotModel()
     {
         // Arrange
@@ -226,6 +416,9 @@ public sealed class CreateTableCommandTests(Backend backend)
         // Assert
         await Assert.That(again.Found).IsFalse();
     }
+
+    private static async Task<TimeToLiveDescription?> DescribeTimeToLiveAsync(Sandbox sandbox, Table<Item> table) =>
+        (await sandbox.Client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = table.Name })).TimeToLiveDescription;
 
     // The table goes when it goes, and the call says so: a loop over a bound, without a pause, because each round is a request.
     private static async Task WaitUntilGoneAsync(Table<Item> table)

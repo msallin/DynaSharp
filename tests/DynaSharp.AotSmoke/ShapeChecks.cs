@@ -40,6 +40,8 @@ internal static class ShapeChecks
 
         check(KeyedMember.Keys.Sk.Prefix("eu") == "REGION#eu#CITY#" && KeyedMember.Keys.Sk.PrefixPartial("eu", "zu") == "REGION#eu#CITY#zu", "strings have partial prefixes");
         check(Throws<KeyFormatException>(() => KeyedMember.Keys.Pk.Format("a#b", "c")), "a delimiter in a value throws");
+        check(KeyedMember.Keys.Pk.TryOf("a", "c", out var memberKey) && memberKey.Value == KeyedMember.Keys.Pk.Format("a", "c") && !KeyedMember.Keys.Pk.TryOf("a#b", "c", out _), "TryOf answers without an exception");
+        check(Throws<KeyFormatException>(() => KeyedMember.Keys.Of("a#b", "c", "eu", "zu")) && !KeyedMember.Keys.TryOf("a#b", "c", "eu", "zu", out _), "Keys.Of checks at the call");
         check(Suffixed.Keys.Sk.Format("x") == "A-x#B" && Suffixed.Keys.Sk.Parse("A-x#B").Name == "x", "a literal may follow the last placeholder");
         check(Adjacent.Keys.Sk.Parse("007abc") == new Adjacent.Keys.SkParts(7, "abc"), "a fixed width needs no delimiter");
         check(Ledger.Keys.Pk.Format(Noon) == "LEDGER#2026-10" && Ledger.Keys.Sk.Parse(Ledger.Keys.Sk.Format(Noon, Id)).At == Noon, "one property has two formats");
@@ -219,11 +221,11 @@ internal static class ShapeChecks
         check(nothing is { Found: true, Value: null }, "Select of a nullable value type gives null for a missing attribute");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[{\"ShipTo\":{\"M\":{\"City\":{\"S\":\"Thun\"}}}},{\"Status\":{\"S\":\"Pro\"}}],\"Count\":2,\"ScannedCount\":2}"));
-        var cities = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(new Attr<string?, NullableReferenceConverter<string, StringConverter>>("ShipTo.City")).ItemsAsync().ToListAsync();
+        var cities = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(new Attr<string?, NullableReferenceConverter<string, StringConverter>>("ShipTo.City")).ValuesAsync().ToListAsync();
         check(cities is ["Thun", null], "Select of a nested path reads through the map, and a nullable reference is null");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[{\"Status\":{\"S\":\"Pro\"}}],\"Count\":1,\"ScannedCount\":1}"));
-        var firstStatus = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(KeyedOrder.Attrs.Status).ItemAsync();
+        var firstStatus = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(KeyedOrder.Attrs.Status).ValueAsync();
         check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Eq(Noon, Id)).ToRequestJson().Contains(KeyedOrder.Keys.Sk.Format(Noon, Id), StringComparison.Ordinal), "Eq of a template is the complete key");
         check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Between(Noon, Noon)).ToRequestJson().Contains("BETWEEN", StringComparison.Ordinal), "Between of a template goes from prefix to upper bound");
         check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Ge(Noon)).ToRequestJson().Contains(KeyedOrder.Keys.Sk.Prefix(Noon), StringComparison.Ordinal), "Ge of a template starts at the prefix");

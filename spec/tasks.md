@@ -352,6 +352,34 @@ Three independent readers on runtime, generator and maintainability found nothin
 - Open after I1: real STS and IRSA, and the decisions on the renames and on what the services still write by hand.
 - Not reached by the review: `Mixed*Command` bodies, `TransactGetCommand`, `CommandDebugger`, `ExpressionLexer` and `ExpressionParser`, `WrapInAttrCodeFix`. Unchecked on real DynamoDB: `-0` and `1E-07` as `N` text, and `GetItem` of a projection that matches nothing, which an emulator answers with `Item:{}`.
 
+### J1 to J5 - the renames, and what the services still write by hand
+
+All the additions the lead proposed after preview 2, approved by the owner. Each package has a branch `m3/j*` from `m1/lead`.
+
+- [x] **J1, renames.** `Select` to `SelectKind`, the `Select` terminals to `ValuesAsync` and `ValueAsync`, the analyzers no longer key on a method name, `NullableHandleConverter` and `NullableReferenceHandleConverter`, and `PageAsync(cancellationToken)` without `default` in front.
+- [x] **J2, tables and versions.** `[Version(Missing = VersionMissing.Allow)]`, `IfNotExists` that describes first, `Stream` and `TimeToLive` on `CreateTable()`, a wait for the global indexes the entities declare, `RetryOnConflictAsync` on a table, and "Adopting an existing table" in the README.
+- [x] **J3, project defaults.** Naming policy, discriminator opt-out and `[OmitEmpty]` per assembly, a converter per type, `[OmitEmpty]` on non-nullable strings and collections, and `DYNA117` as a warning.
+- [x] **J4, keys.** `{Key:raw}`, `TryOf`, and `Keys.Sk.Range(from, to)`.
+- [x] **J5, test helpers.** `StubResponse` for table administration, counts and streams, resolved expression text and transaction steps on `RecordedRequest`, and `StubClient.Create`.
+
+### K1 to K4 - what the review of the open items decided to do
+
+The owner had an independent reviewer judge what the services still asked for, and asked to build what it recommends.
+
+- [x] **K1, `IDynamoDbConverter<T>.CountsAsMissing`.** A converter can say that a stored value counts as missing, which gives a lenient enum and a blank string as null. Merges after J1 and J3.
+- [x] **K2, `ConditionalCheckFailedException.Key`.** The request knows the key, so an exhausted retry can carry it. Never in a message, `ToString()`, a log or telemetry.
+- [x] **K3, `DYNA217` and `DYNA218`.** A nested `RetryOnConflictAsync`, and a version read before the retry started.
+- [x] **K4, "Migrating from the AWS SDK" in the README**, and the element converters in the docs of `SetArrayConverter`. Merges last.
+- Decision: no base type for client-side failures. `TimeoutException` and `HttpRequestException` are thrown as they are, and `api.md` promises the first, so a base type would mean wrapping, which breaks every `catch (TimeoutException)`.
+- Decision: no date key type. `DateOnly` is already a key type, and a day bucket is a property of that type.
+- Decision: no region from instance metadata. Resolving the client is synchronous, and EKS and Fargate inject `AWS_REGION`.
+- Decision: `DYNA115` stays at Info. Its only fix is another delimiter, so a warning would be suppressed globally.
+- Decision: `CountsAsMissing`, a predicate over a read-only reader, replaces the planned `IDynamoDbConverter<T?>`, which needed a third pair of handle wrappers and still left `Select` throwing where an entity read gives null. A `TryRead` with a default that reads cannot compile, because a static virtual default has no self type to call `Read` on. A predicate looks at the value twice, only on a property whose converter answers, and cannot leave it unconsumed.
+- Decision: `Keys.Of` validates when called, as `Keys.Pk.Of` and `Format` do. The checks are a scan of a span, so they need no string.
+- [x] **K5, `[ComputedFrom]`.** A computed property may feed an index template when it names the stored properties it reads. An update of one of those by handle throws, because an update cannot run the getter. Not on `[DynamoDbAttribute]`, which forces a property to be stored. Starts after J4.
+- [x] **K6, `StoreKeyInputs()`.** A typed update stores the inputs of the table key with `if_not_exists`, for an upsert. Same implementer as K5, after it.
+- [x] **K7, `StubSts`.** A loopback server in `DynaSharp.Testing`, because the requests of a credentials provider are not behind `HttpHandler`, and a `WebIdentityCredentialsProvider` constructor that takes the endpoint. The stub never touches the process environment.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

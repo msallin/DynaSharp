@@ -12,6 +12,8 @@ internal sealed class ModelBuilder
 {
     private const string DefaultDiscriminatorAttribute = "_type";
 
+    private const string Serialization = "global::DynaSharp.Serialization.";
+
     private static readonly string[] KeyAttributesOnType =
     [
         WellKnownNames.PartitionKeyAttribute, WellKnownNames.SortKeyAttribute, WellKnownNames.GlobalIndexKeyAttribute,
@@ -30,9 +32,12 @@ internal sealed class ModelBuilder
 
     private readonly EnumRegistry _enums = new();
 
+    private readonly ProjectDefaults _defaults;
+
     private ModelBuilder(INamedTypeSymbol type, MappedKind kind, Compilation compilation, Spot spot)
     {
         _type = type;
+        _defaults = ProjectDefaults.Of(type.ContainingAssembly);
         _kind = kind;
         _compilation = compilation;
         _spot = spot;
@@ -88,6 +93,12 @@ internal sealed class ModelBuilder
 
     private static MissingBehavior MissingOf(PropertyFacts property)
     {
+        // The item is one to adopt, which a read that threw could not reach, also for a required version.
+        if (property.AllowsMissingVersion)
+        {
+            return MissingBehavior.KeepCurrent;
+        }
+
         if (Types.Unwrap(property.Type).IsNullable)
         {
             // Null is left out on write, so a read that throws here would break the round trip of a `required string?`.
@@ -118,9 +129,31 @@ internal sealed class ModelBuilder
         _ => false,
     };
 
+    // What holds a Length goes by that, and everything else that [OmitEmpty] applies to has a Count.
+    private static WriteCondition EmptinessTest(ITypeSymbol type) =>
+        Types.Unwrap(type).Inner is IArrayTypeSymbol or { SpecialType: SpecialType.System_String } ? WriteCondition.WhenNotEmptyLength : WriteCondition.WhenNotEmptyCount;
+
+    // The converter of a handle up to its last type argument, the converter of the property: a string has a wrapper of its own, and a collection has to say what it enumerates.
+    private static string? OmitEmptyConverter(PropertyFacts property)
+    {
+        if (!property.OmitsEmpty)
+        {
+            return null;
+        }
+
+        var inner = Types.Unwrap(property.Type).Inner;
+        if (inner.SpecialType == SpecialType.System_String)
+        {
+            return Serialization + "OmitEmptyConverter<";
+        }
+
+        var wrapper = property.Resolved!.IsAddable ? "OmitEmptySetConverter" : "OmitEmptyCollectionConverter";
+        return $"{Serialization}{wrapper}<{Names.Of(inner)}, {ConverterResolver.ElementOf(inner)}, ";
+    }
+
     private static PropertyModel ToModel(PropertyFacts property)
     {
-        var write = property.OmitsEmpty ? WriteCondition.WhenNotEmptyLength : property.Resolved?.Write ?? WriteCondition.Never;
+        var write = property.OmitsEmpty ? EmptinessTest(property.Type) : property.Resolved?.Write ?? WriteCondition.Never;
         return new PropertyModel(
             property.Name,
             Names.Identifier(property.Name),
@@ -136,7 +169,8 @@ internal sealed class ModelBuilder
             property.FallbackKey,
             property.ParameterName,
             property.Symbol.DeclaredAccessibility == Accessibility.Public && Types.Effective(property.Type) == Accessibility.Public && property.Resolved?.IsPublic == true,
-            property.OmitsEmpty);
+            OmitEmptyConverter(property),
+            property.AllowsMissingVersion);
     }
 
     private TypeModel? Analyze()
@@ -156,7 +190,7 @@ internal sealed class ModelBuilder
 
         var reserved = discriminator?.Value is null ? null : discriminator.AttributeName;
         var claims = new Dictionary<string, AttributeClaim>();
-        var resolver = new ConverterResolver(_enums, _bag);
+        var resolver = new ConverterResolver(_enums, _bag, _defaults);
         foreach (var property in properties)
         {
             MapProperty(property, reserved, claims, resolver);
@@ -164,6 +198,7 @@ internal sealed class ModelBuilder
 
         ReadOmitEmpty(properties);
         var entity = discriminator is null ? null : new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator);
+        KeepWhatAReadNeeds(properties);
         return _bag.HasErrors ? null : Compose(properties, constructor, entity);
     }
 
@@ -171,7 +206,11 @@ internal sealed class ModelBuilder
     {
         if (AttributeReader.Find(_type, WellKnownNames.DiscriminatorAttribute) is not { } attribute)
         {
-            _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name, _type.Name.ToUpperInvariant());
+            if (!_defaults.NoDiscriminator)
+            {
+                _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name, _type.Name.ToUpperInvariant());
+            }
+
             return new DiscriminatorInfo(null, DefaultDiscriminatorAttribute);
         }
 
@@ -201,7 +240,7 @@ internal sealed class ModelBuilder
 
         foreach (var property in properties)
         {
-            foreach (var attribute in new[] { property.PartitionKey, property.SortKey, property.KeyOnly, property.Version }.OfType<AttributeData>())
+            foreach (var attribute in new[] { property.PartitionKey, property.SortKey, property.KeyOnly, property.Version, property.ComputedFrom }.OfType<AttributeData>())
             {
                 RejectOnDocument(attribute);
             }
@@ -214,18 +253,32 @@ internal sealed class ModelBuilder
         _bag.Report(Descriptors.NotValidOnDocument, Spot.Of(attribute, _spot), name.Substring(0, name.Length - nameof(Attribute).Length));
     }
 
-    // What feeds a key is not known yet, so the keys of an entity take that back in EntityKeyBuilder.
+    // What feeds a key is not known yet, so the keys of an entity take that back in EntityKeyBuilder. A property says more than its type, and a type more than the assembly.
     private void ReadOmitEmpty(List<PropertyFacts> properties)
     {
-        var onType = AttributeReader.Find(_type, WellKnownNames.OmitEmptyAttribute) is not null;
+        var onType = AttributeReader.Find(_type, WellKnownNames.OmitEmptyAttribute) is { } typeAttribute ? AttributeReader.IsEnabled(typeAttribute) : _defaults.OmitEmpty;
         foreach (var property in properties)
         {
-            if (property.OmitEmpty is { } attribute && !property.IsNullableString)
+            var isAsked = property.OmitEmpty is { } attribute ? AttributeReader.IsEnabled(attribute) : onType;
+            if (property.OmitEmpty is not null && isAsked && !property.CanBeEmpty)
             {
-                _bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it is no string?");
+                _bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(property.OmitEmpty, property.Spot), property.Name, "it is no string, list, set, dictionary or array");
             }
 
-            property.OmitsEmpty = property.IsStored && property.IsNullableString && (onType || property.OmitEmpty is not null);
+            property.OmitsEmpty = property.IsStored && property.CanBeEmpty && isAsked;
+        }
+    }
+
+    // An empty value that is not written could not be read back where a read throws without one. On a type that goes the way of a key input, and on the property it is a mistake.
+    private void KeepWhatAReadNeeds(List<PropertyFacts> properties)
+    {
+        foreach (var property in properties.Where(static property => property.OmitsEmpty && MissingOf(property) == MissingBehavior.Throw))
+        {
+            property.OmitsEmpty = false;
+            if (property.OmitEmpty is { } attribute)
+            {
+                _bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "a read throws without it, so an empty value could not be read back");
+            }
         }
     }
 
@@ -266,7 +319,7 @@ internal sealed class ModelBuilder
             _bag.Report(Descriptors.InvalidAttributeName, spot, keyName, "it differs from [DynamoDbAttribute] on the same property");
         }
 
-        var name = attributeName ?? keyName ?? property.Name;
+        var name = attributeName ?? keyName ?? _defaults.AttributeNameOf(property.Name);
         var limit = keyAttribute is null ? AttributeNames.MaxLength : AttributeNames.MaxKeyLength;
         if (AttributeNames.Problem(name, reserved, limit) is { } problem)
         {

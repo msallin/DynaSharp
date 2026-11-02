@@ -5,7 +5,8 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// Generates the mapping code of DynaSharp entities and documents. Models and diagnostics take separate paths: emitters see models only,
-/// and only the diagnostic path combines with the compilation, because that node reruns on every edit.
+/// and only the diagnostic path combines with the compilation, because that node reruns on every edit. Assembly attributes need no node of their own to reach a model: the transform of
+/// <c>ForAttributeWithMetadataName</c> runs on every compilation change, in any file, and an equal model stops there.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class DynaSharpGenerator : IIncrementalGenerator
@@ -15,6 +16,14 @@ public sealed class DynaSharpGenerator : IIncrementalGenerator
     {
         var entities = Models(context, WellKnownNames.EntityAttribute, MappedKind.Entity, TrackingNames.Entities);
         var documents = Models(context, WellKnownNames.DocumentAttribute, MappedKind.Document, TrackingNames.Documents);
+
+        // What is wrong with an assembly attribute belongs to no type, so it is looked at once, whether a type uses it or not. No problem is no item, so a clean compilation has no output here.
+        var defaultsProblems = context.CompilationProvider
+            .SelectMany(static (compilation, _) => ProjectDefaults.Problems(compilation.Assembly))
+            .WithTrackingName(TrackingNames.Diagnostics);
+        context.RegisterSourceOutput(
+            defaultsProblems.Combine(context.CompilationProvider),
+            static (output, input) => DiagnosticReporter.Report(output, input.Left, input.Right));
 
         // One value that nearly never changes, so that the emitters still rerun per type.
         var clashes = entities.Collect().Combine(documents.Collect()).Select(static (types, _) => HintNames.FindClashes(types.Left, types.Right));

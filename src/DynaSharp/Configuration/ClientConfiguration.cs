@@ -207,6 +207,20 @@ internal sealed record ClientConfiguration
         return (endpoint, source);
     }
 
+    /// <summary>Checks what makes an endpoint: an absolute http or https URL without user info, path, query or fragment.</summary>
+    /// <param name="endpoint">The endpoint.</param>
+    /// <returns>What is wrong with it, for a message, or <see langword="null"/> if it is fine.</returns>
+    internal static string? FindEndpointProblem(Uri endpoint) => endpoint switch
+    {
+        { IsAbsoluteUri: false } => "it is not an absolute URL",
+        { Scheme: not ("http" or "https") } => "the scheme must be http or https",
+        { UserInfo.Length: > 0 } => "it must not have user info",
+        { AbsolutePath: not "/" } => "it must not have a path",
+        { Query.Length: > 0 } => "it must not have a query",
+        { Fragment.Length: > 0 } => "it must not have a fragment",
+        _ => null,
+    };
+
     private static (Uri Endpoint, string Source) ResolveEndpoint(DynamoDbClientOptions options, AwsRegion region, Func<string, string?> getEnvironmentVariable, AwsService service)
     {
         if (options.ServiceUrl is { } serviceUrl)
@@ -230,15 +244,4 @@ internal sealed record ClientConfiguration
         var value = getEnvironmentVariable(first);
         return string.IsNullOrEmpty(value) ? (getEnvironmentVariable(second), second) : (value, first);
     }
-
-    private static string? FindEndpointProblem(Uri endpoint) => endpoint switch
-    {
-        { IsAbsoluteUri: false } => "it is not an absolute URL",
-        { Scheme: not ("http" or "https") } => "the scheme must be http or https",
-        { UserInfo.Length: > 0 } => "it must not have user info",
-        { AbsolutePath: not "/" } => "it must not have a path",
-        { Query.Length: > 0 } => "it must not have a query",
-        { Fragment.Length: > 0 } => "it must not have a fragment",
-        _ => null,
-    };
 }

@@ -29,8 +29,8 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId") }),
-                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }),
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.UserId } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("OrderId", "OrderId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null, __parts.OrderId } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::KeyShapes.Plan)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),
@@ -325,13 +325,13 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
         public static global::DynaSharp.Attr<decimal, global::DynaSharp.Serialization.NumberConverter<decimal>> Total => new("Total");
 
         /// <summary>The attribute <c>TrackingId</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.OptionalConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>> TrackingId => new("TrackingId");
+        public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.NullableHandleConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>> TrackingId => new("TrackingId");
 
         /// <summary>The attribute <c>ShippedAt</c>.</summary>
-        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.OptionalConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>> ShippedAt => new("ShippedAt");
+        public static global::DynaSharp.Attr<global::System.DateTimeOffset, global::DynaSharp.Serialization.NullableHandleConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>> ShippedAt => new("ShippedAt");
 
         /// <summary>The attribute <c>ShipTo</c>.</summary>
-        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.OptionalReferenceConverter<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>>> ShipTo => new("ShipTo");
+        public static global::DynaSharp.Attr<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.NullableReferenceHandleConverter<global::KeyShapes.PostalAddress, global::DynaSharp.Serialization.DocumentConverter<global::KeyShapes.PostalAddress>>> ShipTo => new("ShipTo");
 
         /// <summary>The attribute <c>Quantity</c>.</summary>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Quantity => new("Quantity");
@@ -356,7 +356,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>KeyedOrder</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>KeyedOrder</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of(global::System.Guid userId, global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new PrimaryKey(userId, createdAt, orderId);
 
         /// <summary>The primary key of <c>KeyedOrder</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -381,6 +381,27 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);
                 Sk.Write(writer, _1, _2);
+            }
+
+            /// <inheritdoc/>
+            public object? ValueOf(string propertyName)
+            {
+                if (propertyName == "UserId")
+                {
+                    return _0;
+                }
+
+                if (propertyName == "CreatedAt")
+                {
+                    return _1;
+                }
+
+                if (propertyName == "OrderId")
+                {
+                    return _2;
+                }
+
+                return null;
             }
         }
 
@@ -411,7 +432,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(userId), "pk");
 
@@ -578,9 +599,13 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateTimeOffset createdAt) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(createdAt));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>CreatedAt</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
-            /// <remarks>The key goes on behind <c>CreatedAt</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
+            /// <remarks>The key goes on behind <c>CreatedAt</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
+
+            /// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>CreatedAt</c>: from the first key at <c>from</c> up to and without the keys at <c>to</c>, with any field before it equal. <c>to</c> stays out because the key goes on behind <c>CreatedAt</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Range(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), Prefix(to));
 
             /// <summary>The condition <c>&gt;= Prefix</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -716,9 +741,31 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::KeyShapes.Plan status) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(status), "gsi1pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(global::KeyShapes.Plan status, out global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, status);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(__key.ToString(), "gsi1pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -930,7 +977,7 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>KeyedOrder</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyedOrder>(Format(trackingId), "gsi2pk");
 

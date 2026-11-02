@@ -29,6 +29,20 @@ public sealed partial class DynamoDbClientRawTests
     }
 
     [Test]
+    public async Task SendRawAsync_ConditionFails_HasNoKey()
+    {
+        // Arrange (the JSON of the caller is not parsed, even if it holds a key)
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.SendRawAsync("DeleteItem", """{"TableName":"Users","Key":{"pk":{"S":"user-1"}}}"""u8.ToArray()));
+
+        // Assert
+        await Assert.That(failure.Key).IsNull();
+    }
+
+    [Test]
     public async Task SendRawAsync_DescribeEndpoints_ReturnsTheEndpoints()
     {
         // Arrange

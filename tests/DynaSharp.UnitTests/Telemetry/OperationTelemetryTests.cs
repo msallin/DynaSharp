@@ -53,7 +53,7 @@ public sealed class OperationTelemetryTests
             return null;
         }
 
-        public void DescribeRejection(ValidationException rejection)
+        public void DescribeFailure(DynamoDbException failure)
         {
         }
 

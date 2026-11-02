@@ -26,8 +26,8 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At") }),
-                new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At"), new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
             });
     }
 
@@ -156,7 +156,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Ledger</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>Ledger</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of(global::System.DateTimeOffset at, global::System.Guid id) => new PrimaryKey(at, id);
 
         /// <summary>The primary key of <c>Ledger</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -209,7 +209,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Ledger</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>Ledger</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Ledger> Of(global::System.DateTimeOffset at) => new global::DynaSharp.PartitionKey<global::KeyShapes.Ledger>(Format(at), "pk");
 
@@ -376,9 +376,13 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(at));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>At</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
-            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
+            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
+
+            /// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>At</c>: from the first key at <c>from</c> up to and without the keys at <c>to</c>, with any field before it equal. <c>to</c> stays out because the key goes on behind <c>At</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Range(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), Prefix(to));
 
             /// <summary>The condition <c>&gt;= Prefix</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>

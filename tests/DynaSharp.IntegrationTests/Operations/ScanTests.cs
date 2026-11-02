@@ -143,7 +143,7 @@ public sealed class ScanTests(Backend backend)
         await Items.PutSequenceAsync(sandbox.Client, table, "a", 4);
 
         // Act
-        var response = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, Select = Select.Count });
+        var response = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, Select = SelectKind.Count });
 
         // Assert
         await Assert.That((response.Items.Count, response.Count)).IsEqualTo((0, 4));

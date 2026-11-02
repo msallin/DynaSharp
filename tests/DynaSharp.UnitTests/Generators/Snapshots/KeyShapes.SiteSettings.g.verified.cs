@@ -125,7 +125,7 @@ partial class SiteSettings : __Map.IDynamoDbDiscriminated<global::KeyShapes.Site
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>SiteSettings</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>SiteSettings</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of() => new PrimaryKey();
 
         /// <summary>The primary key of <c>SiteSettings</c>, which holds the values of the key and costs no string until it is written.</summary>

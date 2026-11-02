@@ -7,7 +7,7 @@ namespace DynaSharp.UnitTests.Mapping;
 internal partial class BaseThing
 {
     [PartitionKey]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 
     public string Shared { get; init; } = "base";
 }

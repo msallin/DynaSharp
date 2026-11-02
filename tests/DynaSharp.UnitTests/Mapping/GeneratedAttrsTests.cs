@@ -36,7 +36,7 @@ public sealed class GeneratedAttrsTests
         var type = Handles.Attrs.Total.GetType();
 
         // Assert
-        await Assert.That(type).IsEqualTo(typeof(Attr<long, OptionalConverter<long, NumberConverter<long>>>));
+        await Assert.That(type).IsEqualTo(typeof(Attr<long, NullableHandleConverter<long, NumberConverter<long>>>));
     }
 
     [Test]
@@ -46,7 +46,7 @@ public sealed class GeneratedAttrsTests
         var type = Handles.Attrs.Nickname.GetType();
 
         // Assert
-        await Assert.That(type).IsEqualTo(typeof(Attr<string, OptionalReferenceConverter<string, StringConverter>>));
+        await Assert.That(type).IsEqualTo(typeof(Attr<string, NullableReferenceHandleConverter<string, StringConverter>>));
     }
 
     [Test]
@@ -69,7 +69,7 @@ public sealed class GeneratedAttrsTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var tags = new Attr<HashSet<string>, OptionalReferenceConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
+        var tags = new Attr<HashSet<string>, NullableReferenceHandleConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
 
         // Act
         var json = client.Table<Handles>("Shop").Update("a", "b").Add(tags, ["x"]).ToRequestJson();
@@ -84,7 +84,7 @@ public sealed class GeneratedAttrsTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var tags = new Attr<HashSet<string>, OptionalReferenceConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
+        var tags = new Attr<HashSet<string>, NullableReferenceHandleConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
         var table = client.Table<Handles>("Shop");
 
         // Act

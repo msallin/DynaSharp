@@ -43,8 +43,8 @@ public sealed class TableNotActiveException : TimeoutException
     public TableStatus? LastStatus { get; }
 
     /// <summary>
-    /// Gets the name of a global secondary index that was not <c>ACTIVE</c> at the last look, the first one the description lists if there are several, or <see langword="null"/> if none held the wait up. A table
-    /// reads <see cref="TableStatus.Active"/> while an index backfills, so this can be set beside that status.
+    /// Gets the name of a global secondary index that was not <c>ACTIVE</c> at the last look, the first one the description lists if there are several, then the first that an entity declares and the description does not
+    /// list, which the message says, or <see langword="null"/> if none held the wait up. A table reads <see cref="TableStatus.Active"/> while an index backfills, so this can be set beside that status.
     /// </summary>
     public string? PendingIndex { get; }
 }

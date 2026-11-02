@@ -14,11 +14,11 @@ its table that a build shows beside it goes away with it.
 | `DYNA001` | The type or a containing type is not `partial` | Make them all `partial` |
 | `DYNA002` | An entity has no partition key | Add `[PartitionKey]`, or use `[DynamoDbDocument]` for a nested type |
 | `DYNA003` | A property has a type that cannot be stored | Add a `[DynamoDbConverter]`, or `[DynamoDbIgnore]` |
-| `DYNA004` | Two members want one attribute | Rename one with `[DynamoDbAttribute]` or `AttributeName` |
+| `DYNA004` | Two members want one attribute, also after `Naming` converted their names | Rename one with `[DynamoDbAttribute]` or `AttributeName` |
 | `DYNA005` | No single constructor can be used | Mark one with `[DynamoDbConstructor]` |
 | `DYNA006` | A constructor parameter has no property | Name it after a mapped property |
 | `DYNA007` | The type cannot be mapped, for the reason the message gives: it is abstract, static, generic, a ref struct, an interface, or file-local, which the generated code cannot merge with | Map another type, or change what the message names |
-| `DYNA008` | A converter does not implement `IDynamoDbConverter<T>` for the property | Fix its interface, or make it accessible |
+| `DYNA008` | A converter does not implement `IDynamoDbConverter<T>` for the property, or for the type that `[assembly: DynamoDbDefaultConverter]` names | Fix its interface, or make it accessible |
 | `DYNA009` | A key is declared twice | Keep one declaration |
 | `DYNA010` | An attribute name DynamoDB would refuse | Pick another |
 | `DYNA011` | `[Version]` on something that is no single integer property | Put it on one such property, without a converter |
@@ -30,7 +30,7 @@ its table that a build shows beside it goes away with it.
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context | Enable nullable reference types |
-| `DYNA020` | An entity has no discriminator | Add the `[Discriminator("ROOM")]` the message suggests, or `[Discriminator(OptOut = true)]` for a table written by other tools |
+| `DYNA020` | An entity has no discriminator | Add the `[Discriminator("ROOM")]` the message suggests, or `[Discriminator(OptOut = true)]` for a table written by other tools. `[assembly: DynamoDbDefaults(NoDiscriminator = true)]` does that for every entity of a project |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, or both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |
@@ -41,8 +41,10 @@ its table that a build shows beside it goes away with it.
 the other, or fail to. Give one of them another value. Entities that never share a table are fine, which is why this is a warning: suppress it there. It needs every type of the compilation, so an IDE shows
 it with full solution analysis, a build always does, and a type in another assembly is not looked at.
 
-`DYNA030`: `[OmitEmpty]` on a property that is no `string?`, or that feeds a key. An empty string counts as null only where null can be left out, which a key cannot be, so take it off, or make the property a `string?` outside the keys. On a type the attribute passes over such
-properties by itself. `[OmitEmpty]` on a type never reports this.
+`DYNA029`: `[assembly: DynamoDbDefaultConverter]` that cannot work: a second default for a type, or a type that no property could match, which is a nullable type, because a default for the type covers its nullable form, and an open generic type, because a default is for one closed type. Keep one, or name the closed type without its `?`. It is reported once, on the attribute, whether a type uses it or not, and a type that would use it takes the first default or the built-in, so nothing else fails with it.
+
+`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key cannot be, so take it off, or move the property out of the keys. A `required` property that is neither nullable nor a set, or a constructor parameter of that kind without a default, could never be read back, because a read throws for the attribute that an empty value leaves out: take the attribute off, make the property nullable, or give it a default. On a type the attribute passes over such
+properties by itself, and they stay written. `[OmitEmpty]` on a type never reports this, and neither does `[OmitEmpty(false)]`.
 
 ## Key templates
 
@@ -54,7 +56,7 @@ The source generator reports these on key templates. The grammar is in `requirem
 | `DYNA101` | A literal holds something other than printable ASCII | Keep literals to that |
 | `DYNA102` | A placeholder names no property | Check the spelling |
 | `DYNA103` | A property of a type that a key cannot hold | Use a type of the format table, or a plain key with a converter |
-| `DYNA104` | A format that does not fit the type | Use one that the message lists: `plain`, `d<w>` or `n<i>` for integers, `plain` or `n<i>.<f>` for `decimal`, `yyyy` to `ticks` for timestamps, `d<w>` or none for enums, and none for `string`, `Guid`, `DateOnly` and custom types |
+| `DYNA104` | A format that does not fit the type | Use one that the message lists: `plain`, `d<w>` or `n<i>` for integers, `plain` or `n<i>.<f>` for `decimal`, `yyyy` to `ticks` for timestamps, `d<w>` or none for enums, `raw` or none for `string`, and none for `Guid`, `DateOnly` and custom types |
 | `DYNA105` | A format with a width that is out of range | Use a smaller one |
 | `DYNA106` | Two placeholders follow each other with nothing to tell them apart | Put a literal between them, or give the first a fixed width |
 | `DYNA107` | A nullable property in a key that is not sparse | Make the index `Sparse`, or the property required |
@@ -64,7 +66,7 @@ The source generator reports these on key templates. The grammar is in `requirem
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
 | `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>` |
-| `DYNA114` | A computed property in an index template, which no update can follow | Use a stored property |
+| `DYNA114` | A computed property in an index template, which no update can follow | Add `[ComputedFrom]` naming the stored properties it reads, or use a stored property |
 | `DYNA115` (info) | A string before a delimiter in a sort key, so values with a smaller character sort out of order | Use a delimiter below the values, or accept it: the caveat is real but rare |
 
 `DYNA116` (warning): a `DateTime` or `DateTimeOffset` in the default format, or in `s`, `ms` or `us`, is the last placeholder of the key of a table. `[SortKey("{At}")]` keeps milliseconds, so two puts
@@ -73,10 +75,14 @@ digits. It is the end of the whole key that counts: the sort key, or the partiti
 because it is not unique. A format of a minute or coarser, such as `{Window:yyyy-MM-ddTHH:mm}` or `{Month:yyyy-MM}`, says one item per period, which is the design of a counter or a summary, so it is
 not reported. A plain `[SortKey]` on the property goes through its converter and keeps every digit.
 
-`DYNA117` (info): a key property starts empty and nothing has to set it, such as `public string EntityPartition { get; set; } = string.Empty;`, set later with a `with`. Forgetting that compiles, and the
+`DYNA117` (warning): a key property starts empty and nothing has to set it, such as `public string EntityPartition { get; set; } = string.Empty;`, set later with a `with`. Forgetting that compiles, and the
 write throws `KeyFormatException` for a template or is rejected by DynamoDB for a plain key. Make it `required`, or set it in a constructor. It looks at every key of the entity, because a put writes the
 keys of its indexes too. Only a default that cannot be a key counts: `""`, `string.Empty`, `null!`, `default!`, and for a binary key `[]` and `Array.Empty<byte>()`. A default such as `"main"` or
 `Guid.NewGuid().ToString()` is a key of its own, and so is not reported, and neither is a property that is `required`, computed, nullable or has no initializer, or that a constructor mentions.
+
+`DYNA118`: a placeholder with the format `raw` that does not end the template, such as `{Key:raw}#{Id}` or `{Key:raw}#x`. A raw value keeps its delimiters, so nothing in the text says where it stops, and `Parse` and a read take everything to the end of the key. Anything behind it could not be read back. Move the placeholder to the end of the template, or take off `raw`, which makes a value with a delimiter throw `KeyFormatException`.
+
+`DYNA119`: a `[ComputedFrom]` that cannot work, as the message says. It belongs on a computed property that a key template uses, and it names at least one property, each once, of the same type: one with an attribute of its own, so neither computed nor `[DynamoDbIgnore]` nor `[KeyOnly]`, and not the `[Version]`, which an update moves without a handle, so that nothing would see the change. On a document it is `DYNA012`.
 
 ## Commands
 
@@ -97,7 +103,7 @@ Sending a command twice is not a compile error. It throws `InvalidOperationExcep
 fluent call: build the command again. `DYNA204` reports what the build can see of that.
 
 `DYNA202` (warning) reports `await shop.Query("a")` and `shop.Query("a").SendAsync()`. A read can end in several ways and none of them is
-the default, so name one. Every read has `ItemsAsync`. A query adds `ItemAsync`, and most reads add `PageAsync`, `PagesAsync` and `CountAsync`, but not all of them: a `Select` and a mixed read have no `CountAsync`, a fan-out has no `PagesAsync`, and a parallel scan has `ItemsAsync` alone. Without this rule the compiler answers with a constraint
+the default, so name one. Every read has `ItemsAsync`, which is `ValuesAsync` after `Select`. A query adds `ItemAsync`, which is `ValueAsync` after `Select`, and most reads add `PageAsync`, `PagesAsync` and `CountAsync`, but not all of them: a `Select` and a mixed read have no `CountAsync`, a fan-out has no `PagesAsync`, and a parallel scan has `ItemsAsync` alone. Without this rule the compiler answers with a constraint
 on a type parameter (CS0315), which says nothing about what to write. An extension method of your own that makes a read awaitable is not
 reported.
 
@@ -112,8 +118,10 @@ reassignment in a loop and an early `return` are fine, and `if (debug) log(comma
 instead. A handle copied to a second variable is not followed, and a graph does not know that two conditions go together, so two separate `if`s on one flag count as a path through both.
 
 `DYNA205` (warning) reports `Set`, `SetIfNotNull`, `Add`, `Remove`, `SetIfNotExists` or `Delete` by the handle of a property that the key of the table is made of, on a command of that entity:
-`events.Update(key).Set(DeviceEvent.Attrs.At, now)`. DynamoDB cannot change a key, so the same call throws when the command ends, or DynamoDB rejects it for a plain key. Delete the item and put a new one.
+`events.Update(key).Set(DeviceEvent.Attrs.At, now)`. DynamoDB cannot change a key, so the same call throws when the command ends, or DynamoDB rejects it for a plain key. Delete the item and put a new one. To store the inputs of the table key on an upsert, call `StoreKeyInputs()`.
 It is about the property itself: a property that feeds only a key of an index stays writable, and a raw path is not looked at.
+
+`DYNA219` (warning) reports the same calls by the handle of a property that a computed input of a key of an index is derived from, on a command of that entity: `visits.Update(key).Set(Visit.Attrs.Message, message)`, also for a path inside it, `Visit.Attrs.Message.At(Msg.Attrs.Arrival)`. An update has no instance to run the getter on, so the same call throws when the command ends. So does a write by the handle of such a computed input itself, `badges.Update(key).Set(Badge.Attrs.Label, label)`, where the key would follow the value of the update and not the getter. Put the changed entity instead. A property that a computed input of the key of the table is derived from is `DYNA205`, one step removed. A raw path is not looked at, and a command that cannot be followed to its type is not either.
 
 `DYNA206` (warning) reports `IfNotExists()` on a `Put` whose item shows a version above 0 in the chain, in a transaction too: `orders.Put(new Order { Id = id, Revision = 1 }).IfNotExists()`, or
 `orders.Put(order with { Revision = 1 })`. An item that does not exist has no version, so the two can never both hold, and the command throws `InvalidOperationException` when it ends. A first write leaves
@@ -129,11 +137,19 @@ there, for every item. Include the member, or use `Select(handle)`, which reads 
 reported. Neither is a key input that a key restores, because a read adds its keys, in a read of the table those of the table and in a read of an index those of the index too: an input that only a key of an index holds is reported on a read of the table, and one that a key cuts off, such as a timestamp in `{At:yyyy-MM-dd}`, on any read. A nested path such as `"ShipTo.City"` keeps its top-level member, whatever the nested
 document needs. It looks at all `Project` calls of a chain from the table to its terminal, also on `BatchGet`, a fan-out and a mixed read, where every type counts. A value that is not constant, a chain that is kept in a variable, returned, or passes a method of your own, and a read of `Item` are not looked at, and neither is a `ToRequestJson()` or a `CountAsync()`, which read no item.
 
-`DYNA209` (warning) reports `Select(handle)` of an attribute that an item can lack where a read of the entity goes on, because `Select` reads the attribute and nothing else, and throws `DynamoDbMappingException`.
+`DYNA209` (warning) reports `Select(handle)` of an attribute that an item can lack where a read of the entity goes on, because `Select` reads the attribute and nothing else, and throws `DynamoDbMappingException`. A converter of your own that answers `TryReadMissing` gives `Select` a value, so none of the cases below is reported for it.
 
-One such attribute is a stored property that a key of the table holds, such as `orders.Get(key).Select(Order.Attrs.UserId)` with `[PartitionKey("USER#{UserId}")]`. An update stores no input of the table key, so an item that an `Update` created has the key and not the attribute, and a read of the entity restores the value from the key. On items that a `Put` wrote `Select` reads the value. Read the entity for such a table, or suppress this where every item comes from a `Put`. A `[KeyOnly]` property has no handle at all, so that does not compile, a plain key is its own attribute, an input of a key of an index is set like any other attribute, and a nullable input is not reported, because a missing attribute reads as null.
+The first such attribute is a stored property that a key of the table holds, such as `orders.Get(key).Select(Order.Attrs.UserId)` with `[PartitionKey("USER#{UserId}")]`. An update stores no input of the table key, so an item that an `Update` created has the key and not the attribute, and a read of the entity restores the value from the key. On items that a `Put` wrote `Select` reads the value. Read the entity for such a table, call `StoreKeyInputs()` on every update of the table, or suppress this where every item comes from a `Put`. A `[KeyOnly]` property has no handle at all, so that does not compile, a plain key is its own attribute, an input of a key of an index is set like any other attribute, and a nullable input is not reported, because a missing attribute reads as null.
 
-The other is a `[Version]`, such as `orders.Get(key).Select(Order.Attrs.Revision)`. An item written without one, by other code or by an `Update` that ignored the version, has no such attribute, and a read of the entity gives 0. Read the entity, or suppress this where every item has a version. A `required` version and a parameter of a constructor without a default are not reported, because a read of the entity throws for such an item as well.
+Another is a `[Version]`, such as `orders.Get(key).Select(Order.Attrs.Revision)`. An item written without one, by other code or by an `Update` that ignored the version, has no such attribute, and a read of the entity gives 0. Read the entity, suppress this where every item has a version, or declare what the table holds with `[Version(Missing = VersionMissing.Allow)]`, whose handle gives 0 and is not reported. A `required` version and a parameter of a constructor without a default are not reported, because a read of the entity throws for such an item as well.
+
+Another is a property with `[OmitEmpty]` that is not nullable, such as `orders.Get(key).Select(Order.Attrs.Lines)` on a `List<OrderLine>`. An empty value is not stored, and a read of the entity keeps the initial value. Read the entity, or make the property nullable, which reads as null. A set is not reported, because a missing attribute reads as an empty set.
+
+The last is a property whose converter implements `CountsAsMissing`, such as `ports.Get(key).Select(Port.Attrs.Position)` on a lenient enum. The attribute is there, but the converter counts its value as missing, and a read of the entity keeps the initial value. Read the entity, make the property nullable, which reads as null, or have the converter answer `TryReadMissing`. A `required` member is not reported, because a read of the entity throws as well, and neither is a plain key, which a read of the entity does not count as missing.
+
+`DYNA217` (warning) reports a `RetryOnConflictAsync` inside the delegate of another one: `client.RetryOnConflictAsync(ct => new(client.RetryOnConflictAsync(Run, ct)))`. The runs multiply, 5 of 5 are 25, and an inner retry that used up its runs throws what it last caught, which the outer one counts as a conflict of its own, so one lost race on the inner item starts the whole run over. A run is one read-modify-write, and a follow-up write goes after the outer call. The delegate is a lambda, an anonymous method or a local function given by name, and the inner retry can stand in a lambda at any depth inside it, or in a method or local function of the same compilation that the delegate calls, one call deep, where it is reported at the retry in that method, also when the method has other callers. A delegate in a variable, a method given by name that is not a local function and a method of another assembly are not followed. A retry with a constant `maxAttempts: 1`, inside or outside, is no retry, so it multiplies nothing and is not reported.
+
+`DYNA218` (warning) reports a version in the delegate of a `RetryOnConflictAsync` that stays the same from run to run: `var order = await orders.Get(key).ItemAsync(); await client.RetryOnConflictAsync(async ct => await orders.Put(order! with { Total = 2 }).SendAsync(ct));`. Every run sends that version and fails the same way, so read it inside the delegate. It looks at `IfVersion(x)`, and at `Put(item)` and `Delete(entity)` of an entity with a `[Version]` that take the version from the item, also a `Put` in a transaction, unless `IgnoreVersion()` stands on such a command or `IfVersion` replaces the version. It follows `order.Revision`, `order!`, `order with { ... }` and a conversion to a local or a parameter that the delegate captures and does not assign. A version on its own, in `IfVersion` or a `Delete`, needs no more than that: a parameter or a variable counts, because nothing but a read gives one, unless the variable holds a constant or an object made in the same member. A `Put` is different, because a new item built outside the delegate looks the same and is correct at version 0, for example beside a counter that the delegate reads: it is reported only when the member shows the item coming out of a call of the library, through one more local at most, in `var`, an assignment, `is { } order` or `await foreach`. So a `Put` of a parameter or of what a method of your own returned is not reported, whatever it holds. Neither is a `with` that sets the version to a value the delegate read, a variable a run can bring up to date, by a write to a member or by handing it to a method of your own, a variable that a lambda or local function assigns, fields and properties, `IfVersion(0)`, a version that is computed such as `IfVersion(x + 1)`, or a retry with a constant `maxAttempts: 1`. A `TransactionConflictException` can pass on a later run with the same version, so a retry over a version from outside is not useless for that alone, but a version that is stale still fails every run, and the rule stands for that.
 
 ## Expressions
 
@@ -155,7 +171,7 @@ expression, or if DynamoDB accepts it, suppress the warning and report the case:
 is what lets a false one pass.
 
 `DYNA213` (warning): a constant path on a command of a mapped type starts with a name the type does not have, for example
-`orders.Update(key).Set("Totl", 1)`. Check the spelling. An attribute outside the entity is legitimate, so suppress the warning there, or
+`orders.Update(key).Set("Totl", 1)`. Check the spelling. Under `Naming` of `[assembly: DynamoDbDefaults]` the attribute has the converted name, so `"Total"` is reported where the item holds `total`. An attribute outside the entity is legitimate, so suppress the warning there, or
 pass the path in a variable, which the analyzer does not look at.
 
 `DYNA214` (warning in 0.x): a constant path is not a path. A path is names joined by dots, with list indexes in brackets, such as

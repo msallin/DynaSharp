@@ -82,4 +82,12 @@ internal interface IOperation<TRequest, TResponse>
     /// <param name="response">The response.</param>
     /// <returns>The reported capacity, or <see langword="null"/> or an empty list if the request did not ask for it or the operation has none.</returns>
     public static virtual IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(TResponse response) => null;
+
+    /// <summary>
+    /// Gets the key of the item a failed condition was checked on, for <see cref="ConditionalCheckFailedException.Key"/>. Called only for such a failure. The default is none, which fits every
+    /// operation whose request does not say which of its attributes are the key, and it must not throw.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <returns>A copy of the key, or <see langword="null"/> if the request names none.</returns>
+    public static virtual Item? GetKey(TRequest request) => null;
 }

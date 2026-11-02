@@ -4,7 +4,7 @@ namespace DynaSharp.Serialization;
 
 /// <summary>
 /// What the handle of a nullable property of a reference type has for a converter: it reads and writes what <typeparamref name="TConverter"/> does, and says in the type that the attribute may be missing.
-/// A <c>string?</c> and a <c>string</c> are one type at run time, so nothing else could tell a handle of the one from a handle of the other. See <see cref="OptionalConverter{T, TConverter}"/>.
+/// A <c>string?</c> and a <c>string</c> are one type at run time, so nothing else could tell a handle of the one from a handle of the other. See <see cref="NullableHandleConverter{T, TConverter}"/>.
 /// </summary>
 /// <remarks>
 /// <para>Generated code names this type, so it is public, and it is not meant to be used by hand.</para>
@@ -16,7 +16,7 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="T">The reference type of the property.</typeparam>
 /// <typeparam name="TConverter">The converter of the property.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct OptionalReferenceConverter<T, TConverter> : IDynamoDbConverter<T>
+public readonly struct NullableReferenceHandleConverter<T, TConverter> : IDynamoDbConverter<T>
     where T : class
     where TConverter : IDynamoDbConverter<T>
 {
@@ -28,4 +28,7 @@ public readonly struct OptionalReferenceConverter<T, TConverter> : IDynamoDbConv
 
     /// <inheritdoc/>
     public static bool IsOmitted(T value) => TConverter.IsOmitted(value);
+
+    /// <inheritdoc/>
+    public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => TConverter.CountsAsMissing(in reader, type);
 }

@@ -125,8 +125,26 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Article</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string slug) => new PrimaryKey(slug);
+        /// <summary>Creates the primary key of <c>Article</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string slug)
+        {
+            Pk.Check(true, slug);
+            return new PrimaryKey(slug);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string slug, out PrimaryKey key)
+        {
+            if (Pk.Check(false, slug))
+            {
+                key = new PrimaryKey(slug);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>Article</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -174,9 +192,31 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Article</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>Article</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Article> Of(string slug) => new global::DynaSharp.PartitionKey<global::KeyShapes.Article>(Format(slug), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string slug, out global::DynaSharp.PartitionKey<global::KeyShapes.Article> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, slug);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.Article>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -242,6 +282,20 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
             {
                 __key.WriteLiteral("SLUG#"u8);
                 __key.WriteString(slug, "#"u8, "Slug");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string slug)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, slug);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
     }

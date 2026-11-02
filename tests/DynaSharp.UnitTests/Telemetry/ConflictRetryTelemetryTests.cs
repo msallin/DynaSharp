@@ -181,14 +181,16 @@ public sealed class ConflictRetryTelemetryTests
         using var client = Create(handler, loggerFactory: loggers, random: FixedRandom.Zero);
 
         // Act
-        await CaptureAsync<ConditionalCheckFailedException>(() => PutAsync(client, table, maxAttempts: 3));
+        var failure = await CaptureAsync<ConditionalCheckFailedException>(() => PutAsync(client, table, maxAttempts: 3));
 
-        // Assert
+        // Assert (the exception holds the key by now, and that must stop at the exception)
         var warning = loggers.Entries.Single(static entry => entry.Level >= LogLevel.Warning);
-        await Assert.That((warning.Level, warning.EventId.Id, warning.Message)).IsEqualTo((
+        await Assert.That((warning.Level, warning.EventId.Id, warning.Message, failure.Key!.GetString("pk"), warning.Message.Contains(SecretKey, StringComparison.Ordinal))).IsEqualTo((
             LogLevel.Warning,
             8,
-            $"DynamoDB PutItem on table {table} lost to another writer with ConditionalCheckFailedException on run 3 of RetryOnConflictAsync, the last one allowed. The error is passed on to the caller."));
+            $"DynamoDB PutItem on table {table} lost to another writer with ConditionalCheckFailedException on run 3 of RetryOnConflictAsync, the last one allowed. The error is passed on to the caller.",
+            SecretKey,
+            false));
     }
 
     [Test]

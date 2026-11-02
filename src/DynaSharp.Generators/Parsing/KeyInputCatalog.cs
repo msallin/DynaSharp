@@ -40,7 +40,7 @@ internal static class KeyInputCatalog
         var code = Names.Of(type);
         return code switch
         {
-            "string" => new FixedInput(typeName, new StringEncoding()),
+            "string" => new StringInput(typeName),
             "decimal" => new DecimalInput(typeName),
             "global::System.Guid" => new FixedInput(typeName, new GuidEncoding()),
             "global::System.DateOnly" => new FixedInput(typeName, new DateOnlyEncoding()),

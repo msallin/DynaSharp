@@ -438,6 +438,15 @@ Check(stsHandler.Requests[^1].BodyText.Contains("WebIdentityToken=the-token", St
 Check(StsDocument.TryParse("<ErrorResponse><Error><Code>AccessDenied</Code></Error></ErrorResponse>"u8.ToArray(), out var stsError) && stsError.ErrorCode == "AccessDenied", "web identity reads an error of STS");
 Check(!StsDocument.TryParse("<!DOCTYPE a><a/>"u8.ToArray(), out _), "web identity refuses a document type definition");
 
+// The stub of STS: a socket on each side, and an answer rendered from a composite format, none of which the handlers above go through.
+using var stubSts = new StubSts();
+stubSts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "IQoJb3JpZ2luX2VjEEM/Example==", new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero))));
+var stubTokenFile = Path.GetTempFileName();
+await File.WriteAllTextAsync(stubTokenFile, "the-token");
+var stubAssumed = await new WebIdentityCredentialsProvider(stubTokenFile, "arn:aws:iam::123456789012:role/orders", stubSts.Endpoint).GetCredentialsAsync(CancellationToken.None);
+File.Delete(stubTokenFile);
+Check(stubAssumed.SessionToken == "IQoJb3JpZ2luX2VjEEM/Example==" && stubSts.Requests.Single().WebIdentityToken == "the-token", "the provider gets its credentials from the stub of STS over a socket");
+
 // [OmitEmpty]: a handle whose converter wraps another through a type parameter, and one item from a query, over a page that a filter left empty.
 var memos = users.Of<Memo>();
 
@@ -453,10 +462,94 @@ commandHandler.Enqueue(StubResponse.Json("""{"Attributes":{"Text":{"S":"x"}}}"""
 var returnedMemo = await memos.Update(Memo.Keys.Of("m-1")).SetIfNotNull(Memo.Attrs.Text, "x").Return(Memo.Attrs.Text).SendAsync();
 Check(returnedMemo == "x", "a handle with OmitEmpty writes and reads through the converter it wraps");
 
+commandHandler.Enqueue(StubResponse.Json("{}"));
+await memos.Update(Memo.Keys.Of("m-1")).Set(Memo.Attrs.Lines, []).Set(Memo.Attrs.Names, []).SendAsync();
+Check(commandHandler.Requests[^1].BodyText.Contains("REMOVE", StringComparison.Ordinal), "a set of an empty list or array by handle is a remove");
+
+commandHandler.Enqueue(StubResponse.Json("{}"));
+await memos.Update(Memo.Keys.Of("m-1")).Add(Memo.Attrs.Labels, ["a"]).SendAsync();
+Check(commandHandler.Requests[^1].BodyText.Contains("ADD", StringComparison.Ordinal), "a set with OmitEmpty keeps its Add");
+
 commandHandler.Enqueue(StubResponse.Json("""{"Items":[],"Count":0,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"MEMO#m-1"}}}"""));
 commandHandler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"MEMO#m-1"},"_type":{"S":"MEMO"},"Id":{"S":"m-1"},"Text":{"S":""}}],"Count":1,"ScannedCount":1}"""));
 var firstMemo = await memos.Query(Memo.Keys.Of("m-1")).Filter(Memo.Attrs.Text.Eq(string.Empty)).ItemAsync();
 Check(firstMemo?.Text?.Length == 0, "ItemAsync follows a page a filter left empty, and a stored empty string reads as it is");
+
+// The test helpers: answers written from what an entity declares, and texts and steps read from a recorded body.
+using var helperHandler = new StubHandler();
+using var helperClient = StubClient.Create(helperHandler);
+helperHandler.Enqueue(StubResponse.Table<Memo>("Memos"));
+var activeMemos = await helperClient.Table<Memo>("Memos").WaitUntilActiveAsync(TimeSpan.Zero);
+Check(activeMemos.TableStatus == TableStatus.Active, "StubResponse.Table<T> ends a wait");
+
+helperHandler.Enqueue(new StubResponse());
+await helperClient.Table("Users", "pk").Update("user-1").Set("visits", 1).If(Attr("version").Eq(3)).SendAsync();
+Check(helperHandler.Requests[^1].ConditionText == "version = 3", "ConditionText resolves the placeholders");
+
+helperHandler.Enqueue(new StubResponse());
+await helperClient.TransactWrite().Delete(helperClient.Table("Users", "pk"), "user-1").SendAsync();
+Check(helperHandler.Requests[^1].TransactItems.Single().ReadKey()["pk"].AsString() == "user-1", "TransactItems reads a step");
+
+using var helperStreamsHandler = new StubHandler();
+using var helperStreamsClient = StubClient.CreateStreams(helperStreamsHandler);
+helperStreamsHandler.Enqueue(StubResponse.Records("next", StubResponse.Change(OperationType.Remove, new Item { ["pk"] = "user-1" })));
+var helperRecords = await helperStreamsClient.GetRecordsAsync(new GetRecordsRequest { ShardIterator = "iterator" });
+Check(helperRecords.Records.Single().EventName == OperationType.Remove, "StubResponse.Records reads back through a streams client");
+
+// A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
+var lenients = users.Of<Lenient>();
+const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"After":{"N":"7"}}}""";
+
+commandHandler.Enqueue(StubResponse.Json(LenientItem));
+var lenient = (await lenients.Get(Lenient.Keys.Of("l-1")).SendAsync()).Item;
+Check(lenient is { Plan: Plan.Enterprise, MaybePlan: null, Weight: null, Text: "initial", After: 7 }, "a value counted as missing reads as a missing attribute, and the next attribute reads");
+
+commandHandler.Enqueue(StubResponse.Json("""{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"Pro"},"MaybePlan":{"S":"Free"},"Weight":{"S":"1500g"},"Text":{"S":"t"}}}"""));
+var keptLenient = (await lenients.Get(Lenient.Keys.Of("l-1")).SendAsync()).Item;
+Check(keptLenient is { Plan: Plan.Pro, MaybePlan: Plan.Free, Weight.Grams: 1500, Text: "t" }, "a value that does not count as missing reads through the same converters");
+
+commandHandler.Enqueue(StubResponse.Json(LenientItem));
+var selectedPlan = await lenients.Get(Lenient.Keys.Of("l-1")).Select(Lenient.Attrs.MaybePlan).SendAsync();
+Check(selectedPlan is { Found: true, Value: null }, "Select of a nullable value type asks the converter through the wrapper of null");
+
+commandHandler.Enqueue(StubResponse.Json(LenientItem));
+var selectedWeight = await lenients.Get(Lenient.Keys.Of("l-1")).Select(Lenient.Attrs.Weight).SendAsync();
+Check(selectedWeight is { Found: true, Value: null }, "Select reaches an explicit member through the wrapper of null");
+
+var lenientFailures = 0;
+var lenientPlan = Lenient.Attrs.Plan;
+var lenientText = Lenient.Attrs.Text;
+try
+{
+    commandHandler.Enqueue(StubResponse.Json(LenientItem));
+    await lenients.Get(Lenient.Keys.Of("l-1")).Select(lenientPlan).SendAsync();
+}
+catch (DynamoDbMappingException)
+{
+    lenientFailures++;
+}
+
+try
+{
+    commandHandler.Enqueue(StubResponse.Json(LenientItem));
+    await lenients.Get(Lenient.Keys.Of("l-1")).Select(lenientText).SendAsync();
+}
+catch (DynamoDbMappingException)
+{
+    lenientFailures++;
+}
+
+try
+{
+    commandHandler.Enqueue(StubResponse.Json("""{"Attributes":{"Plan":{"S":"TELEPORTED"}}}"""));
+    await lenients.Update(Lenient.Keys.Of("l-1")).Add(Lenient.Attrs.After, 1).Return(Lenient.Attrs.Plan).SendAsync();
+}
+catch (DynamoDbMappingException)
+{
+    lenientFailures++;
+}
+
+Check(lenientFailures == 3, "Select and Return of a value counted as missing throw, never a default");
 
 foreach (var failure in failures)
 {

@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <ProjectReference Include="../DynaSharp.DefaultsFixture/DynaSharp.DefaultsFixture.csproj" />
     <!-- The generator reaches a project only through the package, so in the repo it is referenced as an analyzer. -->
     <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

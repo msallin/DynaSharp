@@ -25,7 +25,7 @@ public sealed class QueryRequestTests
         var request = new QueryRequest { TableName = "Orders", KeyConditionExpression = "pk = :pk" };
 
         // Assert
-        await Assert.That(request.Select).IsEqualTo(Select.Unspecified);
+        await Assert.That(request.Select).IsEqualTo(SelectKind.Unspecified);
     }
 
     [Test]

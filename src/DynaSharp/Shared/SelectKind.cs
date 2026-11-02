@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace DynaSharp;
 
 /// <summary>
@@ -11,8 +9,7 @@ namespace DynaSharp;
 /// projection expression. Combining a projection expression with any other value than <see cref="SpecificAttributes"/> is
 /// rejected with a <see cref="ValidationException"/>.
 /// </remarks>
-[SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "The name is the one of the DynamoDB API; Visual Basic callers write [Select].")]
-public enum Select
+public enum SelectKind
 {
     /// <summary>Send no <c>Select</c> and let DynamoDB decide (see the remarks).</summary>
     Unspecified = 0,

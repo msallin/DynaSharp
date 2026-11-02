@@ -13,6 +13,8 @@ internal sealed record TimestampEncoding(string Format, int Width, bool IsOffset
 
     public override bool IsLossless => Format == LosslessFormat;
 
+    public override bool CanReject => !IsOffset;
+
     /// <summary>Gets a value indicating whether the format asks for one key per period, a window or a month, as opposed to a moment in time that it cuts off.</summary>
     public bool IsBucket => Width <= WidestBucket;
 

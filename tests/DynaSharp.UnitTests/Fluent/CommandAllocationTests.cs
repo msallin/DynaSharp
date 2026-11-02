@@ -1,5 +1,6 @@
 using System.Text;
 using DynaSharp.Expressions;
+using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
 using static DynaSharp.Expr;
@@ -14,6 +15,8 @@ public sealed class CommandAllocationTests
     private const string PartitionKey = "USER#4f9c2a7e-0b1d-4c3e-9a8f-6d5e4c3b2a19";
     private const string SortKey = "ORDER#2026-10-31T12:34:56.789Z";
     private const int Rounds = 2000;
+    private const long StoredInputsBytes = 880;
+    private const long HeldInputsBytes = 688;
 
     [Test]
     public async Task Build_UpdateWithInterpolatedCondition_AllocatesNothing()
@@ -317,6 +320,87 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_TypedUpdateBesideAComputedKeyInput_AllocatesNothing()
+    {
+        // Arrange (what a computed input is derived from is only looked at for an update that writes it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var visits = client.Table<Visit>("Shop");
+
+        // Act
+        var allocated = Measure(visits, static table => CommandHelpers.FinishAndRelease(
+            table.Update(Visit.Keys.Of("v1")).Set(Visit.Attrs.Note, "x")));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_TypedUpdateOfAnEntityThatCutsAnInputOff_AllocatesNothing()
+    {
+        // Arrange (the key has to stay at hand for a clause that may still come, and most updates never ask for it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var days = client.Table<MeterDay>("Shop");
+
+        // Act
+        var allocated = Measure(days, static table => CommandHelpers.FinishAndRelease(
+            table.Update(MeterDay.Keys.Of("m1", DateTimeOffset.UnixEpoch, 7)).Set(MeterDay.Attrs.Note, "x")));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_TypedUpdateThatStoresNothing_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var things = client.Table<PlainThing>("Shop");
+
+        // Act
+        var allocated = Measure(things, static table => CommandHelpers.FinishAndRelease(
+            table.Update(PlainThing.Keys.Of("p1")).Set(PlainThing.Attrs.Note, "x").StoreKeyInputs()));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    // An AttributeValue per input and what reading the key back costs, and for this key with its strings nothing else.
+    [Test]
+    public async Task Build_TypedUpdateThatStoresTheInputs_AllocatesWhatItsValuesCost()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var purchases = client.Table<UserOrder>("Shop");
+
+        // Act
+        var allocated = Measure(purchases, static table => CommandHelpers.FinishAndRelease(
+            table.Update(UserOrder.Keys.Of("alice", Guid.Empty)).IgnoreVersion().Set(UserOrder.Attrs.Lines, 3).StoreKeyInputs()));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(StoredInputsBytes);
+    }
+
+    [Test]
+    public async Task Build_TypedUpdateThatStoresFromAHeldKey_AllocatesWhatItsValuesCost()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var days = client.Table<MeterDay>("Shop");
+
+        // Act
+        var allocated = Measure(days, static table => CommandHelpers.FinishAndRelease(
+            table.Update(MeterDay.Keys.Of("m1", DateTimeOffset.UnixEpoch, 7)).Set(MeterDay.Attrs.Note, "x").StoreKeyInputs()));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(HeldInputsBytes);
+    }
+
+    [Test]
     public async Task Build_TypedUpdateWithAnActionOnTheDiscriminator_AllocatesNothing()
     {
         // Arrange (this is the walk over the clauses to the end, and the one that finds it)
@@ -359,6 +443,48 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure((slips, slip), static input => CommandHelpers.FinishAndRelease(input.slips.Put(input.slip)));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_PutOfAnEntityWithOmitEmptyOnCollections_AllocatesNothing()
+    {
+        // Arrange (the entity is made before, because it is what a put is given)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var trays = client.Table<Tray>("Shop");
+        var tray = new Tray { Id = "t1", Title = string.Empty };
+
+        // Act
+        var allocated = Measure((trays, tray), static input => CommandHelpers.FinishAndRelease(input.trays.Put(input.tray)));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task IsOmitted_OfACollectionHandle_AllocatesNothing()
+    {
+        // Arrange
+        List<string> empty = [];
+
+        // Act
+        var allocated = Measure(empty, static list => OmitEmptyCollectionConverter<List<string>, string, ListConverter<string, StringConverter>>.IsOmitted(list) ? 1 : 0);
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task IsOmitted_OfAReadOnlyCollectionHandle_AllocatesNothing()
+    {
+        // Arrange
+        IReadOnlyList<string> empty = [];
+
+        // Act
+        var allocated = Measure(empty, static list => OmitEmptyCollectionConverter<IReadOnlyList<string>, string, ReadOnlyListConverter<string, StringConverter>>.IsOmitted(list) ? 1 : 0);
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);

@@ -57,6 +57,27 @@ public sealed class EntityEmitterTests
     }
 
     [Test]
+    [Arguments("sbyte")]
+    [Arguments("byte")]
+    [Arguments("short")]
+    [Arguments("ushort")]
+    [Arguments("int")]
+    [Arguments("uint")]
+    [Arguments("long")]
+    [Arguments("ulong")]
+    public async Task Run_VersionThatAllowsAnItemWithoutOneOfEachIntegerType_CompilesWithoutWarnings(string type)
+    {
+        // Arrange
+        var source = EmitterShapes.VersionAllowed.Replace("public required short Revision", $"public required {type} Revision", StringComparison.Ordinal);
+
+        // Act
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+
+        // Assert
+        await Assert.That(output.Problems).IsEmpty();
+    }
+
+    [Test]
     public async Task Run_VersionOfABaseEntity_CompilesForBothEntities()
     {
         // Arrange
@@ -68,7 +89,7 @@ public sealed class EntityEmitterTests
                 [PartitionKey("{Id}")]
                 public partial class Base
                 {
-                    public string Id { get; set; } = "";
+                    public string Id { get; set; } = "none";
 
                     [Version]
                     public int Revision { get; set; }

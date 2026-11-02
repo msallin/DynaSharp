@@ -3,12 +3,13 @@ using Microsoft.CodeAnalysis;
 namespace DynaSharp.Generators;
 
 /// <summary>
-/// Selects converters. First match wins: <c>[DynamoDbConverter]</c> on the property, on the type, <see cref="AttributeValueConverter"/> and the
+/// Selects converters. First match wins: <c>[DynamoDbConverter]</c> on the property, on the type, <c>[assembly: DynamoDbDefaultConverter]</c>, <see cref="AttributeValueConverter"/> and the
 /// built-in scalars, enums, nullable wrappers around any of these, documents, and collections recursing on the element.
 /// </summary>
 /// <param name="enums">Where enums register their generated converter.</param>
 /// <param name="bag">Where problems go.</param>
-internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
+/// <param name="defaults">What the assembly of the type says.</param>
+internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, ProjectDefaults defaults)
 {
     private const string Serialization = "global::DynaSharp.Serialization.";
 
@@ -97,14 +98,13 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
     public static KeyWireType WireTypeOf(PropertyFacts property)
     {
         var (inner, _) = Types.Unwrap(property.Type);
-        var attribute = property.Converter ?? AttributeReader.Find(inner, WellKnownNames.ConverterAttribute);
-        if (attribute?.ConstructorArguments.FirstOrDefault().Value is not ITypeSymbol converter)
+        if (OwnConverterOf(property, inner) is not { } converter)
         {
             return WireTypeOf(inner);
         }
 
         var name = Names.Of(converter);
-        if (name == EpochSecondsConverter || converter.AllInterfaces.Any(static candidate => candidate.ToDisplayString() == WellKnownNames.AddableInterface))
+        if (name == EpochSecondsConverter || IsAddable(converter))
         {
             return KeyWireType.Number;
         }
@@ -113,12 +113,53 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
         return name.StartsWith(Serialization, StringComparison.Ordinal) ? WireTypeOf(inner) : KeyWireType.Unknown;
     }
 
+    /// <summary>Whether an argument of an attribute is a converter of a value: a closed, accessible type that implements <c>IDynamoDbConverter&lt;T&gt;</c> for it.</summary>
+    /// <param name="candidate">What the attribute names.</param>
+    /// <param name="value">The value, without nullability.</param>
+    /// <returns>Whether the generated code can call it.</returns>
+    public static bool IsUsable(object? candidate, ITypeSymbol value) =>
+        candidate is INamedTypeSymbol { TypeKind: not (TypeKind.Error or TypeKind.Interface), IsUnboundGenericType: false } converter
+        && Types.IsAccessible(converter)
+        && converter.AllInterfaces.Any(contract => IsConverterOf(contract, value));
+
+    /// <summary>
+    /// What a collection enumerates, which is all a test of its count needs to know about it.
+    /// <code>
+    /// List&lt;string&gt;            string
+    /// string[]                string
+    /// Dictionary&lt;string, int&gt;  KeyValuePair&lt;string, int&gt;
+    /// </code>
+    /// </summary>
+    /// <param name="type">A type without nullability.</param>
+    /// <returns>The element as code, or null for anything that is not a list, set, dictionary or array.</returns>
+    public static string? ElementOf(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol { Rank: 1 } array)
+        {
+            return Names.Of(array.ElementType);
+        }
+
+        if (type is not INamedTypeSymbol { IsGenericType: true } named)
+        {
+            return null;
+        }
+
+        var definition = named.OriginalDefinition.ToDisplayString();
+        if (Dictionaries.ContainsKey(definition))
+        {
+            return $"global::System.Collections.Generic.KeyValuePair<{Names.Of(named.TypeArguments[0])}, {Names.Of(named.TypeArguments[1])}>";
+        }
+
+        return Lists.ContainsKey(definition) || Sets.ContainsKey(definition) ? Names.Of(named.TypeArguments[0]) : null;
+    }
+
     /// <summary>Resolves the converter of a property.</summary>
     /// <returns>The converter, or null when there is none, which has been reported.</returns>
     public ResolvedConverter? Resolve(PropertyFacts property)
     {
         var (inner, isNullable) = Types.Unwrap(property.Type);
         _isPublic = true;
+        property.DefaultConverter = property.Converter is null && AttributeReader.Find(inner, WellKnownNames.ConverterAttribute) is null ? DefaultOf(inner, property) : null;
         var converter = property.Converter is { } attribute ? Custom(attribute, inner, property.Spot) : Inner(inner, property);
         if (converter is null)
         {
@@ -126,26 +167,28 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
         }
 
         // A nullable one is left out when it is null, which is what it can only be.
-        if (!isNullable && property.Converter is null && EnumRegistry.HasNoNames(inner))
+        var hasOwnConverter = property.Converter is not null || property.DefaultConverter is not null;
+        if (!isNullable && !hasOwnConverter && EnumRegistry.HasNoNames(inner))
         {
             bag.Report(Descriptors.EnumWithoutMembers, property.Spot, property.Name, inner.ToDisplayString());
         }
 
         var read = isNullable ? Wrapped(inner, converter) : converter;
         var write = isNullable ? WriteCondition.WhenNotNull : WriteCondition.Always;
-        if (property.Converter is null && IsSetType(inner, out var element))
+        if (!hasOwnConverter && IsSetType(inner, out var element))
         {
-            return new ResolvedConverter(new ConverterModel(converter, read, $"new global::System.Collections.Generic.HashSet<{Names.Of(element)}>()"), WriteCondition.WhenNotEmptyCount, _isPublic);
+            return new ResolvedConverter(new ConverterModel(converter, read, $"new global::System.Collections.Generic.HashSet<{Names.Of(element)}>()"), WriteCondition.WhenNotEmptyCount, _isPublic, IsAddable: true);
         }
 
         if (inner is IArrayTypeSymbol array && converter.StartsWith(SetArrayConverter, StringComparison.Ordinal))
         {
-            return new ResolvedConverter(new ConverterModel(converter, read, $"global::System.Array.Empty<{Names.Of(array.ElementType)}>()"), WriteCondition.WhenNotEmptyLength, _isPublic);
+            return new ResolvedConverter(new ConverterModel(converter, read, $"global::System.Array.Empty<{Names.Of(array.ElementType)}>()"), WriteCondition.WhenNotEmptyLength, _isPublic, IsAddable: true);
         }
 
         var forwarder = WritesExplicitly(property, inner) ? Wrapped(inner, converter) : null;
-        var omission = AnswersIsOmitted(property, inner) ? Optional(inner, converter) : null;
-        return new ResolvedConverter(new ConverterModel(converter, read, null, forwarder, omission), write, _isPublic);
+        var omission = Answers(property, inner, "IsOmitted") ? NullableHandle(inner, converter) : null;
+        var model = new ConverterModel(converter, read, null, forwarder, omission, Answers(property, inner, "CountsAsMissing"), Answers(property, inner, "TryReadMissing"));
+        return new ResolvedConverter(model, write, _isPublic, IsAddable(property, inner));
     }
 
     // What the built-in converter of a key type writes, a string unless it is listed here. A new entry in KeyScalars that writes anything else has to show here too.
@@ -164,8 +207,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
         $"{Serialization}{(inner.IsValueType ? "NullableConverter" : "NullableReferenceConverter")}<{Names.Of(inner)}, {converter}>";
 
     // What a handle wraps a converter in, which passes the question on through a type parameter: a member that a converter implements explicitly can only be reached that way.
-    private static string Optional(ITypeSymbol inner, string converter) =>
-        $"{Serialization}{(inner.IsValueType ? "OptionalConverter" : "OptionalReferenceConverter")}<{Names.Of(inner)}, {converter}>";
+    private static string NullableHandle(ITypeSymbol inner, string converter) =>
+        $"{Serialization}{(inner.IsValueType ? "NullableHandleConverter" : "NullableReferenceHandleConverter")}<{Names.Of(inner)}, {converter}>";
 
     // Generated code calls Write on the type of the converter, and only a read goes through a type parameter. An explicit member cannot be called
     // that way, and the wrappers of null can: they take the value and pass it on through their own parameter.
@@ -173,14 +216,13 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
     private static bool WritesExplicitly(PropertyFacts property, ITypeSymbol value) =>
         ImplementationOf(property, value, "Write") is { DeclaredAccessibility: not Accessibility.Public };
 
-    // A converter that leaves the default of the interface alone answers false for every value, so that its properties stay as they are.
-    private static bool AnswersIsOmitted(PropertyFacts property, ITypeSymbol value) =>
-        ImplementationOf(property, value, "IsOmitted") is { ContainingType: var owner } && owner.OriginalDefinition.ToDisplayString() != WellKnownNames.ConverterInterface;
+    // A converter that leaves the default of the interface alone has no answer of its own, so that its properties stay as they are.
+    private static bool Answers(PropertyFacts property, ITypeSymbol value, string member) =>
+        ImplementationOf(property, value, member) is { ContainingType: var owner } && owner.OriginalDefinition.ToDisplayString() != WellKnownNames.ConverterInterface;
 
     private static ISymbol? ImplementationOf(PropertyFacts property, ITypeSymbol value, string member)
     {
-        var attribute = property.Converter ?? AttributeReader.Find(value, WellKnownNames.ConverterAttribute);
-        if (attribute?.ConstructorArguments[0].Value is not ITypeSymbol converter)
+        if (OwnConverterOf(property, value) is not { } converter)
         {
             return null;
         }
@@ -188,6 +230,15 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
         var contract = converter.AllInterfaces.First(candidate => IsConverterOf(candidate, value));
         return converter.FindImplementationForInterfaceMember(contract.GetMembers(member)[0]);
     }
+
+    private static bool IsAddable(ITypeSymbol converter) => converter.AllInterfaces.Any(static candidate => candidate.ToDisplayString() == WellKnownNames.AddableInterface);
+
+    // A number is one as well, which no [OmitEmpty] asks about. A set of a built-in converter does not come here.
+    private static bool IsAddable(PropertyFacts property, ITypeSymbol value) => OwnConverterOf(property, value) is { } converter && IsAddable(converter);
+
+    // The converter that the property, the type of its value or the assembly names for all of the value, which leaves a built-in out.
+    private static ITypeSymbol? OwnConverterOf(PropertyFacts property, ITypeSymbol value) =>
+        (property.Converter ?? AttributeReader.Find(value, WellKnownNames.ConverterAttribute))?.ConstructorArguments.FirstOrDefault().Value as ITypeSymbol ?? property.DefaultConverter;
 
     private static bool IsConverterOf(INamedTypeSymbol candidate, ITypeSymbol value) =>
         candidate.OriginalDefinition.ToDisplayString() == WellKnownNames.ConverterInterface && SymbolEqualityComparer.Default.Equals(candidate.TypeArguments[0], value);
@@ -214,11 +265,20 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
             candidate.OriginalDefinition.ToDisplayString() == interfaceName
             && SymbolEqualityComparer.Default.Equals(candidate.TypeArguments[0], value));
 
+    // A [Version] has to stay a number that an update can add to, so a default for its type passes over it. A string? compares equal to a string, and has to get the wrapper of null first.
+    private ITypeSymbol? DefaultOf(ITypeSymbol type, PropertyFacts property) =>
+        property.Version is null && type.NullableAnnotation != NullableAnnotation.Annotated ? defaults.ConverterOf(type) : null;
+
     private string? Inner(ITypeSymbol type, PropertyFacts property)
     {
         if (AttributeReader.Find(type, WellKnownNames.ConverterAttribute) is { } attribute)
         {
             return Custom(attribute, type, property.Spot);
+        }
+
+        if (DefaultOf(type, property) is { } fallback)
+        {
+            return Accepted(fallback);
         }
 
         var code = Names.Of(type);
@@ -296,6 +356,11 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
             return attribute.ConstructorArguments.FirstOrDefault().Value is ITypeSymbol custom && Implements(custom, WellKnownNames.SetElementInterface, element) ? Accepted(custom) : null;
         }
 
+        if (defaults.ConverterOf(element) is { } fallback)
+        {
+            return Implements(fallback, WellKnownNames.SetElementInterface, element) ? Accepted(fallback) : null;
+        }
+
         if (element is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType)
         {
             return enums.ConverterOf(enumType);
@@ -313,11 +378,9 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
     private string? Custom(AttributeData attribute, ITypeSymbol value, Spot fallback)
     {
         var argument = attribute.ConstructorArguments.FirstOrDefault();
-        if (argument.Value is INamedTypeSymbol { TypeKind: not (TypeKind.Error or TypeKind.Interface), IsUnboundGenericType: false } converter
-            && Types.IsAccessible(converter)
-            && converter.AllInterfaces.Any(candidate => IsConverterOf(candidate, value)))
+        if (IsUsable(argument.Value, value))
         {
-            return Accepted(converter);
+            return Accepted((ITypeSymbol)argument.Value!);
         }
 
         bag.Report(Descriptors.InvalidConverter, Spot.Of(attribute, fallback), argument.Value?.ToString() ?? "null", value.ToDisplayString());

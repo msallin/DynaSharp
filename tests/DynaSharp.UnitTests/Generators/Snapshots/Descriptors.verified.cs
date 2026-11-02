@@ -24,6 +24,7 @@ DYNA023 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#ent
 DYNA024 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA025 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA026 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
+DYNA029 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA030 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities
 DYNA100 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA101 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
@@ -43,6 +44,8 @@ DYNA114 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key
 DYNA115 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA116 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA117 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA118 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA119 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA201 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA202 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA203 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
@@ -59,6 +62,9 @@ DYNA213 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#exp
 DYNA214 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA215 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
 DYNA216 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions
+DYNA217 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA218 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
+DYNA219 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -85,6 +91,7 @@ DYNA023 | Error | DynaSharp.Mapping | [Version] property is part of a key | [Ver
 DYNA024 | Error | DynaSharp.Mapping | Enum has no members | Property '{0}' has enum type '{1}', which has no members, so every write throws. Add a member, make the property nullable, or add a [DynamoDbConverter].
 DYNA025 | Error | DynaSharp.Mapping | Type has the name of a generated class | Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.
 DYNA026 | Warning | DynaSharp.Mapping | Two entities share a discriminator | Entity '{0}' has the discriminator '{1}' in the attribute '{2}', as '{3}' has, so on one table their items cannot be told apart. Give one of them another value, unless they never share a table.
+DYNA029 | Error | DynaSharp.Mapping | [DynamoDbDefaultConverter] is not valid | [DynamoDbDefaultConverter] for '{0}' is not valid: {1}
 DYNA030 | Error | DynaSharp.Mapping | [OmitEmpty] is not valid here | [OmitEmpty] on '{0}' is not valid: {1}
 DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
 DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
@@ -100,12 +107,14 @@ DYNA110 | Warning | DynaSharp.Keys | Sparse index without nullable inputs | Inde
 DYNA111 | Error | DynaSharp.Keys | Property is repeated in a key template | Property '{0}' appears twice in a key template
 DYNA112 | Error | DynaSharp.Keys | Key on the wrong target | A template belongs on the type, a plain key on a property
 DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.
-DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current
+DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current. Add [ComputedFrom] naming the stored properties it reads, or use a stored property.
 DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order
 DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table key | Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {{{0}:ticks}}.
-DYNA117 | Info | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
+DYNA117 | Warning | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
+DYNA118 | Error | DynaSharp.Keys | Raw value does not end the template | '{0}' has the format raw, which reads to the end of the key, so nothing can follow it in the template
+DYNA119 | Error | DynaSharp.Keys | [ComputedFrom] is not valid here | [ComputedFrom] on '{0}' is not valid: {1}
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
-DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync or another terminal it has
+DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.
 DYNA204 | Warning | DynaSharp.Commands | Command is used twice | This command was used by an earlier call, so this one throws at run time. Assign what each call returns to the variable, or build the command again.
 DYNA205 | Warning | DynaSharp.Commands | Write to a key of the table | '{0}' is part of the key of the table of '{1}', and DynamoDB cannot change a key. Delete the item and put a new one.
@@ -120,3 +129,6 @@ DYNA213 | Warning | DynaSharp.Expressions | Path matches no attribute | Path '{0
 DYNA214 | Warning | DynaSharp.Expressions | Attribute path is not valid | Attribute path '{0}' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c
 DYNA215 | Warning | DynaSharp.Expressions | Handle of another type | '{0}' is an attribute of '{1}', and this command is on '{2}', so DynamoDB looks for it on items that do not have it. Use a handle of that type, or a raw path for an attribute outside it.
 DYNA216 | Warning | DynaSharp.Expressions | Text function on a number | {0} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text.
+DYNA217 | Warning | DynaSharp.Commands | Nested RetryOnConflictAsync | RetryOnConflictAsync runs inside the delegate of another RetryOnConflictAsync, so the runs multiply and an exhausted inner retry counts as a conflict of the outer one. Move the follow-up write after the outer call.
+DYNA218 | Warning | DynaSharp.Commands | Version read before the retry | '{0}' was read before RetryOnConflictAsync started, so every run sends the same version and fails the same way. Read it inside the delegate.
+DYNA219 | Warning | DynaSharp.Commands | Write to what a key of an index is computed from | '{0}' {1}, so this update throws when it ends. Put the changed entity instead.

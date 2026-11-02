@@ -73,7 +73,7 @@ Without `Credentials`, the client uses the default chain of the AWS SDKs and tak
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 
-A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`.
+A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`. To test the way through STS without AWS, `StubSts` of `DynaSharp.Testing` stands in for it on a port of the machine.
 
 Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported yet.
 
@@ -96,6 +96,32 @@ public partial record Order
     public required OrderStatus Status { get; init; }
     public required DateTimeOffset PlacedAt { get; init; }
     public required decimal Total { get; init; }
+}
+```
+
+What is the same on every type can be said once for the project. This stores `CustomerId` as `customerId`, leaves empty strings and collections out of an item, lets an entity without `[Discriminator]` go without one, and stores every `DateTimeOffset` as epoch seconds, also in a list:
+
+```csharp
+using DynaSharp.Mapping;
+using DynaSharp.Serialization;
+
+[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, OmitEmpty = true, NoDiscriminator = true)]
+[assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(EpochSecondsConverter))]
+```
+
+An attribute on a type or a property still wins. Changing `Naming` renames stored attributes, and `pk`, `sk` and `_type` stay as they are.
+
+A key of an index can be computed. Say what the getter reads, so that an update that changes it throws instead of leaving the index behind. A `Put` of the changed entity moves the key.
+
+```csharp
+[GlobalIndexKey("ByDay", PartitionKey = "DAY#{ArrivalDay}")]
+public partial record Visit
+{
+    // ...
+    public required DateTimeOffset Arrival { get; init; }
+
+    [ComputedFrom(nameof(Arrival))]
+    public DateOnly ArrivalDay => DateOnly.FromDateTime(Arrival.UtcDateTime);
 }
 ```
 
@@ -254,12 +280,146 @@ string json = products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price,
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));
-using var client = new DynamoDbClient(new DynamoDbClientOptions
+using var client = StubClient.Create(handler);
+```
+
+## Adopting an existing table
+
+A table that other code wrote, or that is older than your entities, can be used as it is. Three things stand between it and an entity, and the first is a trap.
+
+**Items without a version.** A `[Version]` property reads an item without the attribute as 0, as it reads one that holds 0, and version 0 means that no item has the key. So the first `Put` of such an item fails with `ConditionalCheckFailedException`, and so does every one after it. Say that the table keeps such items:
+
+```csharp
+[Version(Missing = VersionMissing.Allow)]
+public long Revision { get; init; }
+```
+
+Version 0 then means an item without a version, one that holds 0, or none. `Allow` takes over an item the AWS SDK saved at version 0 as well, because that is what its first `SaveAsync` stores. `Put`, `IfVersion(0)`, a `Delete` of an entity and a transaction step look at the version attribute instead of the key, so the first write replaces the item and stores version 1, a second write at 0 fails, and from there on the lock holds. `Select(Attrs.Revision)` gives 0 for such an item, as a read of the entity does. A write at 0 no longer proves that the key was free: `IfNotExists()` still asks for that, and `IfExists()` at 0 asks for an item that reads as 0.
+
+**Items without a discriminator.** A typed read filters on `_type`, which nobody wrote into these items, so it would find none of them. `[Discriminator(OptOut = true)]` drops the filter.
+
+**Names of your own.** `AttributeName` gives a key the name it has in the table, and `[DynamoDbAttribute]` does the same for any other property. A key with no template is the value of its property.
+
+```csharp
+[DynamoDbEntity]
+[Discriminator(OptOut = true)]
+public partial record Invoice
 {
-    HttpHandler = handler,
-    Region = AwsRegion.FromName("us-east-1"),
-    Credentials = new StaticCredentialsProvider("test", "test"),
-});
+    [PartitionKey(AttributeName = "customer_id")]
+    public required string CustomerId { get; init; }
+
+    [SortKey(AttributeName = "invoice_no")]
+    public required int Number { get; init; }
+
+    [DynamoDbAttribute("total_amount")]
+    public decimal Total { get; init; }
+
+    [Version(Missing = VersionMissing.Allow)]
+    public long Revision { get; init; }
+}
+```
+
+A program that creates its table at the start can keep doing so over a table that exists:
+
+```csharp
+var invoices = client.Table<Invoice>("Invoices");
+await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
+```
+
+`IfNotExists()` describes first, and a table it finds ends the command there. So a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable` for a table that exists, and no failed call shows in CloudTrail; creating the table takes both. It compares no schemas and changes nothing about a table it finds. `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it times out with a `TableNotActiveException` that names the index.
+
+## Migrating from the AWS SDK
+
+The tables compare with `DynamoDBContext` of `AWSSDK.DynamoDBv2` 4.0 in its default conversion, V1. With `Conversion = DynamoDBEntryConversion.V2` a `bool` is a `BOOL` and a list is an `L`, as here, so those rows fall away.
+
+### What changes stored data
+
+| What you wrote | What to write |
+|---|---|
+| A string that can be empty. `SaveAsync` removes the attribute for `""`, also in a nested document and with `IgnoreNullValues`, unless `IsEmptyStringValueEnabled` is on. | `OmitEmpty = true` in `[assembly: DynamoDbDefaults]`, which reaches nested documents, or `[OmitEmpty]` on a type or a property. Without it DynaSharp stores `{"S":""}`. A `required` property that is not nullable stays written even so. It also leaves out an empty dictionary, `byte[]` and list of documents, which the SDK stores, so those take `[OmitEmpty(false)]`. Compare captured items before you claim the format is unchanged: an item the old code wrote against the `ToRequestJson()` of the new code, attribute by attribute. |
+| `SaveAsync`, which sends an `UpdateItem`: it sets what the class maps and leaves every other attribute. | A `Put` replaces the whole item, so attributes the entity does not map are gone. Map them, or send `Update(key)` with a `Set` per attribute. |
+| A null property. `SaveAsync` removes the attribute, and with `IgnoreNullValues = true` leaves it alone. | `Set(Attrs.X, null)` in an `Update` removes it, and `SetIfNotNull(Attrs.X, value)` adds nothing for null. A `Put` leaves a null out of the item it replaces. |
+| A `List<string>` or `string[]`, an `SS` in V1. `List<int>` is an `NS`, and an empty one is left out. | `HashSet<string>`, or `[DynamoDbConverter(typeof(SetArrayConverter<string, StringSetElement>))] public string[] Tags { get; init; } = [];`, with `NumberSetElement<int>` for numbers. An empty one is left out here too. A plain list or array is an `L` here, and reading an `SS` into it throws `DynamoDbMappingException`. |
+| A `bool`, an `N` of `1` or `0` in V1. | `BoolAsNumberConverter`, below. Here a `bool` is a `BOOL`, and reading an `N` into it throws. |
+| A `DateTime`, text in UTC with three fraction digits: `2026-10-31T12:00:00.123Z`. | `SdkDateTimeConverter`, below. DynaSharp reads that text and writes seven digits, `2026-10-31T12:00:00.1230000Z`, so a condition no longer finds an old value, and old and new sort apart in a key. It also rejects `DateTimeKind.Unspecified`, which the SDK and the converter take for local time. A `TimeOnly` has three digits as well, and takes the same kind of converter. |
+| `StoreAsEpoch = true` on a `DateTime`, an `N`. | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. |
+| An enum, an `N` in V1 and V2. | `StatusAsNumberConverter`, below. DynaSharp stores the name as text, and only a `[Flags]` enum as a number. |
+| `[DynamoDBVersion] public long? Revision`, whose first `SaveAsync` stores 0. | `[Version(Missing = VersionMissing.Allow)] public long Revision`, which is not nullable. `Allow` takes over an item the SDK saved at version 0 as well: a write at 0 stores 1, and from there on the lock holds. Under the default, `[Version]`, 0 means no item, so a write at 0 fails on such an item. |
+| `[DynamoDBTable("Shop", LowerCamelCaseProperties = true)]` | `Naming = AttributeNaming.CamelCase` in `[assembly: DynamoDbDefaults]`, which takes a plain key along, as the SDK does. |
+| Items without `_type`, items without a version, attributes under names of their own. | [Adopting an existing table](#adopting-an-existing-table). |
+
+The rest stores what the SDK stores: numbers, strings, `Guid`, `DateOnly`, `byte[]`, a `HashSet` of strings or numbers, a `Dictionary<string, string>` and a nested document.
+
+The converters are said once for the project. `[DynamoDbConverter]` does the same for one property.
+
+```csharp
+using System.Globalization;
+using DynaSharp;
+using DynaSharp.Mapping;
+using DynaSharp.Serialization;
+
+[assembly: DynamoDbDefaultConverter(typeof(bool), typeof(BoolAsNumberConverter))]
+[assembly: DynamoDbDefaultConverter(typeof(DateTime), typeof(SdkDateTimeConverter))]
+[assembly: DynamoDbDefaultConverter(typeof(OrderStatus), typeof(StatusAsNumberConverter))]
+
+public readonly struct BoolAsNumberConverter : IDynamoDbConverter<bool>
+{
+    public static void Write(DynamoDbWriter writer, bool value) => writer.WriteNumber(value ? 1 : 0);
+
+    public static bool Read(ref DynamoDbReader reader, AttributeType type)
+    {
+        ConverterChecks.Expect(type, AttributeType.Number);
+        return reader.GetNumber<int>() != 0;
+    }
+}
+
+public readonly struct SdkDateTimeConverter : IDynamoDbConverter<DateTime>
+{
+    public static void Write(DynamoDbWriter writer, DateTime value) =>
+        writer.WriteString(value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture));
+
+    public static DateTime Read(ref DynamoDbReader reader, AttributeType type) => DateTimeConverter.Read(ref reader, type);
+}
+
+public readonly struct StatusAsNumberConverter : IDynamoDbConverter<OrderStatus>
+{
+    public static void Write(DynamoDbWriter writer, OrderStatus value) => writer.WriteNumber((int)value);
+
+    public static OrderStatus Read(ref DynamoDbReader reader, AttributeType type)
+    {
+        ConverterChecks.Expect(type, AttributeType.Number);
+        return (OrderStatus)reader.GetNumber<int>();
+    }
+}
+```
+
+### The rest of the code
+
+| What you wrote | What to write |
+|---|---|
+| `[DynamoDBHashKey]`, `[DynamoDBRangeKey]` | `[PartitionKey]`, `[SortKey]` on the property. `[DynamoDBHashKey("id")]` is `[PartitionKey(AttributeName = "id")]`. |
+| `[DynamoDBProperty("total")]`, `[DynamoDBIgnore]` | `[DynamoDbAttribute("total")]`, `[DynamoDbIgnore]`. |
+| `[DynamoDBProperty(typeof(MyConverter))]` with an `IPropertyConverter` | `[DynamoDbConverter(typeof(MyConverter))]` with an `IDynamoDbConverter<T>`. |
+| A stored value that no longer fits the property, such as an enum name that is gone. | A converter that answers `CountsAsMissing`: the property keeps its initial value and the rest of the item reads. |
+| A property computed from others that feeds an index. | `[ComputedFrom]`, see [Defining an entity](#defining-an-entity). |
+| A date bucket in a key: `$"DAY#{arrival:yyyy-MM-dd}"`. | `{Arrival:yyyy-MM-dd}` in a template takes the type of the property, so a `DateOnly day` goes in as `new DateTimeOffset(day, TimeOnly.MinValue, TimeSpan.Zero)`. A day that is a value of its own is a `DateOnly` property. |
+| A key put together by hand: `$"CUSTOMER#{id}"`. | `Order.Keys.Of(id, number)` and `Order.Keys.Pk.Of(id)` check the values at the call, and throw `KeyFormatException` for a value that holds a delimiter. For a value from outside, `Order.Keys.TryOf(id, number, out var key)` returns false instead. |
+| `QueryOperator.Between` over two key strings. | `Keys.Sk.Between(from, to)` includes `to`, and `Keys.Sk.Range(from, to)` leaves it out, both from values and not from strings. |
+| An `Expression` with `#names` and `:values`, or a `ScanCondition`. | `Order.Attrs.Total.Gt(100m)`, which is typed. `using Attrs = Shop.Order.Attrs;` keeps a long chain short. |
+| A `SaveAsync` that may create the item, which stores every property. | An `Update` that creates an item stores its key and what it names, and `.StoreKeyInputs()` adds the inputs of the key, as a `Put` does. |
+| A loop that reads, writes and catches `ConditionalCheckFailedException`. | `RetryOnConflictAsync`, below. |
+| Working out in a `catch` which item failed. | `ConditionalCheckFailedException.Key`, the key of the request as it is stored. |
+| `DescribeTable`, `CreateTable`, a catch of `ResourceInUseException`, a wait. | `carts.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct)`. `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. |
+| Credentials from `AWSSDK.Core`, with IRSA on EKS. | `new DynamoDbClient()`, which reads the same [chain](#credentials). `AWS_ROLE_SESSION_NAME` names the session, which is otherwise `dynasharp-` and the Unix time. |
+| A region found in EC2 instance metadata. | `AWS_REGION`, or `Region` in the options. DynaSharp does not ask the metadata service, see [Region](#region). |
+| A mock of `IDynamoDBContext` or `IAmazonDynamoDB`. | `StubClient.Create(stub)` over a `StubHandler`, which fakes the wire, and `StubSts` for the way through STS. |
+
+```csharp
+await carts.RetryOnConflictAsync(async token =>
+{
+    var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(token);
+    await carts.Put(cart! with { Lines = lines }).SendAsync(token);
+}, ct);
 ```
 
 ## API levels

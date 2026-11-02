@@ -25,6 +25,9 @@ internal static class Names
     /// <summary>The builder parameter of a property: <c>CreatedAt</c> gives <c>createdAt</c>, <c>Class</c> gives <c>@class</c>.</summary>
     public static string Parameter(string property) => Identifier(char.ToLowerInvariant(property[0]) + property.Substring(1));
 
+    /// <summary>A parameter beside others that are named after properties: <c>key</c> gives <c>key_</c> when a placeholder <c>Key</c> took the name.</summary>
+    public static string Free(string name, IEnumerable<string> taken) => taken.Contains(name) ? Free(name + "_", taken) : name;
+
     /// <summary>
     /// The builder prefix of an index, a C# identifier however the index is named.
     /// <code>

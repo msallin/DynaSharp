@@ -38,4 +38,30 @@ public sealed class ConditionalCheckFailedExceptionTests
         // Assert
         await Assert.That(exception.RequestId).IsEqualTo("A1B2C3");
     }
+
+    [Test]
+    public async Task Constructor_ExceptionNotFromThePipeline_HasNoKey()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var exception = new ConditionalCheckFailedException("The conditional request failed.", new Item { ["pk"] = "a" });
+
+        // Assert
+        await Assert.That(exception.Key).IsNull();
+    }
+
+    [Test]
+    public async Task Describe_Key_SetsItAndLeavesTheTextAlone()
+    {
+        // Arrange
+        var exception = new ConditionalCheckFailedException("The conditional request failed.");
+        var key = new Item { ["pk"] = "USER#alice" };
+
+        // Act
+        exception.Describe(key);
+
+        // Assert
+        await Assert.That((exception.Key, exception.Message, exception.ToString().Contains("alice", StringComparison.Ordinal))).IsEqualTo((key, "The conditional request failed.", false));
+    }
 }

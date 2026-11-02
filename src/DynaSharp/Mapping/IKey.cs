@@ -4,7 +4,7 @@ namespace DynaSharp.Mapping;
 
 /// <summary>
 /// A primary key that writes itself. Generated key structs implement it through <see cref="IKey{TEntity}"/>, and they hold what the key is
-/// made of rather than the text of the key, so a key costs no string until it is written.
+/// made of rather than the text of the key, so a key costs no string until it is written. A generated <c>Keys.Of</c> has checked the values by then.
 /// </summary>
 public interface IKey
 {
@@ -13,7 +13,7 @@ public interface IKey
     public void WriteKey(DynamoDbWriter writer);
 
     /// <summary>
-    /// Gets a value the key was made from, for an update that writes an index key which wants more of it than the text of the key holds. Generated code implements this for such an entity
+    /// Gets a value the key was made from, for an update that wants more of it than the text of the key holds, for an index key or to store it. Generated code implements this for such an entity
     /// only, and everything else reads the text of the key.
     /// </summary>
     /// <param name="propertyName">The property, as it stands in the template.</param>

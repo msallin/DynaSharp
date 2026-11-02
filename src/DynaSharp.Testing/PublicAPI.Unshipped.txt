@@ -1,0 +1,86 @@
+#nullable enable
+DynaSharp.Testing.RecordedRequest.ConditionText.get -> string?
+DynaSharp.Testing.RecordedRequest.FilterText.get -> string?
+DynaSharp.Testing.RecordedRequest.KeyConditionText.get -> string?
+DynaSharp.Testing.RecordedRequest.ProjectionText.get -> string?
+DynaSharp.Testing.RecordedRequest.TransactItems.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedTransactStep!>!
+DynaSharp.Testing.RecordedRequest.UpdateText.get -> string?
+DynaSharp.Testing.RecordedStsRequest
+DynaSharp.Testing.RecordedStsRequest.<Clone>$() -> DynaSharp.Testing.RecordedStsRequest!
+DynaSharp.Testing.RecordedStsRequest.Action.get -> string!
+DynaSharp.Testing.RecordedStsRequest.Action.init -> void
+DynaSharp.Testing.RecordedStsRequest.Deconstruct(out string! Action, out string! RoleArn, out string! RoleSessionName, out string! WebIdentityToken, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyList<string!>! Headers) -> void
+DynaSharp.Testing.RecordedStsRequest.Equals(DynaSharp.Testing.RecordedStsRequest? other) -> bool
+DynaSharp.Testing.RecordedStsRequest.Form.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+DynaSharp.Testing.RecordedStsRequest.Form.init -> void
+DynaSharp.Testing.RecordedStsRequest.Headers.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DynaSharp.Testing.RecordedStsRequest.Headers.init -> void
+DynaSharp.Testing.RecordedStsRequest.RecordedStsRequest(string! Action, string! RoleArn, string! RoleSessionName, string! WebIdentityToken, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyList<string!>! Headers) -> void
+DynaSharp.Testing.RecordedStsRequest.RoleArn.get -> string!
+DynaSharp.Testing.RecordedStsRequest.RoleArn.init -> void
+DynaSharp.Testing.RecordedStsRequest.RoleSessionName.get -> string!
+DynaSharp.Testing.RecordedStsRequest.RoleSessionName.init -> void
+DynaSharp.Testing.RecordedStsRequest.WebIdentityToken.get -> string!
+DynaSharp.Testing.RecordedStsRequest.WebIdentityToken.init -> void
+DynaSharp.Testing.RecordedTransactStep
+DynaSharp.Testing.RecordedTransactStep.ConditionText.get -> string?
+DynaSharp.Testing.RecordedTransactStep.Kind.get -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.RecordedTransactStep.ProjectionText.get -> string?
+DynaSharp.Testing.RecordedTransactStep.ReadItem() -> DynaSharp.Item!
+DynaSharp.Testing.RecordedTransactStep.ReadItem<T>() -> T
+DynaSharp.Testing.RecordedTransactStep.ReadKey() -> DynaSharp.Item!
+DynaSharp.Testing.RecordedTransactStep.ReadKey<T>() -> T
+DynaSharp.Testing.RecordedTransactStep.TableName.get -> string?
+DynaSharp.Testing.RecordedTransactStep.UpdateText.get -> string?
+DynaSharp.Testing.StubClient
+DynaSharp.Testing.StubSts
+DynaSharp.Testing.StubSts.DefaultResponse.get -> DynaSharp.Testing.StubStsResponse?
+DynaSharp.Testing.StubSts.DefaultResponse.set -> void
+DynaSharp.Testing.StubSts.Dispose() -> void
+DynaSharp.Testing.StubSts.Endpoint.get -> System.Uri!
+DynaSharp.Testing.StubSts.Enqueue(DynaSharp.Testing.StubStsResponse! response) -> void
+DynaSharp.Testing.StubSts.Requests.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedStsRequest!>!
+DynaSharp.Testing.StubSts.StubSts() -> void
+DynaSharp.Testing.StubStsResponse
+DynaSharp.Testing.StubStsResponse.Body.get -> string!
+DynaSharp.Testing.StubStsResponse.Body.init -> void
+DynaSharp.Testing.StubStsResponse.StatusCode.get -> System.Net.HttpStatusCode
+DynaSharp.Testing.StubStsResponse.StatusCode.init -> void
+DynaSharp.Testing.StubStsResponse.StubStsResponse() -> void
+DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.ConditionCheck = 4 -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.Delete = 3 -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.Get = 5 -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.Put = 1 -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.Unknown = 0 -> DynaSharp.Testing.TransactStepKind
+DynaSharp.Testing.TransactStepKind.Update = 2 -> DynaSharp.Testing.TransactStepKind
+override DynaSharp.Testing.RecordedStsRequest.Equals(object? obj) -> bool
+override DynaSharp.Testing.RecordedStsRequest.GetHashCode() -> int
+override DynaSharp.Testing.RecordedStsRequest.ToString() -> string!
+static DynaSharp.Testing.RecordedStsRequest.operator !=(DynaSharp.Testing.RecordedStsRequest? left, DynaSharp.Testing.RecordedStsRequest? right) -> bool
+static DynaSharp.Testing.RecordedStsRequest.operator ==(DynaSharp.Testing.RecordedStsRequest? left, DynaSharp.Testing.RecordedStsRequest? right) -> bool
+static DynaSharp.Testing.StubClient.Create(System.Net.Http.HttpMessageHandler! handler, System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.DynamoDbClient!
+static DynaSharp.Testing.StubClient.CreateStreams(System.Net.Http.HttpMessageHandler! handler, System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.Streams.DynamoDbStreamsClient!
+static DynaSharp.Testing.StubResponse.Change(DynaSharp.Streams.OperationType eventName, DynaSharp.Item! keys, DynaSharp.Item? oldImage = null, DynaSharp.Item? newImage = null, string? sequenceNumber = null) -> DynaSharp.Streams.ChangeRecord!
+static DynaSharp.Testing.StubResponse.Count(int count, DynaSharp.Item! lastEvaluatedKey, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Count(int count, DynaSharp.Mapping.IKey! lastEvaluatedKey, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Count(int count, int? scannedCount = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.GlobalIndex(string! indexName, DynaSharp.Requests.IndexStatus status = DynaSharp.Requests.IndexStatus.Active) -> DynaSharp.Requests.GlobalSecondaryIndexDescription!
+static DynaSharp.Testing.StubResponse.Inserted<T>(T newImage, string? sequenceNumber = null) -> DynaSharp.Streams.ChangeRecord!
+static DynaSharp.Testing.StubResponse.Modified<T>(T oldImage, T newImage, string? sequenceNumber = null) -> DynaSharp.Streams.ChangeRecord!
+static DynaSharp.Testing.StubResponse.Records(string? nextShardIterator, params System.ReadOnlySpan<DynaSharp.Streams.ChangeRecord!> records) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Removed<T>(T oldImage, string? sequenceNumber = null) -> DynaSharp.Streams.ChangeRecord!
+static DynaSharp.Testing.StubResponse.ResourceInUse() -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.ResourceNotFound() -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Shard(string! shardId, string? parentShardId = null, string? endingSequenceNumber = null) -> DynaSharp.Streams.Shard!
+static DynaSharp.Testing.StubResponse.ShardIterator(string! iterator) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.StreamDescription(DynaSharp.Streams.StreamDescription! description) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.StreamDescription(string! tableName, params System.ReadOnlySpan<DynaSharp.Streams.Shard!> shards) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Table(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Active, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Table<T>(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Active) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TableCreated(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Creating, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TableDeleted(string! name) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TimeToLive(DynaSharp.Requests.TimeToLiveStatus status, string? attributeName = null) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TimeToLiveUpdated(bool enabled, string! attributeName) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubStsResponse.Credentials(DynaSharp.Credentials.AwsCredentials! credentials) -> DynaSharp.Testing.StubStsResponse!
+static DynaSharp.Testing.StubStsResponse.Error(string! code, string? message = null, System.Net.HttpStatusCode? statusCode = null) -> DynaSharp.Testing.StubStsResponse!

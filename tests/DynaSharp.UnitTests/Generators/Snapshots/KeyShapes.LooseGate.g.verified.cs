@@ -28,7 +28,7 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("openpk", "O#{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.OpenPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("shared", "T#{Tenant}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }, static __values => Keys.OpenSk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gatedpk", "G#{Note}", false, new[] { new __Map.DynamoDbKeyInput("Note", "Note") }, static __values => Keys.GatedPk.Format((string)__values[0]!)),
@@ -188,15 +188,33 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Tenant => new("Tenant");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
     }
 
     /// <summary>The key builders of <c>LooseGate</c>.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>LooseGate</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string id) => new PrimaryKey(id);
+        /// <summary>Creates the primary key of <c>LooseGate</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string id)
+        {
+            Pk.Check(true, id);
+            return new PrimaryKey(id);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string id, out PrimaryKey key)
+        {
+            if (Pk.Check(false, id))
+            {
+                key = new PrimaryKey(id);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>LooseGate</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -244,9 +262,31 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string id, out global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, id);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -311,6 +351,20 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
             {
                 __key.WriteString(id, ""u8, "Id");
             }
+
+            internal static bool Check(bool __throwOnInvalid, string id)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, id);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
         }
 
         /// <summary>The values of a parsed <c>openpk</c>.</summary>
@@ -340,9 +394,31 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(id), "openpk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string id, out global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, id);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(__key.ToString(), "openpk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -595,9 +671,31 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LooseGate</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> Of(string note) => new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(Format(note), "gatedpk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string note, out global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, note);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LooseGate>(__key.ToString(), "gatedpk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

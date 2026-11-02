@@ -191,6 +191,12 @@
       "dynasharp": {
         "type": "Project"
       },
+      "dynasharp.defaultsfixture": {
+        "type": "Project",
+        "dependencies": {
+          "DynaSharp": "[1.0.0, )"
+        }
+      },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "CentralTransitive",
         "requested": "[18.12.0, )",

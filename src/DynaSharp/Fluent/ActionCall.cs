@@ -55,7 +55,13 @@ internal readonly struct ActionCall<TOperation, TResponse>(CommandState state, i
 
     public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(TResponse response) => TOperation.GetConsumedCapacity(response);
 
-    public void DescribeRejection(ValidationException rejection) => RejectedRequest.Describe(rejection, state.Actions.SentBody);
+    public void DescribeFailure(DynamoDbException failure)
+    {
+        if (failure is ValidationException rejection)
+        {
+            RejectedRequest.Describe(rejection, state.Actions.SentBody);
+        }
+    }
 
     public void Release()
     {

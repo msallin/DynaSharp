@@ -20,7 +20,7 @@ namespace DynaSharp.Credentials;
 /// <see cref="GetCredentialsAsync"/> throws a <see cref="CredentialsUnavailableException"/> that says so (the default chain then moves
 /// on). <c>AWS_ROLE_ARN</c> must then be set as well: a token file without a role is broken and throws, which also stops the default
 /// chain. <c>AWS_ROLE_SESSION_NAME</c> is optional, must be 2 to 64 letters, digits or characters of <c>_+=,.@-</c>, and defaults to
-/// <c>dynasharp-</c> and the Unix time in seconds. The variables are read at every fetch. Passing the settings to the constructor replaces
+/// <c>dynasharp-</c> and the Unix time in seconds. The variables are read at every fetch. Passing the settings to a constructor replaces
 /// them all. The profile keys <c>web_identity_token_file</c> and <c>role_arn</c> are not read: a profile that has them fails in
 /// <see cref="ProfileCredentialsProvider"/>.
 /// </para>
@@ -36,7 +36,8 @@ namespace DynaSharp.Credentials;
 /// As in botocore, <c>AWS_ENDPOINT_URL_STS</c> and then <c>AWS_ENDPOINT_URL</c> go ahead of all of that: with either one set the fetch needs no region and <c>AWS_STS_REGIONAL_ENDPOINTS</c> counts for nothing. An empty
 /// variable counts as unset, and a value takes what the endpoint of a client takes, an absolute http or https URL without user info, path, query or fragment; any other throws, and names the variable. So a process that
 /// points <c>AWS_ENDPOINT_URL</c> at an emulator for DynamoDB sends the token there too, and over http the token travels in the clear. All of these variables are read from the environment at every fetch, also when the
-/// settings were passed to the constructor. The profile settings <c>sts_regional_endpoints</c> and <c>endpoint_url</c>, the <c>services</c> sections of the shared config file and <c>AWS_IGNORE_CONFIGURED_ENDPOINT_URLS</c> are not read.
+/// token file, the role and the region were passed to the constructor. Only an endpoint passed to <see cref="WebIdentityCredentialsProvider(string, string, Uri, string?)"/> goes ahead of them: as for the token file and the role, an explicit
+/// setting replaces the environment, so that provider reads no variable at all and needs no region. The profile settings <c>sts_regional_endpoints</c> and <c>endpoint_url</c>, the <c>services</c> sections of the shared config file and <c>AWS_IGNORE_CONFIGURED_ENDPOINT_URLS</c> are not read.
 /// </para>
 /// <para>
 /// The token is read from the file for every request, because the kubelet replaces the file before the token expires; leading and trailing whitespace is
@@ -50,11 +51,12 @@ namespace DynaSharp.Credentials;
 /// <para>
 /// The requests use the default proxy of the process (<c>HTTPS_PROXY</c>, <c>NO_PROXY</c>), since STS is often reached through an egress proxy, unlike the link-local
 /// endpoints of <see cref="ContainerCredentialsProvider"/>. An endpoint on a loopback address goes past the proxy, because a proxy cannot reach a port of this machine, and <c>HTTP_PROXY</c> would be asked all the same.
-/// They go over https unless an endpoint variable says otherwise, and follow no redirects, so the token reaches no other host. Cookies are not used.
+/// They go over https unless the endpoint says otherwise, and follow no redirects, so the token reaches no other host. Cookies are not used.
 /// </para>
 /// <para>
 /// They do not go through <see cref="DynamoDbClientOptions.HttpHandler"/>, which carries the requests to DynamoDB and no others. A client with a stub handler in a process with <c>AWS_WEB_IDENTITY_TOKEN_FILE</c> set still
-/// calls the real STS with that token: a test sets <see cref="DynamoDbClientOptions.Credentials"/>, or points <c>AWS_ENDPOINT_URL_STS</c> at a fake.
+/// calls the real STS with that token: a test sets <see cref="DynamoDbClientOptions.Credentials"/>, or reaches <c>StubSts</c> of <c>DynaSharp.Testing</c>, a server on a port of this machine, by passing its endpoint to the constructor or by
+/// pointing <c>AWS_ENDPOINT_URL_STS</c> at it.
 /// </para>
 /// <para>
 /// The same <see cref="AwsCredentials"/> instance is returned until it is refreshed. Refreshing starts 15 minutes before the
@@ -144,6 +146,29 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WebIdentityCredentialsProvider"/> class with explicit settings and an endpoint of its own. It reads no variable of the environment:
+    /// the endpoint goes ahead of <c>AWS_ENDPOINT_URL_STS</c>, <c>AWS_ENDPOINT_URL</c>, the region and <c>AWS_STS_REGIONAL_ENDPOINTS</c>, which is what the constructor with a region does not do.
+    /// </summary>
+    /// <param name="tokenFile">The path of the file that holds the token. It is read at every fetch.</param>
+    /// <param name="roleArn">The ARN of the role to assume, for example <c>arn:aws:iam::123456789012:role/orders</c>.</param>
+    /// <param name="stsEndpoint">
+    /// The endpoint of STS, for example a VPC endpoint or <c>StubSts.Endpoint</c> of <c>DynaSharp.Testing</c>: an absolute http or https URL without user info, path, query or fragment.
+    /// Over http the token travels in the clear.
+    /// </param>
+    /// <param name="roleSessionName">
+    /// The name of the session, which shows in CloudTrail: 2 to 64 letters, digits or characters of <c>_+=,.@-</c>. <see langword="null"/>
+    /// means <c>dynasharp-</c> and the Unix time in seconds at each fetch.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="stsEndpoint"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="tokenFile"/> or <paramref name="roleArn"/> is null or empty, or <paramref name="stsEndpoint"/> or <paramref name="roleSessionName"/> breaks the rule above.
+    /// </exception>
+    public WebIdentityCredentialsProvider(string tokenFile, string roleArn, Uri stsEndpoint, string? roleSessionName = null)
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null, Validate(tokenFile, roleArn, stsEndpoint, roleSessionName))
+    {
+    }
+
     internal WebIdentityCredentialsProvider(
         Func<string, string?> getEnvironmentVariable,
         ReadTextFile readFile,
@@ -214,15 +239,33 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
     private static Settings Validate(string tokenFile, string roleArn, AwsRegion region, string? roleSessionName)
     {
+        ArgumentNullException.ThrowIfNull(region);
+        return Validate(tokenFile, roleArn, roleSessionName) with { Region = region };
+    }
+
+    private static Settings Validate(string tokenFile, string roleArn, Uri stsEndpoint, string? roleSessionName)
+    {
+        ArgumentNullException.ThrowIfNull(stsEndpoint);
+
+        // The value is not echoed, as for the variables: an endpoint may carry credentials in its user info.
+        if (ClientConfiguration.FindEndpointProblem(stsEndpoint) is { } problem)
+        {
+            throw new ArgumentException($"The STS endpoint is not valid: {problem}.", nameof(stsEndpoint));
+        }
+
+        return Validate(tokenFile, roleArn, roleSessionName) with { Endpoint = stsEndpoint };
+    }
+
+    private static Settings Validate(string tokenFile, string roleArn, string? roleSessionName)
+    {
         ArgumentException.ThrowIfNullOrEmpty(tokenFile);
         ArgumentException.ThrowIfNullOrEmpty(roleArn);
-        ArgumentNullException.ThrowIfNull(region);
         if (roleSessionName is not null && !IsValidSessionName(roleSessionName))
         {
             throw new ArgumentException($"The session name {SessionNameRule}.", nameof(roleSessionName));
         }
 
-        return new Settings(tokenFile, roleArn, region, roleSessionName);
+        return new Settings(tokenFile, roleArn, null, roleSessionName);
     }
 
     private static bool IsValidSessionName(string name) =>
@@ -303,14 +346,15 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     }
 
     // What botocore does: a configured endpoint goes ahead of the region and of the legacy mode, and with one the region does not matter, because the request is not signed.
-    private Uri ResolveEndpoint(AwsRegion? settingsRegion)
+    // An endpoint passed in code is botocore's endpoint_url, which goes ahead of the configured ones.
+    private Uri ResolveEndpoint(Settings settings)
     {
-        if (ReadConfiguredEndpoint() is { } configured)
+        if ((settings.Endpoint ?? ReadConfiguredEndpoint()) is { } configured)
         {
             return configured;
         }
 
-        var region = settingsRegion ?? ResolveRegion();
+        var region = settings.Region ?? ResolveRegion();
         return string.Equals(_getEnvironmentVariable(RegionalEndpointsVariable), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, region.Name) >= 0
             ? GlobalEndpoint
             : region.StsEndpoint;
@@ -358,7 +402,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private async ValueTask<AwsCredentials> FetchAsync()
     {
         var settings = ResolveSettings();
-        var endpoint = ResolveEndpoint(settings.Region);
+        var endpoint = ResolveEndpoint(settings);
         var http = CredentialsHttp.GetClientFor(endpoint, _handler);
 
         var failedAttempts = 0;
@@ -411,5 +455,6 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <param name="RoleArn">The role to assume.</param>
     /// <param name="Region">The region of the STS endpoint, or <see langword="null"/> to look for it when an endpoint depends on it.</param>
     /// <param name="SessionName">The name of the session, or <see langword="null"/> for the default of each fetch.</param>
-    internal sealed record Settings(string TokenFile, string RoleArn, AwsRegion? Region, string? SessionName);
+    /// <param name="Endpoint">The endpoint of STS that replaces all the others, or <see langword="null"/> to work it out at each fetch.</param>
+    internal sealed record Settings(string TokenFile, string RoleArn, AwsRegion? Region, string? SessionName, Uri? Endpoint = null);
 }

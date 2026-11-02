@@ -2,7 +2,7 @@ using DynaSharp.Generators;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>DYNA205 to DYNA207: what a command says about its entity that the model of the entity contradicts.</summary>
+/// <summary>DYNA205 to DYNA207 and DYNA219: what a command says about its entity that the model of the entity contradicts.</summary>
 public sealed class EntityCommandAnalyzerTests
 {
     private const string VersionMessage = "DYNA206 Warning: This Put of 'Locked' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.";
@@ -80,6 +80,48 @@ public sealed class EntityCommandAnalyzerTests
             public string? Tag;
         }
 
+        [DynamoDbDocument]
+        public partial record Note(DateTimeOffset At);
+
+        [DynamoDbEntity]
+        [Discriminator("VISIT")]
+        [PartitionKey("VISIT#{Id}")]
+        [GlobalIndexKey("ByArrival", PartitionKey = "A#{Arrival}", SortKey = "{Slot}")]
+        [GlobalIndexKey("ByLoad", PartitionKey = "{Load}", PartitionKeyAttributeName = "load")]
+        public partial class Visit
+        {
+            public required string Id { get; init; }
+
+            public required Note Message { get; init; }
+
+            public required string Slot { get; init; }
+
+            public int Guests { get; init; }
+
+            public HashSet<string> Tags { get; init; } = [];
+
+            public string? Remark { get; init; }
+
+            [ComputedFrom(nameof(Message))]
+            public DateTimeOffset Arrival => Message.At;
+
+            [DynamoDbAttribute("load"), ComputedFrom(nameof(Guests), nameof(Tags))]
+            public int Load => Guests + Tags.Count;
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("SHIFT")]
+        [PartitionKey("SHIFT#{Code}")]
+        public partial class Shift
+        {
+            public required string Name { get; init; }
+
+            public Note? Message { get; init; }
+
+            [ComputedFrom(nameof(Name), nameof(Message))]
+            public string Code => Name;
+        }
+
         [DynamoDbEntity]
         [Discriminator("BASE")]
         [PartitionKey("BASE#{Id}")]
@@ -127,6 +169,11 @@ public sealed class EntityCommandAnalyzerTests
         private static PutCommand<Locked> Start() => locks.Put(held);
         private static readonly Table<Address> addresses = null!;
         private static readonly Table<Hand> hands = null!;
+        private static readonly Table<Visit> visits = null!;
+        private static readonly Table<Shift> shifts = null!;
+        private static readonly Visit.Keys.PrimaryKey visitKey = default;
+        private static readonly Shift.Keys.PrimaryKey shiftKey = default;
+        private static readonly Note note = null!;
         private static readonly DeviceEvent.Keys.PrimaryKey key = default;
         private static readonly Customer.Keys.PrimaryKey customerKey = default;
         private static readonly Locked.Keys.PrimaryKey lockKey = default;
@@ -179,6 +226,82 @@ public sealed class EntityCommandAnalyzerTests
     [Arguments("""_ = addresses.Update("a").Set(Address.Attrs.Street, "s");""")]
     [Arguments("""_ = hands.Update("a").Set(Hand.Attrs.X, "s");""")]
     public async Task Analyze_WriteThatIsNoInputOfTheTableKey_ReportsNothing(string statement)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""_ = visits.Update(visitKey).Set([|Visit.Attrs.Message|], note);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    [Arguments("""_ = visits.Update(visitKey).Set([|Visit.Attrs.Message.At(Note.Attrs.At)|], now);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    [Arguments("""_ = visits.Update(visitKey).Remove([|Visit.Attrs.Message.At(Note.Attrs.At)|]);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    [Arguments("""_ = visits.Update(visitKey).Remove([|Visit.Attrs.Message|]);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    [Arguments("""_ = visits.Update(visitKey).SetIfNotNull([|Visit.Attrs.Message|], note);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    [Arguments("""_ = visits.Update(visitKey).Add([|Visit.Attrs.Guests|], 1);""", "Guests", "Load", "{Load}", "ByLoad")]
+    [Arguments("""_ = visits.Update(visitKey).SetIfNotExists([|Visit.Attrs.Guests|], 1);""", "Guests", "Load", "{Load}", "ByLoad")]
+    [Arguments("""_ = visits.Update(visitKey).Delete([|Visit.Attrs.Tags|], []);""", "Tags", "Load", "{Load}", "ByLoad")]
+    [Arguments("""_ = client.TransactWrite().Update(visits, visitKey).Set([|Visit.Attrs.Message.At(Note.Attrs.At)|], now);""", "Message", "Arrival", "A#{Arrival}", "ByArrival")]
+    public async Task Analyze_WriteOfWhatAComputedInputOfAnIndexIsDerivedFrom_ReportsTheHandle(string statement, string property, string computed, string template, string index)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA219 Warning: '{property}' feeds '{computed}', which the key template {template} of the index {index} is computed from, so this update throws when it ends. Put the changed entity instead."));
+    }
+
+    [Test]
+    [Arguments("""_ = visits.Update(visitKey).Set([|Visit.Attrs.Load|], 1);""")]
+    [Arguments("""_ = visits.Update(visitKey).Remove([|Visit.Attrs.Load|]);""")]
+    [Arguments("""_ = visits.Update(visitKey).Add([|Visit.Attrs.Load|], 1);""")]
+    [Arguments("""_ = client.TransactWrite().Update(visits, visitKey).Set([|Visit.Attrs.Load|], 1);""")]
+    public async Task Analyze_WriteOfAComputedInputOfAnIndex_ReportsTheHandle(string statement)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA219 Warning: 'Load' is computed by its getter for the key template {Load} of the index ByLoad, so this update throws when it ends. Put the changed entity instead."));
+    }
+
+    [Test]
+    [Arguments("""_ = shifts.Update(shiftKey).Set([|Shift.Attrs.Name|], "n");""", "Name")]
+    [Arguments("""_ = shifts.Update(shiftKey).Set([|Shift.Attrs.Message.At(Note.Attrs.At)|], now);""", "Message")]
+    public async Task Analyze_WriteOfWhatAComputedInputOfTheTableKeyIsDerivedFrom_ReportsDyna205(string statement, string property)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA205 Warning: '{property}' is part of the key of the table of 'Shift', and DynamoDB cannot change a key. Delete the item and put a new one."));
+    }
+
+    [Test]
+    [Arguments("""_ = visits.Update(visitKey).Set("Message", "raw");""")]
+    [Arguments("""_ = visits.Update(visitKey).Set("load", 1);""")]
+    [Arguments("""_ = visits.Update(visitKey).Set(Visit.Attrs.Remark, "r");""")]
+    [Arguments("""_ = visits.Update(visitKey).SetIfNotNull(Visit.Attrs.Remark, null);""")]
+    [Arguments("""_ = visits.Put(new Visit { Id = "a", Message = note, Slot = "s" });""")]
+    [Arguments("""_ = customers.Update(customerKey).Set(Visit.Attrs.Message, note);""")]
+    [Arguments("""_ = shop.Update("a").Set(Visit.Attrs.Message, note);""")]
+    [Arguments("""_ = visits.Update(visitKey).If(Visit.Attrs.Message.Exists());""")]
+    [Arguments("""var handle = Visit.Attrs.Message; _ = visits.Update(visitKey).Set(handle, note);""")]
+    public async Task Analyze_WriteThatLeavesWhatAComputedInputIsDerivedFromAlone_ReportsNothing(string statement)
     {
         // Arrange
         var source = Run(statement);

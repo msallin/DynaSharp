@@ -91,12 +91,13 @@ internal interface IWireCall<TResponse>
     public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(TResponse response);
 
     /// <summary>
-    /// Adds to a <see cref="ValidationException"/> what only the call knows: a call that generates placeholders explains them here, because the
-    /// message of the service names nothing else. Called once, before the exception leaves the pipeline, while the bytes of the body are
-    /// still valid. Never adds keys, items or attribute values. Must not throw.
+    /// Adds to a failure of the service what only the call knows. A call that generates placeholders explains them to a <see cref="ValidationException"/>, because the message of the
+    /// service names nothing else, and that never includes keys, items or attribute values. A call that knows its key puts it on a <see cref="ConditionalCheckFailedException"/>,
+    /// because the response does not say which item failed, and that goes into <see cref="ConditionalCheckFailedException.Key"/> alone, never into the message or telemetry. Called once
+    /// for every <see cref="DynamoDbException"/>, before it leaves the pipeline, while the bytes of the body are still valid. Must not throw.
     /// </summary>
-    /// <param name="rejection">The failure of the call.</param>
-    public void DescribeRejection(ValidationException rejection);
+    /// <param name="failure">The failure of the call.</param>
+    public void DescribeFailure(DynamoDbException failure);
 
     /// <summary>
     /// Called exactly once when the call is over, after the last attempt, whatever its outcome and also when <see cref="WriteBody"/>

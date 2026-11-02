@@ -14,7 +14,7 @@ internal static class AttributePath<TValue, TConverter>
     /// <param name="path">The whole path, for what a failure says.</param>
     /// <param name="owner">What the attribute is read from, for what a failure says, or <see langword="null"/> for the type of the value.</param>
     /// <param name="value">The value, if it is there.</param>
-    /// <returns><see langword="true"/> if the attribute is there.</returns>
+    /// <returns><see langword="true"/> if the attribute is there and the converter does not count its value as missing.</returns>
     /// <exception cref="DynamoDbMappingException">The value cannot be read as <typeparamref name="TValue"/>.</exception>
     public static bool TryRead(ref DynamoDbReader reader, ReadOnlySpan<char> rest, string path, string? owner, out TValue? value)
     {
@@ -33,8 +33,7 @@ internal static class AttributePath<TValue, TConverter>
             var type = reader.ReadStartAttribute();
             if (dot < 0)
             {
-                value = Convert(ref reader, type, path, owner);
-                found = true;
+                found = Convert(ref reader, type, path, owner, out value);
             }
             else if (type == AttributeType.Map)
             {
@@ -52,11 +51,11 @@ internal static class AttributePath<TValue, TConverter>
     }
 
     // What was asked of DynamoDB has happened by now, so this is not a bad response but a value the caller's type cannot hold.
-    private static TValue Convert(ref DynamoDbReader reader, AttributeType type, string path, string? owner)
+    private static bool Convert(ref DynamoDbReader reader, AttributeType type, string path, string? owner, out TValue? value)
     {
         try
         {
-            return TConverter.Read(ref reader, type);
+            return reader.TryReadValue<TValue, TConverter>(type, out value);
         }
         catch (Exception exception) when (DynamoDbMappingException.IsConversionFailure(exception))
         {

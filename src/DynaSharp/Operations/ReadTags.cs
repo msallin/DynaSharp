@@ -17,7 +17,7 @@ internal static class ReadTags
     /// <param name="indexName">The index, if one is read.</param>
     /// <param name="limit">The item limit, if set.</param>
     /// <param name="select">The attribute selection.</param>
-    public static void Set(Activity activity, bool consistentRead, string? projectionExpression, string? indexName, int? limit, Select select)
+    public static void Set(Activity activity, bool consistentRead, string? projectionExpression, string? indexName, int? limit, SelectKind select)
     {
         SetProjection(activity, consistentRead, projectionExpression);
         if (indexName is not null)

@@ -50,7 +50,7 @@ public partial record Customer
 
 | Namespace | Holds |
 |---|---|
-| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
+| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types and not written by hand: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
@@ -126,6 +126,7 @@ Index<Item> byStatusMixed = shop.Index<Order>(Order.Indexes.StatusIndex);   // n
 `Of<T>()` and `client.Table<T>()` require an entity, not a keyless document. Opening a table makes no request. `DescribeAsync(ct)` and
 `WaitUntilActiveAsync(timeout, ct)` cover the two administrative calls a table user makes; the timeout defaults to 5 minutes. A response without a description gives one with the name of the table and `TableStatus.Unknown`, which a wait does not take for active.
 A wait returns when the table and all its global secondary indexes are `ACTIVE`, because a table reads `ACTIVE` while an index backfills, on `Table<T>` and `CreateTableCommand`. A backfill takes as long as the table is large, so it needs a longer timeout than the default.
+It also needs every global index that the entities declare to be listed, because an index `UpdateTable` just added may not be listed yet: the entity of a `Table<T>`, and on `CreateTableCommand` what `Including<T>` added too. Until then it keeps polling, and at the timeout the exception names the index and its message says that it was not listed. A local index needs no wait, and a table opened without an entity declares nothing. So `IfNotExists().WaitUntilActive()` over an old table without a declared index times out instead of returning.
 There is no wait for one index. A wait that runs out throws `TableNotActiveException`, which is section 15.
 
 `Index<T>` has `Query` and `Scan`, so a write through an index does not compile. `orders.Index(name)` and `shop.Index<Order>(name)` throw `ArgumentException` for
@@ -137,13 +138,19 @@ For `[DynamoDbEntity]` and `[DynamoDbDocument]` types, which must be `partial`:
 
 | Member | Content |
 |---|---|
-| `T.Keys.Of(...)` | A `readonly struct PrimaryKey : IKey<T>` holding the placeholder values; costs no string, and checks no value: `Keys.Of("a#b")` returns, and `KeyFormatException` comes when the key is written, where `Format` and `T.Keys.Pk.Of(...)` throw at once. A key of another entity does not compile |
-| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per key. For a template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, when the last placeholder is a string `PrefixPartial`, and the conditions `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt` of section 6. For a plain key, or a template of one bare placeholder over the attribute of its property: `Of(value)`, with the type and the converter of the property, which gives a `PartitionKey<T>` on a partition key and the `AttributeValue` for a `SortKeyCondition` on a sort key, and `Format(value)` when the key is stored as a string. There is nothing to parse and no prefix. A sort key also has the conditions of section 6 that fit what it stores |
-| `T.Attrs.X` | A typed handle `Attr<TValue, TConverter>` per stored attribute, also on documents. `TValue` is the type without its `?`, which is what `Set` and the conditions take, and the handle of a nullable property says so in its converter: `Attr<int, OptionalConverter<int, NumberConverter<int>>>`, and `Attr<string, OptionalReferenceConverter<string, StringConverter>>` for a reference type. `internal` unless the property, its type and its converters are public. An attribute name holding `.` or `[` and a `[KeyOnly]` property have none |
+| `T.Keys.Of(...)` | A `readonly struct PrimaryKey : IKey<T>` holding the placeholder values, which costs no string until it is written. It checks the values at the call, as `Format` and `T.Keys.Pk.Of(...)` do, so `Keys.Of("a#b")` throws `KeyFormatException`, and `T.Keys.TryOf(..., out key)` returns `false` for the same values. A key of another entity does not compile |
+| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per key. For a template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`, and `TryOf` with those and `out` the key; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, when the last placeholder is a string `PrefixPartial`, and the conditions `Eq`, `Between`, `Range`, `Ge`, `Gt`, `Le` and `Lt` of section 6. For a plain key, or a template of one bare placeholder over the attribute of its property: `Of(value)`, with the type and the converter of the property, which gives a `PartitionKey<T>` on a partition key and the `AttributeValue` for a `SortKeyCondition` on a sort key, and `Format(value)` when the key is stored as a string. There is nothing to parse and no prefix. A sort key also has the conditions of section 6 that fit what it stores |
+| `T.Attrs.X` | A typed handle `Attr<TValue, TConverter>` per stored attribute, also on documents. `TValue` is the type without its `?`, which is what `Set` and the conditions take, and the handle of a nullable property says so in its converter: `Attr<int, NullableHandleConverter<int, NumberConverter<int>>>`, and `Attr<string, NullableReferenceHandleConverter<string, StringConverter>>` for a reference type. `internal` unless the property, its type and its converters are public. An attribute name holding `.` or `[` and a `[KeyOnly]` property have none |
 | `T.Indexes.X` | A `const string` per index, on an entity with an index: `orders-by_date` gives `OrdersByDate`, `GSI1` gives `Gsi1` |
 
 `Order.Keys.Pk.Of(userId)` returns a `PartitionKey<Order>`, a readonly struct over the key as it is stored, one type for every key builder of an entity. A key of a template, and a plain string, cost nothing beyond what `Format` costs; a plain number or binary key goes through its converter once. It has no implicit conversion to `AttributeValue`,
 because that would bring the mistake back that it rules out; `.Value` is the explicit way out, and the key as text, which is the digits of a number and the base64 of binary. `Order.Keys.Sk.BeginsWith()` and `BeginsWith(leading...)` return a `SortKeyCondition`.
+
+`TryOf` is there for a value from outside, which would otherwise take a catch. `false` is what `Of` throws `KeyFormatException` for, no more and no less, because both run one piece of generated code over one `KeyWriter`, which is told not to throw. Nothing is thrown and caught on the way: `Keys.Pk.TryOf` costs what `Keys.Pk.Of` costs, the string of the key when it fits and nothing when it does not, and `Keys.TryOf` costs no string. On `false` the key is `default`. It exists where a value can be turned away. A key of literals has nothing to check. A plain key has no template, so nothing throws `KeyFormatException`, and an empty string there is DynamoDB's to reject. `Guid`, `DateOnly` and `DateTimeOffset` fit every template, so a key of those alone has none, and `Keys.TryOf` of an entity with a key of each kind checks the keys that can fail. The rule is by encoding and not by template: a plain number counts, although only a delimiter next to it can reject it, as does `d3` over a `byte`. When a placeholder is called `Key`, the `out` parameter is `key_`.
+
+The check of `Keys.Of` renders the key into a stack buffer and drops it, so it allocates nothing, a value longer than the buffer borrows from the pool as a write does, and a command renders the key again when it writes it. A key that cannot fail skips the check. `default(PrimaryKey)` has seen no `Of`, so it throws when it is written.
+
+A value that holds the delimiter of its template throws `KeyFormatException`, unless the placeholder has the format `raw`: with `[PartitionKey("appointment#{Key:raw}", AttributeName = "Id")]`, `Keys.Pk.Format("a#b")` is `appointment#a#b`, and `Parse` gives `a#b` back. A raw value ends only where the key ends, so `raw` goes on a `string` placeholder that is the last thing in the template, and anything else does not compile (`DYNA118`, `DYNA104`). Only the delimiter check goes. What else a string may not be it may not be here, so a value that is empty, not well-formed, or holds a control character or U+10FFFF throws, and `Parse` does not accept such text. `Format`, `Parse`, `TryParse`, `PrefixPartial`, `Eq`, the ranges and a read that restores a key input work as they do for a string that ends the key, and the prefixes before it end on their delimiters as ever. A value without a delimiter gives the bytes it gives without `raw`, so taking `raw` off or putting it on moves no stored key. The format is per template, so a `{Key}` of the same property in an index still rejects what `{Key:raw}` of the table key takes, and a `Put` of such a value throws.
 
 `Keys`, `Attrs` and `Indexes` are reserved member names on every mapped type (`DYNA014`). A type with the name of a class generated into it is
 `DYNA025`. A string before a delimiter in a sort key is `DYNA115` at severity `Info`: the ordering caveat is real but rare, and a warning would fail a
@@ -152,19 +159,39 @@ warnings-as-errors build on a hierarchical key. Attributes:
 | Attribute | On | Meaning |
 |---|---|---|
 | `[DynamoDbEntity]`, `[DynamoDbDocument]` | type | A type with keys, a nested type without |
-| `[PartitionKey]`, `[SortKey]` | type with a template, property for a plain key | `AttributeName` overrides the name. Defaults are `pk` and `sk`; a plain key keeps the attribute of its property |
+| `[PartitionKey]`, `[SortKey]` | type with a template, property for a plain key | `AttributeName` overrides the name. Defaults are `pk` and `sk`; a plain key is the attribute of its property, so `Naming` of `[assembly: DynamoDbDefaults]` converts it |
 | `[GlobalIndexKey(name)]` | type | `PartitionKey`, `SortKey`, `Sparse`, `PartitionKeyAttributeName`, `SortKeyAttributeName` |
 | `[LocalIndexKey(name, sortKey)]` | type | `Sparse`, `SortKeyAttributeName` |
-| `[Discriminator("X")]` | type | Required on an entity. `AttributeName` overrides `_type`; `OptOut = true` is for tables written by other tools, and keeps the type out of mixed reads |
+| `[Discriminator("X")]` | type | Required on an entity, unless `NoDiscriminator` of `[assembly: DynamoDbDefaults]` opts out for it. `AttributeName` overrides `_type`; `OptOut = true` is for tables written by other tools, and keeps the type out of mixed reads |
 | `[Version]` | property | Section 8 |
 | `[KeyOnly]` | property | Stored only in a key, restored by parsing it, so a key must hold it without loss |
-| `[DynamoDbAttribute(name)]` | property | Renames, and stores a computed property, which is then written and never read |
+| `[DynamoDbAttribute(name)]` | property | Renames, whatever `Naming` says, and stores a computed property, which is then written and never read |
+| `[ComputedFrom(names)]` | computed property | Names the stored properties the getter reads, which lets it feed an index template, section 8 |
 | `[DynamoDbIgnore]` | property | Not mapped |
-| `[OmitEmpty]` | `string?` property, entity or document type | An empty string counts as null, section 7. On a type it covers the `string?` properties of that type that feed no key, and a nested type has its own. On a property that is no `string?`, or that feeds a key, it is `DYNA030` |
-| `[DynamoDbConverter(type)]` | property, type | First in converter selection |
+| `[OmitEmpty]` | property, entity or document type | An empty string, list, set, dictionary or array counts as null, section 7, nullable or not. On a type it covers those properties of that type that feed no key, and a nested type has its own. `[OmitEmpty(false)]` takes it back. On a property of another type, that feeds a key, or that a read cannot do without, it is `DYNA030` |
+| `[DynamoDbConverter(type)]` | property, type | First in converter selection, the property before the type |
 | `[DynamoDbConstructor]` | constructor | Chooses the constructor reads use |
+| `[assembly: DynamoDbDefaults(...)]` | assembly | What a project says once: `Naming`, `NoDiscriminator`, `OmitEmpty`, below |
+| `[assembly: DynamoDbDefaultConverter(type, converter)]` | assembly | Once per type. Third in converter selection, after `[DynamoDbConverter]` on the property and on the type, before the built-ins, below |
 
 The default names are frozen: `pk`, `sk`, `<index>pk` and `<index>sk`, with the name of the index in lower case, and `_type`. They are in the data of every table a default wrote, so a new default would leave those items behind with no error, and an `AttributeName` is the only way to another name.
+
+Real services repeat attributes that are the same on every type, so an assembly says them once. They hold for the types the assembly declares, nested ones too, and an analyzer that meets a type from metadata reads the defaults of the assembly of that type:
+
+```csharp
+[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, NoDiscriminator = true, OmitEmpty = true)]
+[assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(StoredTimestampConverter))]
+```
+
+| Default | Meaning |
+|---|---|
+| `Naming` | `AttributeNaming.AsDeclared`, the default, `CamelCase` or `SnakeCase`, by the rules of `JsonNamingPolicy.CamelCase` and `JsonNamingPolicy.SnakeCaseLower`, for every attribute that derives from a property, on entities and on documents. `[DynamoDbAttribute]` and `AttributeName` win. Two properties that collide after the conversion are `DYNA004` |
+| `NoDiscriminator` | An entity without `[Discriminator]` behaves as `[Discriminator(OptOut = true)]`, and `DYNA020` does not fire. `[Discriminator("X")]` still wins |
+| `OmitEmpty` | Every property `[OmitEmpty]` is valid on behaves as marked, except what feeds a key and what a read cannot do without, which stay written and report nothing. `[OmitEmpty(false)]` takes it back for a property or a type |
+
+The frozen names derive from no property, so `Naming` does not touch them. A plain key is not on that list: its attribute derives from its property, so `[PartitionKey] public string UserId` is `user_id` under `SnakeCase`, and a table that has another key takes `AttributeName`, because DynamoDB cannot rename a key. A template of one bare placeholder is the attribute of its property only if its `AttributeName` is the converted name. Changing `Naming` renames stored attributes: items written before keep the old names, and a read takes the new ones for missing, which is no error unless the property is `required`.
+
+A default converter is first found after what the property and the type of the value say, for the type itself, its nullable form and elements of lists, dictionaries and arrays. An element of a set needs an `IDynamoDbSetElementConverter<T>`, or the set is `DYNA003`. In a key it does what `[DynamoDbConverter]` on the property does: a plain key goes through it and takes any type, so `DYNA017` does not apply, and a placeholder of a template keeps its format, so a template of a type without one is `DYNA103`. A `[Version]` keeps the built-in converter, because an update adds to it. A converter that does not fit is `DYNA008`, and two defaults for one type, a nullable type and an open generic type are `DYNA029`.
 
 TTL is `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. There is no `[TimeToLive]`.
 
@@ -175,6 +202,12 @@ restored from the key it feeds when that format is lossless, which is what an it
 
 Custom converters implement `IDynamoDbConverter<T>` with static members on a struct or class. A converter of a number or set implements
 `IAddableConverter` to allow a typed `Add`. A converter of a set answers `TryReadMissing` with an empty set, because an empty set is a missing attribute in DynamoDB and `Select` throws for it otherwise. That member is infrastructure, but it stays visible for this one case, unlike the members section 1 hides.
+
+A converter that implements `CountsAsMissing(in DynamoDbReader reader, AttributeType type)` says that a stored value counts as if the attribute were not in the item: the mirror of `IsOmitted` for a read, for a lenient enum or a blank string as null. `Read` stays what it is, strict, because a list has positions, so such a converter looks at the value twice, first here and then in `Read`, and only on a property whose converter answers. The default answers false, and the generated read of any other property holds no question. `[DynamoDbConverter]` and `[DynamoDbDefaultConverter]` work alike here, and `[OmitEmpty]` passes the question on: it has no answer of its own, so a stored `""` still reads as `""`.
+
+As if the attribute were not in the item means what a read does for that: a property keeps its initial value, a nullable one too, so an initializer on a `Payload?` stays and only one without gives null. A `required` member throws `DynamoDbMappingException`, and an input of a key that holds it is restored from the key. A `{"NULL":true}` on a nullable property reads as null without asking. An element of a list, a map or a set is not asked, and neither is a plain key, whose initial value would be another item, nor `Keys.X.Parse` or an `Item`.
+
+A read asks first and then skips or reads, so a converter does not consume the value. The reader comes by `in`, on the value, and the getters work on it. A call that moves a reader moves a copy that the compiler makes for that call, and passing it on by `ref` or assigning to it does not compile, so nothing a converter does there moves what the read goes on with. To look inside a list or a map it copies the reader once, `var map = reader;`, and walks the copy, which is less than 200 bytes on the stack and no allocation.
 
 ## 5. Commands
 
@@ -204,14 +237,14 @@ Their type parameter has `allows ref struct`, so a generic helper costs no box. 
 |---|---|
 | `GetCommand<T>` | `SendAsync`, `ItemAsync`, `ToRequestJson` |
 | `PutCommand<T>`, `UpdateCommand<T>`, `DeleteCommand<T>`, `ReturnCommand<,>` | `SendAsync`, `ToRequestJson` |
-| `QueryCommand<T>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
-| `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
+| `QueryCommand<T>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
+| `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `GetSelectCommand<,>` | `SendAsync`, `ToRequestJson` |
-| `QuerySelectCommand<,>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PagesAsync`, `ToRequestJson` |
-| `ScanSelectCommand<,>` | `ItemsAsync`, `PageAsync(after, ct)`, `PagesAsync`, `ToRequestJson` |
+| `QuerySelectCommand<,>` | `ValuesAsync`, `ValueAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
+| `ScanSelectCommand<,>` | `ValuesAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
 | `ParallelScanCommand<T>` | `ItemsAsync` |
-| `FanOutQueryCommand<T>` | `ItemsAsync`, `PageAsync(pageSize, after, ct)`, `CountAsync`, `ToRequestJson` |
-| `MixedQueryCommand<...>`, `MixedScanCommand<...>` | `ItemsAsync`, `PageAsync`, `PagesAsync`, `ToRequestJson` |
+| `FanOutQueryCommand<T>` | `ItemsAsync`, `PageAsync(pageSize, after, ct)`, `PageAsync(pageSize, ct)`, `CountAsync`, `ToRequestJson` |
+| `MixedQueryCommand<...>`, `MixedScanCommand<...>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
 | `BatchGetCommand<T>`, `BatchWriteCommand<T>`, `TransactGetCommand`, a transaction chain | `SendAsync`, `ToRequestJson` |
 
 Every async terminal takes a `CancellationToken`. `await command` is `SendAsync()` for the commands that have `SendAsync`; the awaiter is hidden
@@ -273,6 +306,7 @@ Fan-out, mixed reads and scans have no `ItemAsync`.
 
 ```csharp
 invoices.Query(pk, Invoice.Keys.Sk.Between(from, to));        // [SortKey("INVOICE#{IssuedAt}#{Id}")]: from the first key at from to the last key at to
+invoices.Query(pk, Invoice.Keys.Sk.Range(from, to));          // [from, to): the same, without the keys at to
 invoices.Query(pk, Invoice.Keys.Sk.Ge(from));                 // from then on, and what else sorts after that
 invoices.Query(pk, Invoice.Keys.Sk.Eq(issuedAt, id));         // that one key
 stock.Query(pk, Stock.Keys.Sk.Between("books", 10, 99));      // [SortKey("{Shelf}#{Row:d3}#{Id}")]: the rows of one shelf
@@ -284,6 +318,7 @@ The builder of a sort key writes a condition from placeholder values, so nobody 
 |---|---|---|
 | `Eq(all placeholders)` | `= Format(...)` | The same |
 | `Between(leading..., from, to)` | `BETWEEN Prefix(leading..., from) AND UpperBound(leading..., to)` | `BETWEEN Format(leading..., from) AND Format(leading..., to)` |
+| `Range(leading..., from, to)` | `BETWEEN Prefix(leading..., from) AND Prefix(leading..., to)` | None |
 | `Ge(x...)` | `>= Prefix(x...)` | `>= Format(x...)` |
 | `Gt(x...)` | `> UpperBound(x...)` | `> Format(x...)` |
 | `Le(x...)` | `<= UpperBound(x...)` | `<= Format(x...)` |
@@ -291,19 +326,20 @@ The builder of a sort key writes a condition from placeholder values, so nobody 
 
 Bounds are whole fields, and a field that a bucket format truncates compares as its bucket: `Gt` of a day leaves out that whole day. A key that ends in a placeholder has no prefix at that depth, because no delimiter ends the last field, so the complete key is both bounds. An upper bound would be wrong there for a string: `Gt("a")` has to keep `ab`, which sorts above `a` and below `a` plus U+10FFFF. `Between("a", "m")` takes whole values, so `ma` stays out, which is the difference to `PrefixPartial`. A value that cannot be part of a key throws `KeyFormatException`, as `Format` does, and DynamoDB rejects a `from` above `to` with a `ValidationException`.
 
-`Between` varies the last placeholder alone and keeps the ones before it equal, because that is the range that holds for every template: all keys between two bounds with a common start have that start. Both ends are included, so on a key that goes on behind the field it includes all of `to`, and a range that ends before `to` is `SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))`. A range across two whole tuples can be written by hand from `Prefix` and `UpperBound`. `Ge`, `Gt`, `Le` and `Lt` take the tuple and compare in the order of the key. They have one end, which a key condition cannot change, so they go on past the template: `Ge(at)` also reaches `PROFILE` above `INVOICE#`, which a typed read filters away after reading it and `Table<Item>` returns, and `Ge(year, month)` goes on through the years after that one.
+`Between` varies the last placeholder alone and keeps the ones before it equal, because that is the range that holds for every template: all keys between two bounds with a common start have that start. Both ends are included, so on a key that goes on behind the field it includes all of `to`. `Range` is the same range without `to`, for a read of `[from, to)`, and it comes with the same leading fields. `BETWEEN` includes its bounds there too, and what leaves `to` out is what is stored: every key at `to` goes on behind the prefix, so it sorts above that bound, and no key is the prefix itself, since no value is empty. So a `Range` of a bucket format stops before that whole bucket, `Range(to, to)` reads nothing, and `from` above `to` is the `ValidationException` of `Between`. A range across two whole tuples can be written by hand from `Prefix` and `UpperBound`. `Ge`, `Gt`, `Le` and `Lt` take the tuple and compare in the order of the key. They have one end, which a key condition cannot change, so they go on past the template: `Ge(at)` also reaches `PROFILE` above `INVOICE#`, which a typed read filters away after reading it and `Table<Item>` returns, and `Ge(year, month)` goes on through the years after that one.
 
 What cannot be correct is not generated, so it does not compile.
 
 - No range without a value. `Ge()` of a prefix alone asks for what lies outside the template. `BeginsWith()` is how to read all of it, and a template of literals has `Eq()`.
 - No range ends on a field whose bytes do not follow its value: plain digits, where `10` sorts before `9`, a plain decimal, an enum by name, a custom type.
-- A string is in order at the end of the key and before a space. Before any other delimiter a value such as `a b` sorts below `a` (`DYNA115`), so no range ends on such a field and no open range passes one. `{Shelf}#{Row:d3}#{Id}` has `Between(shelf, from, to)` and no `Ge(shelf, row)`, and no range of shelves.
+- No `Range` where nothing goes on behind the field, because a bound would be a key that `BETWEEN` takes. A key that ends in the placeholder has no prefix there, and in `{Day:d3}#` the prefix of a day is the whole key. `{Day:d3}#end` goes on, and has it. It is not generated where `Between` is not, so a plain key has none.
+- A string is in order at the end of the key and before a space. Before any other delimiter a value such as `a b` sorts below `a` (`DYNA115`), so no range ends on such a field and no open range passes one. `{Shelf}#{Row:d3}#{Id}` has `Between(shelf, from, to)` and no `Ge(shelf, row)`, and no range of shelves. A raw value always ends the key, so it is in order, delimiters and all, and `DYNA115` has nothing to say about it.
 
 A plain sort key is compared as it is stored, so each condition is `SortKeyCondition` over `Of`. A number, binary, `string`, `Guid`, `DateTimeOffset`, `DateTime`, `DateOnly` and `TimeOnly`, whose stored form is in the order of the value, have all of `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt`. A `TimeSpan`, an enum and a custom converter have `Eq` alone, and a `string` also has `BeginsWith(prefix)`.
 
 A condition of constant text or of a plain string allocates nothing. One that formats a value costs its strings, as `BeginsWith(value)` does, because a key condition holds text.
 
-`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `SortKeyCondition` offers only what a key
+`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `PageAsync(ct)` is the first page without a `default` in front of the token, and its token has no default, so `PageAsync()` stays the overload with the position. `SortKeyCondition` offers only what a key
 condition allows: `Eq`, `Lt`, `Le`, `Gt`, `Ge`, `Between`, `BeginsWith`. `CountAsync` is `Select: COUNT` summed over pages, and throws
 `InvalidOperationException` with a projection. `Parallel(segments)` returns `ParallelScanCommand<T>`, whose only terminal is `ItemsAsync`, because a merged
 page has no single key; concurrency is the segment count, and paging across requests goes through `Segment(n, of: m)`.
@@ -321,8 +357,8 @@ SelectResult<decimal> total = await orders.Get(key).Consistent().Select(Order.At
 decimal value = total.Found ? total.Value : 0m;                                                      // no item is no error
 SelectResult<string?> email = await customers.Get(Customer.Keys.Of("alice")).Select(Customer.Attrs.Email);    // null for an item without it
 
-await foreach (decimal amount in orders.Query(pk).Filter(Order.Attrs.Status.Eq(OrderStatus.Open)).Limit(25).Select(Order.Attrs.Total).ItemsAsync(ct)) { }
-SelectResult<decimal> newest = await orders.Query(pk).Descending().Limit(1).Select(Order.Attrs.Total).ItemAsync(ct);
+await foreach (decimal amount in orders.Query(pk).Filter(Order.Attrs.Status.Eq(OrderStatus.Open)).Limit(25).Select(Order.Attrs.Total).ValuesAsync(ct)) { }
+SelectResult<decimal> newest = await orders.Query(pk).Descending().Limit(1).Select(Order.Attrs.Total).ValueAsync(ct);
 Page<decimal> totals = await orders.Scan().Select(Order.Attrs.Total).PageAsync(after, ct);
 ```
 
@@ -331,17 +367,17 @@ chain: the commands it returns have terminals and no clause, so a `Project` afte
 A `Project` before it throws `InvalidOperationException`, because it would ask for what is not read. It is not on a fan-out, a mixed read or `BatchGet`, and more than one handle is a later step.
 
 The value follows the handle. `TValue` is the type of the property, so `Order.Attrs.Total` gives a `decimal`, and `Customer.Attrs.Email` of a `string?` a `string?`. A missing attribute gives null for a nullable handle and an empty set for a set, because DynamoDB has none and a read of the entity gives that too, and throws
-`DynamoDbMappingException` for any other, never a default: a read of the entity leaves a property that is not `required` at its initial value, so an `int` without its attribute is 0 there and throws here, and `DYNA209` reports that for a `[Version]`. A stored `{"NULL":true}` reads as null on a nullable handle and throws on another, and a value the converter cannot read throws, naming the attribute.
+`DynamoDbMappingException` for any other, never a default: a read of the entity leaves a property that is not `required` at its initial value, so an `int` without its attribute is 0 there and throws here, and `DYNA209` reports that for a `[Version]`. A version with `VersionMissing.Allow` gives 0, because that is what such an item means, see section 8. A stored `{"NULL":true}` reads as null on a nullable handle and throws on another, and a value the converter cannot read throws, naming the attribute. A value the converter counts as missing, section 4, reads as missing: null for a nullable handle, also where a read of the entity keeps an initializer, what the converter answers in `TryReadMissing`, and otherwise a throw that `DYNA209` reports. `Return(attr)` throws for it, as it does for a missing attribute, because it never gives a default.
 
-`SelectResult<TValue>` is what `SendAsync` on a get and `ItemAsync` on a query give. `Found` says that there is an item and `Value` holds the attribute, and it has the shape of `GetResult<T>` but for that one word: `GetResult<T>.Found` says that `Item` is not null, which an attribute cannot promise, and `Value` throws `InvalidOperationException` for no item, because a 0 would read like one.
-So a nullable handle tells no item, an item without the attribute and a value apart, and a handle that cannot be null has no item and a value, also for an `int`. A scan has no `ItemAsync`, as everywhere.
+`SelectResult<TValue>` is what `SendAsync` on a get and `ValueAsync` on a query give. `Found` says that there is an item and `Value` holds the attribute, and it has the shape of `GetResult<T>` but for that one word: `GetResult<T>.Found` says that `Item` is not null, which an attribute cannot promise, and `Value` throws `InvalidOperationException` for no item, because a 0 would read like one.
+So a nullable handle tells no item, an item without the attribute and a value apart, and a handle that cannot be null has no item and a value, also for an `int`. A scan has no `ValueAsync`, as it has no `ItemAsync` anywhere.
 
 A read of a table with several entities keeps its behaviour, and `ToRequestJson()` shows how. A `Get` projects the discriminator beside the attribute, and an item of another type throws `DynamoDbMappingException` as `orders.Get(key).ItemAsync()` does, in the same words. A `Query` and a `Scan` keep their filter on the discriminator, which keeps other items away, so nothing but the
 attribute comes back. A query keyed by the discriminator has no such filter, so it projects the discriminator and checks each item. Without a key in the response, `DynamoDbMappingException.Key` of a `Query` or `Scan` is null.
 
 The handle decides what can be read, and it goes through the converter of the property, with `[DynamoDbConverter]` and `[OmitEmpty]` as they are: a stored `""` reads as `""`, and an attribute that a write left out as null. A nested path `Order.Attrs.ShipTo.At(Address.Attrs.City)` reads through the maps, and its last handle decides: a `City` that cannot be null
 throws for an item without `ShipTo`, even if `ShipTo` is nullable. A path with a list index throws `ArgumentException`, because DynamoDB returns a shortened list, in which its position is not known. A `[KeyOnly]` property has no attribute and no handle, so it does not compile. A stored input of a key of the table has both, but an item an `Update` created holds only the key: a read of the entity restores the
-input from the key, `Select` does not, and throws, which `DYNA209` reports. Reading through the key would take the parser of the template at run time, which only the generated read has, for a value the caller usually holds: it is part of the key.
+input from the key, `Select` does not, and throws, which `DYNA209` reports. An update with `StoreKeyInputs()` stores it. Reading through the key would take the parser of the template at run time, which only the generated read has, for a value the caller usually holds: it is part of the key.
 
 `ContinuationToken` is a position: `default` is the start, `Parse` and `TryParse` take what `ToString()` gave, and null or `""` give the
 default, so the first request of a client needs no check, and a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
@@ -381,6 +417,7 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 | `ReturnNew()` | Update: `ALL_NEW` in `Item` |
 | `Return(attr)` | Update: `UPDATED_NEW` of one attribute. Returns `ReturnCommand<,>`, which only sends, and `SendAsync` gives the value. A missing attribute throws `DynamoDbMappingException`, never a default |
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, or through `ItemFor` in a transaction |
+| `StoreKeyInputs()` | Update of an entity and `UpdateStep`: stores the inputs of the key of the table as attributes, section 8. On a `Table<Item>` it does not compile, and on a step of one it throws `InvalidOperationException` |
 
 `WriteResult<T>` has `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`.
 
@@ -393,11 +430,12 @@ that `Set` when there is a value, with the rules of section 8, and with null it 
 does not compile, and a null of a reference type is a nullable warning and an `ArgumentNullException`. `Set`, `Add` and `Delete` by raw path and by handle both exist; a raw path is the escape
 hatch for attributes outside the entity, and the checks of section 8 do not apply to it.
 
-With `[OmitEmpty]` an empty string is written like null: `Put`, a `With` by handle and `Item.From` leave it out, `Set` by handle is a `Remove`, `SetIfNotNull` adds nothing, and `SetIfNotExists` by handle rejects it with an
-`ArgumentException`, the base of what null gets. A stored `""` still reads as `""`, and a raw path writes what it is given. The handle says so in its converter, `Attr<string, OptionalReferenceConverter<string, OmitEmptyConverter<StringConverter>>>`, so a nested path keeps it, and a
-type without the attribute generates what it did. Project-wide defaults come later and set the same thing.
+With `[OmitEmpty]` an empty string or collection is written like null: `Put`, a batch, a transaction, a `With` by handle and `Item.From` leave it out, `Set` by handle is a `Remove`, `SetIfNotNull` adds nothing, and `SetIfNotExists` by handle rejects it with an
+`ArgumentException`, the base of what null gets. A stored `""` or `[]` still reads as it is, and a raw path writes what it is given. A missing attribute reads as a missing attribute always does: null for a nullable property, an empty set for a set, and otherwise the initial value, so a list that starts filled comes back filled. A `required` property that is neither nullable nor a set, and a constructor parameter of that kind without a default, could not be read back: `DYNA030` on the property, and a type or the assembly default passes over it, as over a key input. `Select` of a property that is not nullable throws for a missing attribute, `DYNA209`, unless it is a set.
 
-`IDynamoDbConverter<T>.IsOmitted` is the same question, by value, for a converter of your own, such as one that stores a list as a set, which DynamoDB refuses to hold empty. All the writes above ask it, and a value it counts as null goes the way an empty string goes with `[OmitEmpty]`: `Put`, `Item.From`, a batch, a transaction and a nested document leave it out, and so do the paths by handle. The generated writer holds the call only for a `[DynamoDbConverter]`, on the property or on its type, that implements `IsOmitted`, so a built-in converter and any other pays nothing. A property that feeds a key is always written, and an element of a list or a map as well. Beside `[OmitEmpty]`, what either counts as null goes. A read does not ask: the attribute is missing, so the property keeps its initial value, and a `required` one throws.
+The handle says so in its converter, `Attr<string, NullableReferenceHandleConverter<string, OmitEmptyConverter<StringConverter>>>` for a `string?`, `OmitEmptyCollectionConverter<T, TElement, TConverter>` for a collection, and `OmitEmptySetConverter<T, TElement, TConverter>` for one that `Add` takes, so a nested path keeps it, and a type without the attribute generates what it did.
+
+`IDynamoDbConverter<T>.IsOmitted` is the same question, by value, for a converter of your own, such as one that stores a list as a set, which DynamoDB refuses to hold empty. All the writes above ask it, and a value it counts as null goes the way an empty string goes with `[OmitEmpty]`: `Put`, `Item.From`, a batch, a transaction and a nested document leave it out, and so do the paths by handle. The generated writer holds the call only for a `[DynamoDbConverter]`, on the property or on its type, or a `[DynamoDbDefaultConverter]`, that implements `IsOmitted`, so a built-in converter and any other pays nothing. A property that feeds a key is always written, and an element of a list or a map as well. Beside `[OmitEmpty]`, what either counts as null goes. A read does not ask: the attribute is missing, so the property keeps its initial value, and a `required` one throws.
 
 ## 8. What a write of an entity enforces
 
@@ -405,7 +443,7 @@ type without the attribute generates what it did. Project-wide defaults come lat
 
 | Write | Rule |
 |---|---|
-| `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `Put(entity with a version above 0).IgnoreVersion()` takes such an item over; at 0 the item would read as 0 and fail the next write. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `[Version(Missing = VersionMissing.Allow)]` is the answer for a table that keeps such items, see below; for one item, `Put(entity with a version above 0).IgnoreVersion()` takes it over, and at 0 the item would read as 0 and fail the next write. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
 | `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
 | `Put(entity).IfNotExists()` | Legal at version 0, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called. `DYNA206` reports that where a build can see the version |
 | `Put(entity).IfExists()`, `Update(key).IfVersion(0).IfExists()`, `Delete(entity).IfExists()` | Legal above 0. At version 0 the terminal throws `InvalidOperationException` naming the entity, in either order, also on a transaction step and `ConditionStep`, because version 0 means that no item has the key, unless `.IgnoreVersion()` was called, which lifts this where it lifts the row above. Both conditions would otherwise go out and fail at DynamoDB every time |
@@ -415,6 +453,18 @@ type without the attribute generates what it did. Project-wide defaults come lat
 | Transaction steps | The same rules: `IfVersion` on `UpdateStep` and `ConditionStep`, `IgnoreVersion` on all three steps |
 | `BatchWrite` | A batch cannot carry a condition, so a put or delete of a versioned entity throws at the terminal unless `.IgnoreVersion()` was called on the batch |
 | `Put(entity).IgnoreVersion()` | Stores the entity as it is, with no condition and no bump, for imports and migrations |
+
+**`VersionMissing`.** `[Version(Missing = VersionMissing.Allow)]` is for a table that keeps items without the attribute, which read as version 0, or items that hold 0, which the first `SaveAsync` of the AWS SDK stores and which read the same. `Reject`, the default, is what the table above says. `DynamoDbEntityInfo.VersionMissing` carries it.
+
+| With `Allow` | Rule |
+|---|---|
+| Every version 0: `Put`, `IfVersion(0)`, `Delete(entity)`, transaction steps | `(attribute_not_exists(<version attribute>) OR <version attribute> = :v)` with 0 as the value, instead of the partition key, because both kinds of item read as 0. So the first write replaces such an item and stores version 1, a second write at 0 fails, and a write at 0 no longer proves that the key was free |
+| `IfNotExists()` at 0 | `attribute_not_exists(<partition key>)` alone and once, in either order and on `Unique` too, because the caller asked for that |
+| `IfExists()` at 0 | No longer throws, because an existing item that reads as 0 is possible, and renders `attribute_exists(<partition key>) AND (attribute_not_exists(<version attribute>) OR <version attribute> = :v)`, in either order |
+| A read | Gives 0 for an item without the attribute, also for a `required` version and a parameter of a constructor without a default, because a read that threw could not reach the item |
+| `Select(Attrs.Version)` | Gives 0 as well: the handle has a generated converter that answers `TryReadMissing`, is still a number for `Add`, and `DYNA209` passes over it |
+
+The condition of `IfVersion(0)` waits for the terminal, because `IfNotExists` can still replace it, so it stands after the other conditions of the chain. A version above 0 behaves as without `Allow`.
 
 `IgnoreVersion()` after `IfVersion(n)` throws, because the condition cannot be taken out of the expressions; `IfVersion(n)` after `IgnoreVersion()` wins.
 A failed condition is the ordinary `ConditionalCheckFailedException`. No retry and no read happens implicitly. The check runs in the terminal and costs an
@@ -430,15 +480,22 @@ the terminal, and raw paths are not checked.
 | Lacks an input that it cannot set | `InvalidOperationException` naming the template and what is missing, and pointing at a `Put` of the changed entity or a raw path |
 | Touches an input of a key of the table | `InvalidOperationException`: DynamoDB cannot update a key |
 | Changes an input by `Add` or `SetIfNotExists` | `InvalidOperationException`: the value is not known here |
+| Changes by handle what a computed input is derived from: `Set`, `SetIfNotNull` with a value, `Remove`, `Add`, `Delete` or `SetIfNotExists`, also of a path inside it such as `Attrs.Message.At(Msg.Attrs.Arrival)` | `InvalidOperationException` naming the property, the computed input and the template, and pointing at a `Put` of the changed entity or a raw path, because no update can run a getter. In a key of the table it is the row above that |
+| Writes by handle a computed input with `[ComputedFrom]` that has an attribute of its own | The same, because the key would follow the update and not the getter, and the next `Put` would move it |
 | Removes an input of a sparse index | Removes the derived attributes, unless another index still holds the item |
 | Removes an input of an index that is not sparse | `InvalidOperationException` |
 | Sets one key of a sparse index and does not produce the other | `InvalidOperationException` naming the other key, because the item would silently stay out of the index |
+| `StoreKeyInputs()` | Ends the `SET` with `#attr = if_not_exists(#attr, :v)` per input of a key of the table with an attribute of its own, after the actions and the derived keys and before keys of literals and the discriminator |
 
 An input of the table key is known from the key the update was given, so an index key that mixes it with a property that changes follows that property, and an index key made only of such inputs counts as
 produced: it is written in the same `SET` when the update writes the other key of its index. A generated key gives the value. A key given as strings goes through the generated parser, which gives it back
 unless the format of the key loses what the index key wants, such as a timestamp a table key cuts off at the day. A sparse index that needs such a value then throws, an index that is not sparse keeps
 the key a `Put` wrote, and an entity like that holds its generated key per update, for one box. The read happens only for an update that writes such a key, so any other costs nothing.
 An index with only such keys is not written by an update that does not touch it: such an item enters it by `Put`.
+
+Typed updates write no input of a key of the table unless `StoreKeyInputs()` asks, so an item an update created holds the key and not the attributes. With the clause it holds what a `Put` writes: `:v` is the value as the converter of the property writes it, never the text of the key, so `EpochSecondsConverter` gives a number and a binary converter a binary, and `IsOmitted` is not asked, because a key input is always written. The value comes from the key the update was given: a generated key holds it, and a key given as strings goes through the generated parser. A plain key, a template of one placeholder over the attribute of its property and a `[KeyOnly]` input store nothing, so an entity with nothing else gets a body that is the same with and without the clause. A value that no key of the table holds whole, such as a timestamp in `{At:yyyy-MM-dd}`, comes from a generated key alone: with strings the terminal throws `InvalidOperationException` naming the property and the template, also when an index repeats the format, which is enough for its key and not for the attribute. A key that does not fit its template throws too. An action of the update on the attribute by a raw path takes precedence, as for the discriminator, and by a handle it is the row above. An item that exists keeps what it has, so the clause goes with `IfExists()`, `IfNotExists()`, `IfVersion` and `IgnoreVersion`. It costs an `AttributeValue` per input, and a value of a generated key its box. An update without it pays nothing: the state keeps a generated key in a holder it fills again, for an entity that may need it.
+
+A computed property is an input like any other to `Put`, `Item.From`, a batch and a transaction put, which run the getter, to the builders in `Keys`, and to a sparse index, which a nullable one gates. A read leaves it alone. Only an update differs, because it has no instance: an input with `[ComputedFrom]` has no value there, so a template with one is a template whose input it cannot set, unless it touches nothing of it. `SetIfNotNull` of null adds nothing and counts as untouched. A raw path is not checked, so `.Set("message", value)` goes out and the index keeps the key it had. The list has properties of the same type with an attribute of their own, one level only: no computed property, no `[DynamoDbIgnore]`, no `[KeyOnly]`, and no `[Version]`, which an update moves without a handle. One of them may feed another key.
 
 **Literal keys.** A key that holds only literals counts as produced, on every index. When an update writes one key of an index, a sibling made only of literals is written in the same `SET`, so
 `PartitionKey = "ALL"` can be entered by `Update`. A `Remove` that takes the item out of a sparse index removes it too. An update that does not touch such an index adds nothing to it, unless all its
@@ -623,8 +680,9 @@ knows has its class, in `DynaSharp`, and any other is a plain `DynamoDbException
 | A typed key built from bad input | `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value |
 | A rejected request of a command | `ValidationException`, with `Expressions`, `ExpressionNames` (`#n0 = status`) and `ExpressionValueTypes` (`:v0` is `S`), and one line in `Message`: `Expression: #n0 = :v0, where #n0 = status, :v0 (S)`. Values are not attached. Inside a transaction or a batch get the entries have a prefix such as `TransactItems[2].` |
 | An item that does not fit the type | `DynamoDbMappingException` with `EntityType`, `AttributeName` and `Key`, also for an item of another type; the discriminator value is named, because it is a type tag. A stored key that does not fit its template says so, with no value. `Key` holds the key attributes of the table for the item that failed, on `Get`, `Query`, `Scan`, fan-out, `BatchGet` and mixed reads, and neither the message nor telemetry show it. `Select` on a `Query` or `Scan` brings no key back, so `Key` is null there |
+| A failed condition | `ConditionalCheckFailedException`, with `Item`, the item the condition saw, when `ReturnOldOnFailure()` asked for it, and `Key`, whatever was asked. `Key` is the key of the item as the request named it, with stored values such as `USER#alice`, read from the body that was sent on the failure path alone: `Key` of `Update` and `Delete`, the key attributes of `Item` of `Put`, `request.Key` of `UpdateItemAsync` and `DeleteItemAsync`. It is null on `PutItemAsync`, which has no key names, on `SendRawAsync`, in a transaction, where `ItemFor` is that, and on an exception that did not come from a response. `T.Keys.Pk.Parse(key.GetString("pk"))` gives the inputs of a key of a template back. Neither the message, `ToString()`, logs nor telemetry show it |
 | A transaction | Section 11. `ConditionalCheckFailed` and `ValidationError` do not pass on a retry, `TransactionConflict` and `Throttled` may |
-| A wait for a table that runs out | `TableNotActiveException`, sealed, in `DynaSharp`, a `TimeoutException` with `TableName`, `LastStatus` (`TableStatus?`, null when the last look did not find the table, and then `InnerException` is the `ResourceNotFoundException`) and `PendingIndex` (`string?`, the index that was not active, which the message names too). A `catch (TimeoutException)` keeps working, and `AttemptTimeout` on a poll still gives the plain type |
+| A wait for a table that runs out | `TableNotActiveException`, sealed, in `DynaSharp`, a `TimeoutException` with `TableName`, `LastStatus` (`TableStatus?`, null when the last look did not find the table, and then `InnerException` is the `ResourceNotFoundException`) and `PendingIndex` (`string?`, the index that was not active or, of those declared, not listed, which the message names too). A `catch (TimeoutException)` keeps working, and `AttemptTimeout` on a poll still gives the plain type |
 
 Compile errors stand in for what would otherwise be a `ValidationException`, a mapping failure or an empty result: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on
 `Table<Item>` only, steps have their own clauses, `Return(attr)` and `Select(handle)` end the chain, `SortKeyCondition` has only legal operators, `Of<T>()` takes entities, `Parallel()`
@@ -639,8 +697,8 @@ no consumer, by scope.
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,
 `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` and `StaticCredentialsProvider` are the single sources. `WebIdentityCredentialsProvider` takes its settings from
-`AWS_WEB_IDENTITY_TOKEN_FILE`, `AWS_ROLE_ARN` and `AWS_ROLE_SESSION_NAME`, or as `new WebIdentityCredentialsProvider(tokenFile, roleArn, region, roleSessionName)`. The profile keys
-`web_identity_token_file` and `role_arn` are not read, and a profile that has them fails. The token goes to the regional STS endpoint of the client's region, and `AWS_STS_REGIONAL_ENDPOINTS=legacy` selects the global endpoint for the regions botocore keeps there. `AWS_ENDPOINT_URL_STS`, then `AWS_ENDPOINT_URL`, go ahead of both, in the order of botocore and with the rules of the row of `ServiceUrl`, and then no region is needed. A loopback endpoint goes past the default proxy. Its requests do not go through `HttpHandler`.
+`AWS_WEB_IDENTITY_TOKEN_FILE`, `AWS_ROLE_ARN` and `AWS_ROLE_SESSION_NAME`, or as `new WebIdentityCredentialsProvider(tokenFile, roleArn, region, roleSessionName)`, or `new WebIdentityCredentialsProvider(tokenFile, roleArn, stsEndpoint, roleSessionName)`. The profile keys
+`web_identity_token_file` and `role_arn` are not read, and a profile that has them fails. The token goes to the regional STS endpoint of the client's region, and `AWS_STS_REGIONAL_ENDPOINTS=legacy` selects the global endpoint for the regions botocore keeps there. `AWS_ENDPOINT_URL_STS`, then `AWS_ENDPOINT_URL`, go ahead of both, in the order of botocore and with the rules of the row of `ServiceUrl`, and then no region is needed. `stsEndpoint` goes ahead of them all, by the same rules, an `ArgumentException` otherwise: explicit settings replace the environment, so that constructor reads no variable, whereas the variables still win over the region of the other one. A loopback endpoint goes past the default proxy. Its requests do not go through `HttpHandler`.
 
 Out of the API on purpose: an interface on `Table<T>` or `DynamoDbClient`, `Save`, identity maps, lazy loading, any read before a write, `ToRequest()` on an item command, `==` on
 attributes, views and streaming callbacks over a response, compile-time expression templates. A write through `Table<Item>` is what it says: no `_type` and no
@@ -648,25 +706,54 @@ key check.
 
 ## 16. DynaSharp.Testing
 
-The wire is the seam, and it serves every API. A test hands the client a `StubHandler` and `MaxAttempts = 1`, queues responses and asserts on `stub.Requests`.
+The wire is the seam, and it serves every API. A test hands a client a `StubHandler`, queues responses and asserts on `stub.Requests`. `StubClient.Create` makes that client, and `StubClient.CreateStreams` the one of DynamoDB Streams: the fixed region `us-east-1`, static fake credentials, `MaxAttempts = 1` and no attempt timeout, with nothing read from the environment or the shared AWS files. The second argument adjusts the options the way a variation of them is written, and the client validates the result.
 
 ```csharp
-var stub = new StubHandler();
+using var stub = new StubHandler();
+using var client = StubClient.Create(stub);
 stub.Enqueue(StubResponse.Item(customer));
-using var client = new DynamoDbClient(options with { HttpHandler = stub, MaxAttempts = 1 });
+
+using var retrying = StubClient.Create(stub, options => options with { MaxAttempts = 4, TimeProvider = clock });
 ```
+
+There is no attempt timeout because `AttemptTimeout` runs on `TimeProvider`, so a fake clock that a test moves would time out the request it is answering. A test of a timeout sets one.
 
 | Type | Members |
 |---|---|
 | `StubHandler` | `Enqueue`, `DefaultResponse`, `RecordRequests`, `Requests`; a constructor taking a responder |
-| `StubResponse` | Results: `Item`, `Items`, `Attributes`, `BatchItems`, `Unprocessed`. Failures: `ConditionalCheckFailed`, `TransactionCanceled`, `DynamoDbError`. Parts: `Keys`, `KeyOf`, `Put`, `Delete`, `Reason`, `ConditionalCheckFailedReason`. Anything else: `Json` |
-| `RecordedRequest` | `Operation`, `Headers`, `Method`, `RequestUri`, `Body`, `BodyText`, `BodyJson`, `ReadItem()`, `ReadItem<T>()`, `ReadKey()`, `ReadKey<T>()` |
+| `StubClient` | `Create`, `CreateStreams` |
+| `StubResponse` | Results: `Item`, `Items`, `Count`, `Attributes`, `BatchItems`, `Unprocessed`. Tables: `Table`, `Table<T>`, `TableCreated`, `TableDeleted`, `TimeToLive`, `TimeToLiveUpdated`. Streams: `StreamDescription`, `ShardIterator`, `Records`. Failures: `ConditionalCheckFailed`, `TransactionCanceled`, `ResourceNotFound`, `ResourceInUse`, `DynamoDbError`. Parts: `Keys`, `KeyOf`, `Put`, `Delete`, `Reason`, `ConditionalCheckFailedReason`, `GlobalIndex`, `Shard`, `Inserted`, `Modified`, `Removed`, `Change`. Anything else: `Json` |
+| `RecordedRequest` | `Operation`, `Headers`, `Method`, `RequestUri`, `Body`, `BodyText`, `BodyJson`, `ReadItem()`, `ReadItem<T>()`, `ReadKey()`, `ReadKey<T>()`, `ConditionText`, `UpdateText`, `KeyConditionText`, `FilterText`, `ProjectionText`, `TransactItems` |
+| `RecordedTransactStep` | `Kind` (a `TransactStepKind`: `Put`, `Update`, `Delete`, `ConditionCheck`, `Get`, `Unknown`), `TableName`, `ReadItem()`, `ReadItem<T>()`, `ReadKey()`, `ReadKey<T>()`, `ConditionText`, `UpdateText`, `ProjectionText` |
 | `RecordingHandler` | A `DelegatingHandler` that records `Exchanges` of a real client: `Request`, `Response`, `Error` |
+| `StubSts` | `IDisposable`. `Endpoint`, `Enqueue`, `DefaultResponse`, `Requests` |
+| `StubStsResponse` | `Credentials`, `Error`. Anything else: `StatusCode` and `Body` |
+| `RecordedStsRequest` | `Action`, `RoleArn`, `RoleSessionName`, `WebIdentityToken`, `Form`, `Headers` |
 
-The helpers go through `WriteAttributes`, so they cannot drift from the codec. `ToRequestJson()` is the second seam: what a chain would send, without a client. The credentials are not behind this seam, see `HttpHandler` in section 2, so such a test also sets `Credentials`.
+The helpers go through `WriteAttributes`, so they cannot drift from the codec, and `Items` takes entities as well as an `Item`. `ToRequestJson()` is the second seam: what a chain would send, without a client. The credentials are not behind this seam, see `HttpHandler` in section 2, so a test that does not use `StubClient` also sets `Credentials`.
+
+**Answers of administration and streams.** A body holds what DynamoDB sends and stays within the service model. `Table(name, status, indexes)` is a table on demand with the string key `pk`, and `GlobalIndex(name, status)` an index with one key attribute named after it. `Table<T>(name, status)` has the keys, types and local indexes of the entity and every global index it declares as active, built as `CreateTable()` builds them, so a wait for the declared indexes ends on it. It lists one entity: a table of several takes the indexes by name. `TableCreated` defaults to `CREATING`, and `TableDeleted` holds what the API reference shows for `DeleteTable`, without keys and indexes. `Count(count, scannedCount)` has no `Items` and takes a last evaluated key as `Items` does. `Records(nextShardIterator, ...)` numbers the records of a page that carry no `EventId` or `SequenceNumber`, and `null` for the iterator ends a closed shard. Values a test does not state are fixed, so an answer does not depend on the clock: the region of `StubClient`, the account `123456789012`, the time 2026-01-01.
+
+**Text of a recorded expression.** Each text is the expression with its placeholders resolved from the maps next to it, or `null` if the request has no such expression. One pass reads each placeholder to its end, so `:v1` is no prefix of `:v10`, and what was put in is not read again. Keywords, functions and spacing stay as sent, and a placeholder the maps lack stays as it is, which is the mistake a test should see. A name stands as it is, in a document path too, and in backticks if it holds a dot or a bracket: `` `a.b` `` is one attribute and `a.b` a path. A value reads in the notation of PartiQL with double quotes, from its wire form:
+
+| Wire | Text |
+|---|---|
+| `{"S":"Placed"}` | `"Placed"`, with the escapes of JSON |
+| `{"N":"3.10"}` | `3.10` |
+| `{"BOOL":true}`, `{"NULL":true}` | `true`, `null` |
+| `{"B":"aGk="}` | `b"aGk="` |
+| `{"L":[{"S":"a"},{"N":"1"}]}` | `["a", 1]` |
+| `{"M":{"k":{"N":"1"}}}` | `{"k": 1}` |
+| `{"SS":["a","b"]}`, `{"NS":["1"]}`, `{"BS":["aA=="]}` | `<<"a", "b">>`, `<<1>>`, `<<b"aA==">>` |
+
+`TransactItems` reads `TransactWriteItems` and `TransactGetItems` step by step, empty for any other request, and each step resolves with its own maps. `BatchWriteItem` stays with `BodyJson`.
+
+A test of the way a pod gets its credentials has `StubSts`, which stands in for STS. Since a provider has its own HTTP client, it is a server and not a handler: HTTP/1.1 on `127.0.0.1` and a free port, listening from the constructor to `Dispose`, with one port per instance and no call to a network. It answers `AssumeRoleWithWebIdentity` with the next queued response, else `DefaultResponse`, else 400 with the code `StubStsNoResponse`, which the provider puts in its `CredentialsUnavailableException`. `StubStsResponse.Credentials` is the sample of the AWS documentation with the given values, with `AssumedRoleUser` derived from the role and session of the request, and `Error` has the status botocore's model gives the code, 400 for one it does not list. There are two ways to it. `new WebIdentityCredentialsProvider(tokenFile, roleArn, sts.Endpoint)` reads no variable, so the test runs in parallel with any other. Or a test sets `AWS_ENDPOINT_URL_STS` to `sts.Endpoint` itself, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and goes through the default chain as a pod does; that test is the one that must not run in parallel. The stub never touches the process environment or the disk: the token file is the test's to write.
 
 ## Table administration and conflicts
 
-`orders.CreateTable().Including<Customer>().SendAsync(ct)` creates a table from what the entities declare: one entity cannot describe a single-table schema, so the table's indexes are the union over the entities named. Two entities that give an attribute two types throw at `Including`. `Provisioned(read, write)`, `WaitUntilActive()` and `IfNotExists()` shape it, and `ToRequest()` hands over a `CreateTableRequest` for what it does not cover, such as streams. A custom converter on a plain key counts as a string unless it implements `IAddableConverter`. `IfNotExists()` does not compare schemas, and a table that is `DELETING` is no success: the `ResourceInUseException` surfaces, with and without a wait. When `DescribeTable` finds no table, which is a delete that just ended or a table another process just created, the command creates again, up to 5 times over 1.5 seconds, and the exception surfaces only if that settles nothing. `DeleteTableAsync` deletes all items and does not wait. `IfNotExists()` finds out by trying: `CreateTable` goes out on every call, so the role needs `dynamodb:CreateTable`, a failed call shows in CloudTrail and in error metrics, and with `WaitUntilActive()` an existing table is described twice.
+`orders.CreateTable().Including<Customer>().SendAsync(ct)` creates a table from what the entities declare: one entity cannot describe a single-table schema, so the table's indexes are the union over the entities named. Two entities that give an attribute two types throw at `Including`. `Provisioned(read, write)`, `Stream(view)`, `TimeToLive(attribute)`, `WaitUntilActive()` and `IfNotExists()` shape it, and `ToRequest()` hands over a `CreateTableRequest` for what it does not cover, such as tags. A custom converter on a plain key counts as a string unless it implements `IAddableConverter`. `IfNotExists()` describes first: a table `DescribeTable` finds that is not `DELETING` ends the command there, with no `CreateTable`, so an existing table takes `dynamodb:DescribeTable` alone and leaves no failed call in CloudTrail, and with `WaitUntilActive()` a first look that shows the table and its indexes active needs no other. A missing or `DELETING` table goes on to `CreateTable`, so creating takes both permissions, and an error of the first look other than a missing table surfaces. `IfNotExists()` does not compare schemas, and a table that is `DELETING` is no success: the `ResourceInUseException` surfaces, with and without a wait. When `CreateTable` says `ResourceInUseException` and `DescribeTable` then finds no table, which is a delete that just ended or a table another process just created, the command creates again, up to 5 times over 1.5 seconds, and the exception surfaces only if that settles nothing. `DeleteTableAsync` deletes all items and does not wait.
 
-`client.RetryOnConflictAsync(ct => ..., ct)` runs a delegate again on `ConditionalCheckFailedException`, `TransactionConflictException`, and a cancelled transaction with those reasons, up to 5 runs by default, with a small jitter through the client's `TimeProvider`. Nothing else retries a conflict. The delegate must read again, or the retry changes nothing. A conditional write whose response is lost fails its own pipeline retry, and the helper then applies the change again: `.MaxAttempts(1)` on the write avoids that. Follow-up writes stay outside the delegate: a retry inside it multiplies the runs, and one that gave up counts as a conflict of the outer one. What surfaces after the last run is the exception of that run, and a `ConditionalCheckFailedException` names no key.
+`Stream(view)` goes into the request, so `ToRequest()` shows it, and it applies to a table this command creates: the stream of an existing table stays untouched under `IfNotExists()`. A value that is no view throws at the clause. `TimeToLive(attributeName)`, and `TimeToLive(Attr)`, which a generated handle converts to and which refuses a nested path, ensures time to live, after the create or after finding the table, and it is not in `ToRequest()`, because `CreateTable` does not take it. It needs an active table, so it implies the wait, with the default timeout unless `WaitUntilActive(timeout)` gave another, and a declared index that is missing times it out as it does any wait. Then `DescribeTimeToLive`: `ENABLED` or `ENABLING` on that attribute ends it, and anything else sends `UpdateTimeToLive`. A `ValidationException` of that call, which is what a second instance gets when the first one won, looks again: time to live now on for that attribute is success, and otherwise it rethrows, which is how time to live on another attribute surfaces. It takes `dynamodb:DescribeTimeToLive`, `dynamodb:UpdateTimeToLive` when it is not on yet, and `dynamodb:DescribeTable` for the wait.
+
+`client.RetryOnConflictAsync(ct => ..., ct)`, and `orders.RetryOnConflictAsync(ct => ..., ct)` for code that holds a table and no client, with the same four overloads and the same loop, runs a delegate again on `ConditionalCheckFailedException`, `TransactionConflictException`, and a cancelled transaction with those reasons, up to 5 runs by default, with a small jitter through the client's `TimeProvider`. Nothing else retries a conflict. The delegate must read again, or the retry changes nothing. A conditional write whose response is lost fails its own pipeline retry, and the helper then applies the change again: `.MaxAttempts(1)` on the write avoids that. Follow-up writes stay outside the delegate: a retry inside it multiplies the runs, and one that gave up counts as a conflict of the outer one. What surfaces after the last run is the exception of that run, so a `ConditionalCheckFailedException` holds the `Key` of the write of that run, see section 15.

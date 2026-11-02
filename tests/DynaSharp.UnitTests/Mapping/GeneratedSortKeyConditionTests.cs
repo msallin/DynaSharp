@@ -14,7 +14,7 @@ namespace DynaSharp.UnitTests.Mapping.KeyEntities;
 /// </summary>
 public sealed partial class GeneratedSortKeyConditionTests
 {
-    private static readonly string[] RangeNames = ["Between", "Ge", "Gt", "Le", "Lt"];
+    private static readonly string[] RangeNames = ["Between", "Range", "Ge", "Gt", "Le", "Lt"];
 
     private static readonly Guid First = new("00000000-0000-0000-0000-000000000000");
 
@@ -155,19 +155,102 @@ public sealed partial class GeneratedSortKeyConditionTests
     }
 
     [Test]
-    public async Task Between_OfThePrefixes_StopsBeforeTheKeysAtTheUpperBound()
+    public async Task Range_KeyThatGoesOnBehindTheField_StopsBeforeTheKeysAtTheUpperBound()
     {
-        // Arrange (what the docs of Between give for a range that ends before its upper bound, on a key that goes on behind the field)
+        // Arrange
         var day = DateOnly.FromDateTime(Noon.UtcDateTime);
         var from = Noon.AddHours(-1);
 
         // Act
-        var open = Render(SortKeyCondition.Between(LogLine.Keys.Sk.Prefix(day, from), LogLine.Keys.Sk.Prefix(day, Noon)));
+        var open = Render(LogLine.Keys.Sk.Range(day, from, Noon));
         var closed = Render(LogLine.Keys.Sk.Between(day, from, Noon));
 
         // Assert
-        var (atTheStart, atTheEnd) = (LogLine.Keys.Sk.Format(day, from, 7), LogLine.Keys.Sk.Format(day, Noon, 7));
+        var (atTheStart, atTheEnd) = (LogLine.Keys.Sk.Format(day, from, 0), LogLine.Keys.Sk.Format(day, Noon, 0));
         await Assert.That((open.Holds(atTheStart), open.Holds(atTheEnd), closed.Holds(atTheEnd))).IsEqualTo((true, false, true));
+    }
+
+    [Test]
+    public async Task Range_LeadingFieldAndBounds_IsBetweenThePrefixes()
+    {
+        // Arrange
+        var day = DateOnly.FromDateTime(Noon.UtcDateTime);
+        var expected = RenderRaw(SortKeyCondition.Between(LogLine.Keys.Sk.Prefix(day, Noon), LogLine.Keys.Sk.Prefix(day, Noon.AddHours(1))));
+
+        // Act
+        var condition = RenderRaw(LogLine.Keys.Sk.Range(day, Noon, Noon.AddHours(1)));
+
+        // Assert
+        await Assert.That(condition).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Range_RowsOfAQuery_AreThoseFromTheLowerBoundUpToTheUpperOne()
+    {
+        // Arrange (every key of a field, both ends of it, which is what would show a bound on the wrong side)
+        var keys = KeysOfSeats(1, 2, 3, 4);
+
+        // Act
+        var condition = Render(RawKeyed.Keys.BySeatSk.Range(2, 4));
+
+        // Assert
+        await Assert.That(keys.Where(key => condition.Holds(key))).IsEquivalentTo(KeysOfSeats(2, 3));
+    }
+
+    [Test]
+    public async Task Range_EqualBounds_TakesNoKey()
+    {
+        // Arrange
+        var key = RawKeyed.Keys.BySeatSk.Format(2, "x");
+
+        // Act
+        var condition = Render(RawKeyed.Keys.BySeatSk.Range(2, 2));
+
+        // Assert
+        await Assert.That(condition.Holds(key)).IsFalse();
+    }
+
+    [Test]
+    public async Task Range_StringBeforeASpace_StopsBeforeTheKeysOfTheUpperValue()
+    {
+        // Arrange
+        string[] keys = [Ranged.Keys.Sk.Format("a", 0), Ranged.Keys.Sk.Format("a!", 99), Ranged.Keys.Sk.Format("b", 0)];
+
+        // Act
+        var condition = Render(Ranged.Keys.Sk.Range("a", "b"));
+
+        // Assert
+        await Assert.That(keys.Where(key => condition.Holds(key))).IsEquivalentTo([Ranged.Keys.Sk.Format("a", 0), Ranged.Keys.Sk.Format("a!", 99)]);
+    }
+
+    [Test]
+    public async Task Range_PlaceholdersNamedLikeTheBounds_TakesEach()
+    {
+        // Arrange, Act
+        var condition = Render(Ranged.Keys.ByBoundsSk.Range(1, 3, 5));
+
+        // Assert
+        await Assert.That((condition.Holds("01#03#00"), condition.Holds("01#04#99"), condition.Holds("01#05#00"))).IsEqualTo((true, true, false));
+    }
+
+    [Test]
+    public async Task Range_InvalidBound_ThrowsAsTheKeyWould()
+    {
+        // Arrange, Act
+        var failure = await TestClient.CaptureAsync<KeyFormatException>(static () => Task.FromResult(Ranged.Keys.Sk.Range("a b", "c")));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("Name");
+    }
+
+    [Test]
+    public async Task Builders_KeyThatEndsInThePlaceholder_HaveNoRange()
+    {
+        // Arrange, Act (no delimiter ends the last field, so a prefix of a value would keep what continues it)
+        var names = typeof(Edge.Keys.Sk).GetMethods(BindingFlags.Public | BindingFlags.Static).Select(static method => method.Name);
+
+        // Assert
+        await Assert.That(names).DoesNotContain("Range");
     }
 
     [Test]
@@ -249,6 +332,48 @@ public sealed partial class GeneratedSortKeyConditionTests
             Edge.Keys.Sk.Le,
             Edge.Keys.Sk.Lt,
             Edge.Keys.Sk.Between);
+
+        // Assert
+        await Assert.That(wrong).IsEmpty();
+    }
+
+    [Test]
+    public async Task Ranges_RawValueAtTheEnd_FollowTheUtf8Bytes()
+    {
+        // Arrange (nothing comes behind a raw value, so its delimiters are characters like any other)
+        string[] targets = ["a", "a b", "a!", "a#", "a#b", "a#b#c", "aa", "b", "é", "～", "😀"];
+
+        // Act
+        var wrong = WrongRanges(
+            targets,
+            CompareUtf8,
+            static target => [RawKeyed.Keys.BySeatSk.Format(7, target)],
+            static target => RawKeyed.Keys.BySeatSk.Ge(7, target),
+            static target => RawKeyed.Keys.BySeatSk.Gt(7, target),
+            static target => RawKeyed.Keys.BySeatSk.Le(7, target),
+            static target => RawKeyed.Keys.BySeatSk.Lt(7, target),
+            static (from, to) => RawKeyed.Keys.BySeatSk.Between(7, from, to));
+
+        // Assert
+        await Assert.That(wrong).IsEmpty();
+    }
+
+    [Test]
+    public async Task Ranges_FixedWidthBeforeARawValue_TakeEveryValueOfTheField()
+    {
+        // Arrange (the upper bound of a field has to stay above what a raw value can hold, delimiters and all)
+        int[] seats = [1, 2, 3];
+
+        // Act
+        var wrong = WrongRanges(
+            seats,
+            Comparer<int>.Default.Compare,
+            static seat => [RawKeyed.Keys.BySeatSk.Format(seat, "!"), RawKeyed.Keys.BySeatSk.Format(seat, "#"), RawKeyed.Keys.BySeatSk.Format(seat, "z#z"), RawKeyed.Keys.BySeatSk.Format(seat, "\U0010FFFE")],
+            RawKeyed.Keys.BySeatSk.Ge,
+            RawKeyed.Keys.BySeatSk.Gt,
+            RawKeyed.Keys.BySeatSk.Le,
+            RawKeyed.Keys.BySeatSk.Lt,
+            RawKeyed.Keys.BySeatSk.Between);
 
         // Assert
         await Assert.That(wrong).IsEmpty();
@@ -630,6 +755,17 @@ public sealed partial class GeneratedSortKeyConditionTests
                 }
             }
         }
+    }
+
+    private static List<string> KeysOfSeats(params int[] seats)
+    {
+        var keys = new List<string>();
+        foreach (var seat in seats)
+        {
+            keys.AddRange([RawKeyed.Keys.BySeatSk.Format(seat, "!"), RawKeyed.Keys.BySeatSk.Format(seat, "#"), RawKeyed.Keys.BySeatSk.Format(seat, "z#z"), RawKeyed.Keys.BySeatSk.Format(seat, "\U0010FFFE")]);
+        }
+
+        return keys;
     }
 
     private static Rendered Render(SortKeyCondition condition)

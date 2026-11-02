@@ -192,6 +192,27 @@ public sealed class EntityKeyBuilderTests
     }
 
     [Test]
+    public async Task Build_ComputedFrom_GivesTheModelThePropertiesAndTheirAttributes()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "B#{Computed}")]
+            public partial class E
+            {
+                public string Id { get; set; } = "";
+                [DynamoDbAttribute("n")] public string Name { get; set; } = "";
+                [ComputedFrom(nameof(Id), nameof(Name))] public string Computed => Id + Name;
+            }
+            """;
+
+        // Act
+        var computed = Analysis.Model(Source, "global::Shop.E").Entity!.ComputedInputs[0];
+
+        // Assert
+        await Assert.That((computed.Property, string.Join(",", computed.Dependencies), string.Join(",", computed.DependencyAttributes))).IsEqualTo(("Computed", "Id,Name", "Id,n"));
+    }
+
+    [Test]
     public async Task Build_ComputedPlainKey_IsWrittenButNotRead()
     {
         // Arrange

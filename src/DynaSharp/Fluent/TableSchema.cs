@@ -35,6 +35,9 @@ internal sealed class TableSchema
         }
     }
 
+    /// <summary>Gets the global secondary indexes of the union, which a wait for the table waits for.</summary>
+    public IReadOnlyList<string> GlobalIndexNames => TableAdministration.GlobalIndexNames(_indexes.Select(static declared => declared.Index));
+
     /// <summary>Adds what an entity declares.</summary>
     /// <param name="entity">The entity, as a message names it.</param>
     /// <param name="info">What it declares.</param>
@@ -67,8 +70,9 @@ internal sealed class TableSchema
     /// <summary>Creates the request. Billing is on demand unless capacity is given, and a global index needs capacity of its own then, which a local index shares with the table.</summary>
     /// <param name="tableName">The table.</param>
     /// <param name="capacity">The capacity of the table and of each global index, if it has provisioned capacity.</param>
+    /// <param name="stream">The view of the stream of the table, if it has one.</param>
     /// <returns>The request.</returns>
-    public CreateTableRequest ToRequest(string tableName, ProvisionedThroughput? capacity)
+    public CreateTableRequest ToRequest(string tableName, ProvisionedThroughput? capacity, StreamViewType? stream)
     {
         var globals = new List<GlobalSecondaryIndex>();
         var locals = new List<LocalSecondaryIndex>();
@@ -93,6 +97,7 @@ internal sealed class TableSchema
             LocalSecondaryIndexes = locals,
             BillingMode = capacity is null ? BillingMode.PayPerRequest : BillingMode.Provisioned,
             ProvisionedThroughput = capacity,
+            StreamSpecification = stream is { } view ? new StreamSpecification { StreamEnabled = true, StreamViewType = view } : null,
         };
     }
 

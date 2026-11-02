@@ -64,7 +64,8 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     }
 
     /// <summary>
-    /// Deletes only if an item has this key (<c>attribute_exists</c> on the partition key), so that a missing item fails. Version 0, of an entity or of <c>IfVersion(0)</c>, says that no item has the key, so with it the
+    /// Deletes only if an item has this key (<c>attribute_exists</c> on the partition key), so that a missing item fails. With <see cref="VersionMissing.Allow"/>, version 0 asks for an item that reads as 0 besides.
+    /// Otherwise version 0, of an entity or of <c>IfVersion(0)</c>, says that no item has the key, so with it the
     /// terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of the entity back.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
@@ -127,7 +128,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     /// <summary>Sends the command. A retry repeats the delete, which is safe unless <see cref="ReturnOld"/> or a condition depends on the first one having failed.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, a delete by key of an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or version 0 stands beside <see cref="IfExists"/>.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, a delete by key of an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, or version 0 stands beside <see cref="IfExists"/> without <see cref="VersionMissing.Allow"/>.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ConditionalCheckFailedException">A condition did not hold, so nothing was deleted.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>

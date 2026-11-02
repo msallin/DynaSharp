@@ -56,9 +56,9 @@ public sealed class OmitEmptyAttributeTests
     }
 
     [Test]
-    public async Task ToRequestJson_PutOfAnEmptyStringThatIsNotNullable_WritesIt()
+    public async Task ToRequestJson_PutOfAnEmptyStringThatIsNotNullable_LeavesItOut()
     {
-        // Arrange (a type covers string?, and an attribute that is missing would fail a read of a string)
+        // Arrange (a read keeps the initial value of a string, so it needs no value)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
 
@@ -66,9 +66,59 @@ public sealed class OmitEmptyAttributeTests
         var json = client.Table<Card>("Shop").Put(new Card { Id = "c1", Motto = string.Empty }).ToRequestJson();
 
         // Assert
+        await Assert.That(json).DoesNotContain("Motto");
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutOfAPropertyThatTakesItBackFromTheType_WritesTheEmptyString()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Card>("Shop").Put(new Card { Id = "c1", Plain = string.Empty }).ToRequestJson();
+
+        // Assert
         await Assert.That(json).Contains("""
-            "Motto":{"S":""}
+            "Plain":{"S":""}
             """);
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutOfARequiredPropertyOnAType_WritesTheEmptyString()
+    {
+        // Arrange (a read throws without it, so a type passes over it as it passes over a key)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<CardNote>("Shop").Put(new CardNote { Id = "n1", Text = string.Empty }).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            "Text":{"S":""}
+            """);
+    }
+
+    [Test]
+    public async Task Enabled_NoArgument_IsTrue()
+    {
+        // Arrange, Act
+        var attribute = new OmitEmptyAttribute();
+
+        // Assert
+        await Assert.That(attribute.Enabled).IsTrue();
+    }
+
+    [Test]
+    public async Task Enabled_False_IsFalse()
+    {
+        // Arrange, Act
+        var attribute = new OmitEmptyAttribute(false);
+
+        // Assert
+        await Assert.That(attribute.Enabled).IsFalse();
     }
 
     [Test]
@@ -510,6 +560,6 @@ public sealed class OmitEmptyAttributeTests
         var pair = (withIt, withoutIt);
 
         // Assert
-        await Assert.That(pair).IsEqualTo((typeof(Attr<string, OptionalReferenceConverter<string, OmitEmptyConverter<StringConverter>>>), typeof(Attr<string, OptionalReferenceConverter<string, StringConverter>>)));
+        await Assert.That(pair).IsEqualTo((typeof(Attr<string, NullableReferenceHandleConverter<string, OmitEmptyConverter<StringConverter>>>), typeof(Attr<string, NullableReferenceHandleConverter<string, StringConverter>>)));
     }
 }

@@ -1,7 +1,7 @@
 namespace DynaSharp;
 
 /// <summary>
-/// A value cannot be part of a key: it is empty, contains a delimiter, a control character or U+10FFFF, is not well-formed text, or does not
+/// A value cannot be part of a key: it is empty, contains a delimiter that its format does not take, a control character or U+10FFFF, is not well-formed text, or does not
 /// fit its numeric or timestamp format. It is an <see cref="ArgumentException"/>, so a key built from user input fails as a bad argument.
 /// </summary>
 /// <remarks>

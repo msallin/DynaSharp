@@ -657,7 +657,7 @@ public sealed class SelectCommandTests
     }
 
     [Test]
-    public async Task ItemsAsync_Query_YieldsTheValuesOfAllPages()
+    public async Task ValuesAsync_Query_YieldsTheValuesOfAllPages()
     {
         // Arrange
         var responses = new Queue<string>(["""{"Items":[{"Count":{"N":"1"}}],"Count":1,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"a"}}}""", Items]);
@@ -665,21 +665,21 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ItemsAsync().ToListAsync();
+        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That(values).IsEquivalentTo([1, 1, 2]);
     }
 
     [Test]
-    public async Task ItemsAsync_NullableHandle_YieldsNullForAnItemWithoutTheAttribute()
+    public async Task ValuesAsync_NullableHandle_YieldsNullForAnItemWithoutTheAttribute()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"Total":{"N":"1"}},{}],"Count":2,"ScannedCount":2}"""));
         using var client = TestClient.Create(handler);
 
         // Act
-        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Total).ItemsAsync().ToListAsync();
+        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Total).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That(values).IsEquivalentTo([1L, (long?)null]);
@@ -730,7 +730,7 @@ public sealed class SelectCommandTests
     }
 
     [Test]
-    public async Task ItemAsync_Query_GoesThroughEmptyPagesToTheFirstValue()
+    public async Task ValueAsync_Query_GoesThroughEmptyPagesToTheFirstValue()
     {
         // Arrange
         var responses = new Queue<string>(["""{"Items":[],"Count":0,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"a"}}}""", Items]);
@@ -738,28 +738,28 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ItemAsync();
+        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValueAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value, handler.Requests.Count)).IsEqualTo((true, 1, 2));
     }
 
     [Test]
-    public async Task ItemAsync_NoMatch_IsNotFound()
+    public async Task ValueAsync_NoMatch_IsNotFound()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[],"Count":0,"ScannedCount":0}"""));
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ItemAsync();
+        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValueAsync();
 
         // Assert
         await Assert.That(result.Found).IsFalse();
     }
 
     [Test]
-    public async Task ItemsAsync_AttributeMissingOnAHandleThatCannotBeNull_Throws()
+    public async Task ValuesAsync_AttributeMissingOnAHandleThatCannotBeNull_Throws()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{}],"Count":1,"ScannedCount":1}"""));
@@ -767,14 +767,14 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Query("a").Select(Handles.Attrs.Count).ItemsAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Query("a").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
 
         // Assert
         await Assert.That((failure.AttributeName, failure.Key)).IsEqualTo(("Count", (Item?)null));
     }
 
     [Test]
-    public async Task ItemsAsync_IndexKeyedByTheDiscriminator_ThrowsForAnItemOfAnotherType()
+    public async Task ValuesAsync_IndexKeyedByTheDiscriminator_ThrowsForAnItemOfAnotherType()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"_type":{"S":"ORDER"},"Count":{"N":"1"}}],"Count":1,"ScannedCount":1}"""));
@@ -782,14 +782,14 @@ public sealed class SelectCommandTests
         var index = client.Table<Handles>("Shop").Index("ByType", "_type", "sk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await index.Query("ORDER").Select(Handles.Attrs.Count).ItemsAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await index.Query("ORDER").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure.Message).Contains("ORDER");
     }
 
     [Test]
-    public async Task ItemsAsync_Scan_YieldsTheValuesOfAllPages()
+    public async Task ValuesAsync_Scan_YieldsTheValuesOfAllPages()
     {
         // Arrange
         var responses = new Queue<string>(["""{"Items":[{"Count":{"N":"1"}}],"Count":1,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"a"}}}""", Items]);
@@ -797,7 +797,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var values = await client.Table<Handles>("Shop").Scan().Select(Handles.Attrs.Count).ItemsAsync().ToListAsync();
+        var values = await client.Table<Handles>("Shop").Scan().Select(Handles.Attrs.Count).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That(values).IsEquivalentTo([1, 1, 2]);
@@ -818,7 +818,7 @@ public sealed class SelectCommandTests
     }
 
     [Test]
-    public async Task ItemsAsync_ScanOfNullableHandles_YieldsNullForAnItemWithoutTheAttribute()
+    public async Task ValuesAsync_ScanOfNullableHandles_YieldsNullForAnItemWithoutTheAttribute()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"Total":{"N":"1"},"Nickname":{"S":"n"}},{}],"Count":2,"ScannedCount":2}"""));
@@ -826,8 +826,8 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var totals = await table.Scan().Select(Handles.Attrs.Total).ItemsAsync().ToListAsync();
-        var nicknames = await table.Scan().Select(Handles.Attrs.Nickname).ItemsAsync().ToListAsync();
+        var totals = await table.Scan().Select(Handles.Attrs.Total).ValuesAsync().ToListAsync();
+        var nicknames = await table.Scan().Select(Handles.Attrs.Nickname).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That((totals[0], totals[1], nicknames[0], nicknames[1])).IsEqualTo((1L, (long?)null, "n", (string?)null));

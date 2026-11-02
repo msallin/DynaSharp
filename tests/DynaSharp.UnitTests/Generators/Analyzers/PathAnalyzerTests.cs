@@ -224,6 +224,65 @@ public sealed class PathAnalyzerTests
     }
 
     [Test]
+    [Arguments("""update.Set([|"ShipTo"|], 1);""", "ShipTo")]
+    [Arguments("""orders.Scan().Project([|"Total"|]);""", "Total")]
+    public async Task Analyze_DeclaredNameUnderANaming_Warns(string statement, string path)
+    {
+        // Arrange (the attribute has another name now, so this looks for what is not there)
+        var source = Named(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA213 Warning: Path '{path}' matches no attribute of 'Order'. Check the spelling, unless the attribute is outside the entity."));
+    }
+
+    [Test]
+    [Arguments("""update.Set("ship_to", 1);""")]
+    [Arguments("""update.Set("ship_to.street", "x");""")]
+    [Arguments("""orders.Scan().Project("total");""")]
+    [Arguments("""update.Set("ttl", 1);""")]
+    [Arguments("""update.Set("pk", "x");""")]
+    public async Task Analyze_ConvertedNameUnderANaming_ReportsNothing(string statement)
+    {
+        // Arrange (a name of its own and a frozen name stay what they are)
+        var source = Named(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_DeclaredNameOfATypeFromMetadata_Warns()
+    {
+        // Arrange (the type was built with defaults of its own, and they are what its items hold, whatever this compilation says)
+        var source = Fixture("""guests.Scan().Project([|"GuestName"|]);""");
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA213 Warning: Path 'GuestName' matches no attribute of 'Guest'. Check the spelling, unless the attribute is outside the entity."));
+    }
+
+    [Test]
+    public async Task Analyze_ConvertedNameOfATypeFromMetadata_ReportsNothing()
+    {
+        // Arrange
+        var source = Fixture("""guests.Scan().Project("guest_name");""");
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task Analyze_DocumentWithoutTheAttribute_Warns()
     {
         // Arrange
@@ -324,4 +383,12 @@ public sealed class PathAnalyzerTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string Named(string statement) =>
+        AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }", Order)
+            .Replace("namespace Shop;", "[assembly: DynamoDbDefaults(Naming = AttributeNaming.SnakeCase)]\n\nnamespace Shop;", StringComparison.Ordinal);
+
+    private static string Fixture(string statement) =>
+        AnalyzerRun.Member("private static readonly Table<Guest> guests = null!;\npublic static void Run() { " + statement + " }")
+            .Replace("namespace Shop;", "using DynaSharp.DefaultsFixture;\n\nnamespace Shop;", StringComparison.Ordinal);
 }

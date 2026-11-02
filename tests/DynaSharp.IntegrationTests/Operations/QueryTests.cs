@@ -166,7 +166,7 @@ public sealed class QueryTests(Backend backend)
         await Items.PutSequenceAsync(sandbox.Client, table, "a", 4);
 
         // Act
-        var response = await sandbox.Client.QueryAsync(ByPartition(table, "a") with { Select = Select.Count });
+        var response = await sandbox.Client.QueryAsync(ByPartition(table, "a") with { Select = SelectKind.Count });
 
         // Assert
         await Assert.That((response.Items.Count, response.Count, response.ScannedCount)).IsEqualTo((0, 4, 4));

@@ -114,6 +114,16 @@ public sealed class MappingAttributesTests
     }
 
     [Test]
+    public async Task ComputedFromAttribute_Names_KeepsThem()
+    {
+        // Act
+        var attribute = new ComputedFromAttribute("Arrival", "Slot");
+
+        // Assert
+        await Assert.That(attribute.Properties).IsEquivalentTo(["Arrival", "Slot"]);
+    }
+
+    [Test]
     public async Task MarkerAttributes_Constructed_AreAttributes()
     {
         // Arrange, Act

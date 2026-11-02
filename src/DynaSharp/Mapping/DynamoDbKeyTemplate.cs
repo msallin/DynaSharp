@@ -35,14 +35,14 @@ public sealed class DynamoDbKeyTemplate(string attributeName, string text, bool 
     public Func<object?[], string>? Format { get; } = format;
 
     /// <summary>
-    /// Gets what reads the values of <see cref="Inputs"/> from a key of the table, for an update that writes an index key made of them. It gives <see langword="null"/> for a key that does not fit,
-    /// and a <see langword="null"/> value for an input that the text does not give back. <see langword="null"/> for a key whose inputs no index uses.
+    /// Gets what reads the values of <see cref="Inputs"/> from a key of the table, for an update that writes an index key made of them or stores them. It gives <see langword="null"/> for a key that does not fit,
+    /// and a <see langword="null"/> value for an input that the text does not give back. <see langword="null"/> for a key whose inputs no index uses and none of which has an attribute of its own.
     /// </summary>
     public Func<AttributeValue, object?[]?>? Parse { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether an index wants more of an input than <see cref="Parse"/> can give, such as a timestamp that this key holds to the day. An update through a generated key
-    /// then holds that key, see <see cref="IKey.ValueOf"/>.
+    /// Gets a value indicating whether an index, or a store of the inputs, wants more of an input than the keys of the table give back, such as a timestamp that this key holds to the day. An update through a
+    /// generated key then holds that key, see <see cref="IKey.ValueOf"/>.
     /// </summary>
     public bool LosesValues { get; init; }
 }

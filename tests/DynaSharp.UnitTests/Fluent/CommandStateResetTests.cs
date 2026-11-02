@@ -26,6 +26,7 @@ public sealed class CommandStateResetTests
     {
         ["CommandState._core"] = "The client the state goes back to, which never changes.",
         ["CommandState._version"] = "It only ever grows, so that a handle from before the release no longer matches.",
+        ["CommandState._keyHolder"] = "Capacity: a holder that the next update of that key fills again, and Release takes the key out of it.",
         ["CommandState.<Pool>k__BackingField"] = "The pool of the client, which never changes.",
         ["ExpressionWriter._nameSlices"] = "Capacity: offsets, of which only those below the count are read.",
         ["ExpressionWriter._valueSlices"] = "Capacity: offsets, of which only those below the count are read.",
@@ -42,6 +43,7 @@ public sealed class CommandStateResetTests
         [typeof(string)] = "left over",
         [typeof(ArraySegment<byte>)] = new ArraySegment<byte>([1]),
         [typeof(Action<DynamoDbWriter, object>)] = new Action<DynamoDbWriter, object>(static (_, _) => { }),
+        [typeof(HeldKey)] = new TypedHeldKey<MeterDay.Keys.PrimaryKey>(),
     };
 
     [Test]
@@ -76,6 +78,23 @@ public sealed class CommandStateResetTests
 
         // Assert
         await Assert.That((ReferenceEquals(reused, state), LeftOver(fresh, reused))).IsEqualTo((true, string.Empty));
+    }
+
+    [Test]
+    public async Task Release_HeldKey_TakesTheKeyOutOfTheHolderThatStays()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var state = client.Core.RentCommand();
+        state.HoldKey(MeterDay.Keys.Of("m1", DateTimeOffset.UnixEpoch, 1));
+        var holder = state.HeldKey!;
+
+        // Act
+        state.Release(state.Version);
+
+        // Assert
+        await Assert.That((state.HeldKey, holder.ValueOf("Meter"))).IsEqualTo((null, null));
     }
 
     [Test]

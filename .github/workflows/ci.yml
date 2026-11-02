@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   # For the mutation job, see there. The other jobs run on this event too.
   workflow_dispatch:
 

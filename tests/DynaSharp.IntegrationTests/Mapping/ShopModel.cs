@@ -151,6 +151,23 @@ public partial record Ticket
     public long Revision { get; init; }
 }
 
+/// <summary>An entity of a table that keeps items written before it had a version.</summary>
+[DynamoDbEntity]
+[Discriminator("HEIRLOOM")]
+[PartitionKey("HEIRLOOM#{Id}")]
+[SortKey("HEIRLOOM")]
+public partial record Heirloom
+{
+    public required string Id { get; init; }
+
+    public string? Note { get; init; }
+
+    public string? Room { get; init; }
+
+    [Version(Missing = VersionMissing.Allow)]
+    public long Revision { get; init; }
+}
+
 /// <summary>A note whose empty strings go like null, on the type and on the document nested in it.</summary>
 [DynamoDbEntity]
 [Discriminator("MEMO")]
@@ -162,6 +179,16 @@ public partial record Memo
     public required string Id { get; init; }
 
     public string? Text { get; init; }
+
+    public string Title { get; init; } = "untitled";
+
+    public List<string> Lines { get; init; } = [];
+
+    public HashSet<string> Labels { get; init; } = [];
+
+    public Dictionary<string, int> Counts { get; init; } = [];
+
+    public string[] Names { get; init; } = [];
 
     public MemoPlace? Place { get; init; }
 }

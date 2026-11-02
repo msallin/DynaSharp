@@ -58,6 +58,14 @@ public static class Code
 
     public static void Dyna216() => Orders.Update("a").If($"contains({Order.Attrs.Total}, {1})");
 
+    public static Task Dyna217(DynamoDbClient client) => client.RetryOnConflictAsync(ct => new ValueTask<int>(client.RetryOnConflictAsync(_ => new ValueTask<int>(1), ct)));
+
+    public static async Task Dyna218(DynamoDbClient client)
+    {
+        var order = await Orders.Get(Order.Keys.Of("a")).Consistent().ItemAsync();
+        await client.RetryOnConflictAsync(async ct => await Orders.Put(order!).SendAsync(ct));
+    }
+
     private static readonly Table<Order> Orders = null!;
 
     private static readonly Table<Invoice> Invoices = null!;

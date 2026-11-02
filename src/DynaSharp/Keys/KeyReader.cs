@@ -20,7 +20,7 @@ namespace DynaSharp.Keys;
 /// <para>
 /// A variable-width segment ends at the first byte of <c>delimiters</c> or at the end of the text. The segment before a
 /// literal therefore stops at the literal, and a delimiter inside a segment makes the next literal read fail. Pass the same
-/// delimiters as to <see cref="KeyWriter"/>.
+/// delimiters as to <see cref="KeyWriter"/>, so an empty span for format <c>raw</c>, whose segment is the rest of the text.
 /// </para>
 /// <para>Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package.</para>
 /// </remarks>

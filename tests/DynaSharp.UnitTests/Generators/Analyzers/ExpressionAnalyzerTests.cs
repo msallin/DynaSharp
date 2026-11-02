@@ -46,6 +46,9 @@ public sealed class ExpressionAnalyzerTests
 
             [DynamoDbConverter(typeof(RightsAsText))]
             public Rights Stored { get; init; }
+
+            [Version(Missing = VersionMissing.Allow)]
+            public long Revision { get; init; }
         }
 
         public static class Own
@@ -468,8 +471,8 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""Update("a").If($"contains({[|Attr<int>("n")|]}, {"1"})");""", "contains")]
     [Arguments("""Update("a").If($"NOT contains( {[|new Attr<bool, BoolConverter>("n")|]}, {"1"})");""", "contains")]
     [Arguments("""Scan().Filter($"begins_with({[|new Attr<DateTimeOffset, EpochSecondsConverter>("n")|]}, {"1"})");""", "begins_with")]
-    [Arguments("""Update("a").If($"contains({[|new Attr<int, OptionalConverter<int, NumberConverter<int>>>("n")|]}, {"1"})");""", "contains")]
-    [Arguments("""Update("a").If($"begins_with({[|new Attr<bool, OptionalConverter<bool, BoolConverter>>("n")|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Update("a").If($"contains({[|new Attr<int, NullableHandleConverter<int, NumberConverter<int>>>("n")|]}, {"1"})");""", "contains")]
+    [Arguments("""Update("a").If($"begins_with({[|new Attr<bool, NullableHandleConverter<bool, BoolConverter>>("n")|]}, {"1"})");""", "begins_with")]
     public async Task Analyze_TextFunctionOnANumber_ReportsTheHandle(string chain, string function)
     {
         // Arrange
@@ -486,7 +489,7 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""Update("a").If($"begins_with({Attr("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"contains({new Attr<string, StringConverter>("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"contains({new Attr<Guid, GuidConverter>("n")}, {"1"})");""")]
-    [Arguments("""Update("a").If($"contains({new Attr<string, OptionalReferenceConverter<string, StringConverter>>("n")}, {"1"})");""")]
+    [Arguments("""Update("a").If($"contains({new Attr<string, NullableReferenceHandleConverter<string, StringConverter>>("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"contains({new Attr<Dictionary<string, int>, DictionaryConverter<int, NumberConverter<int>>>("n")}, {"1"})");""")]
     [Arguments("""Update("a").If($"size({Attr<int>("n")}) > {1}");""")]
     [Arguments("""Update("a").If($"{Attr<int>("n")} > {1}");""")]
@@ -522,6 +525,21 @@ public sealed class ExpressionAnalyzerTests
 
         // Assert
         await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
+    }
+
+    [Test]
+    [Arguments("""Scan().Filter($"begins_with({[|Doc.Attrs.Revision|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Scan().Filter([|Doc.Attrs.Revision|].BeginsWith("1"));""", "begins_with")]
+    public async Task Analyze_TextFunctionOnAVersionThatAllowsAnItemWithoutOne_ReportsTheHandle(string chain, string function)
+    {
+        // Arrange (the handle has a generated converter, which the overload that does not compile cannot name)
+        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
     }
 

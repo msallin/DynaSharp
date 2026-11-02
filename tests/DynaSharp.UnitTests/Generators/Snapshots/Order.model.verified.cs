@@ -23,6 +23,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -31,7 +33,8 @@ Properties:
     FallbackKey: pk
     ParameterName: userId
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: CreatedAt
     Identifier: CreatedAt
@@ -44,6 +47,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -52,7 +57,8 @@ Properties:
     FallbackKey: null
     ParameterName: createdAt
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: OrderId
     Identifier: OrderId
@@ -65,6 +71,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -73,7 +81,8 @@ Properties:
     FallbackKey: sk
     ParameterName: orderId
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Status
     Identifier: Status
@@ -86,6 +95,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -94,7 +105,8 @@ Properties:
     FallbackKey: gsi1pk
     ParameterName: status
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Total
     Identifier: Total
@@ -107,6 +119,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -115,7 +129,8 @@ Properties:
     FallbackKey: gsi1sk
     ParameterName: total
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: TrackingId
     Identifier: TrackingId
@@ -128,6 +143,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -136,7 +153,8 @@ Properties:
     FallbackKey: null
     ParameterName: trackingId
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: ShippedAt
     Identifier: ShippedAt
@@ -149,6 +167,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -157,7 +177,8 @@ Properties:
     FallbackKey: null
     ParameterName: shippedAt
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: ShipTo
     Identifier: ShipTo
@@ -170,6 +191,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -178,7 +201,8 @@ Properties:
     FallbackKey: null
     ParameterName: shipTo
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Lines
     Identifier: Lines
@@ -191,6 +215,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -199,7 +225,8 @@ Properties:
     FallbackKey: null
     ParameterName: lines
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Tags
     Identifier: Tags
@@ -212,6 +239,8 @@ Properties:
       EmptySet: new global::System.Collections.Generic.HashSet<string>()
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotEmptyCount
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -220,7 +249,8 @@ Properties:
     FallbackKey: null
     ParameterName: tags
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: ExpiresAt
     Identifier: ExpiresAt
@@ -233,6 +263,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -241,7 +273,8 @@ Properties:
     FallbackKey: null
     ParameterName: expiresAt
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
   - PropertyModel
     Name: Revision
     Identifier: Revision
@@ -254,6 +287,8 @@ Properties:
       EmptySet: null
       WriteForwarder: null
       OmissionForwarder: null
+      CountsAsMissing: False
+      AnswersMissing: False
     Write: Always
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -262,7 +297,8 @@ Properties:
     FallbackKey: null
     ParameterName: revision
     IsPublic: True
-    OmitsEmpty: False
+    OmitEmptyConverter: null
+    ReadsMissingAsZero: False
 Entity: EntityModel
   Discriminator: ORDER
   DiscriminatorAttribute: _type
@@ -279,11 +315,13 @@ Entity: EntityModel
           ParameterName: userId
           ValueType: global::System.Guid
           Encoding: GuidEncoding
+            CanReject: False
             FixedWidth: 36
             IsLossless: True
           InputIsNullable: False
       Delimiters: #
       StackBufferLength: 41
+      CanReject: False
     PlainProperty: null
     SharesAttribute: False
     Gates: []
@@ -305,6 +343,7 @@ Entity: EntityModel
             Width: 24
             IsOffset: True
             IsLossless: False
+            CanReject: False
             IsBucket: False
             FixedWidth: 24
           InputIsNullable: False
@@ -315,11 +354,13 @@ Entity: EntityModel
           ParameterName: orderId
           ValueType: global::System.Guid
           Encoding: GuidEncoding
+            CanReject: False
             FixedWidth: 36
             IsLossless: True
           InputIsNullable: False
       Delimiters: #
       StackBufferLength: 67
+      CanReject: False
     PlainProperty: null
     SharesAttribute: False
     Gates: []
@@ -344,9 +385,11 @@ Entity: EntityModel
                 EnumType: global::Shop.OrderStatus
                 FixedWidth: 0
                 IsLossless: True
+                CanReject: True
               InputIsNullable: False
           Delimiters: #
           StackBufferLength: 256
+          CanReject: True
         PlainProperty: null
         SharesAttribute: False
         Gates: []
@@ -367,9 +410,11 @@ Entity: EntityModel
                 Type: null
                 FixedWidth: 14
                 IsLossless: True
+                CanReject: True
               InputIsNullable: False
           Delimiters: 
           StackBufferLength: 14
+          CanReject: True
         PlainProperty: null
         SharesAttribute: False
         Gates: []
@@ -392,11 +437,13 @@ Entity: EntityModel
               ParameterName: trackingId
               ValueType: global::System.Guid
               Encoding: GuidEncoding
+                CanReject: False
                 FixedWidth: 36
                 IsLossless: True
               InputIsNullable: True
           Delimiters: #
           StackBufferLength: 42
+          CanReject: False
         PlainProperty: null
         SharesAttribute: False
         Gates: []
@@ -416,11 +463,13 @@ Entity: EntityModel
                 Width: 24
                 IsOffset: True
                 IsLossless: False
+                CanReject: False
                 IsBucket: False
                 FixedWidth: 24
               InputIsNullable: True
           Delimiters: 
           StackBufferLength: 24
+          CanReject: False
         PlainProperty: null
         SharesAttribute: False
         Gates: []
@@ -431,6 +480,7 @@ Entity: EntityModel
         - TrackingId
         - ShippedAt
   VersionProperty: Revision
+  ComputedInputs: []
 Enums: 
   - EnumModel
     FullName: global::Shop.OrderStatus

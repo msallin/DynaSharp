@@ -26,7 +26,7 @@ public sealed class ScanOperationTests
         {
             TableName = "Orders",
             IndexName = "ByStatus",
-            Select = Select.AllProjectedAttributes,
+            Select = SelectKind.AllProjectedAttributes,
             Limit = 500,
             ConsistentRead = true,
             ExclusiveStartKey = new Dictionary<string, AttributeValue> { ["pk"] = "CUSTOMER#7", ["sk"] = "ORDER#2" },
@@ -50,10 +50,10 @@ public sealed class ScanOperationTests
         ["SegmentBounds"] = Request() with { Segment = 999_999, TotalSegments = 1_000_000 },
         ["LimitIntMax"] = Request() with { Limit = int.MaxValue },
         ["SecondaryIndex"] = new() { TableName = "Orders", IndexName = "ByStatus", ConsistentRead = true },
-        ["SelectAllAttributes"] = Request() with { Select = Select.AllAttributes },
-        ["SelectAllProjectedAttributes"] = Request() with { Select = Select.AllProjectedAttributes },
-        ["SelectSpecificAttributes"] = Request() with { Select = Select.SpecificAttributes },
-        ["SelectCount"] = Request() with { Select = Select.Count },
+        ["SelectAllAttributes"] = Request() with { Select = SelectKind.AllAttributes },
+        ["SelectAllProjectedAttributes"] = Request() with { Select = SelectKind.AllProjectedAttributes },
+        ["SelectSpecificAttributes"] = Request() with { Select = SelectKind.SpecificAttributes },
+        ["SelectCount"] = Request() with { Select = SelectKind.Count },
     };
 
     public static IEnumerable<string> RequestVectorNames() => OperationVectors.RequestNames("Scan");
@@ -175,11 +175,11 @@ public sealed class ScanOperationTests
     }
 
     [Test]
-    [Arguments(Select.AllAttributes, "ALL_ATTRIBUTES")]
-    [Arguments(Select.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES")]
-    [Arguments(Select.SpecificAttributes, "SPECIFIC_ATTRIBUTES")]
-    [Arguments(Select.Count, "COUNT")]
-    public async Task WriteRequest_Select_WritesTheWireName(Select select, string wire)
+    [Arguments(SelectKind.AllAttributes, "ALL_ATTRIBUTES")]
+    [Arguments(SelectKind.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES")]
+    [Arguments(SelectKind.SpecificAttributes, "SPECIFIC_ATTRIBUTES")]
+    [Arguments(SelectKind.Count, "COUNT")]
+    public async Task WriteRequest_Select_WritesTheWireName(SelectKind select, string wire)
     {
         // Arrange
         var request = Request() with { Select = select };
@@ -195,13 +195,13 @@ public sealed class ScanOperationTests
     public async Task WriteRequest_UnknownSelect_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        var request = Request() with { Select = (Select)99 };
+        var request = Request() with { Select = (SelectKind)99 };
 
         // Act
         var act = () => Write(request);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known Select.", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known SelectKind.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -408,7 +408,7 @@ public sealed class ScanOperationTests
             ProjectionExpression = "#n",
             IndexName = "ByStatus",
             Limit = 500,
-            Select = Select.SpecificAttributes,
+            Select = SelectKind.SpecificAttributes,
             Segment = 0,
             TotalSegments = 4,
         };

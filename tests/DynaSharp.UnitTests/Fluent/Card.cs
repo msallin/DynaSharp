@@ -2,7 +2,7 @@ using DynaSharp.Mapping;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-/// <summary><see cref="OmitEmptyAttribute"/> on a type, with everything it passes over: an input of a key, a string that is not nullable, a nested type that says nothing.</summary>
+/// <summary><see cref="OmitEmptyAttribute"/> on a type, with everything it passes over: an input of a key, a property that takes it back, a nested type that says nothing.</summary>
 [DynamoDbEntity]
 [Discriminator("CARD")]
 [PartitionKey("CARD#{Id}")]
@@ -18,6 +18,9 @@ internal sealed partial record Card
     public string? Label { get; init; }
 
     public string Motto { get; init; } = "keep";
+
+    [OmitEmpty(false)]
+    public string Plain { get; init; } = "keep";
 
     public int Visits { get; init; }
 

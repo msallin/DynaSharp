@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
+using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 
 namespace DynaSharp;
@@ -13,7 +14,7 @@ namespace DynaSharp;
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
-public readonly ref struct MixedScanCommand<T1, T2> : IFilterable<MixedScanCommand<T1, T2>>, IRetryable<MixedScanCommand<T1, T2>>
+public readonly ref struct MixedScanCommand<T1, T2> : IFilterable<MixedScanCommand<T1, T2>>, IRetryable<MixedScanCommand<T1, T2>>, IReadCommand
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>
 {
@@ -80,12 +81,15 @@ public readonly ref struct MixedScanCommand<T1, T2> : IFilterable<MixedScanComma
         return _command.PagesAsync(cancellationToken);
     }
 
-    /// <inheritdoc cref="ScanCommand{T}.PageAsync"/>
+    /// <inheritdoc cref="ScanCommand{T}.PageAsync(ContinuationToken, CancellationToken)"/>
     public ValueTask<Page<Mixed<T1, T2>>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default)
     {
         CompleteProjection();
         return _command.PageAsync(after, cancellationToken);
     }
+
+    /// <inheritdoc cref="ScanCommand{T}.PageAsync(CancellationToken)"/>
+    public ValueTask<Page<Mixed<T1, T2>>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
 
     /// <inheritdoc cref="ScanCommand{T}.ToRequestJson"/>
     public string ToRequestJson()

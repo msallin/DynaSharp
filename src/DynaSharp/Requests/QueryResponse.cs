@@ -11,11 +11,11 @@ public sealed record QueryResponse
 {
     /// <summary>
     /// Gets the items of this page that match the key condition and the filter, in sort key order. Empty when nothing matched and
-    /// when the request used <see cref="Select.Count"/>. The list and its items are read-only; do not cast them to change them.
+    /// when the request used <see cref="SelectKind.Count"/>. The list and its items are read-only; do not cast them to change them.
     /// </summary>
     public IReadOnlyList<IReadOnlyDictionary<string, AttributeValue>> Items { get; init; } = [];
 
-    /// <summary>Gets the number of items in this page, after the filter. With <see cref="Select.Count"/> the only way to see how many matched.</summary>
+    /// <summary>Gets the number of items in this page, after the filter. With <see cref="SelectKind.Count"/> the only way to see how many matched.</summary>
     public int Count { get; init; }
 
     /// <summary>

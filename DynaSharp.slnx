@@ -7,6 +7,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/DynaSharp.UnitTests/DynaSharp.UnitTests.csproj" />
     <Project Path="tests/DynaSharp.AotSmoke/DynaSharp.AotSmoke.csproj" />
+    <Project Path="tests/DynaSharp.DefaultsFixture/DynaSharp.DefaultsFixture.csproj" />
     <Project Path="tests/DynaSharp.IntegrationTests/DynaSharp.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">

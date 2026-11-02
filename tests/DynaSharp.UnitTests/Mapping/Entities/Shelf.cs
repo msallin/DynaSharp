@@ -9,7 +9,7 @@ namespace DynaSharp.UnitTests.Mapping;
 internal sealed partial class Shelf
 {
     [PartitionKey]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 
     [SortKey]
     public int Rack { get; set; }

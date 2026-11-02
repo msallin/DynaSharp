@@ -37,12 +37,12 @@ internal static class WireNames
         nameof(ReturnItemCollectionMetrics),
         (ReturnItemCollectionMetrics.Size, "SIZE"));
 
-    public static readonly EnumWireNames<Select> Selects = new(
-        nameof(Select),
-        (Select.AllAttributes, "ALL_ATTRIBUTES"),
-        (Select.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES"),
-        (Select.SpecificAttributes, "SPECIFIC_ATTRIBUTES"),
-        (Select.Count, "COUNT"));
+    public static readonly EnumWireNames<SelectKind> Selects = new(
+        nameof(SelectKind),
+        (SelectKind.AllAttributes, "ALL_ATTRIBUTES"),
+        (SelectKind.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES"),
+        (SelectKind.SpecificAttributes, "SPECIFIC_ATTRIBUTES"),
+        (SelectKind.Count, "COUNT"));
 
     public static readonly EnumWireNames<ScalarAttributeType> ScalarAttributeTypes = new(
         nameof(ScalarAttributeType),

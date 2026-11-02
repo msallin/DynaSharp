@@ -197,7 +197,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::Shapes.Class.Accoun
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Plan => new("Plan");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
 
         /// <summary>The attribute <c>Aliases</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.IList<string>, global::DynaSharp.Serialization.MutableListConverter<string, global::DynaSharp.Serialization.StringConverter>> Aliases => new("Aliases");
@@ -213,7 +213,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::Shapes.Class.Accoun
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Account</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>Account</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of(string id, int version) => new PrimaryKey(id, version);
 
         /// <summary>The primary key of <c>Account</c>, which holds the values of the key and costs no string until it is written.</summary>

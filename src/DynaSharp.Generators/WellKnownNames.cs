@@ -31,6 +31,12 @@ internal static class WellKnownNames
 
     public const string OmitEmptyAttribute = "DynaSharp.Mapping.OmitEmptyAttribute";
 
+    public const string DefaultsAttribute = "DynaSharp.Mapping.DynamoDbDefaultsAttribute";
+
+    public const string DefaultConverterAttribute = "DynaSharp.Mapping.DynamoDbDefaultConverterAttribute";
+
+    public const string ComputedFromAttribute = "DynaSharp.Mapping.ComputedFromAttribute";
+
     public const string DocumentInterface = "DynaSharp.Mapping.IDynamoDbDocument<TSelf>";
 
     public const string ConverterInterface = "DynaSharp.Serialization.IDynamoDbConverter<T>";
@@ -41,5 +47,12 @@ internal static class WellKnownNames
 
     public const string AttributeNameArgument = "AttributeName";
 
+    public const string VersionMissingArgument = "Missing";
+
+    /// <summary>The number of <c>VersionMissing.Allow</c>, which is all a generator sees of an enum on an attribute.</summary>
+    public const int VersionMissingAllow = 1;
+
     public const string ExpressionHandler = "DynaSharp.Expressions.ExpressionHandler";
+
+    public const string ReadCommandInterface = "DynaSharp.Fluent.IReadCommand";
 }

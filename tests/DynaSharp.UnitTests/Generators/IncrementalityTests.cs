@@ -55,6 +55,41 @@ public sealed class IncrementalityTests
         }
         """;
 
+    private const string Defaults = """
+        using DynaSharp.Mapping;
+
+        [assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase)]
+        """;
+
+    private const string DefaultConverter = """
+        using DynaSharp.Mapping;
+
+        [assembly: DynamoDbDefaultConverter(typeof(decimal), typeof(Shop.MoneyConverter))]
+        """;
+
+    private const string Booking = """
+        namespace Shop
+        {
+            using DynaSharp.Mapping;
+
+            [DynamoDbEntity]
+            [Discriminator("BOOKING")]
+            [PartitionKey("BOOKING#{Id}")]
+            public partial class Booking
+            {
+                public string Id { get; set; } = "none";
+
+                public int RoomCount { get; set; }
+            }
+
+            [DynamoDbDocument]
+            public partial class Stay
+            {
+                public int NightCount { get; set; }
+            }
+        }
+        """;
+
     private static readonly string Source = TestSources.Compose(TestSources.Order, TestSources.Address);
 
     private static CSharpParseOptions Options => GeneratorRun.ParseOptions(LanguageVersion.Latest);
@@ -147,6 +182,111 @@ public sealed class IncrementalityTests
 
         // Assert
         await Assert.That((ReasonsOf(run, TrackingNames.Entities), OutputReasons(run))).IsEqualTo(("Unchanged", "Cached"));
+    }
+
+    [Test]
+    public async Task Run_NamingEditedInAnotherFile_ReachesEveryTypeOnThatEdit()
+    {
+        // Arrange (the transform of ForAttributeWithMetadataName runs on every compilation change, which is what makes the edit of an assembly attribute no special case)
+        var first = CSharpSyntaxTree.ParseText(Defaults, Options, "Defaults.cs");
+        var compilation = GeneratorRun.CreateCompilation(Booking, LanguageVersion.Latest).AddSyntaxTrees(first);
+        var driver = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest, trackSteps: true).RunGenerators(compilation);
+        var edited = compilation.ReplaceSyntaxTree(first, CSharpSyntaxTree.ParseText(Defaults.Replace("CamelCase", "SnakeCase", StringComparison.Ordinal), Options, "Defaults.cs"));
+
+        // Act
+        var run = driver.RunGenerators(edited).GetRunResult().Results[0];
+
+        // Assert
+        await Assert.That((ReasonsOf(run, TrackingNames.Entities), ReasonsOf(run, TrackingNames.Documents), ReasonsOf(run, TrackingNames.Models), OutputReasons(run))).IsEqualTo(("Modified", "Modified", "Modified", "Modified"));
+    }
+
+    [Test]
+    public async Task Run_NamingEditedInAnotherFile_GeneratesTheNewNames()
+    {
+        // Arrange
+        var first = CSharpSyntaxTree.ParseText(Defaults, Options, "Defaults.cs");
+        var compilation = GeneratorRun.CreateCompilation(Booking, LanguageVersion.Latest).AddSyntaxTrees(first);
+        var driver = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest, trackSteps: true).RunGenerators(compilation);
+        var edited = compilation.ReplaceSyntaxTree(first, CSharpSyntaxTree.ParseText(Defaults.Replace("CamelCase", "SnakeCase", StringComparison.Ordinal), Options, "Defaults.cs"));
+
+        // Act
+        var trees = driver.RunGenerators(edited).GetRunResult().GeneratedTrees;
+
+        // Assert
+        await Assert.That(trees.Any(static tree => tree.ToString().Contains("\"room_count\"u8", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Run_DefaultsAddedInAFileOfTheirOwn_ReachEveryTypeOnThatEdit()
+    {
+        // Arrange
+        var edit = (CSharpCompilation compilation) => compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(Defaults, Options, "Defaults.cs"));
+
+        // Act
+        var run = RunTwice(Booking, edit);
+
+        // Assert
+        await Assert.That((ReasonsOf(run, TrackingNames.Entities), ReasonsOf(run, TrackingNames.Documents))).IsEqualTo(("Modified", "Modified"));
+    }
+
+    [Test]
+    public async Task Run_DefaultConverterAddedInAFileOfItsOwn_TheEntityUsingItIsModifiedAndTheOtherIsNot()
+    {
+        // Arrange
+        var edit = (CSharpCompilation compilation) => compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(DefaultConverter, Options, "Defaults.cs"));
+        var source = TestSources.Compose(TestSources.Address, TestSources.Order, Converter, Status, Ticket.Replace("[DynamoDbConverter(typeof(MoneyConverter))]", string.Empty, StringComparison.Ordinal));
+
+        // Act
+        var run = RunTwice(source, edit);
+
+        // Assert
+        await Assert.That((ReasonsOf(run, TrackingNames.Entities), ReasonsOf(run, TrackingNames.Models))).IsEqualTo(("Modified, Unchanged", "Cached, Modified"));
+    }
+
+    [Test]
+    public async Task Run_UnrelatedFileEditedBesideDefaults_ReusesEveryStep()
+    {
+        // Arrange
+        var other = CSharpSyntaxTree.ParseText("class Other { }", Options, "Other.cs");
+        var compilation = GeneratorRun.CreateCompilation(Source, LanguageVersion.Latest).AddSyntaxTrees(CSharpSyntaxTree.ParseText(Defaults, Options, "Defaults.cs"), other);
+        var driver = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest, trackSteps: true).RunGenerators(compilation);
+        var edited = compilation.ReplaceSyntaxTree(other, CSharpSyntaxTree.ParseText("class Other { int X; }", Options, "Other.cs"));
+
+        // Act
+        var run = driver.RunGenerators(edited).GetRunResult().Results[0];
+
+        // Assert
+        await Assert.That(Summary(run)).IsEqualTo(Reused);
+    }
+
+    [Test]
+    public async Task Run_WrongDefaultConverterEditedIn_ReportsItOnThatEdit()
+    {
+        // Arrange
+        var wrong = DefaultConverter.Replace("typeof(decimal)", "typeof(int)", StringComparison.Ordinal);
+        var edit = (CSharpCompilation compilation) => compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(wrong, Options, "Defaults.cs"));
+
+        // Act
+        var run = RunTwice(TestSources.Compose(Source, Converter), edit);
+
+        // Assert
+        await Assert.That(run.Diagnostics.Select(static diagnostic => (diagnostic.Id, Path.GetFileName(diagnostic.Location.SourceTree!.FilePath)))).IsEquivalentTo([("DYNA008", "Defaults.cs")]);
+    }
+
+    [Test]
+    public async Task Run_WrongDefaultConverter_HoldsNoSymbolInItsStep()
+    {
+        // Arrange
+        var compilation = GeneratorRun.CreateCompilation(TestSources.Compose(Source, Converter), LanguageVersion.Latest)
+            .AddSyntaxTrees(CSharpSyntaxTree.ParseText(DefaultConverter.Replace("typeof(decimal)", "typeof(int)", StringComparison.Ordinal), Options, "Defaults.cs"));
+        var driver = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest, trackSteps: true).RunGenerators(compilation);
+
+        // Act
+        var run = driver.GetRunResult().Results[0];
+        var outputs = run.TrackedSteps[TrackingNames.Diagnostics].SelectMany(static step => step.Outputs).ToList();
+
+        // Assert
+        await Assert.That((outputs.Count, outputs.SelectMany(static output => TrackedOutputWalker.Violations(output.Value)).Count())).IsEqualTo((1, 0));
     }
 
     [Test]

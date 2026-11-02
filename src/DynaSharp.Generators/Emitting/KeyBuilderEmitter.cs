@@ -9,9 +9,10 @@ namespace DynaSharp.Generators;
 /// <param name="key">The key.</param>
 /// <param name="template">The template of the key.</param>
 /// <param name="isSortKey">Whether the key can be matched by prefix: <c>begins_with</c> and ranges exist only on sort keys.</param>
+/// <param name="isTableKey">Whether the key is part of <c>Keys.Of</c>, which checks its values through <c>Check</c>.</param>
 /// <param name="entityName">The entity, for documentation.</param>
 /// <param name="entityType">The entity as code, which a partition key carries in its type.</param>
-internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemplate template, bool isSortKey, string entityName, string entityType)
+internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemplate template, bool isSortKey, bool isTableKey, string entityName, string entityType)
 {
     private const string Writer = "global::DynaSharp.Keys.KeyWriter";
 
@@ -86,8 +87,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     }
 
     // A bound of Between beside the placeholders before it, which may hold the same name: {From:d2}#{To:d2}#{Id}.
-    private static string BoundName(List<PlaceholderSegment> leading, string name) =>
-        leading.Exists(placeholder => placeholder.ParameterName == name) ? BoundName(leading, name + "_") : name;
+    private static string BoundName(List<PlaceholderSegment> leading, string name) => Names.Free(name, leading.Select(static placeholder => placeholder.ParameterName));
 
     private static string WriteLiteral(string text) => $"{Local}.WriteLiteral({CodeText.Utf8(text)});";
 
@@ -137,14 +137,40 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     private void EmitOf()
     {
         var partitionKey = $"global::DynaSharp.PartitionKey<{entityType}>";
-        var check = _placeholders.Count > 0 ? " The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written." : string.Empty;
-        code.Line($"/// <summary>Formats the complete key as a key of <c>{entityName}</c>, which a query of another entity does not take.{check}</summary>");
+        var tryOf = template.CanReject ? " <c>TryOf</c> says the same without an exception, for a value from outside." : string.Empty;
+        code.Line($"/// <summary>Formats the complete key as a key of <c>{entityName}</c>, which a query of another entity does not take.{tryOf}</summary>");
         if (_placeholders.Count > 0)
         {
             code.Line(InvalidValue);
         }
 
         code.Line($"public static {partitionKey} Of({Signature(_placeholders)}) => new {partitionKey}(Format({Arguments(_placeholders)}), {CodeText.Literal(key.AttributeName)});");
+        code.Blank();
+        if (template.CanReject)
+        {
+            EmitTryOf(partitionKey);
+        }
+    }
+
+    // One pass over the values, as Of makes in Format: the text it checks is the text of the key.
+    private void EmitTryOf(string partitionKey)
+    {
+        var result = Names.Free("key", _placeholders.Select(static placeholder => placeholder.ParameterName));
+        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>");
+        code.Line($"public static bool TryOf({Signature(_placeholders)}, out {partitionKey} {result})");
+        code.Open();
+        OpenWriter(Buffer, "false");
+        code.Line(EncodeCall());
+        code.Line($"if ({Local}.IsInvalid)");
+        code.Open();
+        code.Line($"{result} = default;");
+        code.Line("return false;");
+        code.Close();
+        code.Blank();
+        code.Line($"{result} = new {partitionKey}({Local}.ToString(), {CodeText.Literal(key.AttributeName)});");
+        code.Line("return true;");
+        CloseWriter();
+        code.Close();
         code.Blank();
     }
 
@@ -160,12 +186,13 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
             {
                 var text = isLast ? literal.Text.Substring(0, 1) : literal.Text;
                 var bound = segments.Take(index).ToList();
-                EmitPrefix([.. bound.OfType<PlaceholderSegment>()], text, [.. bound.Select(WriteSegment), WriteLiteral(text)]);
+                var goesOn = !isLast || literal.Text.Length > text.Length;
+                EmitPrefix([.. bound.OfType<PlaceholderSegment>()], text, [.. bound.Select(WriteSegment), WriteLiteral(text)], goesOn);
             }
         }
     }
 
-    private void EmitPrefix(List<PlaceholderSegment> bound, string text, List<string> lines)
+    private void EmitPrefix(List<PlaceholderSegment> bound, string text, List<string> lines, bool goesOn)
     {
         var position = bound.Count == 0 ? "before the first placeholder" : $"through <c>{bound[bound.Count - 1].Property}</c>";
         code.Line($"/// <summary>The prefix {position}, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>");
@@ -196,7 +223,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
         code.Line($"public static {Condition} BeginsWith({Signature(bound)}) => {Condition}.BeginsWith(Prefix({Arguments(bound)}));");
         code.Blank();
-        EmitRanges(bound, "Prefix", "UpperBound");
+        EmitRanges(bound, "Prefix", "UpperBound", goesOn);
     }
 
     // The fields of a key that ends in a placeholder have no prefix: nothing ends the last one, and every value is a key. So the complete key is both bounds, which keeps a
@@ -205,18 +232,23 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     {
         if (template.Segments[template.Segments.Count - 1] is PlaceholderSegment)
         {
-            EmitRanges(_placeholders, "Format", "Format");
+            EmitRanges(_placeholders, "Format", "Format", goesOn: false);
         }
     }
 
     // What holds for every value or does not exist. No value means no range: Ge() of a prefix reads what sorts after the template, which is not a question about this key, and
     // BeginsWith() is the one that means all of it. A range of the last field needs that field in order, and Between keeps the fields before it equal, so they can sort any way
     // they like. An open range goes on across those fields, so all of them have to be in order.
-    private void EmitRanges(List<PlaceholderSegment> bound, string low, string high)
+    private void EmitRanges(List<PlaceholderSegment> bound, string low, string high, bool goesOn)
     {
         if (bound.Count > 0 && IsInOrder(bound[bound.Count - 1]))
         {
-            EmitBetween(bound, low, high);
+            EmitBetween(bound, low, high, goesOn);
+            if (goesOn)
+            {
+                EmitRange(bound);
+            }
+
             if (bound.TrueForAll(IsInOrder))
             {
                 EmitOpenRange("Ge", "&gt;=", "from these values on", low, bound);
@@ -227,7 +259,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         }
     }
 
-    private void EmitBetween(List<PlaceholderSegment> bound, string low, string high)
+    private void EmitBetween(List<PlaceholderSegment> bound, string low, string high, bool goesOn)
     {
         var last = bound[bound.Count - 1];
         var leading = bound.GetRange(0, bound.Count - 1);
@@ -235,13 +267,28 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         var to = BoundName(leading, "to");
         var parameters = (List<string>)[.. leading.Select(static placeholder => $"{placeholder.ValueType} {placeholder.ParameterName}"), $"{last.ValueType} {from}", $"{last.ValueType} {to}"];
         code.Line($"/// <summary>The condition <c>BETWEEN {low} AND {high}</c> on <c>{last.Property}</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>");
-        if (low == "Prefix")
+        if (goesOn)
         {
-            code.Line($"/// <remarks>The key goes on behind <c>{last.Property}</c>, and the upper bound lies above all of it, so this includes every key at <c>{to}</c>. A range that ends before <c>{to}</c> is <c>SortKeyCondition.Between(Keys.{key.BuilderName}.{Call(low, leading, from)}, Keys.{key.BuilderName}.{Call(low, leading, to)})</c>.</remarks>");
+            code.Line($"/// <remarks>The key goes on behind <c>{last.Property}</c>, and the upper bound lies above all of it, so this includes every key at <c>{to}</c>. <c>Range</c> ends before them.</remarks>");
         }
 
         code.Line(InvalidValue);
         code.Line($"public static {Condition} Between({string.Join(", ", parameters)}) => {Condition}.Between({Call(low, leading, from)}, {Call(high, leading, to)});");
+        code.Blank();
+    }
+
+    // Half-open by what is stored and not by the condition, which includes both of its bounds: every key under a prefix goes on behind it, so no key is the prefix itself, and the keys at the
+    // upper bound sort above it. Where a template ends on the delimiter of the field, the prefix is a whole key, and BETWEEN would take it.
+    private void EmitRange(List<PlaceholderSegment> bound)
+    {
+        var last = bound[bound.Count - 1];
+        var leading = bound.GetRange(0, bound.Count - 1);
+        var from = BoundName(leading, "from");
+        var to = BoundName(leading, "to");
+        var parameters = (List<string>)[.. leading.Select(static placeholder => $"{placeholder.ValueType} {placeholder.ParameterName}"), $"{last.ValueType} {from}", $"{last.ValueType} {to}"];
+        code.Line($"/// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>{last.Property}</c>: from the first key at <c>{from}</c> up to and without the keys at <c>{to}</c>, with any field before it equal. <c>{to}</c> stays out because the key goes on behind <c>{last.Property}</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>");
+        code.Line(InvalidValue);
+        code.Line($"public static {Condition} Range({string.Join(", ", parameters)}) => {Condition}.Between({Call("Prefix", leading, from)}, {Call("Prefix", leading, to)});");
         code.Blank();
     }
 
@@ -379,6 +426,24 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
             code.Close();
         }
+
+        if (isTableKey && template.CanReject)
+        {
+            EmitCheck(parameters);
+        }
+    }
+
+    // Keys.Of and Keys.TryOf ask this. The text goes to the stack and away, which keeps a key without a string until it is written.
+    private void EmitCheck(string parameters)
+    {
+        code.Blank();
+        code.Line($"internal static bool Check(bool __throwOnInvalid{parameters})");
+        code.Open();
+        OpenWriter(Buffer, "__throwOnInvalid");
+        code.Line(EncodeCall());
+        code.Line($"return !{Local}.IsInvalid;");
+        CloseWriter();
+        code.Close();
     }
 
     private void EmitText(string name, string signature, string buffer, IEnumerable<string> lines)
@@ -396,9 +461,9 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         code.Close();
     }
 
-    private void OpenWriter(string buffer)
+    private void OpenWriter(string buffer, string? throwOnInvalid = null)
     {
-        code.Line($"var {Local} = new {Writer}(stackalloc byte[{buffer}]);");
+        code.Line($"var {Local} = new {Writer}(stackalloc byte[{buffer}]{(throwOnInvalid is null ? string.Empty : ", " + throwOnInvalid)});");
         code.Line("try");
         code.Open();
     }

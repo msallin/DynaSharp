@@ -511,6 +511,38 @@ public sealed class ModelBuilderTests
     }
 
     [Test]
+    [Arguments("[Version]", false)]
+    [Arguments("[Version(Missing = VersionMissing.Reject)]", false)]
+    [Arguments("[Version(Missing = VersionMissing.Allow)]", true)]
+    public async Task Build_VersionMissing_SaysHowTheVersionReadsAnItemWithoutOne(string attribute, bool expected)
+    {
+        // Arrange
+        var source = Keyed + " public partial class E { " + attribute + " public int Revision { get; set; } }";
+
+        // Act
+        var property = Analysis.Model(source, "global::Shop.E").Property("Revision");
+
+        // Assert
+        await Assert.That(property.ReadsMissingAsZero).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("public required int Revision { get; set; }", false, "Throw")]
+    [Arguments("public required int Revision { get; set; }", true, "KeepCurrent")]
+    public async Task Build_RequiredVersion_ThrowsOnAnItemWithoutOneUnlessItAllowsThat(string property, bool allow, string expected)
+    {
+        // Arrange
+        var attribute = allow ? "[Version(Missing = VersionMissing.Allow)]" : "[Version]";
+        var source = Keyed + " public partial class E { " + attribute + " " + property + " }";
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.E").Property("Revision");
+
+        // Assert
+        await Assert.That(model.Missing.ToString()).IsEqualTo(expected);
+    }
+
+    [Test]
     public async Task Build_DocumentWithAKeysMember_IsFine()
     {
         // Arrange

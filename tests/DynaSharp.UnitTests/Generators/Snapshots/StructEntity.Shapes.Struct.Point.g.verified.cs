@@ -158,7 +158,7 @@ partial struct Point : __Map.IDynamoDbDiscriminated<global::Shapes.Struct.Point>
         public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.NumberConverter<double>> X => new("X");
 
         /// <summary>The attribute <c>Y</c>.</summary>
-        public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.OptionalConverter<double, global::DynaSharp.Serialization.NumberConverter<double>>> Y => new("Y");
+        public static global::DynaSharp.Attr<double, global::DynaSharp.Serialization.NullableHandleConverter<double, global::DynaSharp.Serialization.NumberConverter<double>>> Y => new("Y");
 
         /// <summary>The attribute <c>Tag</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Guid, global::DynaSharp.Serialization.GuidConverter> Tag => new("Tag");
@@ -168,7 +168,7 @@ partial struct Point : __Map.IDynamoDbDiscriminated<global::Shapes.Struct.Point>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Point</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>Point</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Point</c>, which holds the values of the key and costs no string until it is written.</summary>

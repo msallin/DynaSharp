@@ -10,6 +10,12 @@ internal abstract record KeyEncoding(int FixedWidth)
     /// <summary>Gets a value indicating whether parsing returns the value that was formatted, which <c>[KeyOnly]</c> depends on.</summary>
     public virtual bool IsLossless => true;
 
+    /// <summary>
+    /// Gets a value indicating whether a value of the type can be turned away, which is what a <c>TryOf</c> is for. It is about the encoding and not one template: a plain number counts, because a delimiter next to it decides,
+    /// and so does <c>d3</c> over a <c>byte</c>, although nothing is too wide for it.
+    /// </summary>
+    public virtual bool CanReject => true;
+
     /// <summary>Returns the statement body that appends a value.</summary>
     /// <param name="key">The <c>KeyWriter</c> variable.</param>
     /// <param name="value">The value expression, of the placeholder's type.</param>

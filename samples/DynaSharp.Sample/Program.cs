@@ -35,7 +35,7 @@ Output.Section("1. Creating the table, and the one call that drops to DynaSharp.
 // One table holds all five types, so no single entity describes it: its indexes are the union of what they declare, and Including
 // names the others. Key names, indexes and attribute types come from the entities, so nothing here repeats them. Billing is on
 // demand and an index holds all attributes, unless told otherwise. Two entities that disagree about a key throw here, before any
-// request. ToRequest gives what this would send, for what it does not model, such as a stream or tags.
+// request. ToRequest gives what this would send, for what it does not model, such as tags.
 try
 {
     var description = await orders.CreateTable()

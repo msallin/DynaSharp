@@ -2,7 +2,7 @@ namespace DynaSharp.Mapping;
 
 /// <summary>
 /// Names an entity type in its items, in a dedicated attribute named <c>_type</c>. It is required on every entity: a default of the
-/// type name would turn renaming a class into a silent migration.
+/// type name would turn renaming a class into a silent migration. <see cref="DynamoDbDefaultsAttribute.NoDiscriminator"/> opts out for the entities of an assembly that do not have it.
 /// </summary>
 /// <remarks>
 /// Typed reads check the attribute and fail with a mapping exception naming the type they found, because a query over an overloaded

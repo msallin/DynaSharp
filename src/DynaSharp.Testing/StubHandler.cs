@@ -7,7 +7,7 @@ namespace DynaSharp.Testing;
 /// <remarks>
 /// <para>
 /// <b>Testing code that uses a <see cref="Table{T}"/>.</b> Give the code under test a client over this handler, queue what DynamoDB answers, and look at <see cref="Requests"/>:
-/// <c>new DynamoDbClient(options with { HttpHandler = stub, MaxAttempts = 1, TimeProvider = fake })</c>. <see cref="StubResponse"/> writes the answers from entities and
+/// <c>StubClient.Create(stub, options => options with { TimeProvider = fake })</c>. <see cref="StubResponse"/> writes the answers from entities and
 /// <see cref="RecordedRequest.ReadItem{T}()"/> reads them back from the requests, so a test holds no DynamoDB JSON. There is no network and no container. <see cref="Table{T}"/> is
 /// sealed and has no interface on purpose: the handler is the seam, and a test through it covers the mapping and the expressions too. Code that wants to fake its data
 /// access altogether puts an interface of its own around it.
@@ -26,8 +26,8 @@ namespace DynaSharp.Testing;
 /// The client retries throttling errors, server errors (HTTP 500, 502, 503, 504), network failures and timeouts, up to
 /// <see cref="DynamoDbClientOptions.MaxAttempts"/> attempts in all. Every attempt is a request to this handler: <see cref="Requests"/>
 /// lists them all, and each needs a response, so a test that simulates a failure must queue as many failures as it expects attempts
-/// (or set a <see cref="DefaultResponse"/>), followed by the response that ends the retries. Set
-/// <see cref="DynamoDbClientOptions.MaxAttempts"/> to 1 to see exactly one request per call. The client waits a random time up to
+/// (or set a <see cref="DefaultResponse"/>), followed by the response that ends the retries. <see cref="StubClient"/> sets
+/// <see cref="DynamoDbClientOptions.MaxAttempts"/> to 1, which shows exactly one request per call. The client waits a random time up to
 /// 20 seconds between attempts on its <see cref="DynamoDbClientOptions.TimeProvider"/>, so give the client a fake time provider to
 /// test retries without waiting.
 /// </para>
@@ -49,7 +49,7 @@ namespace DynaSharp.Testing;
 /// handler.Enqueue(StubResponse.Json("""{"Item":{"pk":{"S":"user-1"}}}"""));
 /// handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Requested resource not found."));
 ///
-/// using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("eu-central-1"), HttpHandler = handler, Credentials = credentials });
+/// using var client = StubClient.Create(handler);
 /// // ... call the code under test, then:
 /// var operations = handler.Requests.Select(request => request.Operation);
 /// </code>

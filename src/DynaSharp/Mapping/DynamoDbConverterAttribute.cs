@@ -2,7 +2,7 @@ namespace DynaSharp.Mapping;
 
 /// <summary>
 /// Selects the converter of a property, or of a type wherever it is used, including inside collections. A converter on a property wins
-/// over one on the property's type, and both win over the built-in converters.
+/// over one on the property's type, and both win over <see cref="DynamoDbDefaultConverterAttribute"/> and the built-in converters.
 /// </summary>
 /// <remarks>
 /// The converter implements <see cref="Serialization.IDynamoDbConverter{T}"/> for the value type without nullability: a converter

@@ -44,10 +44,10 @@ public sealed class WireNamesTests
         yield return ("TOTAL", Name(WireNames.ReturnConsumedCapacities, ReturnConsumedCapacity.Total));
         yield return ("INDEXES", Name(WireNames.ReturnConsumedCapacities, ReturnConsumedCapacity.Indexes));
         yield return ("SIZE", Name(WireNames.ReturnItemCollectionMetricsValues, ReturnItemCollectionMetrics.Size));
-        yield return ("ALL_ATTRIBUTES", Name(WireNames.Selects, Select.AllAttributes));
-        yield return ("ALL_PROJECTED_ATTRIBUTES", Name(WireNames.Selects, Select.AllProjectedAttributes));
-        yield return ("SPECIFIC_ATTRIBUTES", Name(WireNames.Selects, Select.SpecificAttributes));
-        yield return ("COUNT", Name(WireNames.Selects, Select.Count));
+        yield return ("ALL_ATTRIBUTES", Name(WireNames.Selects, SelectKind.AllAttributes));
+        yield return ("ALL_PROJECTED_ATTRIBUTES", Name(WireNames.Selects, SelectKind.AllProjectedAttributes));
+        yield return ("SPECIFIC_ATTRIBUTES", Name(WireNames.Selects, SelectKind.SpecificAttributes));
+        yield return ("COUNT", Name(WireNames.Selects, SelectKind.Count));
         yield return ("S", Name(WireNames.ScalarAttributeTypes, ScalarAttributeType.String));
         yield return ("N", Name(WireNames.ScalarAttributeTypes, ScalarAttributeType.Number));
         yield return ("B", Name(WireNames.ScalarAttributeTypes, ScalarAttributeType.Binary));
@@ -152,7 +152,7 @@ public sealed class WireNamesTests
         // Arrange (nothing to arrange)
 
         // Act
-        var found = WireNames.Selects.TryGetName((Select)99, out var name);
+        var found = WireNames.Selects.TryGetName((SelectKind)99, out var name);
 
         // Assert
         await Assert.That((found, name)).IsEqualTo((false, (string?)null));
@@ -164,7 +164,7 @@ public sealed class WireNamesTests
         // Arrange (nothing to arrange)
 
         // Act
-        var found = WireNames.Selects.TryGetName(Select.Unspecified, out _);
+        var found = WireNames.Selects.TryGetName(SelectKind.Unspecified, out _);
 
         // Assert
         await Assert.That(found).IsFalse();

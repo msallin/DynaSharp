@@ -182,7 +182,7 @@ internal static class WriteEmitter
     }
 
     // A converter that answers for itself is asked after every other condition, so it never hears of a null. The value is a pattern variable, so that a computed property runs once:
-    // if (entity.Tags is { } __v0 && !global::DynaSharp.Serialization.OptionalReferenceConverter<List<string>, TagsConverter>.IsOmitted(__v0))
+    // if (entity.Tags is { } __v0 && !global::DynaSharp.Serialization.NullableReferenceHandleConverter<List<string>, TagsConverter>.IsOmitted(__v0))
     private static void EmitProperty(IndentedCode code, PropertyModel property, VariableNames variables, string value)
     {
         if (property.Write == WriteCondition.Never)

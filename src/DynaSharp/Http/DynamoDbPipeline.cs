@@ -184,9 +184,9 @@ internal sealed class DynamoDbPipeline : IDisposable
         }
         catch (Exception exception)
         {
-            if (exception is ValidationException rejection)
+            if (exception is DynamoDbException failure)
             {
-                call.DescribeRejection(rejection);
+                call.DescribeFailure(failure);
             }
 
             errorType = OperationTelemetry.GetErrorType(exception);

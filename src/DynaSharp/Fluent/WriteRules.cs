@@ -61,7 +61,7 @@ internal static class WriteRules
 
     /// <summary>
     /// Marks an update by a generated key, see <see cref="ExpectUpdate(CommandState)"/>. The text of a key gives its inputs back whenever <see cref="KeyInputChanges"/> asks, so the key is
-    /// gone after this, unless an index of the entity wants more than the text holds. That is the one kind of entity whose update pays for a box.
+    /// gone after this, unless an entity can want more than the text holds. Then the state keeps it, which is no box, see <see cref="HeldKey"/>, because most of those updates never ask.
     /// </summary>
     /// <typeparam name="TKey">The type of the key.</typeparam>
     /// <param name="state">The state, whose table is the one of the write.</param>
@@ -73,7 +73,7 @@ internal static class WriteRules
         ExpectUpdate(state);
         if (state.Table.Writes is { HoldsKey: true })
         {
-            state.HeldKey = key;
+            state.HoldKey(key);
         }
 
         return state;
@@ -118,9 +118,23 @@ internal static class WriteRules
         ArgumentOutOfRangeException.ThrowIfEqual(version, long.MaxValue);
     }
 
+    /// <summary>Asks an update to store the inputs of the table key, which waits for <see cref="Settle"/>, because it comes after every action of the update. An entity with nothing to store asks for nothing.</summary>
+    /// <param name="state">The state, whose table is the one of the update.</param>
+    /// <exception cref="InvalidOperationException">The table has no entity.</exception>
+    public static void StoreKeyInputs(CommandState state)
+    {
+        if (state.Table.Entity is null)
+        {
+            throw new InvalidOperationException($"This view of the table {state.Table.Name} has no entity, so there are no key inputs to store.");
+        }
+
+        state.StoresKeyInputs = state.Table.Writes is { StoredTableInputs.Length: > 0 };
+    }
+
     /// <summary>
     /// Adds the condition on a version, for a write that leaves no item or does not write one. Version 0 stands for an item that does not exist, so it is the condition of <see cref="IfNotExists"/>, on the key: looking at the
-    /// version attribute instead would let a write replace an item that has none.
+    /// version attribute instead would let a write replace an item that has none. An entity that allows such items wants exactly that, and takes an item that holds 0 as well, because both read as 0. Its condition waits for
+    /// <see cref="Settle"/>, because <c>IfNotExists</c> can still replace it, and what stands in the expressions cannot be taken out.
     /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
     /// <param name="version">The version the item must have.</param>
@@ -128,13 +142,17 @@ internal static class WriteRules
     public static void IfVersion(CommandState state, long version)
     {
         var attributeName = VersionAttribute(state);
-        if (version == 0)
+        if (version != 0)
         {
-            IfNotExists(state);
+            state.Expressions.AppendVersion(attributeName, version);
+        }
+        else if (state.Table.Writes!.AllowsMissingVersion)
+        {
+            state.VersionMustReadAsZero = true;
         }
         else
         {
-            state.Expressions.AppendVersion(attributeName, version);
+            IfNotExists(state);
         }
 
         state.UnsettledVersion = null;
@@ -200,13 +218,15 @@ internal static class WriteRules
     /// <summary>Ends what a write owes before it goes out. It runs at the terminal of a command and at the end of each action of a transaction.</summary>
     /// <param name="state">The state.</param>
     /// <returns>The state, for a chain.</returns>
-    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it asks for a new item with a version above 0 or for an item that exists at version 0, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
+    /// <exception cref="InvalidOperationException">The write does not say how it treats a version, it asks for a new item with a version above 0 or, on an entity that does not allow an item without a version, for an item that exists at version 0, it cannot leave a key consistent, or it writes one key of a sparse index without the other.</exception>
     public static CommandState Settle(CommandState state)
     {
         var versionChecked = state.VersionChecked;
         state.VersionChecked = false;
         var mustNotExist = state.ItemMustNotExist;
         state.ItemMustNotExist = false;
+        var readsAsZero = state.VersionMustReadAsZero;
+        state.VersionMustReadAsZero = false;
         var mustExist = state.ItemMustExist;
         state.ItemMustExist = false;
         var expected = state.ExpectedVersion;
@@ -216,9 +236,19 @@ internal static class WriteRules
             throw Contradiction(state.Table);
         }
 
-        if (mustExist && versionChecked && expected == 0)
+        if (readsAsZero && expected > 0)
+        {
+            throw VersionAndNoVersion(state.Table);
+        }
+
+        if (mustExist && versionChecked && expected == 0 && !readsAsZero)
         {
             throw ExistsAtVersionZero(state.Table);
+        }
+
+        if (readsAsZero && !mustNotExist)
+        {
+            state.Expressions.AppendVersionZero(state.Table.Writes!.VersionAttributeName!);
         }
 
         if (state.UnsettledVersion is { } table)
@@ -234,14 +264,19 @@ internal static class WriteRules
                 throw Contradiction(table);
             }
 
-            if (mustExist && held == 0)
+            var allowsMissing = table.Writes!.AllowsMissingVersion;
+            if (mustExist && held == 0 && !allowsMissing)
             {
                 throw ExistsAtVersionZero(table);
             }
 
             if (held != 0)
             {
-                state.Expressions.AppendVersion(table.Writes!.VersionAttributeName!, held);
+                state.Expressions.AppendVersion(table.Writes.VersionAttributeName!, held);
+            }
+            else if (!mustNotExist && allowsMissing)
+            {
+                state.Expressions.AppendVersionZero(table.Writes.VersionAttributeName!);
             }
             else if (!mustNotExist)
             {
@@ -255,6 +290,12 @@ internal static class WriteRules
         if (state.HasKeyInputs)
         {
             state.KeyInputs.Apply(state, state.Table.Writes!);
+        }
+
+        if (state.StoresKeyInputs)
+        {
+            state.StoresKeyInputs = false;
+            state.KeyInputs.StoreTableInputs(state, state.Table.Writes!);
         }
 
         // With if_not_exists, as the discriminator, because a key attribute can hold what another type put there, and an update at that key must not rewrite it.
@@ -348,6 +389,9 @@ internal static class WriteRules
 
     private static InvalidOperationException Contradiction(TableModel table) => new(
         $"This write of {table.Writes!.EntityName} holds a version above 0 and asks that no item has its key, which can never both hold: an item that does not exist has no version. For a first write use version 0, to replace an item leave out IfNotExists, and to write the entity as it is call IgnoreVersion().");
+
+    private static InvalidOperationException VersionAndNoVersion(TableModel table) => new(
+        $"This write of {table.Writes!.EntityName} asks for version 0, an item without a version, and for a version above 0, which can never both hold. Keep one IfVersion.");
 
     private static InvalidOperationException ExistsAtVersionZero(TableModel table) => new(
         $"This write of {table.Writes!.EntityName} holds version 0 and asks that an item has its key, which can never both hold: version 0 means that no item has the key. For a first write leave out IfExists, for an item that exists use the version last read, and to write without looking at the version call IgnoreVersion().");

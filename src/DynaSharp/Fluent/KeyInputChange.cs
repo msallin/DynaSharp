@@ -12,6 +12,6 @@ internal enum KeyInputChange
     /// <summary>It removes the attribute, which takes the item out of a sparse index.</summary>
     Removed,
 
-    /// <summary>It changes the attribute in DynamoDB, to a value that is not known here.</summary>
+    /// <summary>It changes the attribute in DynamoDB, to a value that is not known here, or it changes what a computed input is derived from.</summary>
     Unknown,
 }

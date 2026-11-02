@@ -239,7 +239,8 @@ public sealed class DynamoDbClient : IDisposable
         Core.SendRawAsync(operation, requestJson, cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer, up to 5 times. Nothing in the library does that by itself, and this is how a caller asks for it. A run has lost
+    /// Runs a read-modify-write, and runs it again when it loses to another writer, up to 5 times. Nothing in the library does that by itself, and this is how a caller asks for it, here or on a
+    /// <see cref="Table{T}"/>, which needs no client at hand for it. A run has lost
     /// when it throws a <see cref="ConditionalCheckFailedException"/>, a <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> whose reasons include
     /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>.
     /// </summary>
@@ -270,8 +271,8 @@ public sealed class DynamoDbClient : IDisposable
     /// </para>
     /// <para>
     /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged, so a
-    /// <see cref="ConditionalCheckFailedException"/> of the last run names no key: the service does not, and <see cref="ConditionalCheckFailedException.Item"/> holds something only for a write that asked for it. A
-    /// caller that has to say which item gave up catches it around this call, where it knows the key.
+    /// <see cref="ConditionalCheckFailedException"/> of the last run says which item gave up in <see cref="ConditionalCheckFailedException.Key"/>, which holds the key of a write of that run as the request named it. Neither its
+    /// message nor telemetry show the key, and a transaction has none: there <see cref="TransactionCanceledException.ItemFor"/> is the way to an item.
     /// </para>
     /// <para>
     /// <b>Keep follow-up writes outside the run.</b> A run is one read-modify-write, and what depends on its result, such as a second item or an entry of an audit log, goes after this call. Inside, it runs again
@@ -301,7 +302,7 @@ public sealed class DynamoDbClient : IDisposable
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. It names no key, see the remarks.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item, see the remarks.</exception>
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
     public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, CancellationToken cancellationToken = default) =>
@@ -323,15 +324,11 @@ public sealed class DynamoDbClient : IDisposable
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, int maxAttempts, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
-        return ConflictRetry.RunAsync(Core, operation, maxAttempts, cancellationToken);
-    }
+    public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, maxAttempts, cancellationToken);
 
     /// <summary>
     /// Runs a read-modify-write that returns nothing, and runs it again when it loses to another writer. See
@@ -342,7 +339,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
     public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken = default) =>
@@ -360,21 +357,11 @@ public sealed class DynamoDbClient : IDisposable
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, int maxAttempts, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-        return RetryOnConflictAsync(
-            async token =>
-            {
-                await operation(token).ConfigureAwait(false);
-                return true;
-            },
-            maxAttempts,
-            cancellationToken);
-    }
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, maxAttempts, cancellationToken);
 
     /// <summary>
     /// Releases the HTTP connections. Requests still running may fail. Calling it again has no effect.

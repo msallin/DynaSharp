@@ -100,7 +100,7 @@ internal static class PagedRead<TOperation, T>
     public static ValueTask<int> CountAsync(CommandState state, CancellationToken cancellationToken)
     {
         ThrowIfProjected(state);
-        state.Select = Select.Count;
+        state.Select = SelectKind.Count;
         return SumAsync(state, cancellationToken);
     }
 

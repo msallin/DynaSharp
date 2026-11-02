@@ -183,12 +183,12 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
-    public UpdateStep Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+    public UpdateStep Add<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
-    public UpdateStep Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+    public UpdateStep Add<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
@@ -205,6 +205,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         where TConverter : IDynamoDbConverter<TValue>
     {
         var state = Enter();
+        WriteRules.NoteUnknownValue(state, attribute.Path);
         state.Expressions.Delete<TValue, TConverter>(attribute.Path, elements);
         return new(state);
     }
@@ -254,7 +255,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <summary>
     /// Makes this update depend on the item having this version, and stores the next one. If it has another, the whole transaction is cancelled, and the marker of this action says that this was
-    /// the reason. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
+    /// the reason. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. With <see cref="Mapping.VersionMissing.Allow"/> it stands for what reads as 0, an item without a version attribute or with 0 in it, or none. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion"/>, and the next verb throws <see cref="InvalidOperationException"/> without it. <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>
     /// repeats a transaction together with the read of the version.
     /// </summary>
@@ -267,6 +268,27 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         WriteRules.CheckVersion(version);
         var state = Enter();
         WriteRules.AdvanceVersion(state, version);
+        return new(state);
+    }
+
+    /// <summary>
+    /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create it: <c>SET #userId = if_not_exists(#userId, :v)</c> per input, after the actions of the update and the
+    /// keys of its indexes and before the discriminator. Without it an item an update created holds the key alone: a read of the entity restores the inputs from the key, and <c>Select</c> of such an input and a filter on it find nothing.
+    /// An item that exists keeps what it has, so this goes with <c>IfExists()</c>, <c>IfNotExists()</c> and a version alike. The value goes through the converter of the property and is the value, not the text of the key, and an
+    /// action of the update on the attribute by a raw path takes precedence. A plain key and a key made of one property over its own attribute are their attribute, and a <see cref="Mapping.KeyOnlyAttribute"/> has none, so
+    /// an entity with nothing else changes nothing here.
+    /// </summary>
+    /// <remarks>
+    /// A template that cuts a value off, such as a timestamp in <c>{At:yyyy-MM-dd}</c>, gives it back only from a generated key, so a key given as strings throws for it when the update ends. It costs an
+    /// <see cref="AttributeValue"/> per input, and an update without it pays nothing.
+    /// It settles with the action, so the next verb is where such a throw comes from.
+    /// </remarks>
+    /// <returns>The step, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">The table of this action has no entity.</exception>
+    public UpdateStep StoreKeyInputs()
+    {
+        var state = Enter();
+        WriteRules.StoreKeyInputs(state);
         return new(state);
     }
 

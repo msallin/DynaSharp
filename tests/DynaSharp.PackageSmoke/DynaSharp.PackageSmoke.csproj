@@ -50,6 +50,7 @@
       <Output TaskParameter="ConsoleOutput" PropertyName="_MistakesOutput" />
     </Exec>
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA116'))" Text="DYNA116 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA117'))" Text="DYNA117 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('error CS4007')) or !$(_MistakesOutput.Contains('warning DYNA201'))" Text="DYNA201 did not appear beside CS4007. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA202'))" Text="DYNA202 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('error DYNA203'))" Text="DYNA203 did not appear. The compiler printed: $(_MistakesOutput)" />
@@ -66,6 +67,8 @@
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA214'))" Text="DYNA214 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA215'))" Text="DYNA215 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA216'))" Text="DYNA216 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA217'))" Text="DYNA217 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA218'))" Text="DYNA218 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA026'))" Text="DYNA026 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="$(_MistakesOutput.Contains('CS8032')) or $(_MistakesOutput.Contains('AD0001')) or $(_MistakesOutput.Contains('CS8784'))" Text="An analyzer or generator failed to load or run. The compiler printed: $(_MistakesOutput)" />
   </Target>

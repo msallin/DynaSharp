@@ -49,6 +49,45 @@ public sealed class SortKeyConditionTests(Backend backend)
     }
 
     [Test]
+    public async Task Query_RangeOfTimestamps_TakesTheKeysAtFromAndBetweenAndLeavesOutThoseAtTo()
+    {
+        // Arrange (rows 2 and 3 are at from, 4 lies between, 5 is at to; Between takes it and Range does not)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var readings = await CreateAsync(sandbox);
+        var (from, to) = (Noon, Noon.AddSeconds(1));
+
+        // Act
+        int[][] rows =
+        [
+            await RowsAsync(readings.Query(MeterReading.Keys.Pk.Of(Meter), MeterReading.Keys.Sk.Range(from, to)).ItemsAsync()),
+            await RowsAsync(readings.Query(MeterReading.Keys.Pk.Of(Meter), MeterReading.Keys.Sk.Between(from, to)).ItemsAsync()),
+            await RowsAsync(readings.Query(MeterReading.Keys.Pk.Of(Meter), MeterReading.Keys.Sk.Range(to, to)).ItemsAsync()),
+        ];
+
+        // Assert
+        await Assert.That(string.Join(" | ", rows.Select(static row => string.Join(",", row)))).IsEqualTo("2,3,4 | 2,3,4,5 | ");
+    }
+
+    [Test]
+    public async Task Query_RangeOfAFieldBeforeARawValue_LeavesOutEveryKeyAtTo()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var appointments = sandbox.Client.Table<Appointment>(Tables.UniqueName());
+        await sandbox.CreateTableAsync(appointments, appointments.CreateTable().WaitUntilActive());
+        foreach (var (day, slot) in new[] { (1, "z"), (2, "!"), (2, "z#z"), (3, "a#b"), (4, "!"), (4, "z"), (5, "a") })
+        {
+            await appointments.Put(new Appointment { Key = "k", Day = day, Slot = slot }).SendAsync();
+        }
+
+        // Act
+        var read = await appointments.Query(Appointment.Keys.Pk.Of("k"), Appointment.Keys.Sk.Range(2, 4)).ItemsAsync().Select(static appointment => $"{appointment.Day}:{appointment.Slot}").ToArrayAsync();
+
+        // Assert
+        await Assert.That(string.Join(",", read)).IsEqualTo("2:!,2:z#z,3:a#b");
+    }
+
+    [Test]
     public async Task Query_ConditionsOnASignedNumberOfAnIndex_SelectTheRowsOfTheNumbers()
     {
         // Arrange

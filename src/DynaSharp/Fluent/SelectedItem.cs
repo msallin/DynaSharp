@@ -4,7 +4,7 @@ namespace DynaSharp.Fluent;
 
 /// <summary>
 /// An item read for one attribute: <c>{"count":{"N":"7"}}</c> gives 7, and <c>{"stats":{"M":{"count":{"N":"7"}}}}</c> does for a nested path. No entity is made, so nothing but the attribute can fail. An attribute
-/// that is missing gives what the converter says it means, and a throw when it says nothing, because a counter that silently reads 0 is the bug this exists to prevent.
+/// that is missing, or that the converter counts as missing, gives what the converter says it means, and a throw when it says nothing, because a counter that silently reads 0 is the bug this exists to prevent.
 /// </summary>
 /// <remarks>
 /// An item of another type fails as a read of the entity does, by the same call. A filter has kept such items out of a <c>Scan</c> and of nearly every <c>Query</c>, so the read looks only where

@@ -32,7 +32,7 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
     private static readonly string[] TextFunctions = [BeginsWithFunction, "contains"];
 
     // A nullable property says so by a wrapper around its converter.
-    private static readonly HashSet<string> OptionalConverters = ["OptionalConverter", "OptionalReferenceConverter"];
+    private static readonly HashSet<string> NullableHandleConverters = ["NullableHandleConverter", "NullableReferenceHandleConverter"];
 
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
@@ -76,7 +76,7 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    // A number, a date and a boolean have overloads that do not compile, CS0619. The forwarder of an enum is a nested type of the consumer, which no overload can name, so a [Flags] enum takes the general one.
+    // A number, a date and a boolean have overloads that do not compile, CS0619. The forwarder of an enum and the converter of a version are nested types of the consumer, which no overload can name, so those take the general one.
     private static void AnalyzeBeginsWith(OperationAnalysisContext context, ModelCatalog models)
     {
         var call = (IInvocationOperation)context.Operation;
@@ -86,7 +86,7 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         }
 
         var handle = call.Arguments[0].Value;
-        if (StoredBy(handle.Type) is { } converter && StoresEnumAsNumber(converter, models))
+        if (StoredBy(handle.Type) is { } converter && NestedConverterStoresNumber(converter, models))
         {
             context.ReportDiagnostic(Diagnostic.Create(Descriptors.TextFunctionOnNumber, handle.Syntax.GetLocation(), BeginsWithFunction));
         }
@@ -101,14 +101,15 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         }
 
         var converter = attr.TypeArguments[1];
-        return converter is INamedTypeSymbol { TypeArguments.Length: 2 } optional && OptionalConverters.Contains(optional.Name) ? optional.TypeArguments[1] : converter;
+        return converter is INamedTypeSymbol { TypeArguments.Length: 2 } wrapper && NullableHandleConverters.Contains(wrapper.Name) ? wrapper.TypeArguments[1] : converter;
     }
 
     // A forwarder is nested in the Attrs of the type it serves. Its name is all the symbol says, and what the enum stores is known to the model of that type. A set of the enum has a converter of its own, so it does not come here.
-    private static bool StoresEnumAsNumber(ITypeSymbol converter, ModelCatalog models) =>
-        converter.ContainingType?.ContainingType is { } owner
-        && models.ModelOf(owner) is { } model
-        && model.Enums.Any(known => known.StoreAsNumber && AttrsEmitter.ForwarderPrefix + known.ConverterName == converter.Name);
+    private static bool NestedConverterStoresNumber(ITypeSymbol converter, ModelCatalog models) =>
+        converter.Name == AttrsEmitter.VersionConverter
+        || (converter.ContainingType?.ContainingType is { } owner
+            && models.ModelOf(owner) is { } model
+            && model.Enums.Any(known => known.StoreAsNumber && AttrsEmitter.ForwarderPrefix + known.ConverterName == converter.Name));
 
     // A wrapper of the consumer may forward the handler to either grammar, so only the methods of the library say which one it is.
     private static ExpressionKind KindOf(IOperation creation)
@@ -213,7 +214,7 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         private bool HoldsNoText(IOperation appendCall) =>
             appendCall is IInvocationOperation call
             && StoredBy((call.Arguments[0].Value is IConversionOperation conversion ? conversion.Operand : call.Arguments[0].Value).Type) is { } converter
-            && (NoTextConverters.Contains(converter.Name) || StoresEnumAsNumber(converter, models));
+            && (NoTextConverters.Contains(converter.Name) || NestedConverterStoresNumber(converter, models));
 
         private void AddLiteral(IInterpolatedStringAppendOperation append)
         {

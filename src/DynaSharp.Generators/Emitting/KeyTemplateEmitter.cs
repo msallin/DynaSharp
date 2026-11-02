@@ -4,8 +4,8 @@ namespace DynaSharp.Generators;
 /// Writes the metadata of an update: every key attribute that is made of properties, once, with a delegate that formats it. A key of the table has none, because an
 /// update must not touch it, and neither has a plain key, whose attribute is the property. A plain key of the table is left out, DynamoDB rejects its update by itself and an entity with
 /// nothing here costs an update nothing, unless an index key is made of it. A key without inputs cannot go stale, and it is here because an update has to write it: with the other key of its
-/// index, or on every update when the other key of the index is like it or a key of the table. A key of the table with an input that an index key repeats also says how to read that input from the key, which is how
-/// an update that was given the key writes the index key without a read.
+/// index, or on every update when the other key of the index is like it or a key of the table. A key of the table with an input that an index key repeats or that has an attribute of its own also says how to read that
+/// input from the key, which is how an update that was given the key writes the index key without a read, and stores the input when it is asked to.
 /// </summary>
 internal static class KeyTemplateEmitter
 {
@@ -15,36 +15,41 @@ internal static class KeyTemplateEmitter
 
     private const string Parts = "__parts";
 
+    private const string Value = "__value";
+
     public static List<string> Lines(TypeModel type, EntityModel entity)
     {
         var tableKeys = TableKeys(entity);
         var indexKeys = IndexKeys(entity);
         var readers = PlaceholdersOf(indexKeys);
-        var lost = LostInputs(tableKeys, readers);
+        var stored = StoredInputs(type, tableKeys);
+        var lost = LostInputs(tableKeys, readers, stored);
         var lines = new List<string>();
         foreach (var key in tableKeys)
         {
-            var parse = Parse(type, key, readers);
+            var parse = Parse(type, key, readers, stored);
             if (Placeholders(key).Any() || parse is not null)
             {
-                lines.Add(Line(type, key, isTableKey: true, format: null, parse, Placeholders(key).Any(placeholder => lost.Contains(placeholder.Property))));
+                lines.Add(Line(type, entity, key, isTableKey: true, stored, format: null, parse, Placeholders(key).Any(placeholder => lost.Contains(placeholder.Property))));
             }
         }
 
-        lines.AddRange(indexKeys.Select(key => Line(type, key, isTableKey: false, Format(key), parse: null, losesValues: false)));
+        lines.AddRange(indexKeys.Select(key => Line(type, entity, key, isTableKey: false, stored, Format(key), parse: null, losesValues: false)));
         return lines;
     }
 
     /// <summary>Finds what a generated key has to give an update, because the text of the key does not.</summary>
+    /// <param name="type">The type of the entity.</param>
     /// <param name="entity">The entity.</param>
-    /// <returns>The properties an index key repeats, or nothing if the text of the key gives each of them back.</returns>
-    public static List<string> HeldInputs(EntityModel entity)
+    /// <returns>The properties an index key repeats or an update can store, or nothing if the text of the key gives each of them back.</returns>
+    public static List<string> HeldInputs(TypeModel type, EntityModel entity)
     {
         var tableKeys = TableKeys(entity);
         var readers = PlaceholdersOf(IndexKeys(entity));
-        return LostInputs(tableKeys, readers).Count == 0
+        var stored = StoredInputs(type, tableKeys);
+        return LostInputs(tableKeys, readers, stored).Count == 0
             ? []
-            : [.. tableKeys.SelectMany(Inputs).Where(input => readers.Exists(reader => reader.Property == input)).Distinct()];
+            : [.. tableKeys.SelectMany(Inputs).Where(input => stored.Contains(input) || readers.Exists(reader => reader.Property == input)).Distinct()];
     }
 
     private static List<KeyModel> TableKeys(EntityModel entity) => [.. new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>()];
@@ -63,20 +68,36 @@ internal static class KeyTemplateEmitter
     private static IEnumerable<string> Inputs(KeyModel key) =>
         key.Template is null ? [key.PlainProperty!] : Placeholders(key).Select(static placeholder => placeholder.Property);
 
-    // Parsing a truncated timestamp is no loss to an index key of the same format, which truncates it again.
-    private static bool GivesBack(PlaceholderSegment placeholder, List<PlaceholderSegment> readers) =>
-        placeholder.Encoding.IsLossless || readers.Where(reader => reader.Property == placeholder.Property).All(reader => reader.Encoding == placeholder.Encoding);
+    private static string? AttributeOf(TypeModel type, string property) =>
+        type.Properties.FirstOrDefault(candidate => candidate.Name == property && candidate.Converter is not null)?.AttributeName;
 
-    private static HashSet<string> LostInputs(List<KeyModel> tableKeys, List<PlaceholderSegment> readers)
+    // What StoreKeyInputs writes. A plain key is its attribute, and a [KeyOnly] property and a computed one that is not stored have none.
+    private static HashSet<string> StoredInputs(TypeModel type, List<KeyModel> tableKeys) =>
+        [.. PlaceholdersOf(tableKeys).Select(static placeholder => placeholder.Property).Where(property => AttributeOf(type, property) is { } attribute && !tableKeys.Exists(key => key.AttributeName == attribute))];
+
+    // Parsing a truncated timestamp is no loss to an index key of the same format, which truncates it again.
+    private static bool GivesBack(PlaceholderSegment placeholder, List<PlaceholderSegment> readers)
     {
-        var held = PlaceholdersOf(tableKeys).FindAll(placeholder => readers.Exists(reader => reader.Property == placeholder.Property));
-        return [.. held.Select(static placeholder => placeholder.Property).Where(property => !held.Exists(placeholder => placeholder.Property == property && GivesBack(placeholder, readers)))];
+        var repeats = readers.FindAll(reader => reader.Property == placeholder.Property);
+        return placeholder.Encoding.IsLossless || (repeats.Count > 0 && repeats.TrueForAll(reader => reader.Encoding == placeholder.Encoding));
     }
 
-    private static string Line(TypeModel type, KeyModel key, bool isTableKey, string? format, string? parse, bool losesValues)
+    // What an index wants of an input takes a placeholder that gives it back, and the attribute of an input takes one that holds all of it.
+    private static HashSet<string> LostInputs(List<KeyModel> tableKeys, List<PlaceholderSegment> readers, HashSet<string> stored)
+    {
+        var placeholders = PlaceholdersOf(tableKeys);
+        var held = placeholders.FindAll(placeholder => readers.Exists(reader => reader.Property == placeholder.Property));
+        var lost = new HashSet<string>(held.Select(static placeholder => placeholder.Property).Where(property => !held.Exists(placeholder => placeholder.Property == property && GivesBack(placeholder, readers))));
+        lost.UnionWith(stored.Where(property => !placeholders.Exists(placeholder => placeholder.Property == property && placeholder.Encoding.IsLossless)));
+        return lost;
+    }
+
+    private static string Line(TypeModel type, EntityModel entity, KeyModel key, bool isTableKey, HashSet<string> stored, string? format, string? parse, bool losesValues)
     {
         var text = key.Template?.Text ?? "{" + key.PlainProperty + "}";
-        var inputs = Inputs(key).Select(property => Input(type, property)).ToList();
+        var inputs = key.Template is null
+            ? [Input(type, entity, key.PlainProperty!, null)]
+            : Placeholders(key).Select(placeholder => Input(type, entity, placeholder.Property, isTableKey && stored.Contains(placeholder.Property) ? placeholder : null)).ToList();
         var arguments = new List<string>
         {
             CodeText.Literal(key.AttributeName),
@@ -98,11 +119,26 @@ internal static class KeyTemplateEmitter
         return $"{line} {{ Parse = {parse}{(losesValues ? ", LosesValues = true" : string.Empty)} }}";
     }
 
-    // A [KeyOnly] property and a computed one that is not stored have no attribute, so no handle can set them.
-    private static string Input(TypeModel type, string property)
+    // A [KeyOnly] property and a computed one that is not stored have no attribute, so no handle can set them. The value of a stored input goes through the type parameter, which reaches a Write that a converter implements explicitly.
+    private static string Input(TypeModel type, EntityModel entity, string property, PlaceholderSegment? stored)
     {
-        var attribute = type.Properties.FirstOrDefault(candidate => candidate.Name == property && candidate.Converter is not null)?.AttributeName;
-        return $"new __Map.DynamoDbKeyInput({CodeText.Literal(property)}, {CodeText.OptionalLiteral(attribute)})";
+        var arguments = new List<string> { CodeText.Literal(property), CodeText.OptionalLiteral(AttributeOf(type, property)) };
+        if (entity.ComputedInputs.FirstOrDefault(input => input.Property == property) is { } computed)
+        {
+            arguments.Add($"ComputedFromAttributes: new[] {{ {string.Join(", ", computed.DependencyAttributes.Select(CodeText.Literal))} }}");
+        }
+
+        if (stored is not null)
+        {
+            var converter = type.Property(property).Converter!.WriteConverter;
+            arguments.Add($"ToAttributeValue: static {Value} => __Ser.ConverterChecks.ToAttributeValue<{stored.ValueType}, {converter}>(({stored.ValueType}){Value})");
+            if (!stored.Encoding.IsLossless)
+            {
+                arguments.Add("IsCutOff: true");
+            }
+        }
+
+        return $"new __Map.DynamoDbKeyInput({string.Join(", ", arguments)})";
     }
 
     private static string? Format(KeyModel key)
@@ -116,9 +152,9 @@ internal static class KeyTemplateEmitter
         return $"static {Values} => Keys.{key.BuilderName}.Format({string.Join(", ", values)})";
     }
 
-    private static string? Parse(TypeModel type, KeyModel key, List<PlaceholderSegment> readers)
+    private static string? Parse(TypeModel type, KeyModel key, List<PlaceholderSegment> readers, HashSet<string> stored)
     {
-        if (!Inputs(key).Any(input => readers.Exists(reader => reader.Property == input)))
+        if (!Inputs(key).Any(input => stored.Contains(input) || readers.Exists(reader => reader.Property == input)))
         {
             return null;
         }

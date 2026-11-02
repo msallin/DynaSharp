@@ -73,9 +73,7 @@ internal static class ReadEmitter
     {
         var candidates = read
             .Where(static property => property.RestoredFromKey is null)
-            .Select(static property => new ReadCandidate(property.AttributeName, [
-                $"fields.{property.Identifier} = reader.ReadAttribute<{property.ValueType}, {property.Converter!.ReadConverter}>();",
-                $"fields.{property.Name}__set = true;"]))
+            .Select(static property => new ReadCandidate(property.AttributeName, ReadLines(property)))
             .ToList();
 
         var restored = read.Where(static property => property.RestoredFromKey is not null).GroupBy(static property => property.RestoredFromKey!).ToList();
@@ -92,6 +90,16 @@ internal static class ReadEmitter
         }
 
         return candidates;
+    }
+
+    // A value that the converter counts as missing leaves __set alone, so everything that a missing attribute goes through follows: the initial value, the throw for a required member, the fallback key.
+    private static string[] ReadLines(PropertyModel property)
+    {
+        var (value, converter) = (property.ValueType, property.Converter!.ReadConverter);
+        var set = $"fields.{property.Name}__set = true;";
+        return property.Converter.CountsAsMissing
+            ? [$"if (reader.TryReadAttribute<{value}, {converter}>(out var __v)) {{ fields.{property.Identifier} = __v; {set} }}"]
+            : [$"fields.{property.Identifier} = reader.ReadAttribute<{value}, {converter}>();", set];
     }
 
     // Keys.{Builder}.TryParse is what KeyBuilderEmitter emits: it reports text the template cannot have produced, and the parts are a struct of the placeholders.

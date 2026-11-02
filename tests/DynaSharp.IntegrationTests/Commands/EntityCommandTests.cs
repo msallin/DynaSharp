@@ -24,6 +24,22 @@ public sealed class EntityCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task Put_IfNotExistsOverAnExistingItem_NamesTheKeyThatGetItemFinds()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+        await profiles.Put(new Profile("alice", "Alice", 1)).IfNotExists().SendAsync();
+        var stored = await sandbox.ReadAsync("USER#alice", "PROFILE");
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await profiles.Put(new Profile("alice", "Someone else", 2)).IfNotExists().SendAsync());
+
+        // Assert
+        await Assert.That(failure.Key).IsEqualTo(new Item { ["pk"] = stored!["pk"], ["sk"] = stored["sk"] });
+    }
+
+    [Test]
     public async Task Put_FirstWriteOverAnItemWithoutAVersion_FailsAndLeavesIt()
     {
         // Arrange (the condition of a first write is on the key, and the item reads as version 0)

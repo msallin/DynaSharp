@@ -49,9 +49,13 @@ internal readonly struct RequestCall<TOperation, TRequest, TResponse>(TRequest r
 
     public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(TResponse response) => TOperation.GetConsumedCapacity(response);
 
-    // The caller wrote the expressions, so they need no explaining.
-    public void DescribeRejection(ValidationException rejection)
+    // The caller wrote the expressions, so they need no explaining. A failed condition gets the key the request holds.
+    public void DescribeFailure(DynamoDbException failure)
     {
+        if (failure is ConditionalCheckFailedException condition && TOperation.GetKey(request) is { } key)
+        {
+            condition.Describe(key);
+        }
     }
 
     public void Release()

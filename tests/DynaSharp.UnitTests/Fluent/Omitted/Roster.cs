@@ -30,10 +30,10 @@ internal sealed partial record Roster
 
     public Amount? MaybeTotal { get; init; }
 
-    [DynamoDbConverter(typeof(OptionalConverter<int, ExplicitZeroConverter>))]
+    [DynamoDbConverter(typeof(NullableHandleConverter<int, ExplicitZeroConverter>))]
     public int Wrapped { get; init; }
 
-    [DynamoDbConverter(typeof(OptionalReferenceConverter<List<string>, OmittedListConverter>))]
+    [DynamoDbConverter(typeof(NullableReferenceHandleConverter<List<string>, OmittedListConverter>))]
     public List<string> WrappedTags { get; init; } = [];
 
     [DynamoDbConverter(typeof(OmitEmptyConverter<StringConverter>))]

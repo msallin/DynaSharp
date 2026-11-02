@@ -40,13 +40,25 @@ public static class AttrExtensions
     /// <param name="attribute">The attribute.</param>
     /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
     /// <returns>The condition.</returns>
-    public static BeginsWith BeginsWith(this Attr<byte[], OptionalReferenceConverter<byte[], BinaryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], BinaryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a nullable binary attribute, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
     /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
     /// <returns>The condition.</returns>
-    public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, OptionalConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, NullableHandleConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
+
+    /// <summary>Checks with <c>begins_with</c> on a binary attribute with <see cref="OmitEmptyAttribute"/>, which compares bytes.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <returns>The condition.</returns>
+    public static BeginsWith BeginsWith(this Attr<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
+
+    /// <summary>Checks with <c>begins_with</c> on a nullable binary attribute with <see cref="OmitEmptyAttribute"/>, which compares bytes.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <returns>The condition.</returns>
+    public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Does not compile, because a string prefix never matches a binary value.</summary>
     /// <param name="attribute">The attribute.</param>
@@ -60,14 +72,28 @@ public static class AttrExtensions
     /// <param name="prefix">The prefix.</param>
     /// <returns>The condition.</returns>
     [Obsolete(BinaryPrefix, error: true)]
-    public static BeginsWith BeginsWith(this Attr<byte[], OptionalReferenceConverter<byte[], BinaryConverter>> attribute, string prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>> attribute, string prefix) => new(attribute.Path, prefix);
 
     /// <summary>Does not compile, because a string prefix never matches a binary value.</summary>
     /// <param name="attribute">The attribute.</param>
     /// <param name="prefix">The prefix.</param>
     /// <returns>The condition.</returns>
     [Obsolete(BinaryPrefix, error: true)]
-    public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, OptionalConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>> attribute, string prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>>> attribute, string prefix) => new(attribute.Path, prefix);
+
+    /// <summary>Does not compile, because a string prefix never matches a binary value.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="prefix">The prefix.</param>
+    /// <returns>The condition.</returns>
+    [Obsolete(BinaryPrefix, error: true)]
+    public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], BinaryConverter>> attribute, string prefix) => new(attribute.Path, prefix);
+
+    /// <summary>Does not compile, because a string prefix never matches a binary value.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="prefix">The prefix.</param>
+    /// <returns>The condition.</returns>
+    [Obsolete(BinaryPrefix, error: true)]
+    public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, NullableHandleConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>> attribute, string prefix) => new(attribute.Path, prefix);
 
     /// <summary>Does not compile, because a string prefix never matches a binary value.</summary>
     /// <param name="attribute">The attribute.</param>
@@ -91,7 +117,7 @@ public static class AttrExtensions
     /// <param name="prefix">The prefix.</param>
     /// <returns>The condition.</returns>
     [Obsolete(NoText, error: true)]
-    public static BeginsWith BeginsWith<T>(this Attr<T, OptionalConverter<T, NumberConverter<T>>> attribute, string prefix)
+    public static BeginsWith BeginsWith<T>(this Attr<T, NullableHandleConverter<T, NumberConverter<T>>> attribute, string prefix)
         where T : struct, INumberBase<T> => new(attribute.Path, prefix);
 
     /// <summary>Does not compile, because DynamoDB finds nothing with <c>begins_with</c> on a timestamp stored as a number.</summary>
@@ -106,7 +132,7 @@ public static class AttrExtensions
     /// <param name="prefix">The prefix.</param>
     /// <returns>The condition.</returns>
     [Obsolete(NoText, error: true)]
-    public static BeginsWith BeginsWith(this Attr<DateTimeOffset, OptionalConverter<DateTimeOffset, EpochSecondsConverter>> attribute, string prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<DateTimeOffset, NullableHandleConverter<DateTimeOffset, EpochSecondsConverter>> attribute, string prefix) => new(attribute.Path, prefix);
 
     /// <summary>Does not compile, because DynamoDB finds nothing with <c>begins_with</c> on a boolean.</summary>
     /// <param name="attribute">The attribute.</param>
@@ -120,7 +146,7 @@ public static class AttrExtensions
     /// <param name="prefix">The prefix.</param>
     /// <returns>The condition.</returns>
     [Obsolete(NoText, error: true)]
-    public static BeginsWith BeginsWith(this Attr<bool, OptionalConverter<bool, BoolConverter>> attribute, string prefix) => new(attribute.Path, prefix);
+    public static BeginsWith BeginsWith(this Attr<bool, NullableHandleConverter<bool, BoolConverter>> attribute, string prefix) => new(attribute.Path, prefix);
 
     /// <summary>
     /// Gets an attribute inside a nested document, by the handle that its document type generates:

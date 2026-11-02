@@ -19,7 +19,7 @@ public interface IUpdatable<TSelf>
     /// <summary>
     /// Sets an attribute, creating it if it does not exist (<c>SET</c>), and keeps every key made from it consistent, or throws when the command ends. A null value is a
     /// <see cref="Remove{TValue, TConverter}(Attr{TValue, TConverter})"/>, for every attribute, because a generated entity writes no attribute for a null property either. On a
-    /// property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string is one too.
+    /// property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string or collection is one too.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -27,7 +27,7 @@ public interface IUpdatable<TSelf>
     /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and what is missing, because the index
     /// would go stale. An input of a key of the table is known from the key the update was given, and it cannot be set, because DynamoDB cannot update a key. A key given as strings is parsed
     /// for that, so a value that its text does not hold, such as a timestamp a key cuts off at the day, comes from a generated key or not at all: then use a <c>Put</c> of the changed entity,
-    /// or a raw path.
+    /// or a raw path. A write by handle to a property that a computed input is derived from, see <see cref="Mapping.ComputedFromAttribute"/>, also to a path inside it, throws in the same way, because no update can run a getter, and so does a write by handle to such a computed input itself.
     /// </para>
     /// <para>
     /// <b>Sparse indexes.</b> An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
@@ -64,7 +64,7 @@ public interface IUpdatable<TSelf>
     /// <summary>
     /// Sets an attribute if there is a value, and adds nothing if there is none, which is what an update of optional fields wants: <c>.SetIfNotNull(Customer.Attrs.Email, request.Email)</c>. With a value it is
     /// <see cref="Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>, with all it says about keys. With <see langword="null"/> the attribute stays as it is, where <c>Set</c> would remove it, and a
-    /// property that feeds a key counts as untouched. On a property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string is no value either.
+    /// property that feeds a key counts as untouched. On a property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string or collection is no value either.
     /// </summary>
     /// <remarks>An update that ends up with no action is still an <c>UpdateItem</c>: it checks its conditions, creates the item if none has the key, and writes what the entity owes it, such as its discriminator.</remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
@@ -126,7 +126,7 @@ public interface IUpdatable<TSelf>
     /// <param name="attribute">The attribute.</param>
     /// <param name="value">The number.</param>
     /// <returns>The command, which replaces this one.</returns>
-    public TSelf Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+    public TSelf Add<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter;
 
@@ -136,7 +136,7 @@ public interface IUpdatable<TSelf>
     /// <param name="attribute">The attribute.</param>
     /// <param name="value">The set.</param>
     /// <returns>The command, which replaces this one.</returns>
-    public TSelf Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+    public TSelf Add<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter;
 

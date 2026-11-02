@@ -391,11 +391,26 @@ public sealed class WireCallTests
         var failure = await TestClient.CaptureAsync<ValidationException>(async () => await client.Core.SendAsync<SegmentCall, string>(new SegmentCall(state), CancellationToken.None));
 
         // Assert
-        await Assert.That(ReferenceEquals(state.Rejection, failure)).IsTrue();
+        await Assert.That(ReferenceEquals(state.Failure, failure)).IsTrue();
     }
 
     [Test]
-    public async Task SendAsync_OtherFailure_DescribesNothing()
+    public async Task SendAsync_FailedCondition_LetsTheCallDescribeIt()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+        var state = new SegmentState("{}");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(async () => await client.Core.SendAsync<SegmentCall, string>(new SegmentCall(state), CancellationToken.None));
+
+        // Assert
+        await Assert.That(ReferenceEquals(state.Failure, failure)).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_OtherFailureOfTheService_LetsTheCallDescribeIt()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ResourceNotFoundException", "No."));
@@ -403,10 +418,25 @@ public sealed class WireCallTests
         var state = new SegmentState("{}");
 
         // Act
-        await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await client.Core.SendAsync<SegmentCall, string>(new SegmentCall(state), CancellationToken.None));
+        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await client.Core.SendAsync<SegmentCall, string>(new SegmentCall(state), CancellationToken.None));
 
         // Assert
-        await Assert.That(state.Rejection).IsNull();
+        await Assert.That(ReferenceEquals(state.Failure, failure)).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_FailureThatIsNotOfTheService_DescribesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => throw new HttpRequestException("The connection dropped."));
+        using var client = TestClient.Create(handler);
+        var state = new SegmentState("{}");
+
+        // Act
+        await TestClient.CaptureAsync<HttpRequestException>(async () => await client.Core.SendAsync<SegmentCall, string>(new SegmentCall(state), CancellationToken.None));
+
+        // Assert
+        await Assert.That(state.Failure).IsNull();
     }
 
     private readonly struct SegmentCall(SegmentState state) : IWireCall<string>
@@ -442,7 +472,7 @@ public sealed class WireCallTests
 
         public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(string response) => null;
 
-        public void DescribeRejection(ValidationException rejection) => state.Rejection = rejection;
+        public void DescribeFailure(DynamoDbException failure) => state.Failure = failure;
 
         public void Release() => state.Release();
     }
@@ -463,7 +493,7 @@ public sealed class WireCallTests
 
         public int MaxAttempts { get; init; }
 
-        public ValidationException? Rejection { get; set; }
+        public DynamoDbException? Failure { get; set; }
 
         public BoundedPool<SegmentState>? Pool { get; set; }
 

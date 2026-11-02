@@ -26,9 +26,14 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
 
     public AttributeData? Version { get; } = AttributeReader.Find(symbol, WellKnownNames.VersionAttribute);
 
+    /// <summary>Gets a value indicating whether the property is a version that takes an item without one for version 0.</summary>
+    public bool AllowsMissingVersion => Version is { } attribute && AttributeReader.Number(attribute, WellKnownNames.VersionMissingArgument) == WellKnownNames.VersionMissingAllow;
+
     public AttributeData? OmitEmpty { get; } = AttributeReader.Find(symbol, WellKnownNames.OmitEmptyAttribute);
 
     public AttributeData? Converter { get; } = AttributeReader.Find(symbol, WellKnownNames.ConverterAttribute);
+
+    public AttributeData? ComputedFrom { get; } = AttributeReader.Find(symbol, WellKnownNames.ComputedFromAttribute);
 
     public bool IsIgnored { get; } = AttributeReader.Find(symbol, WellKnownNames.IgnoreAttribute) is not null;
 
@@ -41,6 +46,9 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
     /// <summary>Gets or sets the attribute name, set for stored properties.</summary>
     public string AttributeName { get; set; } = symbol.Name;
 
+    /// <summary>Gets or sets the converter that an assembly default gives the property as a whole, which counts as one named on the property, set for stored properties.</summary>
+    public ITypeSymbol? DefaultConverter { get; set; }
+
     /// <summary>Gets or sets the resolved converter, set for stored properties.</summary>
     public ResolvedConverter? Resolved { get; set; }
 
@@ -50,11 +58,11 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
     /// <summary>Gets or sets the key attribute that holds a stored property without loss, which a read falls back on when the attribute of the property is missing.</summary>
     public string? FallbackKey { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether an empty string counts as null, which the type or the property asks for and only a property outside the keys gets.</summary>
+    /// <summary>Gets or sets a value indicating whether an empty value counts as null, which the type or the property asks for and only a property outside the keys that a read can do without gets.</summary>
     public bool OmitsEmpty { get; set; }
 
-    /// <summary>Gets a value indicating whether the property is a <c>string?</c>, the one thing <c>[OmitEmpty]</c> applies to.</summary>
-    public bool IsNullableString => Types.Unwrap(Type) is { Inner.SpecialType: SpecialType.System_String, IsNullable: true };
+    /// <summary>Gets a value indicating whether the property is a string or a collection, nullable or not, which is what <c>[OmitEmpty]</c> applies to.</summary>
+    public bool CanBeEmpty => Types.Unwrap(Type).Inner is var inner && (inner.SpecialType == SpecialType.System_String || ConverterResolver.ElementOf(inner) is not null);
 
     public bool IsComputed => !isSettable && Parameter is null;
 

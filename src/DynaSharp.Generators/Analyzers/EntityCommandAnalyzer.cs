@@ -11,7 +11,8 @@ namespace DynaSharp.Generators;
 /// What a command says that the model of its entity contradicts. DYNA205: a write by handle to a property the key of the table is made of, which an update cannot do. The rule is
 /// <c>KeyInputChanges</c>, for the property itself and nothing else: what follows from a key of the table, such as a key of an index, is its business at run time. DYNA206: <c>IfNotExists</c> on a
 /// <c>Put</c> whose item shows a version above 0 in the chain, which <c>WriteRules.Settle</c> refuses. Version 0 is a first write, where the two conditions agree, so a version that is not a constant says
-/// nothing and is not reported. DYNA207: a constant name in the <c>Index(string)</c> that takes the names from the entity, which throws at run time when the entity does not declare it.
+/// nothing and is not reported. DYNA207: a constant name in the <c>Index(string)</c> that takes the names from the entity, which throws at run time when the entity does not declare it. DYNA219: a write by handle,
+/// also to a path inside it, to a property that a computed input of a key of an index is derived from, or to that computed input itself, which <c>KeyInputChanges</c> throws for. Behind a key of the table that is DYNA205, one step removed.
 /// </summary>
 /// <remarks>A command says what it is on by a type argument, and a step of a transaction by the table of the verb it came from. Whatever cannot be followed, such as a generic helper or a step in a variable, is not reported.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -37,8 +38,10 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private const string EntityIndexes = "TableExtensions";
 
+    private const string NestedPath = "At";
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -53,6 +56,22 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
                 start.RegisterOperationAction(operation => Analyze(operation, models), OperationKind.Invocation);
             }
         });
+    }
+
+    /// <summary>Whether a clause stands in the chain of a command. It holds wherever it stands, also after this call, so this looks at all of the member.</summary>
+    /// <param name="invocation">A call on the chain.</param>
+    /// <param name="clause">The name of the clause.</param>
+    /// <returns>Whether the member calls it on a command of this type.</returns>
+    internal static bool ChainCalls(IInvocationOperation invocation, string clause)
+    {
+        IOperation root = invocation;
+        while (root.Parent is { } parent)
+        {
+            root = parent;
+        }
+
+        return root.Descendants().OfType<IInvocationOperation>()
+            .Any(other => other.TargetMethod.Name == clause && SymbolEqualityComparer.Default.Equals(other.Type, invocation.Type));
     }
 
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
@@ -94,25 +113,12 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     {
         if (EntityOf(invocation, PutVerb) is { } entity
             && models.ModelOf(entity)?.Entity?.VersionProperty is { } version
-            && !GivesUpTheVersion(invocation)
+            && !ChainCalls(invocation, IgnoreVersion)
             && HoldsVersionAboveZero(ItemOfPut(invocation), version))
         {
             var name = ((InvocationExpressionSyntax)invocation.Syntax).Expression.GetLastToken();
             context.ReportDiagnostic(Diagnostic.Create(Descriptors.IfNotExistsOnVersionedPut, name.GetLocation(), entity.Name));
         }
-    }
-
-    // IgnoreVersion holds wherever it stands in the chain, also after this call, so this looks at all of the member.
-    private static bool GivesUpTheVersion(IInvocationOperation invocation)
-    {
-        IOperation root = invocation;
-        while (root.Parent is { } parent)
-        {
-            root = parent;
-        }
-
-        return root.Descendants().OfType<IInvocationOperation>()
-            .Any(other => other.TargetMethod.Name == IgnoreVersion && SymbolEqualityComparer.Default.Equals(other.Type, invocation.Type));
     }
 
     private static IOperation? ItemOfPut(IInvocationOperation invocation)
@@ -143,16 +149,47 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeWrite(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
     {
-        if (invocation.TargetMethod.Parameters[0].Name == HandleParameter
-            && invocation.Arguments[0].Value is IPropertyReferenceOperation { Property: { ContainingType.Name: HandlesClass } handle } argument
-            && EntityOf(invocation, UpdateVerb) is { } entity
-            && Inherits(entity, handle.ContainingType.ContainingType)
-            && models.ModelOf(entity)?.Entity is { } model
-            && FeedsTableKey(model, handle.Name))
+        if (invocation.TargetMethod.Parameters[0].Name != HandleParameter
+            || HandleUnder(invocation.Arguments[0].Value) is not { ContainingType.Name: HandlesClass } handle
+            || EntityOf(invocation, UpdateVerb) is not { } entity
+            || !Inherits(entity, handle.ContainingType.ContainingType)
+            || models.ModelOf(entity)?.Entity is not { } model)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.WriteOfTableKeyInput, argument.Syntax.GetLocation(), handle.Name, entity.Name));
+            return;
+        }
+
+        var location = invocation.Arguments[0].Value.Syntax.GetLocation();
+        if (FeedsTableKey(model, handle.Name))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Descriptors.WriteOfTableKeyInput, location, handle.Name, entity.Name));
+        }
+        else if (IndexKeysDerivedFrom(model, handle.Name).FirstOrDefault() is { Key: not null } derived)
+        {
+            var text = derived.Key.Template?.Text ?? "{" + derived.Key.PlainProperty + "}";
+            var reason = derived.Input == handle.Name
+                ? $"is computed by its getter for the key template {text} of the index {derived.Index}"
+                : $"feeds '{derived.Input}', which the key template {text} of the index {derived.Index} is computed from";
+            context.ReportDiagnostic(Diagnostic.Create(Descriptors.WriteOfComputedInputSource, location, handle.Name, reason));
         }
     }
+
+    // Order.Attrs.Message.At(Msg.Attrs.Arrival).At(...): a path through a document starts at the handle of the entity, and At is an extension method, so its document comes first.
+    private static IPropertySymbol? HandleUnder(IOperation value)
+    {
+        while (value is IInvocationOperation { TargetMethod.Name: NestedPath } nested)
+        {
+            value = nested.Arguments[0].Value;
+        }
+
+        return (value as IPropertyReferenceOperation)?.Property;
+    }
+
+    private static IEnumerable<(string Input, string Index, KeyModel Key)> IndexKeysDerivedFrom(EntityModel entity, string property) =>
+        from input in entity.ComputedInputs.Where(input => input.Property == property || input.Dependencies.Contains(property))
+        from index in entity.Indexes
+        from key in new[] { index.PartitionKey, index.SortKey }.OfType<KeyModel>()
+        where Holds(key, input.Property)
+        select (input.Property, index.IndexName, key);
 
     private static bool Inherits(INamedTypeSymbol entity, INamedTypeSymbol? owner)
     {
@@ -168,10 +205,10 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     }
 
     private static bool FeedsTableKey(EntityModel entity, string property) =>
-        new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => key.PlainProperty == property || HoldsPlaceholder(key, property));
+        new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));
 
-    private static bool HoldsPlaceholder(KeyModel key, string property) =>
-        (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
+    private static bool Holds(KeyModel key, string property) =>
+        key.PlainProperty == property || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
 
     private static IOperation? ReceiverOf(IInvocationOperation invocation) =>
         invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);

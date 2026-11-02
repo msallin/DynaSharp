@@ -36,4 +36,8 @@ public readonly struct NullableConverter<T, TConverter> : IDynamoDbConverter<T?>
         value = null;
         return true;
     }
+
+    /// <inheritdoc/>
+    public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) =>
+        type != AttributeType.Null && TConverter.CountsAsMissing(in reader, type);
 }

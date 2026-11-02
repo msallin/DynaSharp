@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 
 namespace DynaSharp.Fluent;
 
@@ -9,8 +10,8 @@ namespace DynaSharp.Fluent;
 /// </summary>
 /// <remarks>
 /// An input of the table key is not a change: the update was given that key, so its value is known, and an index key that repeats it can follow without a read. Nothing is kept for that while
-/// the update is built. Here, and only for an update that writes such an index key, the key is read back from the request, or asked of a generated key the state holds when the text cannot give
-/// the value back, see <see cref="DynamoDbKeyTemplate.LosesValues"/>.
+/// the update is built. Here, and only for an update that writes such an index key or asks to store the inputs, the key is read back from the request, or asked of a generated key the state holds when the
+/// text cannot give the value back, see <see cref="DynamoDbKeyTemplate.LosesValues"/>.
 /// </remarks>
 internal sealed class KeyInputChanges
 {
@@ -66,7 +67,7 @@ internal sealed class KeyInputChanges
                 }
                 else if (Touches(template) || FollowsSibling(template, state, writes))
                 {
-                    state.Expressions.SetAttribute<string, Serialization.StringConverter>(template.AttributeName, Derive(template, format, state, writes));
+                    state.Expressions.SetAttribute<string, StringConverter>(template.AttributeName, Derive(template, format, state, writes));
                 }
             }
         }
@@ -79,6 +80,23 @@ internal sealed class KeyInputChanges
                 RequireSibling(index, index.PartitionKeyName, sortKey, state, writes);
                 RequireSibling(index, sortKey, index.PartitionKeyName, state, writes);
             }
+        }
+
+        Clear();
+    }
+
+    /// <summary>
+    /// Writes the attribute of every input of the table key, with <c>if_not_exists</c>, so that the update can create what a <c>Put</c> writes and an item that exists keeps what it has. An action of the update on the
+    /// attribute takes precedence. It runs once, at the terminal of an update that asked, after <see cref="Apply"/>.
+    /// </summary>
+    /// <param name="state">The state of the update.</param>
+    /// <param name="writes">What the entity says about its keys.</param>
+    /// <exception cref="InvalidOperationException">The key does not fit its template, or a key given as strings does not hold all of a value. See the messages.</exception>
+    public void StoreTableInputs(CommandState state, EntityWrites writes)
+    {
+        foreach (var input in writes.StoredTableInputs)
+        {
+            state.Expressions.SetMissingAttribute<AttributeValue, AttributeValueConverter>(input.AttributeName!, input.ToAttributeValue!(ValueToStore(input, state, writes)));
         }
 
         Clear();
@@ -114,9 +132,10 @@ internal sealed class KeyInputChanges
         return -1;
     }
 
-    // The next error must not forbid what a message asks for: no handle reaches a property only a key holds, and an input of the table key cannot change.
+    // The next error must not forbid what a message asks for: no handle reaches a property only a key holds, an input of the table key cannot change, and a value set on a computed
+    // property would be the getter's to contradict on the next Put.
     private static bool CanSet(IEnumerable<DynamoDbKeyInput> inputs, EntityWrites writes) =>
-        inputs.All(input => input.AttributeName is not null && !writes.IsTableKeyInput(input));
+        inputs.All(input => input is { AttributeName: not null, ComputedFromAttributes: null } && !writes.IsTableKeyInput(input));
 
     private void Check(DynamoDbKeyTemplate template, EntityWrites writes)
     {
@@ -129,6 +148,22 @@ internal sealed class KeyInputChanges
         {
             throw new InvalidOperationException(
                 $"This update of {writes.EntityName} changes {ListOf(template, static kind => kind != KeyInputChange.None)}, which the key template {template.Text} is made of. DynamoDB cannot update a key of a table: delete the item and put a new one.");
+        }
+
+        foreach (var input in template.Inputs)
+        {
+            if (ChangedDependencyOf(input) is { } dependency)
+            {
+                throw new InvalidOperationException(
+                    $"This update of {writes.EntityName} changes {dependency}, which {input.PropertyName} of the key template {template.Text} is computed from, so the key cannot follow. {PutOrRawPath}");
+            }
+
+            // The key could follow here, and that is what is wrong with it: it would follow the value of the update, and the next Put writes what the getter says.
+            if (input.ComputedFromAttributes is not null && Find(input).Kind != KeyInputChange.None)
+            {
+                throw new InvalidOperationException(
+                    $"This update of {writes.EntityName} changes {input.PropertyName}, which its getter computes for the key template {template.Text}, so the key would follow the update and not the getter. {PutOrRawPath}");
+            }
         }
 
         if (Has(template, KeyInputChange.Unknown))
@@ -269,7 +304,7 @@ internal sealed class KeyInputChanges
 
     private object? ValueInKey(DynamoDbKeyInput input, CommandState state, EntityWrites writes)
     {
-        if ((state.HeldKey as IKey)?.ValueOf(input.PropertyName) is { } held)
+        if (state.HeldKey?.ValueOf(input.PropertyName) is { } held)
         {
             return held;
         }
@@ -287,6 +322,35 @@ internal sealed class KeyInputChanges
         }
 
         return null;
+    }
+
+    // A value that a template cuts off is good enough for an index key of the same format, and for an attribute it would be a lie.
+    private object ValueToStore(DynamoDbKeyInput input, CommandState state, EntityWrites writes)
+    {
+        if (state.HeldKey?.ValueOf(input.PropertyName) is { } held)
+        {
+            return held;
+        }
+
+        _key ??= state.ReadKey();
+        DynamoDbKeyTemplate? cutBy = null;
+        foreach (var template in writes.Templates)
+        {
+            if (template.Parse is { } parse && PositionOf(template, input) is >= 0 and var position)
+            {
+                var values = (_key.TryGetValue(template.AttributeName, out var key) ? parse(key) : null)
+                    ?? throw new InvalidOperationException($"The key does not fit the key template {template.Text} of {writes.EntityName}, so StoreKeyInputs cannot read its inputs.");
+
+                if (!template.Inputs[position].IsCutOff)
+                {
+                    return values[position]!;
+                }
+
+                cutBy = template;
+            }
+        }
+
+        throw new InvalidOperationException($"StoreKeyInputs cannot restore {input.PropertyName} from the text of the key template {cutBy!.Text}, which cuts it off. Pass a generated key (Keys.Of), or put the entity.");
     }
 
     private bool Touches(DynamoDbKeyTemplate template)
@@ -318,8 +382,14 @@ internal sealed class KeyInputChanges
     private string ListOf(DynamoDbKeyTemplate template, Func<KeyInputChange, bool> filter) =>
         string.Join(", ", template.Inputs.Where(input => filter(Find(input).Kind)).Select(static input => input.PropertyName));
 
+    // A computed input is what its getter makes of its dependencies, so a change of one of them is a change of the input to something only the getter could tell.
     private Change Find(DynamoDbKeyInput input)
     {
+        if (ChangedDependencyOf(input) is not null)
+        {
+            return new Change(string.Empty, KeyInputChange.Unknown, null);
+        }
+
         foreach (var change in _changes)
         {
             if (change.AttributeName == input.AttributeName)
@@ -329,6 +399,26 @@ internal sealed class KeyInputChanges
         }
 
         return default;
+    }
+
+    // The list is an array, and this runs for every input of every template an update of a key input looks at, so it stays away from the enumerator of the interface.
+    private string? ChangedDependencyOf(DynamoDbKeyInput input)
+    {
+        if (input.ComputedFromAttributes is { } dependencies)
+        {
+            for (var i = 0; i < dependencies.Count; i++)
+            {
+                foreach (var change in _changes)
+                {
+                    if (EntityWrites.IsAtOrInside(change.AttributeName, dependencies[i]))
+                    {
+                        return dependencies[i];
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private readonly record struct Change(string AttributeName, KeyInputChange Kind, object? Value);

@@ -21,14 +21,20 @@ namespace DynaSharp.Testing;
 /// a write that returns values, <see cref="ConditionalCheckFailed{T}"/> and <see cref="TransactionCanceled(ReadOnlySpan{CancellationReason})"/> for failed conditions,
 /// and <see cref="Unprocessed(string, ReadOnlySpan{WriteRequest})"/> with <see cref="BatchItems{T}"/> for batches. They take an <see cref="DynaSharp.Item"/> as well as a
 /// generated entity, and they write through the code the entity is stored with, so a canned item cannot drift from the mapping. An <see cref="DynaSharp.Item"/> can hold any
-/// attributes, which is how a test gives the partial answer of <c>UPDATED_NEW</c>.
+/// attributes, which is how a test gives the partial answer of <c>UPDATED_NEW</c>. <see cref="Count(int, int?)"/> answers a <c>Select: COUNT</c>.
+/// </para>
+/// <para>
+/// Table administration has <see cref="Table(string, TableStatus, ReadOnlySpan{Requests.GlobalSecondaryIndexDescription})"/> and <see cref="Table{T}"/> for <c>DescribeTable</c>, <see cref="TableCreated"/>, <see cref="TableDeleted"/>,
+/// <see cref="TimeToLive"/>, <see cref="TimeToLiveUpdated"/>, <see cref="ResourceNotFound"/> and <see cref="ResourceInUse"/>. DynamoDB Streams has <see cref="StreamDescription(string, ReadOnlySpan{Streams.Shard})"/>,
+/// <see cref="ShardIterator"/> and <see cref="Records"/>. What such an answer holds beyond its arguments is fixed: the region of <see cref="StubClient"/>, an account, a creation time of 2026-01-01, so a test can
+/// compare it and no answer depends on the clock.
 /// </para>
 /// <para>
 /// A response holds what DynamoDB sends by default. <c>ConsumedCapacity</c> and <c>ItemCollectionMetrics</c> come only when a request asks for them, so a test that reads them
 /// writes the body with <see cref="Json"/>, as it does for <c>TransactGetItems</c> and anything unusual. <see cref="DynamoDbError"/> makes every other error.
 /// </para>
 /// </remarks>
-public sealed class StubResponse
+public sealed partial class StubResponse
 {
     private const string ErrorTypePrefix = "com.amazonaws.dynamodb.v20120810#";
     private const string ConditionFailedMessage = "The conditional request failed";
@@ -71,6 +77,14 @@ public sealed class StubResponse
         }),
         Headers = requestId is null ? null : new Dictionary<string, string> { [WireProtocol.RequestIdHeaderName] = requestId },
     };
+
+    /// <summary>Creates the error of a table, an index or a stream that does not exist, or of a table that is not active yet for a call that needs it to be.</summary>
+    /// <returns>The response: HTTP 400 with <c>ResourceNotFoundException</c>.</returns>
+    public static StubResponse ResourceNotFound() => DynamoDbError("ResourceNotFoundException", "Requested resource not found");
+
+    /// <summary>Creates the error of a table that cannot change now: it exists already on a <c>CreateTable</c>, or it is <c>CREATING</c>, <c>UPDATING</c> or <c>DELETING</c>.</summary>
+    /// <returns>The response: HTTP 400 with <c>ResourceInUseException</c>.</returns>
+    public static StubResponse ResourceInUse() => DynamoDbError("ResourceInUseException", "Attempt to change a resource which is still in use");
 
     /// <summary>
     /// Creates the answer to a <c>GetItem</c>: <c>{"Item":{...}}</c>, or <c>{}</c> if there is no item, which is how DynamoDB says that it found nothing.
@@ -126,6 +140,38 @@ public sealed class StubResponse
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="scannedCount"/> is below the number of items, which DynamoDB never sends.</exception>
     public static StubResponse Items<T>(IEnumerable<T> items, IKey lastEvaluatedKey, int? scannedCount = null)
         where T : IDynamoDbDocument<T> => Page(items, KeyOf(lastEvaluatedKey), scannedCount);
+
+    /// <summary>
+    /// Creates a page of a <c>Query</c> or <c>Scan</c> with <c>Select: COUNT</c> that ends the read: <c>{"Count":3,"ScannedCount":3}</c>, without <c>Items</c>, as <c>CountAsync</c> gets it. <c>ScannedCount</c> is the same unless a test says that a
+    /// filter dropped items.
+    /// </summary>
+    /// <param name="count">How many items are in the page after the filter.</param>
+    /// <param name="scannedCount">How many items DynamoDB read before the filter, or <see langword="null"/> for <paramref name="count"/>.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative, or <paramref name="scannedCount"/> is below it, which DynamoDB never sends.</exception>
+    public static StubResponse Count(int count, int? scannedCount = null) => CountPage(count, null, scannedCount);
+
+    /// <summary>Creates a page of a count that more pages follow: <c>CountAsync</c> goes on from <paramref name="lastEvaluatedKey"/> and adds the pages up.</summary>
+    /// <param name="count">How many items are in the page after the filter.</param>
+    /// <param name="lastEvaluatedKey">The key of the last item DynamoDB read, as <see cref="KeyOf{T}"/> makes it from an entity.</param>
+    /// <param name="scannedCount">How many items DynamoDB read before the filter, or <see langword="null"/> for <paramref name="count"/>.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="lastEvaluatedKey"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative, or <paramref name="scannedCount"/> is below it, which DynamoDB never sends.</exception>
+    public static StubResponse Count(int count, Item lastEvaluatedKey, int? scannedCount = null)
+    {
+        ArgumentNullException.ThrowIfNull(lastEvaluatedKey);
+        return CountPage(count, lastEvaluatedKey, scannedCount);
+    }
+
+    /// <summary>Creates a page of a count that more pages follow, with a generated key.</summary>
+    /// <param name="count">How many items are in the page after the filter.</param>
+    /// <param name="lastEvaluatedKey">The key of the last item DynamoDB read.</param>
+    /// <param name="scannedCount">How many items DynamoDB read before the filter, or <see langword="null"/> for <paramref name="count"/>.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="lastEvaluatedKey"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative, or <paramref name="scannedCount"/> is below it, which DynamoDB never sends.</exception>
+    public static StubResponse Count(int count, IKey lastEvaluatedKey, int? scannedCount = null) => CountPage(count, KeyOf(lastEvaluatedKey), scannedCount);
 
     /// <summary>
     /// Creates the answer to a <c>PutItem</c>, <c>UpdateItem</c> or <c>DeleteItem</c> that asked for values: <c>{"Attributes":{...}}</c>, or <c>{}</c> if there are none, as for
@@ -429,6 +475,23 @@ public sealed class StubResponse
         {
             WriteDocuments(json, "Items", all);
             json.WriteNumber("Count", all.Length);
+            json.WriteNumber("ScannedCount", scanned);
+            if (lastEvaluatedKey is not null)
+            {
+                WriteDocument(json, "LastEvaluatedKey", lastEvaluatedKey);
+            }
+        }));
+    }
+
+    // {"Count":2,"ScannedCount":2,"LastEvaluatedKey":{...}}: a count has no Items at all, not an empty list.
+    private static StubResponse CountPage(int count, Item? lastEvaluatedKey, int? scannedCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        var scanned = scannedCount ?? count;
+        ArgumentOutOfRangeException.ThrowIfLessThan(scanned, count, nameof(scannedCount));
+        return Json(Render(json =>
+        {
+            json.WriteNumber("Count", count);
             json.WriteNumber("ScannedCount", scanned);
             if (lastEvaluatedKey is not null)
             {

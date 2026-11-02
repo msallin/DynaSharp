@@ -12,7 +12,12 @@ namespace DynaSharp.Generators;
 /// A type with a public <c>IsOmitted</c> that reaches <paramref name="WriteConverter"/> through a type parameter, for a converter that has an answer of its own. Null for every other one, whose default answer
 /// is false, so that a write of such a property holds no call.
 /// </param>
-internal sealed record ConverterModel(string WriteConverter, string ReadConverter, string? EmptySet, string? WriteForwarder = null, string? OmissionForwarder = null)
+/// <param name="CountsAsMissing">
+/// Whether a read of the property asks its converter if the value counts as missing, for a converter that has an answer of its own. It takes no forwarder, because the read goes through a type parameter, which reaches an
+/// explicit member, and it takes none for any other converter, whose read holds no question.
+/// </param>
+/// <param name="AnswersMissing">Whether the converter says for itself what a missing attribute reads as, which is what <c>Select</c> asks.</param>
+internal sealed record ConverterModel(string WriteConverter, string ReadConverter, string? EmptySet, string? WriteForwarder = null, string? OmissionForwarder = null, bool CountsAsMissing = false, bool AnswersMissing = false)
 {
     /// <summary>Gets the call that writes <paramref name="value"/>, a value that is not null, to <c>writer</c>.</summary>
     /// <param name="value">The value as code.</param>

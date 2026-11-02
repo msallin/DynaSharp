@@ -69,6 +69,7 @@ internal sealed class CommandState
     private readonly ClientCore _core;
     private ActionList? _actions;
     private KeyInputChanges? _keyInputs;
+    private HeldKey? _keyHolder;
     private int _version;
     private bool _itemOpen;
 
@@ -131,10 +132,13 @@ internal sealed class CommandState
     public long? EntityVersion { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated key of an update, boxed, for an entity with an index that wants more of an input than the text of the key gives back. Every other update reads its key from
+    /// Gets or sets the generated key of an update, for an entity with an input that the text of its key does not give back. Every other update reads its key from
     /// <see cref="Body"/> when it needs it, see <see cref="ReadKey"/>, so this stays empty and costs nothing.
     /// </summary>
-    public object? HeldKey { get; set; }
+    public HeldKey? HeldKey { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether an update stores the inputs of the table key when it settles, see <see cref="WriteRules"/>.</summary>
+    public bool StoresKeyInputs { get; set; }
 
     /// <summary>Gets or sets a value indicating whether an update has yet to write the discriminator of its entity, see <see cref="WriteRules"/>.</summary>
     public bool OwesDiscriminator { get; set; }
@@ -157,7 +161,10 @@ internal sealed class CommandState
     /// <summary>Gets or sets a value indicating whether the write in progress asks that no item has its key, by <c>IfNotExists</c> or version 0, so that the condition stands once. A version above 0 contradicts it, see <see cref="WriteRules"/>.</summary>
     public bool ItemMustNotExist { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether the write in progress asks that an item has its key, which version 0 contradicts, see <see cref="WriteRules"/>.</summary>
+    /// <summary>Gets or sets a value indicating whether the write in progress has <c>IfVersion(0)</c> on an entity that allows an item without a version. The condition waits, because <c>IfNotExists</c> takes its place, see <see cref="WriteRules"/>.</summary>
+    public bool VersionMustReadAsZero { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the write in progress asks that an item has its key, which version 0 contradicts unless the entity allows an item without a version, see <see cref="WriteRules"/>.</summary>
     public bool ItemMustExist { get; set; }
 
     /// <summary>Gets or sets the version the write in progress expects by <c>IfVersion</c>, or 0 for none, which is no contradiction of <see cref="ItemMustNotExist"/> either.</summary>
@@ -182,7 +189,7 @@ internal sealed class CommandState
     public bool Descending { get; set; }
 
     /// <summary>Gets or sets what a read returns.</summary>
-    public Select Select { get; set; }
+    public SelectKind Select { get; set; }
 
     /// <summary>Gets or sets the segment of a scan, which only counts when <see cref="TotalSegments"/> is set.</summary>
     public int Segment { get; set; }
@@ -331,6 +338,18 @@ internal sealed class CommandState
         EndKey();
         Expressions.AppendKeyCondition(Body.WrittenSpan[_keyStart..]);
         Body.Truncate(mark);
+    }
+
+    /// <summary>Keeps a generated key for the terminal of the update, in the holder of the last update if that took the same type of key.</summary>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="key">The key.</param>
+    public void HoldKey<TKey>(TKey key)
+        where TKey : IKey
+    {
+        var holder = _keyHolder as TypedHeldKey<TKey> ?? new TypedHeldKey<TKey>();
+        holder.Key = key;
+        _keyHolder = holder;
+        HeldKey = holder;
     }
 
     /// <summary>Reads back the key of an update that is about to settle, which nothing follows in the body yet, because its expressions wait in their own segments.</summary>
@@ -564,7 +583,9 @@ internal sealed class CommandState
         _keyInputs?.Clear();
         UnsettledVersion = null;
         EntityVersion = null;
+        _keyHolder?.Clear();
         HeldKey = null;
+        StoresKeyInputs = false;
         OwesDiscriminator = false;
         OwesLiteralKeys = false;
         PutEntity = null;
@@ -572,6 +593,7 @@ internal sealed class CommandState
         VersionIgnored = false;
         VersionChecked = false;
         ItemMustNotExist = false;
+        VersionMustReadAsZero = false;
         ItemMustExist = false;
         ExpectedVersion = 0;
         StoredVersion = null;

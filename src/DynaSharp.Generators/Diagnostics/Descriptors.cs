@@ -147,6 +147,9 @@ internal static class Descriptors
         helpLinkUri: EntityHelp,
         customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
+    public static readonly DiagnosticDescriptor InvalidDefaultConverter = new(
+        "DYNA029", "[DynamoDbDefaultConverter] is not valid", "[DynamoDbDefaultConverter] for '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor InvalidOmitEmpty = new(
         "DYNA030", "[OmitEmpty] is not valid here", "[OmitEmpty] on '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
@@ -219,7 +222,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor ComputedInIndex = new(
         "DYNA114",
         "Computed property in an index template",
-        "Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current",
+        "Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current. Add [ComputedFrom] naming the stored properties it reads, or use a stored property.",
         KeyGrammar,
         DiagnosticSeverity.Error,
         true,
@@ -248,7 +251,25 @@ internal static class Descriptors
         "Key property starts empty",
         "Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.",
         KeyGrammar,
-        DiagnosticSeverity.Info,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: KeyHelp);
+
+    public static readonly DiagnosticDescriptor RawNotLast = new(
+        "DYNA118",
+        "Raw value does not end the template",
+        "'{0}' has the format raw, which reads to the end of the key, so nothing can follow it in the template",
+        KeyGrammar,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: KeyHelp);
+
+    public static readonly DiagnosticDescriptor InvalidComputedFrom = new(
+        "DYNA119",
+        "[ComputedFrom] is not valid here",
+        "[ComputedFrom] on '{0}' is not valid: {1}",
+        KeyGrammar,
+        DiagnosticSeverity.Error,
         true,
         helpLinkUri: KeyHelp);
 
@@ -264,7 +285,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor ReadCommandNotAwaitable = new(
         "DYNA202",
         "Read command is not awaited",
-        "A read is not awaited; end the chain with ItemsAsync or another terminal it has",
+        "A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has",
         Commands,
         DiagnosticSeverity.Warning,
         true,
@@ -333,6 +354,15 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor WriteOfComputedInputSource = new(
+        "DYNA219",
+        "Write to what a key of an index is computed from",
+        "'{0}' {1}, so this update throws when it ends. Put the changed entity instead.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly DiagnosticDescriptor StringInNamePosition = new(
         "DYNA210",
         "String where a name belongs",
@@ -390,15 +420,33 @@ internal static class Descriptors
         true,
         helpLinkUri: ExpressionHelp);
 
+    public static readonly DiagnosticDescriptor NestedConflictRetry = new(
+        "DYNA217",
+        "Nested RetryOnConflictAsync",
+        "RetryOnConflictAsync runs inside the delegate of another RetryOnConflictAsync, so the runs multiply and an exhausted inner retry counts as a conflict of the outer one. Move the follow-up write after the outer call.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor VersionReadBeforeRetry = new(
+        "DYNA218",
+        "Version read before the retry",
+        "'{0}' was read before RetryOnConflictAsync started, so every run sends the same version and fails the same way. Read it inside the delegate.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
         InvalidConverter, DuplicateKey, InvalidAttributeName, InvalidVersion, NotValidOnDocument, EntityAndDocument, MemberConflict,
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
-        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
+        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey,
-        CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom,
+        CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

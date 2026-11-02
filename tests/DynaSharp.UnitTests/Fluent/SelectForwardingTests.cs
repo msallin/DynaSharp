@@ -15,6 +15,13 @@ public sealed class SelectForwardingTests
         ["CountAsync"] = "A count reads no attribute, so it has nothing to do with the one that was selected.",
     };
 
+    // What a read of one attribute calls by another name, because it gives values and no items. An entry that the read does not have fails too, so the list stays true.
+    private static readonly Dictionary<string, string> Renamed = new(StringComparer.Ordinal)
+    {
+        ["ItemsAsync"] = "ValuesAsync",
+        ["ItemAsync"] = "ValueAsync",
+    };
+
     [Test]
     [Arguments(typeof(QueryCommand<>), typeof(QuerySelectCommand<,>))]
     [Arguments(typeof(ScanCommand<>), typeof(ScanSelectCommand<,>))]
@@ -23,7 +30,7 @@ public sealed class SelectForwardingTests
         // Arrange
         ArgumentNullException.ThrowIfNull(read);
         ArgumentNullException.ThrowIfNull(select);
-        var expected = Terminals(read).Where(static signature => !NotOffered.Keys.Any(signature.StartsWith)).Order(StringComparer.Ordinal);
+        var expected = Terminals(read).Where(static signature => !NotOffered.Keys.Any(signature.StartsWith)).Select(Renaming).Order(StringComparer.Ordinal);
 
         // Act
         var offered = Terminals(select).Order(StringComparer.Ordinal);
@@ -49,6 +56,19 @@ public sealed class SelectForwardingTests
     }
 
     [Test]
+    public async Task Renamed_EveryEntry_IsATerminalOfAQuery()
+    {
+        // Arrange
+        var terminals = Terminals(typeof(QueryCommand<>)).ToList();
+
+        // Act
+        var unknown = Renamed.Keys.Where(name => !terminals.Exists(signature => signature.StartsWith(name + "(", StringComparison.Ordinal)));
+
+        // Assert
+        await Assert.That(unknown).IsEmpty();
+    }
+
+    [Test]
     [Arguments(typeof(QuerySelectCommand<,>))]
     [Arguments(typeof(ScanSelectCommand<,>))]
     public async Task PublicMethods_OfARead_AreAllTerminals(Type select)
@@ -64,6 +84,12 @@ public sealed class SelectForwardingTests
     }
 
     private static IEnumerable<string> Terminals(Type type) => PublicMethods(type).Where(IsTerminal).Select(Signature);
+
+    private static string Renaming(string signature)
+    {
+        var name = signature[..signature.IndexOf('(', StringComparison.Ordinal)];
+        return Renamed.GetValueOrDefault(name, name) + signature[name.Length..];
+    }
 
     private static bool IsTerminal(MethodInfo method) => method.Name == RendersTheRequest || method.Name.EndsWith("Async", StringComparison.Ordinal);
 

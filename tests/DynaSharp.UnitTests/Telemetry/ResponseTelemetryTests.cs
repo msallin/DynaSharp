@@ -53,9 +53,9 @@ public sealed class ResponseTelemetryTests
     [Test]
     public async Task QueryAsync_SelectCountResponse_SetsTheCountOfMatches()
     {
-        // Arrange (with Select.Count there are no items; the count tag is the only trace of the result size)
+        // Arrange (with SelectKind.Count there are no items; the count tag is the only trace of the result size)
         using var handler = new StubHandler(_ => StubResponse.Json("""{"Count":42,"ScannedCount":50}"""));
-        var request = CreateQuery() with { Select = Select.Count };
+        var request = CreateQuery() with { Select = SelectKind.Count };
 
         // Act
         var activity = await RunAsync(handler, client => client.QueryAsync(request));

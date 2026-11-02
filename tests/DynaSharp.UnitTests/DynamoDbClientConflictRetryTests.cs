@@ -1,3 +1,4 @@
+using DynaSharp.Retries;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Http;
 
@@ -86,22 +87,42 @@ internal sealed class DynamoDbClientConflictRetryTests
     [Test]
     public async Task RetryOnConflictAsync_RetryInsideARun_MultipliesTheRuns()
     {
-        // Arrange (what the docs say about a follow-up write in the delegate: the inner retry that gave up counts as a conflict of the outer one)
+        // Arrange (what the docs say about a follow-up write in the delegate: the inner retry that gave up counts as a conflict of the outer one; a delegate in a variable is not what DYNA217 follows)
         var script = new Script([.. Enumerable.Repeat<Exception>(new ConditionalCheckFailedException("The conditional request failed."), 25)]);
         using var client = NewClient();
+        Func<CancellationToken, Task<int>> inner = ct => client.RetryOnConflictAsync(script.RunAsync, ct);
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(ct => new ValueTask<int>(client.RetryOnConflictAsync(script.RunAsync, ct))));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(ct => new ValueTask<int>(inner(ct))));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(25);
     }
 
     [Test]
-    public async Task RetryOnConflictAsync_RunsUsedUp_SurfacesTheExceptionOfTheLastRunWithoutAKey()
+    [MethodDataSource(nameof(Conflicts))]
+    public async Task RetryOnConflictAsync_RetryThatGaveUp_SurfacesWhatARetryAroundItRunsAgainOn(FailureCase conflict)
     {
-        // Arrange
-        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        // Arrange (DYNA217 mirrors this: whatever ends a retry as a conflict starts the retry around it over)
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => client.RetryOnConflictAsync<int>(_ => throw conflict.Exception));
+
+        // Assert
+        await Assert.That(FailureClassifier.IsConflict(failure)).IsTrue();
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RunsUsedUp_SurfacesTheExceptionOfTheLastRunWithItsKey()
+    {
+        // Arrange (each of the five runs fails with an exception of its own, so the key has to be on the one that surfaces)
+        using var handler = new StubHandler();
+        for (var run = 0; run < 5; run++)
+        {
+            handler.Enqueue(StubResponse.ConditionalCheckFailed());
+        }
+
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
         var table = client.Table("Shop", "pk");
 
@@ -113,7 +134,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         }));
 
         // Assert
-        await Assert.That((failure.Item, failure.Message.Contains("secret-key", StringComparison.Ordinal))).IsEqualTo(((Item?)null, false));
+        await Assert.That((failure.Key, failure.Item, failure.Message.Contains("secret-key", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((new Item { ["pk"] = "secret-key" }, (Item?)null, false, 5));
     }
 
     [Test]

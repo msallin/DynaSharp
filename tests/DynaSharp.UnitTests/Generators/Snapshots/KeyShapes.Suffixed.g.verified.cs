@@ -26,7 +26,7 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("sk", "A-{Name}#B", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name") }),
+                new __Map.DynamoDbKeyTemplate("sk", "A-{Name}#B", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Name } : null },
             });
     }
 
@@ -139,8 +139,26 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Suffixed</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string name) => new PrimaryKey(name);
+        /// <summary>Creates the primary key of <c>Suffixed</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string name)
+        {
+            Sk.Check(true, name);
+            return new PrimaryKey(name);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string name, out PrimaryKey key)
+        {
+            if (Sk.Check(false, name))
+            {
+                key = new PrimaryKey(name);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>Suffixed</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -407,6 +425,20 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                 __key.WriteLiteral("A-"u8);
                 __key.WriteString(name, "-#"u8, "Name");
                 __key.WriteLiteral("#B"u8);
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string name)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, name);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
     }

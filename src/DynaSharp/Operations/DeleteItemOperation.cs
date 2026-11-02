@@ -34,4 +34,6 @@ internal readonly struct DeleteItemOperation : IOperation<DeleteItemRequest, Del
     }
 
     public static IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(DeleteItemResponse response) => ConsumedCapacityTelemetry.ToList(response.ConsumedCapacity);
+
+    public static Item? GetKey(DeleteItemRequest request) => new(request.Key);
 }

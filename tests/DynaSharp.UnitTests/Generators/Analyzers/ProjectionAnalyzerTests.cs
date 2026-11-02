@@ -149,6 +149,112 @@ public sealed class ProjectionAnalyzerTests
         [PartitionKey("DEFAULTED#{Id}")]
         public partial record DefaultedLedger(string Id, [property: Version] long Revision = 0);
 
+        [DynamoDbEntity]
+        [Discriminator("ADOPTED")]
+        [PartitionKey("ADOPTED#{Id}")]
+        public partial record AdoptedLedger
+        {
+            public required string Id { get; init; }
+
+            [Version(Missing = VersionMissing.Allow)]
+            public required long Revision { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("OMITTER")]
+        [PartitionKey("OMITTER#{Id}")]
+        [OmitEmpty]
+        public partial record Omitter
+        {
+            public required string Id { get; init; }
+
+            public string Title { get; init; } = "none";
+
+            public List<string> Lines { get; init; } = [];
+
+            public string? Note { get; init; }
+
+            public HashSet<string> Labels { get; init; } = [];
+
+            [OmitEmpty(false)]
+            public string Plain { get; init; } = "none";
+        }
+
+        public readonly struct Counting : IDynamoDbConverter<string>
+        {
+            public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value);
+
+            public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+
+            public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => false;
+        }
+
+        public readonly struct Answering : IDynamoDbConverter<string>
+        {
+            public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value);
+
+            public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+
+            static bool IDynamoDbConverter<string>.TryReadMissing(out string value)
+            {
+                value = "none";
+                return true;
+            }
+        }
+
+        public readonly struct CountingAndAnswering : IDynamoDbConverter<string>
+        {
+            public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value);
+
+            public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+
+            public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => false;
+
+            public static bool TryReadMissing(out string value)
+            {
+                value = "none";
+                return true;
+            }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("COUNTED")]
+        [PartitionKey("COUNTED#{Id}")]
+        public partial record Counted
+        {
+            [DynamoDbConverter(typeof(Answering))]
+            public required string Id { get; init; }
+
+            [DynamoDbConverter(typeof(Counting))]
+            public string Title { get; init; } = "none";
+
+            [DynamoDbConverter(typeof(Counting))]
+            public string? Note { get; init; }
+
+            [DynamoDbConverter(typeof(Counting))]
+            public required string Kept { get; init; }
+
+            [DynamoDbConverter(typeof(CountingAndAnswering))]
+            public string Answered { get; init; } = "none";
+
+            [OmitEmpty]
+            [DynamoDbConverter(typeof(Answering))]
+            public string Left { get; init; } = "none";
+
+            [OmitEmpty]
+            [DynamoDbConverter(typeof(Counting))]
+            public string Both { get; init; } = "none";
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("COUNTEDKEY")]
+        public partial record CountedKey
+        {
+            [PartitionKey]
+            [DynamoDbConverter(typeof(Counting))]
+            public string Id { get; init; } = "none";
+        }
+
         [DynamoDbDocument]
         public partial record Note(string Text);
 
@@ -196,8 +302,12 @@ public sealed class ProjectionAnalyzerTests
         private static readonly Table<Event> events = null!;
         private static readonly Table<Note> notes = null!;
         private static readonly Table<Hand> hands = null!;
+        private static readonly Table<Omitter> omitters = null!;
+        private static readonly Table<Counted> counted = null!;
+        private static readonly Table<CountedKey> countedKeys = null!;
         private static readonly Table<Ledger> ledgers = null!;
         private static readonly Table<StrictLedger> strictLedgers = null!;
+        private static readonly Table<AdoptedLedger> adoptedLedgers = null!;
         private static readonly Table<PositionalLedger> positionalLedgers = null!;
         private static readonly Table<DefaultedLedger> defaultedLedgers = null!;
         private static readonly Index<Order> byStatus = null!;
@@ -350,7 +460,7 @@ public sealed class ProjectionAnalyzerTests
     // No item is read, or no entity.
     [Arguments("""_ = orders.Query("a").Project("sum").ToRequestJson();""")]
     [Arguments("""_ = orders.Query("a").Project("sum").CountAsync();""")]
-    [Arguments("""_ = orders.Query("a").Project("sum").Select(Order.Attrs.Lines).ItemsAsync();""")]
+    [Arguments("""_ = orders.Query("a").Project("sum").Select(Order.Attrs.Lines).ValuesAsync();""")]
 
     // What the read gets along without: a required member that is nullable reads as null and a required set as empty, and what is computed or ignored is not read.
     [Arguments("""_ = devices.Scan().Project("Vendor").Project("Slot").ItemsAsync();""")]
@@ -385,8 +495,8 @@ public sealed class ProjectionAnalyzerTests
 
     [Test]
     [Arguments("""_ = ledgers.Get("a").Select([|Ledger.Attrs.Revision|]).SendAsync();""", "Ledger")]
-    [Arguments("""_ = ledgers.Query("a").Select([|Ledger.Attrs.Revision|]).ItemsAsync();""", "Ledger")]
-    [Arguments("""_ = ledgers.Scan().Select([|Ledger.Attrs.Revision|]).ItemsAsync();""", "Ledger")]
+    [Arguments("""_ = ledgers.Query("a").Select([|Ledger.Attrs.Revision|]).ValuesAsync();""", "Ledger")]
+    [Arguments("""_ = ledgers.Scan().Select([|Ledger.Attrs.Revision|]).ValuesAsync();""", "Ledger")]
     [Arguments("""_ = defaultedLedgers.Get("a").Select([|DefaultedLedger.Attrs.Revision|]).SendAsync();""", "DefaultedLedger")]
     public async Task Select_VersionThatAReadOfTheEntityDefaults_Reports(string statement, string type)
     {
@@ -401,9 +511,148 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
+    [Arguments("""_ = adoptedLedgers.Get("a").Select(AdoptedLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = adoptedLedgers.Query("a").Select(AdoptedLedger.Attrs.Revision).ValuesAsync();""")]
+    [Arguments("""_ = adoptedLedgers.Scan().Select(AdoptedLedger.Attrs.Revision).ValuesAsync();""")]
+    public async Task Select_VersionThatAllowsAnItemWithoutOne_ReportsNothing(string statement)
+    {
+        // Arrange (the handle reads a missing attribute as 0, so there is nothing to throw)
+        var source = Source(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Project_ConvertedNameOfARequiredMember_ReportsNothing()
+    {
+        // Arrange
+        var source = Named("""_ = bills.Query("a").Project("total_due").ItemsAsync();""");
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Project_DeclaredNameOfARequiredMember_Reports()
+    {
+        // Arrange (under a naming the declared name reads another attribute, so the member is left out)
+        var source = Named("""_ = bills.Query("a").[|Project|]("TotalDue").ItemsAsync();""");
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA208 Warning: This Project leaves out 'TotalDue' of 'Bill', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it, or use Select(handle) to read one attribute."));
+    }
+
+    [Test]
+    [Arguments("""_ = omitters.Get("a").Select([|Omitter.Attrs.Title|]).SendAsync();""", "Title")]
+    [Arguments("""_ = omitters.Query("a").Select([|Omitter.Attrs.Lines|]).ValuesAsync();""", "Lines")]
+    public async Task Select_PropertyThatOmitEmptyLeavesOut_Reports(string statement, string property)
+    {
+        // Arrange
+        var source = Source(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: '{property}' of 'Omitter' has [OmitEmpty], and an item that held an empty value has no such attribute: a read of the entity keeps the initial value, Select does not and throws. Read the entity, or make the property nullable."));
+    }
+
+    [Test]
+    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Note).SendAsync();""")]
+    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Labels).SendAsync();""")]
+    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Plain).SendAsync();""")]
+    public async Task Select_PropertyWithAnAnswerForAMissingAttribute_ReportsNothing(string statement)
+    {
+        // Arrange (a nullable property reads null and a set an empty set, and the last one is always written)
+        var source = Source(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Select_PropertyWhoseConverterCountsAValueAsMissing_Reports()
+    {
+        // Arrange
+        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Title|]).SendAsync();""");
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA209 Warning: 'Title' of 'Counted' has a converter that can count a stored value as missing: a read of the entity keeps the initial value, Select does not and throws. Read the entity, make the property nullable, or have the converter answer TryReadMissing."));
+    }
+
+    [Test]
+    public async Task Select_OmitEmptyWhoseConverterCountsAValueAsMissing_ReportsTheOmission()
+    {
+        // Arrange (one report, and the first reason is what a write of the entity does every day)
+        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Both|]).SendAsync();""");
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA209 Warning: 'Both' of 'Counted' has [OmitEmpty], and an item that held an empty value has no such attribute: a read of the entity keeps the initial value, Select does not and throws. Read the entity, or make the property nullable."));
+    }
+
+    [Test]
+
+    // Null is what a missing attribute reads as.
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Note).SendAsync();""")]
+
+    // A read of the entity throws for a required member as well.
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Kept).SendAsync();""")]
+
+    // A converter with an answer for a missing attribute gives Select a value, implicitly, explicitly, for a property that [OmitEmpty] leaves out and for an input of the table key.
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Answered).SendAsync();""")]
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Left).SendAsync();""")]
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Id).SendAsync();""")]
+
+    // A plain key is read for what it is.
+    [Arguments("""_ = countedKeys.Get("a").Select(CountedKey.Attrs.Id).SendAsync();""")]
+    public async Task Select_PropertyWhoseConverterCountsAValueAsMissing_ReportsNothingWhereTheReadsAgree(string statement)
+    {
+        // Arrange
+        var source = Source(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Project_RequiredVersionThatAllowsAnItemWithoutOne_ReportsNothing()
+    {
+        // Arrange (a read gives 0 for it, as it does for an item without one)
+        var source = Source("""_ = adoptedLedgers.Query("a").Project("Id").ItemsAsync();""");
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     [Arguments("""_ = orders.Get(key).Select([|Order.Attrs.UserId|]).SendAsync();""", "UserId", "Order", "pk")]
-    [Arguments("""_ = orders.Query("a").Select([|Order.Attrs.OrderId|]).ItemsAsync();""", "OrderId", "Order", "sk")]
-    [Arguments("""_ = routes.Scan().Select([|Route.Attrs.Id|]).ItemsAsync();""", "Id", "Route", "pk")]
+    [Arguments("""_ = orders.Query("a").Select([|Order.Attrs.OrderId|]).ValuesAsync();""", "OrderId", "Order", "sk")]
+    [Arguments("""_ = routes.Scan().Select([|Route.Attrs.Id|]).ValuesAsync();""", "Id", "Route", "pk")]
     public async Task Select_KeyInputOfTheTable_Reports(string statement, string property, string type, string key)
     {
         // Arrange
@@ -420,15 +669,15 @@ public sealed class ProjectionAnalyzerTests
 
     // An attribute that every item has: a plain property, a plain key, and a nullable input, whose missing attribute means null.
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.Total).SendAsync();""")]
-    [Arguments("""_ = devices.Scan().Select(Device.Attrs.Serial).ItemsAsync();""")]
-    [Arguments("""_ = orders.Query("a").Select(Order.Attrs.Note).ItemsAsync();""")]
+    [Arguments("""_ = devices.Scan().Select(Device.Attrs.Serial).ValuesAsync();""")]
+    [Arguments("""_ = orders.Query("a").Select(Order.Attrs.Note).ValuesAsync();""")]
 
     // A key that loses what it holds restores nothing for a read of the entity either.
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.PlacedAt).SendAsync();""")]
 
     // An input of an index is an attribute that an update sets, on a table with a sort key and on one without.
-    [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ItemsAsync();""")]
-    [Arguments("""_ = routes.Scan().Select(Route.Attrs.City).ItemsAsync();""")]
+    [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ValuesAsync();""")]
+    [Arguments("""_ = routes.Scan().Select(Route.Attrs.City).ValuesAsync();""")]
 
     // A version that a read of the entity needs as well, so there is nothing that Select does otherwise.
     [Arguments("""_ = strictLedgers.Get("a").Select(StrictLedger.Attrs.Revision).SendAsync();""")]
@@ -438,8 +687,8 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Get(key).Select(kept).SendAsync();""")]
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.ShipTo.At(Address.Attrs.City)).SendAsync();""")]
     [Arguments("""_ = orders.Get(key).Select(new Attr<string, StringConverter>("UserId")).SendAsync();""")]
-    [Arguments("""_ = hands.Scan().Select(Hand.Attrs.X).ItemsAsync();""")]
-    [Arguments("""_ = notes.Scan().Select(Note.Attrs.Text).ItemsAsync();""")]
+    [Arguments("""_ = hands.Scan().Select(Hand.Attrs.X).ValuesAsync();""")]
+    [Arguments("""_ = notes.Scan().Select(Note.Attrs.Text).ValuesAsync();""")]
     public async Task Select_AttributeOfItsOwn_ReportsNothing(string statement)
     {
         // Arrange
@@ -470,6 +719,12 @@ public sealed class ProjectionAnalyzerTests
     }
 
     private static string Source(string statement) => AnalyzerRun.Member(Fields + "public static void Run() {" + statement + "}", Model);
+
+    private static string Named(string statement) =>
+        AnalyzerRun.Member(
+            "private static readonly Table<Bill> bills = null!;\npublic static void Run() {" + statement + "}",
+            "[DynamoDbEntity, Discriminator(\"BILL\"), PartitionKey(\"BILL#{Id}\")] public partial class Bill { public required string Id { get; init; } public required decimal TotalDue { get; init; } }")
+            .Replace("namespace Shop;", "[assembly: DynamoDbDefaults(Naming = AttributeNaming.SnakeCase)]\n\nnamespace Shop;", StringComparison.Ordinal);
 
     private static string Message(string member, string type, string select) =>
         $"DYNA208 Warning: This Project leaves out '{member}' of '{type}', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it{select}.";

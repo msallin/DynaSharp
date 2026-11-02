@@ -27,8 +27,8 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Room } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "DAY#{Start:yyyy-MM-dd}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null, LosesValues = true },
+                new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Room } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "DAY#{Start:yyyy-MM-dd}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}#{Rank:d3}#{Room}#AT#{Start:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner"), new __Map.DynamoDbKeyInput("Rank", "Rank"), new __Map.DynamoDbKeyInput("Room", "Room"), new __Map.DynamoDbKeyInput("Start", "Start") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!, (int)__values[1]!, (string)__values[2]!, (global::System.DateTimeOffset)__values[3]!)),
             });
     }
@@ -202,8 +202,26 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>HeldSlot</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string room, global::System.DateTimeOffset start) => new PrimaryKey(room, start);
+        /// <summary>Creates the primary key of <c>HeldSlot</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string room, global::System.DateTimeOffset start)
+        {
+            Pk.Check(true, room);
+            return new PrimaryKey(room, start);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string room, global::System.DateTimeOffset start, out PrimaryKey key)
+        {
+            if (Pk.Check(false, room))
+            {
+                key = new PrimaryKey(room, start);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>HeldSlot</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -271,9 +289,31 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> Of(string room) => new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(Format(room), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string room, out global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, room);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -339,6 +379,20 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
             {
                 __key.WriteLiteral("ROOM#"u8);
                 __key.WriteString(room, "#"u8, "Room");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string room)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, room);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
 
@@ -512,9 +566,31 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> Of(string owner, int rank, string room, global::System.DateTimeOffset start) => new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(Format(owner, rank, room, start), "byownerpk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string owner, int rank, string room, global::System.DateTimeOffset start, out global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, owner, rank, room, start);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(__key.ToString(), "byownerpk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

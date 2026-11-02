@@ -97,7 +97,7 @@ One assembly `DynaSharp`; internal by default.
 
 | Public namespace | Content |
 |---|---|
-| `DynaSharp` | `DynamoDbClient` (construction and `Dispose`), `DynamoDbClientOptions`, `AwsRegion`, all exceptions, `AttributeValue`, `AttributeType`, and the types a `Table<T>` user has to name (`ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`) |
+| `DynaSharp` | `DynamoDbClient` (construction and `Dispose`), `DynamoDbClientOptions`, `AwsRegion`, all exceptions, `AttributeValue`, `AttributeType`, and the types a `Table<T>` user has to name (`ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`) |
 | `DynaSharp.Requests` | every `XxxRequest`/`XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its request and response records, structure types and enums |
 | `DynaSharp.Credentials` | `AwsCredentials`, `ICredentialsProvider`, providers |
@@ -161,12 +161,12 @@ are named after the properties, so named arguments guard against swapping two va
 Syntax: `template := (literal | "{" Property [":" format] "}")+`, with `{{` and `}}` for literal braces. Literals are
 printable ASCII. A template without placeholders is legal (a `PROFILE` sort key). A property may appear in several keys
 of an entity with different formats, once per template. Computed properties may feed the table's own key templates,
-which are written once. They are rejected in index templates: an update cannot know which stored properties a getter
-reads, so the index would go stale.
+which are written once. They are rejected in index templates unless `[ComputedFrom]` names the stored properties the
+getter reads; an update that changes one of those by handle throws, because it cannot run the getter.
 
 | Type | Default | Formats | Width | Sort order |
 |---|---|---|---|---|
-| `string` | as is | | variable | UTF-8 bytes, not culture |
+| `string` | as is | `raw`, at the end of a template | variable | UTF-8 bytes, not culture |
 | `Guid` | lowercase `D` | | 36 | by creation time for version 7, otherwise none useful |
 | enum | member name | `d<w>` value | variable or fixed | by name or value |
 | integers up to 64 bits | plain digits (`plain`) | `d<w>`, `n<i>` | variable or fixed | numeric only with a fixed format |
@@ -205,13 +205,20 @@ silence. Case folding and normalization are never applied: ElectroDB's default l
   `d<w>`, `n<i>.<f>`) are not checked: their alphabet and width cannot forge structure, so `ORDER-{GuidId}` is legal. A
   template that is a single placeholder has none. Use one delimiter per table: the generator cannot see other entity
   types on the same attribute.
+- `raw` takes the delimiters back for a value that holds them by nature, such as `{Key:raw}` over `a#b`: the value goes in
+  as it is. It round-trips only because `Parse` and a read take what is left of the text, so it is valid on a `string`
+  placeholder that ends the template, with no literal behind it, and anything else is `DYNA118`. It lifts the delimiter
+  check and nothing else: an empty value, a lone surrogate, U+0000 to U+001F and U+10FFFF still throw, so an upper bound
+  stays above every key under a prefix. A value without a delimiter gives the same bytes as without `raw`. A format
+  belongs to its template, so a strict `{Key}` of the same property in another key goes on rejecting what `raw` takes.
 - The check runs on the formatted text of each segment, so a custom type that emits a delimiter is caught as well.
 - An empty value throws: DynamoDB rejects empty key attributes, and an empty middle segment would turn a key into a prefix
   of other keys. A value that is not well-formed UTF-16 throws, because lone surrogates collapse into U+FFFD and two
   different strings would share a key. U+0000 to U+001F throw too, and so does U+10FFFF, which `UpperBound` reserves. Keys over 2048 bytes (partition) or 1024 bytes (sort)
   are left to DynamoDB to reject.
-- `Format`, `Prefix` at every depth, `UpperBound` and `Parse` validate alike. Violations throw `KeyFormatException`, an
-  `ArgumentException` naming the placeholder and never the value, so a key built from user input fails as a bad argument.
+- `Format`, `Prefix` at every depth, `UpperBound`, `Of`, `Keys.Of` and `Parse` validate alike, at the call. Violations throw
+  `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value, so a key built from user input
+  fails as a bad argument. `TryOf` returns `false` for exactly those values, without an exception.
 - `Parse(x)` succeeds exactly when `Format(Parse(x)) == x`: exact widths, lowercase Guids, defined enum names, no delimiter
   in a segment.
 
@@ -222,14 +229,14 @@ Prefixes and ranges:
   validated like a value, and its caveat (`USER#1` matches `USER#10`) is the point of using it.
 - `Prefix(createdAt)` as an upper bound excludes items at `createdAt`. `UpperBound` includes them, so
   `BETWEEN Prefix(a) AND UpperBound(b)` is inclusive on whole fields.
-- The builders turn this into conditions: `Keys.Sk.Between`, `Ge`, `Gt`, `Le`, `Lt` and `Eq`. A range exists only where the bytes of the key follow the values, which `api.md` section 6 spells out.
+- The builders turn this into conditions: `Keys.Sk.Between`, `Range`, which is `BETWEEN Prefix(a) AND Prefix(b)`, `Ge`, `Gt`, `Le`, `Lt` and `Eq`. A range exists only where the bytes of the key follow the values, which `api.md` section 6 spells out.
 - In a sort key a variable-width string before a delimiter breaks segment order for values containing characters below the
   delimiter: with `#` those are space, `!` and `"`, so `USER#a b#1` sorts before `USER#a#1`. `begins_with` with a whole-field
   prefix is unaffected. The generator reports that position as `DYNA115`, at Info severity.
 
 Compile-time rules (`DYNA1xx`): syntax errors, unknown properties, unsupported types, a format that does not fit the type,
 two variable-width placeholders without a literal between them (the key cannot be parsed), a nullable input in a key that
-is not `Sparse`, a computed property in an index template, an entity outside an enabled nullable context (nullability
+is not `Sparse`, a computed property in an index template without `[ComputedFrom]`, an entity outside an enabled nullable context (nullability
 would be unenforceable; `Format` also throws on null at runtime), a `[KeyOnly]` input no key holds losslessly. Warnings
 cover a number without a fixed format in a sort key, because `10` sorts before `9`, which `{Id:plain}` silences, and the
 string position above.
@@ -249,7 +256,8 @@ Interaction with indexes and discriminators:
 - Discriminators are a dedicated attribute (`_type`), not inferred from a key prefix: overloaded index keys and shared
   prefixes make a prefix ambiguous. `[Discriminator("ORDER")]` is required, because a default of the type name would turn
   renaming a class into a silent migration. The attribute name can be overridden, and a type can opt out for tables written
-  by other tools, which also excludes it from mixed queries.
+  by other tools, which also excludes it from mixed queries. A project whose tables other tools write says so once, in
+  `[assembly: DynamoDbDefaults(NoDiscriminator = true)]`, which opts out and never makes up a value.
 - JSON property order is not guaranteed, so a mixed query copies the reader (a struct, so a cheap checkpoint), finds the
   attribute, rewinds and dispatches. How a mixed result is declared is an M3 decision.
 - A typed read checks `_type` when present and throws `DynamoDbMappingException` naming the type it found, because a query

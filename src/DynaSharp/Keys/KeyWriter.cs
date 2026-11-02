@@ -25,7 +25,7 @@ namespace DynaSharp.Keys;
 /// <para>
 /// Every <c>delimiters</c> argument holds the ASCII bytes adjacent to the placeholder in the template, the last byte of the literal
 /// before it and the first byte of the literal after it. A value that contains one throws, for the last placeholder of a template
-/// as well. Pass an empty span for a template that is a single placeholder. Values of a fixed, known alphabet (Guid,
+/// as well. Pass an empty span for a template that is a single placeholder, and for format <c>raw</c>, whose value may hold them. Values of a fixed, known alphabet (Guid,
 /// timestamps, fixed-width numbers) take no delimiters: the generator checks them against the template at compile time.
 /// </para>
 /// <para>
@@ -48,11 +48,27 @@ public ref struct KeyWriter
     private byte[]? _rented;
     private int _length;
 
+    // False in a default writer, which throws, as a writer does unless it was asked not to.
+    private bool _marksInvalid;
+
     /// <summary>Initializes a new instance of the <see cref="KeyWriter"/> struct that borrows long keys from <see cref="ArrayPool{T}.Shared"/>.</summary>
     /// <param name="buffer">The initial buffer, usually <c>stackalloc byte[n]</c>. It is not cleared and may hold anything; only what the writer wrote is ever exposed.</param>
     public KeyWriter(Span<byte> buffer)
         : this(buffer, ArrayPool<byte>.Shared)
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KeyWriter"/> struct that can check values without an exception. With <paramref name="throwOnInvalid"/> at
+    /// <see langword="false"/> a value that a write would throw <see cref="KeyFormatException"/> for turns <see cref="IsInvalid"/> true instead, and the write leaves the writer as it was.
+    /// It is one code path with the writer that throws, which is what keeps <c>TryOf</c> and <c>Format</c> of a key builder from disagreeing.
+    /// </summary>
+    /// <param name="buffer">The initial buffer, usually <c>stackalloc byte[n]</c>.</param>
+    /// <param name="throwOnInvalid">Whether a value that cannot be part of a key throws.</param>
+    public KeyWriter(Span<byte> buffer, bool throwOnInvalid)
+        : this(buffer, ArrayPool<byte>.Shared)
+    {
+        _marksInvalid = !throwOnInvalid;
     }
 
     // The pool is a seam for tests, which count what is rented and returned.
@@ -63,6 +79,9 @@ public ref struct KeyWriter
         _rented = null;
         _length = 0;
     }
+
+    /// <summary>Gets a value indicating whether a value could not be part of a key. Only a writer that does not throw gets to report that.</summary>
+    public bool IsInvalid { readonly get; private set; }
 
     /// <summary>Gets the bytes written so far. Valid until the next write, which may move the buffer, and until <see cref="Dispose"/>.</summary>
     public readonly ReadOnlySpan<byte> WrittenSpan => _buffer[.._length];
@@ -91,15 +110,16 @@ public ref struct KeyWriter
     {
         if (string.IsNullOrEmpty(value))
         {
-            throw KeyText.Fail(placeholder, SegmentProblem.Empty);
+            Reject(placeholder, SegmentProblem.Empty);
         }
-
-        if (!TryEncode(value, out var written))
+        else if (TryEncode(value, out var written))
         {
-            throw KeyText.Fail(placeholder, SegmentProblem.NotWellFormed);
+            Commit(written, delimiters, placeholder);
         }
-
-        Commit(written, delimiters, placeholder);
+        else
+        {
+            Reject(placeholder, SegmentProblem.NotWellFormed);
+        }
     }
 
     /// <summary>Appends text that is already UTF-8, for example an enum member name, with the same validation as <see cref="WriteString"/>.</summary>
@@ -107,17 +127,7 @@ public ref struct KeyWriter
     /// <param name="delimiters">The delimiters of the template.</param>
     /// <param name="placeholder">The name of the placeholder, for the exception.</param>
     /// <exception cref="KeyFormatException">The value is not a valid segment.</exception>
-    public void WriteUtf8Value(scoped ReadOnlySpan<byte> utf8Value, scoped ReadOnlySpan<byte> delimiters, string placeholder)
-    {
-        var problem = KeyText.Inspect(utf8Value, delimiters);
-        if (problem != SegmentProblem.None)
-        {
-            throw KeyText.Fail(placeholder, problem);
-        }
-
-        utf8Value.CopyTo(Reserve(utf8Value.Length));
-        _length += utf8Value.Length;
-    }
+    public void WriteUtf8Value(scoped ReadOnlySpan<byte> utf8Value, scoped ReadOnlySpan<byte> delimiters, string placeholder) => Append(utf8Value, delimiters, placeholder);
 
     /// <summary>Appends the name of an enum member. A value that is no member, for example a cast from a number, has no name, and <paramref name="utf8Name"/> is empty.</summary>
     /// <param name="utf8Name">The name as UTF-8, or an empty span if the value has none.</param>
@@ -128,10 +138,12 @@ public ref struct KeyWriter
     {
         if (utf8Name.IsEmpty)
         {
-            throw KeyText.Fail(placeholder, "The value is not a member of its enum, so it has no name in a key.");
+            Reject(placeholder, "The value is not a member of its enum, so it has no name in a key.");
         }
-
-        WriteUtf8Value(utf8Name, delimiters, placeholder);
+        else
+        {
+            Append(utf8Name, delimiters, placeholder);
+        }
     }
 
     /// <summary>Appends a <see cref="Guid"/> as 36 lowercase hexadecimal digits with hyphens (format <c>D</c>).</summary>
@@ -161,10 +173,12 @@ public ref struct KeyWriter
     {
         if (value < 0)
         {
-            throw KeyText.Fail(placeholder, "The value is negative, which a zero-padded format cannot order.");
+            Reject(placeholder, "The value is negative, which a zero-padded format cannot order.");
         }
-
-        WriteDigits((ulong)value, width, placeholder);
+        else
+        {
+            WriteDigits((ulong)value, width, placeholder);
+        }
     }
 
     /// <inheritdoc cref="WriteDigits(long, int, string)"/>
@@ -174,7 +188,8 @@ public ref struct KeyWriter
         _ = value.TryFormat(digits, out var length, default, CultureInfo.InvariantCulture);
         if (length > width)
         {
-            throw KeyText.Fail(placeholder, "The value has more digits than the width of its format.");
+            Reject(placeholder, "The value has more digits than the width of its format.");
+            return;
         }
 
         var destination = Reserve(width);
@@ -220,7 +235,8 @@ public ref struct KeyWriter
         var magnitude = Math.Abs(value);
         if (decimal.Round(magnitude, fractionDigits) != magnitude)
         {
-            throw KeyText.Fail(placeholder, "The value has more fraction digits than its format.");
+            Reject(placeholder, "The value has more fraction digits than its format.");
+            return;
         }
 
         Span<char> format = ['F', (char)('0' + (fractionDigits / 10)), (char)('0' + (fractionDigits % 10))];
@@ -230,7 +246,8 @@ public ref struct KeyWriter
         var integerLength = fractionDigits == 0 ? textLength : textLength - fractionDigits - 1;
         if (integerLength > integerDigits)
         {
-            throw KeyText.Fail(placeholder, "The value is out of the range of its format.");
+            Reject(placeholder, "The value is out of the range of its format.");
+            return;
         }
 
         var total = 1 + integerDigits + (fractionDigits == 0 ? 0 : 1 + fractionDigits);
@@ -273,10 +290,12 @@ public ref struct KeyWriter
     {
         if (value.Kind == DateTimeKind.Unspecified)
         {
-            throw KeyText.Fail(placeholder, "The kind of the time is unspecified; use UTC or local time.");
+            Reject(placeholder, "The kind of the time is unspecified; use UTC or local time.");
         }
-
-        WriteUtc(value.ToUniversalTime(), format);
+        else
+        {
+            WriteUtc(value.ToUniversalTime(), format);
+        }
     }
 
     /// <summary>Appends a date as <c>yyyy-MM-dd</c>, 10 bytes.</summary>
@@ -301,7 +320,8 @@ public ref struct KeyWriter
         {
             if (space >= MaximumFormattableSpace)
             {
-                throw KeyText.Fail(placeholder, "The formatted text is longer than the limit of 65536 bytes.");
+                Reject(placeholder, "The formatted text is longer than the limit of 65536 bytes.");
+                return;
             }
 
             space = Math.Min(space * 2, MaximumFormattableSpace);
@@ -383,7 +403,8 @@ public ref struct KeyWriter
         var problem = KeyText.Inspect(text, delimiters);
         if (problem != SegmentProblem.None)
         {
-            throw KeyText.Fail(placeholder, problem);
+            Reject(placeholder, problem);
+            return;
         }
 
         text.CopyTo(Reserve(text.Length));
@@ -396,10 +417,32 @@ public ref struct KeyWriter
         var problem = KeyText.Inspect(_buffer.Slice(_length, written), delimiters);
         if (problem != SegmentProblem.None)
         {
-            throw KeyText.Fail(placeholder, problem);
+            Reject(placeholder, problem);
+            return;
         }
 
         _length += written;
+    }
+
+    // The one place a value is turned away, so that a writer that throws and one that does not reject the same values. Nothing is built for one that does not throw.
+    private void Reject(string placeholder, SegmentProblem problem)
+    {
+        if (!_marksInvalid)
+        {
+            throw KeyText.Fail(placeholder, problem);
+        }
+
+        IsInvalid = true;
+    }
+
+    private void Reject(string placeholder, string reason)
+    {
+        if (!_marksInvalid)
+        {
+            throw KeyText.Fail(placeholder, reason);
+        }
+
+        IsInvalid = true;
     }
 
     // Returns the next count bytes after the written part without advancing; callers write all of them before they advance.

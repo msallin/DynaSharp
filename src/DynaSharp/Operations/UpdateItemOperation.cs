@@ -35,4 +35,6 @@ internal readonly struct UpdateItemOperation : IOperation<UpdateItemRequest, Upd
     }
 
     public static IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(UpdateItemResponse response) => ConsumedCapacityTelemetry.ToList(response.ConsumedCapacity);
+
+    public static Item? GetKey(UpdateItemRequest request) => new(request.Key);
 }

@@ -11,8 +11,30 @@ namespace DynaSharp.Testing;
 /// disposed the request.
 /// </summary>
 /// <remarks>
-/// A test says what was sent instead of comparing JSON text: <see cref="ReadItem{T}()"/> reads the item of a put back through the code of the entity and
-/// <see cref="ReadKey()"/> the key of a get, an update or a delete. <see cref="BodyJson"/> reaches everything else, such as the items of a batch or a transaction.
+/// <para>
+/// A test says what was sent instead of comparing JSON text: <see cref="ReadItem{T}()"/> reads the item of a put back through the code of the entity and <see cref="ReadKey()"/> the key of a get, an update or a
+/// delete, <see cref="TransactItems"/> reads a transaction step by step, and <see cref="ConditionText"/>, <see cref="UpdateText"/>, <see cref="KeyConditionText"/>, <see cref="FilterText"/> and
+/// <see cref="ProjectionText"/> read an expression. <see cref="BodyJson"/> reaches everything else, such as the writes of a <c>BatchWriteItem</c>.
+/// </para>
+/// <para>
+/// <b>The notation of the texts.</b> An expression reads as DynamoDB gets it, keywords, functions and spacing included, with each placeholder replaced by what it stands for, so a test does not depend on how
+/// placeholders are numbered: <c>#n0 = :v0</c> reads <c>version = 3</c>. A name stands as it is, and in backticks if it holds a dot or a bracket, because <c>`a.b`</c> is one attribute and <c>a.b</c> a path through two.
+/// A value reads in the notation of PartiQL with double quotes, from its wire form, so a number keeps its text:
+/// </para>
+/// <list type="table">
+/// <listheader><term>On the wire</term><description>In a text</description></listheader>
+/// <item><term><c>{"S":"Placed"}</c></term><description><c>"Placed"</c>, with the escapes of JSON</description></item>
+/// <item><term><c>{"N":"3.10"}</c></term><description><c>3.10</c></description></item>
+/// <item><term><c>{"BOOL":true}</c>, <c>{"NULL":true}</c></term><description><c>true</c>, <c>null</c></description></item>
+/// <item><term><c>{"B":"aGk="}</c></term><description><c>b"aGk="</c>, the base64 of the wire</description></item>
+/// <item><term><c>{"L":[{"S":"a"},{"N":"1"}]}</c></term><description><c>["a", 1]</c></description></item>
+/// <item><term><c>{"M":{"k":{"N":"1"}}}</c></term><description><c>{"k": 1}</c></description></item>
+/// <item><term><c>{"SS":["a","b"]}</c>, <c>{"NS":["1"]}</c>, <c>{"BS":["aA=="]}</c></term><description><c>&lt;&lt;"a", "b"&gt;&gt;</c>, <c>&lt;&lt;1&gt;&gt;</c>, <c>&lt;&lt;b"aA=="&gt;&gt;</c></description></item>
+/// </list>
+/// <para>
+/// A placeholder that the maps of the request lack stays as it is, which is the mistake a test should see. Elements of a list, entries of a map and elements of a set stay in the order of the wire, and DynamoDB does not
+/// keep the last two: a test that compares a set or a map sends it through <see cref="ReadItem{T}()"/>, or holds one element.
+/// </para>
 /// </remarks>
 public sealed class RecordedRequest
 {
@@ -56,6 +78,37 @@ public sealed class RecordedRequest
     /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
     public JsonElement BodyJson => JsonElement.Parse(Body.Span, new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
 
+    /// <summary>Gets the <c>ConditionExpression</c> with its placeholders resolved, in the notation of the remarks of this class: <c>version = 3</c>; <see langword="null"/> if the request has none.</summary>
+    /// <value>The text, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? ConditionText => RecordedJson.ResolveExpression(BodyJson, "ConditionExpression");
+
+    /// <summary>Gets the <c>UpdateExpression</c> with its placeholders resolved, in the notation of the remarks of this class: <c>SET plan = "pro", visits = visits + 1</c>; <see langword="null"/> if the request has none.</summary>
+    /// <value>The text, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? UpdateText => RecordedJson.ResolveExpression(BodyJson, "UpdateExpression");
+
+    /// <summary>Gets the <c>KeyConditionExpression</c> with its placeholders resolved, in the notation of the remarks of this class: <c>pk = "alice" AND begins_with(sk, "ORDER#")</c>; <see langword="null"/> if the request has none.</summary>
+    /// <value>The text, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? KeyConditionText => RecordedJson.ResolveExpression(BodyJson, "KeyConditionExpression");
+
+    /// <summary>Gets the <c>FilterExpression</c> with its placeholders resolved, in the notation of the remarks of this class: <c>Status = "Placed"</c>; <see langword="null"/> if the request has none.</summary>
+    /// <value>The text, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? FilterText => RecordedJson.ResolveExpression(BodyJson, "FilterExpression");
+
+    /// <summary>Gets the <c>ProjectionExpression</c> with its names resolved, in the notation of the remarks of this class: <c>name, address.city</c>; <see langword="null"/> if the request has none.</summary>
+    /// <value>The text, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? ProjectionText => RecordedJson.ResolveExpression(BodyJson, "ProjectionExpression");
+
+    /// <summary>Gets the actions of a <c>TransactWriteItems</c> or <c>TransactGetItems</c> in the order of the request, read anew on each access. Empty for any other request.</summary>
+    /// <value>The steps.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public IReadOnlyList<RecordedTransactStep> TransactItems =>
+        BodyJson.TryGetProperty("TransactItems"u8, out var items) ? [.. items.EnumerateArray().Select(RecordedTransactStep.From)] : [];
+
     /// <summary>Reads the <c>Item</c> of the body, which a <c>PutItem</c> carries.</summary>
     /// <returns>A new item with the attributes as they went over the wire.</returns>
     /// <exception cref="InvalidOperationException">The body has no <c>Item</c>.</exception>
@@ -87,14 +140,7 @@ public sealed class RecordedRequest
         where T : IDynamoDbDocument<T>
     {
         ArgumentNullException.ThrowIfNull(member);
-        if (!BodyJson.TryGetProperty(member, out var value))
-        {
-            throw new InvalidOperationException($"The {Operation ?? "recorded"} request has no member {member}.");
-        }
-
-        var reader = new DynamoDbReader(Encoding.UTF8.GetBytes(value.GetRawText()));
-        reader.ReadStartItem();
-        return T.ReadAttributes(ref reader);
+        return RecordedJson.ReadDocument<T>(BodyJson, member, $"{Operation ?? "recorded"} request");
     }
 
     /// <summary>

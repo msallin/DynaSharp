@@ -188,12 +188,12 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
-    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute, TValue value)
+    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
     /// <inheritdoc/>
-    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute, TValue value)
+    public UpdateCommand<T> Add<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute, TValue value)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue>, IAddableConverter => Adding<TValue, TConverter>(attribute.Path, value);
 
@@ -210,6 +210,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         where TConverter : IDynamoDbConverter<TValue>
     {
         var state = Enter();
+        WriteRules.NoteUnknownValue(state, attribute.Path);
         state.Expressions.Delete<TValue, TConverter>(attribute.Path, elements);
         return new(state, state.Table);
     }
@@ -260,7 +261,8 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <summary>
     /// Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create. With <c>IfVersion(n)</c> above 0 the terminal throws
-    /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 is this same condition, which then renders once.
+    /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 is this same condition, which then renders once, also with <see cref="VersionMissing.Allow"/>, where this alone
+    /// says that the key is free.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> IfNotExists()
@@ -272,7 +274,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <summary>
     /// Updates only if an item has this key (<c>attribute_exists</c> on the partition key), which is how an update stops being an upsert. <c>IfVersion(0)</c> says that no item has the key, so with it the terminal
-    /// throws <see cref="InvalidOperationException"/>, in either order.
+    /// throws <see cref="InvalidOperationException"/>, in either order, unless <see cref="VersionMissing.Allow"/> makes it ask for an item that reads as 0.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> IfExists()
@@ -366,7 +368,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <see cref="IfExists"/>, or a change by handle cannot
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <see cref="IfExists"/> without <see cref="VersionMissing.Allow"/>, or a change by handle cannot
     /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
     /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>

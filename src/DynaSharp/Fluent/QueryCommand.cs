@@ -10,7 +10,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Query</c> under construction: the items of one partition, in the order of the sort key. Chain the options and end with <see cref="ItemsAsync"/>, <see cref="ItemAsync"/>,
-/// <see cref="PagesAsync"/>, <see cref="PageAsync"/> or <see cref="CountAsync"/> in one expression.
+/// <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +26,7 @@ namespace DynaSharp;
 /// </remarks>
 /// <typeparam name="T">How the items are read.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
-public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetryable<QueryCommand<T>>
+public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetryable<QueryCommand<T>>, IReadCommand
     where T : IDynamoDbDocument<T>
 {
     private const string Operation = "Query";
@@ -101,7 +101,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     }
 
     /// <summary>
-    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Query(pk).Select(Order.Attrs.Total).ItemsAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, and only a key condition that stands in for that filter brings the discriminator along, so it saves bandwidth, not capacity: DynamoDB
+    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Query(pk).Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, and only a key condition that stands in for that filter brings the discriminator along, so it saves bandwidth, not capacity: DynamoDB
     /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
     /// </summary>
     /// <remarks>
@@ -134,7 +134,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public QuerySelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute)
+    public QuerySelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
@@ -145,14 +145,14 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public QuerySelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute)
+    public QuerySelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
     /// pages of this size, and with a filter a page holds fewer items than this. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty
-    /// filtered pages, and stops. To read one page, use <see cref="PageAsync"/>.
+    /// filtered pages, and stops. To read one page, use <see cref="PageAsync(ContinuationToken, CancellationToken)"/>.
     /// </summary>
     /// <param name="items">The most items per page.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -232,7 +232,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// item says so: <c>orders.Query(pk).Descending().Limit(1).ItemAsync(ct)</c> reads the newest and pays for one. A read of an entity filters on its discriminator, so in a partition that holds
     /// several types that limit counts the items of the other types too, and <see cref="ItemAsync"/> goes on to the next page.
     /// </para>
-    /// <para>An entity that is a struct reads as its default value when no item matches, so a miss looks like an item of default values there. <see cref="PageAsync"/> tells them apart.</para>
+    /// <para>An entity that is a struct reads as its default value when no item matches, so a miss looks like an item of default values there. <see cref="PageAsync(ContinuationToken, CancellationToken)"/> tells them apart.</para>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the read. It is looked at per page.</param>
     /// <returns>The item, or <see langword="null"/> if none matches. Await it once.</returns>
@@ -270,6 +270,17 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<Page<T>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default) =>
         PagedRead<QueryPageOperation<T>, T>.PageAsync(Prepare(), after, cancellationToken);
+
+    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken, CancellationToken)"/> does at the default position, for a caller that has a token and no position yet.</summary>
+    /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>
+    /// <returns>The page. Await it once.</returns>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<Page<T>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
 
     /// <summary>
     /// Counts the items of all pages with <c>Select: COUNT</c>, so no item travels. It costs the capacity of reading them all, as a count of a filtered read costs

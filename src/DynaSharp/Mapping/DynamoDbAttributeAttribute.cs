@@ -1,6 +1,6 @@
 namespace DynaSharp.Mapping;
 
-/// <summary>Sets the DynamoDB attribute name of a property. Without it the name is the C# property name, unchanged.</summary>
+/// <summary>Sets the DynamoDB attribute name of a property. Without it the name is the C# property name, as <see cref="DynamoDbDefaultsAttribute.Naming"/> converts it, and unchanged by default.</summary>
 /// <remarks>
 /// It also forces a property to be stored that would not be otherwise. A non-public property is mapped like any other. A
 /// computed property is written but never read.

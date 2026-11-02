@@ -114,8 +114,8 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Consistent().Select(Order.Attrs.Total).ItemsAsync());
-        var names = await Read.ToListAsync(shop.Customers.Query(Customer.Keys.Pk.Format("alice")).Consistent().Select(Customer.Attrs.Name).ItemsAsync());
+        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Consistent().Select(Order.Attrs.Total).ValuesAsync());
+        var names = await Read.ToListAsync(shop.Customers.Query(Customer.Keys.Pk.Format("alice")).Consistent().Select(Customer.Attrs.Name).ValuesAsync());
 
         // Assert
         await Assert.That((totals.Count, totals.Sum(), names.Single())).IsEqualTo((2, 19.5m, "Alice"));
@@ -141,33 +141,33 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Filter(Order.Attrs.Quantity.Gt(1)).Descending().Consistent().Select(Order.Attrs.Total).ItemsAsync());
+        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Filter(Order.Attrs.Quantity.Gt(1)).Descending().Consistent().Select(Order.Attrs.Total).ValuesAsync());
 
         // Assert
         await Assert.That(totals.Single()).IsEqualTo(7m);
     }
 
     [Test]
-    public async Task ItemAsync_NewestFirst_GivesTheFirstValue()
+    public async Task ValueAsync_NewestFirst_GivesTheFirstValue()
     {
         // Arrange
         await using var shop = await SeededAsync();
 
         // Act
-        var newest = await shop.Orders.Query(Order.Keys.Pk.Format("alice")).Descending().Limit(1).Consistent().Select(Order.Attrs.Total).ItemAsync();
+        var newest = await shop.Orders.Query(Order.Keys.Pk.Format("alice")).Descending().Limit(1).Consistent().Select(Order.Attrs.Total).ValueAsync();
 
         // Assert
         await Assert.That((newest.Found, newest.Value)).IsEqualTo((true, 7m));
     }
 
     [Test]
-    public async Task ItemAsync_NoMatch_IsNotFound()
+    public async Task ValueAsync_NoMatch_IsNotFound()
     {
         // Arrange
         await using var shop = await SeededAsync();
 
         // Act
-        var none = await shop.Orders.Query(Order.Keys.Pk.Format("nobody")).Select(Order.Attrs.Total).ItemAsync();
+        var none = await shop.Orders.Query(Order.Keys.Pk.Format("nobody")).Select(Order.Attrs.Total).ValueAsync();
 
         // Assert
         await Assert.That(none.Found).IsFalse();
@@ -194,7 +194,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var totals = await Read.ToListAsync(shop.Orders.Scan().Consistent().Select(Order.Attrs.Total).ItemsAsync());
+        var totals = await Read.ToListAsync(shop.Orders.Scan().Consistent().Select(Order.Attrs.Total).ValuesAsync());
 
         // Assert
         await Assert.That(totals.Sum()).IsEqualTo(19.5m);
@@ -220,7 +220,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var tracking = await Read.ToListAsync(shop.Orders.Scan().Consistent().Select(Order.Attrs.TrackingId).ItemsAsync());
+        var tracking = await Read.ToListAsync(shop.Orders.Scan().Consistent().Select(Order.Attrs.TrackingId).ValuesAsync());
 
         // Assert
         await Assert.That((tracking.Count, tracking.Count(static id => id is null), tracking.Contains(Second))).IsEqualTo((2, 1, true));
@@ -234,7 +234,7 @@ public sealed class SelectTests(Backend backend)
         var byType = shop.Customers.Index(ShopSandbox.ByType, "_type", "sk");
 
         // Act
-        var names = await Read.ToListAsync(byType.Query("CUSTOMER").Select(Customer.Attrs.Name).ItemsAsync());
+        var names = await Read.ToListAsync(byType.Query("CUSTOMER").Select(Customer.Attrs.Name).ValuesAsync());
 
         // Assert
         await Assert.That(names.Single()).IsEqualTo("Alice");
@@ -248,7 +248,7 @@ public sealed class SelectTests(Backend backend)
         var byType = shop.Customers.Index(ShopSandbox.ByType, "_type", "sk");
 
         // Act
-        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query("ORDER").Select(Customer.Attrs.OrderCount).ItemsAsync()));
+        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query("ORDER").Select(Customer.Attrs.OrderCount).ValuesAsync()));
         var typed = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query("ORDER").ItemsAsync()));
 
         // Assert

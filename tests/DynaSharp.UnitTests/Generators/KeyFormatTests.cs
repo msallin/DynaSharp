@@ -24,6 +24,7 @@ public sealed class KeyFormatTests
 
     [Test]
     [Arguments("string", "", 0, "k.WriteString(v, d, p)")]
+    [Arguments("string", ":raw", 0, "k.WriteString(v, \"\"u8, p)")]
     [Arguments("Guid", "", 36, "k.WriteGuid(v)")]
     [Arguments("Color", "", 0, "k.WriteEnumName(Shop_ColorConverter.FindName(v), d, p)")]
     [Arguments("Color", ":d3", 3, "k.WriteDigits((long)v, 3, p)")]
@@ -74,5 +75,18 @@ public sealed class KeyFormatTests
 
         // Assert
         await Assert.That((placeholder.Encoding.FixedWidth, placeholder.Encoding.WriteCall("k", "v", "d", "p"))).IsEqualTo((width, call));
+    }
+
+    [Test]
+    public async Task Bind_RawString_ReadsToTheEndOfTheKey()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}")] public partial class E { public string V { get; set; } = ""; }""";
+
+        // Act
+        var placeholder = (PlaceholderSegment)Analysis.Model(Source, "global::Shop.E").Entity!.PartitionKey.Template!.Segments[1];
+
+        // Assert
+        await Assert.That(placeholder.Encoding.TryReadCall("k", "t", "d")).IsEqualTo("k.TryReadString(\"\"u8, out var t)");
     }
 }

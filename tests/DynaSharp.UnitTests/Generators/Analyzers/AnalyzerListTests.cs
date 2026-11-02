@@ -59,11 +59,11 @@ public sealed class AnalyzerListTests
     private static bool IsByHandle(MethodInfo method) =>
         method.GetParameters() is [{ ParameterType.IsGenericType: true } first, ..] && first.ParameterType.GetGenericTypeDefinition() == typeof(Attr<,>);
 
-    // The name of the converter of a handle, as an analyzer sees it, without the wrapper of a nullable property: Attr<int, OptionalConverter<int, NumberConverter<int>>> is NumberConverter.
+    // The name of the converter of a handle, as an analyzer sees it, without the wrapper of a nullable property: Attr<int, NullableHandleConverter<int, NumberConverter<int>>> is NumberConverter.
     private static string StoredBy(Type handle)
     {
         var converter = handle.GetGenericArguments()[1];
-        if (converter.IsGenericType && converter.GetGenericTypeDefinition() == typeof(OptionalConverter<,>))
+        if (converter.IsGenericType && converter.GetGenericTypeDefinition() == typeof(NullableHandleConverter<,>))
         {
             converter = converter.GetGenericArguments()[1];
         }

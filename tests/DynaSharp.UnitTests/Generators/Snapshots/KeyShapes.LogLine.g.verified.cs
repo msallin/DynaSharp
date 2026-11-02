@@ -28,8 +28,8 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "LOG#{Stream}", true, new[] { new __Map.DynamoDbKeyInput("Stream", "Stream") }),
-                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day"), new __Map.DynamoDbKeyInput("At", "At"), new __Map.DynamoDbKeyInput("Sequence", "Sequence") }),
+                new __Map.DynamoDbKeyTemplate("pk", "LOG#{Stream}", true, new[] { new __Map.DynamoDbKeyInput("Stream", "Stream", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Stream } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("Sequence", "Sequence", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Day, null, __parts.Sequence } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("byownersk", "TAG#{Tag}", false, new[] { new __Map.DynamoDbKeyInput("Tag", "Tag") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bywhenpk", "W#{When:ticks}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenPk.Format((global::System.DateTime)__values[0]!)),
@@ -285,7 +285,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Sequence => new("Sequence");
 
         /// <summary>The attribute <c>Owner</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("Owner");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("Owner");
 
         /// <summary>The attribute <c>Tag</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Tag => new("Tag");
@@ -294,15 +294,34 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         public static global::DynaSharp.Attr<global::System.DateTime, global::DynaSharp.Serialization.DateTimeConverter> When => new("When");
 
         /// <summary>The attribute <c>Text</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Text => new("Text");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Text => new("Text");
     }
 
     /// <summary>The key builders of <c>LogLine</c>.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>LogLine</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence) => new PrimaryKey(stream, day, at, sequence);
+        /// <summary>Creates the primary key of <c>LogLine</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence)
+        {
+            Pk.Check(true, stream);
+            Sk.Check(true, day, at, sequence);
+            return new PrimaryKey(stream, day, at, sequence);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence, out PrimaryKey key)
+        {
+            if (Pk.Check(false, stream) && Sk.Check(false, day, at, sequence))
+            {
+                key = new PrimaryKey(stream, day, at, sequence);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>LogLine</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -328,6 +347,32 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);
                 Sk.Write(writer, _1, _2, _3);
+            }
+
+            /// <inheritdoc/>
+            public object? ValueOf(string propertyName)
+            {
+                if (propertyName == "Stream")
+                {
+                    return _0;
+                }
+
+                if (propertyName == "Day")
+                {
+                    return _1;
+                }
+
+                if (propertyName == "At")
+                {
+                    return _2;
+                }
+
+                if (propertyName == "Sequence")
+                {
+                    return _3;
+                }
+
+                return null;
             }
         }
 
@@ -358,9 +403,31 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string stream) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(stream), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string stream, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, stream);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -426,6 +493,20 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             {
                 __key.WriteLiteral("LOG#"u8);
                 __key.WriteString(stream, "#"u8, "Stream");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string stream)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, stream);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
 
@@ -526,9 +607,13 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateOnly day) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(day));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>Day</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
-            /// <remarks>The key goes on behind <c>Day</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
+            /// <remarks>The key goes on behind <c>Day</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateOnly from, global::System.DateOnly to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
+
+            /// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>Day</c>: from the first key at <c>from</c> up to and without the keys at <c>to</c>, with any field before it equal. <c>to</c> stays out because the key goes on behind <c>Day</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Range(global::System.DateOnly from, global::System.DateOnly to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), Prefix(to));
 
             /// <summary>The condition <c>&gt;= Prefix</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -592,9 +677,13 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateOnly day, global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(day, at));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>At</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
-            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(day, from), Keys.Sk.Prefix(day, to))</c>.</remarks>
+            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateOnly day, global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(day, from), UpperBound(day, to));
+
+            /// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>At</c>: from the first key at <c>from</c> up to and without the keys at <c>to</c>, with any field before it equal. <c>to</c> stays out because the key goes on behind <c>At</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Range(global::System.DateOnly day, global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(day, from), Prefix(day, to));
 
             /// <summary>The condition <c>&gt;= Prefix</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -705,6 +794,20 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 __key.WriteLiteral("#"u8);
                 __key.WriteDigits((long)sequence, 4, "Sequence");
             }
+
+            internal static bool Check(bool __throwOnInvalid, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, day, at, sequence);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
         }
 
         /// <summary>The values of a parsed <c>byownerpk</c>.</summary>
@@ -734,9 +837,31 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string owner) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(owner), "byownerpk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string owner, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, owner);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "byownerpk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -989,9 +1114,31 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>LogLine</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(global::System.DateTime when) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(when), "bywhenpk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(global::System.DateTime when, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, when);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "bywhenpk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

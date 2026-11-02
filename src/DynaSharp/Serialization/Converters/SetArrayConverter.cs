@@ -17,9 +17,10 @@ namespace DynaSharp.Serialization;
 /// </para>
 /// <para>The array that is read has exactly the length of the set, in the order the service sent, which is not a stable order.</para>
 /// <para>
-/// <typeparamref name="TElement"/> is an <see cref="IDynamoDbSetElementConverter{T}"/>, which writes one element of a set, and not the converter of the type, which writes a whole attribute. A set of strings is
-/// <c>[DynamoDbConverter(typeof(SetArrayConverter&lt;string, StringSetElement&gt;))] public string[] Tags { get; init; } = [];</c>, and <c>SetArrayConverter&lt;string, StringConverter&gt;</c> does not compile, with an
-/// error on the constraint of <typeparamref name="TElement"/>. The others are <see cref="NumberSetElement{T}"/>, <see cref="BinarySetElement"/> and <see cref="GuidSetElement"/>.
+/// <typeparamref name="TElement"/> is an <see cref="IDynamoDbSetElementConverter{T}"/>, which writes one element of a set, and not the converter of the type, which writes a whole attribute. The built-in ones are
+/// <see cref="StringSetElement"/> for a <c>string[]</c>, <see cref="NumberSetElement{T}"/> for an array of numbers, <see cref="BinarySetElement"/> for a <c>byte[][]</c> and <see cref="GuidSetElement"/> for a <c>Guid[]</c>. A set of strings is
+/// <c>[DynamoDbConverter(typeof(SetArrayConverter&lt;string, StringSetElement&gt;))] public string[] Tags { get; init; } = [];</c>. <see cref="StringConverter"/> is not an element converter, so
+/// <c>SetArrayConverter&lt;string, StringConverter&gt;</c> does not compile: <c>CS0315</c> on the constraint of <typeparamref name="TElement"/>.
 /// </para>
 /// </remarks>
 public readonly struct SetArrayConverter<T, TElement> : IDynamoDbConverter<T[]>, IAddableConverter

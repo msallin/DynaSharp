@@ -18,7 +18,7 @@ public sealed class AttrExtensionsTests
         var conditions = rejected.Select(static method => (method.GetCustomAttribute<ObsoleteAttribute>()!.IsError, Invoke(method))).ToList();
 
         // Assert
-        await Assert.That((rejected.Count, conditions.All(static condition => condition.IsError && condition.Item2 is BeginsWith))).IsEqualTo((10, true));
+        await Assert.That((rejected.Count, conditions.All(static condition => condition.IsError && condition.Item2 is BeginsWith))).IsEqualTo((12, true));
     }
 
     [Test]
@@ -33,6 +33,38 @@ public sealed class AttrExtensionsTests
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"}},"ConditionExpression":"begins_with(#n0, :v0)","ExpressionAttributeNames":{"#n0":"blob"},"ExpressionAttributeValues":{":v0":{"B":"AQI="}}}""");
+    }
+
+    [Test]
+    public async Task BeginsWith_HandleOfBytesWithOmitEmpty_SendsABinaryPrefix()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Update("a").If(new Attr<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>>("blob").BeginsWith(new byte[] { 1, 2 })).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v0":{"B":"AQI="}
+            """);
+    }
+
+    [Test]
+    public async Task BeginsWith_HandleOfNullableBytesWithOmitEmpty_SendsABinaryPrefix()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Update("a").If(new Attr<byte[], NullableReferenceHandleConverter<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>>>("blob").BeginsWith(new byte[] { 1, 2 })).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v0":{"B":"AQI="}
+            """);
     }
 
     [Test]
@@ -60,7 +92,7 @@ public sealed class AttrExtensionsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table("Shop", "pk").Scan().Filter(new Attr<byte[], OptionalReferenceConverter<byte[], BinaryConverter>>("blob").BeginsWith(new byte[] { 1, 2 })).ToRequestJson();
+        var json = client.Table("Shop", "pk").Scan().Filter(new Attr<byte[], NullableReferenceHandleConverter<byte[], BinaryConverter>>("blob").BeginsWith(new byte[] { 1, 2 })).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -77,7 +109,7 @@ public sealed class AttrExtensionsTests
         ReadOnlyMemory<byte> prefix = new byte[] { 1, 2 };
 
         // Act
-        var json = client.Table("Shop", "pk").Scan().Filter(new Attr<ReadOnlyMemory<byte>, OptionalConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>>("blob").BeginsWith(prefix)).ToRequestJson();
+        var json = client.Table("Shop", "pk").Scan().Filter(new Attr<ReadOnlyMemory<byte>, NullableHandleConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>>("blob").BeginsWith(prefix)).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

@@ -97,9 +97,9 @@ partial class Home : __Map.IDynamoDbDocument<global::Shapes.OmitEmpty.Home>
     public static class Attrs
     {
         /// <summary>The attribute <c>City</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>>> City => new("City");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>>> City => new("City");
 
         /// <summary>The attribute <c>Street</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Street => new("Street");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Street => new("Street");
     }
 }

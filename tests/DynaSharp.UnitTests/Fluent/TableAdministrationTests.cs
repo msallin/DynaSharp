@@ -11,6 +11,8 @@ public sealed class TableAdministrationTests
     private const string Creating = """{"Table":{"TableName":"Shop","TableStatus":"CREATING"}}""";
     private const string Backfilling = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"Ready","IndexStatus":"ACTIVE"},{"IndexName":"ByCity","IndexStatus":"CREATING","Backfilling":true}]}}""";
     private const string IndexesActive = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"Ready","IndexStatus":"ACTIVE"},{"IndexName":"ByCity","IndexStatus":"ACTIVE"}]}}""";
+    private const string OneOfTheOrderIndexes = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"ACTIVE"}]}}""";
+    private const string AllOfTheOrderIndexes = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"ACTIVE"},{"IndexName":"ByTracking","IndexStatus":"ACTIVE"}]}}""";
 
     private static readonly TimeSpan Forever = TimeSpan.FromDays(30);
 
@@ -251,6 +253,100 @@ public sealed class TableAdministrationTests
 
         // Assert
         await Assert.That((description.GlobalSecondaryIndexes[1].IndexStatus, handler.Requests.Count)).IsEqualTo((IndexStatus.Active, 3));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_DeclaredIndexNotListedYet_KeepsWaitingUntilItIs()
+    {
+        // Arrange (an index UpdateTable just added may not be listed yet, and what is listed is all active)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(OneOfTheOrderIndexes));
+        handler.Enqueue(StubResponse.Json(AllOfTheOrderIndexes));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table<SchemaOrder>("Shop").WaitUntilActiveAsync().AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var description = await waiting;
+
+        // Assert
+        await Assert.That((description.GlobalSecondaryIndexes.Count, handler.Requests.Count)).IsEqualTo((2, 3));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_DeclaredIndexNotListedAtTheEnd_NamesItAndSaysSo()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(OneOfTheOrderIndexes));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var orders = client.Table<SchemaOrder>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await orders.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex, failure.Message))
+            .IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByTracking", "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index ByTracking was not listed."));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_ListedIndexBehindAndDeclaredOneNotListed_NamesTheListedOne()
+    {
+        // Arrange (a status says more than a name that is missing)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"CREATING"}]}}"""));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var orders = client.Table<SchemaOrder>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await orders.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index GSI1 was Creating.");
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_TableCreatingAndIndexNotListed_SaysBoth()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Creating));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var orders = client.Table<SchemaOrder>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await orders.WaitUntilActiveAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That((failure.LastStatus, failure.PendingIndex)).IsEqualTo(((TableStatus?)TableStatus.Creating, (string?)"GSI1"));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_EntityWithALocalIndexOnly_WaitsForNoIndex()
+    {
+        // Arrange (a local index exists from the creation of the table, and DescribeTable lists it elsewhere)
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table<SchemaReading>("Shop").WaitUntilActiveAsync();
+
+        // Assert
+        await Assert.That((description.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 1));
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_AnotherEntityOfTheTable_WaitsForWhatItDeclares()
+    {
+        // Arrange (the view knows its own indexes, and those of the entity it came from are not listed here)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"ACTIVE"},{"IndexName":"ByEmail","IndexStatus":"ACTIVE"}]}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table<SchemaOrder>("Shop").Of<SchemaCustomer>().WaitUntilActiveAsync();
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(1);
     }
 
     [Test]

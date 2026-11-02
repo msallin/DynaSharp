@@ -9,8 +9,9 @@ namespace DynaSharp.Generators;
 /// <summary>
 /// What a read of part of an item cannot get from it. DYNA208: <c>orders.Query(pk).Project("Total").ItemsAsync()</c> where the entity has a member that a read throws without, which is what the generator's
 /// <see cref="MissingBehavior.Throw"/> says. A read adds its discriminator and its keys, so a member that one of those restores is not missing. DYNA209: <c>Select(handle)</c> of an attribute that an item can
-/// lack where a read of the entity goes on: a stored property that a key of the table holds, which an item created by an update does not have and a read restores from the key, and a version, which an item
-/// written without one does not have and a read takes for 0.
+/// lack where a read of the entity goes on: a stored property that a key of the table holds, which an item created by an update does not have and a read restores from the key, a version, which an item
+/// written without one does not have and a read takes for 0, unless the version allows that and its handle reads 0 as well, a property with <c>[OmitEmpty]</c> that is not nullable, which an empty value leaves out and a read keeps at its initial value, and a property
+/// that is not nullable or <c>required</c> whose converter can count a stored value as missing, which a read keeps at its initial value too. A converter that says what a missing attribute reads as gives <c>Select</c> a value for all of these.
 /// </summary>
 /// <remarks>
 /// A chain says what it reads when it is followed from the table to its terminal, so a chain that came from a variable, goes on in one, or passes a method of the consumer says nothing, and neither does a
@@ -32,6 +33,10 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     private const string IndexType = "Index";
 
     private const string SelectOfVersion = "is its version, and an item written without one has no such attribute: a read of the entity gives 0, Select does not and throws. Read the entity, or Select only from items that have a version.";
+
+    private const string SelectOfOmitted = "has [OmitEmpty], and an item that held an empty value has no such attribute: a read of the entity keeps the initial value, Select does not and throws. Read the entity, or make the property nullable.";
+
+    private const string SelectOfCounted = "has a converter that can count a stored value as missing: a read of the entity keeps the initial value, Select does not and throws. Read the entity, make the property nullable, or have the converter answer TryReadMissing.";
 
     // The terminals that read no item: a count has no use for a projection, and it throws for one anyway.
     private static readonly HashSet<string> ReadNoItem = ["ToRequestJson", "CountAsync"];
@@ -88,15 +93,38 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     // What a read of the entity gets past and Select does not. A version that is required or a parameter without a default fails both reads alike, and a version cannot be nullable or feed a key.
     private static string? WhySelectThrows(EntityModel entity, PropertyModel property)
     {
+        var converter = property.Converter!;
+        if (converter.AnswersMissing)
+        {
+            return null;
+        }
+
         if (property.FallbackKey is { } key && IsKeyOfTheTable(entity, key))
         {
             return $"is held by the key '{key}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote.";
         }
 
-        return property.Name == entity.VersionProperty && property.Missing == MissingBehavior.KeepCurrent ? SelectOfVersion : null;
+        if (property.Name == entity.VersionProperty && property.Missing == MissingBehavior.KeepCurrent && !property.ReadsMissingAsZero)
+        {
+            return SelectOfVersion;
+        }
+
+        // A set has an answer for a missing attribute, and a nullable property goes through the Select that gives null.
+        if (converter.EmptySet is not null || property.ValueType.EndsWith("?", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (property.OmitEmptyConverter is not null)
+        {
+            return SelectOfOmitted;
+        }
+
+        // A required member throws in a read of the entity as well.
+        return converter.CountsAsMissing && property.Missing != MissingBehavior.Throw ? SelectOfCounted : null;
     }
 
-    // An update stores no input of a key of the table, which is what leaves an item with the key alone. An input of an index is set like any other attribute, and its key follows.
+    // An update stores no input of a key of the table unless it asks, which is what leaves an item with the key alone. An input of an index is set like any other attribute, and its key follows.
     private static bool IsKeyOfTheTable(EntityModel entity, string key) => key == entity.PartitionKey.AttributeName || key == entity.SortKey?.AttributeName;
 
     private static void AnalyzeProject(OperationAnalysisContext context, IInvocationOperation project, ModelCatalog models)

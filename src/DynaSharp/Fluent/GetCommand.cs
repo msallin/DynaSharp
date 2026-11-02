@@ -112,7 +112,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public GetSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalConverter<TValue, TConverter>> attribute)
+    public GetSelectCommand<TValue?, NullableConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableHandleConverter<TValue, TConverter>> attribute)
         where TValue : struct
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 
@@ -123,7 +123,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     /// <returns>The command that is left.</returns>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or it is not valid.</exception>
     /// <exception cref="InvalidOperationException">The read has a <c>Project</c>, which has nothing to add here.</exception>
-    public GetSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, OptionalReferenceConverter<TValue, TConverter>> attribute)
+    public GetSelectCommand<TValue?, NullableReferenceConverter<TValue, TConverter>> Select<TValue, TConverter>(Attr<TValue, NullableReferenceHandleConverter<TValue, TConverter>> attribute)
         where TValue : class
         where TConverter : IDynamoDbConverter<TValue> => new(Selecting(attribute.Path));
 

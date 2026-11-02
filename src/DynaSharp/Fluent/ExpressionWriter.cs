@@ -136,19 +136,19 @@ internal sealed class ExpressionWriter
     /// <param name="name">The attribute name.</param>
     public void AppendAttributeName(PooledByteBuffer text, string name) => AppendName(text, name);
 
-    /// <summary>Adds <c>attribute_exists</c> or <c>attribute_not_exists</c> on a key to the condition, which is how DynamoDB says that an item exists.</summary>
-    /// <param name="keyName">The attribute name of the partition key.</param>
-    /// <param name="exists">Whether the item must exist.</param>
-    public void AppendItemExists(string keyName, bool exists)
+    /// <summary>Adds <c>attribute_exists</c> or <c>attribute_not_exists</c> to the condition, which on the partition key says that an item exists, and on a version that an item has none.</summary>
+    /// <param name="attributeName">The attribute name, of the partition key or of a version.</param>
+    /// <param name="exists">Whether the attribute must exist.</param>
+    public void AppendItemExists(string attributeName, bool exists)
     {
         var text = StartPending();
         text.Append(exists ? "attribute_exists("u8 : "attribute_not_exists("u8);
-        AppendAttributeName(text, keyName);
+        AppendAttributeName(text, attributeName);
         text.Append((byte)')');
         CommitPending(Clause.Condition);
     }
 
-    /// <summary>Adds <c>name = :old</c> to the condition. Version 0 never comes here: it stands for an item that does not exist, which is a condition on the key, see <see cref="WriteRules"/>.</summary>
+    /// <summary>Adds <c>name = :old</c> to the condition. Version 0 never comes here: it stands for an item that does not exist, or for what reads as 0, see <see cref="AppendVersionZero"/> and <see cref="WriteRules"/>.</summary>
     /// <param name="attributeName">The attribute of the version.</param>
     /// <param name="version">The version the item must have.</param>
     public void AppendVersion(string attributeName, long version)
@@ -157,6 +157,24 @@ internal sealed class ExpressionWriter
         AppendAttributeName(text, attributeName);
         text.Append(" = "u8);
         AppendValue<long, NumberConverter<long>>(text, version);
+        CommitPending(Clause.Condition);
+    }
+
+    /// <summary>
+    /// Adds <c>(attribute_not_exists(name) OR name = :zero)</c> to the condition, for an entity that allows an item without a version: what such an item reads as 0 is either that item, one that holds a 0 of its own, or no
+    /// item at all. It is one group, so it needs none around it beside another condition.
+    /// </summary>
+    /// <param name="attributeName">The attribute of the version.</param>
+    public void AppendVersionZero(string attributeName)
+    {
+        var text = StartPending();
+        text.Append("(attribute_not_exists("u8);
+        AppendAttributeName(text, attributeName);
+        text.Append(") OR "u8);
+        AppendAttributeName(text, attributeName);
+        text.Append(" = "u8);
+        AppendValue<long, NumberConverter<long>>(text, 0);
+        text.Append((byte)')');
         CommitPending(Clause.Condition);
     }
 

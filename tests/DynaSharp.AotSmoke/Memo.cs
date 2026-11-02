@@ -12,4 +12,10 @@ internal sealed partial record Memo
     public required string Id { get; init; }
 
     public string? Text { get; init; }
+
+    public List<string> Lines { get; init; } = [];
+
+    public HashSet<string> Labels { get; init; } = [];
+
+    public string[] Names { get; init; } = [];
 }

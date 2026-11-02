@@ -66,7 +66,8 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
 
     /// <summary>
     /// Puts only if no item has this key (<c>attribute_not_exists</c> on the partition key), which turns the replacing put into a create. An entity with a <see cref="VersionAttribute"/> must then
-    /// hold version 0, whose condition is this one and renders once, because no item can lack its key and hold a version, so the terminal throws <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called.
+    /// hold version 0, whose condition is this one and renders once, also with <see cref="VersionMissing.Allow"/>, where this alone says that the key is free. No item can lack its key and hold a version, so the terminal throws
+    /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public PutCommand<T> IfNotExists()
@@ -77,7 +78,8 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     }
 
     /// <summary>
-    /// Puts only if an item has this key (<c>attribute_exists</c> on the partition key), which makes it a replacement that creates nothing. An entity with a <see cref="VersionAttribute"/> at version 0 says that no item
+    /// Puts only if an item has this key (<c>attribute_exists</c> on the partition key), which makes it a replacement that creates nothing. With <see cref="VersionMissing.Allow"/>, version 0 asks for an item that reads
+    /// as 0 besides. Otherwise an entity with a <see cref="VersionAttribute"/> at version 0 says that no item
     /// has the key, so the terminal throws <see cref="InvalidOperationException"/> for it, unless <c>IgnoreVersion()</c> was called.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
@@ -144,7 +146,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     /// </summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The result. Await it once.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it asks for <see cref="IfNotExists"/> of an entity with a version above 0 or for <see cref="IfExists"/> of one at version 0.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it asks for <see cref="IfNotExists"/> of an entity with a version above 0 or for <see cref="IfExists"/> of one at version 0 without <see cref="VersionMissing.Allow"/>.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ConditionalCheckFailedException">A condition did not hold, so nothing was written.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
@@ -164,7 +166,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     /// meant for tests and debugging. The text contains the item.
     /// </summary>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it asks for <see cref="IfNotExists"/> of an entity with a version above 0 or for <see cref="IfExists"/> of one at version 0.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it asks for <see cref="IfNotExists"/> of an entity with a version above 0 or for <see cref="IfExists"/> of one at version 0 without <see cref="VersionMissing.Allow"/>.</exception>
     public string ToRequestJson() => WriteRules.Settle(Enter()).RenderJson();
 
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>

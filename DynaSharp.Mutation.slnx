@@ -3,5 +3,6 @@
   <Project Path="src/DynaSharp/DynaSharp.csproj" />
   <Project Path="src/DynaSharp.Generators/DynaSharp.Generators.csproj" />
   <Project Path="src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+  <Project Path="tests/DynaSharp.DefaultsFixture/DynaSharp.DefaultsFixture.csproj" />
   <Project Path="tests/DynaSharp.UnitTests/DynaSharp.UnitTests.csproj" />
 </Solution>

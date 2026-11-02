@@ -47,7 +47,13 @@ internal readonly struct PageCall<TOperation, T>(CommandState state) : IWireCall
 
     public IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(PageData<T> response) => ConsumedCapacityTelemetry.ToList(state.ResponseCapacity);
 
-    public void DescribeRejection(ValidationException rejection) => RejectedRequest.Describe(rejection, state.Body.WrittenSegment);
+    public void DescribeFailure(DynamoDbException failure)
+    {
+        if (failure is ValidationException rejection)
+        {
+            RejectedRequest.Describe(rejection, state.Body.WrittenSegment);
+        }
+    }
 
     public void Release()
     {

@@ -4,13 +4,61 @@ DynaSharp.Credentials.DefaultCredentialsProvider.TryInvalidate(DynaSharp.Credent
 DynaSharp.Credentials.InstanceMetadataCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.IRefreshableCredentialsProvider
 DynaSharp.Credentials.IRefreshableCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Keys.KeyWriter.IsInvalid.get -> bool
+DynaSharp.Keys.KeyWriter.KeyWriter(System.Span<byte> buffer, bool throwOnInvalid) -> void
+DynaSharp.Mapping.AttributeNaming
+DynaSharp.Mapping.AttributeNaming.AsDeclared = 0 -> DynaSharp.Mapping.AttributeNaming
+DynaSharp.Mapping.AttributeNaming.CamelCase = 1 -> DynaSharp.Mapping.AttributeNaming
+DynaSharp.Mapping.AttributeNaming.SnakeCase = 2 -> DynaSharp.Mapping.AttributeNaming
+DynaSharp.Mapping.DynamoDbDefaultConverterAttribute
+DynaSharp.Mapping.DynamoDbDefaultConverterAttribute.ConverterType.get -> System.Type!
+DynaSharp.Mapping.DynamoDbDefaultConverterAttribute.DynamoDbDefaultConverterAttribute(System.Type! valueType, System.Type! converterType) -> void
+DynaSharp.Mapping.DynamoDbDefaultConverterAttribute.ValueType.get -> System.Type!
+DynaSharp.Mapping.DynamoDbDefaultsAttribute
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.DynamoDbDefaultsAttribute() -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.get -> DynaSharp.Mapping.AttributeNaming
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.set -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.NoDiscriminator.get -> bool
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.NoDiscriminator.set -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.get -> bool
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.set -> void
+DynaSharp.Mapping.ComputedFromAttribute
+DynaSharp.Mapping.ComputedFromAttribute.ComputedFromAttribute(params string![]! properties) -> void
+DynaSharp.Mapping.ComputedFromAttribute.Properties.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DynaSharp.Mapping.DynamoDbKeyInput.ComputedFromAttributes.get -> System.Collections.Generic.IReadOnlyList<string!>?
+DynaSharp.Mapping.DynamoDbKeyInput.ComputedFromAttributes.init -> void
+DynaSharp.Mapping.DynamoDbKeyInput.Deconstruct(out string! PropertyName, out string? AttributeName, out System.Collections.Generic.IReadOnlyList<string!>? ComputedFromAttributes, out System.Func<object!, DynaSharp.AttributeValue>? ToAttributeValue, out bool IsCutOff) -> void
+DynaSharp.Mapping.DynamoDbKeyInput.DynamoDbKeyInput(string! PropertyName, string? AttributeName, System.Collections.Generic.IReadOnlyList<string!>? ComputedFromAttributes = null, System.Func<object!, DynaSharp.AttributeValue>? ToAttributeValue = null, bool IsCutOff = false) -> void
+DynaSharp.Mapping.DynamoDbKeyInput.IsCutOff.get -> bool
+DynaSharp.Mapping.DynamoDbKeyInput.IsCutOff.init -> void
+DynaSharp.Mapping.DynamoDbKeyInput.ToAttributeValue.get -> System.Func<object!, DynaSharp.AttributeValue>?
+DynaSharp.Mapping.DynamoDbKeyInput.ToAttributeValue.init -> void
+*REMOVED*DynaSharp.Mapping.DynamoDbKeyInput.Deconstruct(out string! PropertyName, out string? AttributeName) -> void
+*REMOVED*DynaSharp.Mapping.DynamoDbKeyInput.DynamoDbKeyInput(string! PropertyName, string? AttributeName) -> void
+DynaSharp.UpdateStep.StoreKeyInputs() -> DynaSharp.UpdateStep
+static DynaSharp.TableExtensions.StoreKeyInputs<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
 DynaSharp.Mapping.OmitEmptyAttribute
 DynaSharp.Mapping.OmitEmptyAttribute.OmitEmptyAttribute() -> void
+DynaSharp.Mapping.OmitEmptyAttribute.OmitEmptyAttribute(bool enabled) -> void
+DynaSharp.Mapping.OmitEmptyAttribute.Enabled.get -> bool
+DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>
+DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.OmitEmptyCollectionConverter() -> void
 DynaSharp.Serialization.OmitEmptyConverter<TConverter>
 DynaSharp.Serialization.OmitEmptyConverter<TConverter>.OmitEmptyConverter() -> void
+DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>
+DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.OmitEmptySetConverter() -> void
+static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.IsOmitted(T! value) -> bool
+static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
+static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.TryReadMissing(out T! value) -> bool
+static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.IsOmitted(string! value) -> bool
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> string!
+static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.TryReadMissing(out string! value) -> bool
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, string! value) -> void
+static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.IsOmitted(T! value) -> bool
+static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
+static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.TryReadMissing(out T! value) -> bool
+static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
 DynaSharp.Serialization.IDynamoDbConverter<T>.IsOmitted(T value) -> bool
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.get -> bool
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.init -> void
@@ -40,13 +88,16 @@ DynaSharp.CreateTableCommand.IfNotExists() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.Including<TOther>() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.Provisioned(long read, long write) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.CreateTableCommand.Stream(DynaSharp.Requests.StreamViewType view) -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.TimeToLive(DynaSharp.Attr attribute) -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableCommand.TimeToLive(string! attributeName) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.ToRequest() -> DynaSharp.Requests.CreateTableRequest!
 DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
 DynaSharp.Item.Remove(string! name) -> bool
 DynaSharp.PartitionKey<TEntity>.PartitionKey(DynaSharp.AttributeValue value, string! attributeName) -> void
 static DynaSharp.Serialization.ConverterChecks.ToAttributeValue<T, TConverter>(T value) -> DynaSharp.AttributeValue
-DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
+DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Mapping.VersionMissing versionMissing = DynaSharp.Mapping.VersionMissing.Reject) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbIndexInfo.Deconstruct(out string! IndexName, out string! PartitionKeyName, out string? SortKeyName, out bool Sparse, out bool IsLocal, out DynaSharp.Requests.ScalarAttributeType PartitionKeyType, out DynaSharp.Requests.ScalarAttributeType SortKeyType) -> void
@@ -58,12 +109,17 @@ DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyType.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.init -> void
 DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Credentials.WebIdentityCredentialsProvider
 DynaSharp.Credentials.WebIdentityCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
 DynaSharp.Credentials.WebIdentityCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider() -> void
 DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, DynaSharp.AwsRegion! region, string? roleSessionName = null) -> void
+DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, System.Uri! stsEndpoint, string? roleSessionName = null) -> void
 DynaSharp.Requests.CreateTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
 DynaSharp.Requests.DeleteTableResponse.TableDescription.get -> DynaSharp.Requests.TableDescription?
 DynaSharp.IUpdatable<TSelf>.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> TSelf
@@ -90,55 +146,59 @@ static DynaSharp.ContinuationToken.Parse(string? text) -> DynaSharp.Continuation
 static DynaSharp.DynamoDbMappingException.KeyDoesNotFit(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName, string! keyAttribute) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.OmitEmptyCollectionConverter<byte[]!, byte, DynaSharp.Serialization.BinaryConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.OmitEmptyCollectionConverter<byte[]!, byte, DynaSharp.Serialization.BinaryConverter>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.NullableReferenceHandleConverter<byte[]!, DynaSharp.Serialization.OmitEmptyCollectionConverter<byte[]!, byte, DynaSharp.Serialization.BinaryConverter>>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.NullableReferenceHandleConverter<byte[]!, DynaSharp.Serialization.OmitEmptyCollectionConverter<byte[]!, byte, DynaSharp.Serialization.BinaryConverter>>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
-DynaSharp.IUpdatable<TSelf>.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute, TValue! value) -> TSelf
-DynaSharp.IUpdatable<TSelf>.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute, TValue value) -> TSelf
-DynaSharp.Serialization.OptionalConverter<T, TConverter>
-DynaSharp.Serialization.OptionalConverter<T, TConverter>.OptionalConverter() -> void
-DynaSharp.Serialization.OptionalReferenceConverter<T, TConverter>
-DynaSharp.Serialization.OptionalReferenceConverter<T, TConverter>.OptionalReferenceConverter() -> void
-DynaSharp.UpdateCommand<T>.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute, TValue! value) -> DynaSharp.UpdateCommand<T>
-DynaSharp.UpdateCommand<T>.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute, TValue value) -> DynaSharp.UpdateCommand<T>
-DynaSharp.UpdateStep.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute, TValue! value) -> DynaSharp.UpdateStep
-DynaSharp.UpdateStep.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute, TValue value) -> DynaSharp.UpdateStep
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.DateTimeOffset, DynaSharp.Serialization.OptionalConverter<System.DateTimeOffset, DynaSharp.Serialization.EpochSecondsConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.OptionalConverter<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.OptionalConverter<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<bool, DynaSharp.Serialization.OptionalConverter<bool, DynaSharp.Serialization.BoolConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.OptionalReferenceConverter<byte[]!, DynaSharp.Serialization.BinaryConverter>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.OptionalReferenceConverter<byte[]!, DynaSharp.Serialization.BinaryConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.AttrExtensions.BeginsWith<T>(this DynaSharp.Attr<T, DynaSharp.Serialization.OptionalConverter<T, DynaSharp.Serialization.NumberConverter<T>>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
-static DynaSharp.Serialization.OptionalConverter<T, TConverter>.IsOmitted(T value) -> bool
-static DynaSharp.Serialization.OptionalConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T
-static DynaSharp.Serialization.OptionalConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T value) -> void
-static DynaSharp.Serialization.OptionalReferenceConverter<T, TConverter>.IsOmitted(T! value) -> bool
-static DynaSharp.Serialization.OptionalReferenceConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
-static DynaSharp.Serialization.OptionalReferenceConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
-DynaSharp.GetCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute) -> DynaSharp.GetSelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
+DynaSharp.IUpdatable<TSelf>.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute, TValue! value) -> TSelf
+DynaSharp.IUpdatable<TSelf>.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute, TValue value) -> TSelf
+DynaSharp.Serialization.NullableHandleConverter<T, TConverter>
+DynaSharp.Serialization.NullableHandleConverter<T, TConverter>.NullableHandleConverter() -> void
+DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>
+DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.NullableReferenceHandleConverter() -> void
+DynaSharp.UpdateCommand<T>.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute, TValue! value) -> DynaSharp.UpdateCommand<T>
+DynaSharp.UpdateCommand<T>.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute, TValue value) -> DynaSharp.UpdateCommand<T>
+DynaSharp.UpdateStep.Add<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute, TValue! value) -> DynaSharp.UpdateStep
+DynaSharp.UpdateStep.Add<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute, TValue value) -> DynaSharp.UpdateStep
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.DateTimeOffset, DynaSharp.Serialization.NullableHandleConverter<System.DateTimeOffset, DynaSharp.Serialization.EpochSecondsConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.NullableHandleConverter<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.NullableHandleConverter<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<bool, DynaSharp.Serialization.NullableHandleConverter<bool, DynaSharp.Serialization.BoolConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.NullableReferenceHandleConverter<byte[]!, DynaSharp.Serialization.BinaryConverter>> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.NullableReferenceHandleConverter<byte[]!, DynaSharp.Serialization.BinaryConverter>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.AttrExtensions.BeginsWith<T>(this DynaSharp.Attr<T, DynaSharp.Serialization.NullableHandleConverter<T, DynaSharp.Serialization.NumberConverter<T>>> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
+static DynaSharp.Serialization.NullableHandleConverter<T, TConverter>.IsOmitted(T value) -> bool
+static DynaSharp.Serialization.NullableHandleConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T
+static DynaSharp.Serialization.NullableHandleConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T value) -> void
+static DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.IsOmitted(T! value) -> bool
+static DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
+static DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
+DynaSharp.GetCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute) -> DynaSharp.GetSelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
 DynaSharp.GetCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute) -> DynaSharp.GetSelectCommand<TValue, TConverter>
-DynaSharp.GetCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute) -> DynaSharp.GetSelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
+DynaSharp.GetCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute) -> DynaSharp.GetSelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
 DynaSharp.GetSelectCommand<TValue, TConverter>
 DynaSharp.GetSelectCommand<TValue, TConverter>.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.SelectResult<TValue>>
 DynaSharp.GetSelectCommand<TValue, TConverter>.GetSelectCommand() -> void
 DynaSharp.GetSelectCommand<TValue, TConverter>.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.SelectResult<TValue>>
 DynaSharp.GetSelectCommand<TValue, TConverter>.ToRequestJson() -> string!
-DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
+DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
 DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute) -> DynaSharp.QuerySelectCommand<TValue, TConverter>
-DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
+DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
 DynaSharp.QuerySelectCommand<TValue, TConverter>
-DynaSharp.QuerySelectCommand<TValue, TConverter>.ItemAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.SelectResult<TValue>>
-DynaSharp.QuerySelectCommand<TValue, TConverter>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
+DynaSharp.QuerySelectCommand<TValue, TConverter>.ValueAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.SelectResult<TValue>>
+DynaSharp.QuerySelectCommand<TValue, TConverter>.ValuesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
 DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.QuerySelectCommand<TValue, TConverter>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TValue>>!
 DynaSharp.QuerySelectCommand<TValue, TConverter>.QuerySelectCommand() -> void
 DynaSharp.QuerySelectCommand<TValue, TConverter>.ToRequestJson() -> string!
-DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.OptionalConverter<TValue, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
+DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
 DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute) -> DynaSharp.ScanSelectCommand<TValue, TConverter>
-DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.OptionalReferenceConverter<TValue!, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
+DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>
-DynaSharp.ScanSelectCommand<TValue, TConverter>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
+DynaSharp.ScanSelectCommand<TValue, TConverter>.ValuesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TValue>>!
 DynaSharp.ScanSelectCommand<TValue, TConverter>.ScanSelectCommand() -> void
@@ -212,3 +272,46 @@ DynaSharp.WriteResult<T>.HasItem.get -> bool
 *REMOVED*DynaSharp.Streams.StreamRecord.OldImage.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
 DynaSharp.Streams.StreamRecord.NewImage.get -> DynaSharp.Item?
 DynaSharp.Streams.StreamRecord.OldImage.get -> DynaSharp.Item?
+DynaSharp.Mapping.DynamoDbEntityInfo.VersionMissing.get -> DynaSharp.Mapping.VersionMissing
+DynaSharp.Mapping.VersionAttribute.Missing.get -> DynaSharp.Mapping.VersionMissing
+DynaSharp.Mapping.VersionAttribute.Missing.set -> void
+DynaSharp.Mapping.VersionMissing
+DynaSharp.Mapping.VersionMissing.Allow = 1 -> DynaSharp.Mapping.VersionMissing
+DynaSharp.Mapping.VersionMissing.Reject = 0 -> DynaSharp.Mapping.VersionMissing
+*REMOVED*DynaSharp.Requests.QueryRequest.Select.get -> DynaSharp.Select
+*REMOVED*DynaSharp.Requests.ScanRequest.Select.get -> DynaSharp.Select
+*REMOVED*DynaSharp.Select
+*REMOVED*DynaSharp.Select.AllAttributes = 1 -> DynaSharp.Select
+*REMOVED*DynaSharp.Select.AllProjectedAttributes = 2 -> DynaSharp.Select
+*REMOVED*DynaSharp.Select.Count = 4 -> DynaSharp.Select
+*REMOVED*DynaSharp.Select.SpecificAttributes = 3 -> DynaSharp.Select
+*REMOVED*DynaSharp.Select.Unspecified = 0 -> DynaSharp.Select
+DynaSharp.Requests.QueryRequest.Select.get -> DynaSharp.SelectKind
+DynaSharp.Requests.ScanRequest.Select.get -> DynaSharp.SelectKind
+DynaSharp.SelectKind
+DynaSharp.SelectKind.AllAttributes = 1 -> DynaSharp.SelectKind
+DynaSharp.SelectKind.AllProjectedAttributes = 2 -> DynaSharp.SelectKind
+DynaSharp.SelectKind.Count = 4 -> DynaSharp.SelectKind
+DynaSharp.SelectKind.SpecificAttributes = 3 -> DynaSharp.SelectKind
+DynaSharp.SelectKind.Unspecified = 0 -> DynaSharp.SelectKind
+DynaSharp.FanOutQueryCommand<T>.PageAsync(int pageSize, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+DynaSharp.MixedQueryCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+DynaSharp.MixedQueryCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+DynaSharp.MixedScanCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+DynaSharp.MixedScanCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+DynaSharp.QueryCommand<T>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.ScanCommand<T>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
+DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
+DynaSharp.ConditionalCheckFailedException.Key.get -> DynaSharp.Item?
+DynaSharp.Serialization.DynamoDbReader.TryReadAttribute<T, TConverter>(out T value) -> bool
+DynaSharp.Serialization.IDynamoDbConverter<T>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.NullableConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.NullableHandleConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.NullableReferenceConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool

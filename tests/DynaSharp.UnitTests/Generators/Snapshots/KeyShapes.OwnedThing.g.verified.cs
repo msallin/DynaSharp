@@ -27,7 +27,7 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
             discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "THING#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }),
+                new __Map.DynamoDbKeyTemplate("pk", "THING#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("owner", "{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "owner") }),
                 new __Map.DynamoDbKeyTemplate("rank", "{Rank}", false, new[] { new __Map.DynamoDbKeyInput("Rank", "rank") }),
             });
@@ -158,18 +158,36 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");
 
         /// <summary>The attribute <c>owner</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("owner");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Owner => new("owner");
 
         /// <summary>The attribute <c>rank</c>.</summary>
-        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.OptionalConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Rank => new("rank");
+        public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NullableHandleConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>> Rank => new("rank");
     }
 
     /// <summary>The key builders of <c>OwnedThing</c>.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>OwnedThing</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string id) => new PrimaryKey(id);
+        /// <summary>Creates the primary key of <c>OwnedThing</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string id)
+        {
+            Pk.Check(true, id);
+            return new PrimaryKey(id);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string id, out PrimaryKey key)
+        {
+            if (Pk.Check(false, id))
+            {
+                key = new PrimaryKey(id);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>OwnedThing</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -217,9 +235,31 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>OwnedThing</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>OwnedThing</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.OwnedThing> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.OwnedThing>(Format(id), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string id, out global::DynaSharp.PartitionKey<global::KeyShapes.OwnedThing> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, id);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.OwnedThing>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -285,6 +325,20 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
             {
                 __key.WriteLiteral("THING#"u8);
                 __key.WriteString(id, "#"u8, "Id");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string id)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, id);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
 

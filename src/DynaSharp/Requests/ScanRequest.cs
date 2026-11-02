@@ -63,10 +63,10 @@ public sealed record ScanRequest
     public IReadOnlyDictionary<string, AttributeValue>? ExpressionAttributeValues { get; init; }
 
     /// <summary>
-    /// Gets which attributes to return. <see cref="DynaSharp.Select.Unspecified"/> sends nothing; see <see cref="DynaSharp.Select"/> for what
+    /// Gets which attributes to return. <see cref="SelectKind.Unspecified"/> sends nothing; see <see cref="SelectKind"/> for what
     /// DynamoDB then does and which combinations with <see cref="ProjectionExpression"/> are valid.
     /// </summary>
-    public Select Select { get; init; }
+    public SelectKind Select { get; init; }
 
     /// <summary>
     /// Gets the maximum number of items to read (not the number of items returned, which the filter can reduce). DynamoDB

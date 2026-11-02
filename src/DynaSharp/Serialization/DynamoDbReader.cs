@@ -204,6 +204,21 @@ public ref struct DynamoDbReader
         return value;
     }
 
+    /// <summary>Reads a complete attribute value of a known converter, or skips it when the converter counts it as missing.</summary>
+    /// <typeparam name="T">The .NET type of the value.</typeparam>
+    /// <typeparam name="TConverter">The converter, asked and called directly through the type parameter, which also reaches a member it implements explicitly.</typeparam>
+    /// <param name="value">The value, or the default value when the converter counts it as missing.</param>
+    /// <returns><see langword="false"/> if <see cref="IDynamoDbConverter{T}.CountsAsMissing"/> said so, and the reader is past the value either way.</returns>
+    /// <remarks>Generated code calls this for a property whose converter answers, and <see cref="ReadAttribute{T, TConverter}"/> for every other one.</remarks>
+    /// <exception cref="JsonException">The attribute value is malformed, or <typeparamref name="TConverter"/> does not support its type.</exception>
+    public bool TryReadAttribute<T, TConverter>([MaybeNullWhen(false)] out T value)
+        where TConverter : IDynamoDbConverter<T>
+    {
+        var found = TryReadValue<T, TConverter>(ReadStartAttribute(), out value);
+        ReadEndAttribute();
+        return found;
+    }
+
     /// <summary>Reads the end of an attribute value (<c>}</c>).</summary>
     /// <exception cref="JsonException">The next token is not the end of an object.</exception>
     public void ReadEndAttribute()
@@ -323,6 +338,27 @@ public ref struct DynamoDbReader
         }
 
         return _json.ValueIsEscaped ? DynamoDbNumber.TryParse(_json.GetString(), out value) : DynamoDbNumber.TryParse(_json.ValueSpan, out value);
+    }
+
+    /// <summary>Reads the value the reader stands on, or skips it when the converter counts it as missing. Either way the reader ends on the last token of the value, so the caller reads the closing brace.</summary>
+    /// <typeparam name="T">The .NET type of the value.</typeparam>
+    /// <typeparam name="TConverter">The converter.</typeparam>
+    /// <param name="type">The type of the value.</param>
+    /// <param name="value">The value, or the default value when the converter counts it as missing.</param>
+    /// <returns><see langword="false"/> if the value counts as missing.</returns>
+    internal bool TryReadValue<T, TConverter>(AttributeType type, [MaybeNullWhen(false)] out T value)
+        where TConverter : IDynamoDbConverter<T>
+    {
+        if (TConverter.CountsAsMissing(in this, type))
+        {
+            // On a list or a map this goes to the closing token, and on anything else the reader is there already.
+            _json.Skip();
+            value = default;
+            return false;
+        }
+
+        value = TConverter.Read(ref this, type);
+        return true;
     }
 
     /// <summary>Moves to the next JSON token. Truncated input ends in a <see cref="JsonException"/>, not in a token that looks wrong.</summary>

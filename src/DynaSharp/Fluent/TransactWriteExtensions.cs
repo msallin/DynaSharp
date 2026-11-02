@@ -338,7 +338,8 @@ public static class TransactWriteExtensions
 
     /// <summary>
     /// Makes this action depend on an item having its key (<c>attribute_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled. Version 0 says that no item has the key, so with
-    /// it the next verb or the terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of an entity back.
+    /// it the next verb or the terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of an entity back. With <see cref="Mapping.VersionMissing.Allow"/>, version 0 asks for an
+    /// item that reads as 0 besides.
     /// </summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>
     /// <param name="step">The step, which this replaces.</param>

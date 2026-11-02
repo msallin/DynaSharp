@@ -8,5 +8,5 @@ namespace DynaSharp.UnitTests.Mapping;
 internal sealed partial class Foreign
 {
     [PartitionKey(AttributeName = "id")]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 }

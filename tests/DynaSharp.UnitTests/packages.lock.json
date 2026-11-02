@@ -217,6 +217,12 @@
       "dynasharp": {
         "type": "Project"
       },
+      "dynasharp.defaultsfixture": {
+        "type": "Project",
+        "dependencies": {
+          "DynaSharp": "[1.0.0, )"
+        }
+      },
       "dynasharp.generators": {
         "type": "Project"
       },

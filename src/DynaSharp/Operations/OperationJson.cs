@@ -104,7 +104,7 @@ internal static class OperationJson
     public static void WriteReturnItemCollectionMetrics(Utf8JsonWriter json, ReturnItemCollectionMetrics value) =>
         WireNames.ReturnItemCollectionMetricsValues.WriteIfSet(json, "ReturnItemCollectionMetrics"u8, value);
 
-    public static void WriteSelect(Utf8JsonWriter json, Select value) =>
+    public static void WriteSelect(Utf8JsonWriter json, SelectKind value) =>
         WireNames.Selects.WriteIfSet(json, "Select"u8, value);
 
     // Responses.

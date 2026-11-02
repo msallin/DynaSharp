@@ -17,8 +17,8 @@ public sealed class OperationJsonTests
         yield return (json => OperationJson.WriteReturnValuesOnConditionCheckFailure(json, ReturnValuesOnConditionCheckFailure.None), "{}");
         yield return (json => OperationJson.WriteReturnConsumedCapacity(json, ReturnConsumedCapacity.None), "{}");
         yield return (json => OperationJson.WriteReturnItemCollectionMetrics(json, ReturnItemCollectionMetrics.None), "{}");
-        yield return (json => OperationJson.WriteSelect(json, Select.Unspecified), "{}");
-        yield return (json => OperationJson.WriteSelect(json, Select.Count), """{"Select":"COUNT"}""");
+        yield return (json => OperationJson.WriteSelect(json, SelectKind.Unspecified), "{}");
+        yield return (json => OperationJson.WriteSelect(json, SelectKind.Count), """{"Select":"COUNT"}""");
     }
 
     [Test]

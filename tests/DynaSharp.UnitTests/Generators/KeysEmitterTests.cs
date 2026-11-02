@@ -208,6 +208,275 @@ public sealed partial class KeysEmitterTests
         await Assert.That(body.Contains("BufferLength = 67;", StringComparison.Ordinal) && body.Contains("BufferLength = 256;", StringComparison.Ordinal)).IsTrue();
     }
 
+    [Test]
+    [Arguments("string", "Pk", "string id")]
+    [Arguments("int", "Pk", "int id")]
+    [Arguments("decimal", "Pk", "decimal id")]
+    [Arguments("global::System.DateTime", "Pk", "global::System.DateTime id")]
+    public async Task Emit_PartitionKeyThatCanRejectAValue_HasTryOf(string type, string builder, string signature)
+    {
+        // Arrange
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}")]
+            public partial class E { public required {{type}} Id { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body)
+            .Contains($"public static bool TryOf({signature}, out PrimaryKey key)")
+            .And.Contains($"public static bool TryOf({signature}, out global::DynaSharp.PartitionKey<global::Shop.E> key)");
+    }
+
+    [Test]
+    [Arguments("global::System.Guid")]
+    [Arguments("global::System.DateOnly")]
+    [Arguments("global::System.DateTimeOffset")]
+    public async Task Emit_PartitionKeyWhoseValuesAllFit_HasNoTryOf(string type)
+    {
+        // Arrange
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}")]
+            public partial class E { public required {{type}} Id { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body.Contains("TryOf", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Emit_KeyOfLiterals_HasNoTryOf()
+    {
+        // Arrange
+        var model = Analysis.Model("""[DynamoDbEntity, Discriminator("E"), PartitionKey("A"), SortKey("B")] public partial class E { }""", "global::Shop.E");
+
+        // Act
+        var body = Body(model);
+
+        // Assert
+        await Assert.That(body.Contains("TryOf", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Emit_PlainKeys_HaveNoTryOf()
+    {
+        // Arrange (a plain key goes through its converter, and DynamoDB is what rejects it)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E")]
+            public partial class E { [PartitionKey] public required string Id { get; set; } [SortKey] public required int Slot { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body.Contains("TryOf", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Emit_PlainPartitionKeyBesideATemplate_ChecksTheTemplateAlone()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), SortKey("S#{Name}")]
+            public partial class E { [PartitionKey] public required string Id { get; set; } public required string Name { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body).Contains("public static bool TryOf(string id, string name, out PrimaryKey key)").And.Contains("if (Sk.Check(false, name))");
+    }
+
+    [Test]
+    public async Task Emit_BothKeysCanRejectAValue_ChecksBothWithTheParametersOfEach()
+    {
+        // Arrange (one property in both keys is one parameter)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}"), SortKey("B#{Id}#{Name}")]
+            public partial class E { public required string Id { get; set; } public required string Name { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body).Contains("if (Pk.Check(false, id) && Sk.Check(false, id, name))");
+    }
+
+    [Test]
+    public async Task Emit_SortKeyOfAnIndex_HasNoCheck()
+    {
+        // Arrange (only the keys of the table are in Keys.Of)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}"), GlobalIndexKey("Gsi", PartitionKey = "P", SortKey = "S#{Name}")]
+            public partial class E { public required string Id { get; set; } public required string Name { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body.Split("internal static bool Check").Length).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Run_PlaceholderCalledKey_TakesTheNameOfTheOutParameter()
+    {
+        // Arrange
+        const string Source = """
+            using DynaSharp.Mapping;
+
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("appointment#{Key}", AttributeName = "Id"), SortKey("S#{Key_}")]
+            public partial class E { public required string Key { get; set; } public required string Key_ { get; set; } }
+            """;
+
+        // Act
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+
+        // Assert
+        await Assert.That(output.Problems).IsEmpty();
+    }
+
+    [Test]
+    public async Task Emit_KeyThatCanRejectAValue_ChecksInOf()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}"), SortKey("B#{Id}#{Name}")]
+            public partial class E { public required string Id { get; set; } public required string Name { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body).Contains("Pk.Check(true, id);").And.Contains("Sk.Check(true, id, name);");
+    }
+
+    [Test]
+    public async Task Emit_KeyWhoseValuesAllFit_ChecksNothingInOf()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}")]
+            public partial class E { public required global::System.Guid Id { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body).Contains("public static PrimaryKey Of(global::System.Guid id) => new PrimaryKey(id);");
+    }
+
+    [Test]
+    public async Task Emit_PartitionKeyWithTryOf_SaysSoInTheDocOfOf()
+    {
+        // Arrange
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}")] public partial class E { public required string Id { get; set; } }""";
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body.Split("<c>TryOf</c>").Length).IsEqualTo(3);
+    }
+
+    [Test]
+    [Arguments("A#{Day:d3}#{Id}", "int from, int to", "Prefix(from), Prefix(to)")]
+    [Arguments("{Shelf}#{Row:d3}#{Id}", "string shelf, int from, int to", "Prefix(shelf, from), Prefix(shelf, to)")]
+    [Arguments("{Day:d3}#end", "int from, int to", "Prefix(from), Prefix(to)")]
+    [Arguments("{Day:d3}#{Id:raw}", "int from, int to", "Prefix(from), Prefix(to)")]
+    [Arguments("{Name} {Id}", "string from, string to", "Prefix(from), Prefix(to)")]
+    public async Task Emit_KeyThatGoesOnBehindAField_HasRangeOverPrefixes(string template, string parameters, string bounds)
+    {
+        // Arrange
+        var body = Body(Analysis.Model(Source(template), "global::Shop.E"));
+
+        // Act
+        var range = $"public static global::DynaSharp.SortKeyCondition Range({parameters}) => global::DynaSharp.SortKeyCondition.Between({bounds});";
+
+        // Assert
+        await Assert.That(body).Contains(range);
+    }
+
+    [Test]
+    [Arguments("{Day:d3}")]
+    [Arguments("A#{Name}")]
+    [Arguments("A#{Name:raw}")]
+    [Arguments("{Day:d3}#")]
+    [Arguments("A{Day:d3}#")]
+    [Arguments("{Name}#{Id}")]
+    [Arguments("{Count:plain}#{Id}")]
+    [Arguments("A#{Plan}#{Id}")]
+    [Arguments("PROFILE")]
+    public async Task Emit_KeyWithNothingBehindAnOrderedField_HasNoRange(string template)
+    {
+        // Arrange, Act
+        var body = Body(Analysis.Model(Source(template), "global::Shop.E"));
+
+        // Assert (with only a delimiter behind the field, the key at the upper bound is that bound, and BETWEEN takes it)
+        await Assert.That(body.Contains(" Range(", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Emit_PlainSortKey_HasNoRange()
+    {
+        // Arrange
+        const string Plain = """
+            [DynamoDbEntity, Discriminator("E")]
+            public partial class E { [PartitionKey] public required string Id { get; set; } [SortKey] public required int Slot { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Plain, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body.Contains(" Range(", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Emit_BetweenOnAKeyThatGoesOn_PointsAtRange()
+    {
+        // Arrange, Act
+        var body = Body(Analysis.Model(Source("A#{Day:d3}#{Id}"), "global::Shop.E"));
+
+        // Assert
+        await Assert.That((body.Contains("<c>Range</c>", StringComparison.Ordinal), body.Contains("SortKeyCondition.Between(Keys.", StringComparison.Ordinal))).IsEqualTo((true, false));
+    }
+
+    [Test]
+    public async Task Emit_BetweenWithoutARange_DoesNotPointAtOne()
+    {
+        // Arrange, Act
+        var body = Body(Analysis.Model(Source("{Day:d3}#"), "global::Shop.E"));
+
+        // Assert
+        await Assert.That((body.Contains(" Between(int from, int to)", StringComparison.Ordinal), body.Contains("<c>Range</c>", StringComparison.Ordinal))).IsEqualTo((true, false));
+    }
+
+    private static string Source(string sortKey) => $$"""
+        public enum Plan { Free, Pro }
+        [DynamoDbEntity, Discriminator("E"), PartitionKey("P"), SortKey("{{sortKey}}")]
+        public partial class E
+        {
+            public int Day { get; set; }
+            public int Row { get; set; }
+            public int Count { get; set; }
+            public Plan Plan { get; set; }
+            public string Id { get; set; } = "i";
+            public string Name { get; set; } = "n";
+            public string Shelf { get; set; } = "s";
+        }
+        """;
+
     // Every character of a generated file is in one snapshot: a builder in its own, and what is left in the one of the file.
     private static IEnumerable<(string Name, string Text)> Snapshots(GeneratedSourceResult source)
     {

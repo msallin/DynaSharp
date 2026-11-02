@@ -231,7 +231,7 @@ public partial class SiteSettings
 [SortKey("PROFILE")]
 public partial class UserProfile
 {
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 }
 
 /// <summary>Plain keys: the attributes of the properties are the keys, and the sort key is a number.</summary>
@@ -240,7 +240,7 @@ public partial class UserProfile
 public partial class Device
 {
     [PartitionKey]
-    public string Serial { get; set; } = string.Empty;
+    public string Serial { get; set; } = "none";
 
     [SortKey]
     public int Slot { get; set; }
@@ -264,7 +264,7 @@ public partial class Quota
 public partial class Account
 {
     [PartitionKey]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 
     public int Version { get; set; }
 }
@@ -289,9 +289,9 @@ public partial class Ledger
 [GlobalIndexKey("Inverted", PartitionKey = "TO#{Target}", PartitionKeyAttributeName = "sk", SortKey = "FROM#{Source}", SortKeyAttributeName = "pk")]
 public partial class Edge
 {
-    public string Source { get; set; } = string.Empty;
+    public string Source { get; set; } = "none";
 
-    public string Target { get; set; } = string.Empty;
+    public string Target { get; set; } = "none";
 }
 
 /// <summary>A literal after the last placeholder, of which a prefix keeps the delimiter.</summary>
@@ -301,7 +301,7 @@ public partial class Edge
 [SortKey("A-{Name}#B")]
 public partial class Suffixed
 {
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "none";
 }
 
 /// <summary>Fixed before variable with nothing in between, which parses because the width is known.</summary>
@@ -313,7 +313,7 @@ public partial class Adjacent
 {
     public int Code { get; set; }
 
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "none";
 }
 
 /// <summary>A template with everything that needs escaping, in code and in documentation.</summary>
@@ -323,7 +323,7 @@ public partial class Adjacent
 [SortKey("L{{I}}T")]
 public partial class Awkward
 {
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 }
 
 /// <summary>Names that are keywords, as properties and therefore as parameters and members of the parts.</summary>
@@ -333,9 +333,9 @@ public partial class Awkward
 [SortKey("E#{event}")]
 public partial class Keywords
 {
-    public string @class { get; set; } = string.Empty;
+    public string @class { get; set; } = "none";
 
-    public string @event { get; set; } = string.Empty;
+    public string @event { get; set; } = "none";
 }
 
 /// <summary>A computed property feeds a key of the table.</summary>
@@ -349,12 +349,28 @@ public partial class Article
     public string Slug => Title.Replace(' ', '-');
 }
 
+/// <summary>A computed property feeds a key of an index, and says what it is derived from.</summary>
+[DynamoDbEntity]
+[Discriminator("LETTER")]
+[PartitionKey("LETTER#{Id}")]
+[GlobalIndexKey("ByDay", PartitionKey = "DAY#{Day}", SortKey = "{Received:ticks}")]
+public partial class Letter
+{
+    public string Id { get; set; } = "none";
+
+    [DynamoDbAttribute("at")]
+    public DateTimeOffset Received { get; set; }
+
+    [ComputedFrom(nameof(Received))]
+    public DateOnly Day => DateOnly.FromDateTime(Received.UtcDateTime);
+}
+
 [DynamoDbEntity]
 [Discriminator("EVENT")]
 [PartitionKey("EVENT#{Id}")]
 public partial class BaseEvent
 {
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 }
 
 /// <summary>Both generated classes hide the ones of the base type.</summary>
@@ -655,6 +671,40 @@ public partial record HeldSlot
     public required int Rank { get; init; }
 }
 
+/// <summary>
+/// What an update can store beside what it cannot, with a key that has to stay at hand: a timestamp the key cuts off and a converter writes as a number, a plain key that a template of the table repeats and an index wants,
+/// which is its own attribute, and a property only a key holds.
+/// </summary>
+[DynamoDbEntity]
+[Discriminator("STAMP")]
+[SortKey("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}")]
+[GlobalIndexKey("ByRoom", PartitionKey = "ROOM#{Room}", SortKey = "{Code}")]
+public partial record Stamp
+{
+    [PartitionKey]
+    public required string Room { get; init; }
+
+    [DynamoDbConverter(typeof(EpochSecondsConverter))]
+    public required DateTimeOffset At { get; init; }
+
+    [KeyOnly]
+    public required int Seq { get; init; }
+
+    public required string Code { get; init; }
+}
+
+/// <summary>A timestamp in both keys of the table, one of which holds all of it, so no generated key has to stay.</summary>
+[DynamoDbEntity]
+[Discriminator("HOP")]
+[PartitionKey("DAY#{At:yyyy-MM-dd}")]
+[SortKey("{At:ticks}#{Id}")]
+public partial record Hop
+{
+    public required DateTimeOffset At { get; init; }
+
+    public required string Id { get; init; }
+}
+
 /// <summary>An index that repeats a timestamp in the format of the table key, which the key gives back as far as the index wants it.</summary>
 [DynamoDbEntity]
 [Discriminator("SAMESLOT")]
@@ -709,6 +759,54 @@ public partial record Ranged
     public int From { get; init; }
 
     public int To { get; init; }
+}
+
+/// <summary>Values that hold the delimiter of their template, at the end of each kind of key. What stands before them stays strict.</summary>
+[DynamoDbEntity]
+[Discriminator("RAWKEYED")]
+[PartitionKey("APPOINTMENT#{Key:raw}", AttributeName = "Id")]
+[SortKey("{Site}#{Day}#{Ref:raw}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "REF#{Ref:raw}")]
+[GlobalIndexKey("ByNote", PartitionKey = "NOTE#{Note:raw}")]
+[LocalIndexKey("BySeat", "{Seat:d3}#{Ref:raw}")]
+public partial record RawKeyed
+{
+    public required string Key { get; init; }
+
+    public required string Site { get; init; }
+
+    public required DateOnly Day { get; init; }
+
+    public required string Ref { get; init; }
+
+    public required string Owner { get; init; }
+
+    public required int Seat { get; init; }
+
+    public required string Note { get; init; }
+}
+
+/// <summary>One value, raw in the table key and strict in an index, because a format belongs to its template.</summary>
+[DynamoDbEntity]
+[Discriminator("RAWTWIN")]
+[PartitionKey("A#{Key:raw}")]
+[GlobalIndexKey("Strict", PartitionKey = "A#{Key}")]
+public partial record RawTwin
+{
+    public required string Key { get; init; }
+}
+
+/// <summary>A raw value that only the key holds.</summary>
+[DynamoDbEntity]
+[Discriminator("RAWONLY")]
+[PartitionKey("T#{Tenant}")]
+[SortKey("P#{Path:raw}")]
+public partial record RawKeyOnly
+{
+    public required string Tenant { get; init; }
+
+    [KeyOnly]
+    public required string Path { get; init; }
 }
 
 /// <summary>A plain sort key that is stored in the order of its values, and plain sort keys of an index of each other kind.</summary>

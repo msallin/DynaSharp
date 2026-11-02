@@ -33,7 +33,7 @@ namespace DynaSharp.Serialization;
 /// the name of the attribute, and lets every other exception through as a bug. Keep values out of messages: they end up in logs.
 /// A converter of a type that is a nullable value or reference gets the null handling from
 /// <see cref="NullableConverter{T, TConverter}"/> and <see cref="NullableReferenceConverter{T, TConverter}"/>; implement the converter
-/// of the non-null type.
+/// of the non-null type. To let a read of an item go on past a value that means nothing to the property, implement <see cref="CountsAsMissing"/> as well.
 /// </para>
 /// </remarks>
 public interface IDynamoDbConverter<T>
@@ -60,7 +60,8 @@ public interface IDynamoDbConverter<T>
 
     /// <summary>
     /// Finds out whether a write treats a value like null, which leaves the attribute out. It is for a value that DynamoDB would refuse, or that should not be stored, such as a list stored as a set, which cannot be
-    /// empty: <c>public static bool IsOmitted(List&lt;string&gt; value) =&gt; value.Count == 0;</c>. <see cref="Mapping.OmitEmptyAttribute"/> asks the same question through <see cref="OmitEmptyConverter{TConverter}"/>.
+    /// empty: <c>public static bool IsOmitted(List&lt;string&gt; value) =&gt; value.Count == 0;</c>. <see cref="Mapping.OmitEmptyAttribute"/> asks the same question through <see cref="OmitEmptyConverter{TConverter}"/> and
+    /// <see cref="OmitEmptyCollectionConverter{T, TElement, TConverter}"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -68,7 +69,7 @@ public interface IDynamoDbConverter<T>
     /// <c>SetIfNotNull</c> adds nothing and <c>SetIfNotExists</c> rejects the value with an <see cref="ArgumentException"/>. A raw path writes what it is given. A nullable property asks with a value that is not null.
     /// </para>
     /// <para>
-    /// The default answers <see langword="false"/>. The source generator emits the call only for a <c>[DynamoDbConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
+    /// The default answers <see langword="false"/>. The source generator emits the call only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
     /// handle compiles the question away. It is the property that a converter answers for: a property that feeds a key is always written, because a key cannot do without it, and an element of a list or a map is
     /// always written, because a list has positions.
     /// </para>
@@ -86,7 +87,7 @@ public interface IDynamoDbConverter<T>
     /// make one up. A nullable type answers with null, because null is left out on write, and a set with an empty set, because DynamoDB has none.
     /// </summary>
     /// <remarks>
-    /// This is infrastructure of <c>Select</c>, which alone asks it, and the built-in converters answer for themselves. A converter of your own needs it in one case: a converter of a set, because an empty set
+    /// This is infrastructure of <c>Select</c>, which alone asks it, and the built-in converters and the generated handle of a version with <see cref="Mapping.VersionMissing.Allow"/> answer for themselves. A converter of your own needs it in one case: a converter of a set, because an empty set
     /// is a missing attribute in DynamoDB, so without an answer here a <c>Select</c> throws for every item whose set is empty. A read of the entity does not ask this: a property with a converter of your own keeps its
     /// initial value, or throws if it is <c>required</c>.
     /// </remarks>
@@ -97,4 +98,91 @@ public interface IDynamoDbConverter<T>
         value = default!;
         return false;
     }
+
+    /// <summary>
+    /// Finds out whether a stored value counts as if the attribute were not in the item. The mirror of <see cref="IsOmitted"/> for a read: it is for a value that means nothing to the property, such as a name an
+    /// enum no longer has, or a blank string where a JSON payload belongs, so that one bad attribute does not fail the read of the item.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A lenient enum: a name the type does not have keeps the initial value. <see cref="Read"/> stays strict, because a list has positions and asks nothing. The value is parsed twice, here and in <see cref="Read"/>, and only on a property whose converter answers.
+    /// </para>
+    /// <code>
+    /// public readonly record struct LenientPositionConverter : IDynamoDbConverter&lt;Position&gt;
+    /// {
+    ///     public static void Write(DynamoDbWriter writer, Position value) =>
+    ///         writer.WriteString(value.ToString());
+    ///
+    ///     public static Position Read(ref DynamoDbReader reader, AttributeType type)
+    ///     {
+    ///         ConverterChecks.Expect(type, AttributeType.String);
+    ///         return Enum.TryParse&lt;Position&gt;(reader.GetString(), out var value) ? value : throw new FormatException("Not a position.");
+    ///     }
+    ///
+    ///     public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) =>
+    ///         type == AttributeType.String &amp;&amp; !Enum.TryParse&lt;Position&gt;(reader.GetString(), out _);
+    /// }
+    /// </code>
+    /// <para>
+    /// A blank string as null: a <c>Payload?</c> stored as JSON text reads as null for a stored <c>""</c>. The value is looked at twice here as well, first for its length and then by the parser, and only on a property whose converter answers.
+    /// </para>
+    /// <code>
+    /// public readonly record struct PayloadConverter : IDynamoDbConverter&lt;Payload&gt;
+    /// {
+    ///     public static void Write(DynamoDbWriter writer, Payload value) =>
+    ///         writer.WriteString(JsonSerializer.Serialize(value, ShopJson.Default.Payload));
+    ///
+    ///     public static Payload Read(ref DynamoDbReader reader, AttributeType type)
+    ///     {
+    ///         ConverterChecks.Expect(type, AttributeType.String);
+    ///         return JsonSerializer.Deserialize(reader.GetStringUtf8(), ShopJson.Default.Payload)!;
+    ///     }
+    ///
+    ///     public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) =>
+    ///         type == AttributeType.String &amp;&amp; reader.GetStringUtf8().IsEmpty;
+    /// }
+    /// </code>
+    /// <para>
+    /// The answer <see langword="true"/> means as if the attribute were not in the item, whatever the property is: it keeps its initial value, and a nullable one does too, so an initializer on a <c>Payload?</c> stays and only one without gives null.
+    /// A <c>required</c> one throws <see cref="DynamoDbMappingException"/>, and an input of a key that holds it is restored from that key. <c>Select</c> gives what <see cref="TryReadMissing"/> gives, which is null for a nullable handle, also where a read of the entity keeps
+    /// an initializer, and otherwise a throw that <c>DYNA209</c> reports. <c>Return</c> throws, as it does for a missing attribute. A value that is <c>{"NULL":true}</c> is passed here as <see cref="AttributeType.Null"/>, except on a nullable property, which reads it as null without asking.
+    /// </para>
+    /// <para>
+    /// The default answers <see langword="false"/>. The source generator emits the question only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
+    /// handle compiles the question away. It is the property that a converter answers for: an element of a list, a map or a set is not asked, because a list has positions, and neither is a plain key, because a read that took it for missing would give an entity with another
+    /// key. <c>Keys.X.Parse</c> and <see cref="Item"/> do not ask either.
+    /// </para>
+    /// <para>
+    /// The reader stands on the value, as it does for <see cref="Read"/>, and this cannot move it, so <see cref="Read"/> finds the value where it was, and skipping a value that counts as missing is not the converter's job. On an <see langword="in"/> reader the getters work
+    /// as they always do, a call that moves a reader compiles and moves a copy that the compiler makes for that one call, and passing it on as <see langword="ref"/> does not compile. So to look inside a list or a map, copy the reader once and walk the copy,
+    /// because a loop over the parameter itself starts over with every call and never ends. A copy is less than 200 bytes on the stack and allocates nothing:
+    /// </para>
+    /// <code>
+    /// public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type)
+    /// {
+    ///     if (type != AttributeType.Map)
+    ///     {
+    ///         return false;
+    ///     }
+    ///
+    ///     var map = reader;
+    ///     while (map.TryReadAttributeName())
+    ///     {
+    ///         if (map.AttributeNameEquals("body"u8))
+    ///         {
+    ///             return map.ReadStartAttribute() == AttributeType.String &amp;&amp; map.GetStringUtf8().IsEmpty;
+    ///         }
+    ///
+    ///         map.SkipAttributeValue();
+    ///     }
+    ///
+    ///     return true;
+    /// }
+    /// </code>
+    /// <para>This can throw what <see cref="Read"/> can, with the same result. <see cref="Read"/> is not called for a value counted as missing.</para>
+    /// </remarks>
+    /// <param name="reader">The reader, positioned on the value. Read it with the getters, which do not move it.</param>
+    /// <param name="type">The DynamoDB type of the value.</param>
+    /// <returns><see langword="true"/> if the value counts as a missing attribute.</returns>
+    public static virtual bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) => false;
 }

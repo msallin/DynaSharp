@@ -192,13 +192,13 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter> Net => new("Net");
 
         /// <summary>The attribute <c>Gross</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>> Gross => new("Gross");
+        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::DynaSharp.Serialization.NullableHandleConverter<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>> Gross => new("Gross");
 
         /// <summary>The attribute <c>Fee</c>.</summary>
         public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.OnlyWriteIsExplicit> Fee => new("Fee");
 
         /// <summary>The attribute <c>Label</c>.</summary>
-        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Tag, global::DynaSharp.Serialization.OptionalConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>> Label => new("Label");
+        public static global::DynaSharp.Attr<global::Shapes.ExplicitConverters.Tag, global::DynaSharp.Serialization.NullableHandleConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>> Label => new("Label");
 
         /// <summary>The attribute <c>Labels</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.ExplicitConverters.Tag>, global::DynaSharp.Serialization.ListConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>> Labels => new("Labels");
@@ -208,7 +208,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Price</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
+        /// <summary>Creates the primary key of <c>Price</c>, which holds the values and costs no string until it is written.</summary>
         public static PrimaryKey Of(global::Shapes.ExplicitConverters.Tag id, global::Shapes.ExplicitConverters.Cents net) => new PrimaryKey(id, net);
 
         /// <summary>The primary key of <c>Price</c>, which holds the values of the key and costs no string until it is written.</summary>

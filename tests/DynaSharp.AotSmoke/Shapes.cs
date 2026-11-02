@@ -10,7 +10,7 @@ using DynaSharp.Serialization;
 public partial class GlobalThing
 {
     [PartitionKey]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = "none";
 
     public Color Color { get; set; }
 }
@@ -230,7 +230,7 @@ namespace DynaSharp.AotSmoke
     [SortKey("PROFILE")]
     public partial class UserProfile
     {
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = "none";
     }
 
     /// <summary>Plain keys, of which the sort key is a number.</summary>
@@ -239,7 +239,7 @@ namespace DynaSharp.AotSmoke
     public partial class Device
     {
         [PartitionKey]
-        public string Serial { get; set; } = string.Empty;
+        public string Serial { get; set; } = "none";
 
         [SortKey]
         public int Slot { get; set; }
@@ -263,7 +263,7 @@ namespace DynaSharp.AotSmoke
     public partial class KeyedAccount
     {
         [PartitionKey]
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = "none";
 
         public int Version { get; set; }
     }
@@ -288,9 +288,9 @@ namespace DynaSharp.AotSmoke
     [GlobalIndexKey("Inverted", PartitionKey = "TO#{Target}", PartitionKeyAttributeName = "sk", SortKey = "FROM#{Source}", SortKeyAttributeName = "pk")]
     public partial class Edge
     {
-        public string Source { get; set; } = string.Empty;
+        public string Source { get; set; } = "none";
 
-        public string Target { get; set; } = string.Empty;
+        public string Target { get; set; } = "none";
     }
 
     /// <summary>A literal after the last placeholder.</summary>
@@ -300,7 +300,7 @@ namespace DynaSharp.AotSmoke
     [SortKey("A-{Name}#B")]
     public partial class Suffixed
     {
-        public string Name { get; set; } = string.Empty;
+        public string Name { get; set; } = "none";
     }
 
     /// <summary>Fixed before variable with nothing in between.</summary>
@@ -312,7 +312,7 @@ namespace DynaSharp.AotSmoke
     {
         public int Code { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+        public string Name { get; set; } = "none";
     }
 
     /// <summary>A computed property that feeds a key.</summary>
@@ -331,7 +331,7 @@ namespace DynaSharp.AotSmoke
     [PartitionKey("EVENT#{Id}")]
     public partial class BaseEvent
     {
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = "none";
     }
 
     /// <summary>An entity that inherits an entity, whose generated classes hide those of the base.</summary>
@@ -482,7 +482,7 @@ namespace DynaSharp.AotSmoke
             public partial class Inner
             {
                 [PartitionKey]
-                public string Id { get; set; } = string.Empty;
+                public string Id { get; set; } = "none";
 
                 public Kind Kind { get; set; }
 
@@ -514,9 +514,9 @@ namespace DynaSharp.AotSmoke
     [SortKey("E#{event}")]
     public partial class @class
     {
-        public string @string { get; set; } = string.Empty;
+        public string @string { get; set; } = "none";
 
-        public string @event { get; set; } = string.Empty;
+        public string @event { get; set; } = "none";
 
         public @enum @base { get; set; }
 
@@ -712,7 +712,7 @@ namespace DynaSharp.AotSmoke
     public partial class Foreign
     {
         [PartitionKey(AttributeName = "id")]
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; } = "none";
     }
 
     /// <summary>A discriminator under another name, and a version under another name.</summary>

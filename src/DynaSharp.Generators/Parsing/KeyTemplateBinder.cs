@@ -19,13 +19,13 @@ internal static class KeyTemplateBinder
         var segments = new List<TemplateSegment>();
         var problems = new List<KeyProblem>();
         var used = new HashSet<string>();
-        foreach (var node in nodes)
+        for (var index = 0; index < nodes.Count; index++)
         {
-            if (node is LiteralNode literal)
+            if (nodes[index] is LiteralNode literal)
             {
                 segments.Add(new LiteralSegment(literal.Text));
             }
-            else if (BindPlaceholder((PlaceholderNode)node, inputs, role, used, problems) is { } placeholder)
+            else if (BindPlaceholder((PlaceholderNode)nodes[index], index + 1 == nodes.Count, inputs, role, used, problems) is { } placeholder)
             {
                 segments.Add(placeholder);
             }
@@ -38,6 +38,7 @@ internal static class KeyTemplateBinder
 
     private static PlaceholderSegment? BindPlaceholder(
         PlaceholderNode node,
+        bool endsTemplate,
         IReadOnlyDictionary<string, TemplateInput> inputs,
         KeyRole role,
         HashSet<string> used,
@@ -60,7 +61,7 @@ internal static class KeyTemplateBinder
             problems.Add(new KeyProblem(Descriptors.InaccessibleType, [input.TypeName, input.Property]));
         }
 
-        if (role.IsIndex && input.IsComputed)
+        if (role.IsIndex && input is { IsComputed: true, HasDependencies: false })
         {
             problems.Add(new KeyProblem(Descriptors.ComputedInIndex, [input.Property]));
         }
@@ -74,6 +75,13 @@ internal static class KeyTemplateBinder
         if (binding.Encoding is null)
         {
             problems.Add(binding.Problem!);
+            return null;
+        }
+
+        // Parsing takes what is left of the text for a raw value, so it round-trips only with nothing behind it.
+        if (binding.Encoding is StringEncoding { IsRaw: true } && !endsTemplate)
+        {
+            problems.Add(new KeyProblem(Descriptors.RawNotLast, [input.Property]));
             return null;
         }
 

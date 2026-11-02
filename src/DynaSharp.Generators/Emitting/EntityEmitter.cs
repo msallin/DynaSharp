@@ -73,7 +73,7 @@ internal static class EntityEmitter
 
     private static void EmitInfo(IndentedCode code, TypeModel type, EntityModel entity)
     {
-        var version = entity.VersionProperty is { } property ? type.Property(property).AttributeName : null;
+        var version = entity.VersionProperty is { } property ? type.Property(property) : null;
         code.Blank();
 
         // In a class of its own: an initializer on the type would run in the static constructor of the type, which belongs to its user and which no attribute on a field excludes from coverage.
@@ -98,7 +98,12 @@ internal static class EntityEmitter
         }
 
         code.Close("},");
-        code.Line($"versionAttributeName: {CodeText.OptionalLiteral(version)},");
+        code.Line($"versionAttributeName: {CodeText.OptionalLiteral(version?.AttributeName)},");
+        if (version is { ReadsMissingAsZero: true })
+        {
+            code.Line("versionMissing: __Map.VersionMissing.Allow,");
+        }
+
         var templates = KeyTemplateEmitter.Lines(type, entity);
         code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? ");" : ",")}");
         if (templates.Count > 0)

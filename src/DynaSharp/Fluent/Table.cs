@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using DynaSharp.Fluent;
+using DynaSharp.Http;
 using DynaSharp.Mapping;
 using DynaSharp.Requests;
 
@@ -213,8 +214,8 @@ public sealed class Table<T>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
     /// <summary>
-    /// Waits until the table and all its global secondary indexes are <c>ACTIVE</c>, for at most five minutes, which the backfill of an index on a table with much data can take longer than. See
-    /// <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
+    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, for at most five minutes, which the backfill of an index on a table with much data can take
+    /// longer than. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
     /// </summary>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
@@ -227,7 +228,7 @@ public sealed class Table<T>
         TableAdministration.WaitUntilActiveAsync(Model, TableAdministration.DefaultActiveTimeout, cancellationToken);
 
     /// <summary>
-    /// Waits until the table and all its global secondary indexes are <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
+    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
     /// <see cref="DynamoDbClientOptions.TimeProvider"/> of the client, so a test with a fake clock does not wait.
     /// </summary>
     /// <remarks>
@@ -246,6 +247,11 @@ public sealed class Table<T>
     /// A table reads <c>ACTIVE</c> while an index it was given by <c>UpdateTable</c> backfills, and the index misses items until it is done, so this waits for the indexes too, and
     /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. A backfill takes as long as the table is large, which can be hours, so that wait needs a longer timeout than the default of five minutes.
     /// Local secondary indexes have no status: they exist from the creation of the table.
+    /// </para>
+    /// <para>
+    /// An index that was just added may not be listed yet, and what is not listed cannot be seen to be behind. So every global index that the entity declares has to be listed as well, and until then this keeps polling; a
+    /// table that does not have such an index at all runs into the timeout, and the message of the <see cref="TableNotActiveException"/> says that it was not listed. A table opened without an entity declares nothing, and
+    /// <see cref="Of{TOther}"/> gives a table that waits for what that entity declares.
     /// </para>
     /// </remarks>
     /// <param name="timeout">How long to wait, which for the backfill of an index goes with the size of the table. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
@@ -303,6 +309,67 @@ public sealed class Table<T>
     /// </summary>
     /// <returns>The command.</returns>
     public BatchWriteCommand<T> BatchWrite() => new(Model.BeginActions(), Model);
+
+    /// <summary>
+    /// Runs a read-modify-write, and runs it again when it loses to another writer, up to 5 times, so that code that holds a table needs no client for it. It is
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>, the same loop on the same client, and the remarks there say what a run is, what makes it run again
+    /// and how to write one. Nothing ties a run to this table: it can touch others, and a transaction.
+    /// </summary>
+    /// <typeparam name="TResult">What a run returns.</typeparam>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>, and it must read what it depends on itself.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>What the run that got through returned.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Model.Core, operation, ConflictRetry.DefaultMaxAttempts, cancellationToken);
+
+    /// <summary>
+    /// Runs a read-modify-write up to <paramref name="maxAttempts"/> times. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/>, and
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, int, CancellationToken)"/> for the number to pass.
+    /// </summary>
+    /// <typeparam name="TResult">What a run returns.</typeparam>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>What the run that got through returned.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, ValueTask<TResult>> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Model.Core, operation, maxAttempts, cancellationToken);
+
+    /// <summary>Runs a read-modify-write that returns nothing, and runs it again when it loses to another writer. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/>.</summary>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Model.Core, operation, ConflictRetry.DefaultMaxAttempts, cancellationToken);
+
+    /// <summary>Runs a read-modify-write that returns nothing, up to <paramref name="maxAttempts"/> times. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, int, CancellationToken)"/>.</summary>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Model.Core, operation, maxAttempts, cancellationToken);
 
     private CommandState BeginWithKey<TKey>(TKey key)
         where TKey : IKey<T>

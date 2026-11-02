@@ -45,7 +45,7 @@ public sealed class QueryOperationTests
         {
             TableName = "Orders",
             IndexName = "ByStatus",
-            Select = Select.SpecificAttributes,
+            Select = SelectKind.SpecificAttributes,
             Limit = 25,
             ConsistentRead = true,
             ScanIndexForward = false,
@@ -86,22 +86,22 @@ public sealed class QueryOperationTests
             ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":v"] = OperationVectors.SpecialText },
             FilterExpression = "contains(#n, :v)",
         },
-        ["SelectAllAttributes"] = Request() with { Select = Select.AllAttributes },
-        ["SelectAllProjectedAttributes"] = Request() with { Select = Select.AllProjectedAttributes },
-        ["SelectSpecificAttributes"] = Request() with { Select = Select.SpecificAttributes },
-        ["SelectCount"] = Request() with { Select = Select.Count },
+        ["SelectAllAttributes"] = Request() with { Select = SelectKind.AllAttributes },
+        ["SelectAllProjectedAttributes"] = Request() with { Select = SelectKind.AllProjectedAttributes },
+        ["SelectSpecificAttributes"] = Request() with { Select = SelectKind.SpecificAttributes },
+        ["SelectCount"] = Request() with { Select = SelectKind.Count },
     };
 
     public static IEnumerable<string> RequestVectorNames() => OperationVectors.RequestNames("Query");
 
     public static IEnumerable<string> ResponseVectorNames() => OperationVectors.ResponseNames("Query");
 
-    public static IEnumerable<(Select Value, string Wire)> SelectNames()
+    public static IEnumerable<(SelectKind Value, string Wire)> SelectNames()
     {
-        yield return (Select.AllAttributes, "ALL_ATTRIBUTES");
-        yield return (Select.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES");
-        yield return (Select.SpecificAttributes, "SPECIFIC_ATTRIBUTES");
-        yield return (Select.Count, "COUNT");
+        yield return (SelectKind.AllAttributes, "ALL_ATTRIBUTES");
+        yield return (SelectKind.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES");
+        yield return (SelectKind.SpecificAttributes, "SPECIFIC_ATTRIBUTES");
+        yield return (SelectKind.Count, "COUNT");
     }
 
     public static IEnumerable<int> PassedThroughLimits()
@@ -208,7 +208,7 @@ public sealed class QueryOperationTests
 
     [Test]
     [MethodDataSource(nameof(SelectNames))]
-    public async Task WriteRequest_Select_WritesTheWireName((Select Value, string Wire) select)
+    public async Task WriteRequest_Select_WritesTheWireName((SelectKind Value, string Wire) select)
     {
         // Arrange
         var request = Request() with { Select = select.Value };
@@ -224,7 +224,7 @@ public sealed class QueryOperationTests
     public async Task WriteRequest_SelectDefault_OmitsSelect()
     {
         // Arrange
-        var request = Request() with { Select = Select.Unspecified };
+        var request = Request() with { Select = SelectKind.Unspecified };
 
         // Act
         var json = Write(request);
@@ -237,13 +237,13 @@ public sealed class QueryOperationTests
     public async Task WriteRequest_UnknownSelect_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        var request = Request() with { Select = (Select)99 };
+        var request = Request() with { Select = (SelectKind)99 };
 
         // Act
         var act = () => Write(request);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known Select.", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a known SelectKind.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -493,7 +493,7 @@ public sealed class QueryOperationTests
             ProjectionExpression = "#n",
             IndexName = "ByStatus",
             Limit = 25,
-            Select = Select.Count,
+            Select = SelectKind.Count,
             ScanIndexForward = false,
         };
         using var activity = new Activity("test");
@@ -524,7 +524,7 @@ public sealed class QueryOperationTests
     public async Task SetActivityTags_UnknownSelect_SkipsTheTagInsteadOfThrowing()
     {
         // Arrange (the span starts before the request is serialized, so tagging must not be where an invalid value surfaces)
-        var request = Request() with { Select = (Select)99 };
+        var request = Request() with { Select = (SelectKind)99 };
         using var activity = new Activity("test");
 
         // Act

@@ -26,7 +26,7 @@
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>KeyFormats</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>KeyFormats</c>, which a query of another entity does not take.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats> Of(global::System.DateTimeOffset at) => new global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats>(Format(at), "monthpk");
 

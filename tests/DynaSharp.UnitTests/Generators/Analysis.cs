@@ -37,6 +37,17 @@ internal static class Analysis
         return string.Join("\n", result.Diagnostics.Select(Describe));
     }
 
+    /// <summary>What <see cref="Report"/> gives for a source with its own usings and namespaces, which is where an assembly attribute can go.</summary>
+    public static string ReportOfWholeFile(string markedSource)
+    {
+        var compilation = GeneratorRun.CreateCompilation(Strip(markedSource).Text, LanguageVersion.Latest);
+        var result = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest).RunGenerators(compilation).GetRunResult();
+        return string.Join("\n", result.Diagnostics.Select(Describe));
+    }
+
+    /// <summary>What <see cref="ReportOfWholeFile"/> gives when the lines, each "id severity: message", land on the marked spans, in order.</summary>
+    public static string ExpectOfWholeFile(string markedSource, params string[] lines) => OnSpans(Strip(markedSource).Spans, lines);
+
     /// <summary>What <see cref="Report"/> gives when the lines, each "id severity: message", land on the marked spans, in order.</summary>
     public static string Expect(string markedSource, params string[] lines) => OnSpans(Strip(Header + markedSource).Spans, lines);
 

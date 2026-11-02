@@ -611,7 +611,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         // Arrange
         await using var shop = await ShopSandbox.StartAsync(backend);
 
-        // Act
+        // Act (the key throws when it is made, so a command never sees it)
         async Task Act() => await shop.Comments.Get(Comment.Keys.Of(First, "a#b")).SendAsync();
 
         // Assert

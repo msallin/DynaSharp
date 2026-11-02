@@ -23,8 +23,8 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// A key template is a string, and a plain key is what its converter writes: a number, a binary value, or a string for anything else. A custom converter says what it writes only by implementing
-/// <see cref="Serialization.IAddableConverter"/>, which makes the key a number; any other counts as a string, so a custom converter that writes binary needs <see cref="ToRequest"/>. For streams, tags, time to
-/// live, a storage class or a projection of fewer attributes, take <see cref="ToRequest"/> and send it through <c>DynaSharp.Requests</c>.
+/// <see cref="Serialization.IAddableConverter"/>, which makes the key a number; any other counts as a string, so a custom converter that writes binary needs <see cref="ToRequest"/>. <see cref="Stream"/> and
+/// <see cref="TimeToLive(string)"/> cover those two. For tags, a storage class or a projection of fewer attributes, take <see cref="ToRequest"/> and send it through <c>DynaSharp.Requests</c>.
 /// </para>
 /// <para>
 /// This is administration and not a hot path, so unlike the commands of items it is an ordinary class: a clause changes the command and returns it, it can be kept and sent again, and it is not thread-safe. A
@@ -45,6 +45,10 @@ public sealed class CreateTableCommand
     private bool _ifNotExists;
 
     private TimeSpan? _activeTimeout;
+
+    private StreamViewType? _stream;
+
+    private string? _timeToLive;
 
     /// <summary>Initializes a new instance of the <see cref="CreateTableCommand"/> class.</summary>
     /// <param name="table">The table.</param>
@@ -86,7 +90,7 @@ public sealed class CreateTableCommand
         return this;
     }
 
-    /// <summary>Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, for at most five minutes. See <see cref="WaitUntilActive(TimeSpan)"/>.</summary>
+    /// <summary>Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes, those the entities of this command declare among them, are <c>ACTIVE</c>, for at most five minutes. See <see cref="WaitUntilActive(TimeSpan)"/>.</summary>
     /// <returns>This command.</returns>
     public CreateTableCommand WaitUntilActive()
     {
@@ -99,6 +103,10 @@ public sealed class CreateTableCommand
     /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active. With <see cref="IfNotExists"/> over a table that has data, an index can still backfill, which
     /// can take longer than the default of five minutes.
     /// </summary>
+    /// <remarks>
+    /// Every global index that this command declares, by its entity and by <see cref="Including{TOther}"/>, has to be listed and active, and a local one needs no wait. With <see cref="IfNotExists"/> over an older table that lacks
+    /// a declared index, nothing adds the index, so this <b>times out instead of returning</b>, with a <see cref="TableNotActiveException"/> that names it. Add the index with <c>UpdateTable</c> in <c>DynaSharp.Requests</c>.
+    /// </remarks>
     /// <param name="timeout">How long to wait after the table was created. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
     /// <returns>This command.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative, which this call finds out, so that no table is created for it.</exception>
@@ -110,26 +118,93 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Treats a table that exists as success: <see cref="ResourceInUseException"/> ends in the description of the existing table, which <c>DescribeTable</c> fetches, and that is what makes a create at the start of a
-    /// program safe to repeat.
+    /// Gives the table a stream, which <see cref="ToRequest"/> shows. It applies to a table this command creates: with <see cref="IfNotExists"/>, the stream of a table that exists stays untouched, also when it has none or
+    /// another view, and nothing says so. Change that with <c>UpdateTable</c> in <c>DynaSharp.Requests</c>.
+    /// </summary>
+    /// <param name="view">What a record of the stream holds.</param>
+    /// <returns>This command.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="view"/> is no view, which DynamoDB would refuse, and this call finds out before a table is created.</exception>
+    public CreateTableCommand Stream(StreamViewType view)
+    {
+        if (view == StreamViewType.Unspecified || !Enum.IsDefined(view))
+        {
+            throw new ArgumentOutOfRangeException(nameof(view), view, "A stream needs a view: NewImage, OldImage, NewAndOldImages or KeysOnly.");
+        }
+
+        _stream = view;
+        return this;
+    }
+
+    /// <summary>
+    /// Makes sure that the table has time to live on this attribute, on a table this command creates and on one <see cref="IfNotExists"/> finds. <c>CreateTable</c> does not take it, so it is no part of
+    /// <see cref="ToRequest"/>: it happens after the create, or after finding the table.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It needs an active table, so it implies <see cref="WaitUntilActive()"/>, with the five minutes of that method unless <see cref="WaitUntilActive(TimeSpan)"/> gave another timeout, and with all its rules: a wait that runs out
+    /// throws <see cref="TableNotActiveException"/> and leaves time to live as it was, also when a table <see cref="IfNotExists"/> found lacks a global index this command declares.
+    /// </para>
+    /// <para>
+    /// Then <c>DescribeTimeToLive</c> looks, and <c>ENABLED</c> or <c>ENABLING</c> on this attribute ends it. Anything else sends <c>UpdateTimeToLive</c>, which DynamoDB answers with a
+    /// <see cref="ValidationException"/> for time to live that is on already, and for a second change within the hour that a change takes. Instances of a program start together, so that can mean that another one got
+    /// there first: the command looks again and takes it for success if time to live is now on for this attribute. Otherwise that exception surfaces, and that is what time to live on another attribute comes to:
+    /// DynamoDB says what is wrong, and turning it off and on again with the new name is a decision this command does not take.
+    /// </para>
+    /// <para>
+    /// <b>Permissions.</b> It takes <c>dynamodb:DescribeTimeToLive</c> on every call, <c>dynamodb:UpdateTimeToLive</c> when time to live is not on yet, and <c>dynamodb:DescribeTable</c> for the wait.
+    /// </para>
+    /// <para>
+    /// The attribute of an item must be a number that holds a Unix time in seconds, which <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c> on a <see cref="DateTimeOffset"/> writes. See <see cref="UpdateTimeToLiveRequest"/> for when DynamoDB deletes.
+    /// </para>
+    /// </remarks>
+    /// <param name="attributeName">The name of the attribute that holds the expiry time.</param>
+    /// <returns>This command.</returns>
+    /// <exception cref="ArgumentException"><paramref name="attributeName"/> is <see langword="null"/> or empty.</exception>
+    public CreateTableCommand TimeToLive(string attributeName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(attributeName);
+        _timeToLive = attributeName;
+        return this;
+    }
+
+    /// <summary>Makes sure that the table has time to live on the attribute of a handle: <c>.TimeToLive(Order.Attrs.ExpiresAt)</c>. See <see cref="TimeToLive(string)"/>.</summary>
+    /// <param name="attribute">A handle, or an <see cref="Attr"/> of a name.</param>
+    /// <returns>This command.</returns>
+    /// <exception cref="ArgumentException"><paramref name="attribute"/> has no path, or a nested one, because time to live reads an attribute at the top of an item.</exception>
+    public CreateTableCommand TimeToLive(Attr attribute)
+    {
+        var path = attribute.Path;
+        ArgumentException.ThrowIfNullOrEmpty(path, nameof(attribute));
+        if (path.AsSpan().IndexOfAny('.', '[') >= 0)
+        {
+            throw new ArgumentException($"Time to live reads an attribute at the top of an item, and {path} is a path into one.", nameof(attribute));
+        }
+
+        return TimeToLive(path);
+    }
+
+    /// <summary>
+    /// Treats a table that exists as success: <c>DescribeTable</c> goes first, and a table it finds ends the command there, with its description and without a <c>CreateTable</c>, which is what makes a create at the start
+    /// of a program safe to repeat.
     /// </summary>
     /// <remarks>
     /// <para>
     /// It <b>does not compare schemas</b>: a table of this name with other keys or indexes is success too, and a table that is still being created is success with that status. Reads and writes then fail, or find the
-    /// indexes missing.
+    /// indexes missing, and a <see cref="WaitUntilActive()"/> times out over a table that lacks a global index this command declares.
     /// </para>
     /// <para>
-    /// A table that is going away is no success, with or without a wait, because no table is left afterwards: when <c>DescribeTable</c> says <c>DELETING</c>, the <see cref="ResourceInUseException"/> of the create
-    /// surfaces, and sending the command again creates the table once the delete is through.
+    /// <b>Permissions.</b> A table that exists takes <c>dynamodb:DescribeTable</c> alone, so a role that may not create tables gets through, and no failed call shows in CloudTrail or in error metrics. Creating a table takes
+    /// <c>dynamodb:CreateTable</c> as well, and <c>dynamodb:DescribeTable</c> is needed for that too: the look comes first, and any error of it other than a missing table surfaces, so a role without it gets
+    /// <see cref="AccessDeniedException"/> and creates nothing. With <see cref="WaitUntilActive()"/>, a first look that already shows the table and its indexes active returns without another call.
     /// </para>
     /// <para>
-    /// When <c>DescribeTable</c> finds no table, either a delete just ended or, because that call is eventually consistent, another process just created the table, as instances of a program that start together do.
-    /// So the command creates again, up to 5 times over 1.5 seconds, which ends in a new table or in the one that turned up. The <see cref="ResourceInUseException"/> surfaces only if that settles nothing.
+    /// A table that is going away is no success, with or without a wait, because no table is left afterwards: the command goes on to <c>CreateTable</c>, and when <c>DescribeTable</c> says <c>DELETING</c> again, the
+    /// <see cref="ResourceInUseException"/> of the create surfaces, and sending the command again creates the table once the delete is through.
     /// </para>
     /// <para>
-    /// It finds out by trying: <c>CreateTable</c> goes out on every call, also for a table that exists, and <c>DescribeTable</c> follows when that fails. So the role needs <c>dynamodb:CreateTable</c> as well as
-    /// <c>dynamodb:DescribeTable</c>, also where the table is always there, and every call on an existing table leaves a failed <c>CreateTable</c> in CloudTrail and in error metrics. With
-    /// <see cref="WaitUntilActive()"/> on an existing table the command describes twice, once to find the table and once to see that it is active.
+    /// When <c>DescribeTable</c> finds no table, the command creates it. That can still find a table, because <c>DescribeTable</c> is eventually consistent, and instances of a program that start together create at the same
+    /// time: <see cref="ResourceInUseException"/> then ends in the description of the table it found. When <c>DescribeTable</c> finds nothing after such an answer, either a delete just ended or another process just created
+    /// the table, so the command creates again, up to 5 times over 1.5 seconds, which ends in a new table or in the one that turned up. The <see cref="ResourceInUseException"/> surfaces only if that settles nothing.
     /// </para>
     /// </remarks>
     /// <returns>This command.</returns>
@@ -141,32 +216,42 @@ public sealed class CreateTableCommand
 
     /// <summary>
     /// Builds the request that <see cref="SendAsync"/> would send, and sends nothing. It is the escape hatch for what this command does not model: change it with <c>with</c>, as in
-    /// <c>request with { Tags = tags }</c>, and send it with <c>client.CreateTableAsync(request)</c>. <see cref="WaitUntilActive()"/> and <see cref="IfNotExists"/> happen around the request and are not in it.
+    /// <c>request with { Tags = tags }</c>, and send it with <c>client.CreateTableAsync(request)</c>. <see cref="Stream"/> is in it. <see cref="WaitUntilActive()"/>, <see cref="IfNotExists"/> and <see cref="TimeToLive(string)"/>
+    /// happen around the request and are not.
     /// </summary>
     /// <returns>The request.</returns>
-    public CreateTableRequest ToRequest() => _schema.ToRequest(_table.Name, _capacity);
+    public CreateTableRequest ToRequest() => _schema.ToRequest(_table.Name, _capacity, _stream);
 
     /// <summary>
-    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> the table is normally <c>CREATING</c> when this returns.
+    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, which implies it, the table is normally <c>CREATING</c> when this returns.
     /// </summary>
     /// <param name="cancellationToken">Cancels the call, and the wait. A table DynamoDB accepted stays accepted, so a cancelled wait leaves a table behind.</param>
-    /// <returns>The description of the table: the new one, the active one with <see cref="WaitUntilActive()"/>, or the existing one with <see cref="IfNotExists"/>.</returns>
+    /// <returns>The description of the table: the new one, the active one with <see cref="WaitUntilActive()"/>, or the existing one with <see cref="IfNotExists"/>, which is what the first look found.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ResourceInUseException">A table of that name exists and <see cref="IfNotExists"/> was not called, or it is being deleted, which <see cref="IfNotExists"/> does not cover.</exception>
+    /// <exception cref="AccessDeniedException">The role lacks a permission of the calls this makes, which <see cref="IfNotExists"/> lists.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
-    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes.</exception>
-    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/>.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes, or time to live cannot be turned on, as when it is on for another attribute.</exception>
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>.</exception>
     /// <exception cref="TimeoutException">A call ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public async ValueTask<TableDescription> SendAsync(CancellationToken cancellationToken = default)
     {
-        var created = await CreateAsync(cancellationToken).ConfigureAwait(false);
-        if (_activeTimeout is { } timeout)
+        var existing = await FindExistingAsync(cancellationToken).ConfigureAwait(false);
+        var description = existing ?? await CreateAsync(cancellationToken).ConfigureAwait(false);
+        var declared = _schema.GlobalIndexNames;
+        var timeout = _activeTimeout ?? (_timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
+        if (timeout is { } bound && (existing is null || !TableAdministration.IsActive(existing, declared)))
         {
-            return await TableAdministration.WaitUntilActiveAsync(_table, timeout, cancellationToken).ConfigureAwait(false);
+            description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, cancellationToken).ConfigureAwait(false);
         }
 
-        return created ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false);
+        if (_timeToLive is { } attributeName)
+        {
+            await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
+        }
+
+        return description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Lets <c>await</c> send the command, for <c>await orders.CreateTable()</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
@@ -208,6 +293,18 @@ public sealed class CreateTableCommand
             await Task.Delay(delay, _table.Core.TimeProvider, cancellationToken).ConfigureAwait(false);
             delay *= 2;
         }
+    }
+
+    // A table that is going away is none: the create loop finds out what it is once it is gone.
+    private async ValueTask<TableDescription?> FindExistingAsync(CancellationToken cancellationToken)
+    {
+        if (!_ifNotExists)
+        {
+            return null;
+        }
+
+        var found = await FindAsync(cancellationToken).ConfigureAwait(false);
+        return found is { TableStatus: not TableStatus.Deleting } ? found : null;
     }
 
     // CreateTable answers ResourceInUseException for a table on its way out too, so what it found may be gone, and DescribeTable may not see yet what another process created.

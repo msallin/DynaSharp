@@ -192,15 +192,34 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Size => new("Size");
 
         /// <summary>The attribute <c>Note</c>.</summary>
-        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OptionalReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.NullableReferenceHandleConverter<string, global::DynaSharp.Serialization.StringConverter>> Note => new("Note");
     }
 
     /// <summary>The key builders of <c>Restored</c>.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Restored</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
-        public static PrimaryKey Of(string user, global::System.DateTime at, global::System.Guid id) => new PrimaryKey(user, at, id);
+        /// <summary>Creates the primary key of <c>Restored</c>, which holds the values and costs no string until it is written. The values are checked here, as <c>Format</c> and the <c>Of</c> of a builder check them. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
+        /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+        public static PrimaryKey Of(string user, global::System.DateTime at, global::System.Guid id)
+        {
+            Pk.Check(true, user);
+            Sk.Check(true, at, id);
+            return new PrimaryKey(user, at, id);
+        }
+
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        public static bool TryOf(string user, global::System.DateTime at, global::System.Guid id, out PrimaryKey key)
+        {
+            if (Pk.Check(false, user) && Sk.Check(false, at, id))
+            {
+                key = new PrimaryKey(user, at, id);
+                return true;
+            }
+
+            key = default;
+            return false;
+        }
 
         /// <summary>The primary key of <c>Restored</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -254,9 +273,31 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(string user) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(user), "pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(string user, out global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, user);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(__key.ToString(), "pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -322,6 +363,20 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
             {
                 __key.WriteLiteral("USER#"u8);
                 __key.WriteString(user, "#"u8, "User");
+            }
+
+            internal static bool Check(bool __throwOnInvalid, string user)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, user);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
             }
         }
 
@@ -397,9 +452,13 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateTime at) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(at));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>At</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
-            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
+            /// <remarks>The key goes on behind <c>At</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateTime from, global::System.DateTime to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
+
+            /// <summary>The condition <c>BETWEEN Prefix AND Prefix</c> on <c>At</c>: from the first key at <c>from</c> up to and without the keys at <c>to</c>, with any field before it equal. <c>to</c> stays out because the key goes on behind <c>At</c>, so no key equals the upper bound. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Range(global::System.DateTime from, global::System.DateTime to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), Prefix(to));
 
             /// <summary>The condition <c>&gt;= Prefix</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -504,6 +563,20 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 __key.WriteLiteral("#"u8);
                 __key.WriteGuid(id);
             }
+
+            internal static bool Check(bool __throwOnInvalid, global::System.DateTime at, global::System.Guid id)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], __throwOnInvalid);
+                try
+                {
+                    Encode(ref __key, at, id);
+                    return !__key.IsInvalid;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
         }
 
         /// <summary>The values of a parsed <c>gsi1pk</c>.</summary>
@@ -533,9 +606,31 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
+            /// <summary>Formats the complete key as a key of <c>Restored</c>, which a query of another entity does not take. <c>TryOf</c> says the same without an exception, for a value from outside.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> Of(global::Shapes.Keys.Status state) => new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(Format(state), "gsi1pk");
+
+            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static bool TryOf(global::Shapes.Keys.Status state, out global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored> key)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
+                try
+                {
+                    Encode(ref __key, state);
+                    if (__key.IsInvalid)
+                    {
+                        key = default;
+                        return false;
+                    }
+
+                    key = new global::DynaSharp.PartitionKey<global::Shapes.Keys.Restored>(__key.ToString(), "gsi1pk");
+                    return true;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
