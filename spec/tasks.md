@@ -380,6 +380,15 @@ The owner had an independent reviewer judge what the services still asked for, a
 - [x] **K6, `StoreKeyInputs()`.** A typed update stores the inputs of the table key with `if_not_exists`, for an upsert. Same implementer as K5, after it.
 - [x] **K7, `StubSts`.** A loopback server in `DynaSharp.Testing`, because the requests of a credentials provider are not behind `HttpHandler`, and a `WebIdentityCredentialsProvider` constructor that takes the endpoint. The stub never touches the process environment.
 
+### L1, M1, H3 and N1 - what was left after K, and a faster suite
+
+- [x] **L1, open items.** A forward walk of the `Item` in `FailedCondition`, `DYNA120` for a raw placeholder beside a strict one with the delimiter in it, the README gate `build/ReadmeCheck.cs` and time limits in `ci.yml`.
+- [x] **M1, docs.** A final pass over the README, `src/DynaSharp.Testing/README.md` and the traps the services ran into.
+- [x] **H3, cleanup.** `WriteState`, `ReadOptions`, `DiscriminatorCheck`, the folders of `Fluent`, `CommandPool`, the fluent tests split into `Fluent/WriteRules` and `Fluent/KeyInputs`.
+- [x] **N1, test and CI speed.** One compilation per analyzer test class with tree-scoped analysis, `GeneratorRun.Generate` where a test reads no compiled output, the compile guards batched, identical stress runs merged, `dotnet format whitespace` plus `IDE0055` in the build, and the build job limited to the unit tests. The suite went from 176 s to 54 s, measured locally, and nothing dropped a row: differentials compared the shared paths with the full ones.
+- Decision: a result of the generator shared between tests is rebuilt under Stryker (`SharedResult<T>`). Its MTP runner keeps a test host for many mutants, so a kept result would hide later mutants and fail on others.
+- Decision: an item of another type reports the type before a key that does not fit: a read finishes its walk first. A value of a shared attribute that the converter refuses can still fail first, under its own name, because finding the discriminator from there would cost every read a copy of the reader.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
