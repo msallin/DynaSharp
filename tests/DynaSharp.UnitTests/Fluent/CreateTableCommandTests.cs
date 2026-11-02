@@ -849,6 +849,24 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnAnExistingTable_CreatesOnceAndDescribesTwice()
+    {
+        // Arrange (the docs tell the operator what this costs: the permission, and the failed call in CloudTrail)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table already exists."));
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        await client.Table("Shop", "pk").CreateTable().IfNotExists().WaitUntilActive().SendAsync();
+
+        // Assert
+        await Assert.That(string.Join(',', handler.Requests.Select(static request => request.Operation))).IsEqualTo("CreateTable,DescribeTable,DescribeTable");
+    }
+
+    [Test]
     public async Task SendAsync_IfNotExistsAndAnotherError_Surfaces()
     {
         // Arrange

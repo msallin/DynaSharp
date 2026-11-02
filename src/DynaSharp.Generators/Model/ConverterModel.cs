@@ -8,7 +8,11 @@ namespace DynaSharp.Generators;
 /// A type with a public <c>Write</c> that reaches <paramref name="WriteConverter"/> through a type parameter, or null if it has such a <c>Write</c> itself. A
 /// converter may implement the interface explicitly, and a member like that cannot be called on the type.
 /// </param>
-internal sealed record ConverterModel(string WriteConverter, string ReadConverter, string? EmptySet, string? WriteForwarder = null)
+/// <param name="OmissionForwarder">
+/// A type with a public <c>IsOmitted</c> that reaches <paramref name="WriteConverter"/> through a type parameter, for a converter that has an answer of its own. Null for every other one, whose default answer
+/// is false, so that a write of such a property holds no call.
+/// </param>
+internal sealed record ConverterModel(string WriteConverter, string ReadConverter, string? EmptySet, string? WriteForwarder = null, string? OmissionForwarder = null)
 {
     /// <summary>Gets the call that writes <paramref name="value"/>, a value that is not null, to <c>writer</c>.</summary>
     /// <param name="value">The value as code.</param>

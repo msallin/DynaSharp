@@ -44,6 +44,20 @@ public sealed class DynamoDbMappingExceptionTests
     }
 
     [Test]
+    public async Task Missing_AttributeThatAKeyCouldRestore_NamesBoth()
+    {
+        // Arrange
+        const string attribute = "appointmentKey";
+
+        // Act
+        var exception = DynamoDbMappingException.Missing("Appointment", attribute, "pk");
+
+        // Assert
+        await Assert.That((exception.EntityType, exception.AttributeName, exception.Message)).IsEqualTo(
+            ("Appointment", (string?)attribute, "The attribute \"appointmentKey\" is missing, and the key \"pk\" that could restore it is missing or does not fit its template, so the item cannot be read as Appointment."));
+    }
+
+    [Test]
     public async Task OtherType_Discriminator_NamesTheTypeFound()
     {
         // Arrange

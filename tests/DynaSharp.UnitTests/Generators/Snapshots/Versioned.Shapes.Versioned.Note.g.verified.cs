@@ -165,7 +165,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
             if (!fields.Id__set) { fields.Id = __restored0.Id; fields.Id__set = true; }
         }
 
-        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Note", "Id"); }
+        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Note", "Id", "pk"); }
         return new global::Shapes.Versioned.Note(in fields);
     }
 
@@ -195,7 +195,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Note</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Note</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Note</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -244,7 +244,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(id), "pk");
 
@@ -342,7 +342,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Note</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string owner) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(owner), "byownerpk");
 

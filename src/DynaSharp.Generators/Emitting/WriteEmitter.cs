@@ -181,26 +181,35 @@ internal static class WriteEmitter
         code.Line($"Keys.{key.BuilderName}.Write({string.Join(", ", values.Prepend("writer"))});");
     }
 
+    // A converter that answers for itself is asked after every other condition, so it never hears of a null. The value is a pattern variable, so that a computed property runs once:
+    // if (entity.Tags is { } __v0 && !global::DynaSharp.Serialization.OptionalReferenceConverter<List<string>, TagsConverter>.IsOmitted(__v0))
     private static void EmitProperty(IndentedCode code, PropertyModel property, VariableNames variables, string value)
     {
-        if (property.Write == WriteCondition.Always)
+        if (property.Write == WriteCondition.Never)
+        {
+            return;
+        }
+
+        var omission = property.Converter!.OmissionForwarder;
+        if (property.Write == WriteCondition.Always && omission is null)
         {
             EmitConverterCall(code, property, value);
+            return;
         }
-        else if (property.Write != WriteCondition.Never)
+
+        var variable = variables.Next();
+        var pattern = property.Write switch
         {
-            var variable = variables.Next();
-            var pattern = property.Write switch
-            {
-                WriteCondition.WhenNotNull => "{ }",
-                WriteCondition.WhenNotEmptyCount => "{ Count: > 0 }",
-                _ => "{ Length: > 0 }",
-            };
-            code.Line($"if ({value} is {pattern} {variable})");
-            code.Open();
-            EmitConverterCall(code, property, variable);
-            code.Close();
-        }
+            WriteCondition.Always => "var",
+            WriteCondition.WhenNotNull => "{ }",
+            WriteCondition.WhenNotEmptyCount => "{ Count: > 0 }",
+            _ => "{ Length: > 0 }",
+        };
+        var kept = omission is null ? string.Empty : $" && !{omission}.IsOmitted({variable})";
+        code.Line($"if ({value} is {pattern} {variable}{kept})");
+        code.Open();
+        EmitConverterCall(code, property, variable);
+        code.Close();
     }
 
     private static void EmitConverterCall(IndentedCode code, PropertyModel property, string value)

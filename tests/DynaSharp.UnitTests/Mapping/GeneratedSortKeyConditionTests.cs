@@ -155,6 +155,22 @@ public sealed partial class GeneratedSortKeyConditionTests
     }
 
     [Test]
+    public async Task Between_OfThePrefixes_StopsBeforeTheKeysAtTheUpperBound()
+    {
+        // Arrange (what the docs of Between give for a range that ends before its upper bound, on a key that goes on behind the field)
+        var day = DateOnly.FromDateTime(Noon.UtcDateTime);
+        var from = Noon.AddHours(-1);
+
+        // Act
+        var open = Render(SortKeyCondition.Between(LogLine.Keys.Sk.Prefix(day, from), LogLine.Keys.Sk.Prefix(day, Noon)));
+        var closed = Render(LogLine.Keys.Sk.Between(day, from, Noon));
+
+        // Assert
+        var (atTheStart, atTheEnd) = (LogLine.Keys.Sk.Format(day, from, 7), LogLine.Keys.Sk.Format(day, Noon, 7));
+        await Assert.That((open.Holds(atTheStart), open.Holds(atTheEnd), closed.Holds(atTheEnd))).IsEqualTo((true, false, true));
+    }
+
+    [Test]
     public async Task Between_LastFieldUnderALeadingField_StaysUnderThatField()
     {
         // Arrange

@@ -84,6 +84,11 @@ public sealed class StubResponse
     /// <summary>
     /// Creates a page of a <c>Query</c> or <c>Scan</c> that ends the read, with <c>Count</c> filled in. <c>ScannedCount</c> is the same unless a test says that a filter dropped items.
     /// </summary>
+    /// <remarks>
+    /// A generated entity is written with its keys, as a <c>Put</c> writes it. An <see cref="DynaSharp.Item"/> is written as it stands, and a read of an entity restores what its keys hold from the item: a
+    /// <c>required</c> input of a key that the item lacks throws <see cref="DynamoDbMappingException"/>, which names the key. So an <see cref="DynaSharp.Item"/> for such an entity holds the keys as well, for which
+    /// <see cref="KeyOf{T}"/> gives the attributes.
+    /// </remarks>
     /// <typeparam name="T">The type of the items: a generated entity or <see cref="DynaSharp.Item"/>.</typeparam>
     /// <param name="items">The items, which may be none.</param>
     /// <param name="scannedCount">How many items DynamoDB read before the filter, or <see langword="null"/> for as many as <paramref name="items"/> holds.</param>

@@ -16,6 +16,11 @@ namespace DynaSharp.Serialization;
 /// the other rules of sets, such as the empty set.
 /// </para>
 /// <para>The array that is read has exactly the length of the set, in the order the service sent, which is not a stable order.</para>
+/// <para>
+/// <typeparamref name="TElement"/> is an <see cref="IDynamoDbSetElementConverter{T}"/>, which writes one element of a set, and not the converter of the type, which writes a whole attribute. A set of strings is
+/// <c>[DynamoDbConverter(typeof(SetArrayConverter&lt;string, StringSetElement&gt;))] public string[] Tags { get; init; } = [];</c>, and <c>SetArrayConverter&lt;string, StringConverter&gt;</c> does not compile, with an
+/// error on the constraint of <typeparamref name="TElement"/>. The others are <see cref="NumberSetElement{T}"/>, <see cref="BinarySetElement"/> and <see cref="GuidSetElement"/>.
+/// </para>
 /// </remarks>
 public readonly struct SetArrayConverter<T, TElement> : IDynamoDbConverter<T[]>, IAddableConverter
     where TElement : IDynamoDbSetElementConverter<T>

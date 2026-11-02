@@ -269,7 +269,14 @@ public sealed class DynamoDbClient : IDisposable
     /// one of the two, whatever the other actions report, and the limit on the runs is what ends it when another reason does not pass.
     /// </para>
     /// <para>
-    /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged.
+    /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged, so a
+    /// <see cref="ConditionalCheckFailedException"/> of the last run names no key: the service does not, and <see cref="ConditionalCheckFailedException.Item"/> holds something only for a write that asked for it. A
+    /// caller that has to say which item gave up catches it around this call, where it knows the key.
+    /// </para>
+    /// <para>
+    /// <b>Keep follow-up writes outside the run.</b> A run is one read-modify-write, and what depends on its result, such as a second item or an entry of an audit log, goes after this call. Inside, it runs again
+    /// with every run. A retry inside a run multiplies the attempts, 5 runs of 5 are 25, and an inner one that used up its runs throws what it last caught, which this call counts as a conflict of its own, so one
+    /// lost race on the inner item starts the whole run over.
     /// </para>
     /// <para>
     /// <b>A wait.</b> Between two runs it waits a random time up to <c>min(1 s, 10 ms * 2^(run - 1))</c> on <see cref="DynamoDbClientOptions.TimeProvider"/>, so that writers that failed together
@@ -294,7 +301,7 @@ public sealed class DynamoDbClient : IDisposable
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. It names no key, see the remarks.</exception>
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
     public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, CancellationToken cancellationToken = default) =>

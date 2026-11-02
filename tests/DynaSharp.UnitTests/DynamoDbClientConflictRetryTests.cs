@@ -84,6 +84,39 @@ internal sealed class DynamoDbClientConflictRetryTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_RetryInsideARun_MultipliesTheRuns()
+    {
+        // Arrange (what the docs say about a follow-up write in the delegate: the inner retry that gave up counts as a conflict of the outer one)
+        var script = new Script([.. Enumerable.Repeat<Exception>(new ConditionalCheckFailedException("The conditional request failed."), 25)]);
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(ct => new ValueTask<int>(client.RetryOnConflictAsync(script.RunAsync, ct))));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(25);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RunsUsedUp_SurfacesTheExceptionOfTheLastRunWithoutAKey()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var table = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(async ct =>
+        {
+            await table.Put().With("pk", "secret-key").IfNotExists().SendAsync(ct);
+            return 1;
+        }));
+
+        // Assert
+        await Assert.That((failure.Item, failure.Message.Contains("secret-key", StringComparison.Ordinal))).IsEqualTo(((Item?)null, false));
+    }
+
+    [Test]
     [MethodDataSource(nameof(Conflicts))]
     public async Task RetryOnConflictAsync_ConflictWithoutAResult_RunsAgain(FailureCase conflict)
     {

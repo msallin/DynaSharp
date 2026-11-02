@@ -924,6 +924,22 @@ public sealed class GeneratedKeysTests
         await Assert.That(act).ThrowsExactly<KeyFormatException>();
     }
 
+    [Test]
+    public async Task Of_InvalidValue_FailsWhenACommandTakesTheKey()
+    {
+        // Arrange
+        using var handler = new DynaSharp.Testing.StubHandler();
+        using var client = TestClient.Create(handler);
+        var profiles = client.Table<UserProfile>("Shop");
+        var key = UserProfile.Keys.Of("a#b");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = profiles.Get(key).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure).IsTypeOf<KeyFormatException>();
+    }
+
     private static IEnumerable<(string? Name, Type Type)> Parameters(Type builder, string method) =>
         builder.GetMethod(method)!.GetParameters().Select(static parameter => (parameter.Name, parameter.ParameterType));
 

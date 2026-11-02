@@ -165,10 +165,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
             if (!fields.Rank__set) { fields.Rank = __restored1.Rank; fields.Rank__set = true; }
         }
 
-        if (!fields.Room__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Room"); }
-        if (!fields.Start__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Start"); }
-        if (!fields.Owner__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Owner"); }
-        if (!fields.Rank__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Rank"); }
+        if (!fields.Room__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Room", "pk"); }
+        if (!fields.Start__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Start", "byownerpk"); }
+        if (!fields.Owner__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Owner", "byownerpk"); }
+        if (!fields.Rank__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("HeldSlot", "Rank", "byownerpk"); }
         return new global::KeyShapes.HeldSlot(in fields);
     }
 
@@ -202,7 +202,7 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>HeldSlot</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>HeldSlot</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string room, global::System.DateTimeOffset start) => new PrimaryKey(room, start);
 
         /// <summary>The primary key of <c>HeldSlot</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -271,7 +271,7 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> Of(string room) => new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(Format(room), "pk");
 
@@ -512,7 +512,7 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>HeldSlot</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot> Of(string owner, int rank, string room, global::System.DateTimeOffset start) => new global::DynaSharp.PartitionKey<global::KeyShapes.HeldSlot>(Format(owner, rank, room, start), "byownerpk");
 

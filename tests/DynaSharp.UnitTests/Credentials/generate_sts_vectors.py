@@ -7,6 +7,7 @@ nothing leaves the machine and the serializer, the endpoint resolution and the p
 
 - requests: what the client sends for a role, a session name and a token.
 - endpoints: the URL for a region and each value of AWS_STS_REGIONAL_ENDPOINTS, over every region botocore knows for STS.
+- configured_endpoints: the URL when AWS_ENDPOINT_URL_STS or AWS_ENDPOINT_URL is set, beside each other and beside what they go ahead of.
 - responses: what the parser reads from a successful XML body.
 - errors: the error code the parser reads from a failed body, and whether botocore's standard retry mode would retry it.
 - session_names: names checked against the model of roleSessionNameType. AWS applies the pattern with an ASCII \\w, hence re.ASCII.
@@ -57,6 +58,18 @@ ACCESS_KEY = "ASIAIOSFODNN7EXAMPLE"
 SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 TOKEN = "IQoJb3JpZ2luX2VjEEM/Example+Token=="
 EXPIRATION = "2026-10-31T18:34:56Z"
+
+# What a refresh gets: other credentials, an hour later.
+REFRESHED_ACCESS_KEY = "ASIAI44QH8DHBEXAMPLE"
+REFRESHED_SECRET_KEY = "je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"
+REFRESHED_TOKEN = "AQoDYXdzEJr/Refreshed+Token=="
+REFRESHED_EXPIRATION = "2026-10-31T19:34:56Z"
+
+STS_VARIABLE = "AWS_ENDPOINT_URL_STS"
+GLOBAL_VARIABLE = "AWS_ENDPOINT_URL"
+MODE_VARIABLE = "AWS_STS_REGIONAL_ENDPOINTS"
+LOOPBACK = "http://127.0.0.1:4566"
+OTHER_LOOPBACK = "http://127.0.0.1:4567"
 
 # Each case: name, role ARN, session name, token.
 REQUESTS = [
@@ -129,6 +142,27 @@ RESPONSES = [
     ("CommentInsideAValue", success(credentials_xml(access="ASIA<!-- a comment -->EXAMPLE"))),
     ("ExpirationWithFractionOfASecond", success(credentials_xml(expiration="2026-10-31T18:34:56.123Z"))),
     ("ExpirationWithOffset", success(credentials_xml(expiration="2026-10-31T20:34:56+02:00"))),
+    ("Refreshed", success(credentials_xml(REFRESHED_ACCESS_KEY, REFRESHED_SECRET_KEY, REFRESHED_TOKEN, REFRESHED_EXPIRATION))),
+]
+
+# Each case: name, region, environment. A region of None is what a client gets without one.
+CONFIGURED_ENDPOINTS = [
+    ("ServiceVariable", "eu-west-1", {STS_VARIABLE: LOOPBACK}),
+    ("GlobalVariable", "eu-west-1", {GLOBAL_VARIABLE: LOOPBACK}),
+    ("ServiceVariableBeforeGlobal", "eu-west-1", {STS_VARIABLE: LOOPBACK, GLOBAL_VARIABLE: OTHER_LOOPBACK}),
+    ("EmptyServiceVariableFallsToGlobal", "eu-west-1", {STS_VARIABLE: "", GLOBAL_VARIABLE: LOOPBACK}),
+    ("BothEmptyFallToTheRegion", "eu-west-1", {STS_VARIABLE: "", GLOBAL_VARIABLE: ""}),
+    ("ServiceVariableBeforeLegacy", "eu-west-1", {STS_VARIABLE: LOOPBACK, MODE_VARIABLE: "legacy"}),
+    ("GlobalVariableBeforeLegacy", "eu-west-1", {GLOBAL_VARIABLE: LOOPBACK, MODE_VARIABLE: "legacy"}),
+    ("EmptyVariablesLeaveLegacyAlone", "eu-west-1", {STS_VARIABLE: "", GLOBAL_VARIABLE: "", MODE_VARIABLE: "legacy"}),
+    ("HttpsEndpoint", "eu-west-1", {STS_VARIABLE: "https://sts.example.com"}),
+    ("HttpsEndpointWithAPort", "eu-west-1", {STS_VARIABLE: "https://sts.example.com:8443"}),
+    ("TrailingSlash", "eu-west-1", {STS_VARIABLE: LOOPBACK + "/"}),
+    ("LocalhostByName", "eu-west-1", {STS_VARIABLE: "http://localhost:4566"}),
+    ("LoopbackOfIpv6", "eu-west-1", {STS_VARIABLE: "http://[::1]:4566"}),
+    ("RegionOfAnotherPartition", "cn-north-1", {STS_VARIABLE: LOOPBACK}),
+    ("NoRegionNeeded", None, {STS_VARIABLE: LOOPBACK}),
+    ("NoRegionNeededByGlobal", None, {GLOBAL_VARIABLE: LOOPBACK}),
 ]
 
 
@@ -262,6 +296,12 @@ def endpoint_vectors():
     return vectors
 
 
+def configured_endpoint_vector(name, region, environment):
+    with mock.patch.dict(os.environ, environment):
+        request, _ = call(create_client(region), 200, success())
+    return {"name": name, "region": region, "environment": environment, "url": request.url}
+
+
 def timestamp(value):
     return value.astimezone(datetime.timezone.utc).isoformat()
 
@@ -315,6 +355,7 @@ def main():
             "modeled_errors": modeled,
             "requests": [request_vector(*case) for case in REQUESTS],
             "endpoints": endpoint_vectors(),
+            "configured_endpoints": [configured_endpoint_vector(*case) for case in CONFIGURED_ENDPOINTS],
             "responses": [response_vector(*case) for case in RESPONSES],
             "errors": [error_vector(*case) for case in ERRORS],
             "session_names": [session_name_vector(name, model["shapes"]["roleSessionNameType"]) for name in SESSION_NAMES],

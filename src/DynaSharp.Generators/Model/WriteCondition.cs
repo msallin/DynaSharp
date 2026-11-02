@@ -1,6 +1,6 @@
 namespace DynaSharp.Generators;
 
-/// <summary>When a property is written.</summary>
+/// <summary>When a property is written, before a converter that answers for itself is asked as well, see <see cref="ConverterModel.OmissionForwarder"/>.</summary>
 internal enum WriteCondition
 {
     /// <summary>The value can never be null.</summary>

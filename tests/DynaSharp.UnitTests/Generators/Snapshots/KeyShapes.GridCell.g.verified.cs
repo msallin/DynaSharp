@@ -138,8 +138,8 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
             if (!fields.Row__set) { fields.Row = __restored1.Row; fields.Row__set = true; }
         }
 
-        if (!fields.Name__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("GridCell", "Name"); }
-        if (!fields.Column__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("GridCell", "Column"); }
+        if (!fields.Name__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("GridCell", "Name", "pk"); }
+        if (!fields.Column__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("GridCell", "Column", "sk"); }
         return new global::KeyShapes.GridCell(fields.Name!, fields.Column!, fields.Row__set ? fields.Row! : 5);
     }
 
@@ -169,7 +169,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>GridCell</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>GridCell</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string name, string column, int row) => new PrimaryKey(name, column, row);
 
         /// <summary>The primary key of <c>GridCell</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -224,7 +224,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>GridCell</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>GridCell</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.GridCell> Of(string name) => new global::DynaSharp.PartitionKey<global::KeyShapes.GridCell>(Format(name), "pk");
 

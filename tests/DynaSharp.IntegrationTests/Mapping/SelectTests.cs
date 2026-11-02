@@ -325,6 +325,23 @@ public sealed class SelectTests(Backend backend)
     }
 
     [Test]
+    public async Task Put_EmptyListThatItsConverterStoresAsASet_LeavesItOutAndWorks()
+    {
+        // Arrange (DynamoDB rejects {"SS":[]}, so this request only gets through without the attribute)
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        var things = shop.Shop.Of<LabeledThing>();
+
+        // Act
+        await things.Put(new LabeledThing { Id = "a" }).SendAsync();
+        await things.Put(new LabeledThing { Id = "b", Tags = ["red"] }).SendAsync();
+        var empty = await things.Get(LabeledThing.Keys.Of("a")).Consistent().ItemAsync();
+        var filled = await things.Get(LabeledThing.Keys.Of("b")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((empty!.Tags.Count, filled!.Tags.Single())).IsEqualTo((0, "red"));
+    }
+
+    [Test]
     public async Task Get_KeyInputOfAnItemAnUpdateCreated_ThrowsWhereTheEntityRestoresIt()
     {
         // Arrange (DYNA209 reports this where it sees a handle, and a variable is no such place)

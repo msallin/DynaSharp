@@ -54,7 +54,10 @@ internal static class ReadEmitter
         foreach (var property in read.Where(static property => property.Missing == MissingBehavior.Throw))
         {
             var attribute = CodeText.Literal(property.RestoredFromKey ?? property.AttributeName);
-            code.Line($"if (!fields.{property.Name}__set) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}); }}");
+
+            // The attribute is what an item created by an update never has, so what is wrong with such an item is the key.
+            var key = property.FallbackKey is { } fallback ? $", {CodeText.Literal(fallback)}" : string.Empty;
+            code.Line($"if (!fields.{property.Name}__set) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}{key}); }}");
         }
 
         code.Line($"return {ConstructorEmitter.Creation(type)};");

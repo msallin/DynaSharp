@@ -112,7 +112,7 @@ DYNA205 | Warning | DynaSharp.Commands | Write to a key of the table | '{0}' is 
 DYNA206 | Warning | DynaSharp.Commands | IfNotExists on a Put with a version | This Put of '{0}' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.
 DYNA207 | Warning | DynaSharp.Commands | Index is not declared | '{0}' declares no index '{1}'. Take the name from {0}.Indexes.
 DYNA208 | Warning | DynaSharp.Commands | Project leaves out a required member | This Project leaves out '{0}' of '{1}', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it{2}.
-DYNA209 | Warning | DynaSharp.Commands | Select of a property that a key of the table holds | '{0}' of '{1}' is held by the key '{2}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote.
+DYNA209 | Warning | DynaSharp.Commands | Select of an attribute that a read of the entity can do without | '{0}' of '{1}' {2}
 DYNA210 | Warning | DynaSharp.Expressions | String where a name belongs | String '{0}' is a value here, but this position needs a name. Wrap it in Attr(...).
 DYNA211 | Error | DynaSharp.Expressions | Placeholder in an expression | DynaSharp generates placeholders; write the name in Attr(...) and the value in a hole, not '{0}'
 DYNA212 | Warning | DynaSharp.Expressions | Expression syntax error | The expression is not valid: {0}

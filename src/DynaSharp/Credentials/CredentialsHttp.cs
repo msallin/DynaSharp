@@ -6,7 +6,7 @@ namespace DynaSharp.Credentials;
 /// The HTTP clients of the credential endpoints. They are separate from the DynamoDB traffic: <see cref="DynamoDbClientOptions.HttpHandler"/>
 /// never sees these requests, and these requests never follow redirects or keep cookies. A redirect would send the token to another host.
 /// The container endpoint and instance metadata are link-local, so their client never uses the proxy. AWS STS is a public endpoint that is often
-/// reached through an egress proxy, so it has a client of its own that uses the default proxy of the process.
+/// reached through an egress proxy, so it has a client of its own that uses the default proxy of the process, and <see cref="GetClientFor"/> tells the two apart for an endpoint that is configured.
 /// </summary>
 internal static class CredentialsHttp
 {
@@ -54,6 +54,15 @@ internal static class CredentialsHttp
     /// <param name="handler">The handler to send through, or <see langword="null"/> for the shared client.</param>
     /// <returns>The client. Do not dispose it.</returns>
     public static HttpClient GetProxiedClient(HttpMessageHandler? handler) => handler is null ? ProxiedClient : CreateClient(handler);
+
+    /// <summary>
+    /// Returns the client for a public endpoint that may also be configured to something else: the one that uses the default proxy, or for a loopback address the one that does not. A proxy cannot reach a port of this
+    /// machine, and the default proxy says that it can: <c>HTTP_PROXY</c> covers loopback too, unless <c>NO_PROXY</c> names it.
+    /// </summary>
+    /// <param name="endpoint">The endpoint.</param>
+    /// <param name="handler">The handler to send through, or <see langword="null"/> for a shared client.</param>
+    /// <returns>The client. Do not dispose it.</returns>
+    public static HttpClient GetClientFor(Uri endpoint, HttpMessageHandler? handler) => endpoint.IsLoopback ? GetClient(handler) : GetProxiedClient(handler);
 
     /// <summary>Sends a request and reads the whole response, in at most <paramref name="timeout"/>.</summary>
     /// <param name="client">The client.</param>

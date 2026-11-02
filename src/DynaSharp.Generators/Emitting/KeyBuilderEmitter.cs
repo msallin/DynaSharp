@@ -137,7 +137,8 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     private void EmitOf()
     {
         var partitionKey = $"global::DynaSharp.PartitionKey<{entityType}>";
-        code.Line($"/// <summary>Formats the complete key as a key of <c>{entityName}</c>, which a query of another entity does not take.</summary>");
+        var check = _placeholders.Count > 0 ? " The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written." : string.Empty;
+        code.Line($"/// <summary>Formats the complete key as a key of <c>{entityName}</c>, which a query of another entity does not take.{check}</summary>");
         if (_placeholders.Count > 0)
         {
             code.Line(InvalidValue);
@@ -234,6 +235,11 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         var to = BoundName(leading, "to");
         var parameters = (List<string>)[.. leading.Select(static placeholder => $"{placeholder.ValueType} {placeholder.ParameterName}"), $"{last.ValueType} {from}", $"{last.ValueType} {to}"];
         code.Line($"/// <summary>The condition <c>BETWEEN {low} AND {high}</c> on <c>{last.Property}</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>");
+        if (low == "Prefix")
+        {
+            code.Line($"/// <remarks>The key goes on behind <c>{last.Property}</c>, and the upper bound lies above all of it, so this includes every key at <c>{to}</c>. A range that ends before <c>{to}</c> is <c>SortKeyCondition.Between(Keys.{key.BuilderName}.{Call(low, leading, from)}, Keys.{key.BuilderName}.{Call(low, leading, to)})</c>.</remarks>");
+        }
+
         code.Line(InvalidValue);
         code.Line($"public static {Condition} Between({string.Join(", ", parameters)}) => {Condition}.Between({Call(low, leading, from)}, {Call(high, leading, to)});");
         code.Blank();

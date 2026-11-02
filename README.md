@@ -7,7 +7,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 - **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity, a clause an operation does not have, or a broken expression fails at build time.
 - **No AWS SDK:** no runtime package dependencies.
-- **Testable:** every request goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire.
+- **Testable:** every request to DynamoDB goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire. Credential requests do not, so a test sets `Credentials` too.
 
 > **Status:** early development. Nothing is published to NuGet yet, and DynaSharp has only been tested against DynamoDB Local and Dynoxide, not yet against AWS itself.
 

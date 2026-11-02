@@ -101,7 +101,7 @@ public interface IUpdatable<TSelf>
     /// <param name="value">The value.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="value"/> is empty, on a property with <see cref="Mapping.OmitEmptyAttribute"/>, which counts that as null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is empty, on a property with <see cref="Mapping.OmitEmptyAttribute"/>, which counts that as null, or anything else that <see cref="Serialization.IDynamoDbConverter{T}.IsOmitted"/> of the converter counts as null.</exception>
     public TSelf SetIfNotExists<TValue, TConverter>(Attr<TValue, TConverter> attribute, TValue value)
         where TConverter : IDynamoDbConverter<TValue>;
 

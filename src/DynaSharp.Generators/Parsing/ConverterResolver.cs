@@ -144,7 +144,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
         }
 
         var forwarder = WritesExplicitly(property, inner) ? Wrapped(inner, converter) : null;
-        return new ResolvedConverter(new ConverterModel(converter, read, null, forwarder), write, _isPublic);
+        var omission = AnswersIsOmitted(property, inner) ? Optional(inner, converter) : null;
+        return new ResolvedConverter(new ConverterModel(converter, read, null, forwarder, omission), write, _isPublic);
     }
 
     // What the built-in converter of a key type writes, a string unless it is listed here. A new entry in KeyScalars that writes anything else has to show here too.
@@ -162,20 +163,30 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag)
     private static string Wrapped(ITypeSymbol inner, string converter) =>
         $"{Serialization}{(inner.IsValueType ? "NullableConverter" : "NullableReferenceConverter")}<{Names.Of(inner)}, {converter}>";
 
+    // What a handle wraps a converter in, which passes the question on through a type parameter: a member that a converter implements explicitly can only be reached that way.
+    private static string Optional(ITypeSymbol inner, string converter) =>
+        $"{Serialization}{(inner.IsValueType ? "OptionalConverter" : "OptionalReferenceConverter")}<{Names.Of(inner)}, {converter}>";
+
     // Generated code calls Write on the type of the converter, and only a read goes through a type parameter. An explicit member cannot be called
     // that way, and the wrappers of null can: they take the value and pass it on through their own parameter.
-    private static bool WritesExplicitly(PropertyFacts property, ITypeSymbol value)
+    // By its accessibility: in metadata, every implementation of a static member looks like an explicit one.
+    private static bool WritesExplicitly(PropertyFacts property, ITypeSymbol value) =>
+        ImplementationOf(property, value, "Write") is { DeclaredAccessibility: not Accessibility.Public };
+
+    // A converter that leaves the default of the interface alone answers false for every value, so that its properties stay as they are.
+    private static bool AnswersIsOmitted(PropertyFacts property, ITypeSymbol value) =>
+        ImplementationOf(property, value, "IsOmitted") is { ContainingType: var owner } && owner.OriginalDefinition.ToDisplayString() != WellKnownNames.ConverterInterface;
+
+    private static ISymbol? ImplementationOf(PropertyFacts property, ITypeSymbol value, string member)
     {
         var attribute = property.Converter ?? AttributeReader.Find(value, WellKnownNames.ConverterAttribute);
         if (attribute?.ConstructorArguments[0].Value is not ITypeSymbol converter)
         {
-            return false;
+            return null;
         }
 
         var contract = converter.AllInterfaces.First(candidate => IsConverterOf(candidate, value));
-
-        // By its accessibility: in metadata, every implementation of a static member looks like an explicit one.
-        return converter.FindImplementationForInterfaceMember(contract.GetMembers("Write")[0]) is { DeclaredAccessibility: not Accessibility.Public };
+        return converter.FindImplementationForInterfaceMember(contract.GetMembers(member)[0]);
     }
 
     private static bool IsConverterOf(INamedTypeSymbol candidate, ITypeSymbol value) =>

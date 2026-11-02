@@ -32,6 +32,22 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_PutOfAnEntityWhoseConverterLeavesAValueOut_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var rosters = client.Table<VersionedRoster>("Shop");
+        var roster = new VersionedRoster { Id = "r1", Revision = 3 };
+
+        // Act (the question goes through a type parameter, on a value that is there already)
+        var allocated = Measure((rosters, roster), static input => CommandHelpers.FinishAndRelease(input.rosters.Put(input.roster)));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task Build_GetWithAGeneratedCompositeKey_AllocatesNothing()
     {
         // Arrange

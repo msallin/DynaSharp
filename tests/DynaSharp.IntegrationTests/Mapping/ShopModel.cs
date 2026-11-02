@@ -1,8 +1,41 @@
 using System;
 using System.Collections.Generic;
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 
 namespace DynaSharp.IntegrationTests.Mapping;
+
+/// <summary>Stores a list as a string set, which DynamoDB refuses to hold empty, so an empty list has to stay out of the item.</summary>
+internal readonly record struct TagSetConverter : IDynamoDbConverter<List<string>>
+{
+    public static void Write(DynamoDbWriter writer, List<string> value)
+    {
+        writer.WriteStartStringSet();
+        foreach (var element in value)
+        {
+            writer.WriteStringSetElement(element);
+        }
+
+        writer.WriteEndSet();
+    }
+
+    public static List<string> Read(ref DynamoDbReader reader, AttributeType type) => [.. HashSetConverter<string, StringSetElement>.Read(ref reader, type)];
+
+    public static bool IsOmitted(List<string> value) => value.Count == 0;
+}
+
+/// <summary>An item with a set behind a converter of its own.</summary>
+[DynamoDbEntity]
+[Discriminator("LABELED")]
+[PartitionKey("LABELED#{Id}")]
+[SortKey("LABELED")]
+public partial record LabeledThing
+{
+    public required string Id { get; init; }
+
+    [DynamoDbConverter(typeof(TagSetConverter))]
+    public List<string> Tags { get; init; } = [];
+}
 
 public enum OrderStatus
 {

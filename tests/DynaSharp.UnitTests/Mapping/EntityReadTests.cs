@@ -264,20 +264,33 @@ public sealed class EntityReadTests
     }
 
     [Test]
-    [Arguments("""{"sk":{"S":"DAY#2026-11-01"}}""", "Path")]
-    [Arguments("""{"pk":{"N":"1"},"sk":{"S":"DAY#2026-11-01"}}""", "Path")]
-    [Arguments("""{"pk":{"NULL":true},"sk":{"S":"DAY#2026-11-01"}}""", "Path")]
-    [Arguments("""{"pk":{"S":"OTHER#/home"},"sk":{"S":"DAY#2026-11-01"}}""", "Path")]
-    [Arguments("""{"pk":{"S":"DAILY#"},"sk":{"S":"DAY#2026-11-01"}}""", "Path")]
-    [Arguments("""{"pk":{"S":"DAILY#/home"},"sk":{"S":"DAY#not-a-date"}}""", "Day")]
-    [Arguments("""{"pk":{"S":"DAILY#/home"}}""", "Day")]
-    public async Task ReadAttributes_KeyThatCannotSayIt_ThrowsAsForAnyMissingAttribute(string json, string attribute)
+    [Arguments("""{"sk":{"S":"DAY#2026-11-01"}}""", "Path", "pk")]
+    [Arguments("""{"pk":{"N":"1"},"sk":{"S":"DAY#2026-11-01"}}""", "Path", "pk")]
+    [Arguments("""{"pk":{"NULL":true},"sk":{"S":"DAY#2026-11-01"}}""", "Path", "pk")]
+    [Arguments("""{"pk":{"S":"OTHER#/home"},"sk":{"S":"DAY#2026-11-01"}}""", "Path", "pk")]
+    [Arguments("""{"pk":{"S":"DAILY#"},"sk":{"S":"DAY#2026-11-01"}}""", "Path", "pk")]
+    [Arguments("""{"pk":{"S":"DAILY#/home"},"sk":{"S":"DAY#not-a-date"}}""", "Day", "sk")]
+    [Arguments("""{"pk":{"S":"DAILY#/home"}}""", "Day", "sk")]
+    public async Task ReadAttributes_KeyThatCannotSayIt_ThrowsNamingTheAttributeAndTheKey(string json, string attribute, string key)
     {
         // Act
         var failure = Assert.Throws<DynamoDbMappingException>(() => EntityJson.Read<DailyCount>(json));
 
         // Assert
-        await Assert.That((failure.AttributeName, failure.Message)).IsEqualTo(((string?)attribute, $"The attribute \"{attribute}\" is missing, so the item cannot be read as DailyCount."));
+        await Assert.That((failure.AttributeName, failure.Message)).IsEqualTo(((string?)attribute, $"The attribute \"{attribute}\" is missing, and the key \"{key}\" that could restore it is missing or does not fit its template, so the item cannot be read as DailyCount."));
+    }
+
+    [Test]
+    public async Task ReadAttributes_KeyThatCannotSayIt_KeepsTheValueOutOfTheMessage()
+    {
+        // Arrange (a key holds values, and a message ends up in logs)
+        const string Json = """{"pk":{"S":"OTHER#secret-value"},"sk":{"S":"DAY#2026-11-01"}}""";
+
+        // Act
+        var failure = Assert.Throws<DynamoDbMappingException>(() => EntityJson.Read<DailyCount>(Json));
+
+        // Assert
+        await Assert.That(failure.Message).DoesNotContain("secret-value");
     }
 
     [Test]

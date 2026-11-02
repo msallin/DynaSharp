@@ -319,11 +319,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             if (!fields.Total__set) { fields.Total = __restored3.Total; fields.Total__set = true; }
         }
 
-        if (!fields.UserId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "UserId"); }
+        if (!fields.UserId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "UserId", "pk"); }
         if (!fields.CreatedAt__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "CreatedAt"); }
-        if (!fields.OrderId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "OrderId"); }
-        if (!fields.Status__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Status"); }
-        if (!fields.Total__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Total"); }
+        if (!fields.OrderId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "OrderId", "sk"); }
+        if (!fields.Status__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Status", "gsi1pk"); }
+        if (!fields.Total__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Total", "gsi1sk"); }
         return new global::Shop.Order(in fields);
     }
 
@@ -401,7 +401,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Order</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Order</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(global::System.Guid userId, global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new PrimaryKey(userId, createdAt, orderId);
 
         /// <summary>The primary key of <c>Order</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -456,7 +456,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid userId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(userId), "pk");
 
@@ -623,6 +623,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             public static global::DynaSharp.SortKeyCondition BeginsWith(global::System.DateTimeOffset createdAt) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(createdAt));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>CreatedAt</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <remarks>The key goes on behind <c>CreatedAt</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
 
@@ -760,7 +761,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::Shop.OrderStatus status) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(status), "gsi1pk");
 
@@ -974,7 +975,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Order</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shop.Order> Of(global::System.Guid trackingId) => new global::DynaSharp.PartitionKey<global::Shop.Order>(Format(trackingId), "gsi2pk");
 

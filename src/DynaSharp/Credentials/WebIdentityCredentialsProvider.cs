@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
@@ -29,8 +30,13 @@ namespace DynaSharp.Credentials;
 /// never reject. The region is that of the client when a <see cref="DynamoDbClient"/> made the provider, and otherwise the one passed to the constructor, or else
 /// <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> or the <c>region</c> of the profile, and a fetch without any of these fails. As in botocore,
 /// <c>AWS_STS_REGIONAL_ENDPOINTS=legacy</c> selects the global endpoint <c>https://sts.amazonaws.com/</c> for the regions that used it before regional
-/// endpoints existed; other regions, such as those that must be enabled and those of China, keep their regional endpoint. That variable is read from the environment at every
-/// fetch, also when the settings were passed to the constructor. <c>AWS_ENDPOINT_URL_STS</c> and the profile setting <c>sts_regional_endpoints</c> are not read.
+/// endpoints existed; other regions, such as those that must be enabled and those of China, keep their regional endpoint.
+/// </para>
+/// <para>
+/// As in botocore, <c>AWS_ENDPOINT_URL_STS</c> and then <c>AWS_ENDPOINT_URL</c> go ahead of all of that: with either one set the fetch needs no region and <c>AWS_STS_REGIONAL_ENDPOINTS</c> counts for nothing. An empty
+/// variable counts as unset, and a value takes what the endpoint of a client takes, an absolute http or https URL without user info, path, query or fragment; any other throws, and names the variable. So a process that
+/// points <c>AWS_ENDPOINT_URL</c> at an emulator for DynamoDB sends the token there too, and over http the token travels in the clear. All of these variables are read from the environment at every fetch, also when the
+/// settings were passed to the constructor. The profile settings <c>sts_regional_endpoints</c> and <c>endpoint_url</c>, the <c>services</c> sections of the shared config file and <c>AWS_IGNORE_CONFIGURED_ENDPOINT_URLS</c> are not read.
 /// </para>
 /// <para>
 /// The token is read from the file for every request, because the kubelet replaces the file before the token expires; leading and trailing whitespace is
@@ -43,7 +49,12 @@ namespace DynaSharp.Credentials;
 /// </para>
 /// <para>
 /// The requests use the default proxy of the process (<c>HTTPS_PROXY</c>, <c>NO_PROXY</c>), since STS is often reached through an egress proxy, unlike the link-local
-/// endpoints of <see cref="ContainerCredentialsProvider"/>. They go over https only and follow no redirects, so the token reaches no other host. Cookies are not used.
+/// endpoints of <see cref="ContainerCredentialsProvider"/>. An endpoint on a loopback address goes past the proxy, because a proxy cannot reach a port of this machine, and <c>HTTP_PROXY</c> would be asked all the same.
+/// They go over https unless an endpoint variable says otherwise, and follow no redirects, so the token reaches no other host. Cookies are not used.
+/// </para>
+/// <para>
+/// They do not go through <see cref="DynamoDbClientOptions.HttpHandler"/>, which carries the requests to DynamoDB and no others. A client with a stub handler in a process with <c>AWS_WEB_IDENTITY_TOKEN_FILE</c> set still
+/// calls the real STS with that token: a test sets <see cref="DynamoDbClientOptions.Credentials"/>, or points <c>AWS_ENDPOINT_URL_STS</c> at a fake.
 /// </para>
 /// <para>
 /// The same <see cref="AwsCredentials"/> instance is returned until it is refreshed. Refreshing starts 15 minutes before the
@@ -64,6 +75,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private const string RoleArnVariable = "AWS_ROLE_ARN";
     private const string SessionNameVariable = "AWS_ROLE_SESSION_NAME";
     private const string RegionalEndpointsVariable = "AWS_STS_REGIONAL_ENDPOINTS";
+    private const string EndpointVariable = "AWS_ENDPOINT_URL_STS";
     private const string SourceName = "web identity token file";
     private const string FormContentType = "application/x-www-form-urlencoded";
     private const string SessionNameRule = "must be 2 to 64 letters, digits or characters of _+=,.@-";
@@ -96,7 +108,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
     private readonly Func<string, string?> _getEnvironmentVariable;
     private readonly ReadTextFile _readFile;
-    private readonly HttpClient _http;
+    private readonly HttpMessageHandler? _handler;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger _logger;
     private readonly AwsRegion? _region;
@@ -154,7 +166,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     {
         _getEnvironmentVariable = getEnvironmentVariable;
         _readFile = readFile;
-        _http = CredentialsHttp.GetProxiedClient(handler);
+        _handler = handler;
         _timeProvider = timeProvider;
         _logger = logger;
         _region = region;
@@ -274,10 +286,10 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
             throw new CredentialsUnavailableException($"{SessionNameVariable} {SessionNameRule}.");
         }
 
-        return new Settings(tokenFile, roleArn, _region ?? ResolveRegion(), sessionName);
+        return new Settings(tokenFile, roleArn, _region, sessionName);
     }
 
-    // Only a provider that no client made gets here. Without a region there is no regional endpoint, and no reason to pick another one silently.
+    // Only a provider that no client made gets here, without an endpoint of its own. Without a region there is no regional endpoint, and no reason to pick another one silently.
     private AwsRegion ResolveRegion()
     {
         try
@@ -290,10 +302,31 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
         }
     }
 
-    private Uri ResolveEndpoint(AwsRegion region) =>
-        string.Equals(_getEnvironmentVariable(RegionalEndpointsVariable), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, region.Name) >= 0
+    // What botocore does: a configured endpoint goes ahead of the region and of the legacy mode, and with one the region does not matter, because the request is not signed.
+    private Uri ResolveEndpoint(AwsRegion? settingsRegion)
+    {
+        if (ReadConfiguredEndpoint() is { } configured)
+        {
+            return configured;
+        }
+
+        var region = settingsRegion ?? ResolveRegion();
+        return string.Equals(_getEnvironmentVariable(RegionalEndpointsVariable), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, region.Name) >= 0
             ? GlobalEndpoint
             : region.StsEndpoint;
+    }
+
+    private Uri? ReadConfiguredEndpoint()
+    {
+        try
+        {
+            return ClientConfiguration.FindEndpointInEnvironment(_getEnvironmentVariable, EndpointVariable).Endpoint;
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new CredentialsUnavailableException(exception.Message, exception);
+        }
+    }
 
     private string ReadToken(string path)
     {
@@ -321,17 +354,19 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private async ValueTask<CredentialsOutcome> FetchOutcomeAsync() => CredentialsOutcome.Found(await FetchAsync().ConfigureAwait(false));
 
     // Credentials or an exception, and nothing that could say "does not apply": that was decided before the fetch, by the variable.
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The clients of CredentialsHttp are shared, and not to be disposed.")]
     private async ValueTask<AwsCredentials> FetchAsync()
     {
         var settings = ResolveSettings();
         var endpoint = ResolveEndpoint(settings.Region);
+        var http = CredentialsHttp.GetClientFor(endpoint, _handler);
 
         var failedAttempts = 0;
         var expiredTokenSeen = false;
         while (true)
         {
             using var request = CreateRequest(endpoint, CreateBody(settings));
-            var result = await CredentialsHttp.SendAsync(_http, request, AttemptTimeout, _timeProvider).ConfigureAwait(false);
+            var result = await CredentialsHttp.SendAsync(http, request, AttemptTimeout, _timeProvider).ConfigureAwait(false);
 
             StsDocument document = default;
             var parsed = result.Kind == CredentialsHttp.ResultKind.Response && StsDocument.TryParse(result.Body, out document);
@@ -374,7 +409,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <summary>What a fetch needs to know, however it came about.</summary>
     /// <param name="TokenFile">The path of the token file.</param>
     /// <param name="RoleArn">The role to assume.</param>
-    /// <param name="Region">The region of the STS endpoint.</param>
+    /// <param name="Region">The region of the STS endpoint, or <see langword="null"/> to look for it when an endpoint depends on it.</param>
     /// <param name="SessionName">The name of the session, or <see langword="null"/> for the default of each fetch.</param>
-    internal sealed record Settings(string TokenFile, string RoleArn, AwsRegion Region, string? SessionName);
+    internal sealed record Settings(string TokenFile, string RoleArn, AwsRegion? Region, string? SessionName);
 }

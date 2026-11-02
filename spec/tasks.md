@@ -348,6 +348,8 @@ Three independent readers on runtime, generator and maintainability found nothin
 - Decision: `Between` on a key with several fields takes `(leading..., from, to)` and not two whole tuples. Only this form holds for every template, because the keys between two bounds with a common start have that start. A range across fields is written by hand from `Prefix` and `UpperBound`.
 - Decision: `TryReadMissing` stays visible, because a custom set converter needs it: an empty set is a missing attribute. Its remarks mark it as infrastructure.
 - Finding: `Parse` of a token has no limit on length, on input that comes from a client. "Bounded fan-out tokens" under later work covers it.
+- [x] **I1, what the three services found on preview 2.** Branch `m3/i1-app-fixes`, merged. `IsOmitted` of a custom converter holds on every entity write, and a property that feeds a key is always written. `AWS_ENDPOINT_URL_STS` and then `AWS_ENDPOINT_URL` are read as botocore does, and a loopback endpoint skips the proxy, which is what lets `WebIdentityEndToEndTests` run the success path over a real socket with bodies from botocore. A missing `required` member names the key that could have restored it. `DYNA209` also covers `Select` of a non-nullable `[Version]`. The docs say what the services had to find out.
+- Open after I1: real STS and IRSA, and the decisions on the renames and on what the services still write by hand.
 - Not reached by the review: `Mixed*Command` bodies, `TransactGetCommand`, `CommandDebugger`, `ExpressionLexer` and `ExpressionParser`, `WrapInAttrCodeFix`. Unchecked on real DynamoDB: `-0` and `1E-07` as `N` text, and `GetItem` of a projection that matches nothing, which an emulator answers with `Item:{}`.
 
 ## M4 and later

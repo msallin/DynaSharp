@@ -188,8 +188,8 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             if (!fields.To__set) { fields.To = __restored2.To; fields.To__set = true; }
         }
 
-        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Ranged", "Id"); }
-        if (!fields.Name__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Ranged", "Name"); }
+        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Ranged", "Id", "pk"); }
+        if (!fields.Name__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Ranged", "Name", "sk"); }
         return new global::KeyShapes.Ranged(in fields);
     }
 
@@ -227,7 +227,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Ranged</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Ranged</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string id, string name, int seat) => new PrimaryKey(id, name, seat);
 
         /// <summary>The primary key of <c>Ranged</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -282,7 +282,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Ranged</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Ranged</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Ranged> Of(string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.Ranged>(Format(id), "pk");
 
@@ -423,6 +423,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             public static global::DynaSharp.SortKeyCondition BeginsWith(string name) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(name));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>Name</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <remarks>The key goes on behind <c>Name</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.Sk.Prefix(from), Keys.Sk.Prefix(to))</c>.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
 
@@ -671,6 +672,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             public static global::DynaSharp.SortKeyCondition BeginsWith(int from) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(from));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>From</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <remarks>The key goes on behind <c>From</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.ByBoundsSk.Prefix(from), Keys.ByBoundsSk.Prefix(to))</c>.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int from, int to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
 
@@ -734,6 +736,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             public static global::DynaSharp.SortKeyCondition BeginsWith(int from, int to) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(from, to));
 
             /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>To</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <remarks>The key goes on behind <c>To</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. A range that ends before <c>to</c> is <c>SortKeyCondition.Between(Keys.ByBoundsSk.Prefix(from, from_), Keys.ByBoundsSk.Prefix(from, to))</c>.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int from, int from_, int to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from, from_), UpperBound(from, to));
 

@@ -74,6 +74,7 @@ public sealed class CompileGuardTests
     [Arguments("""await index.Get("a");""", "CS0311")]
     [Arguments("""await orders.Put();""", "CS7036")]
     [Arguments("""await orders.Put(new Order("a")).With("x", 1);""", "CS1929")]
+    [Arguments("""_ = typeof(SetArrayConverter<string, StringConverter>);""", "CS0315")]
     [Arguments("""shop.Of<Address>();""", "CS0311")]
     [Arguments("""shop.Of<Item>();""", "CS0311")]
     [Arguments("""orders.CreateTable().Including<Address>();""", "CS0311")]

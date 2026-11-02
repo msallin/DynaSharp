@@ -328,7 +328,7 @@ internal static class WriteRules
     {
         if (TConverter.IsOmitted(value))
         {
-            throw new ArgumentException($"The attribute {path} has [OmitEmpty], so an empty string counts as null, and SetIfNotExists takes a value.", nameof(value));
+            throw new ArgumentException($"The converter of the attribute {path} counts this value as null, and SetIfNotExists takes a value.", nameof(value));
         }
     }
 

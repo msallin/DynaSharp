@@ -246,6 +246,68 @@ public sealed class WebIdentityCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_EndpointVariableBesideExplicitSettings_StillGoesThere()
+    {
+        // Arrange (the settings of the constructor replace the variables that describe the role, and neither says where STS is, as with AWS_STS_REGIONAL_ENDPOINTS)
+        var world = new World(Env(("AWS_ENDPOINT_URL_STS", "http://127.0.0.1:4566")), settings: new WebIdentityCredentialsProvider.Settings(TokenPath, RoleArn, Region, null));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Single().RequestUri!.AbsoluteUri).IsEqualTo("http://127.0.0.1:4566/");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointVariableChanges_IsReadAtEveryFetch()
+    {
+        // Arrange
+        var endpoint = "http://127.0.0.1:4566";
+        var world = new World(name => name == "AWS_ENDPOINT_URL_STS" ? endpoint : Env(Irsa)(name));
+        var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        endpoint = "http://127.0.0.1:4567";
+        world.Provider.TryInvalidate(first);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests[^1].RequestUri!.AbsoluteUri).IsEqualTo("http://127.0.0.1:4567/");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_FailuresAtAConfiguredEndpoint_NameItsHost()
+    {
+        // Arrange
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://127.0.0.1:4566")])) { Answer = (_, _) => Task.FromResult(Error("Throttling", HttpStatusCode.BadRequest)) };
+
+        // Act
+        var failing = TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+        await world.AdvanceThroughPausesAsync(2);
+        var exception = await failing;
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("STS at 127.0.0.1 did not return credentials in 3 attempts. The last attempt: Throttling.");
+    }
+
+    [Test]
+    [Arguments("AWS_ENDPOINT_URL_STS", "not a url", "The AWS_ENDPOINT_URL_STS environment variable is not a valid endpoint: it is not an absolute URL.")]
+    [Arguments("AWS_ENDPOINT_URL_STS", "ftp://sts.example.com", "The AWS_ENDPOINT_URL_STS environment variable is not a valid endpoint: the scheme must be http or https.")]
+    [Arguments("AWS_ENDPOINT_URL", "https://sts.example.com/base", "The AWS_ENDPOINT_URL environment variable is not a valid endpoint: it must not have a path.")]
+    [Arguments("AWS_ENDPOINT_URL", "https://key:secret@sts.example.com", "The AWS_ENDPOINT_URL environment variable is not a valid endpoint: it must not have user info.")]
+    public async Task GetCredentialsAsync_InvalidEndpointVariable_ThrowsNamingItWithoutItsValueOrARequest(string variable, string value, string message)
+    {
+        // Arrange (a token sent to the wrong place cannot be taken back, so a value that makes no sense is no reason to fall back on the region)
+        var world = new World(Env([.. Irsa, (variable, value)]));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That((exception.Message, world.Handler.Requests.Count)).IsEqualTo((message, 0));
+    }
+
+    [Test]
     [Arguments("AWS_REGION", "ap-southeast-2")]
     [Arguments("AWS_DEFAULT_REGION", "sa-east-1")]
     public async Task GetCredentialsAsync_NoClient_FindsTheRegionInTheEnvironment(string variable, string region)

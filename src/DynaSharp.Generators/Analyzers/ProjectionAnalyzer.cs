@@ -8,8 +8,9 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// What a read of part of an item cannot get from it. DYNA208: <c>orders.Query(pk).Project("Total").ItemsAsync()</c> where the entity has a member that a read throws without, which is what the generator's
-/// <see cref="MissingBehavior.Throw"/> says. A read adds its discriminator and its keys, so a member that one of those restores is not missing. DYNA209: <c>Select(handle)</c> of a stored property that a key
-/// of the table holds, whose attribute an item created by an update does not have, where a read of the entity restores it from the key.
+/// <see cref="MissingBehavior.Throw"/> says. A read adds its discriminator and its keys, so a member that one of those restores is not missing. DYNA209: <c>Select(handle)</c> of an attribute that an item can
+/// lack where a read of the entity goes on: a stored property that a key of the table holds, which an item created by an update does not have and a read restores from the key, and a version, which an item
+/// written without one does not have and a read takes for 0.
 /// </summary>
 /// <remarks>
 /// A chain says what it reads when it is followed from the table to its terminal, so a chain that came from a variable, goes on in one, or passes a method of the consumer says nothing, and neither does a
@@ -29,6 +30,8 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     private const string NameMethod = "Attr";
 
     private const string IndexType = "Index";
+
+    private const string SelectOfVersion = "is its version, and an item written without one has no such attribute: a read of the entity gives 0, Select does not and throws. Read the entity, or Select only from items that have a version.";
 
     // The terminals that read no item: a count has no use for a projection, and it throws for one anyway.
     private static readonly HashSet<string> ReadNoItem = ["ToRequestJson", "CountAsync"];
@@ -76,11 +79,21 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         var argument = select.Arguments[0].Value;
         if (argument is IPropertyReferenceOperation { Property: { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } handle }
             && models.ModelOf(owner) is { Entity: { } entity } model
-            && model.Property(handle.Name).FallbackKey is { } key
-            && IsKeyOfTheTable(entity, key))
+            && WhySelectThrows(entity, model.Property(handle.Name)) is { } reason)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.SelectOfKeyInput, argument.Syntax.GetLocation(), handle.Name, owner.Name, key));
+            context.ReportDiagnostic(Diagnostic.Create(Descriptors.SelectOfKeyInput, argument.Syntax.GetLocation(), handle.Name, owner.Name, reason));
         }
+    }
+
+    // What a read of the entity gets past and Select does not. A version that is required or a parameter without a default fails both reads alike, and a version cannot be nullable or feed a key.
+    private static string? WhySelectThrows(EntityModel entity, PropertyModel property)
+    {
+        if (property.FallbackKey is { } key && IsKeyOfTheTable(entity, key))
+        {
+            return $"is held by the key '{key}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote.";
+        }
+
+        return property.Name == entity.VersionProperty && property.Missing == MissingBehavior.KeepCurrent ? SelectOfVersion : null;
     }
 
     // An update stores no input of a key of the table, which is what leaves an item with the key alone. An input of an index is set like any other attribute, and its key follows.

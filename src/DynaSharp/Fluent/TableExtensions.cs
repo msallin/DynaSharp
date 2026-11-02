@@ -46,7 +46,7 @@ public static class TableExtensions
     public static PutCommand<Item> With<TNumber>(this PutCommand<Item> command, string name, TNumber value)
         where TNumber : INumberBase<TNumber> => command.Attribute<TNumber, NumberConverter<TNumber>>(name, value);
 
-    /// <summary>Adds an attribute to the item of a put through its converter. A handle of a property with <see cref="OmitEmptyAttribute"/> adds nothing for an empty string.</summary>
+    /// <summary>Adds an attribute to the item of a put through its converter. A handle of a property with <see cref="OmitEmptyAttribute"/> adds nothing for an empty string, and neither does any value that <see cref="IDynamoDbConverter{T}.IsOmitted"/> of the converter counts as null.</summary>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>
     /// <param name="command">The command.</param>
@@ -288,8 +288,14 @@ public static class TableExtensions
     /// without a <see cref="VersionAttribute"/> it changes nothing.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// This is also how an item without a version attribute is taken over. Such an item reads as version 0, and a put at 0 fails with <see cref="ConditionalCheckFailedException"/>, because 0 says that no item has the
+    /// key. <c>orders.Put(order with { Revision = 1 }).IgnoreVersion()</c> stores version 1, and the next write is an ordinary one. It has to be above 0: an item stored at 0 reads as 0 and fails that next write the same way.
+    /// </para>
+    /// <para>
     /// <see cref="Table{T}.Put(T)"/> has written the item with the next version by now, so this writes it a second time, and a change to the entity since then shows. That same first
     /// write is why an entity at the last version its property holds throws <see cref="OverflowException"/> at the put, before this can say anything.
+    /// </para>
     /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>
     /// <param name="command">The command.</param>

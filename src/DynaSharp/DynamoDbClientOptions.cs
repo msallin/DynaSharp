@@ -66,6 +66,10 @@ public sealed record DynamoDbClientOptions
     /// dispose a handler it was given. When <see langword="null"/>, the client creates and owns a pooled
     /// <see cref="SocketsHttpHandler"/>.
     /// </summary>
+    /// <remarks>
+    /// It carries the requests to DynamoDB, and no others. The providers of credentials have HTTP clients of their own, for the token of <see cref="Credentials.WebIdentityCredentialsProvider"/> and the
+    /// keys of the container and metadata endpoints, so a client with a stub here still calls the real STS or metadata endpoint when the environment selects that provider. A test sets <see cref="Credentials"/> as well.
+    /// </remarks>
     public HttpMessageHandler? HttpHandler { get; init; }
 
     /// <summary>

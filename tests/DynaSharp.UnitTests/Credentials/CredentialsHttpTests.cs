@@ -34,6 +34,54 @@ public sealed class CredentialsHttpTests
     }
 
     [Test]
+    [Arguments("http://127.0.0.1:4566/")]
+    [Arguments("http://127.1.2.3:4566/")]
+    [Arguments("http://localhost:4566/")]
+    [Arguments("https://LOCALHOST/")]
+    [Arguments("http://[::1]:4566/")]
+    public async Task GetClientFor_Loopback_SendsPastTheProxy(string endpoint)
+    {
+        // Arrange (HttpClient.DefaultProxy sends loopback to HTTP_PROXY too, unless NO_PROXY says otherwise, and nothing behind a proxy can reach a port of this machine)
+
+        // Act
+        var client = CredentialsHttp.GetClientFor(new Uri(endpoint), null);
+
+        // Assert
+        await Assert.That(client).IsSameReferenceAs(CredentialsHttp.GetClient(null));
+    }
+
+    [Test]
+    [Arguments("https://sts.eu-west-1.amazonaws.com/")]
+    [Arguments("https://sts.example.com:8443/")]
+    [Arguments("http://169.254.170.2/")]
+    [Arguments("http://10.0.0.1:4566/")]
+    public async Task GetClientFor_AnyOtherHost_UsesTheDefaultProxy(string endpoint)
+    {
+        // Arrange (STS is often reached through an egress proxy)
+
+        // Act
+        var client = CredentialsHttp.GetClientFor(new Uri(endpoint), null);
+
+        // Assert
+        await Assert.That(client).IsSameReferenceAs(CredentialsHttp.GetProxiedClient(null));
+    }
+
+    [Test]
+    [Arguments("http://127.0.0.1:4566/")]
+    [Arguments("https://sts.eu-west-1.amazonaws.com/")]
+    public async Task GetClientFor_Handler_SendsThroughIt(string endpoint)
+    {
+        // Arrange
+        using var handler = new DisposalTrackingHandler();
+
+        // Act
+        var client = CredentialsHttp.GetClientFor(new Uri(endpoint), handler);
+
+        // Assert
+        await Assert.That(HttpClientInspector.HandlerOf(client)).IsSameReferenceAs(handler);
+    }
+
+    [Test]
     public async Task GetProxiedClient_Handler_SendsThroughIt()
     {
         // Arrange

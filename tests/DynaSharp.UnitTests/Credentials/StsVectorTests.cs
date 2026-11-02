@@ -24,6 +24,8 @@ public sealed class StsVectorTests
 
     public static IEnumerable<StsVector> Endpoints() => StsVectors.Rows("endpoints");
 
+    public static IEnumerable<StsVector> ConfiguredEndpoints() => StsVectors.Rows("configured_endpoints");
+
     public static IEnumerable<StsVector> Responses() => StsVectors.Rows("responses");
 
     public static IEnumerable<StsVector> Errors() => StsVectors.Rows("errors");
@@ -77,6 +79,29 @@ public sealed class StsVectorTests
             new ManualTimeProvider(Now),
             NullLogger.Instance,
             AwsRegion.FromName(vector.Text("region")));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(handler.Requests.Single().RequestUri!.AbsoluteUri).IsEqualTo(vector.Text("url"));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(ConfiguredEndpoints))]
+    public async Task GetCredentialsAsync_ConfiguredEndpoint_PostsToTheUrlOfBotocore(StsVector vector)
+    {
+        // Arrange
+        using var handler = Answering(Success());
+        var variables = vector.Entry.GetProperty("environment").EnumerateObject().Select(static variable => (variable.Name, variable.Value.GetString()!));
+        var region = vector.Entry.GetProperty("region").GetString();
+        var provider = new WebIdentityCredentialsProvider(
+            Env([.. variables, ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)]),
+            Files((TokenPath, "token")),
+            handler,
+            new ManualTimeProvider(Now),
+            NullLogger.Instance,
+            region is null ? null : AwsRegion.FromName(region));
 
         // Act
         await provider.GetCredentialsAsync(CancellationToken.None);

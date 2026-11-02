@@ -126,6 +126,11 @@ public sealed class CreateTableCommand
     /// When <c>DescribeTable</c> finds no table, either a delete just ended or, because that call is eventually consistent, another process just created the table, as instances of a program that start together do.
     /// So the command creates again, up to 5 times over 1.5 seconds, which ends in a new table or in the one that turned up. The <see cref="ResourceInUseException"/> surfaces only if that settles nothing.
     /// </para>
+    /// <para>
+    /// It finds out by trying: <c>CreateTable</c> goes out on every call, also for a table that exists, and <c>DescribeTable</c> follows when that fails. So the role needs <c>dynamodb:CreateTable</c> as well as
+    /// <c>dynamodb:DescribeTable</c>, also where the table is always there, and every call on an existing table leaves a failed <c>CreateTable</c> in CloudTrail and in error metrics. With
+    /// <see cref="WaitUntilActive()"/> on an existing table the command describes twice, once to find the table and once to see that it is active.
+    /// </para>
     /// </remarks>
     /// <returns>This command.</returns>
     public CreateTableCommand IfNotExists()

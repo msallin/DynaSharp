@@ -691,28 +691,6 @@ public sealed class DynamoDbClientTests
         public ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken) => ValueTask.FromResult(new AwsCredentials(AccessKeyId, SecretAccessKey));
     }
 
-    private sealed class ScopedEnvironmentVariables : IDisposable
-    {
-        private readonly (string Name, string? Previous)[] _previous;
-
-        public ScopedEnvironmentVariables(params (string Name, string? Value)[] variables)
-        {
-            _previous = [.. variables.Select(variable => (variable.Name, Environment.GetEnvironmentVariable(variable.Name)))];
-            foreach (var (name, value) in variables)
-            {
-                Environment.SetEnvironmentVariable(name, value);
-            }
-        }
-
-        public void Dispose()
-        {
-            foreach (var (name, previous) in _previous)
-            {
-                Environment.SetEnvironmentVariable(name, previous);
-            }
-        }
-    }
-
     private sealed class TrackingHandler : HttpMessageHandler
     {
         public bool Disposed { get; private set; }

@@ -12,6 +12,23 @@ public sealed class SelectCommandTests
     private const string Items = """{"Items":[{"Count":{"N":"1"}},{"Count":{"N":"2"}}],"Count":2,"ScannedCount":3}""";
 
     [Test]
+    public async Task SendAsync_VersionOfAnItemWithoutOne_ThrowsWhereAReadOfTheEntityGivesZero()
+    {
+        // Arrange (DYNA209 reports this where it sees a handle, and a variable is no such place)
+        using var handler = new StubHandler(static _ => StubResponse.Json("""{"Item":{"pk":{"S":"r1"},"Id":{"S":"r1"},"_type":{"S":"VERSIONED_ROSTER"}}}"""));
+        using var client = TestClient.Create(handler);
+        var rosters = client.Table<VersionedRoster>("Shop");
+        var revision = VersionedRoster.Attrs.Revision;
+
+        // Act
+        var entity = await rosters.Get(VersionedRoster.Keys.Of("r1")).ItemAsync();
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await rosters.Get(VersionedRoster.Keys.Of("r1")).Select(revision).SendAsync());
+
+        // Assert
+        await Assert.That((entity!.Revision, failure.AttributeName)).IsEqualTo((0L, "Revision"));
+    }
+
+    [Test]
     public async Task ToRequestJson_GetOfAnEntity_ProjectsTheAttributeAndTheDiscriminator()
     {
         // Arrange

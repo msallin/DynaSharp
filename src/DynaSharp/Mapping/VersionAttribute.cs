@@ -15,8 +15,9 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// Version 0 checks the key and never looks at the version attribute: every 0, on a <c>Put</c>, in <c>.IfVersion(0)</c>, on a <c>Delete</c> of an entity and on a step of a transaction, renders
-/// <c>attribute_not_exists</c> on the partition key. So a first write fails on any item under its key, also on one without a version attribute, such as one written by other code, which reads as
-/// version 0. <c>.IgnoreVersion()</c> is how such an item is taken over, by an entity with a version above 0, because an item stored at 0 reads as 0 and fails the next write the same way.
+/// <c>attribute_not_exists</c> on the partition key. So a first write fails on any item under its key, also on one without a version attribute, such as one written by other code: that item reads as
+/// version 0, and a <c>Put</c> at 0 then fails with <see cref="ConditionalCheckFailedException"/>, because 0 says that no item has the key. To take such an item over, put it once with a version above 0 and without
+/// the check: <c>orders.Put(order with { Revision = 1 }).IgnoreVersion()</c>, which stores version 1, and the writes after it are ordinary ones. At 0 the item would read as 0 and fail the next write the same way.
 /// <c>.IfNotExists()</c> at version 0 is the same condition and renders once; above version 0 it throws, because no item can lack its key and hold a version. <c>.IfExists()</c> at version 0 throws for the same reason the
 /// other way around, unless <c>.IgnoreVersion()</c> lifts it as it lifts that rule.
 /// </para>

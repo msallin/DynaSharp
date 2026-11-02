@@ -165,10 +165,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
             if (!fields.City__set) { fields.City = __restored1.City; fields.City__set = true; }
         }
 
-        if (!fields.Tenant__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Tenant"); }
-        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Id"); }
-        if (!fields.Region__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Region"); }
-        if (!fields.City__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "City"); }
+        if (!fields.Tenant__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Tenant", "pk"); }
+        if (!fields.Id__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Id", "pk"); }
+        if (!fields.Region__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "Region", "sk"); }
+        if (!fields.City__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Member", "City", "sk"); }
         return new global::KeyShapes.Member(in fields);
     }
 
@@ -202,7 +202,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Member</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Member</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string tenant, string id, string region, string city) => new PrimaryKey(tenant, id, region, city);
 
         /// <summary>The primary key of <c>Member</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -260,7 +260,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Member</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Member</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Member> Of(string tenant, string id) => new global::DynaSharp.PartitionKey<global::KeyShapes.Member>(Format(tenant, id), "pk");
 

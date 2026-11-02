@@ -59,10 +59,25 @@ public interface IDynamoDbConverter<T>
     public static abstract T Read(ref DynamoDbReader reader, AttributeType type);
 
     /// <summary>
-    /// Finds out whether a command by handle treats a value like null, which <see cref="Mapping.OmitEmptyAttribute"/> asks for through <see cref="OmitEmptyConverter{TConverter}"/>. No other converter has a use for
-    /// this: the default answers <see langword="false"/>, and a struct converter compiles that away, so a handle pays nothing.
+    /// Finds out whether a write treats a value like null, which leaves the attribute out. It is for a value that DynamoDB would refuse, or that should not be stored, such as a list stored as a set, which cannot be
+    /// empty: <c>public static bool IsOmitted(List&lt;string&gt; value) =&gt; value.Count == 0;</c>. <see cref="Mapping.OmitEmptyAttribute"/> asks the same question through <see cref="OmitEmptyConverter{TConverter}"/>.
     /// </summary>
-    /// <param name="value">The value.</param>
+    /// <remarks>
+    /// <para>
+    /// Every write of the property asks: a <c>Put</c> of the entity, <c>Item.From</c>, a batch, a step of a transaction and a nested document leave the attribute out, <c>Set</c> by handle is a <c>Remove</c>,
+    /// <c>SetIfNotNull</c> adds nothing and <c>SetIfNotExists</c> rejects the value with an <see cref="ArgumentException"/>. A raw path writes what it is given. A nullable property asks with a value that is not null.
+    /// </para>
+    /// <para>
+    /// The default answers <see langword="false"/>. The source generator emits the call only for a <c>[DynamoDbConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
+    /// handle compiles the question away. It is the property that a converter answers for: a property that feeds a key is always written, because a key cannot do without it, and an element of a list or a map is
+    /// always written, because a list has positions.
+    /// </para>
+    /// <para>
+    /// A read does not ask. The item has no attribute, so a read of the entity keeps the initial value of the property, and throws <see cref="DynamoDbMappingException"/> if it is <c>required</c>. Give the property an
+    /// initial value that means the same as what was left out, and implement <see cref="TryReadMissing"/> for <c>Select</c>.
+    /// </para>
+    /// </remarks>
+    /// <param name="value">The value, never <see langword="null"/> on a write.</param>
     /// <returns><see langword="true"/> if the value counts as null.</returns>
     public static virtual bool IsOmitted(T value) => false;
 

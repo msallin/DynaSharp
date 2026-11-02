@@ -31,6 +31,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.StringConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: True
@@ -51,6 +52,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.StringConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: True
@@ -71,6 +73,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: True

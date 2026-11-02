@@ -169,7 +169,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public new static class Keys
     {
-        /// <summary>Creates the primary key of <c>Derived</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Derived</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string id) => new PrimaryKey(id);
 
         /// <summary>The primary key of <c>Derived</c>, which holds the values of the key and costs no string until it is written.</summary>

@@ -163,7 +163,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>Edge</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>Edge</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string source, string target) => new PrimaryKey(source, target);
 
         /// <summary>The primary key of <c>Edge</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -216,7 +216,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string source) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(source), "pk");
 
@@ -471,7 +471,7 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 }
             }
 
-            /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take.</summary>
+            /// <summary>Formats the complete key as a key of <c>Edge</c>, which a query of another entity does not take. The values are checked here, unlike those of <c>Keys.Of</c>, which waits for the key to be written.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Edge> Of(string target) => new global::DynaSharp.PartitionKey<global::KeyShapes.Edge>(Format(target), "sk");
 

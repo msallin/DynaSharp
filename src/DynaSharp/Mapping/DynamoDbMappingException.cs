@@ -59,6 +59,14 @@ public sealed class DynamoDbMappingException : Exception
     public static DynamoDbMappingException Missing(string entityType, string attributeName) =>
         new($"The attribute \"{attributeName}\" is missing, so the item cannot be read as {entityType}.", entityType, attributeName, null);
 
+    /// <summary>Creates the exception for a required attribute the item does not have, where a key of the item could have stood in for it, and did not. The message holds no value.</summary>
+    /// <param name="entityType">The .NET type that was read.</param>
+    /// <param name="attributeName">The attribute.</param>
+    /// <param name="keyAttribute">The attribute of the key that holds the value too. It is missing, or it does not fit its template, which is what to look at first.</param>
+    /// <returns>The exception.</returns>
+    public static DynamoDbMappingException Missing(string entityType, string attributeName, string keyAttribute) =>
+        new($"The attribute \"{attributeName}\" is missing, and the key \"{keyAttribute}\" that could restore it is missing or does not fit its template, so the item cannot be read as {entityType}.", entityType, attributeName, null);
+
     /// <summary>Creates the exception for a key that does not fit its template, so that what only the key holds cannot be read from it. The message holds no value.</summary>
     /// <param name="entityType">The .NET type that was read.</param>
     /// <param name="attributeName">The attribute of the key.</param>

@@ -22,6 +22,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.GuidConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -42,6 +43,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.DateTimeOffsetConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -62,6 +64,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.GuidConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -82,6 +85,7 @@ Properties:
       ReadConverter: Shop_OrderStatusConverter
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -102,6 +106,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NumberConverter<decimal>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: Throw
     IsConstructorParameter: False
@@ -122,6 +127,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -142,6 +148,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -162,6 +169,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NullableReferenceConverter<global::Shop.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shop.Address>>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -182,6 +190,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.ReadOnlyListConverter<global::Shop.LineItem, global::DynaSharp.Serialization.DocumentConverter<global::Shop.LineItem>>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -202,6 +211,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>
       EmptySet: new global::System.Collections.Generic.HashSet<string>()
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotEmptyCount
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -222,6 +232,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: WhenNotNull
     Missing: KeepCurrent
     IsConstructorParameter: False
@@ -242,6 +253,7 @@ Properties:
       ReadConverter: global::DynaSharp.Serialization.NumberConverter<long>
       EmptySet: null
       WriteForwarder: null
+      OmissionForwarder: null
     Write: Always
     Missing: KeepCurrent
     IsConstructorParameter: False

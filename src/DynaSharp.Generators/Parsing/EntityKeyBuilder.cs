@@ -63,7 +63,7 @@ internal sealed class EntityKeyBuilder(
         }
 
         var version = VersionProperty();
-        KeepKeysFromOmitEmpty();
+        KeepKeysFromOmitting();
         if (bag.HasErrors)
         {
             return null;
@@ -466,12 +466,14 @@ internal sealed class EntityKeyBuilder(
         }
     }
 
-    // A key must not be empty, and one that leaves out an input is no key, so on a type the attribute passes over a property that feeds one, and on the property it is a mistake.
-    private void KeepKeysFromOmitEmpty()
+    // A key must not be empty, and one that leaves out an input is no key, so on a type the attribute passes over a property that feeds one, and on the property it is a mistake. A converter
+    // decides by value, at run time, where nothing can report it, so its answer goes the way of the attribute on a type.
+    private void KeepKeysFromOmitting()
     {
         foreach (var property in properties.Where(FeedsKey))
         {
             property.OmitsEmpty = false;
+            property.Resolved = property.Resolved?.AlwaysWritten();
             if (property.OmitEmpty is { } attribute && property.IsNullableString)
             {
                 bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key");

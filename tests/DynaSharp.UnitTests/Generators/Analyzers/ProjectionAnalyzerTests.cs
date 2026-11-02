@@ -117,6 +117,38 @@ public sealed class ProjectionAnalyzerTests
             public required string Id { get; init; }
         }
 
+        [DynamoDbEntity]
+        [Discriminator("LEDGER")]
+        [PartitionKey("LEDGER#{Id}")]
+        public partial record Ledger
+        {
+            public required string Id { get; init; }
+
+            [Version]
+            public long Revision { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("STRICT")]
+        [PartitionKey("STRICT#{Id}")]
+        public partial record StrictLedger
+        {
+            public required string Id { get; init; }
+
+            [Version]
+            public required long Revision { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("POSITIONAL")]
+        [PartitionKey("POSITIONAL#{Id}")]
+        public partial record PositionalLedger(string Id, [property: Version] long Revision);
+
+        [DynamoDbEntity]
+        [Discriminator("DEFAULTED")]
+        [PartitionKey("DEFAULTED#{Id}")]
+        public partial record DefaultedLedger(string Id, [property: Version] long Revision = 0);
+
         [DynamoDbDocument]
         public partial record Note(string Text);
 
@@ -164,6 +196,10 @@ public sealed class ProjectionAnalyzerTests
         private static readonly Table<Event> events = null!;
         private static readonly Table<Note> notes = null!;
         private static readonly Table<Hand> hands = null!;
+        private static readonly Table<Ledger> ledgers = null!;
+        private static readonly Table<StrictLedger> strictLedgers = null!;
+        private static readonly Table<PositionalLedger> positionalLedgers = null!;
+        private static readonly Table<DefaultedLedger> defaultedLedgers = null!;
         private static readonly Index<Order> byStatus = null!;
         private static readonly Index<Item> byStatusRaw = null!;
         private static readonly Order.Keys.PrimaryKey key = default;
@@ -348,6 +384,23 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
+    [Arguments("""_ = ledgers.Get("a").Select([|Ledger.Attrs.Revision|]).SendAsync();""", "Ledger")]
+    [Arguments("""_ = ledgers.Query("a").Select([|Ledger.Attrs.Revision|]).ItemsAsync();""", "Ledger")]
+    [Arguments("""_ = ledgers.Scan().Select([|Ledger.Attrs.Revision|]).ItemsAsync();""", "Ledger")]
+    [Arguments("""_ = defaultedLedgers.Get("a").Select([|DefaultedLedger.Attrs.Revision|]).SendAsync();""", "DefaultedLedger")]
+    public async Task Select_VersionThatAReadOfTheEntityDefaults_Reports(string statement, string type)
+    {
+        // Arrange
+        var source = Source(statement);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: 'Revision' of '{type}' is its version, and an item written without one has no such attribute: a read of the entity gives 0, Select does not and throws. Read the entity, or Select only from items that have a version."));
+    }
+
+    [Test]
     [Arguments("""_ = orders.Get(key).Select([|Order.Attrs.UserId|]).SendAsync();""", "UserId", "Order", "pk")]
     [Arguments("""_ = orders.Query("a").Select([|Order.Attrs.OrderId|]).ItemsAsync();""", "OrderId", "Order", "sk")]
     [Arguments("""_ = routes.Scan().Select([|Route.Attrs.Id|]).ItemsAsync();""", "Id", "Route", "pk")]
@@ -376,6 +429,10 @@ public sealed class ProjectionAnalyzerTests
     // An input of an index is an attribute that an update sets, on a table with a sort key and on one without.
     [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ItemsAsync();""")]
     [Arguments("""_ = routes.Scan().Select(Route.Attrs.City).ItemsAsync();""")]
+
+    // A version that a read of the entity needs as well, so there is nothing that Select does otherwise.
+    [Arguments("""_ = strictLedgers.Get("a").Select(StrictLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = positionalLedgers.Get("a").Select(PositionalLedger.Attrs.Revision).SendAsync();""")]
 
     // Handles that cannot be followed, a nested path, and one of a type without a model.
     [Arguments("""_ = orders.Get(key).Select(kept).SendAsync();""")]

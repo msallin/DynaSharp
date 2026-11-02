@@ -326,8 +326,8 @@ internal static class Descriptors
 
     public static readonly DiagnosticDescriptor SelectOfKeyInput = new(
         "DYNA209",
-        "Select of a property that a key of the table holds",
-        "'{0}' of '{1}' is held by the key '{2}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote.",
+        "Select of an attribute that a read of the entity can do without",
+        "'{0}' of '{1}' {2}",
         Commands,
         DiagnosticSeverity.Warning,
         true,

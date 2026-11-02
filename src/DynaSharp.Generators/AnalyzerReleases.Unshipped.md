@@ -15,6 +15,6 @@ DYNA205 | DynaSharp.Commands | Warning | Write to a key of the table
 DYNA206 | DynaSharp.Commands | Warning | IfNotExists on a Put with a version
 DYNA207 | DynaSharp.Commands | Warning | Index is not declared
 DYNA208 | DynaSharp.Commands | Warning | Project leaves out a required member
-DYNA209 | DynaSharp.Commands | Warning | Select of a property that a key of the table holds
+DYNA209 | DynaSharp.Commands | Warning | Select of an attribute that a read of the entity can do without
 DYNA215 | DynaSharp.Expressions | Warning | Handle of another type
 DYNA216 | DynaSharp.Expressions | Warning | Text function on a number

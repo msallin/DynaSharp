@@ -88,6 +88,7 @@ DynaSharp.Streams.StreamDescription.StreamArn.get -> string?
 DynaSharp.Streams.StreamSummary.StreamArn.get -> string?
 static DynaSharp.ContinuationToken.Parse(string? text) -> DynaSharp.ContinuationToken
 static DynaSharp.DynamoDbMappingException.KeyDoesNotFit(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!
+static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName, string! keyAttribute) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<byte[]!, DynaSharp.Serialization.BinaryConverter> attribute, System.ReadOnlyMemory<byte> prefix) -> DynaSharp.Expressions.BeginsWith
 static DynaSharp.AttrExtensions.BeginsWith(this DynaSharp.Attr<System.ReadOnlyMemory<byte>, DynaSharp.Serialization.ReadOnlyMemoryConverter> attribute, string! prefix) -> DynaSharp.Expressions.BeginsWith

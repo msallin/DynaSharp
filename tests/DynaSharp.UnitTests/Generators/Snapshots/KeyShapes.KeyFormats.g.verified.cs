@@ -536,7 +536,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
             if (!fields.Date__set) { fields.Date = __restored15.Date; fields.Date__set = true; }
         }
 
-        if (!fields.Text__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("KeyFormats", "Text"); }
+        if (!fields.Text__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("KeyFormats", "Text", "pk"); }
         if (!fields.Address__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("KeyFormats", "custompk"); }
         return new global::KeyShapes.KeyFormats(in fields);
     }
@@ -644,7 +644,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     public static class Keys
     {
-        /// <summary>Creates the primary key of <c>KeyFormats</c>. Values are validated when the key is written, by the command it goes to.</summary>
+        /// <summary>Creates the primary key of <c>KeyFormats</c>. It holds the values and checks none of them: this returns for a value that a key cannot hold, and <c>KeyFormatException</c> comes when the key is written, by the command it goes to, where <c>Format</c> and the <c>Of</c> of a builder of a partition key throw at once.</summary>
         public static PrimaryKey Of(string text) => new PrimaryKey(text);
 
         /// <summary>The primary key of <c>KeyFormats</c>, which holds the values of the key and costs no string until it is written.</summary>

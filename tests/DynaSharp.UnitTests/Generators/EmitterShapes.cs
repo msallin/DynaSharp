@@ -583,6 +583,94 @@ internal static class EmitterShapes
         }
         """;
 
+    public const string OmittedByConverter = Usings + """
+        namespace Shapes.Omitted
+        {
+            public readonly struct Answers : IDynamoDbConverter<List<string>>
+            {
+                public static void Write(DynamoDbWriter writer, List<string> value) => writer.WriteNull();
+
+                public static List<string> Read(ref DynamoDbReader reader, AttributeType type) => new();
+
+                public static bool IsOmitted(List<string> value) => value.Count == 0;
+            }
+
+            public readonly struct AnswersExplicitly : IDynamoDbConverter<int>
+            {
+                static void IDynamoDbConverter<int>.Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                static int IDynamoDbConverter<int>.Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+
+                static bool IDynamoDbConverter<int>.IsOmitted(int value) => value == 0;
+            }
+
+            public readonly struct Silent : IDynamoDbConverter<int>
+            {
+                public static void Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                public static int Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+            }
+
+            public readonly struct NoNote : IDynamoDbConverter<string>
+            {
+                public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value);
+
+                public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+
+                public static bool IsOmitted(string value) => value == "none";
+            }
+
+            [DynamoDbConverter(typeof(MoneyConverter))]
+            public readonly record struct Money(int Cents);
+
+            public readonly struct MoneyConverter : IDynamoDbConverter<Money>
+            {
+                public static void Write(DynamoDbWriter writer, Money value) => writer.WriteNumber(value.Cents);
+
+                public static Money Read(ref DynamoDbReader reader, AttributeType type) => new Money(reader.GetNumber<int>());
+
+                public static bool IsOmitted(Money value) => value.Cents == 0;
+            }
+
+            [DynamoDbEntity]
+            [Discriminator("ROSTER")]
+            public partial class Roster
+            {
+                [PartitionKey]
+                [DynamoDbConverter(typeof(AnswersExplicitly))]
+                public int Id { get; set; }
+
+                [DynamoDbConverter(typeof(Answers))]
+                public List<string> Tags { get; set; } = new();
+
+                [DynamoDbConverter(typeof(Answers))]
+                public List<string>? MaybeTags { get; set; }
+
+                [DynamoDbConverter(typeof(AnswersExplicitly))]
+                public int Score { get; set; }
+
+                [DynamoDbConverter(typeof(AnswersExplicitly))]
+                public int? MaybeScore { get; set; }
+
+                public Money Total { get; set; }
+
+                public Money? MaybeTotal { get; set; }
+
+                [OmitEmpty]
+                [DynamoDbConverter(typeof(NoNote))]
+                public string? Note { get; set; }
+
+                [DynamoDbConverter(typeof(Silent))]
+                public int Quiet { get; set; }
+
+                [DynamoDbConverter(typeof(EpochSecondsConverter))]
+                public DateTimeOffset At { get; set; }
+
+                public List<Money> Amounts { get; set; } = new();
+            }
+        }
+        """;
+
     public const string Versioned = Usings + """
         namespace Shapes.Versioned
         {
@@ -655,6 +743,7 @@ internal static class EmitterShapes
         ["ExplicitConverters"] = ExplicitConverters,
         ["Versioned"] = Versioned,
         ["OmitEmpty"] = OmitEmpty,
+        ["OmittedByConverter"] = OmittedByConverter,
     };
 
     public static IEnumerable<string> Names() => All.Keys;

@@ -180,6 +180,33 @@ internal sealed record ClientConfiguration
         }
     }
 
+    /// <summary>Finds the endpoint that the environment chooses for a service: the variable of the service, then <c>AWS_ENDPOINT_URL</c>, which is botocore's order. An empty variable counts as unset.</summary>
+    /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="serviceVariable">The variable of the service, such as <c>AWS_ENDPOINT_URL_STS</c>.</param>
+    /// <returns>The endpoint, or <see langword="null"/> if neither is set, and the variable it came from.</returns>
+    /// <exception cref="InvalidOperationException">The variable that is set is no valid endpoint. The message names the variable, and not its value.</exception>
+    internal static (Uri? Endpoint, string Source) FindEndpointInEnvironment(Func<string, string?> getEnvironmentVariable, string serviceVariable)
+    {
+        var (value, source) = ReadFirstSet(getEnvironmentVariable, serviceVariable, EndpointVariable);
+        if (string.IsNullOrEmpty(value))
+        {
+            return (null, source);
+        }
+
+        // The value is not echoed: an endpoint may carry credentials in its user info.
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint))
+        {
+            throw new InvalidOperationException($"The {source} environment variable is not a valid endpoint: it is not an absolute URL.");
+        }
+
+        if (FindEndpointProblem(endpoint) is { } problem)
+        {
+            throw new InvalidOperationException($"The {source} environment variable is not a valid endpoint: {problem}.");
+        }
+
+        return (endpoint, source);
+    }
+
     private static (Uri Endpoint, string Source) ResolveEndpoint(DynamoDbClientOptions options, AwsRegion region, Func<string, string?> getEnvironmentVariable, AwsService service)
     {
         if (options.ServiceUrl is { } serviceUrl)
@@ -193,24 +220,8 @@ internal sealed record ClientConfiguration
         }
 
         var streams = service == AwsService.DynamoDbStreams;
-        var (value, source) = ReadFirstSet(getEnvironmentVariable, streams ? DynamoDbStreamsEndpointVariable : DynamoDbEndpointVariable, EndpointVariable);
-        if (string.IsNullOrEmpty(value))
-        {
-            return (streams ? region.DynamoDbStreamsEndpoint : region.DynamoDbEndpoint, RegionSourceDefault);
-        }
-
-        // The value is not echoed: an endpoint may carry credentials in its user info.
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint))
-        {
-            throw new InvalidOperationException($"The {source} environment variable is not a valid endpoint: it is not an absolute URL.");
-        }
-
-        if (FindEndpointProblem(endpoint) is { } environmentProblem)
-        {
-            throw new InvalidOperationException($"The {source} environment variable is not a valid endpoint: {environmentProblem}.");
-        }
-
-        return (endpoint, source);
+        var (endpoint, source) = FindEndpointInEnvironment(getEnvironmentVariable, streams ? DynamoDbStreamsEndpointVariable : DynamoDbEndpointVariable);
+        return endpoint is null ? (streams ? region.DynamoDbStreamsEndpoint : region.DynamoDbEndpoint, RegionSourceDefault) : (endpoint, source);
     }
 
     // An unset and an empty variable count the same, as in the AWS SDKs.
