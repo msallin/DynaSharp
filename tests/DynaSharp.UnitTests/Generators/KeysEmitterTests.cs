@@ -21,6 +21,9 @@ public sealed partial class KeysEmitterTests
 
     private const string BuilderSnapshotPrefix = "KeyShapes.KeyFormats.Keys.";
 
+    // The largest source of the generator tests, and three tests ask the same of it at this version.
+    private static readonly SharedResult<GeneratorRunOutput> AtLatest = new(static () => GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), LanguageVersion.Latest));
+
     private static string KeyShapes => File.ReadAllText(Path.Combine(SnapshotComparer.ProjectDirectory, "Mapping", "KeyModels.cs"))
         .Replace(TestNamespace, ShapeNamespace, StringComparison.Ordinal);
 
@@ -28,7 +31,7 @@ public sealed partial class KeysEmitterTests
     public void Run_EveryKeyShape_MatchesTheVerifiedSnapshots()
     {
         // Arrange, Act
-        var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), LanguageVersion.Latest);
+        var output = AtLatest.Value;
 
         // Assert
         foreach (var (name, text) in output.Result.Results[0].GeneratedSources.SelectMany(Snapshots))
@@ -41,7 +44,7 @@ public sealed partial class KeysEmitterTests
     public async Task Run_KeyFormats_HasASnapshotPerBuilderAndNoOther()
     {
         // Arrange
-        var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), LanguageVersion.Latest);
+        var output = AtLatest.Value;
         var builders = output.Result.Results[0].GeneratedSources
             .SelectMany(Snapshots)
             .Select(static snapshot => snapshot.Name)
@@ -61,7 +64,7 @@ public sealed partial class KeysEmitterTests
     public async Task Run_EveryKeyShape_CompilesWithoutWarnings(LanguageVersion language)
     {
         // Arrange, Act
-        var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), language);
+        var output = language == LanguageVersion.Latest ? AtLatest.Value : GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), language);
 
         // Assert (a driver does not read the #pragma of RawTwin, which has this warning on purpose)
         await Assert.That(output.Problems.Where(static problem => !problem.Contains("warning DYNA120", StringComparison.Ordinal))).IsEmpty();

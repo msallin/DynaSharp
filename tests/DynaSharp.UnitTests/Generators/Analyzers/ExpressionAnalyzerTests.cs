@@ -83,6 +83,8 @@ public sealed class ExpressionAnalyzerTests
         }
         """;
 
+    private static readonly AnalyzerFixture WithFlags = new(FlagsModel);
+
     [Test]
     public async Task Analyze_LiteralLeftOfAnOperator_ReportsItsSpan()
     {
@@ -90,7 +92,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"{[|"status"|]} = {"open"}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NamePosition("status")));
@@ -103,7 +105,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"attribute_exists({[|"pk"|]})");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NamePosition("pk")));
@@ -120,7 +122,7 @@ public sealed class ExpressionAnalyzerTests
             """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NamePosition("status")));
@@ -133,7 +135,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").Set($"{[|"total"|]} = {1}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NamePosition("total")));
@@ -158,7 +160,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -171,7 +173,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"attribute_exists([|#pk|]) AND a = [|:v|]");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(
@@ -190,7 +192,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -203,7 +205,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"[|atribute_exists|]({Attr("a")})");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: unknown function 'atribute_exists'; function names are case sensitive"));
@@ -216,7 +218,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If([|$"{Attr("a")} = {1} AND"|]);""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: the expression ends too early"));
@@ -229,7 +231,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If([|$""|]);""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: the expression ends too early"));
@@ -242,7 +244,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"{Attr("a")} {[|Attr("b")|]}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: a hole cannot stand here"));
@@ -255,7 +257,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"{Attr("a")}[| ==\t|]{1}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: unexpected '='"));
@@ -268,7 +270,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"attribute_" + $"exists({Attr("a")}) AND {Attr("b")} = " + $"{1}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -281,7 +283,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"[|atribute_" + $"exists(|]{Attr("a")})");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA212 Warning: The expression is not valid: unknown function 'atribute_exists'; function names are case sensitive"));
@@ -300,7 +302,7 @@ public sealed class ExpressionAnalyzerTests
             """");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -313,7 +315,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Member("""public static void Run(DynamoDbClient client) { client.TransactWrite().Update(shop, "a").Set($"{Attr("a")} = {Attr("a")} + {1}"); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -326,7 +328,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Member("""public static void Run(DynamoDbClient client) { client.TransactWrite().Delete(shop, "a").If($"{[|"status"|]} = {1}"); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NamePosition("status")));
@@ -345,7 +347,7 @@ public sealed class ExpressionAnalyzerTests
             """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -364,7 +366,7 @@ public sealed class ExpressionAnalyzerTests
             """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA211 Error: DynaSharp generates placeholders; write the name in Attr(...) and the value in a hole, not '#a'"));
@@ -377,7 +379,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""ExpressionHandler handler = $"no ( grammar";""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -390,7 +392,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""shop.Update("a").If($"{Attr("a")} = {new object()}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -403,7 +405,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""var text = new System.Text.StringBuilder(); text.Append($"#not {1} (an expression");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -416,7 +418,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("""var text = $"#not {1} (an expression";""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -429,7 +431,7 @@ public sealed class ExpressionAnalyzerTests
         var source = "// <auto-generated/>\n" + AnalyzerRun.Statements("""shop.Update("a").If($"#a = {1}");""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -459,7 +461,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements(string.Join("\n", statements));
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(statements.Count).IsGreaterThan(30);
@@ -479,7 +481,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("shop." + chain + ";");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
@@ -501,7 +503,7 @@ public sealed class ExpressionAnalyzerTests
         var source = AnalyzerRun.Statements("shop." + chain + ";");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).DoesNotContain("DYNA216");
@@ -518,13 +520,13 @@ public sealed class ExpressionAnalyzerTests
     public async Task Analyze_TextFunctionOnAFlagsEnum_ReportsTheHandle(string chain, string function)
     {
         // Arrange (a [Flags] enum is stored as a number, which the generated forwarder of its handle does not say)
-        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+        var source = AnalyzerRun.Statements("shop." + chain + ";");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await WithFlags.ReportAsync(source);
 
         // Assert
-        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(WithFlags.CompilerErrors(source)).IsEmpty();
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
     }
 
@@ -534,10 +536,10 @@ public sealed class ExpressionAnalyzerTests
     public async Task Analyze_TextFunctionOnAVersionThatAllowsAnItemWithoutOne_ReportsTheHandle(string chain, string function)
     {
         // Arrange (the handle has a generated converter, which the overload that does not compile cannot name)
-        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+        var source = AnalyzerRun.Statements("shop." + chain + ";");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await WithFlags.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
@@ -559,13 +561,13 @@ public sealed class ExpressionAnalyzerTests
     public async Task Analyze_TextFunctionOnAnEnumStoredAsText_ReportsNoSuchThing(string chain)
     {
         // Arrange (an enum is stored by name, and a set of the enum is what contains is for; a method called BeginsWith of another type is none of this)
-        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+        var source = AnalyzerRun.Statements("shop." + chain + ";");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await WithFlags.ReportAsync(source);
 
         // Assert
-        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(WithFlags.CompilerErrors(source)).IsEmpty();
         await Assert.That(report).DoesNotContain("DYNA216");
     }
 

@@ -45,6 +45,8 @@ public sealed class PathAnalyzerTests
         }
         """;
 
+    private const string Mine = "public static class Mine { public static void Set(string path) { } public static void Other(string path) { } }";
+
     private const string MyConverter = """
 
         public readonly struct MyConverter : IDynamoDbConverter<Address>
@@ -60,6 +62,10 @@ public sealed class PathAnalyzerTests
         private static readonly Table<Address> addresses = null!;
 
         """;
+
+    private static readonly AnalyzerFixture Orders = new(Order);
+
+    private static readonly AnalyzerFixture WithMine = new(Mine);
 
     [Test]
     [Arguments("""shop.Update("a").Set([|"a..b"|], 1);""", "a..b")]
@@ -82,7 +88,7 @@ public sealed class PathAnalyzerTests
         var source = AnalyzerRun.Statements(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA214 Warning: Attribute path '{path}' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c"));
@@ -99,7 +105,7 @@ public sealed class PathAnalyzerTests
             """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA214 Warning: Attribute path 'a..b' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c"));
@@ -123,10 +129,10 @@ public sealed class PathAnalyzerTests
     public async Task Analyze_ValidOrNotConstant_ReportsNothing(string statement)
     {
         // Arrange
-        var source = AnalyzerRun.Statements(statement, "public static class Mine { public static void Set(string path) { } public static void Other(string path) { } }");
+        var source = AnalyzerRun.Statements(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await WithMine.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -158,10 +164,10 @@ public sealed class PathAnalyzerTests
     public async Task Analyze_PathOnATypedCommandThatMatchesNoAttribute_Warns(string statement, string path)
     {
         // Arrange
-        var source = AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }", Order);
+        var source = AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Orders.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA213 Warning: Path '{path}' matches no attribute of 'Order'. Check the spelling, unless the attribute is outside the entity."));
@@ -186,11 +192,11 @@ public sealed class PathAnalyzerTests
     public async Task Analyze_PathThatMatchesOrCannotBeChecked_ReportsNothing(string statement)
     {
         // Arrange
-        var source = AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }", Order);
+        var source = AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
-        var errors = AnalyzerRun.CompilerErrors(source);
+        var report = await Orders.ReportAsync(source);
+        var errors = Orders.CompilerErrors(source);
 
         // Assert
         await Assert.That(errors).IsEmpty();
@@ -204,7 +210,7 @@ public sealed class PathAnalyzerTests
         var source = AnalyzerRun.Member("""public static void Run(DynamoDbClient client) { client.TransactWrite().Update(shop, "a").Set([|"a..b"|], 1); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA214 Warning: Attribute path 'a..b' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c"));
@@ -217,7 +223,7 @@ public sealed class PathAnalyzerTests
         var source = AnalyzerRun.Member("""public static void Run(DynamoDbClient client) { client.TransactWrite().Update(shop, "a").Set("anything", 1); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -286,10 +292,10 @@ public sealed class PathAnalyzerTests
     public async Task Analyze_DocumentWithoutTheAttribute_Warns()
     {
         // Arrange
-        var source = AnalyzerRun.Member(Fields + """public static void Run() { addresses.Scan().Project([|"Stret"|]); }""", Order);
+        var source = AnalyzerRun.Member(Fields + """public static void Run() { addresses.Scan().Project([|"Stret"|]); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Orders.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA213 Warning: Path 'Stret' matches no attribute of 'Address'. Check the spelling, unless the attribute is outside the entity."));
@@ -325,10 +331,10 @@ public sealed class PathAnalyzerTests
     public async Task Analyze_InvalidPathOnATypedCommand_IsOnlyTheSyntaxError()
     {
         // Arrange
-        var source = AnalyzerRun.Member(Fields + """public static void Run() { update.Set([|"Totl..x"|], 1); }""", Order);
+        var source = AnalyzerRun.Member(Fields + """public static void Run() { update.Set([|"Totl..x"|], 1); }""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Orders.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA214 Warning: Attribute path 'Totl..x' is not valid: it must be names joined by dots, with list indexes in brackets, such as a.b[2].c"));
@@ -348,7 +354,7 @@ public sealed class PathAnalyzerTests
             """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();

@@ -20,7 +20,7 @@ public sealed class PagedReadStressTests
     private const int ItemsPerPage = 2;
 
     [Test]
-    public async Task Reads_ManyConcurrentWithEveryKindOfEnd_EveryReadSeesItsOwnPages()
+    public async Task Reads_ManyConcurrentWithEveryKindOfEnd_EveryReadSeesItsOwnPagesAndEveryKindRan()
     {
         // Arrange
         using var run = new Run();
@@ -29,20 +29,7 @@ public sealed class PagedReadStressTests
         await run.ExecuteAsync();
 
         // Assert
-        await Assert.That(run.Mismatches).IsEmpty();
-    }
-
-    [Test]
-    public async Task Reads_ManyConcurrentWithEveryKindOfEnd_EveryKindRan()
-    {
-        // Arrange
-        using var run = new Run();
-
-        // Act
-        await run.ExecuteAsync();
-
-        // Assert
-        await Assert.That(run.Ended.Count).IsEqualTo(Run.Kinds);
+        await Assert.That((string.Join("\n", run.Mismatches), run.Ended.Count)).IsEqualTo((string.Empty, Run.Kinds));
     }
 
     [Test]

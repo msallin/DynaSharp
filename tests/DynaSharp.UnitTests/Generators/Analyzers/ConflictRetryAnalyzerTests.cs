@@ -5,6 +5,7 @@ using DynaSharp.Testing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -109,6 +110,15 @@ public sealed class ConflictRetryAnalyzerTests
 
         """;
 
+    private const string MoreMethods = """
+        private static async ValueTask<int> First(CancellationToken ct) => await Second(ct);
+        private static async ValueTask<int> Second(CancellationToken ct) => await client.RetryOnConflictAsync(Done, ct);
+        private static ValueTask<int> Plain(CancellationToken ct) => new(1);
+        private static ValueTask<int> OwnName(CancellationToken ct) => new(new OwnRetry().RetryOnConflictAsync(_ => default).Id);
+        private static ValueTask<int> Dynamic(CancellationToken ct) { ((dynamic)client).RetryOnConflictAsync(null); return new(1); }
+        private static readonly Func<Task<int>> InAField = () => client.RetryOnConflictAsync(Done);
+        """;
+
     private const string CallerOfSave = "private static Task<int> CallSave() => client.RetryOnConflictAsync(ct => SaveAsync(ct));\n";
 
     private const string SaveWithRetry = "private static async ValueTask<int> SaveAsync(CancellationToken ct) => await [|client.RetryOnConflictAsync|](Done, ct);\n";
@@ -176,6 +186,8 @@ public sealed class ConflictRetryAnalyzerTests
             });
         }
         """;
+
+    private static readonly AnalyzerFixture Shared = new(Entities);
 
     [Test]
     [Arguments("""await client.RetryOnConflictAsync(ct => new ValueTask<int>([|client.RetryOnConflictAsync|](Done, ct)));""")]
@@ -280,7 +292,7 @@ public sealed class ConflictRetryAnalyzerTests
     public async Task RetryOnConflictAsync_MethodInAnotherFile_IsReportedThere()
     {
         // Arrange
-        var source = Source("await client.RetryOnConflictAsync(ct => Saving.SaveAsync(client, ct));");
+        var source = Whole("await client.RetryOnConflictAsync(ct => Saving.SaveAsync(client, ct));");
         var compilation = AnalyzerRun.Compile(source).AddSyntaxTrees(CSharpSyntaxTree.ParseText(SecondFile, GeneratorRun.ParseOptions(LanguageVersion.Latest), "Saving.cs"));
 
         // Act
@@ -299,7 +311,6 @@ public sealed class ConflictRetryAnalyzerTests
     [Arguments("""await client.RetryOnConflictAsync(ct => First(ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(Second);""")]
     [Arguments("""await client.RetryOnConflictAsync(ct => default(ISaver)!.SaveAsync(ct));""")]
-    [Arguments("""await client.RetryOnConflictAsync(ct => new ValueTask<string>(new Repository { Id = "a" }.ToString()));""")]
     [Arguments("""await client.RetryOnConflictAsync(ct => Plain(ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(ct => OwnName(ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(ct => Dynamic(ct));""")]
@@ -310,14 +321,7 @@ public sealed class ConflictRetryAnalyzerTests
     public async Task RetryOnConflictAsync_NoRetryInsideARun_IsNotReported(string statements)
     {
         // Arrange
-        var source = Source(statements, """
-            private static async ValueTask<int> First(CancellationToken ct) => await Second(ct);
-            private static async ValueTask<int> Second(CancellationToken ct) => await client.RetryOnConflictAsync(Done, ct);
-            private static ValueTask<int> Plain(CancellationToken ct) => new(1);
-            private static ValueTask<int> OwnName(CancellationToken ct) => new(new OwnRetry().RetryOnConflictAsync(_ => default).Id);
-            private static ValueTask<int> Dynamic(CancellationToken ct) { ((dynamic)client).RetryOnConflictAsync(null); return new(1); }
-            private static readonly Func<Task<int>> InAField = () => client.RetryOnConflictAsync(Done);
-            """);
+        var source = Source(statements, MoreMethods);
 
         // Act
         var report = await ReportAsync(source);
@@ -327,10 +331,23 @@ public sealed class ConflictRetryAnalyzerTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_MethodOfATypeWithARetryInAnotherMethod_IsNotReported()
+    {
+        // Arrange (the retry is in the model, which a shared fixture does not analyze, and there this would pass with no sighting of the retry to tell apart from the call)
+        var source = Whole("""await client.RetryOnConflictAsync(ct => new ValueTask<string>(new Repository { Id = "a" }.ToString()));""", MoreMethods);
+
+        // Act
+        var report = await WholeReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_MethodOfAnAssemblyFromMetadata_IsNotReported()
     {
         // Arrange
-        var compilation = AnalyzerRun.Compile(Source("await client.RetryOnConflictAsync(ct => Elsewhere.Saving.SaveAsync(client, ct));")).AddReferences(Analysis.Library(Library));
+        var compilation = AnalyzerRun.Compile(Whole("await client.RetryOnConflictAsync(ct => Elsewhere.Saving.SaveAsync(client, ct));")).AddReferences(Analysis.Library(Library));
 
         // Act
         var report = await compilation.WithAnalyzers([new ConflictRetryAnalyzer()]).GetAnalyzerDiagnosticsAsync();
@@ -343,7 +360,7 @@ public sealed class ConflictRetryAnalyzerTests
     public async Task RetryOnConflictAsync_MethodOfAProjectThatAnIdeHoldsAsSource_IsNotReported()
     {
         // Arrange (the symbol has syntax, of a tree that this compilation does not hold)
-        var compilation = AnalyzerRun.Compile(Source("await client.RetryOnConflictAsync(ct => Elsewhere.Saving.SaveAsync(client, ct));")).AddReferences(Analysis.ProjectReference(Library));
+        var compilation = AnalyzerRun.Compile(Whole("await client.RetryOnConflictAsync(ct => Elsewhere.Saving.SaveAsync(client, ct));")).AddReferences(Analysis.ProjectReference(Library));
 
         // Act
         var report = await compilation.WithAnalyzers([new ConflictRetryAnalyzer()]).GetAnalyzerDiagnosticsAsync();
@@ -593,7 +610,7 @@ public sealed class ConflictRetryAnalyzerTests
     public async Task IsRetry_EveryTypeOfTheLibraryThatDeclaresIt_IsMatched()
     {
         // Arrange (internal types too, because a reader of the rule should not have to wonder)
-        var compilation = AnalyzerRun.Compile(Source(string.Empty));
+        var compilation = AnalyzerRun.Compile(Whole(string.Empty));
         var all = compilation.WithOptions(compilation.Options.WithMetadataImportOptions(MetadataImportOptions.All));
         var declared = DeclaredRetries().GroupBy(static method => method.DeclaringType!).ToList();
 
@@ -624,7 +641,7 @@ public sealed class ConflictRetryAnalyzerTests
         var source = AnalyzerRun.Member(ReadOutside, Runnable);
 
         // Act
-        var report = await ReportAsync(source);
+        var report = await WholeReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("order")));
@@ -637,7 +654,7 @@ public sealed class ConflictRetryAnalyzerTests
         var source = AnalyzerRun.Member(ReadInside, Runnable);
 
         // Act
-        var report = await ReportAsync(source);
+        var report = await WholeReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -675,14 +692,28 @@ public sealed class ConflictRetryAnalyzerTests
     private static string Message(string variable) => string.Create(CultureInfo.InvariantCulture, $"DYNA218 Warning: '{variable}' was read before RetryOnConflictAsync started, so every run sends the same version and fails the same way. Read it inside the delegate.");
 
     private static string Source(string statements, string members = "") =>
-        AnalyzerRun.Member(Fields + members + "\npublic static async Task Run(Order given, long expected, CancellationToken token)\n{\n" + statements + "\n}\n", Entities);
+        AnalyzerRun.Member(Fields + members + "\npublic static async Task Run(Order given, long expected, CancellationToken token)\n{\n" + statements + "\n}\n");
+
+    private static string Whole(string statements, string members = "") => Source(statements, members) + Entities;
 
     private static async Task<string> ReportAsync(string source)
     {
-        var errors = AnalyzerRun.CompilerErrors(source);
-        return errors.Count == 0
-            ? await AnalyzerRun.ReportWithAsync(source, new ConflictRetryAnalyzer())
-            : throw new InvalidOperationException($"The snippet does not compile: {string.Join(", ", errors.Select(static error => error.Id))}");
+        ThrowIfThereAreAny(Shared.CompilerErrors(source));
+        return await Shared.ReportWithAsync(source, new ConflictRetryAnalyzer());
+    }
+
+    private static async Task<string> WholeReportAsync(string source)
+    {
+        ThrowIfThereAreAny(AnalyzerRun.CompilerErrors(source));
+        return await AnalyzerRun.ReportWithAsync(source, new ConflictRetryAnalyzer());
+    }
+
+    private static void ThrowIfThereAreAny(IReadOnlyList<(string Id, TextSpan Span)> errors)
+    {
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException($"The snippet does not compile: {string.Join(", ", errors.Select(static error => error.Id))}");
+        }
     }
 
     private static IEnumerable<MethodInfo> DeclaredRetries() => typeof(DynamoDbClient).Assembly.GetTypes().SelectMany(static type => type

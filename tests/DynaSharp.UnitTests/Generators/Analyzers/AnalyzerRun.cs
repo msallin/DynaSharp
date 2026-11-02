@@ -13,7 +13,8 @@ namespace DynaSharp.UnitTests.Generators.Analyzers;
 /// </summary>
 internal static class AnalyzerRun
 {
-    private const string Header = """
+    /// <summary>The usings and the namespace of every source, which a text outside the class <c>Code</c> sees.</summary>
+    public const string Usings = """
         using System;
         using System.Collections.Generic;
         using System.Linq;
@@ -28,13 +29,20 @@ internal static class AnalyzerRun
 
         namespace Shop;
 
+        """;
+
+    /// <summary>The analyzers that <see cref="AnalyzerFixture"/> can run. <see cref="DiscriminatorAnalyzer"/> is not one: it reports when a compilation ends.</summary>
+    public static readonly ImmutableArray<DiagnosticAnalyzer> TreeAnalyzers = [new CommandLifetimeAnalyzer(), new ExpressionAnalyzer(), new HandleOwnerAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer()];
+
+    private const string Header = Usings + """
+
         public static class Code
         {
             private static readonly Table<Item> shop = null!;
 
         """;
 
-    private static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = [new CommandLifetimeAnalyzer(), new DiscriminatorAnalyzer(), new ExpressionAnalyzer(), new HandleOwnerAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer()];
+    private static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = [.. TreeAnalyzers, new DiscriminatorAnalyzer()];
 
     /// <summary>A whole source with this member in the class <c>Code</c>, which has a field <c>shop</c> of type <c>Table&lt;Item&gt;</c>.</summary>
     public static string Member(string member, string outside = "") => Header + member + "\n}\n" + outside;
@@ -67,20 +75,23 @@ internal static class AnalyzerRun
     public static IReadOnlyList<TextSpan> Marks(string markedSource) => Analysis.Strip(markedSource).Spans;
 
     /// <summary>The spans of the errors the compiler has for the snippet itself, not for generated code, lowering included, by id: <c>CS4007</c>.</summary>
-    public static IReadOnlyList<(string Id, TextSpan Span)> CompilerErrors(string markedSource, LanguageVersion language = LanguageVersion.Latest)
+    public static IReadOnlyList<(string Id, TextSpan Span)> CompilerErrors(string markedSource, LanguageVersion language = LanguageVersion.Latest) => ErrorsOfTheSnippet(Compile(markedSource, language));
+
+    /// <summary>What a compilation that holds a snippet gives when it is emitted, for the trees that have no file, which the generated ones have.</summary>
+    public static IReadOnlyList<(string Id, TextSpan Span)> ErrorsOfTheSnippet(Compilation compilation)
     {
         using var image = new MemoryStream();
         return
         [
-            .. Compile(markedSource, language).Emit(image).Diagnostics
+            .. compilation.Emit(image).Diagnostics
                 .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Location.SourceTree?.FilePath.Length == 0)
                 .Select(diagnostic => (diagnostic.Id, diagnostic.Location.SourceSpan)),
         ];
     }
 
-    private static async Task<string> ReportAsync(string markedSource, LanguageVersion language, ImmutableArray<DiagnosticAnalyzer> analyzers)
-    {
-        var diagnostics = await Compile(markedSource, language).WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync();
-        return string.Join("\n", diagnostics.OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start).Select(Analysis.Describe));
-    }
+    /// <summary>The diagnostics as a report: one per line, by position.</summary>
+    public static string Describe(ImmutableArray<Diagnostic> diagnostics) => string.Join("\n", diagnostics.OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start).Select(Analysis.Describe));
+
+    private static async Task<string> ReportAsync(string markedSource, LanguageVersion language, ImmutableArray<DiagnosticAnalyzer> analyzers) =>
+        Describe(await Compile(markedSource, language).WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync());
 }

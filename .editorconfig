@@ -83,6 +83,8 @@ dotnet_style_prefer_conditional_expression_over_return = true:suggestion
 
 # IDE0005: unnecessary usings (requires GenerateDocumentationFile, which is on).
 dotnet_diagnostic.IDE0005.severity = error
+# IDE0055: formatting, so that the build fails on it. SA1518 does the same for a final newline.
+dotnet_diagnostic.IDE0055.severity = error
 # IDE0058: expression value never used. Too noisy for fluent APIs.
 dotnet_diagnostic.IDE0058.severity = none
 # IDE0008: explicit type instead of var. Conflicts with the var preference above.

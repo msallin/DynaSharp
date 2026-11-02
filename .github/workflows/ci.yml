@@ -47,10 +47,10 @@ jobs:
             exit 1
           fi
 
-      # dotnet format analyzes with the generator as an analyzer, so it needs that dll. Without it a generated type is not an entity yet.
-      - run: dotnet build src/DynaSharp.Generators --no-restore
-      - run: dotnet format DynaSharp.slnx --verify-no-changes --no-restore
-      - run: dotnet build DynaSharp.slnx -c Release --no-restore
+      # The build enforces the analyzers, the code style and, through IDE0055 and SA1518, the formatting. What is left of dotnet format is this: it sees line endings too, and needs no analyzer and no generator.
+      - run: dotnet format whitespace DynaSharp.slnx --verify-no-changes --no-restore
+      # Only what this job uses. The other projects of the solution compile in the jobs below: the integration tests, the sample and the benchmarks in integration, the AOT smoke test in aot.
+      - run: dotnet build tests/DynaSharp.UnitTests -c Release --no-restore
 
       # The page for users promises examples that compile, and nothing else builds them.
       - name: README examples compile
@@ -94,6 +94,10 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet restore tests/DynaSharp.IntegrationTests --locked-mode
       - run: dotnet build tests/DynaSharp.IntegrationTests -c Release --no-restore
+
+      # Nothing runs the benchmarks in CI, and this is the one place that keeps them compiling.
+      - run: dotnet restore benchmarks/DynaSharp.Benchmarks --locked-mode
+      - run: dotnet build benchmarks/DynaSharp.Benchmarks -c Release --no-restore
 
       # The same tests run against both emulators; the images are pinned in tests/DynaSharp.IntegrationTests/Backends/*/Dockerfile.
       - name: Integration tests

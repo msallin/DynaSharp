@@ -68,6 +68,12 @@ public sealed class HandleOwnerAnalyzerTests
 
         """;
 
+    private const string Helpers = "public static class Mine { public static UpdateStep Step() => default; public static void Filter<T, C>(Attr<T, C> attribute) where C : IDynamoDbConverter<T> { } public static void Audited<T, C>(UpdateCommand<Invoice> command, Attr<T, C> attribute) where C : IDynamoDbConverter<T> { } }";
+
+    private static readonly AnalyzerFixture Shared = new(Model);
+
+    private static readonly AnalyzerFixture WithHelpers = new(Model + Helpers);
+
     [Test]
     [Arguments("""invoices.Scan().Filter([|Subscription.Attrs.Seats|].Gt(1));""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
     [Arguments("""invoices.Query("a").Filter([|Subscription.Attrs.Seats|].Gt(1));""", "Subscription.Attrs.Seats", "Subscription", "Invoice")]
@@ -100,7 +106,7 @@ public sealed class HandleOwnerAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Shared.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message(handle, owner, command)));
@@ -113,7 +119,7 @@ public sealed class HandleOwnerAnalyzerTests
         var source = Source("""shop.Query("a").Of<Invoice, Base>().Filter([|Subscription.Attrs.Seats|].Gt(1));""");
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Shared.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Subscription.Attrs.Seats", "Subscription", "Invoice, Base")));
@@ -147,10 +153,10 @@ public sealed class HandleOwnerAnalyzerTests
     public async Task Analyze_HandleThatFits_ReportsNothing(string statement)
     {
         // Arrange
-        var source = Source(statement, "public static class Mine { public static UpdateStep Step() => default; public static void Filter<T, C>(Attr<T, C> attribute) where C : IDynamoDbConverter<T> { } public static void Audited<T, C>(UpdateCommand<Invoice> command, Attr<T, C> attribute) where C : IDynamoDbConverter<T> { } }");
+        var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await WithHelpers.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -163,18 +169,17 @@ public sealed class HandleOwnerAnalyzerTests
         var source = AnalyzerRun.Member(
             """
             public static UpdateCommand<T> Touch<T>(UpdateCommand<T> command) where T : IDynamoDbDocument<T> => command.Set(Subscription.Attrs.Plan, "x");
-            """,
-            Model);
+            """);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
+        var report = await Shared.ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
     }
 
-    private static string Source(string statement, string outside = "") =>
-        AnalyzerRun.Statements(statement, Model + outside).Replace("public static void Run()", Fields + "public static void Run()", StringComparison.Ordinal);
+    private static string Source(string statement) =>
+        AnalyzerRun.Statements(statement).Replace("public static void Run()", Fields + "public static void Run()", StringComparison.Ordinal);
 
     private static string Message(string handle, string owner, string command) =>
         $"DYNA215 Warning: '{handle}' is an attribute of '{owner}', and this command is on '{command}', so DynamoDB looks for it on items that do not have it. Use a handle of that type, or a raw path for an attribute outside it.";

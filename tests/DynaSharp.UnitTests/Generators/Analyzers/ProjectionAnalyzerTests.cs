@@ -321,6 +321,8 @@ public sealed class ProjectionAnalyzerTests
 
         """;
 
+    private static readonly AnalyzerFixture Shared = new(Model);
+
     [Test]
 
     // Constant paths and handles, on every read that has Select, and the terminals that read items.
@@ -365,7 +367,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message(member, type, ", or use Select(handle) to read one attribute")));
@@ -382,7 +384,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message(member, type, string.Empty)));
@@ -395,7 +397,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source("""_ = shop.Query("a").[|Project|]("Vendor").Of<Device, Parcel>().ItemsAsync();""");
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Carrier", "Parcel", ", or use Select(handle) to read one attribute")));
@@ -474,7 +476,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -504,7 +506,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: 'Revision' of '{type}' is its version, and an item written without one has no such attribute: a read of the entity gives 0, Select does not and throws. Read the entity, or Select only from items that have a version."));
@@ -520,7 +522,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -561,7 +563,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: '{property}' of 'Omitter' has [OmitEmpty], and an item that held an empty value has no such attribute: a read of the entity keeps the initial value, Select does not and throws. Read the entity, or make the property nullable."));
@@ -577,7 +579,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -590,7 +592,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Title|]).SendAsync();""");
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA209 Warning: 'Title' of 'Counted' has a converter that can count a stored value as missing: a read of the entity keeps the initial value, Select does not and throws. Read the entity, make the property nullable, or have the converter answer TryReadMissing."));
@@ -603,7 +605,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Both|]).SendAsync();""");
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA209 Warning: 'Both' of 'Counted' has [OmitEmpty], and an item that held an empty value has no such attribute: a read of the entity keeps the initial value, Select does not and throws. Read the entity, or make the property nullable."));
@@ -630,7 +632,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -643,7 +645,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source("""_ = adoptedLedgers.Query("a").Project("Id").ItemsAsync();""");
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -659,7 +661,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: '{property}' of '{type}' is held by the key '{key}' of the table, and an item that an Update created has no attribute of its own for it: a read of the entity restores it from the key, Select does not and throws. Read the entity, or Select only from items a Put wrote."));
@@ -695,7 +697,7 @@ public sealed class ProjectionAnalyzerTests
         var source = Source(statement);
 
         // Act
-        var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -718,7 +720,7 @@ public sealed class ProjectionAnalyzerTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
-    private static string Source(string statement) => AnalyzerRun.Member(Fields + "public static void Run() {" + statement + "}", Model);
+    private static string Source(string statement) => AnalyzerRun.Member(Fields + "public static void Run() {" + statement + "}");
 
     private static string Named(string statement) =>
         AnalyzerRun.Member(

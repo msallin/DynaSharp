@@ -21,7 +21,7 @@ public sealed class CommandStressTests
     private const int RetriedCommands = 40;
 
     [Test]
-    public async Task SendAsync_ManyConcurrentCommandsWithEveryKindOfEnd_EveryCommandKeepsItsOwnBytes()
+    public async Task SendAsync_ManyConcurrentCommandsWithEveryKindOfEnd_EveryCommandKeepsItsOwnBytesAndEveryKindRan()
     {
         // Arrange
         using var run = new Run();
@@ -30,20 +30,7 @@ public sealed class CommandStressTests
         await run.ExecuteAsync();
 
         // Assert
-        await Assert.That(run.Mismatches).IsEmpty();
-    }
-
-    [Test]
-    public async Task SendAsync_ManyConcurrentCommandsWithEveryKindOfEnd_EveryKindRan()
-    {
-        // Arrange
-        using var run = new Run();
-
-        // Act
-        await run.ExecuteAsync();
-
-        // Assert
-        await Assert.That(run.Ended.Count).IsEqualTo(Run.Kinds);
+        await Assert.That((string.Join("\n", run.Mismatches), run.Ended.Count)).IsEqualTo((string.Empty, Run.Kinds));
     }
 
     [Test]

@@ -15,10 +15,10 @@ public sealed class EntityEmitterTests
     public void Run_Shape_MatchesTheVerifiedSnapshots(string shape)
     {
         // Arrange, Act
-        var output = Compile(shape, LanguageVersion.Latest);
+        var result = GeneratorRun.Generate(EmitterShapes.All[shape], new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        foreach (var source in output.Result.Results[0].GeneratedSources)
+        foreach (var source in result.Results[0].GeneratedSources)
         {
             SnapshotComparer.Verify($"{shape}.{source.HintName.Replace(".g.cs", ".g", StringComparison.Ordinal)}", source.SourceText.ToString());
         }
@@ -29,7 +29,7 @@ public sealed class EntityEmitterTests
     public async Task Run_Shape_CompilesWithoutWarnings(string shape, LanguageVersion language)
     {
         // Arrange, Act
-        var output = Compile(shape, language);
+        var output = GeneratorRun.Run(EmitterShapes.All[shape], new DynaSharpGenerator(), language);
 
         // Assert
         await Assert.That(output.Problems).IsEmpty();
@@ -111,7 +111,4 @@ public sealed class EntityEmitterTests
         // Assert
         await Assert.That(output.Problems).IsEmpty();
     }
-
-    private static GeneratorRunOutput Compile(string shape, LanguageVersion language) =>
-        GeneratorRun.Run(EmitterShapes.All[shape], new DynaSharpGenerator(), language);
 }

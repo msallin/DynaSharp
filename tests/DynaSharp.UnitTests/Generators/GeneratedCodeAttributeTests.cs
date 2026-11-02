@@ -37,6 +37,11 @@ public sealed class GeneratedCodeAttributeTests
         }
         """;
 
+    // Each shape is read by three tests, which look at nothing but the syntax of what is generated.
+    private static readonly Dictionary<string, SharedResult<GeneratorDriverRunResult>> Runs = Shapes().ToDictionary(
+        static shape => shape,
+        static shape => new SharedResult<GeneratorDriverRunResult>(() => GeneratorRun.Generate(SourceOf(shape), new DynaSharpGenerator(), LanguageVersion.Latest)));
+
     public static IEnumerable<string> Shapes() => [.. EmitterShapes.Names(), nameof(WithEnumAndVersion)];
 
     [Test]
@@ -44,10 +49,10 @@ public sealed class GeneratedCodeAttributeTests
     public async Task Run_EveryGeneratedMember_CarriesTheAttribute(string shape)
     {
         // Arrange
-        var output = GeneratorRun.Run(SourceOf(shape), new DynaSharpGenerator(), LanguageVersion.Latest);
+        var result = Runs[shape].Value;
 
         // Act
-        var bare = Generated(output).SelectMany(MembersWithoutTheAttribute).ToList();
+        var bare = Generated(result).SelectMany(MembersWithoutTheAttribute).ToList();
 
         // Assert
         await Assert.That(bare).IsEmpty();
@@ -58,10 +63,10 @@ public sealed class GeneratedCodeAttributeTests
     public async Task Run_PartialDeclaration_LeavesTheAttributeOut(string shape)
     {
         // Arrange
-        var output = GeneratorRun.Run(SourceOf(shape), new DynaSharpGenerator(), LanguageVersion.Latest);
+        var result = Runs[shape].Value;
 
         // Act
-        var marked = Generated(output).SelectMany(UserTypes).Where(HasTheAttribute).Select(static type => type.Identifier.Text).ToList();
+        var marked = Generated(result).SelectMany(UserTypes).Where(HasTheAttribute).Select(static type => type.Identifier.Text).ToList();
 
         // Assert
         await Assert.That(marked).IsEmpty();
@@ -72,10 +77,10 @@ public sealed class GeneratedCodeAttributeTests
     public async Task Run_PartialDeclaration_GetsNoFieldInitializer(string shape)
     {
         // Arrange (an initializer runs in the static constructor of the type, which no attribute on the field excludes from coverage)
-        var output = GeneratorRun.Run(SourceOf(shape), new DynaSharpGenerator(), LanguageVersion.Latest);
+        var result = Runs[shape].Value;
 
         // Act
-        var initialized = Generated(output)
+        var initialized = Generated(result)
             .SelectMany(UserTypes)
             .SelectMany(static type => type.Members.OfType<FieldDeclarationSyntax>())
             .Where(static field => field.Declaration.Variables.Any(static variable => variable.Initializer is not null))
@@ -89,10 +94,10 @@ public sealed class GeneratedCodeAttributeTests
     public async Task Run_Text_NamesTheGeneratorAndItsVersion()
     {
         // Arrange, Act
-        var output = GeneratorRun.Run(WithEnumAndVersion, new DynaSharpGenerator(), LanguageVersion.Latest);
+        var result = Runs[nameof(WithEnumAndVersion)].Value;
 
         // Assert
-        await Assert.That(output.Result.Results[0].GeneratedSources[0].SourceText.ToString()).Contains(Attribute);
+        await Assert.That(result.Results[0].GeneratedSources[0].SourceText.ToString()).Contains(Attribute);
     }
 
     [Test]
@@ -121,8 +126,8 @@ public sealed class GeneratedCodeAttributeTests
 
     private static string SourceOf(string shape) => shape == nameof(WithEnumAndVersion) ? WithEnumAndVersion : EmitterShapes.All[shape];
 
-    private static IEnumerable<CompilationUnitSyntax> Generated(GeneratorRunOutput output) =>
-        output.Result.GeneratedTrees.Select(static tree => tree.GetCompilationUnitRoot());
+    private static IEnumerable<CompilationUnitSyntax> Generated(GeneratorDriverRunResult result) =>
+        result.GeneratedTrees.Select(static tree => tree.GetCompilationUnitRoot());
 
     private static IEnumerable<TypeDeclarationSyntax> UserTypes(CompilationUnitSyntax file) =>
         file.DescendantNodes(static node => node is not TypeDeclarationSyntax || IsPartial(node))

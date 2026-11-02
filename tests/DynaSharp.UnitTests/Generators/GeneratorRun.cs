@@ -26,6 +26,10 @@ internal static class GeneratorRun
             parseOptions: ParseOptions(language),
             driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: trackSteps));
 
+    /// <summary>Runs a generator and compiles nothing, for a test of what it writes. Compiling that is the slow part, and the tests that need it are the ones that say so.</summary>
+    public static GeneratorDriverRunResult Generate(string source, IIncrementalGenerator generator, LanguageVersion language) =>
+        CreateDriver(generator, language).RunGenerators(CreateCompilation(source, language)).GetRunResult();
+
     /// <summary>Runs a generator and compiles the result.</summary>
     /// <param name="source">The input.</param>
     /// <param name="generator">The generator.</param>

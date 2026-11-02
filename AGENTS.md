@@ -32,7 +32,7 @@
 - Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `test:`, `docs:`, `build:`, `ci:`, `chore:`). They drive the version.
 
 ## Commands
-- `dotnet build DynaSharp.slnx` (warnings are errors), `dotnet format DynaSharp.slnx --verify-no-changes`
+- `dotnet build DynaSharp.slnx` (warnings are errors, formatting included), `dotnet format whitespace DynaSharp.slnx --verify-no-changes` (which sees line endings too)
 - `dotnet run build/ReadmeCheck.cs -- README.md` (compiles the C# blocks of the README against the projects)
 - `dotnet test --project tests/DynaSharp.UnitTests`, `dotnet stryker`
 - `dotnet test --project tests/DynaSharp.IntegrationTests` (needs Docker; `DYNASHARP_BACKENDS` selects `dynoxide` (default), `dynamodb-local` or both, comma separated. `aws` is real DynamoDB, costs money, needs no Docker and is not part of `all`; `.github/workflows/real-aws.yml` runs it)

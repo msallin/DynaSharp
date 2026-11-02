@@ -1,3 +1,7 @@
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using DynaSharp.UnitTests.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -8,10 +12,10 @@ namespace DynaSharp.UnitTests.Fluent;
 // What the types of the API rule out: each statement is compiled against the library as a consumer would write it, and must fail with the
 // error pinned here, so that a mistake in this source cannot pass for the guard. An error that disappears means a misuse has come back that
 // only DynamoDB would report. The extension methods of TableExtensions decide some of the codes: on an Index, Get and Delete find them and
-// fail on their constraint, with no member of the Index to bind to.
+// fail on their constraint, with no member of the Index to bind to. The rows of a test share a compilation, see Batch.
 public sealed class CompileGuardTests
 {
-    private const string Consumer = """
+    private const string Declarations = """
         using System.Threading.Tasks;
         using DynaSharp;
         using DynaSharp.Mapping;
@@ -53,6 +57,10 @@ public sealed class CompileGuardTests
 
         public static class Use
         {
+
+        """;
+
+    private const string Case = """
             public static async Task RunAsync(DynamoDbClient client)
             {
                 var shop = client.Table("Shop", "pk", "sk");
@@ -64,8 +72,12 @@ public sealed class CompileGuardTests
                 await Task.Yield();
                 STATEMENT
             }
-        }
+
         """;
+
+    private const string End = "}\n";
+
+    private static readonly ConcurrentDictionary<string, Lazy<Batch>> Batches = new(StringComparer.Ordinal);
 
     [Test]
     [Arguments("""await index.Put(new Item());""", "CS1501")]
@@ -335,10 +347,10 @@ public sealed class CompileGuardTests
     public async Task Compile_WhatTheTypesRuleOut_FailsWithTheExpectedError(string statement, string expected)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var errors = Errors(source);
+        var errors = batch.Diagnostics(statement, DiagnosticSeverity.Error);
 
         // Assert
         await Assert.That(string.Join(",", errors)).IsEqualTo(expected);
@@ -536,10 +548,10 @@ public sealed class CompileGuardTests
     public async Task Compile_WhatTheGuardsLeaveOpen_Compiles(string statement)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var errors = Errors(source);
+        var errors = batch.Diagnostics(statement, DiagnosticSeverity.Error);
 
         // Assert
         await Assert.That(errors).IsEmpty();
@@ -584,14 +596,10 @@ public sealed class CompileGuardTests
     public async Task Compile_QueryOfPartitions_BindsToTheOverloadItAlwaysDid(string statement, string expected)
     {
         // Arrange
-        var compilation = GeneratorRun.CreateCompilation(Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal), LanguageVersion.Latest);
-        var tree = compilation.SyntaxTrees.Single();
-        var root = await tree.GetRootAsync();
-        var query = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Single(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Query" });
+        var batch = BatchOf();
 
         // Act
-        var bound = (IMethodSymbol?)compilation.GetSemanticModel(tree).GetSymbolInfo(query).Symbol;
+        var bound = batch.Bound(statement, "Query");
 
         // Assert
         await Assert.That(bound?.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)).IsEqualTo(expected);
@@ -607,14 +615,10 @@ public sealed class CompileGuardTests
     public async Task Compile_QueryOfTypedPartitions_BindsToTheExtensionOnlyWhenNoMemberApplies(string statement, string expected)
     {
         // Arrange
-        var compilation = GeneratorRun.CreateCompilation(Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal), LanguageVersion.Latest);
-        var tree = compilation.SyntaxTrees.Single();
-        var root = await tree.GetRootAsync();
-        var query = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Single(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Query" });
+        var batch = BatchOf();
 
         // Act
-        var bound = (IMethodSymbol?)compilation.GetSemanticModel(tree).GetSymbolInfo(query).Symbol;
+        var bound = batch.Bound(statement, "Query");
 
         // Assert
         await Assert.That((bound?.IsExtensionMethod, bound?.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat))).IsEqualTo((true, expected));
@@ -627,7 +631,7 @@ public sealed class CompileGuardTests
     public async Task Compile_ArrayOfStrings_ReliesOnThePriorityOfCSharp13(LanguageVersion language, string expected)
     {
         // Arrange (a compiler below C# 13 ignores the attribute, and an array reaches both overloads of strings)
-        var source = Consumer.Replace("STATEMENT", """string[] names = new[] { "a" }; shop.Query(names);""", StringComparison.Ordinal);
+        var source = Declarations + Case.Replace("STATEMENT", """string[] names = new[] { "a" }; shop.Query(names);""", StringComparison.Ordinal) + End;
 
         // Act
         var errors = GeneratorRun.CreateCompilation(source, language).GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(static diagnostic => diagnostic.Id);
@@ -646,10 +650,10 @@ public sealed class CompileGuardTests
     public async Task Compile_NullThroughAHandleOfSet_DoesNotWarn(string statement)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+        var warnings = batch.Diagnostics(statement, DiagnosticSeverity.Warning);
 
         // Assert
         await Assert.That(warnings).DoesNotContain("CS8620").And.DoesNotContain("CS8625");
@@ -661,10 +665,10 @@ public sealed class CompileGuardTests
     public async Task Compile_NullThroughAHandleOfAnotherAction_WarnsAtTheCall(string statement)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+        var warnings = batch.Diagnostics(statement, DiagnosticSeverity.Warning);
 
         // Assert
         await Assert.That(warnings).Contains("CS8620");
@@ -676,10 +680,10 @@ public sealed class CompileGuardTests
     public async Task Compile_ValueOfANullableHandle_IsNullable(string statement)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+        var warnings = batch.Diagnostics(statement, DiagnosticSeverity.Warning);
 
         // Assert
         await Assert.That(warnings).Contains("CS8600");
@@ -691,10 +695,10 @@ public sealed class CompileGuardTests
     public async Task Compile_ValueOfAHandleThatCannotBeNull_IsNotNullable(string statement)
     {
         // Arrange
-        var source = Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal);
+        var batch = BatchOf();
 
         // Act
-        var warnings = Diagnostics(source, DiagnosticSeverity.Warning);
+        var warnings = batch.Diagnostics(statement, DiagnosticSeverity.Warning);
 
         // Assert
         await Assert.That(warnings).DoesNotContain("CS8600");
@@ -713,26 +717,57 @@ public sealed class CompileGuardTests
     public async Task Compile_SetByHandle_TakesTheNullableOverloadOnlyForANullableValue(string statement, string expected)
     {
         // Arrange
-        var compilation = GeneratorRun.CreateCompilation(Consumer.Replace("STATEMENT", statement, StringComparison.Ordinal), LanguageVersion.Latest);
-        var tree = compilation.SyntaxTrees.Single();
-        var root = await tree.GetRootAsync();
-        var set = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Single(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Set" or "SetIfNotNull" });
+        var batch = BatchOf();
 
         // Act
-        var bound = (IMethodSymbol?)compilation.GetSemanticModel(tree).GetSymbolInfo(set).Symbol;
+        var bound = batch.Bound(statement, "Set", "SetIfNotNull");
 
         // Assert
         await Assert.That(bound?.Parameters[1].Type.MetadataName).IsEqualTo(expected);
     }
 
-    private static List<string> Errors(string source) => Diagnostics(source, DiagnosticSeverity.Error);
+    private static Batch BatchOf([CallerMemberName] string testMethod = "") =>
+        Batches.GetOrAdd(testMethod, static name => new Lazy<Batch>(() => new Batch(StatementsOf(name)))).Value;
 
-    private static List<string> Diagnostics(string source, DiagnosticSeverity severity) =>
-    [
-        .. GeneratorRun.CreateCompilation(source, LanguageVersion.Latest).GetDiagnostics()
-            .Where(diagnostic => diagnostic.Severity == severity)
-            .Select(static diagnostic => diagnostic.Id)
-            .Distinct(),
-    ];
+    private static IEnumerable<string> StatementsOf(string testMethod) =>
+        typeof(CompileGuardTests).GetMethod(testMethod)!.GetCustomAttributes<ArgumentsAttribute>().Select(static row => (string)row.Values[0]!);
+
+    // The rows of a test, each in a method of its own in one compilation, because a compilation costs far more than a statement. A method body binds apart from the others and flow analysis stops
+    // at its end, so the errors of one row cannot reach another. An error outside the rows is one that no row would look at, so it stops the batch.
+    private sealed class Batch
+    {
+        private readonly Compilation _compilation;
+        private readonly ImmutableArray<Diagnostic> _diagnostics;
+        private readonly Dictionary<string, MethodDeclarationSyntax> _rows;
+
+        public Batch(IEnumerable<string> statements)
+        {
+            var rows = statements.Distinct(StringComparer.Ordinal).ToList();
+            var cases = rows.Select(static (statement, index) => Case.Replace("RunAsync", $"Row{index}", StringComparison.Ordinal).Replace("STATEMENT", statement, StringComparison.Ordinal));
+            _compilation = GeneratorRun.CreateCompilation(Declarations + string.Concat(cases) + End, LanguageVersion.Latest);
+            _diagnostics = _compilation.GetDiagnostics();
+            var methods = _compilation.SyntaxTrees.Single().GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(static method => method.Identifier.ValueText.StartsWith("Row", StringComparison.Ordinal));
+            _rows = rows.Zip(methods).ToDictionary(static row => row.First, static row => row.Second, StringComparer.Ordinal);
+
+            var strays = _diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && !_rows.Values.Any(row => row.FullSpan.Contains(diagnostic.Location.SourceSpan))).ToList();
+            if (strays.Count > 0)
+            {
+                throw new InvalidOperationException($"Errors outside the rows: {string.Join(", ", strays)}");
+            }
+        }
+
+        public List<string> Diagnostics(string statement, DiagnosticSeverity severity)
+        {
+            var row = _rows[statement].FullSpan;
+            return [.. _diagnostics.Where(diagnostic => diagnostic.Severity == severity && row.Contains(diagnostic.Location.SourceSpan)).Select(static diagnostic => diagnostic.Id).Distinct()];
+        }
+
+        // The one call by one of these names in the statement, as the compiler binds it.
+        public IMethodSymbol? Bound(string statement, params string[] names)
+        {
+            var call = _rows[statement].DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Single(call => call.Expression is MemberAccessExpressionSyntax member && names.Contains(member.Name.Identifier.ValueText));
+            return (IMethodSymbol?)_compilation.GetSemanticModel(call.SyntaxTree).GetSymbolInfo(call).Symbol;
+        }
+    }
 }

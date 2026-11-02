@@ -180,6 +180,8 @@ public sealed class EntityCommandAnalyzerTests
 
         """;
 
+    private static readonly AnalyzerFixture Shared = new(Entities);
+
     [Test]
     [Arguments("""_ = events.Update(key).Set([|DeviceEvent.Attrs.At|], now);""", "At", "DeviceEvent")]
     [Arguments("""_ = events.Update(key).Set([|DeviceEvent.Attrs.Device|], "d");""", "Device", "DeviceEvent")]
@@ -317,7 +319,7 @@ public sealed class EntityCommandAnalyzerTests
     public async Task Analyze_GenericHelper_ReportsNothing()
     {
         // Arrange (the command in a helper can be of any entity)
-        var source = AnalyzerRun.Member("""private static TCommand Run<TCommand>(TCommand command) where TCommand : IUpdatable<TCommand>, allows ref struct => command.Set(DeviceEvent.Attrs.At, DateTimeOffset.UnixEpoch);""", Entities);
+        var source = AnalyzerRun.Member("""private static TCommand Run<TCommand>(TCommand command) where TCommand : IUpdatable<TCommand>, allows ref struct => command.Set(DeviceEvent.Attrs.At, DateTimeOffset.UnixEpoch);""");
 
         // Act
         var report = await ReportAsync(source);
@@ -413,7 +415,7 @@ public sealed class EntityCommandAnalyzerTests
     public async Task Analyze_IfNotExistsInAGenericHelper_ReportsNothing()
     {
         // Arrange
-        var source = AnalyzerRun.Member("""private static TStep Run<TStep>(TStep step) where TStep : ITransactWriteStep<TStep>, allows ref struct => step.IfNotExists();""", Entities);
+        var source = AnalyzerRun.Member("""private static TStep Run<TStep>(TStep step) where TStep : ITransactWriteStep<TStep>, allows ref struct => step.IfNotExists();""");
 
         // Act
         var report = await ReportAsync(source);
@@ -467,7 +469,7 @@ public sealed class EntityCommandAnalyzerTests
     public async Task Analyze_IndexOfATypeParameter_ReportsNothing()
     {
         // Arrange (the type argument is known at the call of the helper, not here)
-        var source = AnalyzerRun.Member("""private static Index<T> Run<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.Index("Alerts");""", Entities);
+        var source = AnalyzerRun.Member("""private static Index<T> Run<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.Index("Alerts");""");
 
         // Act
         var report = await ReportAsync(source);
@@ -483,13 +485,13 @@ public sealed class EntityCommandAnalyzerTests
         var source = "public static class Code { public static string Run(string a) => a.Trim(); }";
 
         // Act
-        var report = await ReportAsync(source);
+        var report = await AnalyzerRun.ReportWithAsync(source, new EntityCommandAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();
     }
 
-    private static string Run(string statement) => AnalyzerRun.Member(Fields + "public static void Run(string[] args)\n{\n" + statement + "\n}\n", Entities);
+    private static string Run(string statement) => AnalyzerRun.Member(Fields + "public static void Run(string[] args)\n{\n" + statement + "\n}\n");
 
-    private static Task<string> ReportAsync(string source) => AnalyzerRun.ReportWithAsync(source, new EntityCommandAnalyzer());
+    private static Task<string> ReportAsync(string source) => Shared.ReportWithAsync(source, new EntityCommandAnalyzer());
 }

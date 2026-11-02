@@ -20,7 +20,7 @@ public sealed class DynamoDbPipelineStressTests
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromHours(1);
 
     [Test]
-    public async Task ExecuteAsync_ManyConcurrentCallsWithEveryKindOfOutcome_EveryCallEndsAsItShould()
+    public async Task ExecuteAsync_ManyConcurrentCallsWithEveryKindOfOutcome_EveryCallEndsAsItShouldReturnsEveryRentedArrayOnceAndIsSentTwiceOnlyForARetry()
     {
         // Arrange
         var run = new Run();
@@ -29,33 +29,7 @@ public sealed class DynamoDbPipelineStressTests
         await run.ExecuteAsync();
 
         // Assert
-        await Assert.That(run.Mismatches).IsEmpty();
-    }
-
-    [Test]
-    public async Task ExecuteAsync_ManyConcurrentCallsWithEveryKindOfOutcome_ReturnsEveryRentedArrayOnce()
-    {
-        // Arrange
-        var run = new Run();
-
-        // Act
-        await run.ExecuteAsync();
-
-        // Assert
-        await Assert.That((run.Pool.Outstanding, run.Pool.Returned > 0)).IsEqualTo((0, true));
-    }
-
-    [Test]
-    public async Task ExecuteAsync_ManyConcurrentCallsWithEveryKindOfOutcome_NoCallIsSentTwiceWithoutARetry()
-    {
-        // Arrange
-        var run = new Run();
-
-        // Act
-        await run.ExecuteAsync();
-
-        // Assert
-        await Assert.That(run.UnexpectedExtraAttempts).IsEmpty();
+        await Assert.That((string.Join("\n", run.Mismatches), run.Pool.Outstanding, run.Pool.Returned > 0, string.Join("\n", run.UnexpectedExtraAttempts))).IsEqualTo((string.Empty, 0, true, string.Empty));
     }
 
     // One run of the client, the handler and the calls. The kind of outcome of call i is i % 8, so that every kind runs about the same

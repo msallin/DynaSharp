@@ -28,6 +28,8 @@ public sealed class CommandLifetimeAnalyzerTests
 
         """;
 
+    private static readonly AnalyzerFixture Shared = new(Outside);
+
     [Test]
     [Arguments("""static async Task Run() { var c = shop.Update("a"); await Task.Delay(1); await [|c|].SendAsync(); }""", "CS4007")]
     [Arguments("""static async Task Run() { var c = shop.Update("a"); await c.SendAsync(); [|c|].ToRequestJson(); }""", "CS4007")]
@@ -69,11 +71,11 @@ public sealed class CommandLifetimeAnalyzerTests
     public async Task Analyze_WhatTheCompilerRefuses_IsReportedOnItsSpan(string member, string compilerError)
     {
         // Arrange
-        var source = AnalyzerRun.Member(Helpers + member, Outside);
+        var source = AnalyzerRun.Member(Helpers + member);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
-        var errors = AnalyzerRun.CompilerErrors(source);
+        var report = await Shared.ReportAsync(source);
+        var errors = Shared.CompilerErrors(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
@@ -128,11 +130,11 @@ public sealed class CommandLifetimeAnalyzerTests
     public async Task Analyze_WhatCompiles_ReportsNothing(string member)
     {
         // Arrange
-        var source = AnalyzerRun.Member(Helpers + member, Outside);
+        var source = AnalyzerRun.Member(Helpers + member);
 
         // Act
-        var report = await AnalyzerRun.ReportAsync(source);
-        var errors = AnalyzerRun.CompilerErrors(source);
+        var report = await Shared.ReportAsync(source);
+        var errors = Shared.CompilerErrors(source);
 
         // Assert
         await Assert.That(errors).IsEmpty();
