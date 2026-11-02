@@ -11,7 +11,7 @@ and it points at them instead of repeating them.
 |---|---|---|---|
 | `src/DynaSharp` | `net11.0` | The library, one assembly, internal by default | Nothing at run time; the generator as a build order only |
 | `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and one code fix in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0 (a floor, see `Directory.Packages.props`), no project |
-| `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `StubClient`, `RecordingHandler`, `RecordedRequest` and `RecordedTransactStep`, and `StubSts` on a socket of its own, because the HTTP of a credentials provider is not behind `HttpHandler` | `DynaSharp`, and its internals: `WireNames` and `TableJson` for the answers, `TableSchema` for what an entity declares, the internal constructors of the clients for a client that reads no environment |
+| `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `StubClient`, `RecordingHandler`, `RecordedRequest` and `RecordedTransactStep`, and `StubSts` on a socket of its own, because the HTTP of a credentials provider is not behind `HttpHandler` | `DynaSharp`, and its internals: `WireNames` and `TableJson` for the answers, `TableSchema` for what an entity declares, the internal constructors of the clients for a client that reads no environment. It packs a `README.md` of its own, and `DynaSharp` packs the one of the repository |
 | `tests/DynaSharp.UnitTests` | `net11.0` | Unit, generator and analyzer tests, the only coverage source | All three, the generator as analyzer and as assembly |
 | `tests/DynaSharp.IntegrationTests` | `net11.0` | The same tests on each emulator, on demand on real AWS, and the recipes of `patterns.md` | Docker, Testcontainers |
 | `tests/DynaSharp.AotSmoke` | `net11.0` | Publishes with Native AOT and runs | `DynaSharp`, `DynaSharp.Testing` |
@@ -23,7 +23,7 @@ and it points at them instead of repeating them.
 reaches only public members, which is why `ConverterChecks`, `KeyWriter` and the like are public.
 
 The folders of `src/DynaSharp`, top to bottom. A folder is not always a namespace: `Fluent` holds the public commands in `DynaSharp` and their
-machinery in the internal `DynaSharp.Fluent`, `Expressions` holds `Attr`, `Expr`, `Condition`, `SortKey`, `PartitionKey<T>` and their extensions in `DynaSharp` and the structs conditions compose from in `DynaSharp.Expressions`,
+machinery in the internal `DynaSharp.Fluent`, whichever of its folders a file is in, `Expressions` holds `Attr`, `Expr`, `Condition`, `SortKeyCondition` and their extensions in `DynaSharp` and the structs conditions compose from in `DynaSharp.Expressions`, and `CommandHandle` is in `DynaSharp.Expressions` too, in `Fluent/Commands`, as `PartitionKey<T>` is in `DynaSharp`, in `Keys`,
 and `Shared` and `Exceptions` are in `DynaSharp`.
 
 ```text
@@ -39,15 +39,19 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 
 | Folder | Holds | Mainly uses |
 |---|---|---|
-| `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for the pool of `CommandState` |
+| `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for `CommandPool` |
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
 | `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
-| `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, `FailedItem`, `TableAdministration`, `TableSchema`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
-| `Expressions` | Condition structs, `Attr`, `Expr`, `SortKeyCondition`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
+| `Fluent` | `Table<T>`, `Index<T>`, `TableExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema`, and the four folders below | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
+| `Fluent/Commands` | What a chain is built of: every command and step, their interfaces, the verbs of a transaction, and what sends one item: `CommandCall`, `ICommandOperation<T>`, the operations of a write, `WriteResult<T>`, `FailedCondition`, `RejectedRequest` | As `Fluent` |
+| `Fluent/Reads` | What a read does after its clauses: operations of reads, `PagedRead`, `PageCall`, `PageResponse`, `Page<T>`, `ContinuationToken`, parallel scan, fan-out and mixed machinery, `FailedItem` | As `Fluent` |
+| `Fluent/Actions` | What a command of several actions does: `ActionCall`, `ActionList`, `BatchDriver`, `Transaction`, their operations and results | As `Fluent` |
+| `Fluent/State` | What a command holds while it is built: `CommandState`, `WriteState`, `ReadOptions`, `CommandPool`, `ExpressionWriter`, `WriteRules`, `EntityWrites`, `KeyInputChanges`, `HeldKey` | As `Fluent` |
+| `Expressions` | Condition structs, `Attr`, `Expr`, `SortKeyCondition`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
 | `Mapping` | Attributes and the contract of section 6 | `Serialization` |
 | `Serialization` | `DynamoDbReader`, `DynamoDbWriter`, converters, `PooledByteBuffer`, `ItemShape`, `ShapeTable` | `Mapping` |
-| `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat` | Nothing of ours |
+| `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat`, `PartitionKey<T>` | `Mapping` and `Shared` for `PartitionKey<T>`, and nothing of ours otherwise |
 | `Shared` | `AttributeValue`, `Item`, capacity types, shared enums | `Mapping`, `Serialization`, `Requests` |
 | `Retries` | `RetryPolicy`, `RetryQuota`, `FailureClassifier`, `ClockSkewCorrection` | Nothing of ours |
 | `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache`, `CredentialsHttp`, the documents of the sources (`CredentialsDocument`, `StsDocument`) | `Configuration`, `Telemetry` |
@@ -62,7 +66,7 @@ command pool. `src/BannedSymbols.txt` is what enforces no unsafe code and no ref
 ## 2. The request path
 
 Everything that reaches the wire goes through `DynamoDbPipeline.SendAsync<TCall, TResponse>`, the one retry loop. Its remarks and those of `IWireCall<T>` are the
-reference. `ClientCore` owns the configuration, the `HttpClient`, the pipeline and the pool of command states, and both public clients are thin over it.
+reference. `ClientCore` owns the configuration, the `HttpClient`, the pipeline and the `CommandPool`, and both public clients are thin over it.
 
 1. `call.GetTableName()`, the span and the start time, then a `CallBuffers` from a bounded pool.
 2. `call.WriteBody(buffers)` once, inside the span. The body is hashed once with SHA-256. Every attempt sends these bytes.
@@ -119,9 +123,9 @@ crosses the `await`. The remarks on `CommandState` explain the version protocol 
 - `CommandState.Enter` checks the version and consumes the handle; each fluent method does `Enter`, changes the state and returns a new handle.
 - `CommandState.Check` checks and leaves the handle valid. `ExpressionHandler` uses it, because the compiler runs the handler before the method it belongs to.
 - `ToRequestJson` is a terminal like `SendAsync`. `Settle` and `Finish` change the state for good: they append conditions, close the open item and write the options into `Body`, and a transaction or a batch ends its actions. Leaving the command usable would take a copy of a state with its open writer, key inputs and actions, on every path that renders, which is more than a debug aid is worth, so the stale message names rendering instead. It cannot be told from the state which way a handle went stale, because the state goes back to the pool at once.
-- `Release` is the only way back to the pool, and a compare-and-swap on the version lets one holder through. A new field goes into `Release` as well.
+- `Release` is the only way back to the pool, and a compare-and-swap on the version lets one holder through. A new field goes into `Release` as well, and a new member of `WriteState` or `ReadOptions` needs nothing there, because `Release` puts their default values back.
 - A command that is built and abandoned is collected with its arrays. It costs one pool entry, not a leak.
-- A state keeps arrays up to 16 KB when idle, and a client keeps up to 64 idle states.
+- A state keeps arrays up to 16 KB when idle, and the `CommandPool` of a client keeps up to 64 idle states.
 
 `TableModel` holds what never changes in pre-encoded form (`BodyStart`, `KeyStart`, `SortKeyStart`), so a command copies bytes. `Table<T>` is a `TableModel` with a type; `Of<T>()` caches
 one view per type. `TableModel.Writes` is an `EntityWrites` only for an entity with a version or a key template, so every other command pays one null check. It also finds the indexes of literals, once, in `LiteralKeys`.
@@ -139,12 +143,12 @@ which walks the clauses to see whether an action already targets the attribute.
 A paged read writes its members once and remembers the offset in `_pageMark`; each page truncates back to it and appends a new `ExclusiveStartKey`. A transaction writes
 a set of expressions per action and clears them in `EndAction`, so `#n0` means something else in each action.
 
-`RejectedRequest` explains a `ValidationException`: it re-reads the body as sent and maps placeholders to names, and to the types of values. `FailedCondition` does the same for a `ConditionalCheckFailedException`: its `Key` is the `Key` member of the body, or the attributes of `TableModel.ItemKeyNames` in `Item`, so a command keeps no key that a write that gets through would pay for.
+`RejectedRequest` explains a `ValidationException`: it re-reads the body as sent and maps placeholders to names, and to the types of values. `FailedCondition` does the same for a `ConditionalCheckFailedException`: its `Key` is the `Key` member of the body, or the attributes of `TableModel.ItemKeyNames` in `Item`, so a command keeps no key that a write that gets through would pay for. A failed condition is routine in a create-if-absent, so it walks forward with `DynamoDbReader` and stops at the key, where `RejectedRequest`, on an error path that is rare, parses all of the body with `JsonDocument`.
 
 ### Write rules
 
-`WriteRules` is where a clause cannot decide alone. `Table<T>.Put`, `Update`, `Delete` and their transaction forms mark the state, later clauses may change the verdict, and
-`WriteRules.Settle` decides at the terminal and at the end of each transaction action (`CommandState.EndAction`).
+`WriteRules` is where a clause cannot decide alone. `Table<T>.Put`, `Update`, `Delete` and their transaction forms mark `WriteState`, a struct in one field of `CommandState`, which `CommandState.Write` hands out by reference, later clauses may change the verdict, and
+`WriteState.Settle` decides at the terminal and at the end of each transaction action (`CommandState.EndAction`). The state column below names its members.
 
 | Marked by | State | Settled as |
 |---|---|---|
@@ -174,14 +178,14 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 
 **Get.** `GetOperation<T>` calls `T.ReadAttributes` on the `Item` member, so `Item` and an entity go the same way. `GetValueOperation<T>` backs `ItemAsync`. Like every typed read it adds what it needs to a projection at the terminal, through `TableModel.AddRequiredNames`, and so does `BatchGet`.
 
-**Query and Scan.** `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. `BeginKeyQuery` does that for a key that writes itself: the key goes through the body and leaves it,
+**Query and Scan.** What a read does about items of other types is one `DiscriminatorCheck` of `TableModel` per kind of read: `DiscriminatorOnGet`, `DiscriminatorOnQuery` and `DiscriminatorOnScan` say `None`, `Filter` or `CheckEachItem`. A mixed read asks `TableModel.IsKey` itself, because it reads through a table without a schema, and the attribute is that of the mix. `TableModel.BeginQuery` and `BeginScan` write the key condition and add the discriminator filter. `BeginKeyQuery` does that for a key that writes itself: the key goes through the body and leaves it,
 and `ExpressionWriter.AppendKeyCondition` copies its names and values into the maps, because they are JSON already. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
 it gets it. `PageCall.ReadResponse` copies `LastEvaluatedKey` into `CommandState.PageKey` only after the whole response parsed, so a retry of a page sends what the first attempt sent. `PageResponse`
 locates that key and does not parse it. `OnceEnumerable<T>` makes an enumeration single-use and releases the state however it ends, also for an enumerator disposed before its first `MoveNextAsync`. `ToPage` makes a
 `ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts a known format version and exactly one JSON object of attribute values, because that object reaches the body as raw bytes. The version is the first byte of the text, for page and fan-out tokens alike, and the JSON of a token from before there was one starts with a brace, which is no version.
 
 **One attribute.** `Select` is `CommandState.SelectAttribute`, which writes the projection once, because no clause can follow it, and `GetSelectCommand`, `QuerySelectCommand` and `ScanSelectCommand`, which have terminals and nothing else, named `ValuesAsync` and `ValueAsync` because they give values and no items. A page reads each item through an `IItemReader<T>`, a static member of a struct, so `PagedRead` and `PageCall` take any `T`: `DocumentItem<T>` is
-`T.ReadAttributes` and `SelectedItem<TValue, TConverter>` is the attribute, found by `AttributePath`, which `UpdateValueOperation` shares. `ChecksDiscriminator` says that no filter kept other types away, which is a `Get` and a query keyed by the discriminator, and then a copy of the reader walks the item once more. What a missing attribute means is `IDynamoDbConverter<T>.TryReadMissing`, and which converter that is the overload of `Select` decides: the
+`T.ReadAttributes` and `SelectedItem<TValue, TConverter>` is the attribute, found by `AttributePath`, which `UpdateValueOperation` shares. `ReadOptions.ChecksDiscriminator` is the answer `CheckEachItem`, that no filter kept other types away, which is a `Get` and a query keyed by the discriminator, and then a copy of the reader walks the item once more. What a missing attribute means is `IDynamoDbConverter<T>.TryReadMissing`, and which converter that is the overload of `Select` decides: the
 wrappers of section 6 make it `NullableConverter<T, TConverter>` or `NullableReferenceConverter<T, TConverter>`, whose `T?` is what the command gives. `AttributePath` reads through `DynamoDbReader.TryReadValue`, so a value that `CountsAsMissing` counts is an attribute that is not there, for `Select` and for `Return` alike. `TableModel.ReadTypeName` is the name generated code gives its type, so that a failure reads as that of the entity.
 
 **Parallel scan.** `ParallelScan` runs one `CommandState` per segment from `StartSegment`, each on a task handing pages over a channel with room for one, so at most n requests and about 2n pages exist.
@@ -189,8 +193,8 @@ Its remarks say how failures and an early end work. `MixedScanCommand` shares it
 
 **Fan-out.** `FanOutQueryCommand<T>` holds a template state that never goes out, and a `FanOutPlan`. `FanOutRead<T>` has the terminals, `FanOutMerge<T>` the k-way merge over a heap, `FanOutCursor<T>` one partition,
 `FanOutKeys` the keys of held items in pooled buffers, read from the JSON and not from the items. `NumberOrder` writes DynamoDB numbers in a byte-comparable form, so the merge compares only bytes.
-`FanOutToken` is the composite position inside an ordinary `ContinuationToken`. `BoundedReads` limits concurrency. `StartPartition` copies the template with `CopyRead`, and a new read option has to be
-copied there. The remarks of `FanOutMerge` explain why nothing reads ahead.
+`FanOutToken` is the composite position inside an ordinary `ContinuationToken`. `BoundedReads` limits concurrency. `StartPartition` copies the template with `CopyRead`, which assigns `ReadOptions` by value,
+so a new read option comes along by itself. The remarks of `FanOutMerge` explain why nothing reads ahead.
 
 **Mixed reads.** `Mixed<T1, ...>` implements `IDynamoDbDocument<...>`, so the normal page path reads it. `MixedSchema` is built once per type combination, holds the `IN` filter, the required projection and
 `FindType`, which reads a copy of the reader as a checkpoint to find `_type` and then lets the type read from the start. A problem with a combination is stored and thrown at `Of<...>()`, never from a type
@@ -290,7 +294,7 @@ The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target ne
 | Template syntax | `KeyTemplateParser`, whose remarks show the grammar with an example |
 | Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
 | Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
-| Compile-time rules (`DYNA100` to `DYNA118`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
+| Compile-time rules (`DYNA100` to `DYNA120`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
 | Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter`. Which conditions exist is `KeyBuilderEmitter.IsInOrder` and `EmitRanges`, and `PlainKeyBuilderEmitter.OrderedText`, for the reasons in `api.md` section 6 |
 | `KeyFormatException` | `Keys/KeyFormatException.cs`, in namespace `DynaSharp`; it names the placeholder, never the value |
 | `TryOf` and the check of `Keys.Of` | `KeyWriter`, whose `Reject` is the one place a value is turned away, and which with `throwOnInvalid: false` sets `IsInvalid` there. The generated `Encode` is the same for `Format`, `Of`, `TryOf` and `Check`, so they cannot disagree. `KeyEncoding.CanReject` says which keys have any of it |
@@ -310,7 +314,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA204` | `CommandReuseAnalyzer`, `CommandFlow` | `CommandState.Enter`, which throws for a stale handle | `CommandReuseAnalyzerTests` |
 | `DYNA205` | `EntityCommandAnalyzer`, on the generator's model through `ModelCatalog` | `KeyInputChanges.Check`, which throws for an input of a template of the table key, and DynamoDB, which rejects a write of a plain key, where nothing here throws. By name, the members of `IUpdatable<TSelf>` that take a handle | `EntityCommandAnalyzerTests`, `AnalyzerListTests` |
 | `DYNA219` | `EntityCommandAnalyzer`, on `EntityModel.ComputedInputs` through `ModelCatalog` | `KeyInputChanges.Check`, which throws for what a computed input is derived from and for such an input with an attribute of its own, by the same members of `IUpdatable<TSelf>`, through `At` | `EntityCommandAnalyzerTests`, `AnalyzerListTests` |
-| `DYNA206` | `EntityCommandAnalyzer` | `WriteRules.Settle`, which throws for the same put | `EntityCommandAnalyzerTests` |
+| `DYNA206` | `EntityCommandAnalyzer` | `WriteState.Settle`, which throws for the same put | `EntityCommandAnalyzerTests` |
 | `DYNA207` | `EntityCommandAnalyzer` | `TableExtensions.Index`, which throws for the same name | `EntityCommandAnalyzerTests` |
 | `DYNA208`, `DYNA209` | `ProjectionAnalyzer`, on the generator's model through `ModelCatalog` | `MissingBehavior.Throw` and what generated reads restore from a key, `MissingBehavior.KeepCurrent` of a version, `PropertyModel.OmitEmptyConverter` of a property that is not nullable, `ConverterModel.CountsAsMissing` and `ConverterModel.AnswersMissing`, which say what `CountsAsMissing` and `TryReadMissing` of a converter do at run time, `TableModel.AddRequiredNames` for which keys a read adds | `ProjectionAnalyzerTests`, and every test of the repository that projects an entity and reads it from an emulator |
 | `DYNA210`, `DYNA211`, `DYNA212` | `ExpressionAnalyzer`, `ExpressionLexer`, `ExpressionParser` | DynamoDB's condition and update grammar, and the keyword list of `ExpressionWriter` | `ExpressionCorpus`, a test comparing the two keyword lists |
@@ -328,7 +332,7 @@ it; the note on `RS1038` in the generator's project file explains why that holds
 ## 10. Tests and oracles
 
 Gates: build with warnings as errors, `dotnet format --verify-no-changes`, unit tests with 100 % line and branch coverage over `DynaSharp`, `DynaSharp.Generators` and `DynaSharp.Testing` (`coverage.config`,
-`build/CoverageGate.cs`), integration tests on both emulators, the AOT publish and the package smoke test. Stryker has a break threshold of 90 % and runs before a milestone closes.
+`build/CoverageGate.cs`), the C# blocks of the README compiled against the projects (`build/ReadmeCheck.cs`), integration tests on both emulators, the AOT publish and the package smoke test. Stryker has a break threshold of 90 % and runs before a milestone closes.
 The Stryker pass and the AOT publish are paused by the owner until the mandatory pass before the first push; see the decision in `tasks.md`.
 
 A test that derives its expectation from the code proves little, so each area has an independent source of truth.
@@ -347,7 +351,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | Key encodings | `Keys/KeyVectorTests`, `Key*PropertyTests` | `generate_key_vectors.py` with Python `decimal`; properties with a fixed seed: order is preserved, parse inverts format |
 | Key order against storage | Integration, `Keys` and `Mapping` | The emulators sort, so the ordering claim is checked by something else |
 | Sort key conditions | `Mapping/GeneratedSortKeyConditionTests`, integration `Keys/SortKeyConditionTests` | The order of the values, in `decimal`, `DateTimeOffset` and tuples, against real keys compared by UTF-8 bytes, and the rows the emulators return |
-| Command bodies | `Fluent/*Tests`, `WriteRulesTests`, `DiscriminatorWriteTests`, `CommandVectorTests` | Bodies written by hand from `api.md`, never from the writer, and the command vectors of `generate_operation_vectors.py` |
+| Command bodies | `Fluent/*Tests`, `Fluent/WriteRules`, `Fluent/KeyInputs`, `DiscriminatorWriteTests`, `CommandVectorTests` | Bodies written by hand from `api.md`, never from the writer, and the command vectors of `generate_operation_vectors.py` |
 | Generated code | `Generators/Snapshots/*.verified.cs`, compiled at C# 11 and latest | The reviewed snapshot, and compile-and-run tests in `Mapping` with hand-written JSON |
 | Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
 | Compile guards | `Fluent/CompileGuardTests` | The compiler, asked in-process whether a misuse fails and which overload binds |
@@ -356,6 +360,8 @@ A test that derives its expectation from the code proves little, so each area ha
 | Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators |
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
 | Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
+
+The entities of the fluent tests are in `Fluent/Entities`, from the generator, so that a test meets what the entity of a consumer does, and the analyzers read them. `Fluent/HandWritten` holds what the generator does not emit: a discriminator on a key of the table, metadata without types, a key with no input and no format, and an entity that names a version and forgets to write it. `Fluent/WriteRules` and `Fluent/KeyInputs` hold one class per rule, and `WriteRulesFixture` and `KeyInputChangesFixture` what the classes of a folder share.
 
 A test of the run-time guards makes on purpose what the analyzers report: it drops a command with `_ =`, it reuses a handle through a copy in a second variable, which `DYNA204` does not follow, it writes a key by a handle in a variable, which `DYNA205` does not follow, it nests a retry through a delegate in a variable, which `DYNA217` does not follow, and it writes a stale item from a parameter, which `DYNA218` cannot tell from a new one. A helper of a test does not do for that, because `DynaSharpTypes` goes by the namespace and a method under `DynaSharp.IntegrationTests` counts as the library. `AnalyzerRun.ReportAsync` leaves out `DiscardedCommandAnalyzer` and `CommandReuseAnalyzer`, because a snippet of another rule is a statement whose value nothing uses.
 
@@ -375,16 +381,16 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 6. `api.md` section 1 if it adds a namespace or a rule, `requirements.md` if it changes scope.
 
 **A command for an operation.**
-1. `Fluent/XCommand.cs`, a `readonly ref struct` copying the shape of `PutCommand<T>`: `Enter`, the `CommandHandle` conversion, `DebuggerText`, `ToRequestJson`, `GetAwaiter`.
-2. `Fluent/XOperation.cs` for `ICommandOperation<T>`, or `IActionOperation<T>` for several actions.
+1. `Fluent/Commands/XCommand.cs`, a `readonly ref struct` copying the shape of `PutCommand<T>`: `Enter`, the `CommandHandle` conversion, `DebuggerText`, `ToRequestJson`, `GetAwaiter`.
+2. `Fluent/Commands/XOperation.cs` for `ICommandOperation<T>`, `Fluent/Reads` for a read, or `Fluent/Actions` for `IActionOperation<T>` and several actions.
 3. The verb on `Table<T>` or `Index<T>`, or in `TableExtensions` when it depends on `T`.
 4. Tests by hand-written body, `CommandAllocationTests`, `CompileGuardTests`; an integration test in `IntegrationTests/Commands`.
 5. `api.md`. A read implements `IReadCommand` to count as one for `DYNA202`.
 
 **An option of a command.**
-1. A property in `CommandState`, its reset in `Release`, and its output in `WriteMembers` or `WriteRequestOptions`.
-2. The clause on each command that has it, with `Enter`. An interface in `Fluent/I*.cs` if helpers should reach it.
-3. A read option: `CopyRead` or the caller in `StartSegment` and `StartPartition`, and the clause on `FanOutQueryCommand<T>` and all six `Mixed*Command` files.
+1. A read option: a property in `ReadOptions` and its output in `ReadOptions.WriteMembers`. `Release` and `CopyRead` take the struct as a whole. Any other option: a property in `CommandState`, its reset in `Release`, its output in `WriteMembers` or `WriteRequestOptions`, and for an option every command has, as `MaxAttempts` and `ReturnCapacity`, a line in `CopyRead`.
+2. The clause on each command that has it, with `Enter`. An interface in `Fluent/Commands/I*.cs` if helpers should reach it.
+3. A read option: the clause on `FanOutQueryCommand<T>` and all six `Mixed*Command` files.
 4. A per-call setting of the loop: a member on `IWireCall<T>` and all five calls.
 5. Tests, and the clause table of `api.md` section 5.
 
@@ -442,7 +448,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 | Round, stalled | One request of a batch; one that made no progress |
 | Sandbox | The test helpers in `IntegrationTests` that give each test its own table |
 | Segment | A clause's buffer. In a scan, one of `TotalSegments` |
-| Settle | `WriteRules.Settle`, which turns what a write marked into expressions or a throw at the terminal |
+| Settle | `WriteState.Settle`, which turns what a write marked into expressions or a throw at the terminal |
 | Shape | `ItemShape`, the attribute names of an `Item`, shared across items |
 | Sink | `ExpressionSink`, what a condition renders into |
 | Slot | `TransactSlot<T>`, where a read of `TransactGet` is found. Also an entry of `ShapeTable` |

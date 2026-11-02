@@ -38,6 +38,8 @@ internal sealed class EntityKeyBuilder(
 
     private readonly List<KeyModel> _keys = [];
 
+    private readonly List<(KeyTemplate Template, Spot Spot)> _templates = [];
+
     public EntityModel? Build(DiscriminatorInfo discriminator)
     {
         var partition = TableKey(PartitionSlot);
@@ -72,6 +74,7 @@ internal sealed class EntityKeyBuilder(
         }
 
         ReportEmptyDefaults();
+        ReportRawBesideStrict();
         RestoreKeyOnlyProperties();
         FindFallbackKeys();
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
@@ -147,6 +150,23 @@ internal sealed class EntityKeyBuilder(
         foreach (var property in properties.Where(property => inputs.Contains(property.Name) && EmptyDefault.IsForgettable(property, type)))
         {
             bag.Report(Descriptors.EmptyDefaultOfKey, property.Spot, property.Name);
+        }
+    }
+
+    // A format belongs to its template, so no template can see that another one refuses what it holds, and the write that passes one key throws at the next. Without a delimiter there is
+    // nothing to refuse: such a template takes every value that raw takes.
+    private void ReportRawBesideStrict()
+    {
+        var placeholders = _templates
+            .SelectMany(static entry => entry.Template.Segments.OfType<PlaceholderSegment>().Select(placeholder => (entry.Template, entry.Spot, Placeholder: placeholder)))
+            .ToList();
+        foreach (var strict in placeholders.Where(static entry => entry.Template.Delimiters.Length > 0 && entry.Placeholder.Encoding is StringEncoding { IsRaw: false }))
+        {
+            var raw = placeholders.Find(entry => entry.Placeholder.Encoding is StringEncoding { IsRaw: true } && entry.Placeholder.Property == strict.Placeholder.Property);
+            if (raw.Template is not null)
+            {
+                bag.Report(Descriptors.RawBesideStrict, strict.Spot, strict.Placeholder.Property, raw.Template.Text, strict.Template.Text, strict.Template.Delimiters);
+            }
         }
     }
 
@@ -262,6 +282,7 @@ internal sealed class EntityKeyBuilder(
 
         var key = Claim(new KeyModel(attributeName, builderName, binding.Template, null, SharesAttribute: false), label, spot);
         _keys.Add(key);
+        _templates.Add((binding.Template, spot));
         return key;
     }
 

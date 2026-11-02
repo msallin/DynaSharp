@@ -24,7 +24,8 @@ namespace DynaSharp.Mapping;
 /// A table that keeps such items, because other code wrote them or they are older than the version, is what <c>[Version(Missing = VersionMissing.Allow)]</c> is for, and that is the first answer for it. It takes over an
 /// item that holds 0 as well, which is what the first <c>SaveAsync</c> of the AWS SDK stores, because that reads as 0 too. Every 0 above then renders <c>(attribute_not_exists(version) OR version = 0)</c>, so 0 means an item
 /// without a version, one that holds 0, or none: the first write replaces such an item and stores version 1, and the writes after it are ordinary ones.
-/// A read gives 0 for an item without a version, also for a <c>required</c> version, and so does <c>Select</c> of the handle, where it would throw otherwise. The price is that a write at 0 no longer proves that the key was free. Two
+/// A read gives 0 for an item without a version, also for a <c>required</c> version, and so does <c>Select</c> of the handle, where it would throw otherwise. No item at all is something else: <c>Select</c> has
+/// <see cref="SelectResult{TValue}.Found"/> false, and <see cref="SelectResult{TValue}.Value"/> throws. The price is that a write at 0 no longer proves that the key was free. Two
 /// clauses say what they mean instead: <c>.IfNotExists()</c> at version 0 keeps <c>attribute_not_exists</c> on the partition key alone, because that is what was asked for, and <c>.IfExists()</c> at version 0 no longer
 /// throws, because such an item can exist, and renders <c>attribute_exists</c> on the partition key beside that same condition on the version attribute. A version above 0 is the same either way.
 /// </para>

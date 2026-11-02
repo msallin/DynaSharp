@@ -24,8 +24,12 @@ internal static class TestClient
 
     public const string GetItemResponseJson = """{"Item":{"pk":{"S":"user-1"},"name":{"S":"Alice"}}}""";
 
-    /// <summary>The attempt timeout of the clients that <see cref="Create"/> makes unless a test says otherwise.</summary>
-    public static readonly TimeSpan DefaultAttemptTimeout = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// The attempt timeout of the clients that <see cref="Create"/> makes unless a test says otherwise. Most tests run a stub on the real clock, where no answer may ever count as late, however
+    /// loaded the machine, so this is far above what a whole run takes. A test about the timeout gives the client a timeout of its own and moves its own clock by that: nothing may wait for this
+    /// one to run out, and a clock that a test moves by less than this never gets there.
+    /// </summary>
+    public static readonly TimeSpan DefaultAttemptTimeout = TimeSpan.FromHours(1);
 
     public static AwsRegion Region { get; } = AwsRegion.FromName("eu-central-2");
 

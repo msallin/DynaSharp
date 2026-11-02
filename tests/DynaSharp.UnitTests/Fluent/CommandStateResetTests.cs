@@ -18,8 +18,8 @@ public sealed class CommandStateResetTests
 
     private const string PageWithNextKey = """{"Items":[],"Count":0,"ScannedCount":0,"LastEvaluatedKey":{"pk":{"S":"a"}}}""";
 
-    // The objects a state owns for its whole life, which are walked field by field. A buffer and a JSON writer are compared by what they hold, everything else by value.
-    private static readonly HashSet<Type> Parts = [typeof(CommandState), typeof(ExpressionWriter), typeof(ActionList), typeof(KeyInputChanges)];
+    // The objects a state owns for its whole life and the structs it keeps in one field each, which are walked field by field. A buffer and a JSON writer are compared by what they hold, everything else by value.
+    private static readonly HashSet<Type> Parts = [typeof(CommandState), typeof(WriteState), typeof(ReadOptions), typeof(ExpressionWriter), typeof(ActionList), typeof(KeyInputChanges)];
 
     // Fields that keep their value on purpose. Everything else must be back at what a new state holds.
     private static readonly Dictionary<string, string> Survivors = new(StringComparer.Ordinal)
@@ -53,7 +53,7 @@ public sealed class CommandStateResetTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var fresh = NewState(client);
-        var state = WithParts(client.Core.RentCommand());
+        var state = WithParts(client.Core.Commands.Rent());
 
         // Act
         Fill(state);
@@ -69,12 +69,12 @@ public sealed class CommandStateResetTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var fresh = NewState(client);
-        var state = WithParts(client.Core.RentCommand());
+        var state = WithParts(client.Core.Commands.Rent());
         Fill(state);
 
         // Act
         state.Release(state.Version);
-        var reused = client.Core.RentCommand();
+        var reused = client.Core.Commands.Rent();
 
         // Assert
         await Assert.That((ReferenceEquals(reused, state), LeftOver(fresh, reused))).IsEqualTo((true, string.Empty));
@@ -86,15 +86,15 @@ public sealed class CommandStateResetTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Core.RentCommand();
+        var state = client.Core.Commands.Rent();
         state.HoldKey(MeterDay.Keys.Of("m1", DateTimeOffset.UnixEpoch, 1));
-        var holder = state.HeldKey!;
+        var holder = state.Write.HeldKey!;
 
         // Act
         state.Release(state.Version);
 
         // Assert
-        await Assert.That((state.HeldKey, holder.ValueOf("Meter"))).IsEqualTo((null, null));
+        await Assert.That((state.Write.HeldKey, holder.ValueOf("Meter"))).IsEqualTo((null, null));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public sealed class CommandStateResetTests
 
         // Act
         await RunAsync(command, client, client.Table("Shop", "pk"));
-        var reused = WithParts(client.Core.RentCommand());
+        var reused = WithParts(client.Core.Commands.Rent());
 
         // Assert
         await Assert.That(LeftOver(fresh, reused)).IsEqualTo(string.Empty);

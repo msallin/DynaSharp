@@ -66,15 +66,16 @@ internal sealed class ActivityCapture : IDisposable
         Func<DynamoDbClient, Task> call,
         TimeProvider? time = null,
         ActivitySamplingResult sampling = ActivitySamplingResult.AllDataAndRecorded,
-        Uri? serviceUrl = null)
+        Uri? serviceUrl = null,
+        TimeSpan? attemptTimeout = null)
     {
         using var capture = new ActivityCapture(sampling);
-        using var client = TestClient.Create(handler, time, serviceUrl: serviceUrl);
+        using var client = TestClient.Create(handler, time, attemptTimeout: attemptTimeout, serviceUrl: serviceUrl);
         await call(client);
         return capture.Single();
     }
 
-    /// <summary>Runs a call like <see cref="RunAsync(HttpMessageHandler, Func{DynamoDbClient, Task}, TimeProvider?, ActivitySamplingResult, Uri?)"/> with a listener that samples as given.</summary>
+    /// <summary>Runs a call like <see cref="RunAsync(HttpMessageHandler, Func{DynamoDbClient, Task}, TimeProvider?, ActivitySamplingResult, Uri?, TimeSpan?)"/> with a listener that samples as given.</summary>
     public static Task<Activity> RunAsync(HttpMessageHandler handler, Func<DynamoDbClient, Task> call, ActivitySamplingResult sampling) =>
         RunAsync(handler, call, null, sampling);
 

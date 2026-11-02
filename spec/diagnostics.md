@@ -84,6 +84,8 @@ keys of its indexes too. Only a default that cannot be a key counts: `""`, `stri
 
 `DYNA119`: a `[ComputedFrom]` that cannot work, as the message says. It belongs on a computed property that a key template uses, and it names at least one property, each once, of the same type: one with an attribute of its own, so neither computed nor `[DynamoDbIgnore]` nor `[KeyOnly]`, and not the `[Version]`, which an update moves without a handle, so that nothing would see the change. On a document it is `DYNA012`.
 
+`DYNA120` (warning): a property that is `raw` in one template and strict in another, such as `[PartitionKey("A#{Key:raw}")]` beside `[GlobalIndexKey("ByKey", PartitionKey = "B#{Key}")]`. A format belongs to its template, so this compiles, and a `Put` of `a#b` passes the first key and throws `KeyFormatException` at the second. It is reported on the strict template, once for each one. Use `raw` in both, at the end of each template, or in neither. Only a template with a delimiter refuses anything, so a strict `{Key}` with nothing beside it and a plain key are not reported, and a property that really takes a smaller set of values in one key can keep this with `#pragma warning disable DYNA120`.
+
 ## Commands
 
 A command such as `PutCommand<T>` is a `ref struct` over pooled state. That is what makes building a request free of allocation, and it

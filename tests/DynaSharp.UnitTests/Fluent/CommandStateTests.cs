@@ -25,6 +25,46 @@ public sealed class CommandStateTests
     }
 
     [Test]
+    public async Task StartSegment_EveryReadOption_ReachesTheCopy()
+    {
+        // Arrange (values no option holds by default, so that a copy that leaves one out shows)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var template = client.Table("Shop", "pk").Model.Begin();
+        template.Read = EveryOptionSet();
+
+        // Act
+        var copy = template.StartSegment(3);
+        var options = copy.Read;
+        copy.Release(copy.Version);
+        template.Release(template.Version);
+
+        // Assert
+        var expected = EveryOptionSet();
+        expected.Segment = 3;
+        await Assert.That(options).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task StartPartition_EveryReadOption_ReachesTheCopy()
+    {
+        // Arrange (values no option holds by default, so that a copy that leaves one out shows)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var template = client.Table("Shop", "pk").Model.Begin();
+        template.Read = EveryOptionSet();
+
+        // Act
+        var copy = template.StartPartition("a", null);
+        var options = copy.Read;
+        copy.Release(copy.Version);
+        template.Release(template.Version);
+
+        // Assert
+        await Assert.That(options).IsEqualTo(EveryOptionSet());
+    }
+
+    [Test]
     public async Task Extend_HandleThatWasExtended_ThrowsNamingOperationAndTable()
     {
         // Arrange
@@ -141,8 +181,8 @@ public sealed class CommandStateTests
             message = exception.Message;
         }
 
-        var first = client.Core.RentCommand();
-        var second = client.Core.RentCommand();
+        var first = client.Core.Commands.Rent();
+        var second = client.Core.Commands.Rent();
 
         // Assert
         await Assert.That((message.Length > 0, ReferenceEquals(first, second))).IsEqualTo((true, false));
@@ -461,6 +501,17 @@ public sealed class CommandStateTests
             return false;
         }
     }
+
+    private static ReadOptions EveryOptionSet() => new()
+    {
+        ConsistentRead = true,
+        Limit = 7,
+        Descending = true,
+        Select = SelectKind.Count,
+        Segment = 2,
+        TotalSegments = 4,
+        ChecksDiscriminator = true,
+    };
 
     private static string MessageOfSendAfterRender(Table<Item> shop)
     {

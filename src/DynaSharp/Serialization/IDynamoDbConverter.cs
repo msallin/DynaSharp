@@ -27,6 +27,18 @@ namespace DynaSharp.Serialization;
 /// }
 /// </code>
 /// <para>
+/// The members are static abstract, so a converter generic over its value, such as <c>JsonConverter&lt;T&gt;</c>, declares static members on a generic type. That is <c>CA1000</c>, which fails a project that treats it as an
+/// error. Write one struct per type over a generic helper, as here with a <c>TextValue.Write&lt;T&gt;</c> and a <c>TextValue.Read&lt;T&gt;</c> of your own:
+/// </para>
+/// <code>
+/// public readonly record struct MoneyConverter : IDynamoDbConverter&lt;Money&gt;
+/// {
+///     public static void Write(DynamoDbWriter writer, Money value) => TextValue.Write(writer, value);
+///
+///     public static Money Read(ref DynamoDbReader reader, AttributeType type) => TextValue.Read&lt;Money&gt;(ref reader, type);
+/// }
+/// </code>
+/// <para>
 /// A converter that cannot read a value throws <see cref="System.Text.Json.JsonException"/>,
 /// <see cref="FormatException"/>, <see cref="OverflowException"/> or <see cref="InvalidOperationException"/> (a
 /// <see cref="UriFormatException"/> is a <see cref="FormatException"/>); the code mapping an entity reports exactly those, with

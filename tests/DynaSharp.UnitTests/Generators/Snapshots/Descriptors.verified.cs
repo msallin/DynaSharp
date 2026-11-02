@@ -46,6 +46,7 @@ DYNA116 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key
 DYNA117 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA118 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA119 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
+DYNA120 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates
 DYNA201 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA202 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
 DYNA203 | https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands
@@ -113,6 +114,7 @@ DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table k
 DYNA117 | Warning | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
 DYNA118 | Error | DynaSharp.Keys | Raw value does not end the template | '{0}' has the format raw, which reads to the end of the key, so nothing can follow it in the template
 DYNA119 | Error | DynaSharp.Keys | [ComputedFrom] is not valid here | [ComputedFrom] on '{0}' is not valid: {1}
+DYNA120 | Warning | DynaSharp.Keys | Raw value is strict in another template | '{0}' is raw in '{1}' and strict in '{2}', so a value that holds any of '{3}' fits the first and throws KeyFormatException at the second. Use one format for it in both.
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
 DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.

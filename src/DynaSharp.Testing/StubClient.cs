@@ -17,6 +17,11 @@ namespace DynaSharp.Testing;
 /// There is no attempt timeout because <see cref="DynamoDbClientOptions.AttemptTimeout"/> runs on <see cref="DynamoDbClientOptions.TimeProvider"/>: a fake clock that a test moves past it would time out the request
 /// the test is answering. So a test of a timeout sets one. A test that asks a responder of a <see cref="StubHandler"/> to wait for the cancellation of a call needs it, or it waits for ever.
 /// </para>
+/// <para>
+/// The timeout of a wait for a table, <c>WaitUntilActiveAsync</c> and <c>WaitUntilActive()</c>, runs on that clock as well, next to the delays between its polls. So a loop that advances a fake clock and calls
+/// <see cref="Task.Yield"/> until the wait ends burns the whole timeout, and the wait throws <see cref="TableNotActiveException"/> with answers still in the queue. Give such a wait a timeout that the loop does not reach,
+/// or advance the clock once for each poll the handler has seen.
+/// </para>
 /// <para>The client disposes neither the handler nor anything else it was given. A <see langword="using"/> on the client and one on the handler are both needed.</para>
 /// </remarks>
 /// <example>

@@ -13,6 +13,14 @@ namespace DynaSharp.Mapping;
 /// address nothing else. DynamoDB keeps a partition key for the life of the item, so a template input cannot be updated.
 /// </para>
 /// <para>
+/// A property that only exists to feed a key takes <see cref="KeyOnlyAttribute"/>, as it does for <c>[PartitionKey("appointment#{Key:raw}", AttributeName = "Id")]</c> over a plain <c>Key</c>: an input of a template is
+/// stored as an attribute of its own as well, so without it every item gets an extra <c>Key</c>, and nothing says so.
+/// </para>
+/// <para>
+/// <c>raw</c> lifts the delimiter check and nothing else. An empty value, a lone surrogate, a control character and U+10FFFF still throw <see cref="KeyFormatException"/>, on a write and through <c>Keys.Of</c> on a read, so
+/// <c>Keys.TryOf</c> is the tool for a value from outside. A stored key that holds one does not fit the template, and a read that restores an input from it throws <see cref="DynamoDbMappingException"/>.
+/// </para>
+/// <para>
 /// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
 /// <c>{At}</c> is <c>ms</c>: it keeps milliseconds, so two times within one millisecond give one key, unless the rest of the key differs. Only <c>ticks</c> is lossless.
 /// </para>

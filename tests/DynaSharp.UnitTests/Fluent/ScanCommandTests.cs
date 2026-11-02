@@ -33,7 +33,7 @@ public sealed class ScanCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Tenant>("Tenants").Scan().Project("x").ToRequestJson();
+        var json = client.Table<Tenant>("Tenants").Scan().Project(Attr("x")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Tenants","FilterExpression":"#n0 = :v0","ProjectionExpression":"#n1, #n0, #n2","ExpressionAttributeNames":{"#n0":"kind","#n1":"x","#n2":"pk"},"ExpressionAttributeValues":{":v0":{"S":"TENANT"}}}""");

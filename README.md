@@ -5,11 +5,9 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 - **Lean:** a `PutItem` allocates 1.5 KB against 5.1 KB for EfficientDynamoDb and 44.4 KB for the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation.
 - **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
-- **Compile-time safety:** a key of the wrong entity, a clause an operation does not have, or a broken expression fails at build time.
+- **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
 - **No AWS SDK:** no runtime package dependencies.
 - **Testable:** every request to DynamoDB goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire. Credential requests do not, so a test sets `Credentials` too.
-
-> **Status:** early development. Nothing is published to NuGet yet, and DynaSharp has only been tested against DynamoDB Local and Dynoxide, not yet against AWS itself.
 
 ## Getting started
 
@@ -17,8 +15,13 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 DynaSharp needs .NET 11. The package brings its source generator and analyzers along.
 
+There is no public feed. Pack a clone of this repository into a folder, make that folder a source, and add the package from it. A clone without a tag packs a prerelease version.
+
 ```shell
-dotnet add package DynaSharp
+dotnet pack src/DynaSharp -c Release -o /path/to/packages
+dotnet pack src/DynaSharp.Testing -c Release -o /path/to/packages
+dotnet nuget add source /path/to/packages --name dynasharp
+dotnet add package DynaSharp --prerelease
 ```
 
 ### Creating the client
@@ -68,14 +71,16 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 Without `Credentials`, the client uses the default chain of the AWS SDKs and takes the first source that has credentials:
 
 1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
-2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`: IAM roles for service accounts on EKS, and any other OpenID Connect issuer the account trusts
+2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`
 3. the profile selected by `AWS_PROFILE` in the shared credentials and config files
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 
 A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`. To test the way through STS without AWS, `StubSts` of `DynaSharp.Testing` stands in for it on a port of the machine.
 
-Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported yet.
+IRSA on EKS sets those two variables in the pod, so `new DynamoDbClient()` needs no more. The client trades the token for credentials at STS with `AssumeRoleWithWebIdentity`, reads the file again for each exchange because the kubelet replaces it, and renews the credentials before they expire. Any other OpenID Connect issuer the account trusts works the same way.
+
+Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported.
 
 ### Defining an entity
 
@@ -88,7 +93,7 @@ using DynaSharp.Mapping;
 [Discriminator("ORDER")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("ORDER#{Number:d6}")]
-[GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}", SortKey = "{PlacedAt}")]
+[GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}", SortKey = "{PlacedAt:ms}")]
 public partial record Order
 {
     public required string CustomerId { get; init; }
@@ -98,6 +103,15 @@ public partial record Order
     public required decimal Total { get; init; }
 }
 ```
+
+`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC and keeps milliseconds unless it says otherwise: `{PlacedAt:ms}` and a bare `{PlacedAt}` both store `2026-10-31T12:34:56.789Z`. `{PlacedAt:ticks}` keeps seven digits, and only that format keeps the whole value. Such an order and a customer of the same shop share a table and a partition:
+
+| `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
+|---|---|---|---|---|---|
+| `CUSTOMER#alice` | `PROFILE` | | | `CUSTOMER` | `Id`, `Name`, `Email` |
+| `CUSTOMER#alice` | `ORDER#000001` | `STATUS#Placed` | `2026-10-31T12:34:56.789Z` | `ORDER` | `CustomerId`, `Number`, `Status`, `PlacedAt`, `Total` |
+
+Those are the default names. The inputs of a key are stored as attributes of their own too, unless `[KeyOnly]` says that the key is enough. No attribute holds such a property, so it has no handle in `Attrs`.
 
 What is the same on every type can be said once for the project. This stores `CustomerId` as `customerId`, leaves empty strings and collections out of an item, lets an entity without `[Discriminator]` go without one, and stores every `DateTimeOffset` as epoch seconds, also in a list:
 
@@ -109,7 +123,7 @@ using DynaSharp.Serialization;
 [assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(EpochSecondsConverter))]
 ```
 
-An attribute on a type or a property still wins. Changing `Naming` renames stored attributes, and `pk`, `sk` and `_type` stay as they are.
+An attribute on a type or a property still wins. A stored attribute takes its name from its property, so changing `Naming` renames stored attributes, and so does renaming a property: a rename refactoring compiles, items written before keep the old name, and a read takes the new one for missing. A property whose name may change takes `[DynamoDbAttribute]`. `pk`, `sk` and `_type` stay as they are.
 
 A key of an index can be computed. Say what the getter reads, so that an update that changes it throws instead of leaving the index behind. A `Put` of the changed entity moves the key.
 
@@ -125,11 +139,24 @@ public partial record Visit
 }
 ```
 
-Open a table once and keep it. Opening makes no request.
+Open a table once and keep it. Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys.
 
 ```csharp
 var orders = client.Table<Order>("Shop");
+var customers = client.Table<Customer>("Shop");
+var shop = client.Table("Shop", "pk", "sk");
 var byStatus = orders.Index(Order.Indexes.ByStatus);
+```
+
+`CreateTable()` creates the table from what the entities declare, billed on demand, with every index projecting all attributes. One entity does not describe a table of several, so `Including` names the others.
+
+```csharp
+await orders.CreateTable()
+    .Including<Customer>()
+    .Including<Product>()
+    .IfNotExists()
+    .WaitUntilActive()
+    .SendAsync(ct);
 ```
 
 ## Examples
@@ -154,6 +181,18 @@ A put replaces the whole item. Conditions are part of the same atomic step.
 await orders.Put(order).IfNotExists().SendAsync(ct);
 ```
 
+Which write to take:
+
+| You want to | Write | An item exists | No item exists |
+|---|---|---|---|
+| Create, and never overwrite | `Put(entity).IfNotExists()` | `ConditionalCheckFailedException` | Creates it |
+| Create or replace | `Put(entity)` | Replaces all of it | Creates it |
+| Replace what is there | `Put(entity).IfExists()` | Replaces all of it | `ConditionalCheckFailedException` |
+| Patch, or create | `Update(key).Set(...)` | Changes what it names | Creates it from the key and what it names |
+| Patch what is there | `Update(key).Set(...).IfExists()` | Changes what it names | `ConditionalCheckFailedException` |
+
+An `Update` that creates an item leaves out the inputs of the key, and `.StoreKeyInputs()` writes them, as a `Put` does. A `[Version]` adds a condition of its own, see [Optimistic locking](#highlights).
+
 ### Query
 
 `ItemsAsync` follows pages for you, including pages a filter left empty. `Keys` builds the key, and `Attrs` makes the filter typed, so comparing a total with a string does not compile.
@@ -168,6 +207,17 @@ await foreach (var order in bigOrders)
 {
     Console.WriteLine(order.Number);
 }
+```
+
+A file that works on one entity can shorten this with `using Attrs = Shop.Order.Attrs;` at the top, and write `Attrs.Total.Gt(100m)`.
+
+`Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is, and it stops reading once it has them:
+
+```csharp
+var firstTen = orders.Query(Order.Keys.Pk.Of("alice"))
+    .Filter(Order.Attrs.Total.Gt(100m))
+    .ItemsAsync(ct)
+    .Take(10);
 ```
 
 An index is read through its own type, which has no writes:
@@ -189,7 +239,16 @@ var moved = await customers.Update(Customer.Keys.Of("alice"))
     .SendAsync(ct);
 ```
 
-A condition can also return what stopped it, which saves the read:
+`Set` of null removes the attribute, and `SetIfNotNull` adds nothing for null, which suits a change where only some fields came in:
+
+```csharp
+await customers.Update(Customer.Keys.Of("alice"))
+    .SetIfNotNull(Customer.Attrs.ShipTo, customer.ShipTo)
+    .IfExists()
+    .SendAsync(ct);
+```
+
+Each `.If` adds one condition, and they join with `AND`. In a transaction it belongs to the step before it. A condition can also return what stopped it, which saves the read:
 
 ```csharp
 try
@@ -197,12 +256,30 @@ try
     await products.Update(Product.Keys.Of("KB-01"))
         .Set(Product.Attrs.Price, 79.00m)
         .If(Product.Attrs.Price.Eq(95.00m))
+        .If(Product.Attrs.Stock.Gt(0))
         .ReturnOldOnFailure()
         .SendAsync(ct);
 }
 catch (ConditionalCheckFailedException exception)
 {
     Console.WriteLine(exception.Item!.To<Product>().Price);
+}
+```
+
+`ConditionalCheckFailedException.Key` says which item it was, as it is stored. A caller that holds the key gains nothing from it. It is for code that does not, such as a wrapper around a write it was handed. It is in no message and no log of the client.
+
+```csharp
+async Task SaveAsync(Func<CancellationToken, Task> save, CancellationToken token)
+{
+    try
+    {
+        await save(token);
+    }
+    catch (ConditionalCheckFailedException exception) when (exception.Key is { } key)
+    {
+        Console.WriteLine(Order.Keys.Pk.Parse(key.GetString("pk")!).CustomerId);
+        throw;
+    }
 }
 ```
 
@@ -263,6 +340,16 @@ var saved = await carts.Update(Cart.Keys.Of("bob"))
     .SendAsync(ct);
 ```
 
+**Retry on a conflict.** `RetryOnConflictAsync`, on the client or on a table, runs a read-modify-write again when it loses to another writer, up to 5 times. The delegate reads again itself, or the next run changes nothing.
+
+```csharp
+await carts.RetryOnConflictAsync(async token =>
+{
+    var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(token);
+    await carts.Put(cart! with { Lines = lines }).SendAsync(token);
+}, ct);
+```
+
 **Paging for web APIs.** A token holds the position, and comes back with the next request.
 
 ```csharp
@@ -270,13 +357,15 @@ var page = await orders.Query(Order.Keys.Pk.Of("alice")).Limit(25).PageAsync(Con
 string? next = page.HasMore ? page.Next.ToString() : null;
 ```
 
-**See what goes over the wire.** `ToRequestJson` renders what a chain would send, without sending it.
+**See what goes over the wire.** `ToRequestJson` renders what a chain would send, without sending it. It ends the chain as `SendAsync` does, so a command is rendered or sent, not both.
 
 ```csharp
 string json = products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price, 79.00m).ToRequestJson();
 ```
 
-**Tests without DynamoDB.** `DynaSharp.Testing` fakes the wire, so a test needs no mock of the client.
+**A stored form of your own.** `[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property, and [the migration section](#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` says that a stored value counts as if the attribute were not there, so a name an enum no longer has keeps the initial value and the rest of the item reads.
+
+**Tests without DynamoDB.** [`DynaSharp.Testing`](https://github.com/msallin/DynaSharp/tree/main/src/DynaSharp.Testing) fakes the wire, so a test needs no mock of the client. Each request is a `RecordedRequest`, whose `UpdateText` and `ConditionText` give an expression with its values in place, such as `SET Price = 79.00`.
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));
@@ -285,7 +374,7 @@ using var client = StubClient.Create(handler);
 
 ## Adopting an existing table
 
-A table that other code wrote, or that is older than your entities, can be used as it is. Three things stand between it and an entity, and the first is a trap.
+A table that other code wrote, or that is older than your entities, can be used as it is. Four things stand between it and an entity, and the first is a trap.
 
 **Items without a version.** A `[Version]` property reads an item without the attribute as 0, as it reads one that holds 0, and version 0 means that no item has the key. So the first `Put` of such an item fails with `ConditionalCheckFailedException`, and so does every one after it. Say that the table keeps such items:
 
@@ -294,7 +383,7 @@ A table that other code wrote, or that is older than your entities, can be used 
 public long Revision { get; init; }
 ```
 
-Version 0 then means an item without a version, one that holds 0, or none. `Allow` takes over an item the AWS SDK saved at version 0 as well, because that is what its first `SaveAsync` stores. `Put`, `IfVersion(0)`, a `Delete` of an entity and a transaction step look at the version attribute instead of the key, so the first write replaces the item and stores version 1, a second write at 0 fails, and from there on the lock holds. `Select(Attrs.Revision)` gives 0 for such an item, as a read of the entity does. A write at 0 no longer proves that the key was free: `IfNotExists()` still asks for that, and `IfExists()` at 0 asks for an item that reads as 0.
+Version 0 then means an item without a version, one that holds 0, or none. `Allow` takes over an item the AWS SDK saved at version 0 as well, because that is what its first `SaveAsync` stores. `Put`, `IfVersion(0)`, a `Delete` of an entity and a transaction step look at the version attribute instead of the key, so the first write replaces the item and stores version 1, a second write at 0 fails, and from there on the lock holds. A write at 0 no longer proves that the key was free: `IfNotExists()` still asks for that, and `IfExists()` at 0 asks for an item that reads as 0.
 
 **Items without a discriminator.** A typed read filters on `_type`, which nobody wrote into these items, so it would find none of them. `[Discriminator(OptOut = true)]` drops the filter.
 
@@ -319,6 +408,35 @@ public partial record Invoice
 }
 ```
 
+`Select(Invoice.Attrs.Revision)` gives 0 for an item without a version, as a read of the entity does. That is about an item that exists. No item is `Found == false`, and `Value` then throws `InvalidOperationException`, so look first:
+
+```csharp
+var invoices = client.Table<Invoice>("Invoices");
+var revision = await invoices.Get(Invoice.Keys.Of("alice", 7)).Select(Invoice.Attrs.Revision).SendAsync(ct);
+long seenRevision = revision.Found ? revision.Value : 0;
+```
+
+**Keys that hold your delimiter.** A `#` in a value throws `KeyFormatException` in `CUSTOMER#{Id}`. The format `raw` takes it, on a string that ends the template. `[KeyOnly]` goes with it, because an input of a template is stored as an attribute too, so without it every item silently gets an extra `Key`. With it `Key` has no handle, so a condition or a filter cannot name it:
+
+```csharp
+[DynamoDbEntity]
+[Discriminator(OptOut = true)]
+[PartitionKey("appointment#{Key:raw}", AttributeName = "Id")]
+public partial record Appointment
+{
+    [KeyOnly]
+    public required string Key { get; init; }
+}
+```
+
+`raw` lifts the delimiter check and nothing else. An empty value and a control character still throw `KeyFormatException`, on a write and through `Keys.Of` on a read, so `Keys.TryOf` is the tool for a value from outside. A stored key that holds one, or that does not fit the template, gives `DynamoDbMappingException` on a read, because `Key` is restored from it.
+
+A plain key is the better choice when one entity has keys of several shapes, or when a value must miss and not throw. It takes what is stored as it is, so a `Get` of a value nobody stored gives null. An empty string stays DynamoDB's to reject.
+
+**Timestamps and index keys.** The keys of a table show what its attributes do not: compare a stored key with what `Keys` builds, and see the two rows on keys under [What changes stored data](#what-changes-stored-data).
+
+**Before you switch.** Capture items with the old code first, so that there is something to compare with. Turn time to live off in such a comparison, because the sweeper of DynamoDB Local deletes rows with past dates, which looks like a read that finds nothing.
+
 A program that creates its table at the start can keep doing so over a table that exists:
 
 ```csharp
@@ -326,7 +444,40 @@ var invoices = client.Table<Invoice>("Invoices");
 await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 ```
 
-`IfNotExists()` describes first, and a table it finds ends the command there. So a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable` for a table that exists, and no failed call shows in CloudTrail; creating the table takes both. It compares no schemas and changes nothing about a table it finds. `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it times out with a `TableNotActiveException` that names the index.
+`IfNotExists()` describes first, and a table it finds ends the command there. So a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable` for a table that exists, and no failed call shows in CloudTrail; creating the table takes both. It compares no schemas and changes nothing about a table it finds. `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it times out with a `TableNotActiveException` that names the index. `WaitUntilActive(timeout)` bounds the wait and nothing else, not the calls before it and not `TimeToLive` after it. A `CancellationToken` on the same timeout races it, and when the token wins the caller gets a bare `TaskCanceledException` or `OperationCanceledException`, which names no table and no index, so give the wait less time.
+
+**Adding an index.** The indexes and `.Stream(...)` of `CreateTable()` apply only to a table it creates. To add an index to a table that exists, keep this order:
+
+```csharp
+var declared = orders.CreateTable().ToRequest();
+var added = declared.GlobalSecondaryIndexes!.Single(index => index.IndexName == Order.Indexes.ByStatus);
+
+await orders.CreateTable().IfNotExists().SendAsync(ct);
+var table = await shop.WaitUntilActiveAsync(ct);
+
+if (table.GlobalSecondaryIndexes.All(index => index.IndexName != added.IndexName))
+{
+    await client.UpdateTableAsync(new UpdateTableRequest
+    {
+        TableName = "Shop",
+        AttributeDefinitions = declared.AttributeDefinitions,
+        GlobalSecondaryIndexUpdates = [new GlobalSecondaryIndexUpdate { Create = added }],
+    }, ct);
+}
+
+await orders.CreateTable()
+    .IfNotExists()
+    .WaitUntilActive(TimeSpan.FromHours(2))
+    .TimeToLive("ExpiresAt")
+    .SendAsync(ct);
+```
+
+1. `CreateTable().IfNotExists()` without a wait creates a missing table with all its indexes and leaves one that exists alone.
+2. `shop` is `client.Table("Shop", "pk", "sk")`, which has no entity, so its wait takes what the table lists, and `UpdateTable` needs an active table. A typed wait here would time out on the index that is not there yet.
+3. `UpdateTableAsync`, from `DynaSharp.Requests`, adds one index per call. With a second one to add, `AttributeDefinitions` holds only the keys this call needs, and the next call goes through the wait on `shop` first.
+4. Only now does a typed wait end, once DynamoDB lists the index and has backfilled it, so give it a timeout that fits the size of the table. `TimeToLive` implies that wait, which is why it comes last.
+
+`UpdateTable` of a table that is updating throws `ResourceInUseException`, so one instance does this, such as a deployment step. A backfill finds the items that hold the attributes of the index. An older item enters it when a `Put` of the entity writes them.
 
 ## Migrating from the AWS SDK
 
@@ -336,10 +487,13 @@ The tables compare with `DynamoDBContext` of `AWSSDK.DynamoDBv2` 4.0 in its defa
 
 | What you wrote | What to write |
 |---|---|
-| A string that can be empty. `SaveAsync` removes the attribute for `""`, also in a nested document and with `IgnoreNullValues`, unless `IsEmptyStringValueEnabled` is on. | `OmitEmpty = true` in `[assembly: DynamoDbDefaults]`, which reaches nested documents, or `[OmitEmpty]` on a type or a property. Without it DynaSharp stores `{"S":""}`. A `required` property that is not nullable stays written even so. It also leaves out an empty dictionary, `byte[]` and list of documents, which the SDK stores, so those take `[OmitEmpty(false)]`. Compare captured items before you claim the format is unchanged: an item the old code wrote against the `ToRequestJson()` of the new code, attribute by attribute. |
+| A string that can be empty. `SaveAsync` removes the attribute for `""`, also in a nested document and with `IgnoreNullValues`, unless `IsEmptyStringValueEnabled` is on. | `OmitEmpty = true` in `[assembly: DynamoDbDefaults]`, which reaches nested documents, or `[OmitEmpty]` on a type or a property. Without it DynaSharp stores `{"S":""}`. A `required` property that is not nullable stays written even so. Compare captured items before you claim the format is unchanged: an item the old code wrote against the `ToRequestJson()` of the new code, attribute by attribute. |
+| An empty list of documents, dictionary or `byte[]`. The SDK leaves out empty strings and keeps these. | `OmitEmpty` also covers lists, sets, dictionaries and arrays, so an empty list is not written, and reads back as null or as the initial value. Null and `[]` can mean different things, and `[OmitEmpty(false)]` on the property keeps the empty one. |
 | `SaveAsync`, which sends an `UpdateItem`: it sets what the class maps and leaves every other attribute. | A `Put` replaces the whole item, so attributes the entity does not map are gone. Map them, or send `Update(key)` with a `Set` per attribute. |
+| A timestamp in a key, where stored rows hold seven digits: `2026-10-09T10:00:00.1234567Z`. | A bare `{At}` keeps milliseconds, `2026-10-09T10:00:00.123Z`, so a key built from that value misses the stored row, and a `Put` writes a second item. `{At:ticks}` keeps seven digits. |
+| An upsert that names only part of an index key. | A typed update writes the index keys it can compute. On an index that is not sparse, `.Set(Attrs.At, at)` over `SortKey = "{At}"` renders `SET At = :v0, gsk = :v1` with no `gpk`, so an item it creates is not in the index, and nothing throws. With `Sparse = true` the same call throws. An update that can create an item sets every input of the index, ends in `.IfExists()`, or is a `Put`. |
 | A null property. `SaveAsync` removes the attribute, and with `IgnoreNullValues = true` leaves it alone. | `Set(Attrs.X, null)` in an `Update` removes it, and `SetIfNotNull(Attrs.X, value)` adds nothing for null. A `Put` leaves a null out of the item it replaces. |
-| A `List<string>` or `string[]`, an `SS` in V1. `List<int>` is an `NS`, and an empty one is left out. | `HashSet<string>`, or `[DynamoDbConverter(typeof(SetArrayConverter<string, StringSetElement>))] public string[] Tags { get; init; } = [];`, with `NumberSetElement<int>` for numbers. An empty one is left out here too. A plain list or array is an `L` here, and reading an `SS` into it throws `DynamoDbMappingException`. |
+| A `List<string>` or `string[]`, an `SS` in V1. `List<int>` is an `NS`, and an empty one is left out. | `HashSet<string>`, or `[DynamoDbConverter(typeof(SetArrayConverter<string, StringSetElement>))] public string[] Tags { get; init; } = [];`, with `NumberSetElement<int>` for numbers, or `[DynamoDbConverter(typeof(StringListAsSetConverter))] public List<string> Tags { get; init; } = [];`, below. An empty one is left out here too. An array or a list does not stop a duplicate, which writes `"SS":["x","x"]`, and DynamoDB rejects that. A plain list or array is an `L` here, and reading an `SS` into it throws `DynamoDbMappingException`. |
 | A `bool`, an `N` of `1` or `0` in V1. | `BoolAsNumberConverter`, below. Here a `bool` is a `BOOL`, and reading an `N` into it throws. |
 | A `DateTime`, text in UTC with three fraction digits: `2026-10-31T12:00:00.123Z`. | `SdkDateTimeConverter`, below. DynaSharp reads that text and writes seven digits, `2026-10-31T12:00:00.1230000Z`, so a condition no longer finds an old value, and old and new sort apart in a key. It also rejects `DateTimeKind.Unspecified`, which the SDK and the converter take for local time. A `TimeOnly` has three digits as well, and takes the same kind of converter. |
 | `StoreAsEpoch = true` on a `DateTime`, an `N`. | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. |
@@ -391,7 +545,24 @@ public readonly struct StatusAsNumberConverter : IDynamoDbConverter<OrderStatus>
         return (OrderStatus)reader.GetNumber<int>();
     }
 }
+
+public readonly struct StringListAsSetConverter : IDynamoDbConverter<List<string>>
+{
+    public static void Write(DynamoDbWriter writer, List<string> value) => SetArrayConverter<string, StringSetElement>.Write(writer, [.. value]);
+
+    public static List<string> Read(ref DynamoDbReader reader, AttributeType type) => [.. SetArrayConverter<string, StringSetElement>.Read(ref reader, type)];
+
+    public static bool IsOmitted(List<string> value) => value.Count == 0;
+
+    public static bool TryReadMissing(out List<string> value)
+    {
+        value = [];
+        return true;
+    }
+}
 ```
+
+`IsOmitted` is there because DynamoDB refuses an empty set, and `TryReadMissing` so that a `Select` reads a missing one as empty. Converters are static, because `IDynamoDbConverter<T>` is static abstract, so one that is generic over its value fails `CA1000` in a project that treats it as an error. Write one struct per type, over a helper.
 
 ### The rest of the code
 
@@ -400,27 +571,20 @@ public readonly struct StatusAsNumberConverter : IDynamoDbConverter<OrderStatus>
 | `[DynamoDBHashKey]`, `[DynamoDBRangeKey]` | `[PartitionKey]`, `[SortKey]` on the property. `[DynamoDBHashKey("id")]` is `[PartitionKey(AttributeName = "id")]`. |
 | `[DynamoDBProperty("total")]`, `[DynamoDBIgnore]` | `[DynamoDbAttribute("total")]`, `[DynamoDbIgnore]`. |
 | `[DynamoDBProperty(typeof(MyConverter))]` with an `IPropertyConverter` | `[DynamoDbConverter(typeof(MyConverter))]` with an `IDynamoDbConverter<T>`. |
-| A stored value that no longer fits the property, such as an enum name that is gone. | A converter that answers `CountsAsMissing`: the property keeps its initial value and the rest of the item reads. |
+| A stored value that no longer fits the property, such as an enum name that is gone. | A converter that answers `CountsAsMissing`, see [Highlights](#highlights). |
 | A property computed from others that feeds an index. | `[ComputedFrom]`, see [Defining an entity](#defining-an-entity). |
 | A date bucket in a key: `$"DAY#{arrival:yyyy-MM-dd}"`. | `{Arrival:yyyy-MM-dd}` in a template takes the type of the property, so a `DateOnly day` goes in as `new DateTimeOffset(day, TimeOnly.MinValue, TimeSpan.Zero)`. A day that is a value of its own is a `DateOnly` property. |
-| A key put together by hand: `$"CUSTOMER#{id}"`. | `Order.Keys.Of(id, number)` and `Order.Keys.Pk.Of(id)` check the values at the call, and throw `KeyFormatException` for a value that holds a delimiter. For a value from outside, `Order.Keys.TryOf(id, number, out var key)` returns false instead. |
+| A key put together by hand: `$"CUSTOMER#{id}"`. | `Order.Keys.Of(id, number)` and `Order.Keys.Pk.Of(id)` check the values at the call, and throw `KeyFormatException` for a value that holds a delimiter. `TryOf` is the tool for a value from outside: `Order.Keys.TryOf(id, number, out var key)` returns false instead. |
+| A key whose value holds the delimiter: `$"appointment#{key}"` over `a#b`. | `[PartitionKey("appointment#{Key:raw}", AttributeName = "Id")]` with `[KeyOnly] public required string Key { get; init; }`. Without `[KeyOnly]` every item gets an extra `Key` attribute. `raw` lifts the delimiter check alone, so `Keys.TryOf` stays the tool for a value from outside. See [Adopting an existing table](#adopting-an-existing-table). |
 | `QueryOperator.Between` over two key strings. | `Keys.Sk.Between(from, to)` includes `to`, and `Keys.Sk.Range(from, to)` leaves it out, both from values and not from strings. |
-| An `Expression` with `#names` and `:values`, or a `ScanCondition`. | `Order.Attrs.Total.Gt(100m)`, which is typed. `using Attrs = Shop.Order.Attrs;` keeps a long chain short. |
-| A `SaveAsync` that may create the item, which stores every property. | An `Update` that creates an item stores its key and what it names, and `.StoreKeyInputs()` adds the inputs of the key, as a `Put` does. |
-| A loop that reads, writes and catches `ConditionalCheckFailedException`. | `RetryOnConflictAsync`, below. |
-| Working out in a `catch` which item failed. | `ConditionalCheckFailedException.Key`, the key of the request as it is stored. |
+| An `Expression` with `#names` and `:values`, or a `ScanCondition`. | `Order.Attrs.Total.Gt(100m)`, which is typed. |
+| A `SaveAsync` that may create the item, which stores every property. | `Update` with `.StoreKeyInputs()`, see [PutItem](#putitem). |
+| A loop that reads, writes and catches `ConditionalCheckFailedException`. | `RetryOnConflictAsync`, see [Highlights](#highlights). |
+| Working out in a `catch` which item failed. | `ConditionalCheckFailedException.Key`, see [UpdateItem](#updateitem). |
 | `DescribeTable`, `CreateTable`, a catch of `ResourceInUseException`, a wait. | `carts.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct)`. `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. |
 | Credentials from `AWSSDK.Core`, with IRSA on EKS. | `new DynamoDbClient()`, which reads the same [chain](#credentials). `AWS_ROLE_SESSION_NAME` names the session, which is otherwise `dynasharp-` and the Unix time. |
 | A region found in EC2 instance metadata. | `AWS_REGION`, or `Region` in the options. DynaSharp does not ask the metadata service, see [Region](#region). |
 | A mock of `IDynamoDBContext` or `IAmazonDynamoDB`. | `StubClient.Create(stub)` over a `StubHandler`, which fakes the wire, and `StubSts` for the way through STS. |
-
-```csharp
-await carts.RetryOnConflictAsync(async token =>
-{
-    var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(token);
-    await carts.Put(cart! with { Lines = lines }).SendAsync(token);
-}, ct);
-```
 
 ## API levels
 
@@ -430,23 +594,23 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 |---|---|---|
 | **`Table<T>`** with generated entities | `orders.Get(Order.Keys.Of("alice", 1))` | Application code. Start here. |
 | **`Table<Item>`** | `shop.Get("CUSTOMER#alice", "PROFILE")` | The same commands without a model: tools, migrations, attributes you do not map. |
-| **Requests** (`using DynaSharp.Requests`) | `client.GetItemAsync(new GetItemRequest { ... })` | Every DynamoDB operation as a request and a response that mirror the service. Table administration lives here. |
+| **Requests** (`using DynaSharp.Requests`) | `client.GetItemAsync(new GetItemRequest { ... })` | Every DynamoDB operation as a request and a response that mirror the service. Table administration beyond `CreateTable()` lives here. |
 | **Raw** | `client.SendRawAsync("ListTables", json)` | JSON in, JSON out, through the same signing and retries. |
 
 You can tell which level a line uses by what it names: `Keys` and `Attrs` mean a typed table, strings mean `Table<Item>`, and `new ...Request` means the request API. `item.To<T>()` and `Item.From(entity)` cross between levels.
 
-The first two levels share one command engine: ref struct chains that write JSON as you call them. A chain is built and sent in one expression, which is what keeps it free of allocations, and an analyzer explains the compiler error if you hold on to one across an `await`.
+The first two levels share one command engine: ref struct chains that write JSON as you call them. A chain is built and sent in one expression, so it works in pooled buffers that go back at the end, and [Benchmarks](#benchmarks) shows what a call allocates in all. An analyzer explains the compiler error if you hold on to one across an `await`.
 
 ## Design principles
 
 - **Stay true to DynamoDB.** Every verb is an operation or a clause. There is no `Save`, no identity map, no lazy load and no implicit read before a write. `Limit` is per page, `Update` is an upsert, and batches are not atomic, as in DynamoDB.
 - **Nothing hidden.** What the client adds, such as a version condition or a discriminator filter, shows up in `ToRequestJson()`.
-- **Mistakes belong to the compiler.** Types rule out what they can, analyzers catch mistakes in constant expressions, and the rest fails before a request is sent.
+- **Mistakes belong to the compiler.** Types rule out what they can, analyzers catch mistakes in constant expressions, and the rest fails before a request is sent. A broken expression is `DYNA212`, a warning, so it stops only a build that treats warnings as errors.
 - **Pay only for what you use.** Requests are written straight to pooled UTF-8 buffers, and known attribute names cost no string. A cost that shows up in a benchmark is a bug until it is explained.
 - **No reflection.** The source generator produces the mapping, so Native AOT works and nothing is discovered at run time.
 - **Keys are data on disk.** Encodings are specified and tested against an independent oracle, because changing one is a migration.
 - **Retries are honest.** A retry can apply a write twice when a response is lost. The docs say where that matters, and `MaxAttempts(1)` is one call away.
-- **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses, behaviour against DynamoDB Local and Dynoxide.
+- **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses, behaviour against DynamoDB Local and Dynoxide. The test suite has not run against AWS itself.
 
 ## Benchmarks
 
@@ -475,6 +639,13 @@ Inside DynaSharp, by API level, in bytes:
 | GetItem | 2,256 | 2,576 | 2,608 |
 | PutItem | 1,528 | n/a | 1,640 |
 | Query, 100 items | 68,320 | 100,320 | 100,456 |
+
+Why the rows differ:
+
+- The item has a set of tags. The first table maps it to a `HashSet<string>` in all three clients, so that they compare. The third maps it to a `string[]`, which is lighter, so a read costs less there, and a `PutItem`, which only walks the set, costs the same.
+- A read costs more than a write, because a read builds the item it returns and a write has only a request to fill. A query of 100 items is mostly 100 times what one item costs.
+- A generated entity reads straight into its properties. `Table<Item>` and the request API hold each attribute as an `AttributeValue`, which is the step between the first column of the third table and the other two. The `Item` of a `PutItem` is the object of the caller, so that cell is n/a.
+- The second table and the last column of the third are the same request API, in KB and in bytes. They come from two benchmark classes, and the `Query` of the third runs in an `async` method of the benchmark, which adds its `Task`.
 
 To run them, from the repository root:
 

@@ -12,6 +12,7 @@ DYNA116 | DynaSharp.Keys | Warning | Truncated timestamp at the end of a table k
 DYNA117 | DynaSharp.Keys | Warning | Key property starts empty
 DYNA118 | DynaSharp.Keys | Error | Raw value does not end the template
 DYNA119 | DynaSharp.Keys | Error | [ComputedFrom] is not valid here
+DYNA120 | DynaSharp.Keys | Warning | Raw value is strict in another template
 DYNA203 | DynaSharp.Commands | Error | Command is discarded
 DYNA204 | DynaSharp.Commands | Warning | Command is used twice
 DYNA205 | DynaSharp.Commands | Warning | Write to a key of the table

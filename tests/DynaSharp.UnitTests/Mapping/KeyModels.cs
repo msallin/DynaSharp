@@ -790,7 +790,9 @@ public partial record RawKeyed
 [DynamoDbEntity]
 [Discriminator("RAWTWIN")]
 [PartitionKey("A#{Key:raw}")]
+#pragma warning disable DYNA120 // What the build warns of is what this type is here to show at run time.
 [GlobalIndexKey("Strict", PartitionKey = "A#{Key}")]
+#pragma warning restore DYNA120
 public partial record RawTwin
 {
     public required string Key { get; init; }

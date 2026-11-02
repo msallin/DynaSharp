@@ -69,7 +69,7 @@ public sealed class DocumentConverterTests
     public async Task Read_MapOfAnotherEntity_PassesTheMappingExceptionOn()
     {
         // Arrange
-        const string json = """{"M":{"pk":{"S":"a"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}""";
+        const string json = """{"M":{"pk":{"S":"CUSTOMER#a"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}""";
 
         // Act
         var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(() => Task.FromResult(TestJson.Read(json, static (ref reader) => reader.ReadAttribute<Customer, DocumentConverter<Customer>>())));

@@ -10,11 +10,14 @@ namespace DynaSharp.UnitTests.Http;
 // The pipeline reuses three things between calls: the timeout source of an attempt, and the writer and the buffer objects of a call.
 // One client runs thousands of calls at once, every call ending in another way, and each call checks that what it sent and what it got
 // is its own. A call that met a cancelled source, a half-written body or a response of another call would fail here. Nothing waits: the
-// handler yields instead of sleeping, and the clock is the real one with a timeout no call comes near.
+// handler yields instead of sleeping, and the clock is the real one with a timeout that this test owns: it arms the source of every
+// attempt, and no call comes near it, however loaded the machine.
 public sealed class DynamoDbPipelineStressTests
 {
     private const int Calls = 3000;
     private const int Parallelism = 16;
+
+    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromHours(1);
 
     [Test]
     public async Task ExecuteAsync_ManyConcurrentCallsWithEveryKindOfOutcome_EveryCallEndsAsItShould()
@@ -73,7 +76,7 @@ public sealed class DynamoDbPipelineStressTests
         public async Task ExecuteAsync()
         {
             using var handler = new StubHandler(RespondAsync);
-            using var client = TestClient.Create(handler, pool: Pool, maxAttempts: 3, random: FixedRandom.Zero);
+            using var client = TestClient.Create(handler, pool: Pool, attemptTimeout: AttemptTimeout, maxAttempts: 3, random: FixedRandom.Zero);
             await Parallel.ForEachAsync(
                 Enumerable.Range(0, Calls),
                 new ParallelOptions { MaxDegreeOfParallelism = Parallelism },

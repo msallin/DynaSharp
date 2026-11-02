@@ -228,6 +228,7 @@ public sealed class MetricTests
     {
         // Arrange
         var time = new ManualTimeProvider();
+        var attemptTimeout = TimeSpan.FromSeconds(30);
         var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new StubHandler(async (_, cancellationToken) =>
         {
@@ -237,10 +238,10 @@ public sealed class MetricTests
         });
         var table = UniqueTable();
         using var capture = MeasurementCapture<double>.ForTable(table, TelemetryNames.DurationMetric);
-        using var client = TestClient.Create(handler, time);
+        using var client = TestClient.Create(handler, time, attemptTimeout: attemptTimeout);
         var call = client.GetItemAsync(TestClient.GetItem(table));
         await arrived.Task;
-        time.Advance(TimeSpan.FromSeconds(30));
+        time.Advance(attemptTimeout);
 
         // Act
         await TestClient.CaptureAsync<TimeoutException>(() => call);

@@ -236,7 +236,8 @@ public sealed class Table<T>
     /// The wait is bounded: the last poll starts at the latest when <paramref name="timeout"/> is up, and then the call throws <see cref="TableNotActiveException"/>, which is a <see cref="TimeoutException"/>
     /// with the name of the table and its last status, whatever that status is. A poll
     /// itself takes as long as a call takes, up to <see cref="DynamoDbClientOptions.AttemptTimeout"/> per attempt, so the call can return that much later.
-    /// With a timeout of zero it looks once.
+    /// With a timeout of zero it looks once. A <paramref name="cancellationToken"/> on the same timeout races it, and when the token wins the caller gets a bare <see cref="TaskCanceledException"/> or <see cref="OperationCanceledException"/>, with no table and no
+    /// index named, so give the wait less time than the token.
     /// </para>
     /// <para>
     /// A table that does not exist counts as not active yet, because <c>DescribeTable</c> right after <c>CreateTable</c> can miss a new table. So a wrong name shows
@@ -250,8 +251,8 @@ public sealed class Table<T>
     /// </para>
     /// <para>
     /// An index that was just added may not be listed yet, and what is not listed cannot be seen to be behind. So every global index that the entity declares has to be listed as well, and until then this keeps polling; a
-    /// table that does not have such an index at all runs into the timeout, and the message of the <see cref="TableNotActiveException"/> says that it was not listed. A table opened without an entity declares nothing, and
-    /// <see cref="Of{TOther}"/> gives a table that waits for what that entity declares.
+    /// table that does not have such an index at all runs into the timeout, and the message of the <see cref="TableNotActiveException"/> says that it was not listed. A table opened without an entity declares nothing, so
+    /// <c>client.Table(name, "pk", "sk")</c> waits for what the table lists, which is the wait before <c>UpdateTable</c> adds an index, and <see cref="Of{TOther}"/> gives a table that waits for what that entity declares.
     /// </para>
     /// </remarks>
     /// <param name="timeout">How long to wait, which for the backfill of an index goes with the size of the table. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>

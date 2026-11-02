@@ -242,7 +242,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Session>("Sessions").Query("a").Project("x").ToRequestJson();
+        var json = client.Table<Session>("Sessions").Query("a").Project(Attr("x")).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ExpressionAttributeNames\":{\"#n0\":\"id\",\"#n1\":\"x\"}").And.Contains("\"ProjectionExpression\":\"#n1, #n0\"");
@@ -256,7 +256,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Tenant>("Tenants").Query("a").Project("x").ToRequestJson();
+        var json = client.Table<Tenant>("Tenants").Query("a").Project(Attr("x")).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n2, #n1, #n0\"").And.Contains("\"#n1\":\"kind\"");
@@ -660,7 +660,9 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table<Customer>("Shop").Query("a").Project("email").ItemAsync();
+#pragma warning disable DYNA208 // No item comes back, and what goes out is what this test is about.
+        await client.Table<Customer>("Shop").Query("a").Project(Attr("email")).ItemAsync();
+#pragma warning restore DYNA208
 
         // Assert
         await Assert.That(handler.Requests[0].BodyText).Contains("""
@@ -1406,7 +1408,7 @@ public sealed class QueryCommandTests
     {
         // Arrange: the key comes first in this response, and the items after it cannot be read
         using var handler = new StubHandler();
-        handler.Enqueue(StubResponse.Json("{\"LastEvaluatedKey\":" + Key("9") + ",\"Items\":[{\"pk\":{\"N\":\"1\"}}]}"));
+        handler.Enqueue(StubResponse.Json("{\"LastEvaluatedKey\":" + Key("9") + ",\"Items\":[7]}"));
         using var client = TestClient.Create(handler);
         var customers = client.Table<Customer>("Shop");
 
@@ -1452,7 +1454,7 @@ public sealed class QueryCommandTests
     {
         // Arrange
         using var handler = new StubHandler();
-        handler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"a"},"fullName":{"S":"Alice"},"_type":{"S":"ORDER"}}]}"""));
+        handler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"CUSTOMER#a"},"fullName":{"S":"Alice"},"_type":{"S":"ORDER"}}]}"""));
         using var client = TestClient.Create(handler);
         var customers = client.Table<Customer>("Shop");
 

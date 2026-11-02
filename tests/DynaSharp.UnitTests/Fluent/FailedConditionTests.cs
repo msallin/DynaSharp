@@ -19,6 +19,11 @@ public sealed class FailedConditionTests
     // More than the 64 levels JsonDocument allows by default, and what DynamoDB stores: every map of an item is two JSON objects.
     private const int DeepestNesting = 32;
 
+    private const int LargeItemAttributes = 1000;
+
+    // The item and the strings of a key of two short attributes. A document of the body costs 688 bytes even with its arrays from the pool, so this tells the two apart.
+    private const long MaxBytesOfAKey = 512;
+
     private static readonly Item AliceKey = new() { ["pk"] = "CUSTOMER#alice", ["sk"] = "PROFILE" };
 
     private static readonly KeyedOrder Order = new()
@@ -338,6 +343,128 @@ public sealed class FailedConditionTests
 
         // Assert
         await Assert.That(key).IsNull();
+    }
+
+    [Test]
+    public async Task Describe_EscapedKeyName_FindsIt()
+    {
+        // Arrange (a name in the body is JSON, and a name in the model is the text)
+        const string Body = """{"TableName":"Shop","Item":{"p\"k":{"S":"a"}}}""";
+
+        // Act
+        var key = KeyOf(Body, "p\"k");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["p\"k"] = "a" });
+    }
+
+    [Test]
+    public async Task Describe_ItemWithItsKeyLast_ReadsPastEverythingElse()
+    {
+        // Arrange
+        const string Body = """{"TableName":"Shop","Item":{"name":{"M":{"pk":{"S":"not it"}}},"tags":{"L":[{"S":"sk"}]},"sk":{"N":"7"},"pk":{"S":"a"}}}""";
+
+        // Act
+        var key = KeyOf(Body, "pk", "sk");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["pk"] = "a", ["sk"] = 7 });
+    }
+
+    [Test]
+    public async Task Describe_MembersOfOtherKindsBeforeTheItem_PassesOverThem()
+    {
+        // Arrange (any JSON kind can stand before the item, and what stands there can hold names of its own)
+        const string Body = """{"TableName":"Shop","ReturnValues":"NONE","Limit":3,"Flag":true,"None":null,"List":[{"Key":{"pk":{"S":"no"}}}],"ExpressionAttributeValues":{":Key":{"S":"no"}},"Item":{"pk":{"S":"a"}}}""";
+
+        // Act
+        var key = KeyOf(Body, "pk");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["pk"] = "a" });
+    }
+
+    [Test]
+    public async Task Describe_ItemWithItsKeyFirst_StopsThere()
+    {
+        // Arrange (the body ends in the middle of a value, so only a read that stops at the key gets to the end of this)
+        const string Body = """{"TableName":"Shop","Item":{"pk":{"S":"a"},"sk":{"S":"b"},"name":{"S":"never rea""";
+
+        // Act
+        var key = KeyOf(Body, "pk", "sk");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["pk"] = "a", ["sk"] = "b" });
+    }
+
+    [Test]
+    public async Task Describe_BodyWithAKey_StopsBehindIt()
+    {
+        // Arrange (the body ends in the middle of a value, so only a read that stops at the key gets to the end of this)
+        const string Body = """{"TableName":"Shop","Key":{"pk":{"S":"a"}},"ConditionExpression":"attribute_exi""";
+
+        // Act
+        var key = KeyOf(Body, "other");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["pk"] = "a" });
+    }
+
+    [Test]
+    public async Task Describe_KeyNamedTwiceBeforeTheNextOne_TakesTheLastOfThem()
+    {
+        // Arrange (With checks no duplicates, and a duplicate that falls behind the whole key is what a walk that stops does not see)
+        const string Body = """{"TableName":"Shop","Item":{"pk":{"S":"first"},"pk":{"S":"second"},"sk":{"S":"b"}}}""";
+
+        // Act
+        var key = KeyOf(Body, "pk", "sk");
+
+        // Assert
+        await Assert.That(key).IsEqualTo(new Item { ["pk"] = "second", ["sk"] = "b" });
+    }
+
+    [Test]
+    public async Task Describe_LargeItem_AllocatesOnlyTheKey()
+    {
+        // Arrange (a failed put near the limit of 400 KB, in many attributes, because what a parse costs is tokens and not bytes)
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler);
+        var item = new Item(LargeItemAttributes) { ["pk"] = "CUSTOMER#alice", ["sk"] = "PROFILE" };
+        for (var i = 0; i < LargeItemAttributes; i++)
+        {
+            item["a" + i] = new string('x', 390);
+        }
+
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(async () => await client.Table("Shop", "pk", "sk").Put(item).IfNotExists().SendAsync());
+        var body = handler.Requests[0].Body.ToArray();
+        var failure = new ConditionalCheckFailedException("The conditional request failed");
+
+        // Act
+        var allocated = MeasureDescribe(failure, body);
+
+        // Assert
+        await Assert.That(allocated).IsLessThan(MaxBytesOfAKey);
+    }
+
+    private static long MeasureDescribe(ConditionalCheckFailedException failure, byte[] body)
+    {
+        string[] keyNames = ["pk", "sk"];
+
+        // Warm, then measure. A background tier-up can allocate on this thread once, so the smallest of the last rounds is what the code costs.
+        for (var i = 0; i < 64; i++)
+        {
+            FailedCondition.Describe(failure, body, keyNames);
+        }
+
+        var smallest = long.MaxValue;
+        for (var i = 0; i < 16; i++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            FailedCondition.Describe(failure, body, keyNames);
+            smallest = Math.Min(smallest, GC.GetAllocatedBytesForCurrentThread() - before);
+        }
+
+        return smallest;
     }
 
     private static Item? KeyOf(string body, params string[] keyNames)

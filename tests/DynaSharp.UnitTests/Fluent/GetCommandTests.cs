@@ -206,7 +206,7 @@ public sealed class GetCommandTests
     public async Task SendAsync_ItemOfAnotherType_ThrowsTheMappingException()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"ORDER#1"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}"""));
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"CUSTOMER#alice"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}"""));
         using var client = TestClient.Create(handler);
 
         // Act
@@ -321,7 +321,7 @@ public sealed class GetCommandTests
     public async Task ItemAsync_ItemOfAnotherType_ThrowsTheMappingException()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"ORDER#1"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}"""));
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"CUSTOMER#alice"},"_type":{"S":"ORDER"},"fullName":{"S":"x"}}}"""));
         using var client = TestClient.Create(handler);
 
         // Act

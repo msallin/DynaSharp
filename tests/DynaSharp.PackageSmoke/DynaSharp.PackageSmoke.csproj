@@ -51,6 +51,7 @@
     </Exec>
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA116'))" Text="DYNA116 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA117'))" Text="DYNA117 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA120'))" Text="DYNA120 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('error CS4007')) or !$(_MistakesOutput.Contains('warning DYNA201'))" Text="DYNA201 did not appear beside CS4007. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA202'))" Text="DYNA202 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('error DYNA203'))" Text="DYNA203 did not appear. The compiler printed: $(_MistakesOutput)" />

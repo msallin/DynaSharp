@@ -157,7 +157,7 @@ public sealed class FanOutQueryCommandTests
 
         // Act
         var json = client.Table<Customer>("Shop").Query(TwoPartitions, SortKeyCondition.Ge("x"))
-            .Filter($"{Attr("a")} > {1}").Filter(Attr("b").Exists()).NotDeleted().Project("c").Project(Attr("d")).Limit(5).Descending().Consistent().MaxConcurrency(2).ToRequestJson();
+            .Filter($"{Attr("a")} > {1}").Filter(Attr("b").Exists()).NotDeleted().Project(Attr("c")).Project(Attr("d")).Limit(5).Descending().Consistent().MaxConcurrency(2).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"ScanIndexForward":false,"KeyConditionExpression":"#n0 = :pk AND #n1 >= :v0","FilterExpression":"(#n2 = :v1) AND (#n3 > :v2) AND (attribute_exists(#n4)) AND (attribute_not_exists(#n5))","ProjectionExpression":"#n6, #n7, #n2, #n0, #n1","ExpressionAttributeNames":{"#n0":"pk","#n1":"sk","#n2":"_type","#n3":"a","#n4":"b","#n5":"deletedAt","#n6":"c","#n7":"d"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"CUSTOMER"},":v2":{"N":"1"},":pk":{"S":"p0"}}}""");

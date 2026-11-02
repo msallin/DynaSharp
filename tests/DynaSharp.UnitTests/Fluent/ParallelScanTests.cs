@@ -93,7 +93,9 @@ public sealed class ParallelScanTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table<Customer>("Shop").Scan().Filter(Attr("x").Eq(1)).Project("y").Limit(5).Consistent().ReturnCapacity().MaxAttempts(1).Parallel(2).ItemsAsync().ToListAsync();
+#pragma warning disable DYNA208 // No item comes back, and what goes out is what this test is about.
+        await client.Table<Customer>("Shop").Scan().Filter(Attr("x").Eq(1)).Project(Attr("y")).Limit(5).Consistent().ReturnCapacity().MaxAttempts(1).Parallel(2).ItemsAsync().ToListAsync();
+#pragma warning restore DYNA208
 
         // Assert
         await Assert.That(string.Join("\n", bodies.Order(StringComparer.Ordinal))).IsEqualTo(
@@ -455,7 +457,7 @@ public sealed class ParallelScanTests
     public async Task ItemsAsync_ItemThatCannotBeRead_SurfacesTheMappingException()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"pk":{"S":"a"},"fullName":{"S":"Alice"},"_type":{"S":"ORDER"}}]}"""));
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"pk":{"S":"CUSTOMER#a"},"fullName":{"S":"Alice"},"_type":{"S":"ORDER"}}]}"""));
         using var client = TestClient.Create(handler);
         var customers = client.Table<Customer>("Shop");
 

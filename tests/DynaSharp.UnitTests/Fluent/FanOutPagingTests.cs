@@ -125,7 +125,7 @@ public sealed class FanOutPagingTests
         public async Task<List<string>> ReadItemsAsync()
         {
             using var handler = new StubHandler(_wire.Answer);
-            using var client = TestClient.Create(handler);
+            using var client = TestClient.Create(handler, attemptTimeout: Timeout.InfiniteTimeSpan);
             var items = await Build(client).ItemsAsync().ToListAsync();
             return [.. items.Select(Show)];
         }
@@ -133,7 +133,7 @@ public sealed class FanOutPagingTests
         public async Task<List<string>> ReadPagesAsync(Random random)
         {
             using var handler = new StubHandler(_wire.Answer);
-            using var client = TestClient.Create(handler);
+            using var client = TestClient.Create(handler, attemptTimeout: Timeout.InfiniteTimeSpan);
             var all = new List<string>();
             var token = string.Empty;
             for (var pages = 0; pages < MostPages; pages++)

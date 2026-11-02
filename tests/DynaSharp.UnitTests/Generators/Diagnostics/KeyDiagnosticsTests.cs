@@ -585,12 +585,83 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
-    public async Task Build_RawAndStrictInTwoTemplates_ReportsNothing()
+    [Arguments("""PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = [|"B#{V}"|])""", "A#{V:raw}", "B#{V}", "#")]
+    [Arguments("""PartitionKey([|"B#{V}"|]), GlobalIndexKey("Gsi", PartitionKey = "A#{V:raw}")""", "A#{V:raw}", "B#{V}", "#")]
+    [Arguments("""PartitionKey("A#{V:raw}"), SortKey([|"B:{V}"|])""", "A#{V:raw}", "B:{V}", ":")]
+    [Arguments("""PartitionKey("P"), SortKey("A#{V:raw}"), LocalIndexKey("Lsi", [|"B:{V}"|])""", "A#{V:raw}", "B:{V}", ":")]
+    [Arguments("""PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = [|"X-{V}.csv"|])""", "A#{V:raw}", "X-{V}.csv", "-.")]
+    public async Task Build_RawAndStrictInTwoTemplates_ReportsDyna120AtTheStrictOne(string attributes, string raw, string strict, string delimiters)
     {
-        // Arrange (a format belongs to its template, so the strict one goes on rejecting what the raw one holds)
-        const string Source = """
-            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "B#{V}")]
+        // Arrange (a format belongs to its template, so the strict one goes on rejecting what the raw one holds, and a write that passes one key throws at the other)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
             public partial class E { public required string V { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, RawBesideStrict("V", raw, strict, delimiters)));
+    }
+
+    [Test]
+    public async Task Build_RawAndTwoStrictTemplates_ReportsEachOfThem()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), GlobalIndexKey("One", PartitionKey = [|"B#{V}"|]), GlobalIndexKey("Two", PartitionKey = [|"C:{V}"|])]
+            public partial class E { public required string V { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, RawBesideStrict("V", "A#{V:raw}", "B#{V}", "#"), RawBesideStrict("V", "A#{V:raw}", "C:{V}", ":")));
+    }
+
+    [Test]
+    [Arguments("{V}")]
+    [Arguments("{N:d3}{V}")]
+    public async Task Build_StrictTemplateWithoutADelimiter_ReportsNothing(string template)
+    {
+        // Arrange (no delimiter means nothing to refuse, so the value that goes into the raw key goes in here as well)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "{{template}}")]
+            public partial class E { public required string V { get; set; } public int N { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_PlainKeyBesideARawTemplate_ReportsNothing()
+    {
+        // Arrange (a plain key is its value, without a template that could refuse it)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), GlobalIndexKey("Gsi", PartitionKey = "A#{V:raw}")]
+            public partial class E { [PartitionKey] public required string V { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_StrictInputsOfOtherProperties_ReportsNothing()
+    {
+        // Arrange (each property keeps to one format, however many templates it is in)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("{W}#{N:d3}"), SortKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "B#{W}", SortKey = "C#{N:d3}#{V:raw}")]
+            public partial class E { public required string V { get; set; } public required string W { get; set; } public int N { get; set; } }
             """;
 
         // Act
@@ -1215,6 +1286,9 @@ public sealed class KeyDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string RawBesideStrict(string property, string raw, string strict, string delimiters) =>
+        $"DYNA120 Warning: '{property}' is raw in '{raw}' and strict in '{strict}', so a value that holds any of '{delimiters}' fits the first and throws KeyFormatException at the second. Use one format for it in both.";
 
     private static string FormatsOf(string type) => type switch
     {

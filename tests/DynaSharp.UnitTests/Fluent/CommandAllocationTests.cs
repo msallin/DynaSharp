@@ -217,7 +217,7 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
-            table.Update(default(StaticKey)).Add(Customer.Attrs.OrderCount, 1).Set(Customer.Attrs.Email, "a@b.ch").If(Customer.Attrs.OrderCount.Lt(100))));
+            table.Update(default(StaticKey)).Add(Customer.Attrs.OrderCount, 1).Set(Customer.Attrs.Note, "a@b.ch").If(Customer.Attrs.OrderCount.Lt(100))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -233,7 +233,7 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
-            table.Update(default(StaticKey)).Set(Customer.Attrs.OrderCount, (int?)7).Set(Customer.Attrs.Email, "a@b.ch")));
+            table.Update(default(StaticKey)).Set(Customer.Attrs.OrderCount, (int?)7).Set(Customer.Attrs.Note, "a@b.ch")));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -249,7 +249,7 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
-            table.Update(default(StaticKey)).SetIfNotNull(Customer.Attrs.OrderCount, (int?)7).SetIfNotNull(Customer.Attrs.OrderCount, (int?)null).SetIfNotNull(Customer.Attrs.Email, "a@b.ch").SetIfNotNull(Customer.Attrs.Email, null)));
+            table.Update(default(StaticKey)).SetIfNotNull(Customer.Attrs.OrderCount, (int?)7).SetIfNotNull(Customer.Attrs.OrderCount, (int?)null).SetIfNotNull(Customer.Attrs.Note, "a@b.ch").SetIfNotNull(Customer.Attrs.Email, null)));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -410,7 +410,7 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure(customers, static table => CommandHelpers.FinishAndRelease(
-            table.Update(default(StaticKey)).Set("a", 1).Add("b", 2).If(Attr("_type").Exists()).Set("_type", "CUSTOMER")));
+            table.Update(default(StaticKey)).Set("note", 1).Add("orderCount", 2).If(Attr("_type").Exists()).Set("_type", "CUSTOMER")));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -764,7 +764,7 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure((tickets, ticket), static input =>
         {
-            var state = DynaSharp.Fluent.WriteRules.Settle(((CommandHandle)input.tickets.Put(input.ticket)).State!);
+            var state = ((CommandHandle)input.tickets.Put(input.ticket)).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);
@@ -787,7 +787,7 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure((tickets, ticket), static input =>
         {
-            var state = DynaSharp.Fluent.WriteRules.Settle(((CommandHandle)input.tickets.Put(input.ticket).IgnoreVersion()).State!);
+            var state = ((CommandHandle)input.tickets.Put(input.ticket).IgnoreVersion()).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);
@@ -824,7 +824,7 @@ public sealed class CommandAllocationTests
         // Act (what is settled at the terminal, for a version and for a key)
         var allocated = Measure(tickets, static table =>
         {
-            var state = DynaSharp.Fluent.WriteRules.Settle(((CommandHandle)table.Update(PartitionKey, SortKey).IfVersion(3)).State!);
+            var state = ((CommandHandle)table.Update(PartitionKey, SortKey).IfVersion(3)).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);
@@ -863,7 +863,7 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure((tickets, ticket), static input =>
         {
-            var state = DynaSharp.Fluent.WriteRules.Settle(((CommandHandle)input.tickets.Delete(input.ticket)).State!);
+            var state = ((CommandHandle)input.tickets.Delete(input.ticket)).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);
@@ -886,7 +886,7 @@ public sealed class CommandAllocationTests
         // Act
         var allocated = Measure((gauges, gauge), static input =>
         {
-            var state = DynaSharp.Fluent.WriteRules.Settle(((CommandHandle)input.gauges.Delete(input.gauge)).State!);
+            var state = ((CommandHandle)input.gauges.Delete(input.gauge)).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);

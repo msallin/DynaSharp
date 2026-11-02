@@ -10,7 +10,7 @@ namespace DynaSharp.Generators;
 /// <summary>
 /// What a command says that the model of its entity contradicts. DYNA205: a write by handle to a property the key of the table is made of, which an update cannot do. The rule is
 /// <c>KeyInputChanges</c>, for the property itself and nothing else: what follows from a key of the table, such as a key of an index, is its business at run time. DYNA206: <c>IfNotExists</c> on a
-/// <c>Put</c> whose item shows a version above 0 in the chain, which <c>WriteRules.Settle</c> refuses. Version 0 is a first write, where the two conditions agree, so a version that is not a constant says
+/// <c>Put</c> whose item shows a version above 0 in the chain, which <c>WriteState.Settle</c> refuses. Version 0 is a first write, where the two conditions agree, so a version that is not a constant says
 /// nothing and is not reported. DYNA207: a constant name in the <c>Index(string)</c> that takes the names from the entity, which throws at run time when the entity does not declare it. DYNA219: a write by handle,
 /// also to a path inside it, to a property that a computed input of a key of an index is derived from, or to that computed input itself, which <c>KeyInputChanges</c> throws for. Behind a key of the table that is DYNA205, one step removed.
 /// </summary>

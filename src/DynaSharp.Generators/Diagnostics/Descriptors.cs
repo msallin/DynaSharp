@@ -273,6 +273,15 @@ internal static class Descriptors
         true,
         helpLinkUri: KeyHelp);
 
+    public static readonly DiagnosticDescriptor RawBesideStrict = new(
+        "DYNA120",
+        "Raw value is strict in another template",
+        "'{0}' is raw in '{1}' and strict in '{2}', so a value that holds any of '{3}' fits the first and throws KeyFormatException at the second. Use one format for it in both.",
+        KeyGrammar,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: KeyHelp);
+
     public static readonly DiagnosticDescriptor CommandOutlivesExpression = new(
         "DYNA201",
         "Command outlives its expression",
@@ -445,7 +454,7 @@ internal static class Descriptors
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
     ];
 

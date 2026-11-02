@@ -16,16 +16,10 @@ namespace DynaSharp.Http;
 /// </summary>
 internal sealed class ClientCore : IDisposable
 {
-    // How many idle command states a client keeps. A state holds its buffers, so this also bounds the memory an idle client holds on to;
-    // more commands than this in flight at once simply make new ones.
-    private const int CommandPoolCapacity = 64;
-
     private static readonly SearchValues<char> OperationNameCharacters = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
 
     private readonly HttpClient _http;
     private readonly DynamoDbPipeline _pipeline;
-    private readonly ArrayPool<byte> _pool;
-    private readonly BoundedPool<CommandState> _commands = new(CommandPoolCapacity);
     private readonly Type _clientType;
     private readonly string _targetPrefix;
     private readonly string _serviceName;
@@ -37,7 +31,7 @@ internal sealed class ClientCore : IDisposable
         Options = options;
         _http = http;
         _pipeline = pipeline;
-        _pool = pool;
+        Commands = new CommandPool(this, pool);
         _clientType = clientType;
 
         // What the operations of the library say for themselves, for the calls that do not come from one (SendRawAsync).
@@ -48,6 +42,9 @@ internal sealed class ClientCore : IDisposable
 
     /// <summary>Gets the clock of the client, for what waits outside the pipeline.</summary>
     public TimeProvider TimeProvider { get; }
+
+    /// <summary>Gets the idle states of the commands of this client.</summary>
+    public CommandPool Commands { get; }
 
     /// <summary>Gets the options as they were resolved, once, when the client was created, see <see cref="DynamoDbClient.Options"/>.</summary>
     public DynamoDbClientOptions Options { get; }
@@ -88,20 +85,6 @@ internal sealed class ClientCore : IDisposable
         var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, random ?? Random.Shared, maxResponseLength);
         var resolved = options with { Region = configuration.Region, ServiceUrl = configuration.ChosenEndpoint, Credentials = configuration.Credentials };
         return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved);
-    }
-
-    /// <summary>Gets a state for a new command.</summary>
-    /// <returns>The state, which comes back through <see cref="ReturnCommand"/>. A state that does not come back is collected, see <see cref="CommandState"/>.</returns>
-    public CommandState RentCommand() => _commands.Rent() ?? new CommandState(this, _pool);
-
-    /// <summary>Takes a state back for the next command.</summary>
-    /// <param name="state">The state, which its last command no longer uses.</param>
-    public void ReturnCommand(CommandState state)
-    {
-        if (!_commands.Return(state))
-        {
-            state.ReleaseArrays();
-        }
     }
 
     /// <summary>
@@ -202,11 +185,7 @@ internal sealed class ClientCore : IDisposable
     public void Dispose()
     {
         _disposed = true;
-        foreach (var state in _commands.Close())
-        {
-            state.ReleaseArrays();
-        }
-
+        Commands.Close();
         _pipeline.Dispose();
         _http.Dispose();
     }

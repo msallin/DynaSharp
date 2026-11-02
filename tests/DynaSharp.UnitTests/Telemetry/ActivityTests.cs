@@ -384,6 +384,7 @@ public sealed class ActivityTests
     {
         // Arrange
         var time = new ManualTimeProvider();
+        var attemptTimeout = TimeSpan.FromSeconds(30);
         var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new StubHandler(async (_, cancellationToken) =>
         {
@@ -396,12 +397,12 @@ public sealed class ActivityTests
         {
             var call = client.GetItemAsync(TestClient.GetItem());
             await arrived.Task;
-            time.Advance(TimeSpan.FromSeconds(30));
+            time.Advance(attemptTimeout);
             await TestClient.CaptureAsync<TimeoutException>(() => call);
         }
 
         // Act
-        var activity = await RunAsync(handler, TimeOut, time);
+        var activity = await RunAsync(handler, TimeOut, time, attemptTimeout: attemptTimeout);
 
         // Assert
         await Assert.That(activity.GetTagItem("error.type")).IsEqualTo("timeout");

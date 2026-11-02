@@ -64,8 +64,17 @@ internal sealed class TableModel
     /// <summary>Gets the attribute of the discriminator.</summary>
     public string? DiscriminatorAttributeName { get; }
 
-    /// <summary>Gets a value indicating whether a query sees items of other types, because its key condition stands where the discriminator filter would, and a read has to look at each item.</summary>
-    public bool QueryChecksDiscriminator => Discriminator is not null && DiscriminatorIsKey;
+    /// <summary>Gets what a <c>GetItem</c> does about items of other types: it has no filter, so it looks at the item.</summary>
+    public DiscriminatorCheck DiscriminatorOnGet => Discriminator is null ? DiscriminatorCheck.None : DiscriminatorCheck.CheckEachItem;
+
+    /// <summary>
+    /// Gets what a <c>Query</c> does about items of other types. DynamoDB refuses a filter on a key of what a query reads, so a query keyed by the discriminator goes without, as a <c>GetItem</c> does: its key
+    /// condition stands where the filter would, and says which items come back. Every other query filters, as a <c>Scan</c> does.
+    /// </summary>
+    public DiscriminatorCheck DiscriminatorOnQuery => DiscriminatorIsKey ? DiscriminatorOnGet : DiscriminatorOnScan;
+
+    /// <summary>Gets what a <c>Scan</c> does about items of other types: it filters, which DynamoDB takes on any attribute.</summary>
+    public DiscriminatorCheck DiscriminatorOnScan => Discriminator is null ? DiscriminatorCheck.None : DiscriminatorCheck.Filter;
 
     /// <summary>Gets the secondary index this model reads, if it is one.</summary>
     public string? IndexName { get; }
@@ -134,7 +143,7 @@ internal sealed class TableModel
     /// <returns>The state of the command.</returns>
     public CommandState Begin()
     {
-        var state = Core.RentCommand();
+        var state = Core.Commands.Rent();
         state.Start(this);
         return state;
     }
@@ -156,7 +165,7 @@ internal sealed class TableModel
     /// <returns>The state of the command.</returns>
     public CommandState BeginActions()
     {
-        var state = Core.RentCommand();
+        var state = Core.Commands.Rent();
         state.Table = this;
         return state;
     }
@@ -203,7 +212,7 @@ internal sealed class TableModel
     {
         var state = Begin();
         state.WriteKeyCondition(key);
-        AddQueryFilter(state);
+        AddDiscriminatorFilter(state, DiscriminatorOnQuery);
         return state;
     }
 
@@ -218,7 +227,7 @@ internal sealed class TableModel
     public CommandState BeginScan()
     {
         var state = Begin();
-        AddDiscriminatorFilter(state);
+        AddDiscriminatorFilter(state, DiscriminatorOnScan);
         return state;
     }
 
@@ -244,24 +253,6 @@ internal sealed class TableModel
     /// <summary>Completes the projection of a typed read with what the read needs. It runs when the chain ends, because a projection can grow until then.</summary>
     /// <param name="state">The state of the read.</param>
     public void AddRequiredNames(CommandState state) => state.Expressions.CompleteProjection(RequiredNames);
-
-    /// <summary>
-    /// Adds the discriminator to the filter of a read, so that a typed read of a table shared by several types sees its own items. The hook of
-    /// <c>Query</c> and <c>Scan</c> on a typed table. It costs two placeholders, and the filter runs after the read, so capacity stays what it was.
-    /// </summary>
-    /// <param name="state">The state of the read.</param>
-    public void AddDiscriminatorFilter(CommandState state)
-    {
-        if (Discriminator is not null)
-        {
-            var expressions = state.Expressions;
-            var text = expressions.StartPending();
-            expressions.AppendAttributeName(text, DiscriminatorAttributeName!);
-            text.Append(" = "u8);
-            expressions.AppendValue<string, StringConverter>(text, Discriminator);
-            expressions.CommitPending(Clause.Filter);
-        }
-    }
 
     private static string[] NamesOfATypedRead(TableModel? table, string? discriminatorAttributeName, string partitionKeyName, string? sortKeyName)
     {
@@ -314,16 +305,21 @@ internal sealed class TableModel
         }
 
         sortKey.Render(expressions, text, SortKeyName!);
-        AddQueryFilter(state);
+        AddDiscriminatorFilter(state, DiscriminatorOnQuery);
         return state;
     }
 
-    // DynamoDB refuses a filter on a key of what a query reads, for a scan it takes one. The key condition of such a query already says which items come back.
-    private void AddQueryFilter(CommandState state)
+    // So that a typed read of a table shared by several types sees its own items. It costs two placeholders, and the filter runs after the read, so capacity stays what it was.
+    private void AddDiscriminatorFilter(CommandState state, DiscriminatorCheck check)
     {
-        if (!DiscriminatorIsKey)
+        if (check == DiscriminatorCheck.Filter)
         {
-            AddDiscriminatorFilter(state);
+            var expressions = state.Expressions;
+            var text = expressions.StartPending();
+            expressions.AppendAttributeName(text, DiscriminatorAttributeName!);
+            text.Append(" = "u8);
+            expressions.AppendValue<string, StringConverter>(text, Discriminator!);
+            expressions.CommitPending(Clause.Filter);
         }
     }
 }

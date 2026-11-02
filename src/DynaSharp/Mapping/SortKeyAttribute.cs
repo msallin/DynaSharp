@@ -8,7 +8,7 @@ namespace DynaSharp.Mapping;
 /// <para>
 /// DynamoDB compares string keys by their UTF-8 bytes. Numbers therefore need a fixed format such as <c>{Id:d10}</c> to sort
 /// numerically, and a template that has no placeholders, such as <c>PROFILE</c>, is legal. The template syntax is described on
-/// <see cref="PartitionKeyAttribute"/>.
+/// <see cref="PartitionKeyAttribute"/>, and so is the format <c>raw</c>, with what it lifts and what it does not.
 /// </para>
 /// <para>
 /// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare

@@ -20,6 +20,10 @@ public sealed class DynamoDbDefaultsAttribute : Attribute
     /// data, either migrate the items, or stay on the old naming and pin what differs with <see cref="DynamoDbAttributeAttribute"/>.
     /// </para>
     /// <para>
+    /// <b>Renaming a property does the same.</b> The attribute follows the name of the property under every naming, <see cref="AttributeNaming.AsDeclared"/> too, so a rename refactoring compiles and renames a stored attribute. A property
+    /// whose name may change takes <see cref="DynamoDbAttributeAttribute"/>.
+    /// </para>
+    /// <para>
     /// It goes for every attribute that takes its name from a property, and that includes a plain key: <c>[PartitionKey] public string UserId</c> is the attribute <c>user_id</c> under <see cref="AttributeNaming.SnakeCase"/>. A
     /// table cannot rename a key, so an existing table takes an explicit <see cref="PartitionKeyAttribute.AttributeName"/> or <see cref="DynamoDbAttributeAttribute"/>, which win over this. So does a template of one bare
     /// placeholder: it is the attribute of its property only if its <c>AttributeName</c> is the converted name.
@@ -39,7 +43,7 @@ public sealed class DynamoDbDefaultsAttribute : Attribute
 
     /// <summary>
     /// Gets or sets a value indicating whether every string, list, set, dictionary and array behaves as if it had <see cref="OmitEmptyAttribute"/>. A property that feeds a key is always written, and so is one that a read
-    /// cannot do without, as <see cref="OmitEmptyAttribute"/> says. <c>[OmitEmpty(false)]</c> takes it back for a property or a type.
+    /// cannot do without, as <see cref="OmitEmptyAttribute"/> says. An empty list then reads back as null or as the initial value, and <c>[OmitEmpty(false)]</c> takes it back for a property or a type.
     /// </summary>
     public bool OmitEmpty { get; set; }
 }

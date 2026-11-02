@@ -35,6 +35,17 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// </summary>
     /// <remarks>
     /// <para>
+    /// A caller that holds the key gains nothing from this, because it is the key that caller passed. It is for code that does not hold it: a wrapper around a delegate, a handler at the edge of a service, the last run of a
+    /// retry. The client puts it in no log, so what such code logs is its own decision.
+    /// </para>
+    /// <code>
+    /// catch (ConditionalCheckFailedException exception) when (exception.Key is { } key)
+    /// {
+    ///     var customerId = Customer.Keys.Pk.Parse(key.GetString("pk")!).Id;
+    ///     return Results.Conflict(customerId);
+    /// }
+    /// </code>
+    /// <para>
     /// DynamoDB does not send the key, so the client takes it from the request: <c>Put</c>, <c>Update</c> and <c>Delete</c> of a table, typed or of <see cref="DynaSharp.Item"/>, and
     /// <see cref="Requests.DynamoDbRequests.UpdateItemAsync"/> and <see cref="Requests.DynamoDbRequests.DeleteItemAsync"/>. A <c>Put</c> reads the key attributes of the table from its item.
     /// It is <see langword="null"/> on <see cref="Requests.DynamoDbRequests.PutItemAsync"/>, whose request does not say which attributes are the key, on <see cref="DynamoDbClient.SendRawAsync"/>, whose JSON is not read, in a
@@ -46,7 +57,7 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// <c>Customer.Keys.Pk.Parse(exception.Key!.GetString("pk")!)</c>. A plain key is its input.
     /// </para>
     /// <para>
-    /// It is filled on the failure path only, for one parse of the body that was sent, so a write that gets through pays nothing. After the last run of
+    /// It is filled on the failure path only, from the start of the body that was sent up to the key, so a write that gets through pays nothing. After the last run of
     /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> it is the key of that run.
     /// </para>
     /// </remarks>

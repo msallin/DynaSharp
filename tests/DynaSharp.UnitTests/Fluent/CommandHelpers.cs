@@ -37,7 +37,7 @@ internal static class CommandHelpers
     /// <returns>The length of the body.</returns>
     public static int FinishAndRelease(CommandHandle command)
     {
-        var state = DynaSharp.Fluent.WriteRules.Settle(DynaSharp.Fluent.CommandState.Enter(command.State, command.Version, command.Operation, command.Table));
+        var state = DynaSharp.Fluent.CommandState.Enter(command.State, command.Version, command.Operation, command.Table).Settle();
         var version = state.Version;
         var length = state.Finish().Count;
         state.Release(version);

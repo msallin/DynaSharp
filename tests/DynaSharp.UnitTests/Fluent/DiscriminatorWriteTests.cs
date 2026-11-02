@@ -1,3 +1,5 @@
+#pragma warning disable DYNA213 // These updates name attributes the entity does not have, because the discriminator is all that is under test.
+
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Fluent.Mix;
 using static DynaSharp.Expr;

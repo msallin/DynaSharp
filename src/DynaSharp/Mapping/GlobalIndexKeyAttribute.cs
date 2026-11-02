@@ -11,8 +11,8 @@ namespace DynaSharp.Mapping;
 /// inverted index, is allowed when both use the same template.
 /// </para>
 /// <para>
-/// Computed properties cannot feed an index template: an update cannot know which stored properties a getter reads, so the index
-/// would go stale.
+/// A computed property feeds an index template only with <see cref="ComputedFromAttribute"/>: an update cannot know which stored properties a getter reads, so that attribute names them, and without it the
+/// index would go stale.
 /// </para>
 /// <para>
 /// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
@@ -42,6 +42,11 @@ public sealed class GlobalIndexKeyAttribute : Attribute
     /// Gets or sets a value indicating whether items without a value leave the index. When any input of any template of the index is
     /// null, none of the index's key attributes is written, because one alone would be stored uselessly. Nullable inputs require this.
     /// </summary>
+    /// <remarks>
+    /// An item is in an index only with both its keys. So on a sparse index an update that sets one key and does not produce the other throws <see cref="InvalidOperationException"/> at the terminal, naming the other key.
+    /// On an index that is not sparse the same update writes the key it can compute and throws nothing: an item that exists keeps its other key, and an item the update creates stays out of the index. An update that can
+    /// create an item sets every input of the index, ends in <c>.IfExists()</c>, or is a <c>Put</c>.
+    /// </remarks>
     public bool Sparse { get; set; }
 
     /// <summary>Gets or sets the name of the attribute that holds the index partition key.</summary>

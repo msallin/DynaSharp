@@ -11,7 +11,7 @@ namespace DynaSharp.Serialization;
 /// <remarks>
 /// <para>
 /// An array is much lighter than a <see cref="HashSet{T}"/>: a <c>string[]</c> of three elements takes about 48 bytes against about 176 for a set.
-/// The price is that the array does not stop duplicates. DynamoDB rejects a set with duplicates (for numbers, with numerically equal elements)
+/// The price is that the array does not stop duplicates: <c>["x", "x"]</c> writes <c>{"SS":["x","x"]}</c>. DynamoDB rejects a set with duplicates (for numbers, with numerically equal elements)
 /// with a validation error, so the code that fills the array must keep its elements distinct. See <see cref="HashSetConverter{T, TElement}"/> for
 /// the other rules of sets, such as the empty set.
 /// </para>

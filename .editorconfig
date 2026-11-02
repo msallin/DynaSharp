@@ -176,6 +176,10 @@ dotnet_diagnostic.CA1711.severity = none
 # CA2012: a command's awaiter consumes its ValueTask once, which is what the rule protects.
 dotnet_diagnostic.CA2012.severity = none
 
+[src/DynaSharp/Keys/PartitionKey*.cs]
+# CA1815: a key goes into Query; nothing compares it.
+dotnet_diagnostic.CA1815.severity = none
+
 [src/DynaSharp/Serialization/{Converters/*,AttributeValueConverter}.cs]
 # CA1000, CA1815: converters are empty structs that carry static abstract interface implementations. A generic struct type argument
 # gives each instantiation its own code, so the static members on generic types are the design, and an empty struct has no value to compare.

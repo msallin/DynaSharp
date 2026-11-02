@@ -63,8 +63,8 @@ public sealed partial class KeysEmitterTests
         // Arrange, Act
         var output = GeneratorRun.Run(KeyShapes, new DynaSharpGenerator(), language);
 
-        // Assert
-        await Assert.That(output.Problems).IsEmpty();
+        // Assert (a driver does not read the #pragma of RawTwin, which has this warning on purpose)
+        await Assert.That(output.Problems.Where(static problem => !problem.Contains("warning DYNA120", StringComparison.Ordinal))).IsEmpty();
     }
 
     [Test]

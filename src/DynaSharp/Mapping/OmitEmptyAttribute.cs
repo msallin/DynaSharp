@@ -16,6 +16,14 @@ namespace DynaSharp.Mapping;
 /// property that is not nullable throws for a missing attribute, which <c>DYNA209</c> points out, unless it is a set.
 /// </para>
 /// <para>
+/// That goes for lists, sets, dictionaries and arrays too, so an empty list does not read back as empty: it reads as <see langword="null"/> or as the initial value. Null and <c>[]</c> can mean different things, such as
+/// not asked and asked with no answer, and <c>[OmitEmpty(false)]</c> on the property stores the empty one.
+/// </para>
+/// <para>
+/// This is wider than the rule of the AWS SDK, which leaves out an empty string and keeps an empty list of documents, an empty dictionary and an empty <c>byte[]</c>. So code that has to store what the SDK stored takes
+/// <c>[OmitEmpty(false)]</c> on those.
+/// </para>
+/// <para>
 /// A key must not be empty, and a read that cannot do without a value could never read an empty one back, which is a <c>required</c> property that is neither nullable nor a set, and a constructor parameter of the same
 /// kind without a default. On a type and through <see cref="DynamoDbDefaultsAttribute.OmitEmpty"/> such a property stays written, and on a property, as on anything that is no string or collection, this is the error
 /// <c>DYNA030</c>. It is not inherited: a derived type says so again, and a nested type has its own, whether a property that holds it says anything or not.

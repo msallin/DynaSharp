@@ -208,7 +208,9 @@ public sealed class TableTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
+#pragma warning disable DYNA207 // Which is what this test is about.
         var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(customers.Index("Nope")));
+#pragma warning restore DYNA207
 
         // Assert
         await Assert.That(failure.Message).Contains("Nope");
@@ -266,8 +268,10 @@ public sealed class TableTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
+#pragma warning disable DYNA207 // Which is what this test is about.
         var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Index<Customer>("Nope")));
         var typed = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Of<Customer>().Index("Nope")));
+#pragma warning restore DYNA207
 
         // Assert
         await Assert.That((failure.Message, failure.ParamName)).IsEqualTo((typed.Message, typed.ParamName));
@@ -462,7 +466,7 @@ public sealed class TableTests
                 _ = customers.Get(new Customer("a", "b"));
                 return Task.CompletedTask;
             }),
-            await TestClient.CaptureAsync<ArgumentNullException>(() => Task.FromResult(customers.Index("a"))),
+            await TestClient.CaptureAsync<ArgumentNullException>(() => Task.FromResult(customers.Index("ByName"))),
         };
 
         // Assert
@@ -470,17 +474,16 @@ public sealed class TableTests
     }
 
     [Test]
-    public async Task AddDiscriminatorFilter_EntityWithADiscriminator_FiltersOnIt()
+    public async Task BeginScan_EntityWithADiscriminator_FiltersOnIt()
     {
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var model = client.Table<Customer>("Shop").Model;
-        var state = model.Begin();
-        var version = state.Version;
 
         // Act
-        model.AddDiscriminatorFilter(state);
+        var state = model.BeginScan();
+        var version = state.Version;
         var text = System.Text.Encoding.UTF8.GetString(state.Finish());
         state.Release(version);
 
@@ -489,17 +492,16 @@ public sealed class TableTests
     }
 
     [Test]
-    public async Task AddDiscriminatorFilter_AttributeOfAnotherName_FiltersOnThatOne()
+    public async Task BeginScan_AttributeOfAnotherName_FiltersOnThatOne()
     {
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var model = client.Table<Tenant>("Shop").Model;
-        var state = model.Begin();
-        var version = state.Version;
 
         // Act
-        model.AddDiscriminatorFilter(state);
+        var state = model.BeginScan();
+        var version = state.Version;
         var text = System.Text.Encoding.UTF8.GetString(state.Finish());
         state.Release(version);
 
@@ -508,17 +510,16 @@ public sealed class TableTests
     }
 
     [Test]
-    public async Task AddDiscriminatorFilter_ItemTable_AddsNothing()
+    public async Task BeginScan_ItemTable_AddsNothing()
     {
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var model = client.Table("Shop", "pk").Model;
-        var state = model.Begin();
-        var version = state.Version;
 
         // Act
-        model.AddDiscriminatorFilter(state);
+        var state = model.BeginScan();
+        var version = state.Version;
         var text = System.Text.Encoding.UTF8.GetString(state.Finish());
         state.Release(version);
 

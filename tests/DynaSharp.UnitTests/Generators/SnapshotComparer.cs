@@ -73,7 +73,7 @@ internal static class SnapshotComparer
         var shown = new StringBuilder($"First difference at line {line + 1} ({old.Length} lines verified, {now.Length} received):\n");
         foreach (var removed in old.Skip(line).Take(DiffLines))
         {
-            shown.Append("- ").Append(removed.Replace("\r", "\r", StringComparison.Ordinal)).Append('\n');
+            shown.Append("- ").Append(removed).Append('\n');
         }
 
         foreach (var added in now.Skip(line).Take(DiffLines))

@@ -155,7 +155,7 @@ public sealed class StoreKeyInputsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var holds = ((CommandHandle)client.Table<TrackPoint>("Shop").Update(TrackPoint.Keys.Of(At, "p1"))).State!.HeldKey;
+        var holds = ((CommandHandle)client.Table<TrackPoint>("Shop").Update(TrackPoint.Keys.Of(At, "p1"))).State!.Write.HeldKey;
 
         // Assert
         await Assert.That(holds).IsNull();

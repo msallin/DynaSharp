@@ -302,7 +302,7 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         var state = command.Enter();
-        WriteRules.IgnoreVersion(state);
+        state.IgnoreVersion();
         return new(state, state.Table);
     }
 
@@ -329,7 +329,7 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         var state = command.Enter();
-        WriteRules.IgnoreVersion(state);
+        state.IgnoreVersion();
         return new(state, state.Table);
     }
 
@@ -363,7 +363,7 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         var state = command.Enter();
-        WriteRules.IgnoreVersion(state);
+        state.IgnoreVersion();
         return new(state, state.Table);
     }
 
