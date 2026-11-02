@@ -276,7 +276,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor RawBesideStrict = new(
         "DYNA120",
         "Raw value is strict in another template",
-        "'{0}' is raw in '{1}' and strict in '{2}', so a value that holds any of '{3}' fits the first and throws KeyFormatException at the second. Use one format for it in both.",
+        "'{0}' is raw in '{1}' and strict in '{2}', so a value with a delimiter of the second ('{3}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.",
         KeyGrammar,
         DiagnosticSeverity.Warning,
         true,

@@ -1288,7 +1288,7 @@ public sealed class KeyDiagnosticsTests
     }
 
     private static string RawBesideStrict(string property, string raw, string strict, string delimiters) =>
-        $"DYNA120 Warning: '{property}' is raw in '{raw}' and strict in '{strict}', so a value that holds any of '{delimiters}' fits the first and throws KeyFormatException at the second. Use one format for it in both.";
+        $"DYNA120 Warning: '{property}' is raw in '{raw}' and strict in '{strict}', so a value with a delimiter of the second ('{delimiters}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.";
 
     private static string FormatsOf(string type) => type switch
     {
