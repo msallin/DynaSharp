@@ -38,7 +38,7 @@ internal static class AttrsEmitter
 
         foreach (var model in type.Enums)
         {
-            var users = handles.Where(handle => FindConverter(model).IsMatch(handle.Converter!.WriteConverter)).ToList();
+            var users = handles.Where(handle => Regex.IsMatch(handle.Converter!.WriteConverter, ConverterPattern(model))).ToList();
             if (users.Count > 0)
             {
                 code.Separate(ref isFirst);
@@ -53,11 +53,11 @@ internal static class AttrsEmitter
     private static bool IsPlainName(string attributeName) => attributeName.IndexOfAny(['.', '[']) < 0;
 
     // "Shop_StatusConverter" must not match inside "Shop_StatusConverter2", the name a second enum of that text gets.
-    private static Regex FindConverter(EnumModel model) => new($@"\b{model.ConverterName}\b");
+    private static string ConverterPattern(EnumModel model) => $@"\b{model.ConverterName}\b";
 
     private static void EmitHandle(IndentedCode code, PropertyModel handle, EquatableArray<EnumModel> enums)
     {
-        var converter = enums.Aggregate(handle.Converter!.WriteConverter, static (text, model) => FindConverter(model).Replace(text, ForwarderPrefix + model.ConverterName));
+        var converter = enums.Aggregate(handle.Converter!.WriteConverter, static (text, model) => Regex.Replace(text, ConverterPattern(model), ForwarderPrefix + model.ConverterName));
 
         // The handle says it in its type, so that a property without [OmitEmpty] pays nothing, in a handle or in a command.
         converter = handle.OmitEmptyConverter is { } wrapper ? $"{wrapper}{converter}>" : converter;
@@ -103,8 +103,8 @@ internal static class AttrsEmitter
     private static void EmitForwarder(IndentedCode code, EnumModel model, List<PropertyModel> users)
     {
         // HashSetConverter<E, C>, ReadOnlySetConverter<E, C> and SetArrayConverter<E, C> are where a converter serves as a set element.
-        var elementOf = new Regex($@"Set(Array)?Converter<{Regex.Escape(model.FullName)}, {model.ConverterName}>");
-        var isElement = users.Exists(handle => elementOf.IsMatch(handle.Converter!.WriteConverter));
+        var arguments = $"<{model.FullName}, {model.ConverterName}>";
+        var isElement = users.Exists(handle => handle.Converter!.WriteConverter.Contains("SetConverter" + arguments) || handle.Converter.WriteConverter.Contains("SetArrayConverter" + arguments));
         var converter = $"{Serialization}IDynamoDbConverter<{model.FullName}>";
         var element = isElement ? $", {Serialization}IDynamoDbSetElementConverter<{model.FullName}>" : string.Empty;
         code.Line($"/// <summary>The converter of <c>{CodeText.Xml(model.FullName)}</c>, in a form that a handle can name.</summary>");
