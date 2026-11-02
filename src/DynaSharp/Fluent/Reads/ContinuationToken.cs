@@ -7,14 +7,13 @@ namespace DynaSharp;
 
 /// <summary>
 /// A position in a <c>Query</c> or <c>Scan</c>, for paging across requests: take <see cref="Page{T}.Next"/>, hand <see cref="ToString"/> to the client,
-/// and on the next request pass <see cref="Parse"/> of what came back to <c>PageAsync</c>. The text is safe in a URL. The default value is the start
-/// of the read.
+/// and on the next request pass <see cref="Parse"/> of what came back to <c>PageAsync</c>. The text is safe in a URL. It is encoded, not encrypted and not signed, so a client can read it and choose its position in the partition. The
+/// default value is the start of the read.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Treat the text as opaque, but not as secret: it carries the key values of the last item that was read, as <c>LastEvaluatedKey</c> does in every SDK.
-/// It is encoded, not encrypted and not signed. A client can read those values and can ask for another position, so encrypt or sign the token if the
-/// keys of the table hold what a client must not see, or if the position of a read must not be up to the client.
+/// Encrypt or sign the token if the keys of the table hold what a client must not see, or if the position of a read must not be up to the client.
 /// </para>
 /// <para>
 /// A token belongs to the query it came from: the same table or index and the same key condition. DynamoDB rejects a key that does not fit with a

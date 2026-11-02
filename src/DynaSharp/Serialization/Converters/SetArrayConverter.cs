@@ -22,6 +22,7 @@ namespace DynaSharp.Serialization;
 /// <c>[DynamoDbConverter(typeof(SetArrayConverter&lt;string, StringSetElement&gt;))] public string[] Tags { get; init; } = [];</c>. <see cref="StringConverter"/> is not an element converter, so
 /// <c>SetArrayConverter&lt;string, StringConverter&gt;</c> does not compile: <c>CS0315</c> on the constraint of <typeparamref name="TElement"/>.
 /// </para>
+/// <para>A converter of your own may call it, for a <see cref="List{T}"/> stored as a set, say: this one is no infrastructure.</para>
 /// </remarks>
 public readonly struct SetArrayConverter<T, TElement> : IDynamoDbConverter<T[]>, IAddableConverter
     where TElement : IDynamoDbSetElementConverter<T>

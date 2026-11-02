@@ -190,8 +190,8 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Treats a table that exists as success: <c>DescribeTable</c> goes first, and a table it finds ends the command there, with its description and without a <c>CreateTable</c>, which is what makes a create at the start
-    /// of a program safe to repeat.
+    /// Treats a table that exists as success: <c>DescribeTable</c> goes first, and a table it finds ends the create there, with its description and without a <c>CreateTable</c>, which is what makes a create at the start
+    /// of a program safe to repeat. <see cref="TimeToLive(string)"/> on the chain still goes on, and can change the table.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -199,7 +199,7 @@ public sealed class CreateTableCommand
     /// indexes missing, and a <see cref="WaitUntilActive()"/> times out over a table that lacks a global index this command declares. The indexes and the <see cref="Stream"/> of this command reach only a table it creates.
     /// </para>
     /// <para>
-    /// <b>Permissions.</b> A table that exists takes <c>dynamodb:DescribeTable</c> alone, so a role that may not create tables gets through, and no failed call shows in CloudTrail or in error metrics. Creating a table takes
+    /// <b>Permissions.</b> A table that exists takes <c>dynamodb:DescribeTable</c> alone, unless <see cref="TimeToLive(string)"/> adds its own, so a role that may not create tables gets through, and no failed call shows in CloudTrail or in error metrics. Creating a table takes
     /// <c>dynamodb:CreateTable</c> as well, and <c>dynamodb:DescribeTable</c> is needed for that too: the look comes first, and any error of it other than a missing table surfaces, so a role without it gets
     /// <see cref="AccessDeniedException"/> and creates nothing. With <see cref="WaitUntilActive()"/>, a first look that already shows the table and its indexes active returns without another call.
     /// </para>

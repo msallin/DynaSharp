@@ -135,7 +135,7 @@ public sealed class Table<T>
     public DeleteCommand<T> Delete(AttributeValue partitionKey, AttributeValue sortKey = default) =>
         new(WriteRules.ExpectVersion(Model.Begin(partitionKey, sortKey)), Model);
 
-    /// <summary>Starts a delete of one item by a generated key.</summary>
+    /// <summary>Starts a delete of one item by a generated key. Deleting what does not exist is no error unless <see cref="DeleteCommand{T}.IfExists"/> asks for one.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
@@ -312,7 +312,7 @@ public sealed class Table<T>
     public BatchWriteCommand<T> BatchWrite() => new(Model.BeginActions(), Model);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer, up to 5 times, so that code that holds a table needs no client for it. It is
+    /// Runs a read-modify-write, and runs it again when it loses to another writer: 5 runs in all, with a wait between them, and the failure of the last run is rethrown. Code that holds a table needs no client for it. It is
     /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>, the same loop on the same client, and the remarks there say what a run is, what makes it run again
     /// and how to write one. Nothing ties a run to this table: it can touch others, and a transaction.
     /// </summary>

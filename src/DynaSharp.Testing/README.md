@@ -14,7 +14,7 @@ stub.Enqueue(StubResponse.Item(customer));
 var found = await client.Table<Customer>("Shop").Get(Customer.Keys.Of("alice")).ItemAsync(ct);
 ```
 
-A request takes the next response in the queue, then the answer of a responder given to the constructor, then `DefaultResponse`, and without any of them it fails. The second argument of `Create` changes the options:
+A request takes the next response in the queue, then the answer of a responder given to the constructor, then `DefaultResponse`, and without any of them it fails. A queued response answers whatever call comes next, of any operation, so one too many answers a later call. The second argument of `Create` changes the options:
 
 ```csharp
 using var retrying = StubClient.Create(stub, options => options with { MaxAttempts = 4, TimeProvider = clock });
@@ -32,7 +32,7 @@ The timeout of a wait for a table, `WaitUntilActiveAsync` and `WaitUntilActive()
 |---|---|
 | Items | `Item`, `Items`, `Count`, `Attributes`, `BatchItems`, `Unprocessed` |
 | Tables | `Table`, `Table<T>`, `TableCreated`, `TableDeleted`, `TimeToLive`, `TimeToLiveUpdated` |
-| Streams | `StreamDescription`, `ShardIterator`, `Records` |
+| Streams | `StreamDescription`, `Shard`, `ShardIterator`, `Records`, which takes `Inserted<T>`, `Modified<T>`, `Removed<T>` and `Change` |
 | Failures | `ConditionalCheckFailed`, `TransactionCanceled`, `ResourceNotFound`, `ResourceInUse`, `DynamoDbError` |
 | Anything else | `Json` |
 
@@ -75,11 +75,11 @@ The requests of a credentials provider do not go through `HttpHandler`, so `Stub
 
 ```csharp
 using var sts = new StubSts();
-sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("AKIAIOSFODNN7EXAMPLE", "secret", "token")));
+sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("AKIAIOSFODNN7EXAMPLE", "secret", "token", DateTimeOffset.UtcNow.AddHours(1))));
 
 var provider = new WebIdentityCredentialsProvider(tokenFile, roleArn, sts.Endpoint);
 var credentials = await provider.GetCredentialsAsync(ct);
 Console.WriteLine(sts.Requests[0].RoleArn);
 ```
 
-That constructor reads no variable, so the test runs in parallel with any other. A test can also set `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and go through the default chain as a pod does; that test must not run in parallel. The stub never touches the environment or the disk, so the token file is the test's to write.
+That constructor reads no variable, so the test runs in parallel with any other. A test can also set `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and go through the default chain as a pod does; that test must not run in parallel. `AWS_ENDPOINT_URL_STS` is what keeps it from the real STS: forget it, and the token goes to STS in the region of the test, or the fetch fails without a region. The stub never touches the environment or the disk, so the token file is the test's to write.

@@ -111,7 +111,10 @@ public interface IUpdatable<TSelf>
     /// <returns>The command, which replaces this one.</returns>
     public TSelf Add(string path, AttributeValue value);
 
-    /// <summary>Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set.</summary>
+    /// <summary>
+    /// Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set. A retry after a lost response repeats the addition to a number. <c>MaxAttempts(1)</c> makes it
+    /// at most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a version, makes it exact.
+    /// </summary>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter, of a number or a set: <c>ADD</c> takes nothing else, so an attribute of another type is a compile error.</typeparam>
     /// <param name="attribute">The attribute.</param>

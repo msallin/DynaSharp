@@ -197,7 +197,7 @@ public sealed class DynamoDbClient : IDisposable
     /// sent as the <c>X-Amz-Target</c> header and is the operation of the span and the metrics of the call.
     /// </param>
     /// <param name="requestJson">
-    /// The request body: a JSON object in the format of the DynamoDB API (AWS JSON 1.0), with attribute values in their typed form,
+    /// The request body as UTF-8 bytes, such as <c>"""{}"""u8.ToArray()</c>: a JSON object in the format of the DynamoDB API (AWS JSON 1.0), with attribute values in their typed form,
     /// for example <c>{"TableName":"Users","Key":{"pk":{"S":"user-1"}}}</c>, or <c>{}</c> for an operation without parameters. The
     /// bytes are copied; they are not read or checked, so DynamoDB reports a request it cannot parse. The memory can be reused as
     /// soon as the returned task has completed.
@@ -239,7 +239,8 @@ public sealed class DynamoDbClient : IDisposable
         Core.SendRawAsync(operation, requestJson, cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer, up to 5 times. Nothing in the library does that by itself, and this is how a caller asks for it, here or on a
+    /// Runs a read-modify-write, and runs it again when it loses to another writer: 5 runs in all, with a wait between them, and the failure of the last run is rethrown. Nothing in the library does that by itself, and this is how a
+    /// caller asks for it, here or on a
     /// <see cref="Table{T}"/>, which needs no client at hand for it. A run has lost
     /// when it throws a <see cref="ConditionalCheckFailedException"/>, a <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> whose reasons include
     /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>.
