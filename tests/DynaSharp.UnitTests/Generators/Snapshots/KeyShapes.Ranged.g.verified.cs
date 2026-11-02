@@ -236,7 +236,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             return new PrimaryKey(id, name, seat);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static bool TryOf(string id, string name, int seat, out PrimaryKey key)
         {
             if (Pk.Check(false, id) && Sk.Check(false, name, seat))
@@ -455,7 +455,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static string UpperBound(string name)
             {
@@ -473,11 +473,11 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
+            /// <summary>The condition <c>begins_with</c> on the same prefix. Its arguments fill the fields through <c>Name</c>, each as the template formats it, so a value keeps only what its format holds.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition BeginsWith(string name) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(name));
 
-            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>Name</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>Name</c>, with both ends included, with every key at <c>to</c> and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <remarks>The key goes on behind <c>Name</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
@@ -502,7 +502,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Lt(string name) => global::DynaSharp.SortKeyCondition.Lt(Prefix(name));
 
-            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Seat</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Seat</c>, with both ends included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(string name, int from, int to) => global::DynaSharp.SortKeyCondition.Between(Format(name, from), Format(name, to));
 
@@ -722,7 +722,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static string UpperBound(int from)
             {
@@ -740,11 +740,11 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
+            /// <summary>The condition <c>begins_with</c> on the same prefix. Its arguments fill the fields through <c>From</c>, each as the template formats it, so a value keeps only what its format holds.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition BeginsWith(int from) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(from));
 
-            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>From</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>From</c>, with both ends included, with every key at <c>to</c> and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <remarks>The key goes on behind <c>From</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int from, int to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from), UpperBound(to));
@@ -788,7 +788,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static string UpperBound(int from, int to)
             {
@@ -808,11 +808,11 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 }
             }
 
-            /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
+            /// <summary>The condition <c>begins_with</c> on the same prefix. Its arguments fill the fields through <c>To</c>, each as the template formats it, so a value keeps only what its format holds.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition BeginsWith(int from, int to) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(from, to));
 
-            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>To</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Prefix AND UpperBound</c> on <c>To</c>, with both ends included, with every key at <c>to</c> and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <remarks>The key goes on behind <c>To</c>, and the upper bound lies above all of it, so this includes every key at <c>to</c>. <c>Range</c> ends before them.</remarks>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int from, int from_, int to) => global::DynaSharp.SortKeyCondition.Between(Prefix(from, from_), UpperBound(from, to));
@@ -837,7 +837,7 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Lt(int from, int to) => global::DynaSharp.SortKeyCondition.Lt(Prefix(from, to));
 
-            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Seat</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Seat</c>, with both ends included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int from, int to, int from_, int to_) => global::DynaSharp.SortKeyCondition.Between(Format(from, to, from_), Format(from, to, to_));
 

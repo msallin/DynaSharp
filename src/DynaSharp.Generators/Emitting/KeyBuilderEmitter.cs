@@ -207,7 +207,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         }
 
         code.Blank();
-        code.Line("/// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>");
+        code.Line("/// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>");
         if (bound.Count > 0)
         {
             code.Line(InvalidValue);
@@ -215,7 +215,8 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
         EmitText("UpperBound", Signature(bound), $"{Buffer} + {UpperBoundLength}", [.. lines, $"{Local}.WriteUpperBound();"]);
         code.Blank();
-        code.Line("/// <summary>The condition <c>begins_with</c> on the same prefix.</summary>");
+        var fields = bound.Count == 0 ? string.Empty : $" Its arguments fill the fields through <c>{bound[bound.Count - 1].Property}</c>, each as the template formats it, so a value keeps only what its format holds.";
+        code.Line($"/// <summary>The condition <c>begins_with</c> on the same prefix.{fields}</summary>");
         if (bound.Count > 0)
         {
             code.Line(InvalidValue);
@@ -266,7 +267,8 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         var from = BoundName(leading, "from");
         var to = BoundName(leading, "to");
         var parameters = (List<string>)[.. leading.Select(static placeholder => $"{placeholder.ValueType} {placeholder.ParameterName}"), $"{last.ValueType} {from}", $"{last.ValueType} {to}"];
-        code.Line($"/// <summary>The condition <c>BETWEEN {low} AND {high}</c> on <c>{last.Property}</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>");
+        var ends = goesOn ? $"both ends included, with every key at <c>{to}</c>" : "both ends included";
+        code.Line($"/// <summary>The condition <c>BETWEEN {low} AND {high}</c> on <c>{last.Property}</c>, with {ends} and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>");
         if (goesOn)
         {
             code.Line($"/// <remarks>The key goes on behind <c>{last.Property}</c>, and the upper bound lies above all of it, so this includes every key at <c>{to}</c>. <c>Range</c> ends before them.</remarks>");

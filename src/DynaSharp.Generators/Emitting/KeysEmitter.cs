@@ -158,7 +158,7 @@ internal static class KeysEmitter
         code.Close();
         code.Blank();
         var result = Names.Free("key", inputs.Select(static input => input.Parameter));
-        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>");
+        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>");
         code.Line($"public static bool TryOf({signature}, out PrimaryKey {result})");
         code.Open();
         code.Line($"if ({string.Join(" && ", checkedKeys.Select(key => Check(type, key, "false")))})");

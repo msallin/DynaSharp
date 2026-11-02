@@ -163,7 +163,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
             return new PrimaryKey(code, name);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static bool TryOf(int code, string name, out PrimaryKey key)
         {
             if (Sk.Check(false, code, name))
@@ -315,7 +315,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
                 }
             }
 
-            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Name</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Name</c>, with both ends included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.SortKeyCondition Between(int code, string from, string to) => global::DynaSharp.SortKeyCondition.Between(Format(code, from), Format(code, to));
 

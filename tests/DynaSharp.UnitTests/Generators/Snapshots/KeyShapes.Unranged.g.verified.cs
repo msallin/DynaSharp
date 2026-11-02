@@ -270,7 +270,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
             return new PrimaryKey(id, count);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static bool TryOf(string id, int count, out PrimaryKey key)
         {
             if (Pk.Check(false, id) && Sk.Check(false, count))
@@ -472,7 +472,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "COUNT#";
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             public static string UpperBound()
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength + 4]);
@@ -673,7 +673,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "MONEY#";
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             public static string UpperBound()
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength + 4]);
@@ -860,7 +860,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "PLAN#";
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             public static string UpperBound()
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength + 4]);
@@ -1047,7 +1047,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "ADDRESS#";
 
-            /// <summary>The same prefix plus U+10FFFF, above every key under it: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes the keys at <c>b</c>.</summary>
+            /// <summary>The same prefix plus U+10FFFF, above every key under it, for the upper end of a range: <c>BETWEEN Prefix(a) AND UpperBound(b)</c> includes both ends, with every key at <c>b</c>.</summary>
             public static string UpperBound()
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength + 4]);

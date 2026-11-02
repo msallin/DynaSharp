@@ -182,7 +182,7 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
             return new PrimaryKey(kind);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static bool TryOf(global::KeyShapes.InternalKind kind, out PrimaryKey key)
         {
             if (Pk.Check(false, kind))
