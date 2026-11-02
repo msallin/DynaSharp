@@ -7,7 +7,8 @@ namespace DynaSharp.Mapping;
 /// <remarks>
 /// Typed reads check the attribute and fail with a mapping exception naming the type they found, because a query over an overloaded
 /// prefix can return other types. Typed queries and scans filter on it. For a table written by other tools, which has no such
-/// attribute, set <see cref="OptOut"/> instead of a value: the type then takes no part in mixed queries.
+/// attribute, set <see cref="OptOut"/> instead of a value: the type then takes no part in mixed queries. An item has no order of attributes,
+/// so an attribute the two types share with values of different shapes can fail first, under its own name.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
 public sealed class DiscriminatorAttribute : Attribute

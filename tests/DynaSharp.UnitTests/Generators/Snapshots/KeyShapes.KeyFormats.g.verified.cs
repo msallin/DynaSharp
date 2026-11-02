@@ -247,6 +247,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -405,7 +406,7 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
                         {
                             attribute = "custompk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.CustomPk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyFormats", "custompk"); }
+                            if (!Keys.CustomPk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "custompk"; }
                             fields.Address = __parts0.Address;
                             fields.Address__set = true;
                             reader.ReadEndAttribute();
@@ -423,6 +424,8 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         {
             throw new global::DynaSharp.DynamoDbMappingException("KeyFormats", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyFormats", __misfit); }
 
         if ((!fields.Text__set)
             && __Ser.ConverterChecks.TryFindString(__item, "pk"u8, out var __text0)

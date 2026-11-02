@@ -31,6 +31,13 @@ internal static class ReadEmitter
             code.Line("var __item = reader;");
         }
 
+        // A key of another type does not fit either, and an item has no order of attributes: what the discriminator says comes first, so a key that does not fit fails after the walk.
+        var restoresFromKey = read.Exists(static property => property.RestoredFromKey is not null);
+        if (restoresFromKey)
+        {
+            code.Line("string? __misfit = null;");
+        }
+
         code.Line("string? attribute = null;");
         code.Line("try");
         code.Open();
@@ -46,6 +53,12 @@ internal static class ReadEmitter
         code.Line($"throw new global::DynaSharp.DynamoDbMappingException({CodeText.Literal(type.Name)}, attribute, exception);");
         code.Close();
         code.Blank();
+        if (restoresFromKey)
+        {
+            code.Line($"if (__misfit is not null) {{ throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit({CodeText.Literal(type.Name)}, __misfit); }}");
+            code.Blank();
+        }
+
         for (var group = 0; group < fallbacks.Count; group++)
         {
             EmitFallback(code, type, fallbacks[group], CodeText.Number(group));
@@ -110,7 +123,7 @@ internal static class ReadEmitter
         var lines = new List<string>
         {
             "__Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);",
-            $"if (!Keys.{key.BuilderName}.TryParse(reader.GetStringUtf8(), out var {parts})) {{ throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit({CodeText.Literal(type.Name)}, {attribute}); }}",
+            $"if (!Keys.{key.BuilderName}.TryParse(reader.GetStringUtf8(), out var {parts})) {{ __misfit = {attribute}; }}",
         };
         foreach (var property in properties)
         {

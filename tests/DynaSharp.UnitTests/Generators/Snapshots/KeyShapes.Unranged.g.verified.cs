@@ -105,6 +105,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -163,7 +164,7 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                         {
                             attribute = "byaddresssk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.ByAddressSk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Unranged", "byaddresssk"); }
+                            if (!Keys.ByAddressSk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "byaddresssk"; }
                             fields.Address = __parts0.Address;
                             fields.Address__set = true;
                             reader.ReadEndAttribute();
@@ -181,6 +182,8 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
         {
             throw new global::DynaSharp.DynamoDbMappingException("Unranged", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Unranged", __misfit); }
 
         if ((!fields.Id__set)
             && __Ser.ConverterChecks.TryFindString(__item, "pk"u8, out var __text0)

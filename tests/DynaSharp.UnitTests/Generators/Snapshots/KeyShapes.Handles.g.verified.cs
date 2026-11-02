@@ -153,6 +153,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -174,7 +175,7 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                         {
                             attribute = "sk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Handles", "sk"); }
+                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "sk"; }
                             fields.Slot = __parts0.Slot;
                             fields.Slot__set = true;
                             reader.ReadEndAttribute();
@@ -359,6 +360,8 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
         {
             throw new global::DynaSharp.DynamoDbMappingException("Handles", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Handles", __misfit); }
 
         if ((!fields.Id__set)
             && __Ser.ConverterChecks.TryFindString(__item, "pk"u8, out var __text0)

@@ -86,6 +86,7 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -107,7 +108,7 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                         {
                             attribute = "sk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Stamp", "sk"); }
+                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "sk"; }
                             fields.Seq = __parts0.Seq;
                             fields.Seq__set = true;
                             reader.ReadEndAttribute();
@@ -152,6 +153,8 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
         {
             throw new global::DynaSharp.DynamoDbMappingException("Stamp", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Stamp", __misfit); }
 
         if ((!fields.Room__set)
             && __Ser.ConverterChecks.TryFindString(__item, "sk"u8, out var __text0)

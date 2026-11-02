@@ -118,6 +118,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -131,7 +132,7 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                         {
                             attribute = "pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Mixed", "pk"); }
+                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "pk"; }
                             fields.User = __parts0.User;
                             fields.User__set = true;
                             reader.ReadEndAttribute();
@@ -204,6 +205,8 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
         {
             throw new global::DynaSharp.DynamoDbMappingException("Mixed", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("Mixed", __misfit); }
 
         if ((!fields.Code__set)
             && __Ser.ConverterChecks.TryFindString(__item, "sk"u8, out var __text0)

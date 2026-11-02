@@ -75,6 +75,7 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
     {
         __Fields fields = default;
         var __item = reader;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -88,7 +89,7 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                         {
                             attribute = "sk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("RawKeyOnly", "sk"); }
+                            if (!Keys.Sk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "sk"; }
                             fields.Path = __parts0.Path;
                             fields.Path__set = true;
                             reader.ReadEndAttribute();
@@ -125,6 +126,8 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
         {
             throw new global::DynaSharp.DynamoDbMappingException("RawKeyOnly", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("RawKeyOnly", __misfit); }
 
         if ((!fields.Tenant__set)
             && __Ser.ConverterChecks.TryFindString(__item, "pk"u8, out var __text0)

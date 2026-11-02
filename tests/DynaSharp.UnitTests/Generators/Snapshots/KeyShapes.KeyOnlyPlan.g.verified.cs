@@ -66,6 +66,7 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
     static global::KeyShapes.KeyOnlyPlan __Map.IDynamoDbDocument<global::KeyShapes.KeyOnlyPlan>.ReadAttributes(ref __Ser.DynamoDbReader reader)
     {
         __Fields fields = default;
+        string? __misfit = null;
         string? attribute = null;
         try
         {
@@ -79,7 +80,7 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
                         {
                             attribute = "pk";
                             __Ser.ConverterChecks.Expect(reader.ReadStartAttribute(), global::DynaSharp.AttributeType.String);
-                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyOnlyPlan", "pk"); }
+                            if (!Keys.Pk.TryParse(reader.GetStringUtf8(), out var __parts0)) { __misfit = "pk"; }
                             fields.Plan = __parts0.Plan;
                             fields.Plan__set = true;
                             reader.ReadEndAttribute();
@@ -106,6 +107,8 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
         {
             throw new global::DynaSharp.DynamoDbMappingException("KeyOnlyPlan", attribute, exception);
         }
+
+        if (__misfit is not null) { throw global::DynaSharp.DynamoDbMappingException.KeyDoesNotFit("KeyOnlyPlan", __misfit); }
 
         return new global::KeyShapes.KeyOnlyPlan(in fields);
     }

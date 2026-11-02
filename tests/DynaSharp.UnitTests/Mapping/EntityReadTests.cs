@@ -307,6 +307,18 @@ public sealed class EntityReadTests
     }
 
     [Test]
+    [Arguments("""{"pk":{"S":"not-a-plan"},"_type":{"S":"OTHER"}}""")]
+    [Arguments("""{"_type":{"S":"OTHER"},"pk":{"S":"not-a-plan"}}""")]
+    public async Task ReadAttributes_ItemOfAnotherTypeWhoseKeyDoesNotFit_NamesTheTypeInEitherOrder(string json)
+    {
+        // Arrange, Act (a key of another type is no surprise, and an item has no order of attributes)
+        var failure = Assert.Throws<DynamoDbMappingException>(() => EntityJson.Read<KeyOnlyPlan>(json));
+
+        // Assert
+        await Assert.That((failure.AttributeName, failure.Message)).IsEqualTo(((string?)"_type", "The item is of type \"OTHER\", so it cannot be read as KeyOnlyPlan."));
+    }
+
+    [Test]
     public async Task ReadAttributes_RequiredInputOfALossyFormat_ThrowsNamingTheAttribute()
     {
         // Arrange (At is in the sort key by the format ms, which is no way back to the ticks)
