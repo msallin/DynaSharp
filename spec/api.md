@@ -50,7 +50,7 @@ public partial record Customer
 
 | Namespace | Holds |
 |---|---|
-| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKey`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
+| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `Select`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types and not written by hand: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
@@ -105,7 +105,7 @@ There is no interface: the test seam is the `HttpMessageHandler`.
 | `Credentials` | The default chain | The client does not dispose a provider it is given |
 | `HttpHandler` | An owned pooled `SocketsHttpHandler` | The client does not dispose a handler it is given |
 | `AttemptTimeout` | 30 s | Per attempt, credentials lookup included; surfaces as `TimeoutException` |
-| `MaxAttempts` | 4 | Including the first; 1 means no retries. The remarks of this property are the public description of the retry rules |
+| `MaxAttempts` | 4 | Including the first; 1 means no retries. The waits are random, up to 100, 200 and 400 ms for a transient failure, so a cold dependency has 700 ms at most and 350 ms on average, and up to 50, 100 and 200 ms for throttling. The remarks of this property are the public description of the retry rules |
 | `LoggerFactory` | None | |
 | `TimeProvider` | `TimeProvider.System` | Timeouts, retry delays, batch backoff, signing time, `WaitUntilActiveAsync` |
 
@@ -138,12 +138,12 @@ For `[DynamoDbEntity]` and `[DynamoDbDocument]` types, which must be `partial`:
 | Member | Content |
 |---|---|
 | `T.Keys.Of(...)` | A `readonly struct PrimaryKey : IKey<T>` holding the placeholder values; costs no string. A key of another entity does not compile |
-| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per key. For a template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, and, when the last placeholder is a string, `PrefixPartial`. For a plain key, or a template of one bare placeholder over the attribute of its property: `Of(value)`, with the type and the converter of the property, which gives a `PartitionKey<T>` on a partition key and the `AttributeValue` for a `SortKey` condition on a sort key, and `Format(value)` when the key is stored as a string. There is nothing to parse and no prefix |
+| `T.Keys.Pk`, `Sk`, `Gsi1Pk`, ... | One static class per key. For a template: `Format`, `Parse`, `TryParse`; on a partition key, of the table or of an index, `Of`, with the parameters of `Format`; on a sort key `Prefix`, `UpperBound`, `BeginsWith`, each at every depth `Prefix` has, when the last placeholder is a string `PrefixPartial`, and the conditions `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt` of section 6. For a plain key, or a template of one bare placeholder over the attribute of its property: `Of(value)`, with the type and the converter of the property, which gives a `PartitionKey<T>` on a partition key and the `AttributeValue` for a `SortKeyCondition` on a sort key, and `Format(value)` when the key is stored as a string. There is nothing to parse and no prefix. A sort key also has the conditions of section 6 that fit what it stores |
 | `T.Attrs.X` | A typed handle `Attr<TValue, TConverter>` per stored attribute, also on documents. `TValue` is the type without its `?`, which is what `Set` and the conditions take, and the handle of a nullable property says so in its converter: `Attr<int, OptionalConverter<int, NumberConverter<int>>>`, and `Attr<string, OptionalReferenceConverter<string, StringConverter>>` for a reference type. `internal` unless the property, its type and its converters are public. An attribute name holding `.` or `[` and a `[KeyOnly]` property have none |
 | `T.Indexes.X` | A `const string` per index, on an entity with an index: `orders-by_date` gives `OrdersByDate`, `GSI1` gives `Gsi1` |
 
 `Order.Keys.Pk.Of(userId)` returns a `PartitionKey<Order>`, a readonly struct over the key as it is stored, one type for every key builder of an entity. A key of a template, and a plain string, cost nothing beyond what `Format` costs; a plain number or binary key goes through its converter once. It has no implicit conversion to `AttributeValue`,
-because that would bring the mistake back that it rules out; `.Value` is the explicit way out, and the key as text, which is the digits of a number and the base64 of binary. `Order.Keys.Sk.BeginsWith()` and `BeginsWith(leading...)` return a `SortKey`.
+because that would bring the mistake back that it rules out; `.Value` is the explicit way out, and the key as text, which is the digits of a number and the base64 of binary. `Order.Keys.Sk.BeginsWith()` and `BeginsWith(leading...)` return a `SortKeyCondition`.
 
 `Keys`, `Attrs` and `Indexes` are reserved member names on every mapped type (`DYNA014`). A type with the name of a class generated into it is
 `DYNA025`. A string before a delimiter in a sort key is `DYNA115` at severity `Info`: the ordering caveat is real but rare, and a warning would fail a
@@ -164,6 +164,8 @@ warnings-as-errors build on a hierarchical key. Attributes:
 | `[DynamoDbConverter(type)]` | property, type | First in converter selection |
 | `[DynamoDbConstructor]` | constructor | Chooses the constructor reads use |
 
+The default names are frozen: `pk`, `sk`, `<index>pk` and `<index>sk`, with the name of the index in lower case, and `_type`. They are in the data of every table a default wrote, so a new default would leave those items behind with no error, and an `AttributeName` is the only way to another name.
+
 TTL is `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. There is no `[TimeToLive]`.
 
 A read leaves `Item` out: the generated code goes from JSON to the type. A typed read checks `_type` when it is present and throws
@@ -172,7 +174,7 @@ which keeps its default because null is omitted on write. A missing non-nullable
 restored from the key it feeds when that format is lossless, which is what an item created by an `Update` looks like.
 
 Custom converters implement `IDynamoDbConverter<T>` with static members on a struct or class. A converter of a number or set implements
-`IAddableConverter` to allow a typed `Add`.
+`IAddableConverter` to allow a typed `Add`. A converter of a set answers `TryReadMissing` with an empty set, because an empty set is a missing attribute in DynamoDB and `Select` throws for it otherwise. That member is infrastructure, but it stays visible for this one case, unlike the members section 1 hides.
 
 ## 5. Commands
 
@@ -224,7 +226,7 @@ command, sends nothing and renders the body with everything enforced, for tests 
 | `Consistent()` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. `InvalidOperationException` on an index known to be global: one opened through its entity, or by hand with another partition key than the table. An index of the partition key of the table opened by hand is left to DynamoDB |
 | `Project(paths)`, `Project(attrs)` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. A typed read adds the discriminator and the keys it needs, and throws `DynamoDbMappingException` for what else the entity needs, which `DYNA208` reports |
 | `Select(handle)` | Get, Query, Scan. One attribute without the entity, section 6. It ends the chain, as `Return(attr)` does, so every other clause comes before it |
-| `Filter`, `Limit(n)` | Query, Scan, fan-out, mixed reads. `Limit` is per page, as DynamoDB means it |
+| `Filter`, `Limit(n)` | Query, Scan, fan-out, mixed reads. `Limit` is per page and works before the filter, as DynamoDB means it. A cap on items is `.ItemsAsync(ct).Take(n)`, which reads until it has them and stops |
 | `Descending()` | Query, fan-out, mixed query |
 
 ## 6. Reads
@@ -251,7 +253,7 @@ Order? open = await orders.Query(pk).Filter(Order.Attrs.Status.Eq(OrderStatus.Op
 Order? newest = await orders.Query(pk).Descending().Limit(1).ItemAsync(ct);                            // a read without a filter says that one is enough
 Order? held = await orders.Query(Order.Keys.Of("alice", "o1")).ItemAsync(ct);                          // takes what Get takes
 
-await foreach (Order order in byStatus.Query(Order.Keys.StatusIndexPk.Of(OrderStatus.Open), SortKey.Ge("2026-01-01")).ItemsAsync(ct)) { }
+await foreach (Order order in byStatus.Query(Order.Keys.StatusIndexPk.Of(OrderStatus.Open), Order.Keys.StatusIndexSk.Ge(from)).ItemsAsync(ct)) { }
 Page<Item> segment = await shop.Scan().Segment(2, of: 8).PageAsync(after, ct);
 await foreach (Item item in shop.Scan().Parallel(segments: 8).ItemsAsync(ct)) { }
 ```
@@ -267,7 +269,41 @@ fails its constraint is no candidate, so a string or a `PartitionKey<T>` binds a
 pages and stops at the first item. It adds no `Limit`, because `Limit` works before the filter and what goes out stays what `ToRequestJson()` shows, so a read of a partition without a filter asks for `.Limit(1)` itself.
 Fan-out, mixed reads and scans have no `ItemAsync`.
 
-`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `SortKey` offers only what a key
+### Sort key conditions
+
+```csharp
+invoices.Query(pk, Invoice.Keys.Sk.Between(from, to));        // [SortKey("INVOICE#{IssuedAt}#{Id}")]: from the first key at from to the last key at to
+invoices.Query(pk, Invoice.Keys.Sk.Ge(from));                 // from then on, and what else sorts after that
+invoices.Query(pk, Invoice.Keys.Sk.Eq(issuedAt, id));         // that one key
+stock.Query(pk, Stock.Keys.Sk.Between("books", 10, 99));      // [SortKey("{Shelf}#{Row:d3}#{Id}")]: the rows of one shelf
+```
+
+The builder of a sort key writes a condition from placeholder values, so nobody puts `Prefix` and `UpperBound` together by hand. `SortKeyCondition` stays, for a value that is at hand already. The arguments are the leading placeholders, as `Prefix` takes them, at every depth that has a value, and a key that ends in a placeholder has that depth as well.
+
+| Generated | Key condition | A key that ends in a placeholder, at its full depth |
+|---|---|---|
+| `Eq(all placeholders)` | `= Format(...)` | The same |
+| `Between(leading..., from, to)` | `BETWEEN Prefix(leading..., from) AND UpperBound(leading..., to)` | `BETWEEN Format(leading..., from) AND Format(leading..., to)` |
+| `Ge(x...)` | `>= Prefix(x...)` | `>= Format(x...)` |
+| `Gt(x...)` | `> UpperBound(x...)` | `> Format(x...)` |
+| `Le(x...)` | `<= UpperBound(x...)` | `<= Format(x...)` |
+| `Lt(x...)` | `< Prefix(x...)` | `< Format(x...)` |
+
+Bounds are whole fields, and a field that a bucket format truncates compares as its bucket: `Gt` of a day leaves out that whole day. A key that ends in a placeholder has no prefix at that depth, because no delimiter ends the last field, so the complete key is both bounds. An upper bound would be wrong there for a string: `Gt("a")` has to keep `ab`, which sorts above `a` and below `a` plus U+10FFFF. `Between("a", "m")` takes whole values, so `ma` stays out, which is the difference to `PrefixPartial`. A value that cannot be part of a key throws `KeyFormatException`, as `Format` does, and DynamoDB rejects a `from` above `to` with a `ValidationException`.
+
+`Between` varies the last placeholder alone and keeps the ones before it equal, because that is the range that holds for every template: all keys between two bounds with a common start have that start. A range across two whole tuples can be written by hand from `Prefix` and `UpperBound`. `Ge`, `Gt`, `Le` and `Lt` take the tuple and compare in the order of the key. They have one end, which a key condition cannot change, so they go on past the template: `Ge(at)` also reaches `PROFILE` above `INVOICE#`, which a typed read filters away after reading it and `Table<Item>` returns, and `Ge(year, month)` goes on through the years after that one.
+
+What cannot be correct is not generated, so it does not compile.
+
+- No range without a value. `Ge()` of a prefix alone asks for what lies outside the template. `BeginsWith()` is how to read all of it, and a template of literals has `Eq()`.
+- No range ends on a field whose bytes do not follow its value: plain digits, where `10` sorts before `9`, a plain decimal, an enum by name, a custom type.
+- A string is in order at the end of the key and before a space. Before any other delimiter a value such as `a b` sorts below `a` (`DYNA115`), so no range ends on such a field and no open range passes one. `{Shelf}#{Row:d3}#{Id}` has `Between(shelf, from, to)` and no `Ge(shelf, row)`, and no range of shelves.
+
+A plain sort key is compared as it is stored, so each condition is `SortKeyCondition` over `Of`. A number, binary, `string`, `Guid`, `DateTimeOffset`, `DateTime`, `DateOnly` and `TimeOnly`, whose stored form is in the order of the value, have all of `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt`. A `TimeSpan`, an enum and a custom converter have `Eq` alone, and a `string` also has `BeginsWith(prefix)`.
+
+A condition of constant text or of a plain string allocates nothing. One that formats a value costs its strings, as `BeginsWith(value)` does, because a key condition holds text.
+
+`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `SortKeyCondition` offers only what a key
 condition allows: `Eq`, `Lt`, `Le`, `Gt`, `Ge`, `Between`, `BeginsWith`. `CountAsync` is `Select: COUNT` summed over pages, and throws
 `InvalidOperationException` with a projection. `Parallel(segments)` returns `ParallelScanCommand<T>`, whose only terminal is `ItemsAsync`, because a merged
 page has no single key; concurrency is the segment count, and paging across requests goes through `Segment(n, of: m)`.
@@ -309,7 +345,7 @@ input from the key, `Select` does not, and throws, which `DYNA209` reports. Read
 
 `ContinuationToken` is a position: `default` is the start, `Parse` and `TryParse` take what `ToString()` gave, and null or `""` give the
 default, so the first request of a client needs no check, and a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
-values of the last item, as `LastEvaluatedKey` does. `ToKey()` and `FromKey(key)` convert to and from a key of the request API.
+values of the last item, as `LastEvaluatedKey` does. It starts with the version of its format, on a page and a fan-out alike, so `Parse` tells a token of another format, older or newer, from one it can read: that is a `FormatException` that says so, quotes nothing, and asks to start the read again. `TryParse` is false for it. There is no limit on the length: a token of a page is as long as a key, and one of a fan-out grows with its partitions. `ToKey()` and `FromKey(key)` convert to and from a key of the request API.
 
 ## 7. Writes
 
@@ -341,12 +377,12 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 
 | Clause | Result |
 |---|---|
-| `ReturnOld()` | Put, Update, Delete: `ALL_OLD` in `WriteResult<T>.Attributes` |
-| `ReturnNew()` | Update: `ALL_NEW` in `Attributes` |
+| `ReturnOld()` | Put, Update, Delete: `ALL_OLD` in `WriteResult<T>.Item` |
+| `ReturnNew()` | Update: `ALL_NEW` in `Item` |
 | `Return(attr)` | Update: `UPDATED_NEW` of one attribute. Returns `ReturnCommand<,>`, which only sends, and `SendAsync` gives the value. A missing attribute throws `DynamoDbMappingException`, never a default |
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, or through `ItemFor` in a transaction |
 
-`WriteResult<T>` has `Attributes`, `HasAttributes`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`.
+`WriteResult<T>` has `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`.
 
 A retry repeats a write. `Add`, `list_append` and arithmetic in `SET` are applied twice if a response was lost. `MaxAttempts(1)` makes them at most once, because a lost response then
 reports a failure after the write was applied, and a condition makes them exact. After a lost response a conditional write judges what its first attempt wrote, which the `SendAsync` docs of each command spell out.
@@ -429,7 +465,7 @@ shop.Update(pk, sk).If(Open & Attr("version").Eq(3));
 Struct conditions cover comparisons, existence, `BeginsWith` and `Between`, compose with `And`, `Or`, `Negate` and allocate nothing. A chain of one operator renders as one group, `(a OR b OR c)`, and conditions
 added one by one as `(a) AND (b) AND (c)`. `BeginsWith` by handle is an extension method of `AttrExtensions`, because the type
 of the attribute decides: a number, a boolean and a timestamp stored as a number do not compile (`CS0619`), as DynamoDB finds nothing there, an enum, a `Guid` or a date, which are stored as strings, do, and
-a binary attribute takes a binary prefix, with a string as `CS0619`.
+a binary attribute takes a binary prefix, with a string as `CS0619`. A `[Flags]` enum is stored as a number, and its handle has a generated converter that no overload can name, so it compiles and `DYNA216` reports it.
 There is no `Contains` by handle. In an interpolated expression `DYNA216` reports the same mistake for both functions. Interpolation covers the
 rest of the grammar (`size`, `contains`, `attribute_type`, `list_append`, arithmetic in `SET`). In a hole, an `Attr` stands for its name, and a value,
 an `AttributeValue`, a number or `handle.Value(x)`, for a value. A string in a hole is a value, so a name needs `Attr` (`DYNA210`), and an expression that
@@ -465,6 +501,8 @@ A batch is not atomic. `BatchGetResult<T>` has `Items`, unordered, without missi
 `Requests`, `ConsumedCapacity` and `ItemCollectionMetrics`. A batch that gives up throws `BatchIncompleteException`, with the parsed `UnprocessedItems`
 and `Written`, or `BatchGetIncompleteException<T>`, with `UnprocessedKeys` and the `Items` read so far. Both derive from `DynamoDbException` with the
 code `BatchIncomplete`, and what they hold goes straight into the request API.
+
+A batch gives up after `MaxStalledRounds`, on a throttle on the last attempt of a request, and on any other failure after at least one request went through; the last two have the failure as it came as `InnerException`. A failure of the first request, where nothing was applied, stays raw. Cancellation by the caller stays an `OperationCanceledException` and does not report progress.
 
 ## 11. Transactions
 
@@ -532,11 +570,11 @@ from an entity through `shop.Index<Membership>(Membership.Indexes.Gsi1)`.
 ## 13. Fan-out query
 
 ```csharp
-await foreach (Order order in orders.Query(shardKeys, SortKey.Between(from, to)).Descending().ItemsAsync(ct)) { }
+await foreach (Order order in orders.Query(shardKeys, SortKeyCondition.Between(from, to)).Descending().ItemsAsync(ct)) { }
 Page<Order> page = await orders.Query(shardKeys).PageAsync(pageSize: 50, after, ct);
 ```
 
-`Query(IEnumerable<AttributeValue>, SortKey)`, `Query(IEnumerable<string>, SortKey)`, `Query(ReadOnlySpan<string>, SortKey)` and, by extension method, `Query(IEnumerable<PartitionKey<T>>, SortKey)` on
+`Query(IEnumerable<AttributeValue>, SortKeyCondition)`, `Query(IEnumerable<string>, SortKeyCondition)`, `Query(ReadOnlySpan<string>, SortKeyCondition)` and, by extension method, `Query(IEnumerable<PartitionKey<T>>, SortKeyCondition)` on
 `Table<T>` and `Index<T>` return a `FanOutQueryCommand<T>`: one query per partition, merged. `Table<Item>` and `Index<Item>` take the keys of any entity. The `IEnumerable<string>` form has
 `[OverloadResolutionPriority(-1)]`, so it never makes a call ambiguous that binds elsewhere; `Query(default)` and `Query([])` do not compile. Clauses are `Filter`, `Project`, `Limit` (items per partition page), `Descending`, `Consistent`,
 `MaxAttempts`, `ReturnCapacity` and `MaxConcurrency(n)`, default 8.
@@ -566,6 +604,12 @@ sanctioned comparison. Its hash follows its content, so it does not belong in a 
 `AttributeValue` is a struct with implicit conversions from `string`, `bool`, `int`, `long`, `double`, `decimal`, `byte[]` and `char`, which is a one-character
 string. `Null` and the `FromXxx` factories cover the rest, `AsXxx` reads a value, and numbers stay text until read. `ToString()` is DynamoDB JSON.
 
+DynamoDB holds 38 significant digits and a `decimal` 28 to 29, with at most 28 after the point. A read of a `decimal` returns the exact value or throws `OverflowException`, on every path: `NumberConverter<decimal>`, `DynamoDbReader.GetNumber<decimal>`, `Item.GetNumber<decimal>` and `AttributeValue.AsNumber<decimal>`. It never rounds, and `1E-29` is no 0. Trailing zeros and exponents that keep the value are fine, such as `1.10`, `1E+2` and `0E+5`. For a number that needs all 38 digits, `AsNumber()` and `DynamoDbReader.GetNumberText` give the text.
+
+A `double`, `float` or `Half` rounds to the nearest value it holds, and a number below its range reads as 0: that is a binary float, on all those paths. A number that rounds to infinity throws `OverflowException` there, and so does the text `NaN`.
+
+A string with a lone surrogate is no text, and `DynamoDbWriter` throws `ArgumentException` for it, in an attribute value, a string set and an attribute name, as expression text and keys do, rather than store U+FFFD. `ToString()` of a value that holds one shows U+FFFD instead, because it is the text someone reads while finding out what went wrong.
+
 ## 15. Errors and escape hatches
 
 `DynamoDbException` carries `ErrorCode`, the wire code without namespace, `StatusCode`, `RequestId`, `OperationName` and `TableName`. A code the library
@@ -581,13 +625,13 @@ knows has its class, in `DynaSharp`, and any other is a plain `DynamoDbException
 | A wait for a table that runs out | `TableNotActiveException`, sealed, in `DynaSharp`, a `TimeoutException` with `TableName`, `LastStatus` (`TableStatus?`, null when the last look did not find the table, and then `InnerException` is the `ResourceNotFoundException`) and `PendingIndex` (`string?`, the index that was not active, which the message names too). A `catch (TimeoutException)` keeps working, and `AttemptTimeout` on a poll still gives the plain type |
 
 Compile errors stand in for what would otherwise be a `ValidationException`, a mapping failure or an empty result: a key of another entity does not fit `Query`, `Index<T>` has no writes, `Put()` and `With` exist on
-`Table<Item>` only, steps have their own clauses, `Return(attr)` and `Select(handle)` end the chain, `SortKey` has only legal operators, `Of<T>()` takes entities, `Parallel()`
+`Table<Item>` only, steps have their own clauses, `Return(attr)` and `Select(handle)` end the chain, `SortKeyCondition` has only legal operators, `Of<T>()` takes entities, `Parallel()`
 has no `PageAsync`, and `BeginsWith` takes no handle of a number.
 
 Escape hatches: `client.SendRawAsync("ListTables", """{"Limit":1}"""u8.ToArray(), ct)` for what nothing models, with the pipeline's signing, retries and
 telemetry; raw paths and interpolated expressions on typed commands; `Item.From` and `To<T>`.
 
-`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. There is
+`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity. There is
 no consumer, by scope.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
@@ -621,6 +665,6 @@ The helpers go through `WriteAttributes`, so they cannot drift from the codec. `
 
 ## Table administration and conflicts
 
-`orders.CreateTable().Including<Customer>().SendAsync(ct)` creates a table from what the entities declare: one entity cannot describe a single-table schema, so the table's indexes are the union over the entities named. Two entities that give an attribute two types throw at `Including`. `Provisioned(read, write)`, `WaitUntilActive()` and `IfNotExists()` shape it, and `ToRequest()` hands over a `CreateTableRequest` for what it does not cover, such as streams. A custom converter on a plain key counts as a string unless it implements `IAddableConverter`. `IfNotExists()` does not compare schemas, and takes a `DELETING` table for success. `DeleteTableAsync` deletes all items and does not wait.
+`orders.CreateTable().Including<Customer>().SendAsync(ct)` creates a table from what the entities declare: one entity cannot describe a single-table schema, so the table's indexes are the union over the entities named. Two entities that give an attribute two types throw at `Including`. `Provisioned(read, write)`, `WaitUntilActive()` and `IfNotExists()` shape it, and `ToRequest()` hands over a `CreateTableRequest` for what it does not cover, such as streams. A custom converter on a plain key counts as a string unless it implements `IAddableConverter`. `IfNotExists()` does not compare schemas, and a table that is `DELETING` is no success: the `ResourceInUseException` surfaces, with and without a wait. When `DescribeTable` finds no table, which is a delete that just ended or a table another process just created, the command creates again, up to 5 times over 1.5 seconds, and the exception surfaces only if that settles nothing. `DeleteTableAsync` deletes all items and does not wait.
 
 `client.RetryOnConflictAsync(ct => ..., ct)` runs a delegate again on `ConditionalCheckFailedException`, `TransactionConflictException`, and a cancelled transaction with those reasons, up to 5 runs by default, with a small jitter through the client's `TimeProvider`. Nothing else retries a conflict. The delegate must read again, or the retry changes nothing. A conditional write whose response is lost fails its own pipeline retry, and the helper then applies the change again: `.MaxAttempts(1)` on the write avoids that.

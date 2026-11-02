@@ -257,7 +257,9 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     /// <exception cref="InvalidOperationException">The value has another type.</exception>
     /// <exception cref="FormatException">The text cannot be represented as <typeparamref name="T"/>.</exception>
     /// <exception cref="OverflowException">
-    /// The number is outside the range of <typeparamref name="T"/>, or has a fractional part and <typeparamref name="T"/> is an integer type.
+    /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer type, or <typeparamref name="T"/> is
+    /// <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38. A binary floating-point type counts a number
+    /// that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below its range reads as 0.
     /// </exception>
     public T AsNumber<T>()
         where T : INumberBase<T>
@@ -326,7 +328,7 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     });
 
     /// <summary>Returns the value in DynamoDB JSON, for example <c>{"S":"abc"}</c>. Intended for debugging; the debugger shows this text, without quotes.</summary>
-    /// <returns>The DynamoDB JSON text, or an empty string for a <see langword="default"/> instance.</returns>
+    /// <returns>The DynamoDB JSON text, with U+FFFD for a lone surrogate, which no write takes, or an empty string for a <see langword="default"/> instance.</returns>
     public override string ToString()
     {
         if (Type == AttributeType.None)
@@ -337,7 +339,7 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
         using var buffer = new PooledByteBuffer(256);
         using (var json = WireJson.CreateWriter(buffer))
         {
-            AttributeValueConverter.Write(new DynamoDbWriter(json), this);
+            AttributeValueConverter.Write(DynamoDbWriter.ForDisplay(json), this);
         }
 
         return Encoding.UTF8.GetString(buffer.WrittenSpan);

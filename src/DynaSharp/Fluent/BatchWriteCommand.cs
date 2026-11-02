@@ -27,12 +27,13 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// <b>It gives up</b> after 8 requests in a row that get nothing done, or as many as <see cref="MaxStalledRounds"/> says, with a <see cref="BatchIncompleteException"/> that holds
-/// what was not written. A round that writes something does not count against that.
+/// what was not written. A round that writes something does not count against that. Any other failure after a request went through ends the batch the same way, with the failure
+/// as its <see cref="Exception.InnerException"/>; a failure of the first request surfaces as it is, and a cancellation stays an <see cref="OperationCanceledException"/>, which reports no progress.
 /// </para>
 /// <para>
 /// <b>A key twice.</b> DynamoDB rejects a request that holds one key twice with a <see cref="ValidationException"/>, and the command does not look for duplicates: an item can
 /// hold its key anywhere, and a write costs no read of it here. So a key that occurs twice in one request fails that request, with the requests before
-/// it applied, and one that occurs in two requests is written twice, in order.
+/// it applied and reported, and one that occurs in two requests is written twice, in order.
 /// </para>
 /// <para>
 /// Telemetry has one span per request, so a batch can make several, and they carry the tables and the capacity of their own request. See
@@ -259,11 +260,15 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <param name="cancellationToken">Cancels the batch, also while it waits between rounds. What was written before stays written.</param>
     /// <returns>The result. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it writes an entity with a <see cref="VersionAttribute"/> without <see cref="IgnoreVersion"/>.</exception>
-    /// <exception cref="BatchIncompleteException">DynamoDB left writes unprocessed after every round, or a table stayed throttled on the last attempt of a request. The exception holds what was not written.</exception>
+    /// <exception cref="BatchIncompleteException">
+    /// DynamoDB left writes unprocessed after every round, a table stayed throttled on the last attempt of a request, or any other failure came after a request went through, which is then its
+    /// <see cref="Exception.InnerException"/>. The exception holds what was not written.
+    /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
-    /// <exception cref="ValidationException">DynamoDB rejects a request, for example because it holds a key twice, or an item above 400 KB. The requests before it stay applied.</exception>
-    /// <exception cref="ResourceNotFoundException">A table does not exist. The requests before it stay applied.</exception>
-    /// <exception cref="DynamoDbException">DynamoDB returns any other error, a server error only after the last attempt. The requests before it stay applied.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the first request, for example because it holds a key twice, or an item above 400 KB.</exception>
+    /// <exception cref="ResourceNotFoundException">A table does not exist, as the first request finds.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error on the first request, a server error only after the last attempt.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled. This does not report progress: what went through before stays applied, and nothing says how much that was.</exception>
     public ValueTask<BatchWriteResult> SendAsync(CancellationToken cancellationToken = default) =>
         BatchDriver.SendAsync<BatchWriteOperation, BatchWriteResult>(WriteRules.Settle(Enter()), cancellationToken);
 

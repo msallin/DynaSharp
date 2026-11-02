@@ -460,6 +460,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 }
             }
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Eq(string seller) => global::DynaSharp.SortKeyCondition.Eq(Format(seller));
+
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "SELLER#";
 
@@ -480,7 +484,7 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
             }
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
-            public static global::DynaSharp.SortKey BeginsWith() => global::DynaSharp.SortKey.BeginsWith(Prefix());
+            public static global::DynaSharp.SortKeyCondition BeginsWith() => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix());
 
             /// <summary>A prefix that ends inside <c>Seller</c>, validated like a value. It also matches longer values, which is the point: autocomplete, geohash cells.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -498,6 +502,26 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     __key.Dispose();
                 }
             }
+
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Seller</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Format(from), Format(to));
+
+            /// <summary>The condition <c>&gt;= Format</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Ge(string seller) => global::DynaSharp.SortKeyCondition.Ge(Format(seller));
+
+            /// <summary>The condition <c>&gt; Format</c>: the keys after these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Gt(string seller) => global::DynaSharp.SortKeyCondition.Gt(Format(seller));
+
+            /// <summary>The condition <c>&lt;= Format</c>: the keys up to these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Le(string seller) => global::DynaSharp.SortKeyCondition.Le(Format(seller));
+
+            /// <summary>The condition <c>&lt; Format</c>: the keys before these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Lt(string seller) => global::DynaSharp.SortKeyCondition.Lt(Format(seller));
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -691,6 +715,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 }
             }
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Eq(string buyer) => global::DynaSharp.SortKeyCondition.Eq(Format(buyer));
+
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "BUYER#";
 
@@ -711,7 +739,7 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
             }
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
-            public static global::DynaSharp.SortKey BeginsWith() => global::DynaSharp.SortKey.BeginsWith(Prefix());
+            public static global::DynaSharp.SortKeyCondition BeginsWith() => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix());
 
             /// <summary>A prefix that ends inside <c>Buyer</c>, validated like a value. It also matches longer values, which is the point: autocomplete, geohash cells.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -729,6 +757,26 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     __key.Dispose();
                 }
             }
+
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Buyer</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Format(from), Format(to));
+
+            /// <summary>The condition <c>&gt;= Format</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Ge(string buyer) => global::DynaSharp.SortKeyCondition.Ge(Format(buyer));
+
+            /// <summary>The condition <c>&gt; Format</c>: the keys after these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Gt(string buyer) => global::DynaSharp.SortKeyCondition.Gt(Format(buyer));
+
+            /// <summary>The condition <c>&lt;= Format</c>: the keys up to these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Le(string buyer) => global::DynaSharp.SortKeyCondition.Le(Format(buyer));
+
+            /// <summary>The condition <c>&lt; Format</c>: the keys before these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Lt(string buyer) => global::DynaSharp.SortKeyCondition.Lt(Format(buyer));
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

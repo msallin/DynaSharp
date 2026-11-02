@@ -126,7 +126,7 @@ public sealed class PlainKeyBuilderTests
 
                 [SortKey] public required DateTimeOffset At { get; init; }
 
-                public static SortKey From(DateTimeOffset at) => SortKey.Ge(Keys.Sk.Of(at));
+                public static SortKeyCondition From(DateTimeOffset at) => SortKeyCondition.Ge(Keys.Sk.Of(at));
             }
             """;
 

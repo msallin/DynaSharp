@@ -237,7 +237,7 @@ public sealed class TableTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table("Shop", "pk", "sk").Index<KeyedOrder>(KeyedOrder.Indexes.Gsi2).Query("a", SortKey.Ge("b")).ToRequestJson();
+        var json = client.Table("Shop", "pk", "sk").Index<KeyedOrder>(KeyedOrder.Indexes.Gsi2).Query("a", SortKeyCondition.Ge("b")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"GSI2","KeyConditionExpression":"#n0 = :v0 AND #n1 >= :v1","ExpressionAttributeNames":{"#n0":"gsi2pk","#n1":"gsi2sk"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"b"}}}""");

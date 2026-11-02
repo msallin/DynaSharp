@@ -257,6 +257,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                 }
             }
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Eq(string name) => global::DynaSharp.SortKeyCondition.Eq(Format(name));
+
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "A-";
 
@@ -277,7 +281,7 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
             }
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
-            public static global::DynaSharp.SortKey BeginsWith() => global::DynaSharp.SortKey.BeginsWith(Prefix());
+            public static global::DynaSharp.SortKeyCondition BeginsWith() => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix());
 
             /// <summary>The prefix through <c>Name</c>, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -318,7 +322,7 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.SortKey BeginsWith(string name) => global::DynaSharp.SortKey.BeginsWith(Prefix(name));
+            public static global::DynaSharp.SortKeyCondition BeginsWith(string name) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(name));
 
             /// <summary>A prefix that ends inside <c>Name</c>, validated like a value. It also matches longer values, which is the point: autocomplete, geohash cells.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>

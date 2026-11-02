@@ -220,6 +220,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                 }
             }
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Eq(string id, int version) => global::DynaSharp.SortKeyCondition.Eq(Format(id, version));
+
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "ACCOUNT#";
 
@@ -240,7 +244,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
             }
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
-            public static global::DynaSharp.SortKey BeginsWith() => global::DynaSharp.SortKey.BeginsWith(Prefix());
+            public static global::DynaSharp.SortKeyCondition BeginsWith() => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix());
 
             /// <summary>The prefix through <c>Id</c>, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -281,7 +285,11 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
-            public static global::DynaSharp.SortKey BeginsWith(string id) => global::DynaSharp.SortKey.BeginsWith(Prefix(id));
+            public static global::DynaSharp.SortKeyCondition BeginsWith(string id) => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix(id));
+
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Version</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Between(string id, int from, int to) => global::DynaSharp.SortKeyCondition.Between(Format(id, from), Format(id, to));
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

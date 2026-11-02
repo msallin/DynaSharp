@@ -4,13 +4,16 @@ using DynaSharp.Requests;
 namespace DynaSharp;
 
 /// <summary>
-/// A batch get ended with keys left that DynamoDB did not answer, after it asked again as often as it could. <see cref="Items"/> holds what was read
-/// and <see cref="UnprocessedKeys"/> the rest.
+/// A batch get ended with keys left that DynamoDB did not answer. <see cref="Items"/> holds what was read and <see cref="UnprocessedKeys"/> the rest.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This happens when a table stays throttled: requests in a row that get nothing done, or a request that fails with a throttling error on its last
-/// attempt, which is then the <see cref="Exception.InnerException"/>. Any other failure surfaces as it is.
+/// attempt. It also happens when any other failure ends the batch after a request went through, because the caller would otherwise lose what was read. In those two cases the failure, as it
+/// came, is the <see cref="Exception.InnerException"/>. A failure of the first request surfaces as it is.
+/// </para>
+/// <para>
+/// A caller who cancels gets an <see cref="OperationCanceledException"/> and no report of the progress.
 /// </para>
 /// <para>
 /// To go on, hand the rest to <c>client.BatchGetItemAsync</c> of <c>DynaSharp.Requests</c>:

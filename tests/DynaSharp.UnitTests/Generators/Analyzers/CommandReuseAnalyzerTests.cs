@@ -14,6 +14,19 @@ public sealed class CommandReuseAnalyzerTests
             public static UpdateCommand<T> Stamped<T>(this UpdateCommand<T> command) where T : IDynamoDbDocument<T> => command.Set("at", 1);
 
             public static void Note(this QueryCommand<Item> query) { }
+
+            public static void Deconstruct(this QueryCommand<Item> query, out QueryCommand<Item> next, out int count)
+            {
+                next = query;
+                count = 1;
+            }
+
+            extension(QueryCommand<Item>)
+            {
+                public static QueryCommand<Item> operator +(QueryCommand<Item> query, int limit) => query.Limit(limit);
+
+                public static QueryCommand<Item> operator ++(QueryCommand<Item> query) => query.Limit(1);
+            }
         }
         """;
 
@@ -31,6 +44,7 @@ public sealed class CommandReuseAnalyzerTests
     [Arguments("""var q = shop.Query("a"); var a = q.ItemAsync(); var b = [|q|].ItemAsync();""")]
     [Arguments("""var q = shop.Query("a"); _ = q.ToRequestJson(); _ = [|q|].ItemAsync();""")]
     [Arguments("""var q = shop.Query("a"); _ = q.ItemAsync(); _ = [|q|].Limit(1);""")]
+    [Arguments("""var q = shop.Query("a"); var a = q.Limit(1); q += 1; var b = q.Limit(2); var c = [|q|].Limit(3);""")]
     public async Task Analyze_SecondReceiver_ReportsIt(string statements)
     {
         // Arrange
@@ -41,6 +55,44 @@ public sealed class CommandReuseAnalyzerTests
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
+    }
+
+    [Test]
+    [Arguments("""var q = shop.Query("a"); var r = shop.Query("b"); var n = 0; (r, n) = q.Limit(1); _ = [|q|].Limit(2); _ = r.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); var n = 0; _ = q.ToRequestJson(); (q, n) = [|q|].Limit(1); _ = q.ToRequestJson();""")]
+    public async Task Analyze_DeconstructionThatWritesNothingUsedUp_ReportsIt(string statements)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member("public static void Run()\n{\n" + statements + "\n}\n", Helpers);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
+    }
+
+    [Test]
+    [Arguments("""var q = shop.Query("a"); var n = 0; (q, n) = q.Limit(1); _ = q.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); (q, _) = q.Limit(1); _ = q.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); var n = 0; (q, n) = (Flag ? q.Limit(1) : q.Limit(2)); _ = q.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); var n = 0; for (var i = 0; i < 2; i++) { (q, n) = q.Limit(i); } _ = q.ToRequestJson();""")]
+    [Arguments("""for (var i = 0; i < 2; i++) { var (q, n) = shop.Query("a"); _ = q.ToRequestJson(); }""")]
+    [Arguments("""for (var i = 0; i < 2; i++) { (var q, var n) = shop.Query("a"); _ = q.ToRequestJson(); }""")]
+    [Arguments("""for (var i = 0; i < 2; i++) { var (q, n) = Flag ? shop.Query("a") : shop.Query("b"); _ = q.ToRequestJson(); }""")]
+    [Arguments("""var q = shop.Query("a"); var a = new int[1]; (q, a[0]) = q.Limit(1); _ = q.ToRequestJson();""")]
+    public async Task Analyze_DeconstructionThatWritesTheVariable_ReportsNothing(string statements)
+    {
+        // Arrange (a tuple literal cannot hold a ref struct, CS9244, so this is the form such a write has)
+        var source = AnalyzerRun.Member("private static readonly bool Flag = true;\npublic static void Run()\n{\n" + statements + "\n}\n", Helpers);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -209,6 +261,8 @@ public sealed class CommandReuseAnalyzerTests
     [Arguments("""var b = shop.BatchWrite(); for (var i = 0; i < 2; i++) { b = b.Put(new Item { ["pk"] = "a" + i }); } _ = b.ToRequestJson();""")]
     [Arguments("""var b = shop.BatchWrite(); for (var i = 0; i < 2; i++) { b = i % 2 == 0 ? b.Delete("a") : b.Put(new Item { ["pk"] = "a" }); } _ = b.ToRequestJson();""")]
     [Arguments("""var t = client.TransactWrite(); for (var i = 0; i < 2; i++) { t = t.Put(shop, new Item { ["pk"] = "a" }).IfNotExists(); } _ = t.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); _ = q.ToRequestJson(); q += 1; _ = q.ToRequestJson();""")]
+    [Arguments("""var q = shop.Query("a"); _ = q.ToRequestJson(); q++; _ = q.ToRequestJson();""")]
     public async Task Analyze_EveryPathUsesItOnce_ReportsNothing(string statements)
     {
         // Arrange

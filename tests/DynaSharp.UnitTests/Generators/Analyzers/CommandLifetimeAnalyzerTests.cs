@@ -88,6 +88,7 @@ public sealed class CommandLifetimeAnalyzerTests
     [Arguments("""static async Task Run(bool f) { var c = shop.Update("a"); if (f) c = c.Set("x", 1); await c.SendAsync(); }""")]
     [Arguments("""static async Task Run() { var c = shop.Update("a"); await Task.Delay(1); c = shop.Update("b"); await c.SendAsync(); }""")]
     [Arguments("""static async Task Run() { var c = shop.Update("a"); await Task.Delay(1); Make(out c); c.ToRequestJson(); }""")]
+    [Arguments("""static void Deconstruct(this UpdateCommand<Item> command, out UpdateCommand<Item> next, out int count) { next = command; count = 1; } static async Task Run() { var c = shop.Update("a"); var n = 0; await Task.Delay(1); (c, n) = shop.Update("b"); c.ToRequestJson(); }""")]
     [Arguments("""static async Task Run(bool f) { var c = shop.Update("a"); if (f) { await Task.Delay(1); } else { c.ToRequestJson(); } }""")]
     [Arguments("""static async Task Run(int k) { var c = shop.Update("a"); switch (k) { case 1: await Task.Delay(1); break; default: c.ToRequestJson(); break; } }""")]
     [Arguments("""static async Task Run() { for (var i = 0; i < 2; i++) { var c = shop.Update("a"); await c.SendAsync(); } }""")]

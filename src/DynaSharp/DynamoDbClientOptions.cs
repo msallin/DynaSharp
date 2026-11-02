@@ -97,13 +97,14 @@ public sealed record DynamoDbClientOptions
     /// </para>
     /// <para>
     /// Before a retry the client waits a random time between zero and <c>min(20 s, base * 2^(attempt - 1))</c>, with a base of 50 ms
-    /// for throttling errors and 25 ms for everything else. Each attempt has its own <see cref="AttemptTimeout"/> and looks up its
+    /// for throttling errors and 100 ms for everything else. Each attempt has its own <see cref="AttemptTimeout"/> and looks up its
     /// credentials again, so an operation can take up to <c>MaxAttempts * AttemptTimeout</c> plus the waits. Cancelling the call
     /// ends a wait at once.
     /// </para>
     /// <para>
-    /// A failure that comes back at once and is not throttling, such as a refused connection, uses up the default of 4 attempts within about a second, because the three waits add up
-    /// to at most 175 ms. So a test fixture that waits on a TCP port fails inside that window when a proxy opens the port before the service listens: wait on an HTTP response.
+    /// A failure that comes back at once and is not throttling, such as a refused connection, uses up the default of 4 attempts within about a second, because the three waits are at most
+    /// 100, 200 and 400 ms: a window of 700 ms at most and 350 ms on average, against 350 ms at most for throttling. That is the time a dependency has to come up. A test fixture that waits
+    /// on a TCP port can still fail inside that window when a proxy opens the port before the service listens: wait on an HTTP response.
     /// </para>
     /// <para>
     /// Every client has a retry quota of 500 tokens that is shared by all its operations. A retry takes 5 tokens (10 after a timeout);

@@ -331,6 +331,21 @@ public sealed class NumberConverterTests
     }
 
     [Test]
+    [Arguments("""{"N":"1E-130"}""")]
+    [Arguments("""{"N":"1E-29"}""")]
+    [Arguments("""{"N":"0.12345678901234567890123456789012345678"}""")]
+    public async Task Read_DecimalThatWouldLoseDigits_ThrowsOverflowExceptionWithoutTheNumber(string json)
+    {
+        // Arrange
+        // Act
+        var act = () => ConverterRun.Read<decimal, NumberConverter<decimal>>(json);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<OverflowException>()
+            .WithMessage("The number is malformed or does not fit the target type.", StringComparison.Ordinal);
+    }
+
+    [Test]
     [Arguments("""{"N":"1E39"}""")]
     [Arguments("""{"N":"-1E39"}""")]
     public async Task Read_SingleThatRoundsToInfinity_ThrowsOverflowException(string json)

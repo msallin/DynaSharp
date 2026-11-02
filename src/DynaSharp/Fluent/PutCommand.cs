@@ -88,7 +88,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
         return new(state, state.Table);
     }
 
-    /// <summary>Returns the item this put replaced in <see cref="WriteResult{T}.Attributes"/> (<c>ALL_OLD</c>). There is none if no item had the key.</summary>
+    /// <summary>Returns the item this put replaced in <see cref="WriteResult{T}.Item"/> (<c>ALL_OLD</c>). There is none if no item had the key.</summary>
     /// <returns>The command, which replaces this one.</returns>
     public PutCommand<T> ReturnOld()
     {

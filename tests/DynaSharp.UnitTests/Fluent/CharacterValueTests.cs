@@ -153,12 +153,12 @@ public sealed class CharacterValueTests
         // Arrange
         var key = comparison switch
         {
-            "Eq" => SortKey.Eq('a'),
-            "Lt" => SortKey.Lt('a'),
-            "Le" => SortKey.Le('a'),
-            "Gt" => SortKey.Gt('a'),
-            "Ge" => SortKey.Ge('a'),
-            _ => SortKey.Between('a', 'a'),
+            "Eq" => SortKeyCondition.Eq('a'),
+            "Lt" => SortKeyCondition.Lt('a'),
+            "Le" => SortKeyCondition.Le('a'),
+            "Gt" => SortKeyCondition.Gt('a'),
+            "Ge" => SortKeyCondition.Ge('a'),
+            _ => SortKeyCondition.Between('a', 'a'),
         };
         var writer = new DynaSharp.Fluent.ExpressionWriter(System.Buffers.ArrayPool<byte>.Shared);
         using var body = new PooledByteBuffer();

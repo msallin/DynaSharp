@@ -264,7 +264,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor ReadCommandNotAwaitable = new(
         "DYNA202",
         "Read command is not awaited",
-        "Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync",
+        "A read is not awaited; end the chain with ItemsAsync or another terminal it has",
         Commands,
         DiagnosticSeverity.Warning,
         true,

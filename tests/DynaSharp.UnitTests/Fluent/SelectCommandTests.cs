@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
@@ -312,6 +313,35 @@ public sealed class SelectCommandTests
 
         // Assert
         await Assert.That((result.Found, result.Value)).IsEqualTo((true, (long?)null));
+    }
+
+    [Test]
+    public async Task SendAsync_AttributeMissingOnASetOfYourOwnThatAnswersIt_GivesTheEmptySet()
+    {
+        // Arrange (DynamoDB has no empty set, so what a converter of a set does not answer here reads as a failure for every empty set)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"a"}}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").Get("a").Select(new Attr<ImmutableSortedSet<string>, SortedTags>("tags")).SendAsync();
+
+        // Assert
+        await Assert.That((result.Found, result.Value.Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task SendAsync_AttributeMissingOnASetOfYourOwnThatDoesNotAnswerIt_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Item":{"pk":{"S":"a"}}}"""));
+        using var client = TestClient.Create(handler);
+        var table = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a").Select(new Attr<ImmutableSortedSet<string>, SortedTagsWithoutAnAnswer>("tags")).SendAsync());
+
+        // Assert
+        await Assert.That(failure.AttributeName).IsEqualTo("tags");
     }
 
     [Test]
@@ -818,5 +848,45 @@ public sealed class SelectCommandTests
 
         // Assert
         await Assert.That(texts.Select(static text => text.Split(':')[0])).IsEquivalentTo(["GetItem on Shop", "Query on Shop", "Scan on Shop"]);
+    }
+
+    // A set of a type the generator does not know, so it takes a converter of its own.
+    private readonly struct SortedTags : IDynamoDbConverter<ImmutableSortedSet<string>>
+    {
+        public static void Write(DynamoDbWriter writer, ImmutableSortedSet<string> value) => SortedTagsWithoutAnAnswer.Write(writer, value);
+
+        public static ImmutableSortedSet<string> Read(ref DynamoDbReader reader, AttributeType type) => SortedTagsWithoutAnAnswer.Read(ref reader, type);
+
+        public static bool TryReadMissing(out ImmutableSortedSet<string> value)
+        {
+            value = [];
+            return true;
+        }
+    }
+
+    private readonly struct SortedTagsWithoutAnAnswer : IDynamoDbConverter<ImmutableSortedSet<string>>
+    {
+        public static void Write(DynamoDbWriter writer, ImmutableSortedSet<string> value)
+        {
+            writer.WriteStartStringSet();
+            foreach (var element in value)
+            {
+                writer.WriteStringSetElement(element);
+            }
+
+            writer.WriteEndSet();
+        }
+
+        public static ImmutableSortedSet<string> Read(ref DynamoDbReader reader, AttributeType type)
+        {
+            ConverterChecks.Expect(type, AttributeType.StringSet);
+            var elements = ImmutableSortedSet.CreateBuilder<string>();
+            while (reader.TryReadSetElement())
+            {
+                elements.Add(reader.GetString());
+            }
+
+            return elements.ToImmutable();
+        }
     }
 }

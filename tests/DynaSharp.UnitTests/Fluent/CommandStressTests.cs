@@ -174,7 +174,7 @@ public sealed class CommandStressTests
         private async Task SentAsync(string marker)
         {
             var result = await _shop.Update(marker).Set("value", ValueOf(marker)).ReturnNew().SendAsync();
-            Check(result.Attributes!.GetString("value"), ValueOf(marker));
+            Check(result.Item!.GetString("value"), ValueOf(marker));
         }
 
         // The handler fails the first attempt of a command that sets "retry", so its state stays in use across a retry while others come and go.
@@ -227,7 +227,7 @@ public sealed class CommandStressTests
         {
             var (first, threw) = ExtendWhileInFlight(marker);
             var result = await first;
-            Check(result.Attributes!.GetString("value"), ValueOf(marker));
+            Check(result.Item!.GetString("value"), ValueOf(marker));
             if (!threw)
             {
                 Mismatches.Enqueue($"{marker} was extended in flight");

@@ -196,7 +196,7 @@ internal static class ShapeChecks
         check(got.Item?.Status == Plan.Pro && handler.Requests[^1].BodyText.Contains("\"sk\":{\"S\":\"ORDER#2026-10-31T12:00:00.000Z#", StringComparison.Ordinal), "Get takes a generated key");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[" + Item.From(order) + "],\"Count\":1,\"ScannedCount\":2}"));
-        var page = await orders.Query(KeyedOrder.Keys.Pk.Format(User), SortKey.BeginsWith(KeyedOrder.Keys.Sk.Prefix()))
+        var page = await orders.Query(KeyedOrder.Keys.Pk.Format(User), SortKeyCondition.BeginsWith(KeyedOrder.Keys.Sk.Prefix()))
             .Filter(KeyedOrder.Attrs.Status.Eq(Plan.Pro).And(KeyedOrder.Attrs.Total.Gt(1m)))
             .Project(KeyedOrder.Attrs.CreatedAt, KeyedOrder.Attrs.Status, KeyedOrder.Attrs.Total, KeyedOrder.Attrs.ShipTo.At(PostalAddress.Attrs.City))
             .Descending()
@@ -204,7 +204,7 @@ internal static class ShapeChecks
         check(page.Items.Single().OrderId == Id && handler.Requests[^1].BodyText.Contains("\"ProjectionExpression\"", StringComparison.Ordinal), "Query filters and projects by handles");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[" + Item.From(order) + "],\"Count\":1,\"ScannedCount\":1}"));
-        var byStatus = await orders.Index("GSI1").Query(KeyedOrder.Keys.Gsi1Pk.Format(Plan.Pro), SortKey.Between(KeyedOrder.Keys.Gsi1Sk.Format(-1m), KeyedOrder.Keys.Gsi1Sk.Format(20m))).ItemsAsync().ToListAsync();
+        var byStatus = await orders.Index("GSI1").Query(KeyedOrder.Keys.Gsi1Pk.Format(Plan.Pro), SortKeyCondition.Between(KeyedOrder.Keys.Gsi1Sk.Format(-1m), KeyedOrder.Keys.Gsi1Sk.Format(20m))).ItemsAsync().ToListAsync();
         check(byStatus.Count == 1 && handler.Requests[^1].BodyText.Contains("\"IndexName\":\"GSI1\"", StringComparison.Ordinal), "an entity knows its indexes");
 
         handler.Enqueue(StubResponse.Json("{\"Count\":3,\"ScannedCount\":3}"));
@@ -224,6 +224,14 @@ internal static class ShapeChecks
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[{\"Status\":{\"S\":\"Pro\"}}],\"Count\":1,\"ScannedCount\":1}"));
         var firstStatus = await orders.Query(KeyedOrder.Keys.Pk.Format(User)).Select(KeyedOrder.Attrs.Status).ItemAsync();
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Eq(Noon, Id)).ToRequestJson().Contains(KeyedOrder.Keys.Sk.Format(Noon, Id), StringComparison.Ordinal), "Eq of a template is the complete key");
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Between(Noon, Noon)).ToRequestJson().Contains("BETWEEN", StringComparison.Ordinal), "Between of a template goes from prefix to upper bound");
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Ge(Noon)).ToRequestJson().Contains(KeyedOrder.Keys.Sk.Prefix(Noon), StringComparison.Ordinal), "Ge of a template starts at the prefix");
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Lt(Noon)).ToRequestJson().Contains(" < ", StringComparison.Ordinal), "Lt of a template ends before the prefix");
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Le(Noon)).ToRequestJson().Contains(" <= ", StringComparison.Ordinal), "Le of a template ends at the upper bound");
+        check(orders.Query(KeyedOrder.Keys.Pk.Format(User), KeyedOrder.Keys.Sk.Gt(Noon)).ToRequestJson().Contains(" > ", StringComparison.Ordinal), "Gt of a template starts above the upper bound");
+        check(orders.Index("GSI1").Query(KeyedOrder.Keys.Gsi1Pk.Format(Plan.Pro), KeyedOrder.Keys.Gsi1Sk.Between(-1m, 20m)).ToRequestJson().Contains(KeyedOrder.Keys.Gsi1Sk.Format(20m), StringComparison.Ordinal), "a key that ends in a placeholder compares whole values");
+        check(client.Table<Mutable>(Table).Query("m", Mutable.Keys.Sk.Between(1, 2)).ToRequestJson().Contains("""{"N":"2"}""", StringComparison.Ordinal), "a plain sort key has ranges of what is stored");
         check(firstStatus is { Found: true, Value: Plan.Pro }, "Select of an enum reads through its converter");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[{\"Tags\":{\"SS\":[\"a\"]}},{}],\"Count\":2,\"ScannedCount\":2}"));
@@ -257,7 +265,7 @@ internal static class ShapeChecks
 
         handler.Enqueue(StubResponse.Json("{\"Attributes\":" + Item.From(point) + "}"));
         var replaced = await points.Put(point).ReturnOld().SendAsync();
-        check(replaced.Attributes is { X: 1.5 }, "a command returns a struct entity");
+        check(replaced.Item is { X: 1.5 }, "a command returns a struct entity");
 
         handler.Enqueue(StubResponse.Json("{}"));
         var written = await orders.BatchWrite().Put(order).Delete(key).Put(points, point).Delete(points, StructPoint.Keys.Of("q")).IgnoreVersion().SendAsync();

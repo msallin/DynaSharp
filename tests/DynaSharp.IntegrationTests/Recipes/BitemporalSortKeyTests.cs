@@ -62,7 +62,7 @@ public sealed class BitemporalSortKeyTests(Backend backend)
         await prices.Put(new PriceFact { Sku = Keyboard, ValidFrom = validFrom, RecordedAt = clock.GetUtcNow(), Price = price }).IfNotExists().SendAsync();
 
     private static async Task<PriceFact?> AsOfAsync(Table<PriceFact> prices, DateTimeOffset validAt, DateTimeOffset knownAt) =>
-        await prices.Query(PriceFact.Keys.Pk.Of(Keyboard), SortKey.Le(PriceFact.Keys.Sk.UpperBound(validAt)))
+        await prices.Query(PriceFact.Keys.Pk.Of(Keyboard), PriceFact.Keys.Sk.Le(validAt))
             .Filter(PriceFact.Attrs.RecordedAt.Le(knownAt))
             .Descending()
             .ItemsAsync()

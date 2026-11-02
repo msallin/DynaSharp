@@ -28,7 +28,7 @@ internal interface IBatchOperation<TResult> : IActionOperation<BatchResponse>
     /// <param name="state">The state of the command.</param>
     /// <param name="totals">What the responses said.</param>
     /// <param name="unsentFrom">The first action that is not in <see cref="ActionList.Carry"/> and was never accepted.</param>
-    /// <param name="cause">The failure that ended the batch, or <see langword="null"/> if it ran out of rounds.</param>
+    /// <param name="cause">The failure that ended the batch, as it came, or <see langword="null"/> if it ran out of rounds.</param>
     /// <returns>The exception.</returns>
     public static abstract Exception CreateIncomplete(CommandState state, BatchTotals totals, int unsentFrom, Exception? cause);
 }

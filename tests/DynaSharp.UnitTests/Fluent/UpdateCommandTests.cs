@@ -756,7 +756,7 @@ public sealed class UpdateCommandTests
         var result = await client.Table("Shop", "pk", "sk").Update("a", "b").Set("n", 2).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That((result.HasAttributes, result.Attributes!["n"].AsNumber<int>(), result.ConsumedCapacity!.CapacityUnits, result.ItemCollectionMetrics!.SizeEstimateRangeGB!.Count)).IsEqualTo((true, 2, (double?)1.0, 2));
+        await Assert.That((result.HasItem, result.Item!["n"].AsNumber<int>(), result.ConsumedCapacity!.CapacityUnits, result.ItemCollectionMetrics!.SizeEstimateRangeGB!.Count)).IsEqualTo((true, 2, (double?)1.0, 2));
     }
 
     [Test]
@@ -770,7 +770,7 @@ public sealed class UpdateCommandTests
         var result = await client.Table("Shop", "pk", "sk").Update("a", "b").Set("n", 2).SendAsync();
 
         // Assert
-        await Assert.That(result.HasAttributes).IsFalse();
+        await Assert.That(result.HasItem).IsFalse();
     }
 
     [Test]
@@ -799,7 +799,7 @@ public sealed class UpdateCommandTests
         var result = await customers.Update(Customer.Keys.Of("alice")).Add(Customer.Attrs.OrderCount, 1).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes).IsEqualTo(new Customer("alice", "Alice", 3));
+        await Assert.That(result.Item).IsEqualTo(new Customer("alice", "Alice", 3));
     }
 
     private static void SetOnASpentHandle(Table<Ticket> tickets)

@@ -153,7 +153,7 @@ public sealed class EntityCommandTests(Backend backend)
         var result = await profiles.Update(Profile.Keys.Of("alice")).Set(Profile.Attrs.FullName, "Alice B").ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes).IsEqualTo(new Profile("alice", "Alice B"));
+        await Assert.That(result.Item).IsEqualTo(new Profile("alice", "Alice B"));
     }
 
     [Test]
@@ -186,7 +186,7 @@ public sealed class EntityCommandTests(Backend backend)
         var stored = await profiles.Get(Profile.Keys.Of("alice")).Consistent().SendAsync();
 
         // Assert
-        await Assert.That((result.Attributes, stored.Found)).IsEqualTo(((Profile?)profile, false));
+        await Assert.That((result.Item, stored.Found)).IsEqualTo(((Profile?)profile, false));
     }
 
     [Test]

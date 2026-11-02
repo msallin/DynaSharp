@@ -7,13 +7,17 @@ namespace DynaSharp;
 /// A condition on the sort key of a query. Only what DynamoDB allows in a key condition can be expressed: one comparison, a range or a
 /// prefix, and no <c>&lt;&gt;</c>. The default value means no condition, which reads the whole partition.
 /// </summary>
-public readonly struct SortKey
+/// <remarks>
+/// A generated key builder has these conditions for its template, from the values of its placeholders: <c>Order.Keys.Sk.Between(from, to)</c>. The ones here are for a value that is at hand already, such as a
+/// sort key of a table without a mapped type. Strings compare by their UTF-8 bytes, so a condition on the text of a composite key means what those bytes mean.
+/// </remarks>
+public readonly struct SortKeyCondition
 {
     private readonly Kind _kind;
     private readonly AttributeValue _first;
     private readonly AttributeValue _second;
 
-    private SortKey(Kind kind, AttributeValue first, AttributeValue second = default)
+    private SortKeyCondition(Kind kind, AttributeValue first, AttributeValue second = default)
     {
         _kind = kind;
         _first = first;
@@ -38,38 +42,38 @@ public readonly struct SortKey
     /// <summary>Selects the one sort key equal to a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Eq(AttributeValue value) => new(Kind.Equal, value);
+    public static SortKeyCondition Eq(AttributeValue value) => new(Kind.Equal, value);
 
     /// <summary>Selects sort keys below a value. Strings compare by their UTF-8 bytes.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Lt(AttributeValue value) => new(Kind.Less, value);
+    public static SortKeyCondition Lt(AttributeValue value) => new(Kind.Less, value);
 
     /// <summary>Selects sort keys up to a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Le(AttributeValue value) => new(Kind.LessOrEqual, value);
+    public static SortKeyCondition Le(AttributeValue value) => new(Kind.LessOrEqual, value);
 
     /// <summary>Selects sort keys above a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Gt(AttributeValue value) => new(Kind.Greater, value);
+    public static SortKeyCondition Gt(AttributeValue value) => new(Kind.Greater, value);
 
     /// <summary>Selects sort keys from a value on.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Ge(AttributeValue value) => new(Kind.GreaterOrEqual, value);
+    public static SortKeyCondition Ge(AttributeValue value) => new(Kind.GreaterOrEqual, value);
 
     /// <summary>Selects sort keys in a range, both bounds included.</summary>
     /// <param name="low">The low bound.</param>
     /// <param name="high">The high bound.</param>
     /// <returns>The condition.</returns>
-    public static SortKey Between(AttributeValue low, AttributeValue high) => new(Kind.Between, low, high);
+    public static SortKeyCondition Between(AttributeValue low, AttributeValue high) => new(Kind.Between, low, high);
 
     /// <summary>Selects sort keys that start with a prefix, the way to read one kind of item of a partition.</summary>
     /// <param name="prefix">The prefix, for example <c>ORDER#</c>.</param>
     /// <returns>The condition.</returns>
-    public static SortKey BeginsWith(string prefix) => new(Kind.BeginsWith, prefix);
+    public static SortKeyCondition BeginsWith(string prefix) => new(Kind.BeginsWith, prefix);
 
     /// <summary>Appends the condition to a key condition that holds the partition key already.</summary>
     /// <param name="writer">The expressions of the command.</param>

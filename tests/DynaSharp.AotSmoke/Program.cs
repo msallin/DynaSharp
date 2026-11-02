@@ -148,7 +148,7 @@ Check(ReferenceEquals(visitors, users.Of<Visitor>()), "Of caches the table per t
 
 commandHandler.Enqueue(StubResponse.Json("""{"Attributes":{"pk":{"S":"v-1"},"visits":{"N":"2"}}}"""));
 var replaced = await visitors.Put(new Visitor("v-1", 3)).ReturnOld().SendAsync();
-Check(replaced.Attributes == new Visitor("v-1", 2), "Put reads the replaced entity");
+Check(replaced.Item == new Visitor("v-1", 2), "Put reads the replaced entity");
 
 commandHandler.Enqueue(StubResponse.Json("""{"Item":{"pk":{"S":"v-1"},"visits":{"N":"3"}}}"""));
 var gotVisitor = await visitors.Get(new Visitor.Key("v-1")).SendAsync();
@@ -228,7 +228,7 @@ var nextShards = await shards.Query(partitions).PageAsync(10, ContinuationToken.
 Check(firstShards.Count == 1 && nextShards.Count == 4, "a fan-out continues through its token");
 var stringShards = await shards.Query(["a", "b"]).MaxAttempts(1).ReturnCapacity().PageAsync(1);
 Check(stringShards.Count == 1 && stringShards.ConsumedCapacity is null && fanOutHandler.Requests[^1].BodyText.Contains("\"ReturnConsumedCapacity\":\"TOTAL\"", StringComparison.Ordinal), "a fan-out takes string keys and the options of a call");
-Check(await shards.Query(partitions, SortKey.Ge(1)).Filter($"{Attr("x")} > {0}").CountAsync() == 6, "a fan-out counts");
+Check(await shards.Query(partitions, SortKeyCondition.Ge(1)).Filter($"{Attr("x")} > {0}").CountAsync() == 6, "a fan-out counts");
 
 // Batches and transactions: generic code over static abstract members and extension methods over ref structs, with what comes back unprocessed and cancelled.
 commandHandler.Enqueue(StubResponse.Json("""{"UnprocessedItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"v-2"}}}}]}}"""));

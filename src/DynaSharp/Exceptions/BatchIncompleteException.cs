@@ -4,13 +4,17 @@ using DynaSharp.Requests;
 namespace DynaSharp;
 
 /// <summary>
-/// A batch write ended with writes left that DynamoDB did not take, after it sent them again as often as it could. A batch is not atomic, so the
-/// writes that were taken stay applied: <see cref="Written"/> says how many and <see cref="UnprocessedItems"/> holds the rest.
+/// A batch write ended with writes left. A batch is not atomic, so the writes that were taken stay applied: <see cref="Written"/> says how many and
+/// <see cref="UnprocessedItems"/> holds the rest.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This happens when a table stays throttled: requests in a row that get nothing done, or a request that fails with a throttling error on its last
-/// attempt, which is then the <see cref="Exception.InnerException"/>. Any other failure surfaces as it is, with the requests before it applied.
+/// attempt. It also happens when any other failure ends the batch after a request went through, because the caller would otherwise lose what was done. In those two cases the failure, as it
+/// came, is the <see cref="Exception.InnerException"/>. A failure of the first request, where nothing was applied, surfaces as it is.
+/// </para>
+/// <para>
+/// A caller who cancels gets an <see cref="OperationCanceledException"/> and no report of the progress, whatever was applied by then.
 /// </para>
 /// <para>
 /// To go on, hand the rest to <c>client.BatchWriteItemAsync</c> of <c>DynaSharp.Requests</c>:
@@ -20,7 +24,7 @@ namespace DynaSharp;
 /// </remarks>
 public sealed class BatchIncompleteException : DynamoDbException
 {
-    /// <summary>The <see cref="DynamoDbException.ErrorCode"/> of the exception, which the client gives it: DynamoDB answered every request.</summary>
+    /// <summary>The <see cref="DynamoDbException.ErrorCode"/> of the exception, which the client gives it: it is no code of the service. What the service said, if anything, is in the <see cref="Exception.InnerException"/>.</summary>
     public const string Code = "BatchIncomplete";
 
     /// <summary>Initializes a new instance of the <see cref="BatchIncompleteException"/> class.</summary>
@@ -37,9 +41,12 @@ public sealed class BatchIncompleteException : DynamoDbException
         Written = written;
     }
 
-    /// <summary>Gets the writes that were not applied, by table, in the form <c>client.BatchWriteItemAsync</c> takes. It includes the requests the batch did not get to.</summary>
+    /// <summary>
+    /// Gets the writes that were not applied, by table, in the form <c>client.BatchWriteItemAsync</c> takes. It includes the requests the batch did not get to, and all of a request that got no
+    /// answer: a timeout says nothing about what DynamoDB did, so some of those can be applied. Sending a put or a delete again is safe.
+    /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<WriteRequest>> UnprocessedItems { get; }
 
-    /// <summary>Gets how many writes of the batch were applied.</summary>
+    /// <summary>Gets how many writes of the batch DynamoDB confirmed.</summary>
     public int Written { get; }
 }

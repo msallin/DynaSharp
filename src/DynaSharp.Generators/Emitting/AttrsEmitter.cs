@@ -8,10 +8,10 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal static class AttrsEmitter
 {
-    private const string Serialization = "global::DynaSharp.Serialization.";
+    /// <summary>What the name of a forwarder starts with. The converter of an enum is a file type, which no public signature can name, so a handle takes a nested struct that forwards to it.</summary>
+    public const string ForwarderPrefix = "__";
 
-    // The converter of an enum is a file type, which no public signature can name, so a handle takes a nested struct that forwards to it.
-    private const string ForwarderPrefix = "__";
+    private const string Serialization = "global::DynaSharp.Serialization.";
 
     public static void Emit(IndentedCode code, TypeModel type)
     {
@@ -59,6 +59,8 @@ internal static class AttrsEmitter
         code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{handle.InnerValueType()}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");
     }
 
+    // A nullable property reads through NullableConverter<T, C> if it is a value type and NullableReferenceConverter<T, C> if not. A model holds its converters as text so that it stays
+    // comparable in an incremental pipeline, with no symbol left to ask, and the name that text starts with is what tells them apart.
     private static string Optional(PropertyModel handle) =>
         handle.Converter!.ReadConverter.StartsWith(Serialization + "NullableConverter<", StringComparison.Ordinal) ? "OptionalConverter" : "OptionalReferenceConverter";
 

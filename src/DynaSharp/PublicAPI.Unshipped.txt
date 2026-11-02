@@ -153,3 +153,61 @@ static DynaSharp.Serialization.NullableConverter<T, TConverter>.TryReadMissing(o
 static DynaSharp.Serialization.NullableReferenceConverter<T, TConverter>.TryReadMissing(out T? value) -> bool
 static DynaSharp.Serialization.ReadOnlySetConverter<T, TElement>.TryReadMissing(out System.Collections.Generic.IReadOnlySet<T>! value) -> bool
 static DynaSharp.Serialization.SetArrayConverter<T, TElement>.TryReadMissing(out T[]! value) -> bool
+*REMOVED*DynaSharp.Index<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<T>
+*REMOVED*DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*DynaSharp.Index<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*DynaSharp.SortKey
+*REMOVED*DynaSharp.SortKey.SortKey() -> void
+*REMOVED*DynaSharp.Table<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<T>
+*REMOVED*DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*DynaSharp.Table<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*static DynaSharp.SortKey.BeginsWith(string! prefix) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Between(DynaSharp.AttributeValue low, DynaSharp.AttributeValue high) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Eq(DynaSharp.AttributeValue value) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Ge(DynaSharp.AttributeValue value) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Gt(DynaSharp.AttributeValue value) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Le(DynaSharp.AttributeValue value) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.SortKey.Lt(DynaSharp.AttributeValue value) -> DynaSharp.SortKey
+*REMOVED*static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<T>
+*REMOVED*static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<T>
+*REMOVED*static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<T>
+*REMOVED*static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+*REMOVED*static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+*REMOVED*static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+*REMOVED*static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKey sortKey = default(DynaSharp.SortKey)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+DynaSharp.Index<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.Index<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.SortKeyCondition
+DynaSharp.SortKeyCondition.SortKeyCondition() -> void
+DynaSharp.Table<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.Table<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+static DynaSharp.SortKeyCondition.BeginsWith(string! prefix) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Between(DynaSharp.AttributeValue low, DynaSharp.AttributeValue high) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Eq(DynaSharp.AttributeValue value) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Ge(DynaSharp.AttributeValue value) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Gt(DynaSharp.AttributeValue value) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Le(DynaSharp.AttributeValue value) -> DynaSharp.SortKeyCondition
+static DynaSharp.SortKeyCondition.Lt(DynaSharp.AttributeValue value) -> DynaSharp.SortKeyCondition
+static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+*REMOVED*DynaSharp.WriteResult<T>.Attributes.get -> T?
+*REMOVED*DynaSharp.WriteResult<T>.HasAttributes.get -> bool
+DynaSharp.WriteResult<T>.Item.get -> T?
+DynaSharp.WriteResult<T>.HasItem.get -> bool
+*REMOVED*DynaSharp.Streams.StreamRecord.NewImage.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
+*REMOVED*DynaSharp.Streams.StreamRecord.OldImage.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
+DynaSharp.Streams.StreamRecord.NewImage.get -> DynaSharp.Item?
+DynaSharp.Streams.StreamRecord.OldImage.get -> DynaSharp.Item?

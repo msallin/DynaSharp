@@ -250,8 +250,10 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     /// <exception cref="InvalidOperationException">The attribute has another type. The message names the attribute.</exception>
     /// <exception cref="FormatException">The text cannot be represented as <typeparamref name="T"/>. The message names the attribute, not the text.</exception>
     /// <exception cref="OverflowException">
-    /// The number is outside the range of <typeparamref name="T"/>, or has a fractional part and <typeparamref name="T"/> is an integer
-    /// type. The message names the attribute, not the number.
+    /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer
+    /// type, or <typeparamref name="T"/> is <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38.
+    /// A binary floating-point type counts a number that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below
+    /// its range reads as 0. The message names the attribute, not the number.
     /// </exception>
     public T? GetNumber<T>(string name)
         where T : struct, INumberBase<T>
@@ -272,7 +274,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         }
         catch (OverflowException)
         {
-            throw new OverflowException($"The number in attribute \"{name}\" is outside the range of the requested type, or has a fractional part it cannot hold.");
+            throw new OverflowException($"The number in attribute \"{name}\" is outside the range of the requested type, or has a fractional part it cannot hold exactly.");
         }
     }
 
@@ -399,13 +401,13 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     }
 
     /// <summary>Returns the item in DynamoDB JSON, for example <c>{"pk":{"S":"a"},"n":{"N":"1"}}</c>. It contains the data of the item, so do not log it where that is a concern.</summary>
-    /// <returns>The DynamoDB JSON text.</returns>
+    /// <returns>The DynamoDB JSON text, with U+FFFD for a lone surrogate, which no write takes.</returns>
     public override string ToString()
     {
         using var buffer = new PooledByteBuffer(256);
         using (var json = WireJson.CreateWriter(buffer))
         {
-            AttributeValueConverter.WriteItem(new DynamoDbWriter(json), this);
+            AttributeValueConverter.WriteItem(DynamoDbWriter.ForDisplay(json), this);
         }
 
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
@@ -450,7 +452,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         using var buffer = new PooledByteBuffer(256);
         using (var json = WireJson.CreateWriter(buffer))
         {
-            var writer = new DynamoDbWriter(json);
+            var writer = DynamoDbWriter.ForDisplay(json);
             writer.WriteStartItem();
             TSource.WriteAttributes(writer, value);
             writer.WriteEndItem();

@@ -122,7 +122,7 @@ public sealed class FanOutQueryCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Query(TwoPartitions, SortKey.Eq("b")).ToRequestJson()));
+        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Query(TwoPartitions, SortKeyCondition.Eq("b")).ToRequestJson()));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("sortKey");
@@ -156,7 +156,7 @@ public sealed class FanOutQueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query(TwoPartitions, SortKey.Ge("x"))
+        var json = client.Table<Customer>("Shop").Query(TwoPartitions, SortKeyCondition.Ge("x"))
             .Filter($"{Attr("a")} > {1}").Filter(Attr("b").Exists()).NotDeleted().Project("c").Project(Attr("d")).Limit(5).Descending().Consistent().MaxConcurrency(2).ToRequestJson();
 
         // Assert
@@ -1405,7 +1405,7 @@ public sealed class FanOutQueryCommandTests
 
         // Act
         var fromTable = await shop.Query(keys).ItemsAsync().ToListAsync();
-        var fromIndex = await shop.Index("ByStatus", "pk", "sk").Query(keys, SortKey.Ge("2")).ItemsAsync().ToListAsync();
+        var fromIndex = await shop.Index("ByStatus", "pk", "sk").Query(keys, SortKeyCondition.Ge("2")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That((fromTable.SortKeys(), fromIndex.Count)).IsEqualTo(("1,2,3", 3));
@@ -1461,7 +1461,7 @@ public sealed class FanOutQueryCommandTests
 
         // Act
         var fromTable = await shop.Query(Keys()).ItemsAsync().ToListAsync();
-        var fromIndex = await shop.Index("ByStatus", "pk", "sk").Query(Keys(), SortKey.Ge("2")).ItemsAsync().ToListAsync();
+        var fromIndex = await shop.Index("ByStatus", "pk", "sk").Query(Keys(), SortKeyCondition.Ge("2")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That((fromTable.SortKeys(), fromIndex.Count, enumerations)).IsEqualTo(("1,2,3", 3, 2));

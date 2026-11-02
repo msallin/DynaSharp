@@ -38,6 +38,17 @@ public sealed class DirectWriterTests
     }
 
     [Test]
+    public async Task WriteString_LoneSurrogate_ThrowsArgumentExceptionAsTheJsonWriterWay()
+    {
+        // Arrange
+        // Act
+        var act = () => Direct(static writer => writer.WriteString("a\uD800"));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("value");
+    }
+
+    [Test]
     public async Task WriteNumber_TextThatNeedsEscaping_IsTheSameAsTheJsonWriter()
     {
         // Arrange

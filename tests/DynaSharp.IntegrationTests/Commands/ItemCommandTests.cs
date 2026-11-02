@@ -105,11 +105,11 @@ public sealed class ItemCommandTests(Backend backend)
         var result = await sandbox.Shop.Put(new Item { ["pk"] = "a", ["sk"] = "s", ["v"] = 2 }).ReturnOld().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.GetNumber<int>("v")).IsEqualTo(1);
+        await Assert.That(result.Item!.GetNumber<int>("v")).IsEqualTo(1);
     }
 
     [Test]
-    public async Task Put_ReturnOldOfANewItem_HasNoAttributes()
+    public async Task Put_ReturnOldOfANewItem_HasNoItem()
     {
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
@@ -118,7 +118,7 @@ public sealed class ItemCommandTests(Backend backend)
         var result = await sandbox.Shop.Put(new Item { ["pk"] = "a", ["sk"] = "s" }).ReturnOld().SendAsync();
 
         // Assert
-        await Assert.That(result.HasAttributes).IsFalse();
+        await Assert.That(result.HasItem).IsFalse();
     }
 
     [Test]
@@ -330,7 +330,7 @@ public sealed class ItemCommandTests(Backend backend)
         var result = await sandbox.Shop.Update("a", "s").Set("w", 2).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That((result.Attributes!.GetNumber<int>("v"), result.Attributes.GetNumber<int>("w"), result.Attributes.GetString("pk"))).IsEqualTo((1, 2, "a"));
+        await Assert.That((result.Item!.GetNumber<int>("v"), result.Item.GetNumber<int>("w"), result.Item.GetString("pk"))).IsEqualTo((1, 2, "a"));
     }
 
     [Test]
@@ -344,7 +344,7 @@ public sealed class ItemCommandTests(Backend backend)
         var result = await sandbox.Shop.Update("a", "s").Set("v", 2).ReturnOld().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.GetNumber<int>("v")).IsEqualTo(1);
+        await Assert.That(result.Item!.GetNumber<int>("v")).IsEqualTo(1);
     }
 
     [Test]
@@ -444,7 +444,7 @@ public sealed class ItemCommandTests(Backend backend)
         var stored = await sandbox.ReadAsync("a");
 
         // Assert
-        await Assert.That((result.Attributes!.GetNumber<int>("v"), stored)).IsEqualTo((1, (Item?)null));
+        await Assert.That((result.Item!.GetNumber<int>("v"), stored)).IsEqualTo((1, (Item?)null));
     }
 
     [Test]
@@ -457,7 +457,7 @@ public sealed class ItemCommandTests(Backend backend)
         var result = await sandbox.Shop.Delete("nobody", "s").SendAsync();
 
         // Assert
-        await Assert.That(result.HasAttributes).IsFalse();
+        await Assert.That(result.HasItem).IsFalse();
     }
 
     [Test]

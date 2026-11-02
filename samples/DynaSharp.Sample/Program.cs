@@ -155,7 +155,7 @@ var moved = await customers.Update(Customer.Keys.Of("alice"))
     .IfExists()
     .ReturnNew()
     .SendAsync(ct);
-Output.Say($"Alice now ships to {moved.Attributes!.ShipTo!.City}, and likes {string.Join(" and ", moved.Attributes.Interests.Order(StringComparer.Ordinal))}");
+Output.Say($"Alice now ships to {moved.Item!.ShipTo!.City}, and likes {string.Join(" and ", moved.Item.Interests.Order(StringComparer.Ordinal))}");
 
 // ------------------------------------------------------------------------------------------------------------------------
 Output.Section("7. Placing an order: a counter and a transaction with stock");
@@ -276,7 +276,7 @@ Output.Section("10. A global index: all placed orders since a moment, of any cus
 
 // The table key answers per customer. The index answers across customers, and the key builders of the index are generated as well.
 // A global index is eventually consistent: on real DynamoDB, a write shows up here a moment later.
-var placed = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed), SortKey.Ge(Order.Keys.ByStatusSk.Format(monday.AddHours(2)))).ItemsAsync(ct);
+var placed = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed), SortKeyCondition.Ge(Order.Keys.ByStatusSk.Format(monday.AddHours(2)))).ItemsAsync(ct);
 await foreach (var order in placed)
 {
     Output.Say($"{order.PlacedAt:HH:mm} {order.CustomerId} #{order.Number}");

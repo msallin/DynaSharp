@@ -461,7 +461,7 @@ public sealed class DynamoDbPipelineRetryTests
     [Test]
     public async Task ExecuteAsync_DefaultRandomSource_RetriesWithoutAnyInjection()
     {
-        // Arrange (a wait of at most 25 ms on the clock of the test, which only moves when told, so the call stays pending)
+        // Arrange (a wait of at most 100 ms on the clock of the test, which only moves when told, so the call stays pending)
         var time = new ManualTimeProvider();
         using var handler = new StubHandler();
         handler.Enqueue(ServerError());
@@ -603,7 +603,7 @@ public sealed class DynamoDbPipelineRetryTests
     }
 
     [Test]
-    public async Task ExecuteAsync_ServerErrorWithMaximumJitter_WaitsTwentyFiveMilliseconds()
+    public async Task ExecuteAsync_ServerErrorWithMaximumJitter_WaitsAHundredMilliseconds()
     {
         // Arrange
         var time = new ManualTimeProvider();
@@ -617,11 +617,11 @@ public sealed class DynamoDbPipelineRetryTests
         var delays = await AdvanceThroughDelaysAsync(call, time, TestClient.DefaultAttemptTimeout);
 
         // Assert
-        await Assert.That(Milliseconds(delays)).IsEqualTo("25");
+        await Assert.That(Milliseconds(delays)).IsEqualTo("100");
     }
 
     [Test]
-    public async Task ExecuteAsync_NetworkFailureWithMaximumJitter_WaitsTwentyFiveMilliseconds()
+    public async Task ExecuteAsync_NetworkFailureWithMaximumJitter_WaitsAHundredMilliseconds()
     {
         // Arrange
         var time = new ManualTimeProvider();
@@ -634,7 +634,7 @@ public sealed class DynamoDbPipelineRetryTests
         var delays = await AdvanceThroughDelaysAsync(call, time, TestClient.DefaultAttemptTimeout);
 
         // Assert
-        await Assert.That(Milliseconds(delays)).IsEqualTo("25");
+        await Assert.That(Milliseconds(delays)).IsEqualTo("100");
     }
 
     [Test]

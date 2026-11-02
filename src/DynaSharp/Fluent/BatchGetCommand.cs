@@ -21,7 +21,8 @@ namespace DynaSharp;
 /// <para>
 /// Keys that were left unprocessed are asked for again after a backoff with jitter on <see cref="DynamoDbClientOptions.TimeProvider"/>. The batch gives
 /// up after 8 requests in a row that get nothing done, or as many as <see cref="MaxStalledRounds"/> says, with <see cref="BatchGetIncompleteException{T}"/>. A
-/// round that reads something, as with a response at its 16 MB, does not count against that.
+/// round that reads something, as with a response at its 16 MB, does not count against that. Any other failure after a request went through ends the batch the same way, with the failure
+/// as its <see cref="Exception.InnerException"/>; a failure of the first request surfaces as it is, and a cancellation stays an <see cref="OperationCanceledException"/>, which reports no progress.
 /// </para>
 /// <para>
 /// DynamoDB rejects a request that holds one key twice with a <see cref="ValidationException"/>. The command leaves that to DynamoDB and does not look for
@@ -179,12 +180,16 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <param name="cancellationToken">Cancels the batch, also while it waits between rounds.</param>
     /// <returns>The result. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
-    /// <exception cref="BatchGetIncompleteException{T}">DynamoDB left keys unanswered after every round, or a table stayed throttled on the last attempt of a request.</exception>
+    /// <exception cref="BatchGetIncompleteException{T}">
+    /// DynamoDB left keys unanswered after every round, a table stayed throttled on the last attempt of a request, or any other failure came after a request went through, which is then its
+    /// <see cref="Exception.InnerException"/>.
+    /// </exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
-    /// <exception cref="ValidationException">DynamoDB rejects a request, for example because it holds a key twice; the exception shows the projection.</exception>
-    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
-    /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
-    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a server error only after the last attempt.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the first request, for example because it holds a key twice; the exception shows the projection.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist, as the first request finds.</exception>
+    /// <exception cref="DynamoDbMappingException">An item of the first response cannot be read as <typeparamref name="T"/>.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error on the first request; a server error only after the last attempt.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled. This does not report progress: what was read before is dropped.</exception>
     public ValueTask<BatchGetResult<T>> SendAsync(CancellationToken cancellationToken = default)
     {
         var state = Prepare();

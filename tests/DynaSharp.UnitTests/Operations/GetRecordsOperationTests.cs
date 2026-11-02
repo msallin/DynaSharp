@@ -266,6 +266,19 @@ public sealed class GetRecordsOperationTests
     }
 
     [Test]
+    public async Task ReadResponse_NewAndOldImages_AreItems()
+    {
+        // Arrange
+        var vector = OperationVectors.Response("GetRecords", "StreamViewNewAndOldImages");
+
+        // Act
+        var change = Read(vector.Wire).Records[1].DynamoDb;
+
+        // Assert
+        await Assert.That((change?.NewImage?.GetNumber<int>("Views"), change?.OldImage?.GetNumber<int>("Views"))).IsEqualTo(((int?)6, (int?)5));
+    }
+
+    [Test]
     public async Task ReadResponse_KeysOnly_HasNoImages()
     {
         // Arrange
@@ -275,7 +288,7 @@ public sealed class GetRecordsOperationTests
         var change = Read(vector.Wire).Records[1].DynamoDb;
 
         // Assert
-        await Assert.That((change?.NewImage, change?.OldImage)).IsEqualTo(((IReadOnlyDictionary<string, AttributeValue>?)null, (IReadOnlyDictionary<string, AttributeValue>?)null));
+        await Assert.That((change?.NewImage, change?.OldImage)).IsEqualTo(((Item?)null, (Item?)null));
     }
 
     [Test]

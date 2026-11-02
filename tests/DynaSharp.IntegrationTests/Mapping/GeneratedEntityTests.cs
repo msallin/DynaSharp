@@ -260,7 +260,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         var result = await shipments.Update(Shipment.Keys.Of("alice", "S-1")).IgnoreVersion().Set(RouteEndCity, "Spiez").If(RouteEndCity.Eq("Thun")).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.Route).IsEqualTo(new Leg(new Depot("Bern"), new Depot("Spiez", 2)));
+        await Assert.That(result.Item!.Route).IsEqualTo(new Leg(new Depot("Bern"), new Depot("Spiez", 2)));
     }
 
     [Test]
@@ -287,7 +287,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await PutMovementsAsync(movements);
 
         // Act
-        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKey.Between(Movement.Keys.Sk.Prefix(-100), Movement.Keys.Sk.UpperBound(-1))).ItemsAsync().ToListAsync();
+        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKeyCondition.Between(Movement.Keys.Sk.Prefix(-100), Movement.Keys.Sk.UpperBound(-1))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(movement => movement.Delta).ToArray()).IsEquivalentTo(Deltas.Where(delta => delta is >= -100 and <= -1).Order(), CollectionOrdering.Matching);
@@ -302,7 +302,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await PutMovementsAsync(movements);
 
         // Act
-        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKey.BeginsWith(Movement.Keys.Sk.Prefix(-1))).ItemsAsync().ToListAsync();
+        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKeyCondition.BeginsWith(Movement.Keys.Sk.Prefix(-1))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(movement => movement.Delta)).IsEquivalentTo([-1]);
@@ -322,7 +322,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         }
 
         // Act
-        var read = await scores.Index("ByPoints").Query("chess", SortKey.Between(AttributeValue.FromNumber(-5), AttributeValue.FromNumber(9))).ItemsAsync().ToListAsync();
+        var read = await scores.Index("ByPoints").Query("chess", SortKeyCondition.Between(AttributeValue.FromNumber(-5), AttributeValue.FromNumber(9))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(score => score.Points).ToArray()).IsEquivalentTo([-2, 0, 9], CollectionOrdering.Matching);

@@ -234,8 +234,29 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
-            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKeyCondition.Ge(...)</c>.</summary>
             public static global::DynaSharp.AttributeValue Of(string sort) => global::DynaSharp.AttributeValue.FromString(sort);
+
+            /// <summary>The condition <c>=</c> on the key, which is one item of the partition.</summary>
+            public static global::DynaSharp.SortKeyCondition Eq(string sort) => global::DynaSharp.SortKeyCondition.Eq(Of(sort));
+
+            /// <summary>The condition <c>&gt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Ge(string sort) => global::DynaSharp.SortKeyCondition.Ge(Of(sort));
+
+            /// <summary>The condition <c>&gt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Gt(string sort) => global::DynaSharp.SortKeyCondition.Gt(Of(sort));
+
+            /// <summary>The condition <c>&lt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Le(string sort) => global::DynaSharp.SortKeyCondition.Le(Of(sort));
+
+            /// <summary>The condition <c>&lt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Lt(string sort) => global::DynaSharp.SortKeyCondition.Lt(Of(sort));
+
+            /// <summary>The condition <c>BETWEEN</c> on the key, with both bounds included. DynamoDB rejects a lower bound above the upper one.</summary>
+            public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Of(from), Of(to));
+
+            /// <summary>The condition <c>begins_with</c> on the key. It also matches a longer value of the same start.</summary>
+            public static global::DynaSharp.SortKeyCondition BeginsWith(string prefix) => global::DynaSharp.SortKeyCondition.BeginsWith(prefix);
 
             /// <summary>Formats the complete key.</summary>
             public static string Format(string sort) => Of(sort).AsString();
@@ -279,6 +300,10 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
                 }
             }
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Eq(string tag) => global::DynaSharp.SortKeyCondition.Eq(Format(tag));
+
             /// <summary>The prefix before the first placeholder, for <c>begins_with</c>. It ends on a delimiter, so it does not match a longer value of the last field.</summary>
             public static string Prefix() => "TAG#";
 
@@ -299,7 +324,7 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
             }
 
             /// <summary>The condition <c>begins_with</c> on the same prefix.</summary>
-            public static global::DynaSharp.SortKey BeginsWith() => global::DynaSharp.SortKey.BeginsWith(Prefix());
+            public static global::DynaSharp.SortKeyCondition BeginsWith() => global::DynaSharp.SortKeyCondition.BeginsWith(Prefix());
 
             /// <summary>A prefix that ends inside <c>Tag</c>, validated like a value. It also matches longer values, which is the point: autocomplete, geohash cells.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -317,6 +342,26 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
                     __key.Dispose();
                 }
             }
+
+            /// <summary>The condition <c>BETWEEN Format AND Format</c> on <c>Tag</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Between(string from, string to) => global::DynaSharp.SortKeyCondition.Between(Format(from), Format(to));
+
+            /// <summary>The condition <c>&gt;= Format</c>: the keys from these values on, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Ge(string tag) => global::DynaSharp.SortKeyCondition.Ge(Format(tag));
+
+            /// <summary>The condition <c>&gt; Format</c>: the keys after these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Gt(string tag) => global::DynaSharp.SortKeyCondition.Gt(Format(tag));
+
+            /// <summary>The condition <c>&lt;= Format</c>: the keys up to these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Le(string tag) => global::DynaSharp.SortKeyCondition.Le(Format(tag));
+
+            /// <summary>The condition <c>&lt; Format</c>: the keys before these values, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.SortKeyCondition Lt(string tag) => global::DynaSharp.SortKeyCondition.Lt(Format(tag));
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

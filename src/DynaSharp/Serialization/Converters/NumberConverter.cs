@@ -20,6 +20,14 @@ namespace DynaSharp.Serialization;
 /// the value is integral (<c>1E+2</c> reads as 100).
 /// </para>
 /// <para>
+/// DynamoDB holds 38 significant digits and a <see cref="decimal"/> 28 to 29, with at most 28 of them after the point. A read of a <see cref="decimal"/> returns the exact value or
+/// throws: it never rounds, and <c>1E-29</c> does not turn into 0. Trailing zeros and exponents that keep the value are fine (<c>1.10</c>, <c>1E+2</c>, <c>0E+5</c>).
+/// </para>
+/// <para>
+/// A <see cref="double"/>, a <see cref="float"/> or a <see cref="Half"/> rounds to the nearest value it holds, which is what a binary float is, and a number below its range reads as 0. A number
+/// that rounds to infinity throws, and so does the text <c>NaN</c>, which DynamoDB does not store.
+/// </para>
+/// <para>
 /// A <see cref="char"/> counts as a number type in .NET but not here: it is stored as a string value of one character, and read back from one.
 /// </para>
 /// </remarks>
@@ -33,8 +41,8 @@ public readonly struct NumberConverter<T> : IDynamoDbConverter<T>, IAddableConve
     /// <inheritdoc/>
     /// <exception cref="JsonException"><paramref name="type"/> is not <see cref="AttributeType.Number"/>.</exception>
     /// <exception cref="OverflowException">
-    /// The number does not fit <typeparamref name="T"/>: it is out of range, or has a fractional part and <typeparamref name="T"/> is an integer
-    /// type. A floating-point type counts a number that rounds to infinity as out of range. The message does not quote the number.
+    /// The number does not fit <typeparamref name="T"/>: it is out of range, has a fractional part and <typeparamref name="T"/> is an integer
+    /// type, or <typeparamref name="T"/> is <see cref="decimal"/> and cannot hold its exact value. A floating-point type counts a number that rounds to infinity, and <c>NaN</c>, as out of range. The message does not quote the number.
     /// </exception>
     public static T Read(ref DynamoDbReader reader, AttributeType type)
     {
@@ -52,7 +60,7 @@ public readonly struct NumberConverter<T> : IDynamoDbConverter<T>, IAddableConve
     /// <returns>The number.</returns>
     internal static T ReadNumber(ref DynamoDbReader reader)
     {
-        if (!reader.TryGetNumber<T>(out var value) || !T.IsFinite(value))
+        if (!reader.TryGetNumber<T>(out var value))
         {
             throw new OverflowException("The number is malformed or does not fit the target type.");
         }

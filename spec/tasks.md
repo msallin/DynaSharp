@@ -338,6 +338,18 @@ Branch `m3/d1-web-identity`, merged. Never run against AWS, because no role exis
 - [x] The `aws` backend of the integration tests and `.github/workflows/real-aws.yml` on `workflow_dispatch`, which take their role from the repository variable `AWS_ROLE_ARN`. The header of the workflow says what the role needs.
 - [ ] First run on real AWS, which needs the role. It checks the STS exchange, the renewal loop of the workflow, and the settling times in `SettlingHandler`. Then IRSA on EKS in a real service.
 
+### H1 and H2 - review of the code at G2, and the last changes of the public shape
+
+Three independent readers on runtime, generator and maintainability found nothing Critical or High. Branches `m3/h1-review-fixes` and `m3/h2-public-shape`, merged.
+
+- [x] **H1, runtime.** `IfNotExists` over a `DELETING` table rethrows, and a table `DescribeTable` does not find is created again, five times at most over 1.5 seconds, because it is either gone or another process just created it. A `decimal` read throws `OverflowException` unless it holds the exact value. Floating-point reads throw on a value that is not finite on every path, in `DynamoDbNumber.Fits`. A batch that fails after a request went through reports its progress in the incomplete exception, with the failure as `InnerException`. A lone surrogate is an `ArgumentException` in a value, a set and an attribute name, and U+FFFD in `ToString()`, which is what someone reads while finding out why. A parallel scan stops the segments it started when a later one cannot start.
+- [x] **H1, generator.** `DYNA007` on a `file` type, `DYNA203` only over the fluent interfaces, `DYNA204` through deconstruction, compound assignment and `++`, `DYNA216` on `[Flags]` enums in the method form too, and a `DYNA202` message that holds for every read. Agreement tests hold the lists of the analyzers and the terminals of `Select` against what they stand for.
+- [x] **H2.** `SortKeyCondition`, `WriteResult.Item`, stream images as `Item`, `Keys.Sk.Eq/Between/Ge/Gt/Le/Lt` on every sort key whose bytes follow its values, a version byte in continuation tokens, a transient base of 100 ms, `Take(n)` in the docs of `Limit`, and the default names frozen in `api.md`. A typed update writes no key input by default, as checked.
+- Decision: `Between` on a key with several fields takes `(leading..., from, to)` and not two whole tuples. Only this form holds for every template, because the keys between two bounds with a common start have that start. A range across fields is written by hand from `Prefix` and `UpperBound`.
+- Decision: `TryReadMissing` stays visible, because a custom set converter needs it: an empty set is a missing attribute. Its remarks mark it as infrastructure.
+- Finding: `Parse` of a token has no limit on length, on input that comes from a client. "Bounded fan-out tokens" under later work covers it.
+- Not reached by the review: `Mixed*Command` bodies, `TransactGetCommand`, `CommandDebugger`, `ExpressionLexer` and `ExpressionParser`, `WrapInAttrCodeFix`. Unchecked on real DynamoDB: `-0` and `1E-07` as `N` text, and `GetItem` of a projection that matches nothing, which an emulator answers with `Item:{}`.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

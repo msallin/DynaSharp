@@ -24,7 +24,7 @@ public sealed class AutocompleteTests(Backend backend)
 
         // Act
         var typed = "zu".ToUpperInvariant();
-        var page = await cities.Query(CityName.Keys.Pk.Of("CH"), SortKey.BeginsWith(CityName.Keys.Sk.PrefixPartial(typed))).Limit(2).PageAsync();
+        var page = await cities.Query(CityName.Keys.Pk.Of("CH"), SortKeyCondition.BeginsWith(CityName.Keys.Sk.PrefixPartial(typed))).Limit(2).PageAsync();
 
         // Assert
         await Assert.That(string.Join(",", page.Items.Select(static city => city.Display))).IsEqualTo("Zug,Zuoz");
@@ -41,7 +41,7 @@ public sealed class AutocompleteTests(Backend backend)
         var shards = Enumerable.Range(0, Shards).Select(static shard => SearchTerm.Keys.Pk.Of("ip", shard));
 
         // Act
-        var page = await terms.Query(shards, SortKey.BeginsWith(SearchTerm.Keys.Sk.PrefixPartial("iph"))).PageAsync(3);
+        var page = await terms.Query(shards, SortKeyCondition.BeginsWith(SearchTerm.Keys.Sk.PrefixPartial("iph"))).PageAsync(3);
 
         // Assert
         await Assert.That(string.Join(",", page.Items.Select(static term => term.Term))).IsEqualTo("iphone,iphone case,iphone charger");

@@ -124,7 +124,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second)).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKey.BeginsWith(Order.Keys.Sk.Prefix())).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.BeginsWith(Order.Keys.Sk.Prefix())).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(orders.Select(order => order.OrderId)).IsEquivalentTo([First, Second]);
@@ -139,7 +139,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second) with { PlacedAt = Noon.AddMilliseconds(1) }).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKey.BeginsWith(Order.Keys.Sk.Prefix(Noon))).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.BeginsWith(Order.Keys.Sk.Prefix(Noon))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(orders.Select(order => order.OrderId)).IsEquivalentTo([First]);
@@ -158,7 +158,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         }
 
         // Act
-        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKey.Between(Order.Keys.Sk.Prefix(days[1]), Order.Keys.Sk.UpperBound(days[2]))).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.Between(Order.Keys.Sk.Prefix(days[1]), Order.Keys.Sk.UpperBound(days[2]))).ItemsAsync().ToListAsync();
 
         // Assert (both orders of both days; Prefix(days[2]) as the upper bound would have excluded them)
         await Assert.That(orders.Count).IsEqualTo(4);
@@ -173,7 +173,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second) with { PlacedAt = Noon.AddDays(1) }).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKey.Between(Order.Keys.Sk.Prefix(Noon), Order.Keys.Sk.Prefix(Noon.AddDays(1)))).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.Between(Order.Keys.Sk.Prefix(Noon), Order.Keys.Sk.Prefix(Noon.AddDays(1)))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(orders.Select(order => order.OrderId)).IsEquivalentTo([First]);
@@ -189,7 +189,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Comments.Put(new Comment { OrderId = First, Author = highest }).SendAsync();
 
         // Act
-        var comments = await shop.Comments.Query(Comment.Keys.Pk.Format(First), SortKey.Between(Comment.Keys.Sk.Prefix(), Comment.Keys.Sk.UpperBound())).ItemsAsync().ToListAsync();
+        var comments = await shop.Comments.Query(Comment.Keys.Pk.Format(First), SortKeyCondition.Between(Comment.Keys.Sk.Prefix(), Comment.Keys.Sk.UpperBound())).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(comments.Count).IsEqualTo(2);
@@ -206,7 +206,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         }
 
         // Act
-        var comments = await shop.Comments.Query(Comment.Keys.Pk.Format(First), SortKey.BeginsWith(Comment.Keys.Sk.PrefixPartial("an"))).ItemsAsync().ToListAsync();
+        var comments = await shop.Comments.Query(Comment.Keys.Pk.Format(First), SortKeyCondition.BeginsWith(Comment.Keys.Sk.PrefixPartial("an"))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(comments.Select(comment => comment.Author)).IsEquivalentTo(["ann", "anna"]);
@@ -221,7 +221,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second) with { Quantity = 5, Status = OrderStatus.Shipped }).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKey.BeginsWith(Order.Keys.Sk.Prefix()))
+        var orders = await shop.Orders.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.BeginsWith(Order.Keys.Sk.Prefix()))
             .Filter(Order.Attrs.Status.Eq(OrderStatus.Shipped).And(Order.Attrs.Quantity.Gt(2)))
             .ItemsAsync()
             .ToListAsync();
@@ -286,7 +286,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("carol", First) with { Total = 20m }).SendAsync();
 
         // Act
-        var paid = await shop.Orders.Index("GSI1").Query(Order.Keys.Gsi1Pk.Format(OrderStatus.Paid), SortKey.Between(Order.Keys.Gsi1Sk.Format(-6m), Order.Keys.Gsi1Sk.Format(20m))).ItemsAsync().ToListAsync();
+        var paid = await shop.Orders.Index("GSI1").Query(Order.Keys.Gsi1Pk.Format(OrderStatus.Paid), SortKeyCondition.Between(Order.Keys.Gsi1Sk.Format(-6m), Order.Keys.Gsi1Sk.Format(20m))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(paid.Select(order => order.CustomerId)).IsEquivalentTo(["bob", "carol"]);
@@ -345,7 +345,7 @@ public sealed class GeneratedKeysTests(Backend backend)
 
         // Act
         var paid = await shop.Orders.Index("GSI1")
-            .Query(Order.Keys.Gsi1Pk.Format(OrderStatus.Paid), SortKey.Between(Order.Keys.Gsi1Sk.Format(-1000.5m), Order.Keys.Gsi1Sk.Format(-12.49m)))
+            .Query(Order.Keys.Gsi1Pk.Format(OrderStatus.Paid), SortKeyCondition.Between(Order.Keys.Gsi1Sk.Format(-1000.5m), Order.Keys.Gsi1Sk.Format(-12.49m)))
             .ItemsAsync()
             .ToListAsync();
 
@@ -362,7 +362,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second) with { Total = 3m }).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Index("LSI1").Query(Order.Keys.Pk.Format("alice"), SortKey.BeginsWith(Order.Keys.Lsi1Sk.Prefix() + "N")).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Index("LSI1").Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.BeginsWith(Order.Keys.Lsi1Sk.Prefix() + "N")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(orders.Select(order => order.Total)).IsEquivalentTo([-3m]);
@@ -423,7 +423,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         await shop.Orders.Put(NewOrder("alice", Second) with { Total = -1m }).SendAsync();
 
         // Act
-        var orders = await shop.Orders.Index("LSI1").Query(Order.Keys.Pk.Format("alice"), SortKey.Between(Order.Keys.Lsi1Sk.Prefix(), Order.Keys.Lsi1Sk.UpperBound())).ItemsAsync().ToListAsync();
+        var orders = await shop.Orders.Index("LSI1").Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.Between(Order.Keys.Lsi1Sk.Prefix(), Order.Keys.Lsi1Sk.UpperBound())).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(orders.Select(order => order.OrderId).ToArray()).IsEquivalentTo([Second, First], CollectionOrdering.Matching);
@@ -489,7 +489,7 @@ public sealed class GeneratedKeysTests(Backend backend)
             .SendAsync();
 
         // Assert
-        await Assert.That((result.Attributes!.ShipTo, result.Attributes.Quantity, result.Attributes.Tags.Order().ToArray().Length)).IsEqualTo((new Address("Bern", "3000"), 3, 2));
+        await Assert.That((result.Item!.ShipTo, result.Item.Quantity, result.Item.Tags.Order().ToArray().Length)).IsEqualTo((new Address("Bern", "3000"), 3, 2));
     }
 
     [Test]
@@ -507,7 +507,7 @@ public sealed class GeneratedKeysTests(Backend backend)
             .SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.ShipTo).IsEqualTo(new Address("Thun", "3000"));
+        await Assert.That(result.Item!.ShipTo).IsEqualTo(new Address("Thun", "3000"));
     }
 
     [Test]
@@ -521,7 +521,7 @@ public sealed class GeneratedKeysTests(Backend backend)
         var result = await shop.Orders.Update(Order.Keys.Of("alice", Noon, First)).Remove(Order.Attrs.ShipTo).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.ShipTo).IsNull();
+        await Assert.That(result.Item!.ShipTo).IsNull();
     }
 
     [Test]

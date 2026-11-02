@@ -15,8 +15,8 @@ internal static class WriteResponse
     public static WriteResult<T> Read<T>(ref DynamoDbReader reader, CommandState state)
         where T : IDynamoDbDocument<T>
     {
-        var attributes = default(T);
-        var hasAttributes = false;
+        var item = default(T);
+        var hasItem = false;
         ConsumedCapacity? capacity = null;
         ItemCollectionMetrics? metrics = null;
         reader.ReadStartItem();
@@ -25,8 +25,8 @@ internal static class WriteResponse
             if (reader.AttributeNameEquals("Attributes"u8))
             {
                 reader.ReadStartItem();
-                attributes = T.ReadAttributes(ref reader);
-                hasAttributes = true;
+                item = T.ReadAttributes(ref reader);
+                hasItem = true;
             }
             else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
             {
@@ -43,6 +43,6 @@ internal static class WriteResponse
         }
 
         state.ResponseCapacity = capacity;
-        return new WriteResult<T>(attributes, hasAttributes, capacity, metrics, state.StoredVersion);
+        return new WriteResult<T>(item, hasItem, capacity, metrics, state.StoredVersion);
     }
 }

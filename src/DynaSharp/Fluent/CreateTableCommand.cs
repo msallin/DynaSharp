@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -32,6 +33,9 @@ namespace DynaSharp;
 /// </remarks>
 public sealed class CreateTableCommand
 {
+    // With the waits of TableAdministration.FirstDelay in between, doubling, this gives DescribeTable 1.5 seconds to catch up with a create it cannot see yet.
+    private const int MostCreates = 5;
+
     private readonly TableModel _table;
 
     private readonly TableSchema _schema;
@@ -106,11 +110,22 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Treats a table that exists as success: <see cref="ResourceInUseException"/> ends in the description of the existing table, which is what makes a create at the start of a program safe to repeat.
+    /// Treats a table that exists as success: <see cref="ResourceInUseException"/> ends in the description of the existing table, which <c>DescribeTable</c> fetches, and that is what makes a create at the start of a
+    /// program safe to repeat.
     /// </summary>
     /// <remarks>
-    /// It <b>does not compare schemas</b>: a table of this name with other keys or indexes is success too, and a table that is still being created or is being deleted is success with that status. Reads and
-    /// writes then fail, or find the indexes missing.
+    /// <para>
+    /// It <b>does not compare schemas</b>: a table of this name with other keys or indexes is success too, and a table that is still being created is success with that status. Reads and writes then fail, or find the
+    /// indexes missing.
+    /// </para>
+    /// <para>
+    /// A table that is going away is no success, with or without a wait, because no table is left afterwards: when <c>DescribeTable</c> says <c>DELETING</c>, the <see cref="ResourceInUseException"/> of the create
+    /// surfaces, and sending the command again creates the table once the delete is through.
+    /// </para>
+    /// <para>
+    /// When <c>DescribeTable</c> finds no table, either a delete just ended or, because that call is eventually consistent, another process just created the table, as instances of a program that start together do.
+    /// So the command creates again, up to 5 times over 1.5 seconds, which ends in a new table or in the one that turned up. The <see cref="ResourceInUseException"/> surfaces only if that settles nothing.
+    /// </para>
     /// </remarks>
     /// <returns>This command.</returns>
     public CreateTableCommand IfNotExists()
@@ -132,7 +147,7 @@ public sealed class CreateTableCommand
     /// <param name="cancellationToken">Cancels the call, and the wait. A table DynamoDB accepted stays accepted, so a cancelled wait leaves a table behind.</param>
     /// <returns>The description of the table: the new one, the active one with <see cref="WaitUntilActive()"/>, or the existing one with <see cref="IfNotExists"/>.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
-    /// <exception cref="ResourceInUseException">A table of that name exists or is being deleted, and <see cref="IfNotExists"/> was not called.</exception>
+    /// <exception cref="ResourceInUseException">A table of that name exists and <see cref="IfNotExists"/> was not called, or it is being deleted, which <see cref="IfNotExists"/> does not cover.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes.</exception>
     /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/>.</exception>
@@ -154,17 +169,50 @@ public sealed class CreateTableCommand
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ValueTaskAwaiter<TableDescription> GetAwaiter() => SendAsync().GetAwaiter();
 
-    // Null for a table that exists, or for a response without a description. It is left to the caller, because a wait reads it anyway, and bears with a table that DescribeTable does not see yet.
+    // Null only for a response without a description.
     private async ValueTask<TableDescription?> CreateAsync(CancellationToken cancellationToken)
+    {
+        var delay = TableAdministration.FirstDelay;
+        for (var create = 1; ; create++)
+        {
+            ResourceInUseException inUse;
+            try
+            {
+                var response = await _table.Core
+                    .ExecuteAsync<CreateTableOperation, CreateTableRequest, CreateTableResponse>(ToRequest(), cancellationToken)
+                    .ConfigureAwait(false);
+                return response.TableDescription;
+            }
+            catch (ResourceInUseException exception) when (_ifNotExists)
+            {
+                inUse = exception;
+            }
+
+            // Outside the catch: a throw after an await in one has a branch of the compiler that nothing can take.
+            var existing = await FindAsync(cancellationToken).ConfigureAwait(false);
+            if (existing is { TableStatus: not TableStatus.Deleting })
+            {
+                return existing;
+            }
+
+            if (existing is not null || create == MostCreates)
+            {
+                ExceptionDispatchInfo.Throw(inUse);
+            }
+
+            await Task.Delay(delay, _table.Core.TimeProvider, cancellationToken).ConfigureAwait(false);
+            delay *= 2;
+        }
+    }
+
+    // CreateTable answers ResourceInUseException for a table on its way out too, so what it found may be gone, and DescribeTable may not see yet what another process created.
+    private async ValueTask<TableDescription?> FindAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _table.Core
-                .ExecuteAsync<CreateTableOperation, CreateTableRequest, CreateTableResponse>(ToRequest(), cancellationToken)
-                .ConfigureAwait(false);
-            return response.TableDescription;
+            return await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false);
         }
-        catch (ResourceInUseException) when (_ifNotExists)
+        catch (ResourceNotFoundException)
         {
             return null;
         }

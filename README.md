@@ -147,7 +147,7 @@ await foreach (var order in bigOrders)
 An index is read through its own type, which has no writes:
 
 ```csharp
-var placed = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed), SortKey.Ge(Order.Keys.ByStatusSk.Format(since)));
+var placed = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed), Order.Keys.ByStatusSk.Ge(since));
 ```
 
 ### UpdateItem

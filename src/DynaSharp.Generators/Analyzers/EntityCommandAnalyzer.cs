@@ -17,13 +17,17 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 {
+    /// <summary>The parameter that takes the handle in a write of <see cref="WriteMethods"/>.</summary>
+    internal const string HandleParameter = "attribute";
+
+    /// <summary>The members of <c>IUpdatable&lt;TSelf&gt;</c> that take a handle, by name.</summary>
+    internal static readonly HashSet<string> WriteMethods = ["Set", "SetIfNotNull", "Add", "Remove", "SetIfNotExists", "Delete"];
+
     private const string UpdateVerb = "Update";
 
     private const string PutVerb = "Put";
 
     private const string IgnoreVersion = "IgnoreVersion";
-
-    private const string HandleParameter = "attribute";
 
     private const string ItemParameter = "item";
 
@@ -59,7 +63,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (invocation.TargetMethod.Name is "Set" or "SetIfNotNull" or "Add" or "Remove" or "SetIfNotExists" or "Delete")
+        if (WriteMethods.Contains(invocation.TargetMethod.Name))
         {
             AnalyzeWrite(context, invocation, models);
         }

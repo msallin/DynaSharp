@@ -579,7 +579,7 @@ public sealed class StubResponseTests
 
         // Assert
         await Assert.That(response.Body).IsEqualTo(
-            """{"Responses":{},"UnprocessedKeys":{"Orders":{"Keys":[{"pk":{"S":"CUSTOMER#1"},"sk":{"S":"ORDER#2"}},{"pk":{"S":"CUSTOMER#1"},"sk":{"S":"ORDER#3"}}],"ConsistentRead":true,"ProjectionExpression":"#s, total","ExpressionAttributeNames":{"#s":"status"}}}}""");
+            """{"Responses":{"Orders":[]},"UnprocessedKeys":{"Orders":{"Keys":[{"pk":{"S":"CUSTOMER#1"},"sk":{"S":"ORDER#2"}},{"pk":{"S":"CUSTOMER#1"},"sk":{"S":"ORDER#3"}}],"ConsistentRead":true,"ProjectionExpression":"#s, total","ExpressionAttributeNames":{"#s":"status"}}}}""");
     }
 
     [Test]

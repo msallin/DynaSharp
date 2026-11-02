@@ -8,6 +8,78 @@ namespace DynaSharp.UnitTests.Generators.Analyzers;
 /// <summary>DYNA210 to DYNA212 on real snippets: which strings are looked at, and where the diagnostic lands.</summary>
 public sealed class ExpressionAnalyzerTests
 {
+    private const string FlagsModel = """
+
+        [Flags] public enum Rights { None = 0, Read = 1, Write = 2 }
+
+        public enum Tint { Red, Green }
+
+        public readonly struct RightsAsText : IDynamoDbConverter<Rights>
+        {
+            public static void Write(DynamoDbWriter writer, Rights value) => writer.WriteString(value.ToString());
+
+            public static Rights Read(ref DynamoDbReader reader, AttributeType type) => Enum.Parse<Rights>(reader.GetString());
+        }
+
+        [DynamoDbDocument]
+        public partial class Part
+        {
+            public Rights Access { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("DOC")]
+        [PartitionKey("DOC#{Id}")]
+        public partial class Doc
+        {
+            public required string Id { get; init; }
+
+            public Rights Access { get; init; }
+
+            public Rights? Optional { get; init; }
+
+            public Tint Tint { get; init; }
+
+            public HashSet<Rights> Many { get; init; } = [];
+
+            public Part? Inner { get; init; }
+
+            [DynamoDbConverter(typeof(RightsAsText))]
+            public Rights Stored { get; init; }
+        }
+
+        public static class Own
+        {
+            public static Condition BeginsWith(string prefix) => Attr("n").Exists();
+
+            public readonly struct Nested : IDynamoDbConverter<int>
+            {
+                public static void Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                public static int Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+            }
+
+            public static class Deeper
+            {
+                public readonly struct Nested : IDynamoDbConverter<int>
+                {
+                    public static void Write(DynamoDbWriter writer, int value) => writer.WriteNumber(value);
+
+                    public static int Read(ref DynamoDbReader reader, AttributeType type) => reader.GetNumber<int>();
+                }
+            }
+        }
+
+        public static class Foreign
+        {
+            public static class AttrExtensions
+            {
+                public static Condition BeginsWith<T, TConverter>(Attr<T, TConverter> attribute, string prefix)
+                    where TConverter : IDynamoDbConverter<T> => Attr("n").Exists();
+            }
+        }
+        """;
+
     [Test]
     public async Task Analyze_LiteralLeftOfAnOperator_ReportsItsSpan()
     {
@@ -429,6 +501,53 @@ public sealed class ExpressionAnalyzerTests
         var report = await AnalyzerRun.ReportAsync(source);
 
         // Assert
+        await Assert.That(report).DoesNotContain("DYNA216");
+    }
+
+    [Test]
+    [Arguments("""Scan().Filter($"begins_with({[|Doc.Attrs.Access|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Scan().Filter($"contains({[|Doc.Attrs.Access|]}, {"1"})");""", "contains")]
+    [Arguments("""Scan().Filter($"begins_with({[|Doc.Attrs.Optional|]}, {"1"})");""", "begins_with")]
+    [Arguments("""Scan().Filter($"contains({[|Doc.Attrs.Inner.At(Part.Attrs.Access)|]}, {"1"})");""", "contains")]
+    [Arguments("""Scan().Filter([|Doc.Attrs.Access|].BeginsWith("1"));""", "begins_with")]
+    [Arguments("""Scan().Filter([|Doc.Attrs.Optional|].BeginsWith("1"));""", "begins_with")]
+    [Arguments("""Scan().Filter(AttrExtensions.BeginsWith([|Doc.Attrs.Access|], "1"));""", "begins_with")]
+    public async Task Analyze_TextFunctionOnAFlagsEnum_ReportsTheHandle(string chain, string function)
+    {
+        // Arrange (a [Flags] enum is stored as a number, which the generated forwarder of its handle does not say)
+        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA216 Warning: {function} never matches a number or a boolean, so this condition holds for no item. Compare the attribute, or give it a type that stores text."));
+    }
+
+    [Test]
+    [Arguments("""Scan().Filter($"begins_with({Doc.Attrs.Tint}, {"R"})");""")]
+    [Arguments("""Scan().Filter($"contains({Doc.Attrs.Tint}, {"R"})");""")]
+    [Arguments("""Scan().Filter(Doc.Attrs.Tint.BeginsWith("R"));""")]
+    [Arguments("""Scan().Filter(Doc.Attrs.Id.BeginsWith("R"));""")]
+    [Arguments("""Scan().Filter($"contains({Doc.Attrs.Many}, {1})");""")]
+    [Arguments("""Scan().Filter($"{Doc.Attrs.Access} = {1}");""")]
+    [Arguments("""Scan().Filter($"begins_with({Doc.Attrs.Stored}, {"1"})");""")]
+    [Arguments("""Scan().Filter(Doc.Attrs.Stored.BeginsWith("1"));""")]
+    [Arguments("""Scan().Filter(Own.BeginsWith("1"));""")]
+    [Arguments("""Scan().Filter(Foreign.AttrExtensions.BeginsWith(Doc.Attrs.Access, "1"));""")]
+    [Arguments("""Scan().Filter($"begins_with({new Attr<int, Own.Nested>("n")}, {"1"})");""")]
+    [Arguments("""Scan().Filter($"begins_with({new Attr<int, Own.Deeper.Nested>("n")}, {"1"})");""")]
+    public async Task Analyze_TextFunctionOnAnEnumStoredAsText_ReportsNoSuchThing(string chain)
+    {
+        // Arrange (an enum is stored by name, and a set of the enum is what contains is for; a method called BeginsWith of another type is none of this)
+        var source = AnalyzerRun.Statements("shop." + chain + ";", FlagsModel);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(AnalyzerRun.CompilerErrors(source)).IsEmpty();
         await Assert.That(report).DoesNotContain("DYNA216");
     }
 

@@ -6,6 +6,30 @@ namespace DynaSharp.UnitTests.Serialization;
 public sealed class WireJsonTests
 {
     [Test]
+    [Arguments("plain text of a usual length")]
+    [Arguments("a😀b😀")]
+    public async Task ThrowIfLoneSurrogate_ValidText_AllocatesNothing(string value)
+    {
+        // Arrange (this runs on every string of an item, so it has to stay free in code the JIT has not optimized yet too)
+        for (var i = 0; i < 64; i++)
+        {
+            WireJson.ThrowIfLoneSurrogate(value, nameof(value));
+        }
+
+        // Act
+        var smallest = long.MaxValue;
+        for (var i = 0; i < 16; i++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            WireJson.ThrowIfLoneSurrogate(value, nameof(value));
+            smallest = Math.Min(smallest, GC.GetAllocatedBytesForCurrentThread() - before);
+        }
+
+        // Assert
+        await Assert.That(smallest).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task AppendEncoded_EveryAsciiCharacter_IsWhatTheJsonWriterWrites()
     {
         // Arrange

@@ -121,13 +121,13 @@ public sealed class QueryCommandTests(Backend backend)
         // Act
         var results = new[]
         {
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Eq("ORDER#002")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Lt("ORDER#002")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Le("ORDER#002")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Gt("ORDER#004")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Ge("ORDER#005")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.Between("ORDER#002", "ORDER#003")).ItemsAsync())),
-            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKey.BeginsWith("PRO")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Eq("ORDER#002")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Lt("ORDER#002")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Le("ORDER#002")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Gt("ORDER#004")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Ge("ORDER#005")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.Between("ORDER#002", "ORDER#003")).ItemsAsync())),
+            Read.SortKeys(await Read.ToListAsync(shop.Query("a", SortKeyCondition.BeginsWith("PRO")).ItemsAsync())),
         };
 
         // Assert
@@ -263,7 +263,7 @@ public sealed class QueryCommandTests(Backend backend)
         bool more;
         do
         {
-            var page = await sandbox.Shop.Query("a", SortKey.BeginsWith("ORDER#")).Limit(2).PageAsync(ContinuationToken.Parse(token));
+            var page = await sandbox.Shop.Query("a", SortKeyCondition.BeginsWith("ORDER#")).Limit(2).PageAsync(ContinuationToken.Parse(token));
             keys.AddRange(page.Items.Select(static item => item.GetString("sk")));
             token = page.Next.ToString();
             more = page.HasMore;
@@ -404,7 +404,7 @@ public sealed class QueryCommandTests(Backend backend)
         var byStatus = sandbox.Shop.Index(ReadSandbox.GlobalIndex, "status", "placedAt");
 
         // Act
-        var items = await Read.ToListAsync(byStatus.Query("OPEN", SortKey.Ge("2026-002")).ItemsAsync());
+        var items = await Read.ToListAsync(byStatus.Query("OPEN", SortKeyCondition.Ge("2026-002")).ItemsAsync());
 
         // Assert
         await Assert.That(string.Join(",", items.Select(static item => item.GetString("pk") + item.GetString("placedAt")).Order(StringComparer.Ordinal))).IsEqualTo("a2026-002,b2026-002,b2026-003");
@@ -463,7 +463,7 @@ public sealed class QueryCommandTests(Backend backend)
         var byRank = sandbox.Shop.Index(ReadSandbox.LocalIndex, "pk", "rank");
 
         // Act
-        var items = await Read.ToListAsync(byRank.Query("a", SortKey.Le(1)).Consistent().ItemsAsync());
+        var items = await Read.ToListAsync(byRank.Query("a", SortKeyCondition.Le(1)).Consistent().ItemsAsync());
 
         // Assert (the rank falls as the sort key rises)
         await Assert.That(Read.SortKeys(items)).IsEqualTo("ORDER#003,ORDER#002");

@@ -5,7 +5,8 @@ namespace DynaSharp.Fluent;
 
 /// <summary>
 /// The composite position of a fan-out: one entry per partition, a <see cref="ContinuationToken"/> on the outside. It holds an attribute of a list, so that the text of a token is
-/// what <see cref="ContinuationToken.Parse"/> takes for all tokens, one map of attribute values, and comes through it the same way. No message here quotes a token, because it comes from a client.
+/// what <see cref="ContinuationToken.Parse"/> takes for all tokens, one map of attribute values, and comes through it the same way, with the version of the format in front. A change of the layout below
+/// is a new version there. No message here quotes a token, because it comes from a client.
 /// </summary>
 /// <remarks>
 /// <code>

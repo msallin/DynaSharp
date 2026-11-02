@@ -44,7 +44,7 @@ public sealed class TimeBucketedPartitionsTests(Backend backend)
             buckets.Add(MetricSample.Keys.Pk.Of(Cpu, bucket));
         }
 
-        return await samples.Query(buckets, SortKey.Between(MetricSample.Keys.Sk.Format(from), MetricSample.Keys.Sk.Format(to))).ItemsAsync().ToListAsync();
+        return await samples.Query(buckets, SortKeyCondition.Between(MetricSample.Keys.Sk.Format(from), MetricSample.Keys.Sk.Format(to))).ItemsAsync().ToListAsync();
     }
 }
 

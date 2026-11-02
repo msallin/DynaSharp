@@ -111,17 +111,17 @@ public sealed class MappingFailureKeyTests
     [Test]
     public async Task SendAsync_BatchGetWithAnItemThatDoesNotFit_NamesItsKey()
     {
-        // Arrange (the second round starts over in its own array)
+        // Arrange (the second round starts over in its own array, and a failure after a request went through comes with what was read)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         handler.Enqueue(StubResponse.Json("""{"Responses":{"Billing":[""" + Good + """]},"UnprocessedKeys":{"Billing":{"Keys":[{"pk":{"S":"TENANT#acme"},"sk":{"S":"INV#2026-09#000002"}}]}}}"""));
         handler.Enqueue(StubResponse.Json("""{"Responses":{"Billing":[""" + Poison + "]}}"));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Key("TENANT#acme", "INV#2026-09#000001").Key("TENANT#acme", "INV#2026-09#000002").SendAsync());
+        var failure = await Assert.ThrowsAsync<BatchGetIncompleteException<TenantInvoice>>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Key("TENANT#acme", "INV#2026-09#000001").Key("TENANT#acme", "INV#2026-09#000002").SendAsync());
 
         // Assert
-        await Assert.That(failure!.Key).IsEqualTo(PoisonKey);
+        await Assert.That((failure!.Items.Count, ((DynamoDbMappingException)failure.InnerException!).Key)).IsEqualTo((1, PoisonKey));
     }
 
     [Test]

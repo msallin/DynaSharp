@@ -130,7 +130,7 @@ public sealed class FanOutQueryTests(Backend backend)
         await sandbox.PutOrdersAsync("b", 5);
 
         // Act
-        var items = await Read.ToListAsync(sandbox.Shop.Query(["a", "b"], SortKey.Between("ORDER#002", "ORDER#003")).ItemsAsync());
+        var items = await Read.ToListAsync(sandbox.Shop.Query(["a", "b"], SortKeyCondition.Between("ORDER#002", "ORDER#003")).ItemsAsync());
 
         // Assert
         await Assert.That(string.Join(",", items.Select(PartitionAndSort))).IsEqualTo("a2,b2,a3,b3");
@@ -428,7 +428,7 @@ public sealed class FanOutQueryTests(Backend backend)
         var shards = new AttributeValue[] { Order.Keys.Pk.Format("s0"), Order.Keys.Pk.Format("s1") };
 
         // Act
-        var orders = await Read.ToListAsync(shop.Orders.Query(shards, SortKey.BeginsWith(Order.Keys.Sk.Prefix())).Descending().ItemsAsync());
+        var orders = await Read.ToListAsync(shop.Orders.Query(shards, SortKeyCondition.BeginsWith(Order.Keys.Sk.Prefix())).Descending().ItemsAsync());
 
         // Assert
         await Assert.That(string.Join(",", orders.Select(static order => order.Total))).IsEqualTo("5,4,3,2,1,0");

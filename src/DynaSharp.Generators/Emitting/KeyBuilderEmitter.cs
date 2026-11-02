@@ -21,7 +21,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
     private const string Utf8Text = "global::System.ReadOnlySpan<byte>";
 
-    private const string SortKey = "global::DynaSharp.SortKey";
+    private const string Condition = "global::DynaSharp.SortKeyCondition";
 
     private const string Local = "__key";
 
@@ -58,8 +58,10 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         EmitFormat();
         if (isSortKey)
         {
+            EmitEq();
             EmitPrefixes();
             EmitPrefixPartial();
+            EmitFinalRanges();
         }
         else
         {
@@ -76,6 +78,16 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
     private static string Arguments(IEnumerable<PlaceholderSegment> placeholders) =>
         string.Join(", ", placeholders.Select(static placeholder => placeholder.ParameterName));
+
+    private static string Call(string method, IEnumerable<PlaceholderSegment> placeholders, string last)
+    {
+        var arguments = (List<string>)[.. placeholders.Select(static placeholder => placeholder.ParameterName), last];
+        return $"{method}({string.Join(", ", arguments)})";
+    }
+
+    // A bound of Between beside the placeholders before it, which may hold the same name: {From:d2}#{To:d2}#{Id}.
+    private static string BoundName(List<PlaceholderSegment> leading, string name) =>
+        leading.Exists(placeholder => placeholder.ParameterName == name) ? BoundName(leading, name + "_") : name;
 
     private static string WriteLiteral(string text) => $"{Local}.WriteLiteral({CodeText.Utf8(text)});";
 
@@ -107,6 +119,18 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
             EmitText("Format", Signature(_placeholders), Buffer, [EncodeCall()]);
         }
 
+        code.Blank();
+    }
+
+    private void EmitEq()
+    {
+        code.Line("/// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>");
+        if (_placeholders.Count > 0)
+        {
+            code.Line(InvalidValue);
+        }
+
+        code.Line($"public static {Condition} Eq({Signature(_placeholders)}) => {Condition}.Eq(Format({Arguments(_placeholders)}));");
         code.Blank();
     }
 
@@ -169,8 +193,72 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
             code.Line(InvalidValue);
         }
 
-        code.Line($"public static {SortKey} BeginsWith({Signature(bound)}) => {SortKey}.BeginsWith(Prefix({Arguments(bound)}));");
+        code.Line($"public static {Condition} BeginsWith({Signature(bound)}) => {Condition}.BeginsWith(Prefix({Arguments(bound)}));");
         code.Blank();
+        EmitRanges(bound, "Prefix", "UpperBound");
+    }
+
+    // The fields of a key that ends in a placeholder have no prefix: nothing ends the last one, and every value is a key. So the complete key is both bounds, which keeps a
+    // longer string above a shorter one, where the U+10FFFF of an upper bound would put it inside.
+    private void EmitFinalRanges()
+    {
+        if (template.Segments[template.Segments.Count - 1] is PlaceholderSegment)
+        {
+            EmitRanges(_placeholders, "Format", "Format");
+        }
+    }
+
+    // What holds for every value or does not exist. No value means no range: Ge() of a prefix reads what sorts after the template, which is not a question about this key, and
+    // BeginsWith() is the one that means all of it. A range of the last field needs that field in order, and Between keeps the fields before it equal, so they can sort any way
+    // they like. An open range goes on across those fields, so all of them have to be in order.
+    private void EmitRanges(List<PlaceholderSegment> bound, string low, string high)
+    {
+        if (bound.Count > 0 && IsInOrder(bound[bound.Count - 1]))
+        {
+            EmitBetween(bound, low, high);
+            if (bound.TrueForAll(IsInOrder))
+            {
+                EmitOpenRange("Ge", "&gt;=", "from these values on", low, bound);
+                EmitOpenRange("Gt", "&gt;", "after these values", high, bound);
+                EmitOpenRange("Le", "&lt;=", "up to these values", high, bound);
+                EmitOpenRange("Lt", "&lt;", "before these values", low, bound);
+            }
+        }
+    }
+
+    private void EmitBetween(List<PlaceholderSegment> bound, string low, string high)
+    {
+        var last = bound[bound.Count - 1];
+        var leading = bound.GetRange(0, bound.Count - 1);
+        var from = BoundName(leading, "from");
+        var to = BoundName(leading, "to");
+        var parameters = (List<string>)[.. leading.Select(static placeholder => $"{placeholder.ValueType} {placeholder.ParameterName}"), $"{last.ValueType} {from}", $"{last.ValueType} {to}"];
+        code.Line($"/// <summary>The condition <c>BETWEEN {low} AND {high}</c> on <c>{last.Property}</c>, with both bounds included and any field before it equal. DynamoDB rejects a lower bound above the upper one.</summary>");
+        code.Line(InvalidValue);
+        code.Line($"public static {Condition} Between({string.Join(", ", parameters)}) => {Condition}.Between({Call(low, leading, from)}, {Call(high, leading, to)});");
+        code.Blank();
+    }
+
+    private void EmitOpenRange(string name, string comparison, string meaning, string side, List<PlaceholderSegment> bound)
+    {
+        code.Line($"/// <summary>The condition <c>{comparison} {side}</c>: the keys {meaning}, in the order of the key. It has only this one end, so what else sorts there in the partition matches too.</summary>");
+        code.Line(InvalidValue);
+        code.Line($"public static {Condition} {name}({Signature(bound)}) => {Condition}.{name}({side}({Arguments(bound)}));");
+        code.Blank();
+    }
+
+    // Whether the bytes of the key follow the value. A fixed width does, which is what it is for. A string does at the end of the key, and before a space, which sorts below
+    // everything a value may hold. Before another delimiter a value such as "a b" sorts below "a". The other variable widths sort by their text: 10 before 9, an enum by name.
+    private bool IsInOrder(PlaceholderSegment placeholder)
+    {
+        if (placeholder.Encoding.FixedWidth > 0)
+        {
+            return true;
+        }
+
+        var next = template.Segments.ToList().IndexOf(placeholder) + 1;
+        return placeholder.Encoding is StringEncoding
+            && (next == template.Segments.Count || ((LiteralSegment)template.Segments[next]).Text[0] == ' ');
     }
 
     private void EmitPrefixPartial()

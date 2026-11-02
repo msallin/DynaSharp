@@ -283,7 +283,7 @@ public sealed class StubResponse
     {
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(keys);
-        return BatchRead<Item>(tableName, null, keys);
+        return BatchRead(tableName, Array.Empty<Item>(), keys);
     }
 
     /// <summary>Creates the answer to a <c>BatchGetItem</c> that read some items and left the other keys unprocessed, on one table.</summary>
@@ -432,19 +432,15 @@ public sealed class StubResponse
         }));
     }
 
-    // {"Responses":{"Shop":[{...}]},"UnprocessedKeys":{"Shop":{"Keys":[{...}]}}}. A table is under Responses only when it has an answer.
-    private static StubResponse BatchRead<T>(string tableName, IEnumerable<T>? found, KeysAndAttributes? keys)
+    // {"Responses":{"Shop":[{...}]},"UnprocessedKeys":{"Shop":{"Keys":[{...}]}}}. Responses names the table of the request also when it found nothing, as "Shop":[].
+    private static StubResponse BatchRead<T>(string tableName, IEnumerable<T> found, KeysAndAttributes? keys)
         where T : IDynamoDbDocument<T>
     {
-        T[]? all = found is null ? null : [.. found];
+        T[] all = [.. found];
         return Json(Render(json =>
         {
             json.WriteStartObject("Responses");
-            if (all is not null)
-            {
-                WriteDocuments(json, tableName, all);
-            }
-
+            WriteDocuments(json, tableName, all);
             json.WriteEndObject();
             json.WriteStartObject("UnprocessedKeys");
             if (keys is not null)

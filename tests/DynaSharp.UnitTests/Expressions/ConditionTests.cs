@@ -388,7 +388,7 @@ public sealed class ConditionTests
     public async Task SortKey_EveryOperator_RendersAfterThePartitionKey()
     {
         // Arrange
-        var keys = new[] { SortKey.Eq("a"), SortKey.Lt("a"), SortKey.Le("a"), SortKey.Gt("a"), SortKey.Ge("a"), SortKey.Between("a", "b"), SortKey.BeginsWith("a"), default };
+        var keys = new[] { SortKeyCondition.Eq("a"), SortKeyCondition.Lt("a"), SortKeyCondition.Le("a"), SortKeyCondition.Gt("a"), SortKeyCondition.Ge("a"), SortKeyCondition.Between("a", "b"), SortKeyCondition.BeginsWith("a"), default };
 
         // Act
         var rendered = keys.Select(Render).ToArray();
@@ -415,7 +415,7 @@ public sealed class ConditionTests
         return Encoding.UTF8.GetString(writer[Clause.Condition].WrittenSpan);
     }
 
-    private static string Render(SortKey key)
+    private static string Render(SortKeyCondition key)
     {
         var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
         key.Render(writer, writer[Clause.KeyCondition], "sk");

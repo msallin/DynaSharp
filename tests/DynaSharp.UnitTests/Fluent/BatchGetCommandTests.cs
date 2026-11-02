@@ -301,7 +301,71 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
-    public async Task SendAsync_AnotherFailure_SurfacesAsItIs()
+    public async Task SendAsync_RejectedAfterARequestWentThrough_HoldsTheProgressAndTheFailure()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"id-0"}}]}}"""));
+        handler.DefaultResponse = StubResponse.DynamoDbError("ResourceNotFoundException", "Deleted meanwhile.");
+        using var client = TestClient.Create(handler);
+        var ids = Enumerable.Range(0, 150).Select(static i => new TextKey("id-" + i));
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+
+        // Assert
+        await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is ResourceNotFoundException, handler.Requests.Count)).IsEqualTo((50, 1, true, 2));
+    }
+
+    [Test]
+    public async Task SendAsync_TimeoutAfterARequestWentThrough_HoldsTheProgressAndTheFailure()
+    {
+        // Arrange
+        var calls = 0;
+        using var handler = new StubHandler(_ => ++calls > 1 ? throw new TimeoutException("Too slow.") : StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"id-0"}}]}}"""));
+        using var client = TestClient.Create(handler);
+        var ids = Enumerable.Range(0, 150).Select(static i => new TextKey("id-" + i));
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+
+        // Assert
+        await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is TimeoutException)).IsEqualTo((50, 1, true));
+    }
+
+    [Test]
+    public async Task SendAsync_CancelledAfterARequestWentThrough_ThrowsWithTheTokenOfTheCaller()
+    {
+        // Arrange
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var calls = 0;
+        using var handler = new StubHandler(async (_, cancelled) =>
+        {
+            if (++calls == 1)
+            {
+                return StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"id-0"}}]}}""");
+            }
+
+            await cancellation.CancelAsync();
+            cancelled.ThrowIfCancellationRequested();
+            return StubResponse.Json("{}");
+        });
+        using var client = TestClient.Create(handler);
+        var ids = Enumerable.Range(0, 150).Select(static i => new TextKey("id-" + i));
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(async () => await shop.BatchGet().Keys(ids).SendAsync(token));
+
+        // Assert
+        await Assert.That((failure.CancellationToken == token, handler.Requests.Count)).IsEqualTo((true, 2));
+    }
+
+    [Test]
+    public async Task SendAsync_RejectedOnTheFirstRequest_SurfacesAsItIs()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ResourceNotFoundException", "No such table."));

@@ -54,29 +54,29 @@ public sealed class Index<T>
     /// <param name="sortKey">The condition on the sort key of the index, or the default value to read the whole partition.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the index has none.</exception>
-    public QueryCommand<T> Query(AttributeValue partitionKey, SortKey sortKey = default) => new(Model.BeginQuery(partitionKey, sortKey), Model);
+    public QueryCommand<T> Query(AttributeValue partitionKey, SortKeyCondition sortKey = default) => new(Model.BeginQuery(partitionKey, sortKey), Model);
 
     /// <summary>
     /// Starts a query of several partitions of the index, merged by the sort key of the index: the read of a sharded index. It costs at least one read per partition, see
     /// <see cref="FanOutQueryCommand{T}"/>. An index can hold several items with one sort key, and within a partition those come as DynamoDB gives them. See
-    /// <see cref="Query(AttributeValue, SortKey)"/> for what is different about reading an index.
+    /// <see cref="Query(AttributeValue, SortKeyCondition)"/> for what is different about reading an index.
     /// </summary>
     /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
     /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A partition key is empty or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
-    public FanOutQueryCommand<T> Query(IEnumerable<AttributeValue> partitionKeys, SortKey sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
+    public FanOutQueryCommand<T> Query(IEnumerable<AttributeValue> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
 
-    /// <summary>Starts a query of several partitions by their string keys, which is <see cref="Query(IEnumerable{AttributeValue}, SortKey)"/> for write shards: <c>orders.Query(["SHARD#0", "SHARD#1"])</c>.</summary>
+    /// <summary>Starts a query of several partitions by their string keys, which is <see cref="Query(IEnumerable{AttributeValue}, SortKeyCondition)"/> for write shards: <c>orders.Query(["SHARD#0", "SHARD#1"])</c>.</summary>
     /// <param name="partitionKeys">The partitions, read here and not kept. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
     /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
-    public FanOutQueryCommand<T> Query(scoped ReadOnlySpan<string> partitionKeys, SortKey sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
+    public FanOutQueryCommand<T> Query(scoped ReadOnlySpan<string> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
 
     /// <summary>
-    /// Starts a query of several partitions by string keys that are computed, which is <see cref="Query(IEnumerable{AttributeValue}, SortKey)"/> for a list of shards:
+    /// Starts a query of several partitions by string keys that are computed, which is <see cref="Query(IEnumerable{AttributeValue}, SortKeyCondition)"/> for a list of shards:
     /// <c>orders.Query(Enumerable.Range(0, 8).Select(static shard => Order.Keys.Pk.Format(shard)))</c>.
     /// </summary>
     /// <remarks>This overload yields to every other, so a call binds to it only when no other applies. That takes C# 13: a compiler below it ignores the priority, and a <c>string[]</c> needs <c>AsSpan()</c> there.</remarks>
@@ -86,9 +86,9 @@ public sealed class Index<T>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
     [OverloadResolutionPriority(-1)]
-    public FanOutQueryCommand<T> Query(IEnumerable<string> partitionKeys, SortKey sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
+    public FanOutQueryCommand<T> Query(IEnumerable<string> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Table.Model);
 
-    /// <summary>Starts a scan of the index, which charges for every item in it. See <see cref="Query(AttributeValue, SortKey)"/> for what is different about reading an index.</summary>
+    /// <summary>Starts a scan of the index, which charges for every item in it. See <see cref="Query(AttributeValue, SortKeyCondition)"/> for what is different about reading an index.</summary>
     /// <returns>The command.</returns>
     public ScanCommand<T> Scan() => new(Model.BeginScan(), Model);
 }

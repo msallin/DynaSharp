@@ -4,7 +4,8 @@ namespace DynaSharp.Telemetry;
 
 /// <summary>
 /// Log messages of the credential providers. Only events outside a single request are logged: which source the default chain
-/// chose, refreshes that failed, and credentials that the service rejected as expired. Event ids are stable. Messages never contain keys, tokens, file content or URLs.
+/// chose, refreshes that failed, and credentials that the service rejected as expired. Event ids are stable. Messages never contain keys, tokens or file content. Of a URL they
+/// show at most the host, which the reason of a failed refresh names for the container endpoint: the host is no secret, and the rest of that URI holds a credential identifier.
 /// </summary>
 internal static partial class CredentialsLog
 {

@@ -6,6 +6,21 @@ namespace DynaSharp.UnitTests.Serialization;
 
 public sealed class DynamoDbWriterTests
 {
+    /// <summary>Text that is not valid UTF-16, which <c>Utf8JsonWriter</c> would turn into U+FFFD: a surrogate that has no partner, wherever it stands.</summary>
+    /// <returns>The texts.</returns>
+    public static IEnumerable<string> LoneSurrogates() =>
+    [
+        "\uD800",
+        "\uDC00",
+        "a\uD800",
+        "\uD800a",
+        "a\uDC00b",
+        "\uDC00\uD800",
+        "\uD83D\uD83D\uDE00",
+        "😀\uD83D",
+        "😀\uDE00",
+    ];
+
     public static IEnumerable<Func<(Action<DynamoDbWriter> Write, string Expected)>> Numbers()
     {
         yield return () => (static w => w.WriteNumber(42), """{"N":"42"}""");
@@ -428,6 +443,92 @@ public sealed class DynamoDbWriterTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("value");
+    }
+
+    [Test]
+    [MethodDataSource(nameof(LoneSurrogates))]
+    public async Task WriteStringSetElement_LoneSurrogate_ThrowsArgumentException(string value)
+    {
+        // Arrange
+        // Act
+        var act = () => TestJson.Write(w =>
+        {
+            w.WriteStartStringSet();
+            w.WriteStringSetElement(value);
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("value");
+    }
+
+    [Test]
+    public async Task WriteStringSetElement_SurrogatePairs_WritesThem()
+    {
+        // Arrange
+        // Act
+        var json = TestJson.Write(static w =>
+        {
+            w.WriteStartStringSet();
+            w.WriteStringSetElement("a😀b😀");
+            w.WriteEndSet();
+        });
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"SS":["a\uD83D\uDE00b\uD83D\uDE00"]}""");
+    }
+
+    [Test]
+    [MethodDataSource(nameof(LoneSurrogates))]
+    public async Task WriteString_LoneSurrogate_ThrowsArgumentException(string value)
+    {
+        // Arrange
+        // Act
+        var act = () => TestJson.Write(w => w.WriteString(value));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("value");
+    }
+
+    [Test]
+    [MethodDataSource(nameof(LoneSurrogates))]
+    public async Task WriteString_LoneSurrogateInsideAList_ThrowsArgumentException(string value)
+    {
+        // Arrange
+        // Act
+        var act = () => TestJson.Write(w =>
+        {
+            w.WriteStartList();
+            w.WriteString(value);
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>();
+    }
+
+    [Test]
+    public async Task WriteString_SurrogatePairs_WritesThem()
+    {
+        // Arrange
+        // Act
+        var json = TestJson.Write(static w => w.WriteString("a😀b😀"));
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"S":"a\uD83D\uDE00b\uD83D\uDE00"}""");
+    }
+
+    [Test]
+    public async Task WriteAttributeName_LoneSurrogate_ThrowsArgumentException()
+    {
+        // Arrange
+        // Act
+        var act = () => TestJson.Write(static w =>
+        {
+            w.WriteStartItem();
+            w.WriteAttributeName("a\uD800");
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("name");
     }
 
     [Test]

@@ -224,7 +224,7 @@ public sealed class PutCommandTests
         var result = await client.Table<Customer>("Shop").Put(new Customer("alice", "New")).ReturnOld().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes).IsEqualTo(new Customer("alice", "Old"));
+        await Assert.That(result.Item).IsEqualTo(new Customer("alice", "Old"));
     }
 
     [Test]
@@ -238,7 +238,7 @@ public sealed class PutCommandTests
         var result = await client.Table("Shop", "pk").Put(new Item { ["pk"] = "a" }).SendAsync();
 
         // Assert
-        await Assert.That((result.HasAttributes, result.Attributes, result.ConsumedCapacity, result.ItemCollectionMetrics)).IsEqualTo((false, (Item?)null, (ConsumedCapacity?)null, (ItemCollectionMetrics?)null));
+        await Assert.That((result.HasItem, result.Item, result.ConsumedCapacity, result.ItemCollectionMetrics)).IsEqualTo((false, (Item?)null, (ConsumedCapacity?)null, (ItemCollectionMetrics?)null));
     }
 
     [Test]

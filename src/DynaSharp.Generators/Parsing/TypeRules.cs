@@ -123,7 +123,26 @@ internal static class TypeRules
             return "it is generic";
         }
 
-        return type.IsRefLikeType ? "it is a ref struct" : null;
+        if (type.IsRefLikeType)
+        {
+            return "it is a ref struct";
+        }
+
+        return IsFileLocal(type) ? "it is file-local" : null;
+    }
+
+    // The generated part goes into a file of its own, and a part of a file-local type in another file is another type. That holds for what is nested in one too.
+    private static bool IsFileLocal(INamedTypeSymbol type)
+    {
+        for (var current = type; current is not null; current = current.ContainingType)
+        {
+            if (current.IsFileLocal)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsPartial(INamedTypeSymbol type)

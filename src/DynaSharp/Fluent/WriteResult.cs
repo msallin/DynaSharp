@@ -6,10 +6,10 @@ namespace DynaSharp;
 /// <typeparam name="T">The type of the item.</typeparam>
 public readonly struct WriteResult<T>
 {
-    internal WriteResult(T? attributes, bool hasAttributes, ConsumedCapacity? consumedCapacity, ItemCollectionMetrics? itemCollectionMetrics, long? version)
+    internal WriteResult(T? item, bool hasItem, ConsumedCapacity? consumedCapacity, ItemCollectionMetrics? itemCollectionMetrics, long? version)
     {
-        Attributes = attributes;
-        HasAttributes = hasAttributes;
+        Item = item;
+        HasItem = hasItem;
         ConsumedCapacity = consumedCapacity;
         ItemCollectionMetrics = itemCollectionMetrics;
         Version = version;
@@ -19,11 +19,11 @@ public readonly struct WriteResult<T>
     /// Gets the item that <c>ReturnOld</c> or <c>ReturnNew</c> asked for, or the default value of <typeparamref name="T"/> if there is none: nothing
     /// was asked for, or <c>ReturnOld</c> found no item under the key.
     /// </summary>
-    public T? Attributes { get; }
+    public T? Item { get; }
 
     /// <summary>Gets a value indicating whether the response holds an item. It is what to test, because an entity may be a struct.</summary>
-    [MemberNotNullWhen(true, nameof(Attributes))]
-    public bool HasAttributes { get; }
+    [MemberNotNullWhen(true, nameof(Item))]
+    public bool HasItem { get; }
 
     /// <summary>Gets the capacity the write consumed, if <c>ReturnCapacity</c> asked for it.</summary>
     public ConsumedCapacity? ConsumedCapacity { get; }

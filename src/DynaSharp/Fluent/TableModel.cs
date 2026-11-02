@@ -34,6 +34,8 @@ internal sealed class TableModel
         IndexName = indexName;
         IsGlobalIndex = isGlobalIndex;
         ItemKeyNames = table?.ItemKeyNames ?? (sortKeyName is null ? [partitionKeyName] : [partitionKeyName, sortKeyName]);
+
+        // The name of the attribute is what makes a table typed, and only a value is something to compare: a type without a discriminator of its own has its keys to read and no _type.
         RequiredNames = discriminatorAttributeName is null ? [] : NamesOfATypedRead(table, discriminator is null ? null : discriminatorAttributeName, partitionKeyName, sortKeyName);
         BodyStart = indexName is null
             ? [.. "{\"TableName\":\""u8, .. Encode(name), .. "\""u8]
@@ -186,7 +188,7 @@ internal sealed class TableModel
     /// <param name="sortKey">The condition on the sort key.</param>
     /// <returns>The state of the command.</returns>
     /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the table or index has none.</exception>
-    public CommandState BeginQuery(AttributeValue partitionKey, SortKey sortKey)
+    public CommandState BeginQuery(AttributeValue partitionKey, SortKeyCondition sortKey)
     {
         ThrowIfEmpty(partitionKey, nameof(partitionKey));
         return BeginKeyCondition(partitionKey, sortKey);
@@ -209,7 +211,7 @@ internal sealed class TableModel
     /// <param name="sortKey">The condition on the sort key.</param>
     /// <returns>The state of the command.</returns>
     /// <exception cref="ArgumentException">There is a condition on a sort key and the table or index has none.</exception>
-    public CommandState BeginFanOut(SortKey sortKey) => BeginKeyCondition(default, sortKey);
+    public CommandState BeginFanOut(SortKeyCondition sortKey) => BeginKeyCondition(default, sortKey);
 
     /// <summary>Starts a <c>Scan</c>, with the discriminator of a typed read in its filter.</summary>
     /// <returns>The state of the command.</returns>
@@ -290,7 +292,7 @@ internal sealed class TableModel
     }
 
     // #n0 = :v0 AND ..., or #n0 = :pk for a partition that is not known yet.
-    private CommandState BeginKeyCondition(AttributeValue partitionKey, SortKey sortKey)
+    private CommandState BeginKeyCondition(AttributeValue partitionKey, SortKeyCondition sortKey)
     {
         if (sortKey.IsSet && SortKeyName is null)
         {

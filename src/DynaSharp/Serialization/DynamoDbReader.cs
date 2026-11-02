@@ -260,7 +260,9 @@ public ref struct DynamoDbReader
     /// <exception cref="InvalidOperationException">The reader is not positioned on a JSON string.</exception>
     /// <exception cref="FormatException">The text is not a number.</exception>
     /// <exception cref="OverflowException">
-    /// The number is outside the range of <typeparamref name="T"/>, or has a fractional part and <typeparamref name="T"/> is an integer type.
+    /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer type, or <typeparamref name="T"/> is
+    /// <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38. A binary floating-point type counts a number
+    /// that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below its range reads as 0.
     /// </exception>
     public readonly T GetNumber<T>()
         where T : INumberBase<T>

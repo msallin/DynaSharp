@@ -82,7 +82,7 @@ public sealed class TableKeyInputTests(Backend backend)
 
         // Act
         await files.Update(CaseFile.Keys.Of("c1")).Set(CaseFile.Attrs.Handler, "ann").SendAsync();
-        var found = await files.Index(CaseFile.Indexes.Gsi2).Query(CaseFile.Keys.Gsi2Pk.Of("ann"), SortKey.Eq(CaseFile.Keys.Gsi2Sk.Format("c1"))).ItemsAsync().ToListAsync();
+        var found = await files.Index(CaseFile.Indexes.Gsi2).Query(CaseFile.Keys.Gsi2Pk.Of("ann"), SortKeyCondition.Eq(CaseFile.Keys.Gsi2Sk.Format("c1"))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(found.Single().Id).IsEqualTo("c1");

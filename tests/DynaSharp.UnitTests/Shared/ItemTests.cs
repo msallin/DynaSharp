@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using DynaSharp.Operations;
+using DynaSharp.Testing;
 using DynaSharp.UnitTests.Serialization;
 
 namespace DynaSharp.UnitTests;
@@ -750,6 +751,32 @@ public sealed class ItemTests
     }
 
     [Test]
+    public async Task GetNumber_DecimalThatWouldLoseDigits_ThrowsOverflowExceptionNamingTheAttributeAndNotTheNumber()
+    {
+        // Arrange
+        var item = new Item { ["rate"] = AttributeValue.FromNumber("1E-130") };
+
+        // Act
+        var error = CatchFromGetNumber<decimal>(item, "rate");
+
+        // Assert
+        await Assert.That((error.GetType(), error.Message.Contains("\"rate\"", StringComparison.Ordinal), error.ToString().Contains("1E-130", StringComparison.Ordinal))).IsEqualTo((typeof(OverflowException), true, false));
+    }
+
+    [Test]
+    public async Task GetNumber_SingleThatRoundsToInfinity_ThrowsOverflowExceptionNamingTheAttributeAndNotTheNumber()
+    {
+        // Arrange
+        var item = new Item { ["distance"] = AttributeValue.FromNumber("1E39") };
+
+        // Act
+        var error = CatchFromGetNumber<float>(item, "distance");
+
+        // Assert
+        await Assert.That((error.GetType(), error.Message.Contains("\"distance\"", StringComparison.Ordinal), error.ToString().Contains("1E39", StringComparison.Ordinal))).IsEqualTo((typeof(OverflowException), true, false));
+    }
+
+    [Test]
     public async Task GetNumber_OutOfRange_ThrowsOverflowExceptionNamingTheAttributeAndNotTheNumber()
     {
         // Arrange
@@ -760,6 +787,40 @@ public sealed class ItemTests
 
         // Assert
         await Assert.That((error.GetType(), error.Message.Contains("\"count\"", StringComparison.Ordinal), error.ToString().Contains("300", StringComparison.Ordinal))).IsEqualTo((typeof(OverflowException), true, false));
+    }
+
+    [Test]
+    public async Task ToString_LoneSurrogates_ShowsTheReplacementCharacter()
+    {
+        // Arrange (everywhere a string can sit: this text is what a developer reads about the value a request refused)
+        var item = new Item
+        {
+            ["\uD800"] = "a\uD800",
+            ["nested"] = AttributeValue.FromMap(new Item { ["b"] = AttributeValue.FromList(["\uDC00"]) }),
+            ["set"] = AttributeValue.FromStringSet(["\uD800"]),
+        };
+
+        // Act
+        var text = item.ToString();
+
+        // Assert
+        await Assert.That(text).IsEqualTo("""{"\uFFFD":{"S":"a\uFFFD"},"nested":{"M":{"b":{"L":[{"S":"\uFFFD"}]}}},"set":{"SS":["\uFFFD"]}}""");
+    }
+
+    [Test]
+    public async Task ToString_LoneSurrogate_LeavesARequestRefusingIt()
+    {
+        // Arrange (showing a value opens no way to store it)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var item = new Item { ["pk"] = "a", ["note"] = "a\uD800" };
+        _ = item.ToString();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentException>(async () => await client.Table("Shop", "pk").Put(item).SendAsync());
+
+        // Assert
+        await Assert.That((failure.Message.Contains("lone surrogate", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, 0));
     }
 
     [Test]

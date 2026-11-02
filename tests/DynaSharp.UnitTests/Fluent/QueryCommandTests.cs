@@ -34,7 +34,7 @@ public sealed class QueryCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Query("a", SortKey.Eq("b")).ToRequestJson()));
+        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(shop.Query("a", SortKeyCondition.Eq("b")).ToRequestJson()));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("sortKey");
@@ -49,7 +49,7 @@ public sealed class QueryCommandTests
         var index = client.Table("Shop", "pk", "sk").Index("ByStatus", "status");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(index.Query("a", SortKey.Eq("b")).ToRequestJson()));
+        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(index.Query("a", SortKeyCondition.Eq("b")).ToRequestJson()));
 
         // Assert
         await Assert.That(failure.Message).Contains("ByStatus");
@@ -77,7 +77,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table("Shop", "a.b", "c.d").Query(1, SortKey.Gt(2)).ToRequestJson();
+        var json = client.Table("Shop", "a.b", "c.d").Query(1, SortKeyCondition.Gt(2)).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""{"#n0":"a.b","#n1":"c.d"}""");
@@ -368,7 +368,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Index("ByPartition", "pk", "_type").Query("a", SortKey.Eq("CUSTOMER")).ToRequestJson();
+        var json = client.Table<Customer>("Shop").Index("ByPartition", "pk", "_type").Query("a", SortKeyCondition.Eq("CUSTOMER")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByPartition","KeyConditionExpression":"#n0 = :v0 AND #n1 = :v1","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"CUSTOMER"}}}""");
@@ -441,7 +441,7 @@ public sealed class QueryCommandTests
 
         // Act
         var byKey = customers.Query(Customer.Keys.Of("alice")).ToRequestJson();
-        var byCondition = customers.Query("CUSTOMER#alice", SortKey.Eq("PROFILE")).ToRequestJson();
+        var byCondition = customers.Query("CUSTOMER#alice", SortKeyCondition.Eq("PROFILE")).ToRequestJson();
 
         // Assert
         await Assert.That(byKey).IsEqualTo(byCondition);
@@ -486,7 +486,7 @@ public sealed class QueryCommandTests
 
         // Act
         var byKey = shop.Query(new TextKey("p\"k"u8.ToArray(), "a", "s\\k"u8.ToArray(), "b")).ToRequestJson();
-        var byCondition = shop.Query("a", SortKey.Eq("b")).ToRequestJson();
+        var byCondition = shop.Query("a", SortKeyCondition.Eq("b")).ToRequestJson();
 
         // Assert
         await Assert.That(byKey).IsEqualTo(byCondition);
@@ -837,7 +837,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table("Shop", "pk", "sk").Query("a", SortKey.BeginsWith("O")).Filter(Attr("x").Exists()).Project("y").Limit(5).Descending().Consistent().ReturnCapacity().ItemsAsync().ToListAsync();
+        await client.Table("Shop", "pk", "sk").Query("a", SortKeyCondition.BeginsWith("O")).Filter(Attr("x").Exists()).Project("y").Limit(5).Descending().Consistent().ReturnCapacity().ItemsAsync().ToListAsync();
         var bodies = handler.Requests.Select(static request => request.BodyText).ToList();
 
         // Assert
@@ -989,6 +989,23 @@ public sealed class QueryCommandTests
 
         // Assert
         await Assert.That((read.ReleasedOnce, handler.Requests.Count)).IsEqualTo((true, 1));
+    }
+
+    [Test]
+    public async Task ItemsAsync_TakeOfAFilteredRead_ReadsUntilItHasThemAndNoFurther()
+    {
+        // Arrange (a Limit could not do this: it works before the filter, so its page can come back empty)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Items(Key("0"))));
+        handler.Enqueue(More("2", "3"));
+        handler.Enqueue(More("4"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var items = await client.Table("Shop", "pk", "sk").Query("a").Filter(Attr("open").Eq(true)).ItemsAsync().Take(2).CountAsync();
+
+        // Assert
+        await Assert.That((items, handler.Requests.Count)).IsEqualTo((2, 2));
     }
 
     [Test]

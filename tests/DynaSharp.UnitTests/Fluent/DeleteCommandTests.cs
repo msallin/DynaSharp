@@ -163,7 +163,7 @@ public sealed class DeleteCommandTests
         var result = await client.Table("Shop", "pk", "sk").Delete("a", "b").ReturnOld().SendAsync();
 
         // Assert
-        await Assert.That(result.Attributes!.GetString("pk")).IsEqualTo("a");
+        await Assert.That(result.Item!.GetString("pk")).IsEqualTo("a");
     }
 
     [Test]

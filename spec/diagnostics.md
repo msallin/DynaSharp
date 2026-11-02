@@ -17,7 +17,7 @@ its table that a build shows beside it goes away with it.
 | `DYNA004` | Two members want one attribute | Rename one with `[DynamoDbAttribute]` or `AttributeName` |
 | `DYNA005` | No single constructor can be used | Mark one with `[DynamoDbConstructor]` |
 | `DYNA006` | A constructor parameter has no property | Name it after a mapped property |
-| `DYNA007` | The type cannot be mapped, for the reason the message gives | Map another type, or change what the message names |
+| `DYNA007` | The type cannot be mapped, for the reason the message gives: it is abstract, static, generic, a ref struct, an interface, or file-local, which the generated code cannot merge with | Map another type, or change what the message names |
 | `DYNA008` | A converter does not implement `IDynamoDbConverter<T>` for the property | Fix its interface, or make it accessible |
 | `DYNA009` | A key is declared twice | Keep one declaration |
 | `DYNA010` | An attribute name DynamoDB would refuse | Pick another |
@@ -97,7 +97,7 @@ Sending a command twice is not a compile error. It throws `InvalidOperationExcep
 fluent call: build the command again. `DYNA204` reports what the build can see of that.
 
 `DYNA202` (warning) reports `await shop.Query("a")` and `shop.Query("a").SendAsync()`. A read can end in several ways and none of them is
-the default, so name one: `ItemsAsync`, `ItemAsync` on a query, `PageAsync`, `PagesAsync` or `CountAsync`. Without this rule the compiler answers with a constraint
+the default, so name one. Every read has `ItemsAsync`. A query adds `ItemAsync`, and most reads add `PageAsync`, `PagesAsync` and `CountAsync`, but not all of them: a `Select` and a mixed read have no `CountAsync`, a fan-out has no `PagesAsync`, and a parallel scan has `ItemsAsync` alone. Without this rule the compiler answers with a constraint
 on a type parameter (CS0315), which says nothing about what to write. An extension method of your own that makes a read awaitable is not
 reported.
 
@@ -166,4 +166,5 @@ not looked at.
 
 `DYNA216` (warning): `begins_with` or `contains` with a handle of a number or a boolean as its first operand, as in `$"contains({Order.Attrs.Lines}, {1})"`. It is valid grammar, DynamoDB finds no item, and the
 result is empty. `Handle.BeginsWith(...)` on such a handle does not compile (`CS0619`), and this is the same mistake where a type cannot say so, because the text of an expression is not checked by the
-compiler. Compare the attribute with `Eq`, `Gt` or `Between`, or store text. `contains` on a set or a list wants a handle of that type, and a converter of your own is not looked at.
+compiler. A `[Flags]` enum is stored as a number too, and its handle has a generated converter that no overload can name, so `BeginsWith` compiles there and this rule reports it as well. Any other enum is stored by name, so it is
+not reported. Compare the attribute with `Eq`, `Gt` or `Between`, or store text. `contains` on a set or a list wants a handle of that type, and a converter of your own is not looked at.

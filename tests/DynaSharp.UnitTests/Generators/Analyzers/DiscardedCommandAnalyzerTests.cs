@@ -129,6 +129,36 @@ public sealed class DiscardedCommandAnalyzerTests
     }
 
     [Test]
+    public async Task Analyze_StaticReadOfADocumentThatCanBeARefStruct_ReportsNothing()
+    {
+        // Arrange (IDynamoDbDocument<T> is over T too, and what it reads is a value and no command)
+        var source = AnalyzerRun.Member("""private static void Run<T>(ref DynamoDbReader reader) where T : IDynamoDbDocument<T>, allows ref struct { T.ReadAttributes(ref reader); }""");
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("IConditional", """[|command.If(Attr("n").Exists())|];""")]
+    [Arguments("IFilterable", """[|command.Filter(Attr("n").Exists())|];""")]
+    [Arguments("IRetryable", """[|command.MaxAttempts(1)|];""")]
+    [Arguments("IUpdatable", """[|command.Set("n", 1)|];""")]
+    public async Task Analyze_GenericHelperOverAFluentInterface_ReportsTheCall(string fluent, string statement)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member($$"""private static void Apply<TCommand>(TCommand command) where TCommand : {{fluent}}<TCommand>, allows ref struct { {{statement}} }""");
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
+    }
+
+    [Test]
     public async Task Analyze_BodyOfAVoidMember_ReportsTheExpression()
     {
         // Arrange (an expression body of a void method drops the value as a statement would)
@@ -252,6 +282,8 @@ public sealed class DiscardedCommandAnalyzerTests
     [Arguments("""<T>(T value) where T : IOwnFluent<T>, allows ref struct""", "T")]
     [Arguments("""<T>(T value) where T : IConditional<T>""", "T")]
     [Arguments("""<T, U>(T value) where T : U, allows ref struct where U : allows ref struct""", "T, U")]
+    [Arguments("""<T>(T value) where T : IDynamoDbDocument<T>, allows ref struct""", "T")]
+    [Arguments("""<T>(T value) where T : IDynamoDbEntity<T>, allows ref struct""", "T")]
     public async Task Analyze_TypeParameterThatIsNoCommand_ReportsNothing(string signature, string arguments)
     {
         // Arrange (only a type that can be a ref struct and has a fluent interface of the library over itself stands for a command)

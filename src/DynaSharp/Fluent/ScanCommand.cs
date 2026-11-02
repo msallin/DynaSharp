@@ -150,7 +150,8 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
-    /// pages of this size. A small limit is a way to spread a scan out over time, because each page is one call.
+    /// pages of this size. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty filtered pages, and stops. A small limit is a way to
+    /// spread a scan out over time, because each page is one call.
     /// </summary>
     /// <param name="items">The most items per page; per segment, for a segmented scan.</param>
     /// <returns>The command, which replaces this one.</returns>

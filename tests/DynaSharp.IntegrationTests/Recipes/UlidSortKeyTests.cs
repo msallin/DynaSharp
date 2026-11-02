@@ -67,7 +67,7 @@ public sealed class UlidSortKeyTests(Backend backend)
         }
 
         // Act
-        var range = SortKey.Between(Timestamp(Noon.AddSeconds(30)), Timestamp(Noon.AddSeconds(150)) + "Z");
+        var range = SortKeyCondition.Between(Timestamp(Noon.AddSeconds(30)), Timestamp(Noon.AddSeconds(150)) + "Z");
         var read = await messages.Query(ChatMessage.Keys.Pk.Of(Ann), range).ItemsAsync().ToListAsync();
 
         // Assert

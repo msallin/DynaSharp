@@ -64,7 +64,7 @@ public sealed partial class CommandVectorTests
         [("DeleteItem", "ConsumedCapacityIndexes")] = client => client.Table("Users", "pk").Delete("user-1").ReturnCapacity(ReturnConsumedCapacity.Indexes).ToRequestJson(),
         [("Query", "Minimal")] = client => client.Table("Users", "pk").Query("user-1").ToRequestJson(),
         [("Query", "RangeOfItemsFromApiReference")] = client => client.Table("Reply", "Id", "ReplyDateTime").Index("PostedBy-Index", "Id", "PostedBy")
-            .Query("Amazon DynamoDB#DynamoDB Thread 1", SortKey.Between("User A", "User C"))
+            .Query("Amazon DynamoDB#DynamoDB Thread 1", SortKeyCondition.Between("User A", "User C"))
             .Limit(3)
             .Consistent()
             .Project("Id", "PostedBy", "ReplyDateTime")
@@ -207,19 +207,19 @@ public sealed partial class CommandVectorTests
             .ToRequestJson(),
         [("DeleteItem", "IfExists")] = client => Shop(client).Delete("CUSTOMER#alice", "PROFILE").IfExists().ReturnOldOnFailure().ToRequestJson(),
         [("Query", "Partition")] = client => Shop(client).Query("CUSTOMER#alice").ToRequestJson(),
-        [("Query", "SortKeyEquals")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Eq("PROFILE")).ToRequestJson(),
-        [("Query", "SortKeyBelow")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Lt("ORDER#5")).ToRequestJson(),
-        [("Query", "SortKeyUpTo")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Le("ORDER#5")).ToRequestJson(),
-        [("Query", "SortKeyAbove")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Gt(5)).ToRequestJson(),
-        [("Query", "SortKeyFrom")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Ge("ORDER#5")).ToRequestJson(),
-        [("Query", "SortKeyBetween")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.Between("ORDER#1", "ORDER#9")).ToRequestJson(),
-        [("Query", "SortKeyBeginsWith")] = client => Shop(client).Query("CUSTOMER#alice", SortKey.BeginsWith("ORDER#")).ToRequestJson(),
+        [("Query", "SortKeyEquals")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Eq("PROFILE")).ToRequestJson(),
+        [("Query", "SortKeyBelow")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Lt("ORDER#5")).ToRequestJson(),
+        [("Query", "SortKeyUpTo")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Le("ORDER#5")).ToRequestJson(),
+        [("Query", "SortKeyAbove")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Gt(5)).ToRequestJson(),
+        [("Query", "SortKeyFrom")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Ge("ORDER#5")).ToRequestJson(),
+        [("Query", "SortKeyBetween")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.Between("ORDER#1", "ORDER#9")).ToRequestJson(),
+        [("Query", "SortKeyBeginsWith")] = client => Shop(client).Query("CUSTOMER#alice", SortKeyCondition.BeginsWith("ORDER#")).ToRequestJson(),
         [("Query", "ReservedWords")] = client => Shop(client).Query("CUSTOMER#alice")
             .Filter($"{Attr("status")} = {"open"} AND {Attr("size")} > {1}")
             .Project("status", "order", "address.city")
             .ToRequestJson(),
         [("Query", "TwoFilters")] = client => Shop(client).Query("CUSTOMER#alice").Filter(Attr("a").Eq(1)).Filter($"size({Attr("tags")}) < {10}").ToRequestJson(),
-        [("Query", "Entity")] = client => client.Table<Customer>("Shop").Query("CUSTOMER#alice", SortKey.BeginsWith("P")).Filter(Customer.Attrs.FullName.Eq("Alice")).ToRequestJson(),
+        [("Query", "Entity")] = client => client.Table<Customer>("Shop").Query("CUSTOMER#alice", SortKeyCondition.BeginsWith("P")).Filter(Customer.Attrs.FullName.Eq("Alice")).ToRequestJson(),
         [("Query", "EntityProjection")] = client => client.Table<Customer>("Shop").Query("CUSTOMER#alice").Project("fullName").ToRequestJson(),
         [("Query", "EntityIndexProjection")] = client => client.Table<Customer>("Shop").Index("ByName").Query("Alice").Project("email").ToRequestJson(),
         [("Scan", "Entity")] = client => client.Table<Customer>("Shop").Scan().Filter(Customer.Attrs.OrderCount.Gt(0)).ToRequestJson(),

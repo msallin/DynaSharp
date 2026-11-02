@@ -282,7 +282,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         return new(state, state.Table);
     }
 
-    /// <summary>Returns the item as it was before the update in <see cref="WriteResult{T}.Attributes"/> (<c>ALL_OLD</c>). There is none if the update created it.</summary>
+    /// <summary>Returns the item as it was before the update in <see cref="WriteResult{T}.Item"/> (<c>ALL_OLD</c>). There is none if the update created it.</summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> ReturnOld()
     {
@@ -291,7 +291,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         return new(state, state.Table);
     }
 
-    /// <summary>Returns the whole item as it is after the update in <see cref="WriteResult{T}.Attributes"/> (<c>ALL_NEW</c>).</summary>
+    /// <summary>Returns the whole item as it is after the update in <see cref="WriteResult{T}.Item"/> (<c>ALL_NEW</c>).</summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> ReturnNew()
     {

@@ -308,6 +308,19 @@ public sealed class ErrorMapperTests
     }
 
     [Test]
+    public async Task Map_CancellationReasonWithANullMessage_HasNoMessage()
+    {
+        // Arrange (DynamoDB Local leaves the member out for the code None, and the API reference speaks of a null message)
+        const string body = """{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"None","Message":null}],"Message":"Transaction cancelled"}""";
+
+        // Act
+        var exception = (TransactionCanceledException)Map(HttpStatusCode.BadRequest, body);
+
+        // Assert
+        await Assert.That((exception.CancellationReasons.Single().Code, exception.CancellationReasons.Single().Message)).IsEqualTo(("None", (string?)null));
+    }
+
+    [Test]
     public async Task Map_CancellationReasonWithoutCode_HasNoCode()
     {
         // Arrange

@@ -246,8 +246,11 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
-            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKeyCondition.Ge(...)</c>.</summary>
             public static global::DynaSharp.AttributeValue Of(global::Shapes.ExplicitConverters.Cents net) => global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<global::Shapes.ExplicitConverters.Cents, global::Shapes.ExplicitConverters.CentsConverter>(net);
+
+            /// <summary>The condition <c>=</c> on the key, which is one item of the partition.</summary>
+            public static global::DynaSharp.SortKeyCondition Eq(global::Shapes.ExplicitConverters.Cents net) => global::DynaSharp.SortKeyCondition.Eq(Of(net));
         }
     }
 }

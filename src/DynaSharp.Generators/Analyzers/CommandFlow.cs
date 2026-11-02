@@ -172,10 +172,18 @@ internal static class CommandFlow
     // Children come in evaluation order, and an operation happens after its children: the await of `await cmd.SendAsync()` follows the read of cmd.
     private static void Visit(IOperation operation, ISymbol variable, Rule rule, ref bool stale, HashSet<SyntaxNode> reads)
     {
-        if (operation is ISimpleAssignmentOperation assignment && Writes(assignment, variable))
+        if (operation is ISimpleAssignmentOperation assignment && Writes(assignment.Target, variable))
         {
             Visit(assignment.Value, variable, rule, ref stale, reads);
             stale = false;
+            return;
+        }
+
+        if (operation is IDeconstructionAssignmentOperation deconstruction)
+        {
+            var writes = VisitTargets(deconstruction.Target, variable, rule, ref stale, reads);
+            Visit(deconstruction.Value, variable, rule, ref stale, reads);
+            stale = stale && !writes;
             return;
         }
 
@@ -197,12 +205,53 @@ internal static class CommandFlow
         }
 
         stale |= rule.Spoils(operation);
+
+        // These read the variable before they write it, which the children above have seen.
+        if (IsWrittenInPlace(operation, variable))
+        {
+            stale = false;
+        }
     }
 
+    // What a target holds besides the variable is evaluated before the value: in (q, a[i]) = ..., i is read and q is written.
+    private static bool VisitTargets(IOperation target, ISymbol variable, Rule rule, ref bool stale, HashSet<SyntaxNode> reads)
+    {
+        if (target is IDeclarationExpressionOperation declaration)
+        {
+            return VisitTargets(declaration.Expression, variable, rule, ref stale, reads);
+        }
+
+        if (target is ITupleOperation tuple)
+        {
+            var writes = false;
+            foreach (var element in tuple.Elements)
+            {
+                writes |= VisitTargets(element, variable, rule, ref stale, reads);
+            }
+
+            return writes;
+        }
+
+        if (Writes(target, variable))
+        {
+            return true;
+        }
+
+        Visit(target, variable, rule, ref stale, reads);
+        return false;
+    }
+
+    private static bool IsWrittenInPlace(IOperation operation, ISymbol variable) => operation switch
+    {
+        ICompoundAssignmentOperation compound => Writes(compound.Target, variable),
+        IIncrementOrDecrementOperation step => Writes(step.Target, variable),
+        _ => false,
+    };
+
     // When the value branches or holds an initializer, the graph takes the target out of the assignment first, and then only the syntax still names it.
-    private static bool Writes(ISimpleAssignmentOperation assignment, ISymbol variable) =>
-        IsReferenceTo(assignment.Target, variable)
-        || (assignment.Target is IFlowCaptureReferenceOperation { Syntax: IdentifierNameSyntax name } && name.Identifier.ValueText == variable.Name);
+    private static bool Writes(IOperation target, ISymbol variable) =>
+        IsReferenceTo(target, variable)
+        || (target is IFlowCaptureReferenceOperation { Syntax: IdentifierNameSyntax name } && name.Identifier.ValueText == variable.Name);
 
     private static bool IsReferenceTo(IOperation operation, ISymbol variable) => operation switch
     {

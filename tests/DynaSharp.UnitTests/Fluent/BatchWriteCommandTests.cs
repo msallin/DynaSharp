@@ -573,12 +573,26 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
-    public async Task SendAsync_AnotherFailure_SurfacesAsItIs()
+    public async Task Put_ValueWithALoneSurrogate_ThrowsArgumentExceptionAndSendsNothing()
     {
-        // Arrange (one key twice in a request: DynamoDB rejects it, and the requests before it stay applied)
+        // Arrange
         using var handler = new StubHandler();
-        handler.Enqueue(StubResponse.Json("{}"));
-        handler.DefaultResponse = StubResponse.DynamoDbError("ValidationException", "Provided list of item keys contains duplicates");
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var act = () => shop.BatchWrite().Put(new Item { ["pk"] = "a", ["note"] = "b\uD800" }).SendAsync();
+
+        // Assert
+        await Assert.That(() => act().AsTask()).ThrowsExactly<ArgumentException>();
+        await Assert.That(handler.Requests.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SendAsync_RejectedOnTheFirstRequest_SurfacesAsItIs()
+    {
+        // Arrange (nothing was applied, so there is nothing to report but the failure)
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ValidationException", "Provided list of item keys contains duplicates"));
         using var client = TestClient.Create(handler);
         var shop = client.Table("Shop", "pk");
 
@@ -586,7 +600,100 @@ public sealed class BatchWriteCommandTests
         var failure = await TestClient.CaptureAsync<ValidationException>(async () => await SendMany(shop, 27));
 
         // Assert
-        await Assert.That((handler.Requests.Count, failure.Expressions)).IsEqualTo((2, (IReadOnlyDictionary<string, string>?)null));
+        await Assert.That((handler.Requests.Count, failure.Expressions)).IsEqualTo((1, (IReadOnlyDictionary<string, string>?)null));
+    }
+
+    [Test]
+    public async Task SendAsync_NetworkFailureOnTheFirstRequest_SurfacesAsItIs()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => throw new HttpRequestException("No route."));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<HttpRequestException>(async () => await SendMany(shop, 27));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("No route.");
+    }
+
+    [Test]
+    public async Task SendAsync_RejectedAfterARequestWentThrough_HoldsTheProgressAndTheFailure()
+    {
+        // Arrange (one key twice in the second request: DynamoDB rejects it, and the first stays applied)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("{}"));
+        handler.DefaultResponse = StubResponse.DynamoDbError("ValidationException", "Provided list of item keys contains duplicates");
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 27));
+
+        // Assert
+        await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException is ValidationException, handler.Requests.Count)).IsEqualTo((25, 2, true, 2));
+    }
+
+    [Test]
+    public async Task SendAsync_RejectedAfterAPartOfTheRequest_HoldsWhatWasLeftAndTheRest()
+    {
+        // Arrange (the first response leaves one of 25, and the repeat of it is rejected)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"UnprocessedItems":{"Shop":[{"PutRequest":{"Item":{"pk":{"S":"item-24"}}}}]}}"""));
+        handler.DefaultResponse = StubResponse.DynamoDbError("ResourceNotFoundException", "Deleted meanwhile.");
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 30));
+
+        // Assert
+        await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException is ResourceNotFoundException)).IsEqualTo((24, 6, true));
+    }
+
+    [Test]
+    public async Task SendAsync_NetworkFailureAfterARequestWentThrough_HoldsTheProgressAndTheFailure()
+    {
+        // Arrange
+        var calls = 0;
+        using var handler = new StubHandler(_ => ++calls > 1 ? throw new HttpRequestException("No route.") : StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 27));
+
+        // Assert
+        await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException is HttpRequestException)).IsEqualTo((25, 2, true));
+    }
+
+    [Test]
+    public async Task SendAsync_CancelledAfterARequestWentThrough_ThrowsWithTheTokenOfTheCaller()
+    {
+        // Arrange
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var calls = 0;
+        using var handler = new StubHandler(async (_, cancelled) =>
+        {
+            if (++calls == 1)
+            {
+                return StubResponse.Json("{}");
+            }
+
+            await cancellation.CancelAsync();
+            cancelled.ThrowIfCancellationRequested();
+            return StubResponse.Json("{}");
+        });
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(async () => await SendMany(shop, 27, cancellationToken: token));
+
+        // Assert
+        await Assert.That((failure.CancellationToken == token, handler.Requests.Count)).IsEqualTo((true, 2));
     }
 
     [Test]
@@ -1335,7 +1442,7 @@ public sealed class BatchWriteCommandTests
     private static Task<BatchWriteResult> Send(Table<Item> table) => table.BatchWrite().Put(Numbered(0)).SendAsync().AsTask();
 
     // Numbered items, the last of them one on another table if there is one. The numbers repeat from 26 on, so 27 writes hold one key twice in a request of their own.
-    private static ValueTask<BatchWriteResult> SendMany(Table<Item> table, int count, Table<Item>? other = null)
+    private static ValueTask<BatchWriteResult> SendMany(Table<Item> table, int count, Table<Item>? other = null, CancellationToken cancellationToken = default)
     {
         var command = table.BatchWrite();
         for (var i = 0; i < count; i++)
@@ -1343,7 +1450,7 @@ public sealed class BatchWriteCommandTests
             command = command.Put(Numbered(i % 60));
         }
 
-        return (other is null ? command : command.Put(other, Numbered(count))).SendAsync();
+        return (other is null ? command : command.Put(other, Numbered(count))).SendAsync(cancellationToken);
     }
 
     private static Task<BatchWriteResult> SendWith(Table<Item> table, CancellationToken cancellationToken) =>

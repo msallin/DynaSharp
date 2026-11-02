@@ -80,6 +80,52 @@ public sealed class CommandAllocationTests
     }
 
     [Test]
+    public async Task Build_QueryWithAConditionOfLiterals_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var settings = client.Table<SiteSettings>("Shop");
+
+        // Act (the text of the key is a constant, as the one of BeginsWith() is)
+        var allocated = Measure(settings, static table => CommandHelpers.FinishAndRelease(table.Query(SiteSettings.Keys.Pk.Of(), SiteSettings.Keys.Sk.Eq()).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_QueryWithARangeOfAPlainString_AllocatesNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var plain = client.Table<PlainKeys>("Shop");
+
+        // Act (a string stored as it is has nothing to format, as a prefix of BeginsWith has not)
+        var allocated = Measure(plain, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, PlainKeys.Keys.Sk.Between("a", "b")).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task Build_QueryWithARangeThatIsMade_AllocatesNothing()
+    {
+        // Arrange (its bounds are made before, as the text of a BeginsWith(value) is: what is formatted costs what Format costs)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var orders = client.Table<KeyedOrder>("Shop");
+        var range = KeyedOrder.Keys.Sk.Between(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
+
+        // Act
+        var allocated = Measure(orders, table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, range).Handle));
+
+        // Assert
+        await Assert.That(allocated).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task Build_QueryByAPlainStringKey_AllocatesNothing()
     {
         // Arrange
@@ -512,7 +558,7 @@ public sealed class CommandAllocationTests
 
         // Act
         var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(
-            table.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Filter($"{Attr("total")} > {100}").Filter(Attr("status").Eq("open")).Project("total", "status").Limit(25).Descending().Consistent().ReturnCapacity().MaxAttempts(1)));
+            table.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Filter($"{Attr("total")} > {100}").Filter(Attr("status").Eq("open")).Project("total", "status").Limit(25).Descending().Consistent().ReturnCapacity().MaxAttempts(1)));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -527,7 +573,7 @@ public sealed class CommandAllocationTests
         var index = client.Table<Customer>("Shop").Index("ByName");
 
         // Act
-        var allocated = Measure(index, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, global::DynaSharp.SortKey.Gt("a")).Filter(Customer.Attrs.OrderCount.Gt(1)).Project("email")));
+        var allocated = Measure(index, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, global::DynaSharp.SortKeyCondition.Gt("a")).Filter(Customer.Attrs.OrderCount.Gt(1)).Project("email")));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -716,7 +762,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table("Shop", "pk", "sk").Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Filter(Attr("status").Eq("open")).Project("total").Handle.State!;
+        var state = client.Table("Shop", "pk", "sk").Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Filter(Attr("status").Eq("open")).Project("total").Handle.State!;
         state.PageKey.Append(Encoding.UTF8.GetBytes("""{"pk":{"S":"USER#4f9c2a7e-0b1d-4c3e-9a8f-6d5e4c3b2a19"},"sk":{"S":"ORDER#2026-10-31T12:34:56.789Z"}}"""));
 
         // Act

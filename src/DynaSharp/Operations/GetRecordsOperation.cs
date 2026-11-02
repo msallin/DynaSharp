@@ -141,8 +141,8 @@ internal readonly struct GetRecordsOperation : IOperation<GetRecordsRequest, Get
     {
         DateTimeOffset? approximateCreationDateTime = null;
         IReadOnlyDictionary<string, AttributeValue>? keys = null;
-        IReadOnlyDictionary<string, AttributeValue>? newImage = null;
-        IReadOnlyDictionary<string, AttributeValue>? oldImage = null;
+        Item? newImage = null;
+        Item? oldImage = null;
         string? sequenceNumber = null;
         long? sizeBytes = null;
         var streamViewType = StreamViewType.Unspecified;

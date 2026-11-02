@@ -150,7 +150,8 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
-    /// pages of this size, and with a filter a page holds fewer items than this. To stop early, stop enumerating, or read one page with <see cref="PageAsync"/>.
+    /// pages of this size, and with a filter a page holds fewer items than this. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty
+    /// filtered pages, and stops. To read one page, use <see cref="PageAsync"/>.
     /// </summary>
     /// <param name="items">The most items per page.</param>
     /// <returns>The command, which replaces this one.</returns>

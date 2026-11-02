@@ -390,7 +390,7 @@ public sealed class RetryTelemetryTests
     [Test]
     public async Task GetItemAsync_RetryAfterAWait_RecordsTheDurationOfTheWholeOperation()
     {
-        // Arrange (a wait of 25 ms between two attempts that take no time on the clock of the test)
+        // Arrange (a wait of 100 ms between two attempts that take no time on the clock of the test)
         var time = new ManualTimeProvider();
         var table = UniqueTable();
         using var metric = MeasurementCapture<double>.ForTable(table, TelemetryNames.DurationMetric);
@@ -401,10 +401,10 @@ public sealed class RetryTelemetryTests
         var call = client.GetItemAsync(TestClient.GetItem(table));
 
         // Act
-        time.Advance(TimeSpan.FromMilliseconds(25));
+        time.Advance(TimeSpan.FromMilliseconds(100));
         await call;
 
         // Assert (one measurement for the operation, not one per attempt)
-        await Assert.That(metric.Single().Value).IsEqualTo(0.025);
+        await Assert.That(metric.Single().Value).IsEqualTo(0.1);
     }
 }

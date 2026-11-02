@@ -178,8 +178,26 @@ partial record BinaryKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Bina
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
-            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKeyCondition.Ge(...)</c>.</summary>
             public static global::DynaSharp.AttributeValue Of(global::System.DateTimeOffset at) => global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>(at);
+
+            /// <summary>The condition <c>=</c> on the key, which is one item of the partition.</summary>
+            public static global::DynaSharp.SortKeyCondition Eq(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.Eq(Of(at));
+
+            /// <summary>The condition <c>&gt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Ge(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.Ge(Of(at));
+
+            /// <summary>The condition <c>&gt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Gt(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.Gt(Of(at));
+
+            /// <summary>The condition <c>&lt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Le(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.Le(Of(at));
+
+            /// <summary>The condition <c>&lt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Lt(global::System.DateTimeOffset at) => global::DynaSharp.SortKeyCondition.Lt(Of(at));
+
+            /// <summary>The condition <c>BETWEEN</c> on the key, with both bounds included. DynamoDB rejects a lower bound above the upper one.</summary>
+            public static global::DynaSharp.SortKeyCondition Between(global::System.DateTimeOffset from, global::System.DateTimeOffset to) => global::DynaSharp.SortKeyCondition.Between(Of(from), Of(to));
 
             /// <summary>Formats the complete key.</summary>
             public static string Format(global::System.DateTimeOffset at) => Of(at).AsString();

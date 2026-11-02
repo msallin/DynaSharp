@@ -258,7 +258,7 @@ public partial class TableBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("UpdateItem")]
-    public async Task<bool> Update_ReturnNewTyped() => (await _newItemTyped.Update(new BenchOrder.Key(PartitionKey, SortKey)).Set(Currency, "EUR").ReturnNew()).HasAttributes;
+    public async Task<bool> Update_ReturnNewTyped() => (await _newItemTyped.Update(new BenchOrder.Key(PartitionKey, SortKey)).Set(Currency, "EUR").ReturnNew()).HasItem;
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("DeleteItem")]
@@ -297,7 +297,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_Items()
     {
         var count = 0;
-        await foreach (var unused in _lastPageTable.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var unused in _lastPageTable.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             count++;
         }
@@ -310,7 +310,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_Typed()
     {
         var count = 0;
-        await foreach (var unused in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var unused in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             count++;
         }
@@ -323,7 +323,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_ItemsReadThree()
     {
         var length = 0;
-        await foreach (var item in _lastPageTable.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var item in _lastPageTable.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             length += item.GetString("currency")!.Length + item.GetString("sk")!.Length + (int)item.GetNumber<decimal>("total")!.Value;
         }
@@ -336,7 +336,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_TypedReadThree()
     {
         var length = 0;
-        await foreach (var order in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var order in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             length += order.Currency.Length + order.Sk.Length + (int)order.Total;
         }
@@ -346,7 +346,7 @@ public partial class TableBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Query")]
-    public async Task<int> Query_PageWithNext() => (await _pageTable.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Count;
+    public async Task<int> Query_PageWithNext() => (await _pageTable.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Count;
 
     [Benchmark]
     [BenchmarkCategory("Query")]
@@ -493,7 +493,7 @@ public partial class TableBenchmarks
     [Benchmark]
     [BenchmarkCategory("Body")]
     public int Body_Query() =>
-        Finish(_getTable.Query(PartitionKey, global::DynaSharp.SortKey.BeginsWith("ORDER#")).Filter(Attr("status").Eq("open")).Limit(25).Handle);
+        Finish(_getTable.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Filter(Attr("status").Eq("open")).Limit(25).Handle);
 
     private static string QueryPage(string end)
     {

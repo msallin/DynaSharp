@@ -84,6 +84,8 @@ public readonly ref struct DynamoDbWriter
 
     private PooledByteBuffer? Direct { get; }
 
+    private bool IsForDisplay { get; init; }
+
     // Inside a list or map the JSON writer holds what came before, and the order of the output is its business.
     private PooledByteBuffer? DirectBuffer => Json.CurrentDepth == 0 ? Direct : null;
 
@@ -94,11 +96,17 @@ public readonly ref struct DynamoDbWriter
     /// <summary>Writes the name of the next attribute in a map or item.</summary>
     /// <param name="name">The attribute name.</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public void WriteAttributeName(string name) => Json.WritePropertyName(name);
+    /// <exception cref="ArgumentException"><paramref name="name"/> holds a lone surrogate, which is not text.</exception>
+    public void WriteAttributeName(string name)
+    {
+        ThrowIfNoText(name, nameof(name));
+        Json.WritePropertyName(name);
+    }
 
     /// <summary>Writes a string value, <c>{"S":"..."}</c>.</summary>
     /// <param name="value">The string. Empty strings are allowed except in key attributes, which DynamoDB validates.</param>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>; write <see cref="WriteNull"/> instead.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> holds a lone surrogate, which is not text, and would otherwise be stored as U+FFFD.</exception>
     public void WriteString(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -108,6 +116,7 @@ public readonly ref struct DynamoDbWriter
             return;
         }
 
+        ThrowIfNoText(value, nameof(value));
         Json.WriteStartObject();
         Json.WriteString(StringDescriptor, value);
         Json.WriteEndObject();
@@ -274,9 +283,11 @@ public readonly ref struct DynamoDbWriter
     /// <summary>Writes an element of a string set: a plain JSON string without type descriptor.</summary>
     /// <param name="value">The string.</param>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> holds a lone surrogate, which is not text, and would otherwise be stored as U+FFFD.</exception>
     public void WriteStringSetElement(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
+        ThrowIfNoText(value, nameof(value));
         Json.WriteStringValue(value);
     }
 
@@ -324,6 +335,14 @@ public readonly ref struct DynamoDbWriter
     /// <summary>Ends an item started with <see cref="WriteStartItem"/>.</summary>
     public void WriteEndItem() => Json.WriteEndObject();
 
+    /// <summary>
+    /// Creates a writer for the text of <c>ToString</c>, which nothing stores and the debugger shows. A lone surrogate comes out as U+FFFD here and does not throw, because this text
+    /// is what someone reads to find out why a request failed.
+    /// </summary>
+    /// <param name="json">The destination.</param>
+    /// <returns>The writer.</returns>
+    internal static DynamoDbWriter ForDisplay(Utf8JsonWriter json) => new(json) { IsForDisplay = true };
+
     private static void WritePlain(PooledByteBuffer direct, ReadOnlySpan<byte> start, string value)
     {
         direct.Append(start);
@@ -345,6 +364,15 @@ public readonly ref struct DynamoDbWriter
         direct.Append(text[..written]);
         direct.Append("\"}"u8);
         return true;
+    }
+
+    // Text with a lone surrogate would be stored as U+FFFD, so that is a failure, except in the text of ToString.
+    private void ThrowIfNoText(string text, string parameterName)
+    {
+        if (!IsForDisplay)
+        {
+            WireJson.ThrowIfLoneSurrogate(text, parameterName);
+        }
     }
 
     private void WriteStartSet(JsonEncodedText descriptor)

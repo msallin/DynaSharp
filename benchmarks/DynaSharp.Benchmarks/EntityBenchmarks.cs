@@ -299,30 +299,30 @@ public class EntityBenchmarks
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Query100")]
     public async Task<int> Query_Generated() =>
-        (await _queryOrders.Query(PartitionKey, SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
+        (await _queryOrders.Query(PartitionKey, SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
 
     [Benchmark]
     [BenchmarkCategory("Query100")]
     public async Task<int> Query_GeneratedWithSet() =>
-        (await _queryOrdersWithSet.Query(PartitionKey, SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
+        (await _queryOrdersWithSet.Query(PartitionKey, SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
 
     [Benchmark]
     [BenchmarkCategory("Query100")]
     public async Task<int> Query_GeneratedTemplateKeys() =>
         (await _queryOrdersWithTemplateKeys
-            .Query(EntityOrderWithTemplateKeys.Keys.Pk.Format(UserId), SortKey.BeginsWith(EntityOrderWithTemplateKeys.Keys.Sk.Prefix()))
+            .Query(EntityOrderWithTemplateKeys.Keys.Pk.Format(UserId), SortKeyCondition.BeginsWith(EntityOrderWithTemplateKeys.Keys.Sk.Prefix()))
             .Limit(QueryPageSize)
             .PageAsync()).Items.Count;
 
     [Benchmark]
     [BenchmarkCategory("Query100")]
     public async Task<int> Query_HandWritten() =>
-        (await _queryHandWritten.Query(PartitionKey, SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
+        (await _queryHandWritten.Query(PartitionKey, SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
 
     [Benchmark]
     [BenchmarkCategory("Query100")]
     public async Task<int> Query_Item() =>
-        (await _queryItems.Query(PartitionKey, SortKey.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
+        (await _queryItems.Query(PartitionKey, SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).PageAsync()).Items.Count;
 
     [Benchmark]
     [BenchmarkCategory("Query100")]

@@ -70,6 +70,11 @@ public interface IDynamoDbConverter<T>
     /// Finds out what a read of one attribute gives when the item does not have it. No value is the answer for most types, and the read then throws <see cref="DynamoDbMappingException"/> rather than
     /// make one up. A nullable type answers with null, because null is left out on write, and a set with an empty set, because DynamoDB has none.
     /// </summary>
+    /// <remarks>
+    /// This is infrastructure of <c>Select</c>, which alone asks it, and the built-in converters answer for themselves. A converter of your own needs it in one case: a converter of a set, because an empty set
+    /// is a missing attribute in DynamoDB, so without an answer here a <c>Select</c> throws for every item whose set is empty. A read of the entity does not ask this: a property with a converter of your own keeps its
+    /// initial value, or throws if it is <c>required</c>.
+    /// </remarks>
     /// <param name="value">The value, if there is one.</param>
     /// <returns><see langword="true"/> if a missing attribute has a value of this type.</returns>
     public static virtual bool TryReadMissing(out T value)

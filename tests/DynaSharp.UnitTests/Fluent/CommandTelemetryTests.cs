@@ -268,7 +268,7 @@ public sealed class CommandTelemetryTests
         using var handler = new StubHandler(_ => PageJson.Last());
 
         // Act
-        var activity = await RunAsync(handler, async client => await client.Table("Users", "pk", "sk").Query("key-secret", SortKey.BeginsWith("sort-secret")).Filter(Attr("m").Eq("value-secret")).ItemsAsync().ToListAsync());
+        var activity = await RunAsync(handler, async client => await client.Table("Users", "pk", "sk").Query("key-secret", SortKeyCondition.BeginsWith("sort-secret")).Filter(Attr("m").Eq("value-secret")).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(Tags(activity)).DoesNotContain("secret").And.DoesNotContain(":v0").And.DoesNotContain("#n0");
@@ -284,7 +284,7 @@ public sealed class CommandTelemetryTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table("Users", "pk", "sk").Query(["key-secret-0", "key-secret-1"], SortKey.Ge("sort-secret")).Filter(Attr("m").Eq("value-secret")).Descending().Project("x").ItemsAsync().ToListAsync();
+        await client.Table("Users", "pk", "sk").Query(["key-secret-0", "key-secret-1"], SortKeyCondition.Ge("sort-secret")).Filter(Attr("m").Eq("value-secret")).Descending().Project("x").ItemsAsync().ToListAsync();
         var activities = capture.All;
 
         // Assert

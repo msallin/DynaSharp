@@ -533,6 +533,47 @@ public sealed class AttributeValueTests
     }
 
     [Test]
+    [Arguments("1E-29")]
+    [Arguments("0.12345678901234567890123456789012345678")]
+    public async Task AsNumber_DecimalThatWouldLoseDigits_ThrowsOverflowException(string text)
+    {
+        // Arrange
+        var value = AttributeValue.FromNumber(text);
+
+        // Act
+        var act = () => value.AsNumber<decimal>();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<OverflowException>();
+    }
+
+    [Test]
+    public async Task AsNumber_HalfBeyondTheType_ThrowsOverflowException()
+    {
+        // Arrange
+        var value = AttributeValue.FromNumber("70000");
+
+        // Act
+        var act = () => value.AsNumber<Half>();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<OverflowException>();
+    }
+
+    [Test]
+    public async Task ToString_LoneSurrogate_ShowsTheReplacementCharacter()
+    {
+        // Arrange
+        AttributeValue value = "a\uD800";
+
+        // Act
+        var text = value.ToString();
+
+        // Assert
+        await Assert.That(text).IsEqualTo("""{"S":"a\uFFFD"}""");
+    }
+
+    [Test]
     public async Task AsNumber_NotANumber_ThrowsFormatException()
     {
         // Arrange

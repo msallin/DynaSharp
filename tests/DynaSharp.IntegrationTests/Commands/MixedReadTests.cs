@@ -110,7 +110,7 @@ public sealed class MixedReadTests(Backend backend)
         await sandbox.Shop.Put(new Item { ["pk"] = AlicePartition, ["sk"] = "VOUCHER#1", ["_type"] = "VOUCHER" }).SendAsync();
 
         // Act
-        var items = await Read.ToListAsync(sandbox.Shop.Index(ShopSandbox.ByPartitionAndType, "pk", "_type").Query(AlicePartition, SortKey.Between("CUSTOMER", "ORDER")).Of<Customer, Order>().ItemsAsync());
+        var items = await Read.ToListAsync(sandbox.Shop.Index(ShopSandbox.ByPartitionAndType, "pk", "_type").Query(AlicePartition, SortKeyCondition.Between("CUSTOMER", "ORDER")).Of<Customer, Order>().ItemsAsync());
 
         // Assert
         await Assert.That(items.Count).IsEqualTo(3);

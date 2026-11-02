@@ -222,6 +222,7 @@ Prefixes and ranges:
   validated like a value, and its caveat (`USER#1` matches `USER#10`) is the point of using it.
 - `Prefix(createdAt)` as an upper bound excludes items at `createdAt`. `UpperBound` includes them, so
   `BETWEEN Prefix(a) AND UpperBound(b)` is inclusive on whole fields.
+- The builders turn this into conditions: `Keys.Sk.Between`, `Ge`, `Gt`, `Le`, `Lt` and `Eq`. A range exists only where the bytes of the key follow the values, which `api.md` section 6 spells out.
 - In a sort key a variable-width string before a delimiter breaks segment order for values containing characters below the
   delimiter: with `#` those are space, `!` and `"`, so `USER#a b#1` sorts before `USER#a#1`. `begins_with` with a whole-field
   prefix is unaffected. The generator reports that position as `DYNA115`, at Info severity.

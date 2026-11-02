@@ -197,7 +197,7 @@ public sealed class PartitionKeyTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<NumberKeyed>("Shop").Query(NumberKeyed.Keys.Pk.Of(7), SortKey.Ge(NumberKeyed.Keys.Sk.Of(5))).ToRequestJson();
+        var json = client.Table<NumberKeyed>("Shop").Query(NumberKeyed.Keys.Pk.Of(7), SortKeyCondition.Ge(NumberKeyed.Keys.Sk.Of(5))).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","KeyConditionExpression":"#n0 = :v0 AND #n1 >= :v1","FilterExpression":"#n2 = :v2","ExpressionAttributeNames":{"#n0":"Id","#n1":"Sequence","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"N":"7"},":v1":{"N":"5"},":v2":{"S":"NUMBERED"}}}""");
@@ -240,7 +240,7 @@ public sealed class PartitionKeyTests
         var index = client.Table<OwnedThing>("Shop").Index(OwnedThing.Indexes.ByOwner);
 
         // Act
-        var json = index.Query(OwnedThing.Keys.ByOwnerPk.Of("alice"), SortKey.Gt(OwnedThing.Keys.ByOwnerSk.Of(3))).ToRequestJson();
+        var json = index.Query(OwnedThing.Keys.ByOwnerPk.Of("alice"), SortKeyCondition.Gt(OwnedThing.Keys.ByOwnerSk.Of(3))).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByOwner","KeyConditionExpression":"#n0 = :v0 AND #n1 > :v1","ExpressionAttributeNames":{"#n0":"owner","#n1":"rank"},"ExpressionAttributeValues":{":v0":{"S":"alice"},":v1":{"N":"3"}}}""");

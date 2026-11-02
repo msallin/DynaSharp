@@ -32,9 +32,9 @@ public sealed class CreateTableCommandTests(Backend backend)
         var byCategory = await articles.Index(Article.Indexes.Gsi1).Query(Article.Keys.Gsi1Pk.Format("office")).ItemsAsync().ToListAsync();
         var byParcel = await purchases.Index(Purchase.Indexes.ByParcel).Query(Purchase.Keys.ByParcelPk.Format("P-1")).ItemsAsync().ToListAsync();
         var byEmail = await shoppers.Index(Shopper.Indexes.ByEmail).Query(Shopper.Keys.ByEmailPk.Format("ann@example.ch")).ItemsAsync().ToListAsync();
-        var byStock = await articles.Index(Article.Indexes.ByStock).Query("office", SortKey.Lt(10)).ItemsAsync().ToListAsync();
+        var byStock = await articles.Index(Article.Indexes.ByStock).Query("office", SortKeyCondition.Lt(10)).ItemsAsync().ToListAsync();
         var byTotal = await purchases.Index(Purchase.Indexes.ByTotal).Query(Purchase.Keys.Pk.Format("ann")).ItemsAsync().ToListAsync();
-        var byLines = await purchases.Index(Purchase.Indexes.ByLines).Query(Purchase.Keys.Pk.Format("ann"), SortKey.Ge(10)).ItemsAsync().ToListAsync();
+        var byLines = await purchases.Index(Purchase.Indexes.ByLines).Query(Purchase.Keys.Pk.Format("ann"), SortKeyCondition.Ge(10)).ItemsAsync().ToListAsync();
         var deleted = await purchases.DeleteTableAsync();
 
         // Assert (the number keys sort as numbers, so 9 is below 10 and 11 above it, which strings would turn around)

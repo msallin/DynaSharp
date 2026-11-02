@@ -700,29 +700,143 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
-    public async Task SendAsync_IfNotExistsAndTheTableIsDeleting_ReturnsThatStatus()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SendAsync_IfNotExistsAndTheTableIsDeleting_RethrowsResourceInUse(bool wait)
     {
-        // Arrange (the schema and the status of what exists are not compared, as the docs say)
+        // Arrange (once the delete is through there is no table, so this is no table that exists)
         using var handler = new StubHandler();
         handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being deleted."));
         handler.Enqueue(StubResponse.Json(Deleting));
+        using var client = TestClient.Create(handler);
+        var command = client.Table("Shop", "pk").CreateTable().IfNotExists();
+        command = wait ? command.WaitUntilActive() : command;
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ResourceInUseException>(async () => await command.SendAsync());
+
+        // Assert
+        await Assert.That((failure.Message.Contains("being deleted", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, 2));
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SendAsync_IfNotExistsAndTheDeleteEndedBetweenTheCalls_CreatesTheTable(bool wait)
+    {
+        // Arrange (CreateTable saw the table on its way out, and DescribeTable does not find it any more)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being deleted."));
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Gone."));
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+        var command = client.Table("Shop", "pk").CreateTable().IfNotExists();
+        command = wait ? command.WaitUntilActive() : command;
+
+        // Act
+        var sending = command.SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+
+        // Assert
+        await Assert.That(((await sending).TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation))))
+            .IsEqualTo((wait ? TableStatus.Active : TableStatus.Creating, wait ? "CreateTable,DescribeTable,CreateTable,DescribeTable" : "CreateTable,DescribeTable,CreateTable"));
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SendAsync_IfNotExistsAndAnotherProcessIsCreatingTheTable_FindsItOnceDescribeTableDoes(bool wait)
+    {
+        // Arrange (two instances of a program start together, and DescribeTable lags behind the create of the other one)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        for (var look = 0; look < 2; look++)
+        {
+            handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being created."));
+            handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Not yet."));
+        }
+
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being created."));
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+        var command = client.Table("Shop", "pk").CreateTable().IfNotExists();
+        command = wait ? command.WaitUntilActive() : command;
+
+        // Act
+        var sending = command.SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+
+        // Assert
+        await Assert.That(((await sending).TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, wait ? 7 : 6));
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndDescribeTableNeverFindsTheTable_RethrowsAfterFiveCreatesAndBackedOffWaits()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        for (var look = 0; look < 5; look++)
+        {
+            handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being created."));
+            handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Not yet."));
+        }
+
+        using var client = TestClient.Create(handler, time);
+        var sending = client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<ResourceInUseException>(async () => await sending);
+
+        // Assert
+        await Assert.That((failure.Message.Contains("being created", StringComparison.Ordinal), handler.Requests.Count, string.Join(",", delays.Select(static delay => delay.TotalMilliseconds))))
+            .IsEqualTo((true, 10, "100,200,400,800"));
+    }
+
+    [Test]
+    public async Task SendAsync_NotIfNotExistsAndTheTableExists_CreatesOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ResourceInUseException", "Table already exists."));
+        using var client = TestClient.Create(handler);
+        var command = client.Table("Shop", "pk").CreateTable();
+
+        // Act
+        await TestClient.CaptureAsync<ResourceInUseException>(async () => await command.SendAsync());
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndTheTableIsCreating_ReturnsThatStatus()
+    {
+        // Arrange (the schema and the status of what exists are not compared, as the docs say)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being created."));
+        handler.Enqueue(StubResponse.Json(Creating));
         using var client = TestClient.Create(handler);
 
         // Act
         var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
 
         // Assert
-        await Assert.That(description.TableStatus).IsEqualTo(TableStatus.Deleting);
+        await Assert.That(description.TableStatus).IsEqualTo(TableStatus.Creating);
     }
 
     [Test]
-    public async Task SendAsync_IfNotExistsAndWaitUntilActive_WaitsForTheExistingTableWithoutAnExtraLook()
+    public async Task SendAsync_IfNotExistsAndWaitUntilActive_WaitsForTheExistingTable()
     {
-        // Arrange (DescribeTable can miss a table for a moment, which a wait bears with and a plain describe would not)
+        // Arrange
         var time = new ManualTimeProvider();
         using var handler = new StubHandler();
         handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table already exists."));
-        handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Not there yet."));
+        handler.Enqueue(StubResponse.Json(Creating));
+        handler.Enqueue(StubResponse.Json(Creating));
         handler.Enqueue(StubResponse.Json(Active));
         using var client = TestClient.Create(handler, time);
 
@@ -731,7 +845,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
 
         // Assert
-        await Assert.That(((await waiting).TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 3));
+        await Assert.That(((await waiting).TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 4));
     }
 
     [Test]

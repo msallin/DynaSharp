@@ -14,10 +14,11 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
     public const int TimeoutRetryCost = 10;
     public const int SuccessRefund = 1;
 
-    // DynamoDB answers in single-digit milliseconds, so a retry pays off after tens of milliseconds, not after the second that the
-    // generic standard mode waits. Throttling gets the larger base: the table needs time to recover.
+    // DynamoDB answers in single-digit milliseconds, so a retry after throttling pays off after tens of milliseconds, not after the second that the generic standard mode
+    // waits. Any other failure says less about the table and more about the way to it: a dependency that is still coming up, a proxy that answers before what is behind it.
+    // Those take longer than a table, so the default of 4 attempts gives them up to 700 ms, and a change here changes the docs of DynamoDbClientOptions.MaxAttempts.
     public const double ThrottlingBaseMilliseconds = 50;
-    public const double TransientBaseMilliseconds = 25;
+    public const double TransientBaseMilliseconds = 100;
     public const double MaxDelayMilliseconds = 20_000;
 
     // A conflict is over when the writer it lost to is done, which takes milliseconds, so the wait only keeps writers that failed together from
@@ -72,7 +73,7 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
     /// Picks a delay uniformly from zero to <c>min(20 s, base * 2^(attempt - 1))</c> ("full jitter"), so that clients that failed at
     /// the same moment do not retry at the same moment.
     /// </summary>
-    /// <param name="kind">How the attempt failed; throttling has the larger base.</param>
+    /// <param name="kind">How the attempt failed; throttling has its own base.</param>
     /// <param name="attempt">The number of the failed attempt, starting at 1.</param>
     /// <returns>The delay.</returns>
     public TimeSpan GetDelay(FailureKind kind, int attempt) =>

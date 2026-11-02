@@ -77,7 +77,7 @@ public sealed class DelayedJobsTests(Backend backend)
         var now = clock.GetUtcNow();
         PartitionKey<ScheduledJob>[] hours = [ScheduledJob.Keys.Pk.Of(now.AddHours(-1)), ScheduledJob.Keys.Pk.Of(now)];
         var claimed = new List<string>();
-        await foreach (var job in jobs.Query(hours, SortKey.Le(ScheduledJob.Keys.Sk.UpperBound(now))).Consistent().ItemsAsync())
+        await foreach (var job in jobs.Query(hours, ScheduledJob.Keys.Sk.Le(now)).Consistent().ItemsAsync())
         {
             try
             {

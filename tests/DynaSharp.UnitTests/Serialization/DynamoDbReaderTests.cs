@@ -745,6 +745,42 @@ public sealed class DynamoDbReaderTests
     }
 
     [Test]
+    [Arguments("""{"N":"1E-29"}""")]
+    [Arguments("""{"N":"0.12345678901234567890123456789012345678"}""")]
+    public async Task GetNumber_DecimalThatWouldLoseDigits_ThrowsOverflowException(string json)
+    {
+        // Arrange (nothing to arrange beyond the argument)
+
+        // Act
+        var act = () => TestJson.Read(json, static (ref r) =>
+        {
+            r.ReadStartAttribute();
+            return r.GetNumber<decimal>();
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<OverflowException>();
+    }
+
+    [Test]
+    [Arguments("""{"N":"1E400"}""")]
+    [Arguments("""{"N":"NaN"}""")]
+    public async Task GetNumber_DoubleThatIsNotFinite_ThrowsOverflowException(string json)
+    {
+        // Arrange (nothing to arrange beyond the argument)
+
+        // Act
+        var act = () => TestJson.Read(json, static (ref r) =>
+        {
+            r.ReadStartAttribute();
+            return r.GetNumber<double>();
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<OverflowException>();
+    }
+
+    [Test]
     public async Task GetNumber_EscapedNotANumber_ThrowsFormatException()
     {
         // Arrange

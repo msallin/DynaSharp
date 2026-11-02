@@ -21,6 +21,11 @@ namespace DynaSharp;
 /// <see cref="ValidationException"/>. A token does not expire, and the item of its key need not exist any more: a read continues from the position of the key.
 /// </para>
 /// <para>
+/// The first byte behind the text is the version of its format, for page and fan-out tokens alike. A token of a format this release does not know, older or newer, fails in <see cref="Parse"/> with a
+/// <see cref="FormatException"/> that says so, and the client starts its read again. Nothing guesses, because a key read the wrong way would be a wrong position with no error. A token has no limit on its
+/// length: one of a page is as long as a key of the table, and one of a fan-out grows with its partitions.
+/// </para>
+/// <para>
 /// A token of a fan-out query holds two keys per partition, where it continues and what comes next, or the fact that the partition is done, so it is as long as the list of partitions.
 /// It holds the direction of the read as well. It goes through <see cref="Parse"/> like any other. <c>PageAsync</c> of the fan-out then checks it against the number of its partitions, its direction and the
 /// keys of the read, with a <see cref="FormatException"/> as from <see cref="Parse"/>, and DynamoDB checks the start keys.
@@ -29,12 +34,23 @@ namespace DynaSharp;
 /// </remarks>
 public readonly record struct ContinuationToken
 {
-    // The key as JSON in Base64Url, so that a token costs one string, and a read that sends it decodes it into the request without a dictionary.
+    // When what a token holds changes, for a page or a fan-out: raise this, and teach Inspect the old format if it is to stay readable. The JSON of a key starts
+    // with a brace, so a token from before there was a version reads as version 123, and is no token of this one.
+    private const byte FormatVersion = 1;
+
+    // The version and the key as JSON in Base64Url, so that a token costs one string, and a read that sends it decodes it into the request without a dictionary.
     private readonly string? _text;
 
     private ContinuationToken(string text)
     {
         _text = text;
+    }
+
+    private enum TokenText
+    {
+        Valid,
+        NotAToken,
+        OtherVersion,
     }
 
     /// <summary>Gets a value indicating whether this token holds a position. The default value does not: it stands for the start of a read, and for the end in <see cref="Page{T}.Next"/>.</summary>
@@ -46,15 +62,25 @@ public readonly record struct ContinuationToken
     /// </summary>
     /// <param name="text">What <see cref="ToString"/> returned, or nothing.</param>
     /// <returns>The token.</returns>
-    /// <exception cref="FormatException"><paramref name="text"/> is not the text of a token. The message does not quote it, because it comes from a client.</exception>
-    public static ContinuationToken Parse(string? text) =>
-        TryParse(text, out var token)
-            ? token
-            : throw new FormatException("This is not a continuation token: it did not come from Next.ToString() of a page, or it was cut short or altered on the way.");
+    /// <exception cref="FormatException"><paramref name="text"/> is not the text of a token, or of a token of a format this version of the library does not read. The message does not quote it, because it comes from a client.</exception>
+    public static ContinuationToken Parse(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return default;
+        }
+
+        return Inspect(text) switch
+        {
+            TokenText.Valid => new ContinuationToken(text),
+            TokenText.OtherVersion => throw new FormatException("This continuation token has a format this version of the library does not read: it was written by another version, or it was altered on the way. Start the read again."),
+            _ => throw new FormatException("This is not a continuation token: it did not come from Next.ToString() of a page, or it was cut short or altered on the way."),
+        };
+    }
 
     /// <summary>
     /// Reads a token from its text, as <see cref="Parse"/> does, so <see langword="null"/> and an empty string are the default value. Everything a token holds goes into a request, so the text
-    /// must decode to exactly one key of attribute values; anything else in it is rejected here, whatever a client sends.
+    /// must decode to the version of the format and exactly one key of attribute values; anything else in it is rejected here, whatever a client sends.
     /// </summary>
     /// <param name="text">What <see cref="ToString"/> returned, or nothing.</param>
     /// <param name="token">The token, or the default value if the text is not one.</param>
@@ -64,7 +90,7 @@ public readonly record struct ContinuationToken
         token = default;
         if (!string.IsNullOrEmpty(text))
         {
-            if (!IsKey(text))
+            if (Inspect(text) != TokenText.Valid)
             {
                 return false;
             }
@@ -120,7 +146,16 @@ public readonly record struct ContinuationToken
     /// <summary>Creates a token from the raw JSON of a key.</summary>
     /// <param name="utf8Key">The key.</param>
     /// <returns>The token.</returns>
-    internal static ContinuationToken FromRawKey(ReadOnlySpan<byte> utf8Key) => new(Base64Url.EncodeToString(utf8Key));
+    internal static ContinuationToken FromRawKey(ReadOnlySpan<byte> utf8Key)
+    {
+        var length = utf8Key.Length + 1;
+        var bytes = ArrayPool<byte>.Shared.Rent(length);
+        bytes[0] = FormatVersion;
+        utf8Key.CopyTo(bytes.AsSpan(1));
+        var text = Base64Url.EncodeToString(bytes.AsSpan(0, length));
+        ArrayPool<byte>.Shared.Return(bytes);
+        return new ContinuationToken(text);
+    }
 
     /// <summary>Writes the raw JSON of the key to a buffer. The default value writes nothing.</summary>
     /// <param name="destination">The buffer.</param>
@@ -128,30 +163,37 @@ public readonly record struct ContinuationToken
     {
         if (_text is not null)
         {
-            Base64Url.DecodeFromChars(_text, destination.GetSpan(Base64Url.GetMaxDecodedLength(_text.Length)), out _, out var written);
-            destination.Advance(written);
+            var decoded = destination.GetSpan(Base64Url.GetMaxDecodedLength(_text.Length));
+            Base64Url.DecodeFromChars(_text, decoded, out _, out var written);
+            decoded[1..written].CopyTo(decoded);
+            destination.Advance(written - 1);
         }
     }
 
     // A token ends up in the body of a request as it is, and it can come from anyone. One JSON object of attribute values, and nothing behind it, is what
     // cannot close the object around it and add members of its own, such as another TableName.
-    private static bool IsKey(string text)
+    private static TokenText Inspect(string text)
     {
         using var buffer = new PooledByteBuffer();
-        if (Base64Url.DecodeFromChars(text, buffer.GetSpan(Base64Url.GetMaxDecodedLength(text.Length)), out _, out var written) != OperationStatus.Done)
+        if (Base64Url.DecodeFromChars(text, buffer.GetSpan(Base64Url.GetMaxDecodedLength(text.Length)), out _, out var written) != OperationStatus.Done || written == 0)
         {
-            return false;
+            return TokenText.NotAToken;
         }
 
         buffer.Advance(written);
+        if (buffer.WrittenSpan[0] != FormatVersion)
+        {
+            return TokenText.OtherVersion;
+        }
+
         try
         {
-            var reader = new DynamoDbReader(buffer.WrittenSpan);
-            return AttributeValueConverter.ReadItem(ref reader).Count > 0 && !reader.Json.Read();
+            var reader = new DynamoDbReader(buffer.WrittenSpan[1..]);
+            return AttributeValueConverter.ReadItem(ref reader).Count > 0 && !reader.Json.Read() ? TokenText.Valid : TokenText.NotAToken;
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException)
         {
-            return false;
+            return TokenText.NotAToken;
         }
     }
 }

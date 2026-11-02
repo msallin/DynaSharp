@@ -8,7 +8,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp;
 
 /// <summary>
-/// A <c>Query</c> of several partitions at once, merged by sort key, the read of write shards and time buckets: <c>orders.Query(shards, SortKey.Ge(from)).Descending().ItemsAsync(ct)</c>.
+/// A <c>Query</c> of several partitions at once, merged by sort key, the read of write shards and time buckets: <c>orders.Query(shards, SortKeyCondition.Ge(from)).Descending().ItemsAsync(ct)</c>.
 /// Chain the options and end with <see cref="ItemsAsync"/>, <see cref="PageAsync"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <remarks>
@@ -102,7 +102,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page of each partition</em>, before the filter. It does not limit the result, and it is not the size of a merged page, which
-    /// <see cref="PageAsync"/> takes. A small limit reads less ahead of what the merge gives out, and costs more calls.
+    /// <see cref="PageAsync"/> takes. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which stops when it has them. A small limit reads less ahead of what the merge gives out, and costs more calls.
     /// </summary>
     /// <param name="items">The most items per page of a partition.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -266,7 +266,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A partition key is empty or occurs twice, or there is a condition on a sort key and the table or index has none.</exception>
-    internal static FanOutQueryCommand<T> Start(IEnumerable<AttributeValue> partitionKeys, SortKey sortKey, TableModel read, TableModel table)
+    internal static FanOutQueryCommand<T> Start(IEnumerable<AttributeValue> partitionKeys, SortKeyCondition sortKey, TableModel read, TableModel table)
     {
         ArgumentNullException.ThrowIfNull(partitionKeys);
         AttributeValue[] keys = [.. partitionKeys];
@@ -281,7 +281,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A partition key is empty or occurs twice, or there is a condition on a sort key and the table or index has none.</exception>
-    internal static FanOutQueryCommand<T> Start(IEnumerable<string> partitionKeys, SortKey sortKey, TableModel read, TableModel table)
+    internal static FanOutQueryCommand<T> Start(IEnumerable<string> partitionKeys, SortKeyCondition sortKey, TableModel read, TableModel table)
     {
         ArgumentNullException.ThrowIfNull(partitionKeys);
         string[] keys = [.. partitionKeys];
@@ -295,7 +295,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <param name="table">The table of it.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentException">A partition key is empty or occurs twice, or there is a condition on a sort key and the table or index has none.</exception>
-    internal static FanOutQueryCommand<T> Start(scoped ReadOnlySpan<string> partitionKeys, SortKey sortKey, TableModel read, TableModel table)
+    internal static FanOutQueryCommand<T> Start(scoped ReadOnlySpan<string> partitionKeys, SortKeyCondition sortKey, TableModel read, TableModel table)
     {
         var keys = new AttributeValue[partitionKeys.Length];
         for (var i = 0; i < keys.Length; i++)
@@ -306,7 +306,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
         return Begin(keys, sortKey, read, table);
     }
 
-    private static FanOutQueryCommand<T> Begin(AttributeValue[] partitionKeys, SortKey sortKey, TableModel read, TableModel table)
+    private static FanOutQueryCommand<T> Begin(AttributeValue[] partitionKeys, SortKeyCondition sortKey, TableModel read, TableModel table)
     {
         var plan = FanOutPlan.Create(partitionKeys, read, table);
         return new(read.BeginFanOut(sortKey), read, plan);

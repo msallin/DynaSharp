@@ -250,7 +250,7 @@ public sealed class FanOutTokenTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var token = ContinuationToken.Parse(Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json)));
+        var token = ContinuationToken.Parse(Versioned(Encoding.UTF8.GetBytes(json)));
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
@@ -266,7 +266,7 @@ public sealed class FanOutTokenTests
         var pool = new Serialization.CountingArrayPool<byte>();
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler, pool: pool);
-        var token = ContinuationToken.Parse(Base64Url.EncodeToString("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"S":"x"}]}}"""u8));
+        var token = ContinuationToken.Parse(Versioned("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"S":"x"}]}}"""u8));
 
         // Act
         await TestClient.CaptureAsync<FormatException>(async () => await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token));
@@ -318,7 +318,7 @@ public sealed class FanOutTokenTests
         var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2");
         using var handler = new StubHandler(wire.Answer);
         using var client = TestClient.Create(handler);
-        var token = ContinuationToken.Parse(Base64Url.EncodeToString("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"L":[{"M":{}},{"M":{}}]}]}}"""u8));
+        var token = ContinuationToken.Parse(Versioned("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"L":[{"M":{}},{"M":{}}]}]}}"""u8));
 
         // Act
         var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(5, token);
@@ -334,7 +334,7 @@ public sealed class FanOutTokenTests
         var wire = new FanOutWire().Put("p0", "3").Put("p1", "1", "2");
         using var handler = new StubHandler(wire.Answer);
         using var client = TestClient.Create(handler);
-        var token = ContinuationToken.Parse(Base64Url.EncodeToString("""{"fanOut":{"L":[{"L":[{"M":{}},{"M":{}}]},{"L":[{"M":{"pk":{"S":"p1"},"sk":{"S":"1"}}},{"M":{}}]}]}}"""u8));
+        var token = ContinuationToken.Parse(Versioned("""{"fanOut":{"L":[{"L":[{"M":{}},{"M":{}}]},{"L":[{"M":{"pk":{"S":"p1"},"sk":{"S":"1"}}},{"M":{}}]}]}}"""u8));
 
         // Act
         var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(5, token);
@@ -349,7 +349,7 @@ public sealed class FanOutTokenTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var token = ContinuationToken.Parse(Base64Url.EncodeToString("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]}}"""u8));
+        var token = ContinuationToken.Parse(Versioned("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]}}"""u8));
 
         // Act
         var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1, token);
@@ -374,5 +374,36 @@ public sealed class FanOutTokenTests
         await Assert.That((parsed, token)).IsEqualTo((true, page.Next));
     }
 
-    private static string Text(ContinuationToken token) => Encoding.UTF8.GetString(Base64Url.DecodeFromChars(token.ToString()));
+    [Test]
+    public async Task Next_FanOut_StartsWithTheFormatVersion()
+    {
+        // Arrange
+        var wire = new FanOutWire().Put("p0", "1", "2").Put("p1", "3");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(1);
+
+        // Assert
+        await Assert.That(Base64Url.DecodeFromChars(page.Next.ToString())[0]).IsEqualTo((byte)1);
+    }
+
+    // The text of a fan-out token as it was before tokens had a version, which is not read as a key or as a position.
+    [Test]
+    public async Task Parse_FanOutTokenOfTheShapeWithoutAVersion_SaysThatItIsOfAnotherFormat()
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString("""{"fanOut":{"L":[{"NULL":true},{"NULL":true}]}}"""u8);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("This continuation token has a format");
+    }
+
+    private static string Text(ContinuationToken token) => Encoding.UTF8.GetString(Base64Url.DecodeFromChars(token.ToString())[1..]);
+
+    private static string Versioned(ReadOnlySpan<byte> json) => Base64Url.EncodeToString([1, .. json]);
 }

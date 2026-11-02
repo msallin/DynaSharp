@@ -14,7 +14,7 @@ namespace DynaSharp.Fluent;
 /// stopped is not a failure, and neither is one that the caller stopped.
 /// </para>
 /// <para>
-/// However the enumeration ends, its <c>finally</c> stops what still runs and waits for it, so no task outlives the enumerator and every state is
+/// However the enumeration ends, also when a segment cannot start, its <c>finally</c> stops what still runs and waits for it, so no task outlives the enumerator and every state is
 /// back before the enumerator's <c>DisposeAsync</c> returns.
 /// </para>
 /// </remarks>
@@ -34,6 +34,7 @@ internal sealed class ParallelScan<T>
         _stop = stop;
         _running = scan.TotalSegments;
         _segments = new Task[scan.TotalSegments];
+        Array.Fill(_segments, Task.CompletedTask);
     }
 
     /// <summary>Reads all items of all segments, on enumeration.</summary>
@@ -47,9 +48,9 @@ internal sealed class ParallelScan<T>
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var run = new ParallelScan<T>(scan, stop);
-        run.Start(scan);
         try
         {
+            run.Start(scan);
             await foreach (var items in run._pages.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();

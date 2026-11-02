@@ -316,6 +316,8 @@ public sealed class TypeDiagnosticsTests
     [Arguments("public partial class Outer<T> { [DynamoDbDocument] public partial class [|A|] { } }", "it is generic")]
     [Arguments("[DynamoDbDocument] public ref partial struct [|A|] { }", "it is a ref struct")]
     [Arguments("[DynamoDbDocument] public partial interface [|A|] { }", "it is an interface")]
+    [Arguments("[DynamoDbDocument] file partial class [|A|] { }", "it is file-local")]
+    [Arguments("file partial class Outer { [DynamoDbDocument] public partial class [|A|] { } }", "it is file-local")]
     public async Task Build_ShapeThatCannotBeMapped_ReportsDyna007(string source, string reason)
     {
         // Arrange, Act
@@ -323,6 +325,35 @@ public sealed class TypeDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA007 Error: Type 'A' cannot be mapped: {reason}"));
+    }
+
+    [Test]
+    [Arguments("""[DynaSharp.Mapping.DynamoDbDocument] file partial class A { }""")]
+    [Arguments("""[DynaSharp.Mapping.DynamoDbEntity, DynaSharp.Mapping.Discriminator("E"), DynaSharp.Mapping.PartitionKey("E")] file partial class A { }""")]
+    [Arguments("""file partial class Outer { [DynaSharp.Mapping.DynamoDbDocument] public partial class A { } }""")]
+    public async Task Run_FileLocalType_ReportsDyna007AndEmitsNothing(string declaration)
+    {
+        // Arrange (a part in another file would be another type, so the generated code could not merge)
+        var source = $"namespace Shop; {declaration}";
+
+        // Act
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That((output.Problems.Count(problem => problem.Contains("error DYNA007", StringComparison.Ordinal)), output.Problems.Length, output.Result.GeneratedTrees.Length)).IsEqualTo((1, 1, 0));
+    }
+
+    [Test]
+    public async Task Run_TypeBesideAFileLocalType_IsMapped()
+    {
+        // Arrange (only the mapped type and what holds it count)
+        const string Source = """namespace Shop; file class Helper { } [DynaSharp.Mapping.DynamoDbDocument] public partial class A { }""";
+
+        // Act
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That((string.Join(", ", output.Problems), output.Result.GeneratedTrees.Length)).IsEqualTo((string.Empty, 1));
     }
 
     [Test]

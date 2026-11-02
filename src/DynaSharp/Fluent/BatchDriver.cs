@@ -8,7 +8,8 @@ namespace DynaSharp.Fluent;
 /// <summary>
 /// Sends a batch: cuts it into requests DynamoDB accepts, and sends again what comes back unprocessed until nothing is left or nothing moves any
 /// more. Each request goes through the pipeline as a call of its own, with the retries of a call. A batch that makes no progress waits, with the
-/// backoff of the retry policy and on the clock of the client, and gives up after a bounded number of rounds.
+/// backoff of the retry policy and on the clock of the client, and gives up after a bounded number of rounds. A failure after a request went through ends
+/// it too, with what was done in the exception.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -56,10 +57,9 @@ internal static class BatchDriver
                     {
                         response = await state.SendActionsAsync<TOperation, BatchResponse>(cancellationToken).ConfigureAwait(false);
                     }
-                    catch (DynamoDbException exception) when (FailureClassifier.Classify(exception) == FailureKind.Throttling)
+                    catch (Exception exception) when (EndsIncomplete(exception, totals.Requests))
                     {
-                        // What DynamoDB does when it can take none of a request. The call has used up its attempts by now, so this is the end of
-                        // the batch, and the caller gets to see what was done before it.
+                        // The call has used up its attempts by now, so this is the end of the batch, and the caller gets to see what was done before it.
                         throw GiveUp<TOperation, TResult>(state, totals, exception);
                     }
 
@@ -135,6 +135,12 @@ internal static class BatchDriver
             state.Release(version);
         }
     }
+
+    // Nothing was applied before the first answer, so a failure there has nothing to report and stays as it is. A throttle does not, because it is what DynamoDB answers when it can
+    // take none of a request. A caller who cancels has stopped listening, and a cancellation stays one.
+    private static bool EndsIncomplete(Exception exception, int answered) =>
+        exception is not OperationCanceledException
+        && (answered > 0 || (exception is DynamoDbException failure && FailureClassifier.Classify(failure) == FailureKind.Throttling));
 
     private static Exception GiveUp<TOperation, TResult>(CommandState state, BatchTotals totals, Exception? cause)
         where TOperation : IBatchOperation<TResult>

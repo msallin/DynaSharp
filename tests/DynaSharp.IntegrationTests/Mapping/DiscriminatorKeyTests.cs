@@ -34,7 +34,7 @@ public sealed class DiscriminatorKeyTests(Backend backend)
         var byType = shop.Orders.Index(ShopSandbox.ByPartitionAndType, "pk", "_type");
 
         // Act
-        var orders = await Read.ToListAsync(byType.Query(Order.Keys.Pk.Format("alice"), SortKey.Eq("ORDER")).ItemsAsync());
+        var orders = await Read.ToListAsync(byType.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.Eq("ORDER")).ItemsAsync());
 
         // Assert
         await Assert.That(orders.Single().CustomerId).IsEqualTo("alice");

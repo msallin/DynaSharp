@@ -6,15 +6,15 @@ internal sealed class RetryPolicyTests
 {
     [Test]
     [Arguments(FailureKind.Transient, 1, 0.0, 0.0)]
-    [Arguments(FailureKind.Transient, 1, 1.0, 25.0)]
-    [Arguments(FailureKind.Transient, 1, 0.5, 12.5)]
-    [Arguments(FailureKind.Transient, 2, 1.0, 50.0)]
-    [Arguments(FailureKind.Transient, 3, 1.0, 100.0)]
-    [Arguments(FailureKind.Transient, 9, 1.0, 6_400.0)]
-    [Arguments(FailureKind.Transient, 10, 1.0, 12_800.0)]
-    [Arguments(FailureKind.Transient, 11, 1.0, 20_000.0)]
-    [Arguments(FailureKind.Timeout, 1, 1.0, 25.0)]
-    [Arguments(FailureKind.Timeout, 2, 1.0, 50.0)]
+    [Arguments(FailureKind.Transient, 1, 1.0, 100.0)]
+    [Arguments(FailureKind.Transient, 1, 0.5, 50.0)]
+    [Arguments(FailureKind.Transient, 2, 1.0, 200.0)]
+    [Arguments(FailureKind.Transient, 3, 1.0, 400.0)]
+    [Arguments(FailureKind.Transient, 8, 1.0, 12_800.0)]
+    [Arguments(FailureKind.Transient, 9, 1.0, 20_000.0)]
+    [Arguments(FailureKind.Transient, 10, 1.0, 20_000.0)]
+    [Arguments(FailureKind.Timeout, 1, 1.0, 100.0)]
+    [Arguments(FailureKind.Timeout, 2, 1.0, 200.0)]
     [Arguments(FailureKind.Throttling, 1, 0.0, 0.0)]
     [Arguments(FailureKind.Throttling, 1, 1.0, 50.0)]
     [Arguments(FailureKind.Throttling, 1, 0.5, 25.0)]
@@ -27,7 +27,7 @@ internal sealed class RetryPolicyTests
     [Arguments(FailureKind.Transient, int.MaxValue, 0.0, 0.0)]
     public async Task GetDelay_FixedRandom_IsTheShareOfTheCeiling(FailureKind kind, int attempt, double random, double expectedMilliseconds)
     {
-        // Arrange (the ceiling is min(20 s, base * 2^(attempt - 1)), the base 50 ms for throttling and 25 ms otherwise)
+        // Arrange (the ceiling is min(20 s, base * 2^(attempt - 1)), the base 50 ms for throttling and 100 ms otherwise)
         var policy = new RetryPolicy(3, new FixedRandom(random));
 
         // Act
@@ -35,6 +35,23 @@ internal sealed class RetryPolicyTests
 
         // Assert
         await Assert.That(delay).IsEqualTo(TimeSpan.FromMilliseconds(expectedMilliseconds));
+    }
+
+    // The three waits of the default of 4 attempts, each at its ceiling: what the docs of MaxAttempts state.
+    [Test]
+    [Arguments(FailureKind.Transient, 700.0)]
+    [Arguments(FailureKind.Timeout, 700.0)]
+    [Arguments(FailureKind.Throttling, 350.0)]
+    public async Task GetDelay_WaitsOfTheDefaultAttempts_AddUpToTheWindow(FailureKind kind, double expectedMilliseconds)
+    {
+        // Arrange
+        var policy = new RetryPolicy(4, new FixedRandom(1.0));
+
+        // Act
+        var window = policy.GetDelay(kind, 1) + policy.GetDelay(kind, 2) + policy.GetDelay(kind, 3);
+
+        // Assert
+        await Assert.That(window).IsEqualTo(TimeSpan.FromMilliseconds(expectedMilliseconds));
     }
 
     [Test]

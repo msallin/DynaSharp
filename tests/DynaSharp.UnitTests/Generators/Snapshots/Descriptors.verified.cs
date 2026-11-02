@@ -105,7 +105,7 @@ DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | Stri
 DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table key | Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {{{0}:ticks}}.
 DYNA117 | Info | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
-DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | Query and Scan are not awaited; end the chain with ItemsAsync, ItemAsync, PageAsync, PagesAsync or CountAsync
+DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.
 DYNA204 | Warning | DynaSharp.Commands | Command is used twice | This command was used by an earlier call, so this one throws at run time. Assign what each call returns to the variable, or build the command again.
 DYNA205 | Warning | DynaSharp.Commands | Write to a key of the table | '{0}' is part of the key of the table of '{1}', and DynamoDB cannot change a key. Delete the item and put a new one.

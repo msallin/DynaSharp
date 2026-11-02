@@ -48,7 +48,7 @@ public sealed class BarrierTests(Backend backend)
 
     private static async Task<bool> ArriveAsync(Table<Rendezvous> barriers, string party)
     {
-        var barrier = (await barriers.Update(Rendezvous.Keys.Of(Nightly)).Add(Rendezvous.Attrs.Arrived, [party]).IfExists().ReturnNew().SendAsync()).Attributes!;
+        var barrier = (await barriers.Update(Rendezvous.Keys.Of(Nightly)).Add(Rendezvous.Attrs.Arrived, [party]).IfExists().ReturnNew().SendAsync()).Item!;
         return barrier.Arrived.Count == barrier.Parties;
     }
 }

@@ -274,6 +274,9 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
             /// <summary>Formats the complete key.</summary>
             public static string Format() => "PROFILE";
 
+            /// <summary>The condition <c>=</c> on the complete key, which is one item of the partition.</summary>
+            public static global::DynaSharp.SortKeyCondition Eq() => global::DynaSharp.SortKeyCondition.Eq(Format());
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static SkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();

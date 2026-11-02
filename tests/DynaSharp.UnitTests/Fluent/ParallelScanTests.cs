@@ -1,6 +1,8 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
+using DynaSharp.Fluent;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Serialization;
 using static DynaSharp.Expr;
@@ -263,6 +265,28 @@ public sealed class ParallelScanTests
 
         // Assert (all waiting requests were cancelled by the time the enumerator was gone, so nothing is left running)
         await Assert.That((seenWhenDisposed, released, pool.Outstanding)).IsEqualTo((3, true, 0));
+    }
+
+    [Test]
+    public async Task ItemsAsync_SegmentThatCannotStart_StopsWhatRunsAndThrows()
+    {
+        // Arrange (the first segment is inside its request when the second fails to start)
+        using var firstIsRunning = new ManualResetEventSlim();
+        var stopped = 0;
+        using var handler = new StubHandler(async (_, token) =>
+        {
+            firstIsRunning.Set();
+            await WaitUntilCancelledAsync(() => Interlocked.Increment(ref stopped), token);
+            return Last();
+        });
+        using var client = TestClient.Create(handler, pool: new SecondSegmentFailsPool(firstIsRunning));
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => shop.Scan().Filter($"attribute_exists(a)").Parallel(3).ItemsAsync().ToListAsync());
+
+        // Assert
+        await Assert.That((failure.Message, Volatile.Read(ref stopped))).IsEqualTo(("No buffer for this segment.", 1));
     }
 
     [Test]
@@ -553,5 +577,24 @@ public sealed class ParallelScanTests
         var command = shop.Scan();
         var handle = command.Handle;
         return new(command.Parallel(segments).ItemsAsync(cancellationToken), handle.State!, handle.Version + 3);
+    }
+
+    // Fails the copy of the expressions of the second segment, once the first is running. That copy is one rent, because the filter of the test has no names and no values.
+    private sealed class SecondSegmentFailsPool(ManualResetEventSlim firstIsRunning) : ArrayPool<byte>
+    {
+        private int _copies;
+
+        public override byte[] Rent(int minimumLength)
+        {
+            if (Environment.StackTrace.Contains(nameof(ExpressionWriter.CopyFrom), StringComparison.Ordinal) && Interlocked.Increment(ref _copies) == 2)
+            {
+                firstIsRunning.Wait(TimeSpan.FromSeconds(30));
+                throw new InvalidOperationException("No buffer for this segment.");
+            }
+
+            return Shared.Rent(minimumLength);
+        }
+
+        public override void Return(byte[] array, bool clearArray = false) => Shared.Return(array, clearArray);
     }
 }

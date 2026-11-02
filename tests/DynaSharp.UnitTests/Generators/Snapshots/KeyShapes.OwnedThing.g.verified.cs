@@ -303,8 +303,26 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByOwnerSk
         {
-            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKey.Ge(...)</c>.</summary>
+            /// <summary>Gives the key as it is stored, for a condition such as <c>SortKeyCondition.Ge(...)</c>.</summary>
             public static global::DynaSharp.AttributeValue Of(int rank) => global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>(rank);
+
+            /// <summary>The condition <c>=</c> on the key, which is one item of the partition.</summary>
+            public static global::DynaSharp.SortKeyCondition Eq(int rank) => global::DynaSharp.SortKeyCondition.Eq(Of(rank));
+
+            /// <summary>The condition <c>&gt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Ge(int rank) => global::DynaSharp.SortKeyCondition.Ge(Of(rank));
+
+            /// <summary>The condition <c>&gt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Gt(int rank) => global::DynaSharp.SortKeyCondition.Gt(Of(rank));
+
+            /// <summary>The condition <c>&lt;=</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Le(int rank) => global::DynaSharp.SortKeyCondition.Le(Of(rank));
+
+            /// <summary>The condition <c>&lt;</c> on the key. It has only this one end, so what else sorts there in the partition matches too.</summary>
+            public static global::DynaSharp.SortKeyCondition Lt(int rank) => global::DynaSharp.SortKeyCondition.Lt(Of(rank));
+
+            /// <summary>The condition <c>BETWEEN</c> on the key, with both bounds included. DynamoDB rejects a lower bound above the upper one.</summary>
+            public static global::DynaSharp.SortKeyCondition Between(int from, int to) => global::DynaSharp.SortKeyCondition.Between(Of(from), Of(to));
         }
     }
 

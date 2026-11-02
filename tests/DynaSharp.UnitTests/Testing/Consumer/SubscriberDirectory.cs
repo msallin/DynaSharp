@@ -36,7 +36,7 @@ internal sealed class SubscriberDirectory(DynamoDbClient client)
     }
 
     public async Task<Subscriber?> ChangePlanAsync(string id, string plan) =>
-        (await _subscribers.Update(new SubscriberKey(id)).Set(Plan, plan).IfExists().ReturnNew().SendAsync()).Attributes;
+        (await _subscribers.Update(new SubscriberKey(id)).Set(Plan, plan).IfExists().ReturnNew().SendAsync()).Item;
 
     /// <summary>Moves a subscriber to an address that nobody else holds, and frees the old one, all or nothing.</summary>
     /// <param name="subscriber">The subscriber.</param>

@@ -63,7 +63,7 @@ public sealed class LiteralIndexKeyTests(Backend backend)
 
         // Act
         await pinned.Update(PinnedPost.Keys.Of("a")).Set(PinnedPost.Attrs.Note, "x").SendAsync();
-        var found = await pinned.Index(PinnedPost.Indexes.Gsi1).Query(PinnedPost.Keys.Gsi1Pk.Of(), SortKey.Eq(PinnedPost.Keys.Gsi1Sk.Format())).ItemsAsync().ToListAsync();
+        var found = await pinned.Index(PinnedPost.Indexes.Gsi1).Query(PinnedPost.Keys.Gsi1Pk.Of(), SortKeyCondition.Eq(PinnedPost.Keys.Gsi1Sk.Format())).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That((found.Single().Id, found.Single().Note)).IsEqualTo(("a", (string?)"x"));

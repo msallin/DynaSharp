@@ -670,6 +670,72 @@ public partial record SameSlot
     public required string Owner { get; init; }
 }
 
+/// <summary>Sort keys whose bytes do not follow their values, so that they have <c>Eq</c> and prefixes and no range: plain digits, a decimal, an enum by name, a custom type.</summary>
+[DynamoDbEntity]
+[Discriminator("UNRANGED")]
+[PartitionKey("{Id}")]
+[SortKey("COUNT#{Count:plain}")]
+[GlobalIndexKey("ByMoney", PartitionKey = "M", SortKey = "MONEY#{Money:plain}")]
+[GlobalIndexKey("ByPlan", PartitionKey = "P", SortKey = "PLAN#{Plan}")]
+[GlobalIndexKey("ByAddress", PartitionKey = "A", SortKey = "ADDRESS#{Address}")]
+public partial record Unranged
+{
+    public required string Id { get; init; }
+
+    public int Count { get; init; }
+
+    public decimal Money { get; init; }
+
+    public Plan Plan { get; init; }
+
+    [KeyOnly]
+    public required IPAddress Address { get; init; }
+}
+
+/// <summary>A string before a space, which nothing sorts below, and placeholders named like the bounds of a range.</summary>
+[DynamoDbEntity]
+[Discriminator("RANGED")]
+[PartitionKey("{Id}")]
+[SortKey("{Name} {Seat:d2}")]
+[GlobalIndexKey("ByBounds", PartitionKey = "B", SortKey = "{From:d2}#{To:d2}#{Seat:d2}")]
+public partial record Ranged
+{
+    public required string Id { get; init; }
+
+    public required string Name { get; init; }
+
+    public int Seat { get; init; }
+
+    public int From { get; init; }
+
+    public int To { get; init; }
+}
+
+/// <summary>A plain sort key that is stored in the order of its values, and plain sort keys of an index of each other kind.</summary>
+[DynamoDbEntity]
+[Discriminator("PLAINRANGES")]
+[GlobalIndexKey("ByDigest", PartitionKey = "D", SortKey = "{Digest}", SortKeyAttributeName = "Digest")]
+[GlobalIndexKey("ByWait", PartitionKey = "W", SortKey = "{Wait}", SortKeyAttributeName = "Wait")]
+[GlobalIndexKey("ByPlan", PartitionKey = "P", SortKey = "{Plan}", SortKeyAttributeName = "Plan")]
+[GlobalIndexKey("ByNote", PartitionKey = "N", SortKey = "{Note}", SortKeyAttributeName = "Note")]
+public partial record PlainRanges
+{
+    [PartitionKey]
+    public required string Id { get; init; }
+
+    [SortKey]
+    public required Guid Ref { get; init; }
+
+    public required byte[] Digest { get; init; }
+
+    public required TimeSpan Wait { get; init; }
+
+    public required Plan Plan { get; init; }
+
+    [DynamoDbConverter(typeof(SecretConverter))]
+    public required string Note { get; init; }
+}
+
 /// <summary>A partition key of an index in the attribute of a property, which has no builder, and a local index over a plain key of the table.</summary>
 [DynamoDbEntity]
 [Discriminator("PLAINKEYS")]

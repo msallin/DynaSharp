@@ -79,6 +79,7 @@ public sealed class ContinuationTokenTests
     [Arguments("a")]
     [Arguments("====")]
     [Arguments("é")]
+    [Arguments(" ")]
     public async Task Parse_NotBase64_ThrowsAFormatException(string text)
     {
         // Act
@@ -110,7 +111,7 @@ public sealed class ContinuationTokenTests
     public async Task Parse_DecodesToWhatIsNoKey_ThrowsAFormatException(string json)
     {
         // Arrange
-        var text = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json));
+        var text = Versioned(Encoding.UTF8.GetBytes(json));
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
@@ -126,7 +127,7 @@ public sealed class ContinuationTokenTests
     public async Task Parse_TextThatIsNotUtf8_ThrowsAFormatException(byte[] json)
     {
         // Arrange
-        var text = Base64Url.EncodeToString(json);
+        var text = Versioned(json);
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
@@ -139,7 +140,7 @@ public sealed class ContinuationTokenTests
     public async Task Parse_LoneSurrogate_ThrowsAFormatException()
     {
         // Arrange
-        var text = Base64Url.EncodeToString(Encoding.UTF8.GetBytes("{\"pk\":{\"S\":\"\\" + "uD800\"}}"));
+        var text = Versioned(Encoding.UTF8.GetBytes("{\"pk\":{\"S\":\"\\" + "uD800\"}}"));
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
@@ -152,7 +153,7 @@ public sealed class ContinuationTokenTests
     public async Task Parse_Failure_DoesNotQuoteTheText()
     {
         // Arrange
-        var text = Base64Url.EncodeToString("""{"pk":{"S":"key-secret"} """u8);
+        var text = Versioned("""{"pk":{"S":"key-secret"} """u8);
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
@@ -162,10 +163,107 @@ public sealed class ContinuationTokenTests
     }
 
     [Test]
+    public async Task ToString_Token_StartsWithTheFormatVersion()
+    {
+        // Arrange
+        var token = ContinuationToken.FromKey(new Item { ["pk"] = "a" });
+
+        // Act
+        var bytes = Base64Url.DecodeFromChars(token.ToString());
+
+        // Assert
+        await Assert.That((bytes[0], Encoding.UTF8.GetString(bytes[1..]))).IsEqualTo(((byte)1, """{"pk":{"S":"a"}}"""));
+    }
+
+    [Test]
+    public async Task Next_OfAPage_StartsWithTheFormatVersion()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(More("1"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var page = await client.Table("Orders", "pk", "sk").Query("a").PageAsync();
+
+        // Assert
+        await Assert.That(Base64Url.DecodeFromChars(page.Next.ToString())[0]).IsEqualTo((byte)1);
+    }
+
+    // The text of a token as it was before tokens had a version: the JSON alone, whose first byte is a brace.
+    [Test]
+    public async Task Parse_TokenOfTheShapeWithoutAVersion_SaysThatItIsOfAnotherFormat()
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString("""{"pk":{"S":"a"}}"""u8);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("This continuation token has a format");
+    }
+
+    [Test]
+    [Arguments((byte)0)]
+    [Arguments((byte)2)]
+    [Arguments((byte)255)]
+    public async Task Parse_UnknownVersion_SaysThatItIsOfAnotherFormat(byte version)
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString([version, .. """{"pk":{"S":"a"}}"""u8]);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("This continuation token has a format");
+    }
+
+    [Test]
+    public async Task Parse_UnknownVersion_DoesNotQuoteTheText()
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString([2, .. """{"pk":{"S":"key-secret"}}"""u8]);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
+
+        // Assert
+        await Assert.That(failure.Message.Contains(text, StringComparison.Ordinal) || failure.Message.Contains("key-secret", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task TryParse_UnknownVersion_IsFalseAndTheDefaultValue()
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString("""{"pk":{"S":"a"}}"""u8);
+
+        // Act
+        var parsed = ContinuationToken.TryParse(text, out var token);
+
+        // Assert
+        await Assert.That((parsed, token)).IsEqualTo((false, default(ContinuationToken)));
+    }
+
+    [Test]
+    public async Task Parse_VersionAndNoKey_IsNoToken()
+    {
+        // Arrange
+        var text = Base64Url.EncodeToString([1]);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("This is not a continuation token");
+    }
+
+    [Test]
     public async Task Parse_SpacesInTheJson_AreNoProblem()
     {
         // Arrange
-        var text = Base64Url.EncodeToString("""  { "pk" : { "S" : "a" } }  """u8);
+        var text = Versioned("""  { "pk" : { "S" : "a" } }  """u8);
 
         // Act
         var token = ContinuationToken.Parse(text);
@@ -323,4 +421,6 @@ public sealed class ContinuationTokenTests
         // Assert
         await Assert.That(handler.Requests[1].BodyText).EndsWith(",\"ExclusiveStartKey\":" + Key("1") + "}");
     }
+
+    private static string Versioned(ReadOnlySpan<byte> json) => Base64Url.EncodeToString([1, .. json]);
 }

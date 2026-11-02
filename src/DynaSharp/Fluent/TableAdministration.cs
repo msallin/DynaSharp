@@ -9,8 +9,9 @@ internal static class TableAdministration
     /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes, and only the largest restores and the backfill of an index on a table with much data take longer: those know what to pass.</summary>
     public static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
 
-    // Tables turn active within seconds, usually. DescribeTable is a control plane call with its own, lower limits, so the poll backs off.
-    private static readonly TimeSpan FirstDelay = TimeSpan.FromMilliseconds(100);
+    /// <summary>The first wait between two looks at a table. Tables turn active within seconds, usually. DescribeTable is a control plane call with its own, lower limits, so a poll backs off.</summary>
+    public static readonly TimeSpan FirstDelay = TimeSpan.FromMilliseconds(100);
+
     private static readonly TimeSpan LongestDelay = TimeSpan.FromSeconds(5);
 
     // Task.Delay truncates to milliseconds and returns at once below one, so this is the shortest wait that really waits. On a clock a test drives, a shorter one would never move it, and the loop would never yield.

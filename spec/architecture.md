@@ -22,7 +22,8 @@ and it points at them instead of repeating them.
 reaches only public members, which is why `ConverterChecks`, `KeyWriter` and the like are public.
 
 The folders of `src/DynaSharp`, top to bottom. A folder is not always a namespace: `Fluent` holds the public commands in `DynaSharp` and their
-machinery in the internal `DynaSharp.Fluent`, and `Shared` and `Exceptions` are in `DynaSharp`.
+machinery in the internal `DynaSharp.Fluent`, `Expressions` holds `Attr`, `Expr`, `Condition`, `SortKey`, `PartitionKey<T>` and their extensions in `DynaSharp` and the structs conditions compose from in `DynaSharp.Expressions`,
+and `Shared` and `Exceptions` are in `DynaSharp`.
 
 ```text
 DynamoDbClient, DynamoDbStreamsClient, Streams        public entry points
@@ -42,7 +43,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
 | `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
 | `Fluent` | Commands, `Table<T>`, `Index<T>`, `CommandState`, `ExpressionWriter`, `WriteRules`, `FailedItem`, `TableAdministration`, `TableSchema`, batch, transaction, fan-out and mixed machinery | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
-| `Expressions` | Condition structs, `Attr`, `Expr`, `SortKey`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
+| `Expressions` | Condition structs, `Attr`, `Expr`, `SortKeyCondition`, `PartitionKey<T>`, `ExpressionHandler` | `Fluent`, `Mapping`, `Serialization` |
 | `Mapping` | Attributes and the contract of section 6 | `Serialization` |
 | `Serialization` | `DynamoDbReader`, `DynamoDbWriter`, converters, `PooledByteBuffer`, `ItemShape`, `ShapeTable` | `Mapping` |
 | `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat` | Nothing of ours |
@@ -163,7 +164,7 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 
 `DescribeAsync`, `WaitUntilActiveAsync`, `DeleteTableAsync` and `CreateTableCommand` run the operations of the request API through `ClientCore.ExecuteAsync`, so they have its spans and metrics and write no JSON of their own. `TableAdministration` holds them. A wait looks at the table and its global secondary indexes, because the status of a table says nothing about a backfill.
 
-`CreateTableCommand` is the one command that is an ordinary class over no pooled state: it crosses `await`, it can be kept, and a clause changes it and returns it. That is deliberate, because this is not a hot path, and it is why it has no `ToRequestJson` but `ToRequest`, whose record goes into the request API. `TableSchema` holds the union of the entities: `TableModel.Entity` starts it, and each `Including<T>` adds to it and throws at that call on a disagreement. A type of `ScalarAttributeType.Unknown` stays open, so a type stated by an entity fills it in and never conflicts, and what stays open is a string in the request. That is how `Table<Item>`, a type written by hand and a custom converter behave alike. Attribute names and the kind of an index are what entities have to agree on; templates are not compared, because an overloaded index is several templates over one attribute. `IfNotExists` leaves the description to the wait if there is one, which bears with a table `DescribeTable` does not see yet.
+`CreateTableCommand` is the one command that is an ordinary class over no pooled state: it crosses `await`, it can be kept, and a clause changes it and returns it. That is deliberate, because this is not a hot path, and it is why it has no `ToRequestJson` but `ToRequest`, whose record goes into the request API. `TableSchema` holds the union of the entities: `TableModel.Entity` starts it, and each `Including<T>` adds to it and throws at that call on a disagreement. A type of `ScalarAttributeType.Unknown` stays open, so a type stated by an entity fills it in and never conflicts, and what stays open is a string in the request. That is how `Table<Item>`, a type written by hand and a custom converter behave alike. Attribute names and the kind of an index are what entities have to agree on; templates are not compared, because an overloaded index is several templates over one attribute. `IfNotExists` describes what `CreateTable` found before it counts as success, also ahead of a wait, because `ResourceInUseException` is the answer for a `DELETING` table too. Such a table rethrows. A table the describe does not find is either gone or one another process just created, which `DescribeTable` does not see yet, so the command creates again, five times at most over 1.5 seconds, and that settles which of the two it was.
 
 ## 4. Reads
 
@@ -173,7 +174,7 @@ command shape, and `CommandStressTests`, `BatchStressTests`, `PagedReadStressTes
 and `ExpressionWriter.AppendKeyCondition` copies its names and values into the maps, because they are JSON already. Terminals are in `PagedRead<TOperation, T>`, which owns the state from the moment
 it gets it. `PageCall.ReadResponse` copies `LastEvaluatedKey` into `CommandState.PageKey` only after the whole response parsed, so a retry of a page sends what the first attempt sent. `PageResponse`
 locates that key and does not parse it. `OnceEnumerable<T>` makes an enumeration single-use and releases the state however it ends, also for an enumerator disposed before its first `MoveNextAsync`. `ToPage` makes a
-`ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts exactly one JSON object of attribute values, because it reaches the body as raw bytes.
+`ContinuationToken` from the raw key. A token is client input: `ContinuationToken.Parse` accepts a known format version and exactly one JSON object of attribute values, because that object reaches the body as raw bytes. The version is the first byte of the text, for page and fan-out tokens alike, and the JSON of a token from before there was one starts with a brace, which is no version.
 
 **One attribute.** `Select` is `CommandState.SelectAttribute`, which writes the projection once, because no clause can follow it, and `GetSelectCommand`, `QuerySelectCommand` and `ScanSelectCommand`, which have terminals and nothing else. A page reads each item through an `IItemReader<T>`, a static member of a struct, so `PagedRead` and `PageCall` take any `T`: `DocumentItem<T>` is
 `T.ReadAttributes` and `SelectedItem<TValue, TConverter>` is the attribute, found by `AttributePath`, which `UpdateValueOperation` shares. `ChecksDiscriminator` says that no filter kept other types away, which is a `Get` and a query keyed by the discriminator, and then a copy of the reader walks the item once more. What a missing attribute means is `IDynamoDbConverter<T>.TryReadMissing`, and which converter that is the overload of `Select` decides: the
@@ -202,7 +203,7 @@ differs from `ICommandOperation<TResponse>` in that a request can name several t
 **Batches.** `BatchWriteOperation.AddPut` and `AddDelete` write each action once. `BatchDriver.SendAsync` owns the state and releases it. It cuts actions into requests with `FindEnd`, 100 keys or 25 writes, the latter also by
 bytes. Each request is an `ActionCall` with its own attempts. DynamoDB returns what it left in the form of `RequestItems`, so `Carry` holds that JSON and the next request sends it back unparsed. Progress resets the stall
 count, and `MaxStalledRounds` bounds rounds in a row without progress, because a large `BatchGet` legitimately takes many rounds. `BackoffAsync` reuses the throttling backoff on the client's clock and takes nothing from the
-retry quota. A throttle on the last attempt of a request becomes the incomplete exception, because the caller would otherwise lose what was already written. `GiveUp` parses `Carry` only then.
+retry quota. A throttle on the last attempt of a request becomes the incomplete exception, and so does any other failure after a request went through, with the failure as its `InnerException`, because the caller would otherwise lose what was already written. The first request has nothing to lose, so anything but a throttle stays raw there, and a cancellation always does. `GiveUp` parses `Carry` only then.
 
 **Transactions.** `Transaction.AddAction` ends the action before it and starts the next, so an action stays open for its clauses, and it enforces the limit of 100. The verbs are extension methods of `TransactWriteExtensions` over
 `ITransactWriteChain<T>` and `ITransactWriteStep<T>`, whose members are internal, because instance methods would repeat every verb on four structs. `TransactWriteOperation.End` writes `ClientRequestToken` into the
@@ -221,12 +222,13 @@ every member below is reached from text in an emitter, and a rename shows up in 
 | `IDynamoDbEntity<T>.Info`, `WriteKey` | `DynamoDbClient.CreateTable<T>`, `Get(entity)`, `Delete(entity)`, `Index(name)` |
 | `IDynamoDbDiscriminated<T>` | A marker; the constraint of mixed reads. `EntityEmitter` puts it on the declaration when the entity has a discriminator value |
 | `IKey`, `IKey<T>` | `Keys.PrimaryKey`, which writes its key when a command asks, so a key costs no string. `ValueOf` exists only for an entity with `DynamoDbKeyTemplate.LosesValues` |
+| `SortKeyCondition` | The conditions of the generated key builders, over `Format`, `Prefix`, `UpperBound` and `Of` |
 | `PartitionKey<T>` | The generated `Keys.X.Of`, through constructors hidden from IntelliSense, one for the string of a template and one for the `AttributeValue` of a plain key, each with the attribute it is for; `TableExtensions.Query`, which takes it and compares that attribute with what it reads |
 | `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` | Metadata, read into `TableModel`, `EntityWrites` and `TableSchema`, and by `TableExtensions` for the name of a key builder and the kind of an index |
 | `Attr<T, TConverter>` | Generated `Attrs`. A handle is not tied to an entity: `EntityWrites.IsKeyInput` finds a template by path |
 | `OmitEmptyConverter<TConverter>`, `IDynamoDbConverter<T>.IsOmitted` | The type of the handle of a property with `[OmitEmpty]`, and `WriteRules`, which ask it through the type parameter. `static virtual`, and false by default, so that a struct converter compiles the question away. The write of the property is a generated `{ Length: > 0 }` and goes through its own converter |
 | `IDynamoDbConverter<T>.TryReadMissing` | `SelectedItem<TValue, TConverter>`. `static virtual`, and false by default, as `IsOmitted`. The null wrappers answer with null and the set converters with an empty set, which is what `MissingBehavior` says for an entity |
-| `OptionalConverter<T, TConverter>`, `OptionalReferenceConverter<T, TConverter>` | The type of the handle of a nullable property, which `AttrsEmitter` writes. A handle holds `T` without the `?`, for `Set` and the conditions, and a `string?` is a `string` at run time, so this is the one place that tells such a handle from another. A signature that names a converter has to see through it: the overloads of `Add` for `IAddableConverter`, those of `AttrExtensions.BeginsWith`, and `DYNA216` |
+| `OptionalConverter<T, TConverter>`, `OptionalReferenceConverter<T, TConverter>` | The type of the handle of a nullable property, which `AttrsEmitter` writes, and `AttrsEmitter.Optional()` picks which of the two from the text of the read converter. A handle holds `T` without the `?`, for `Set` and the conditions, and a `string?` is a `string` at run time, so this is the one place that tells such a handle from another. A signature that names a converter has to see through it: the six overloads of `Select`, two each on `GetCommand<T>`, `QueryCommand<T>` and `ScanCommand<T>`, the overloads of `Add` for `IAddableConverter`, those of `AttrExtensions.BeginsWith`, and `DYNA216` |
 | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, built-in converters | Every generated read and write |
 | `KeyWriter`, `KeyReader`, `KeyTimeFormat`, `KeyFormatException` | The generated key builders |
 | `ConverterChecks.ExpectDiscriminator`, `TryFindString`, `DynamoDbMappingException` | Generated reads |
@@ -281,7 +283,7 @@ The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target ne
 | Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
 | Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
 | Compile-time rules (`DYNA100` to `DYNA117`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
-| Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter` |
+| Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter`. Which conditions exist is `KeyBuilderEmitter.IsInOrder` and `EmitRanges`, and `PlainKeyBuilderEmitter.OrderedText`, for the reasons in `api.md` section 6 |
 | `KeyFormatException` | `Keys/KeyFormatException.cs`, in namespace `DynaSharp`; it names the placeholder, never the value |
 
 The encoded form is an on-disk contract. `Parse` and `Format` must stay exact inverses, and changing an encoding is a data migration.
@@ -297,7 +299,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA202` | `ReadTerminalAnalyzer` | Which types are reads, known by having `ItemsAsync` | `ReadTerminalAnalyzerTests` |
 | `DYNA203` | `DiscardedCommandAnalyzer` | The value of an expression statement, by `DynaSharpTypes.IsCommand` | `DiscardedCommandAnalyzerTests` |
 | `DYNA204` | `CommandReuseAnalyzer`, `CommandFlow` | `CommandState.Enter`, which throws for a stale handle | `CommandReuseAnalyzerTests` |
-| `DYNA205` | `EntityCommandAnalyzer`, on the generator's model through `ModelCatalog` | `KeyInputChanges.Check`, for a table key | `EntityCommandAnalyzerTests` |
+| `DYNA205` | `EntityCommandAnalyzer`, on the generator's model through `ModelCatalog` | `KeyInputChanges.Check`, which throws for an input of a template of the table key, and DynamoDB, which rejects a write of a plain key, where nothing here throws. By name, the members of `IUpdatable<TSelf>` that take a handle | `EntityCommandAnalyzerTests`, `AnalyzerListTests` |
 | `DYNA206` | `EntityCommandAnalyzer` | `WriteRules.Settle`, which throws for the same put | `EntityCommandAnalyzerTests` |
 | `DYNA207` | `EntityCommandAnalyzer` | `TableExtensions.Index`, which throws for the same name | `EntityCommandAnalyzerTests` |
 | `DYNA208`, `DYNA209` | `ProjectionAnalyzer`, on the generator's model through `ModelCatalog` | `MissingBehavior.Throw` and what generated reads restore from a key, `TableModel.AddRequiredNames` for which keys a read adds | `ProjectionAnalyzerTests`, and every test of the repository that projects an entity and reads it from an emulator |
@@ -305,7 +307,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA213` | `PathAnalyzer` | The generator's model, through `ModelBuilder.ModelOf`, which also reads types from metadata | `PathAnalyzerTests` |
 | `DYNA214` | `PathAnalyzer`, `PathSyntax` | `ExpressionWriter.AppendPath` | `PathSyntaxTests`, which runs both |
 | `DYNA215` | `HandleOwnerAnalyzer` | The shape of generated `Attrs`, a static property of a nested class of a mapped type | `HandleOwnerAnalyzerTests` |
-| `DYNA216` | `ExpressionAnalyzer` | Which built-in converters store no text, and the overloads of `AttrExtensions.BeginsWith` that do not compile | `ExpressionAnalyzerTests`, `CompileGuardTests` |
+| `DYNA216` | `ExpressionAnalyzer`, on the generator's model through `ModelCatalog` | Which built-in converters store no text, the overloads of `AttrExtensions.BeginsWith` that do not compile, and `EnumModel.StoreAsNumber` for what no overload can name | `ExpressionAnalyzerTests`, `CompileGuardTests`, and `AnalyzerListTests` for the list of converters against the overloads |
 
 A path parameter is known by its name, `path` or `paths`, so a new method that takes a path follows that or goes unchecked. `DYNA212` and `DYNA214` are warnings for 0.x: the grammar is a copy of the service's from 2026, and a false
 error in a consumer's build can only be fixed by a new package. `ExpressionParser` accepts everything DynamoDB might, for the same reason. `WrapInAttrCodeFix` is the only class that needs Workspaces, and only an IDE loads
@@ -330,6 +332,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
 | Key encodings | `Keys/KeyVectorTests`, `Key*PropertyTests` | `generate_key_vectors.py` with Python `decimal`; properties with a fixed seed: order is preserved, parse inverts format |
 | Key order against storage | Integration, `Keys` and `Mapping` | The emulators sort, so the ordering claim is checked by something else |
+| Sort key conditions | `Mapping/GeneratedSortKeyConditionTests`, integration `Keys/SortKeyConditionTests` | The order of the values, in `decimal`, `DateTimeOffset` and tuples, against real keys compared by UTF-8 bytes, and the rows the emulators return |
 | Command bodies | `Fluent/*Tests`, `WriteRulesTests`, `DiscriminatorWriteTests`, `CommandVectorTests` | Bodies written by hand from `api.md`, never from the writer, and the command vectors of `generate_operation_vectors.py` |
 | Generated code | `Generators/Snapshots/*.verified.cs`, compiled at C# 11 and latest | The reviewed snapshot, and compile-and-run tests in `Mapping` with hand-written JSON |
 | Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
@@ -373,14 +376,14 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 
 **A converter.**
 1. `Serialization/Converters/XConverter.cs`, a `public readonly struct` implementing `IDynamoDbConverter<T>`. Add `IAddableConverter` for a number or set. Use `ConverterChecks.Expect`.
-2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key, and one that does not write a string goes into `WireTypeOf` as well.
+2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key, and one that does not write a string goes into `WireTypeOf` as well. One that writes text in the order of its values goes into `OrderedText` of `PlainKeyBuilderEmitter`.
 3. `tests/DynaSharp.UnitTests/Serialization/Converters/XConverterTests.cs`, every wrong-type path and a counting pool for rented arrays.
 4. An integration case in `Support/ConverterCase.cs`, a snapshot if the emitted call differs, and the AOT smoke if it brings a new generic shape.
 
 **A key format.**
 1. `requirements.md`, the format table and encodings, first. It is a data contract.
 2. `Keys/KeyWriter.cs`, `KeyReader.cs`, `KeyText.cs` if it validates text.
-3. `Model/Encodings/XEncoding.cs`, a `KeyEncoding` with `WriteCall`, `TryReadCall` and `IsLossless`; the width is what decides delimiter checks.
+3. `Model/Encodings/XEncoding.cs`, a `KeyEncoding` with `WriteCall`, `TryReadCall` and `IsLossless`; the width is what decides delimiter checks, and whether a key has ranges of it: a fixed width has to sort by value, see `KeyBuilderEmitter.IsInOrder`.
 4. `Parsing/KeyInputs/*` and `Parsing/KeyInputCatalog.cs`, with `DYNA104` or `DYNA105` for what does not fit.
 5. `tests/DynaSharp.UnitTests/Keys/generate_key_vectors.py` first, then `KeyVectorTests`, a `Key*PropertyTests`, a shape in `KeyShapes` with its snapshots, `BETWEEN` and `begins_with` in `IntegrationTests`.
 
@@ -444,7 +447,7 @@ Each entry names where the reasons are. "Decisions" and "Findings" are sections 
 4. **The handler is the test seam, with no interface on the client or the table.** Decisions 2026-10-31.
 5. **Handles, no expression trees.** Allocation and AOT. Decisions 2026-10-31, and `history/api-layers-proposal.md` for the measurements.
 6. **Key values are rejected, never escaped, and `_type` is a required dedicated attribute.** Key injection, and the silent migration of a default name. Decisions 2026-10-31, key grammar rows.
-7. **Batch retries are bounded by rounds without progress, and a throttle on the last attempt surfaces as incomplete.** Decisions 2026-11-01.
+7. **Batch retries are bounded by rounds without progress, and a throttle on the last attempt, or any failure after a request went through, surfaces as incomplete.** Decisions 2026-11-01, and `api.md` section 10.
 8. **`TransactWrite` verbs are extension methods.** Otherwise every verb repeats on four structs. The price is a worse error, which `DYNA202` repairs. Decisions 2026-11-01.
 9. **The generated entity has no seam to the key emitter.** A partial-method guard would silently drop keys. Decisions 2026-11-01.
 10. **`#_type = if_not_exists(#_type, :t)`, not a plain `SET`.** An update through the wrong table must not rewrite another type. `history/generator-design.md`, amendments from the recipes.
