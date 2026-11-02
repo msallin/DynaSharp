@@ -332,7 +332,7 @@ it; the note on `RS1038` in the generator's project file explains why that holds
 ## 10. Tests and oracles
 
 Gates: build with warnings as errors, formatting included through `IDE0055`, `dotnet format whitespace --verify-no-changes` for line endings, which the build does not see, unit tests with 100 % line and branch coverage over `DynaSharp`, `DynaSharp.Generators` and `DynaSharp.Testing` (`coverage.config`,
-`build/CoverageGate.cs`), the C# blocks of the README compiled against the projects (`build/ReadmeCheck.cs`), integration tests on both emulators, the AOT publish and the package smoke test. Stryker has a break threshold of 90 % and runs before a milestone closes.
+`build/CoverageGate.cs`), the C# blocks of both READMEs compiled against the projects (`build/ReadmeCheck.cs`), integration tests on both emulators, the AOT publish and the package smoke test. Stryker has a break threshold of 90 % and runs before a milestone closes.
 The Stryker pass and the AOT publish are paused by the owner until the mandatory pass before the first push; see the decision in `tasks.md`.
 
 A test that derives its expectation from the code proves little, so each area has an independent source of truth.

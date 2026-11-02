@@ -1,4 +1,4 @@
-// Compiles the C# blocks of the README against the projects, and fails on an error, which names the line of the README.
+// Compiles the C# blocks of a README of this repository against the projects, and fails on an error, which names the line of the README.
 // Usage: dotnet run build/ReadmeCheck.cs -- <README.md>
 //
 // A block goes in as it stands on the page, and this adds only what the page leaves out. The types of the page are those of the sample, and the
@@ -45,12 +45,17 @@ const string PageFields = """
         private static OrderLine[] lines = [];
         private static Cart seen = null!;
         private static string after = "";
+        private static StubHandler stub = null!;
+        private static TimeProvider clock = null!;
+        private static string tokenFile = "";
+        private static string roleArn = "";
 
     """;
 
 var readme = Path.GetFullPath(args[0]);
-var root = Path.GetDirectoryName(readme)!;
+var root = RepositoryOf(readme);
 var output = Path.Combine(root, "artifacts", "readme-check");
+var source = Path.GetRelativePath(output, readme).Replace('\\', '/');
 Directory.CreateDirectory(output);
 foreach (var stale in Directory.GetFiles(output, "*.cs"))
 {
@@ -78,7 +83,7 @@ for (var index = 0; index < page.Length; index++)
     // The using lines of a block come first, and the rest keeps its line numbers in the README.
     var first = Array.FindLastIndex(block, IsUsing) + 1;
     var usings = string.Join('\n', block[..first]);
-    var body = string.Create(CultureInfo.InvariantCulture, $"#line {line + first} \"../../README.md\"\n{string.Join('\n', block[first..])}\n#line default\n");
+    var body = string.Create(CultureInfo.InvariantCulture, $"#line {line + first} \"{source}\"\n{string.Join('\n', block[first..])}\n#line default\n");
     if (Array.Exists(block, static line => line.StartsWith("[assembly:", StringComparison.Ordinal)))
     {
         Write(id, $"using DynaSharp.Sample;\n{usings}\n{body}");
@@ -147,6 +152,17 @@ build.WaitForExit();
 return build.ExitCode;
 
 void Write(string name, string text) => File.WriteAllText(Path.Combine(output, $"Block{name}.cs"), text);
+
+static string RepositoryOf(string file)
+{
+    var folder = Path.GetDirectoryName(file)!;
+    while (!File.Exists(Path.Combine(folder, "DynaSharp.slnx")))
+    {
+        folder = Path.GetDirectoryName(folder) ?? throw new ArgumentException($"{file} is not in the repository.");
+    }
+
+    return folder;
+}
 
 static bool IsUsing(string line) => line.StartsWith("using ", StringComparison.Ordinal) && !line.StartsWith("using var ", StringComparison.Ordinal);
 
