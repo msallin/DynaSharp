@@ -531,7 +531,8 @@ a binary attribute takes a binary prefix, with a string as `CS0619`. A `[Flags]`
 There is no `Contains` by handle. In an interpolated expression `DYNA216` reports the same mistake for both functions. Interpolation covers the
 rest of the grammar (`size`, `contains`, `attribute_type`, `list_append`, arithmetic in `SET`). In a hole, an `Attr` stands for its name, and a value,
 an `AttributeValue`, a number or `handle.Value(x)`, for a value. A string in a hole is a value, so a name needs `Attr` (`DYNA210`), and an expression that
-names no attribute throws `ArgumentException`.
+names no attribute throws `ArgumentException`. A bare name in the text goes to DynamoDB as it is, so a reserved word there is rejected (`DYNA220`), and one that
+the type of the command does not have is `DYNA213`.
 
 Every name becomes a placeholder and equal values share one, so reserved words need no care. A path is names joined by dots with list indexes in
 brackets; a dot always separates. `Attr` converts to its path as a `string`. `Attr<T, TConverter>` converts to `Attr` and not to `string`, so a wrong value

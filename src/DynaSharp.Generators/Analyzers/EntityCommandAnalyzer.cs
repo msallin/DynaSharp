@@ -13,6 +13,7 @@ namespace DynaSharp.Generators;
 /// <c>Put</c> whose item shows a version above 0 in the chain, which <c>WriteState.Settle</c> refuses. Version 0 is a first write, where the two conditions agree, so a version that is not a constant says
 /// nothing and is not reported. DYNA207: a constant name in the <c>Index(string)</c> that takes the names from the entity, which throws at run time when the entity does not declare it. DYNA219: a write by handle,
 /// also to a path inside it, to a property that a computed input of a key of an index is derived from, or to that computed input itself, which <c>KeyInputChanges</c> throws for. Behind a key of the table that is DYNA205, one step removed.
+/// DYNA225: <c>Including&lt;T&gt;</c> of an entity whose key names differ from those of the table or of the entity included first, which <c>TableSchema.Add</c> throws for.
 /// </summary>
 /// <remarks>A command says what it is on by a type argument, and a step of a transaction by the table of the verb it came from. Whatever cannot be followed, such as a generic helper or a step in a variable, is not reported.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -40,8 +41,12 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private const string NestedPath = "At";
 
+    private const string IncludingClause = "Including";
+
+    private const string CreateTableVerb = "CreateTable";
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex, Descriptors.IncludedKeyDiffers];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -74,6 +79,23 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             .Any(other => other.TargetMethod.Name == clause && SymbolEqualityComparer.Default.Equals(other.Type, invocation.Type));
     }
 
+    /// <summary>Whether a type is the owner of a handle or derives from it, so that the handle is one of its attributes.</summary>
+    /// <param name="entity">The type of the command.</param>
+    /// <param name="owner">The type that declares the handle.</param>
+    /// <returns>Whether it is that type or one of its base types.</returns>
+    internal static bool Inherits(INamedTypeSymbol entity, INamedTypeSymbol? owner)
+    {
+        for (var type = entity; type is not null; type = type.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(type, owner))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
@@ -94,6 +116,10 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         {
             AnalyzeIndex(context, invocation, models);
         }
+        else if (invocation.TargetMethod.Name == IncludingClause)
+        {
+            AnalyzeIncluding(context, invocation, models);
+        }
     }
 
     // Index<T>(this Table<T> table, string name) and Index<TEntity>(this Table<Item> table, string name): the entity is the one type argument, and a type parameter has no model.
@@ -108,6 +134,40 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(Descriptors.UndeclaredIndex, name.Syntax.GetLocation(), entity.Name, index));
         }
     }
+
+    // orders.CreateTable().Including<Customer>(): the table has the key of its entity, and a table without one the key of whatever came first, because every entity has to agree with the table.
+    private static void AnalyzeIncluding(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
+    {
+        if (invocation.TargetMethod.TypeArguments[0] is not INamedTypeSymbol included || models.ModelOf(included)?.Entity is not { } entity)
+        {
+            return;
+        }
+
+        (INamedTypeSymbol Type, EntityModel Entity)? first = null;
+        var current = invocation.Instance;
+        while (current is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.Type, invocation.Type))
+        {
+            if (call.TargetMethod.Name == IncludingClause && call.TargetMethod.TypeArguments[0] is INamedTypeSymbol earlier && models.ModelOf(earlier)?.Entity is { } known)
+            {
+                first = (earlier, known);
+            }
+            else if (call.TargetMethod.Name == CreateTableVerb && call.Instance?.Type is INamedTypeSymbol { TypeArguments.Length: 1 } holder && holder.TypeArguments[0] is INamedTypeSymbol table && models.ModelOf(table)?.Entity is { } own)
+            {
+                first = (table, own);
+            }
+
+            current = call.Instance;
+        }
+
+        if (first is { } other && KeyOf(other.Entity) != KeyOf(entity))
+        {
+            var name = ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)invocation.Syntax).Expression).Name;
+            context.ReportDiagnostic(Diagnostic.Create(Descriptors.IncludedKeyDiffers, name.GetLocation(), other.Type.Name, KeyOf(other.Entity), included.Name, KeyOf(entity)));
+        }
+    }
+
+    // TableSchema.Add compares the names of the keys, so this is the text its message gives: (pk, sk) or (pk).
+    private static string KeyOf(EntityModel entity) => entity.SortKey is { } sortKey ? $"({entity.PartitionKey.AttributeName}, {sortKey.AttributeName})" : $"({entity.PartitionKey.AttributeName})";
 
     private static void AnalyzeIfNotExists(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
     {
@@ -190,19 +250,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         from key in new[] { index.PartitionKey, index.SortKey }.OfType<KeyModel>()
         where Holds(key, input.Property)
         select (input.Property, index.IndexName, key);
-
-    private static bool Inherits(INamedTypeSymbol entity, INamedTypeSymbol? owner)
-    {
-        for (var type = entity; type is not null; type = type.BaseType)
-        {
-            if (SymbolEqualityComparer.Default.Equals(type, owner))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static bool FeedsTableKey(EntityModel entity, string property) =>
         new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));

@@ -2,7 +2,7 @@ using DynaSharp.Generators;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>DYNA205 to DYNA207 and DYNA219: what a command says about its entity that the model of the entity contradicts.</summary>
+/// <summary>DYNA205 to DYNA207, DYNA219 and DYNA225: what a command says about its entity that the model of the entity contradicts.</summary>
 public sealed class EntityCommandAnalyzerTests
 {
     private const string VersionMessage = "DYNA206 Warning: This Put of 'Locked' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.";
@@ -473,6 +473,91 @@ public sealed class EntityCommandAnalyzerTests
 
         // Act
         var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""_ = events.CreateTable().[|Including<Customer>|]();""", "DeviceEvent", "(pk, sk)", "Customer", "(Id, Region)")]
+    [Arguments("""_ = events.CreateTable().[|Including<Locked>|]();""", "DeviceEvent", "(pk, sk)", "Locked", "(pk)")]
+    [Arguments("""_ = events.CreateTable().Provisioned(1, 1).Including<DeviceEvent>().[|Including<Customer>|]();""", "DeviceEvent", "(pk, sk)", "Customer", "(Id, Region)")]
+    [Arguments("""_ = shop.CreateTable().Including<Locked>().Including<Visit>().[|Including<DeviceEvent>|]();""", "Locked", "(pk)", "DeviceEvent", "(pk, sk)")]
+    [Arguments("""_ = shop.CreateTable().Including<Hand>().Including<Locked>().[|Including<Customer>|]();""", "Locked", "(pk)", "Customer", "(Id, Region)")]
+    public async Task Analyze_IncludedEntityWithAnotherKey_Warns(string statement, string first, string firstKey, string included, string includedKey)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA225 Warning: '{first}' has the key {firstKey}, and '{included}' has {includedKey}, so they cannot share a table and Including throws ArgumentException"));
+    }
+
+    [Test]
+    [Arguments("""_ = locks.CreateTable().Including<Visit>().Including<Shift>();""")]
+    [Arguments("""_ = shop.CreateTable().Including<Locked>();""")]
+    [Arguments("""_ = shop.CreateTable().Including<Hand>().Including<Customer>();""")]
+    [Arguments("""_ = events.CreateTable().Including<Hand>();""")]
+    [Arguments("""_ = addresses.CreateTable().Including<Customer>();""")]
+    [Arguments("""var create = events.CreateTable(); _ = create.Including<Customer>();""")]
+    public async Task Analyze_IncludedEntityWithTheSameKeyOrThatCannotBeCompared_ReportsNothing(string statement)
+    {
+        // Arrange (a type without a model, a table of a document, and a command in a variable say nothing)
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(Shared.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_IncludingOfATypeParameter_ReportsNothing()
+    {
+        // Arrange
+        var source = AnalyzerRun.Member("""private static CreateTableCommand Run<T>(Table<DeviceEvent> table) where T : IDynamoDbEntity<T> => table.CreateTable().Including<T>();""", Entities);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new EntityCommandAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_CreateTableOfAStaticMethodUnderTheNamespaceOfTheLibrary_HasNoTable()
+    {
+        // Arrange (a helper of the consumer in DynaSharp.Extras counts as the library and has no receiver)
+        var source = """
+            using DynaSharp;
+            using DynaSharp.Mapping;
+
+            namespace DynaSharp.Extras
+            {
+                [DynamoDbEntity]
+                [Discriminator("NOTE")]
+                [PartitionKey("NOTE#{Id}")]
+                public partial class Note
+                {
+                    public required string Id { get; init; }
+                }
+
+                public static class Helpers
+                {
+                    public static CreateTableCommand CreateTable() => null!;
+
+                    public static CreateTableCommand Run() => CreateTable().Including<Note>();
+                }
+            }
+            """;
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new EntityCommandAnalyzer());
 
         // Assert
         await Assert.That(report).IsEmpty();

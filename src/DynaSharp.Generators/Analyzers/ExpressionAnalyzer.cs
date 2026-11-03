@@ -9,7 +9,7 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// Reads the interpolated strings that bind to <c>ExpressionHandler</c> as the text they render, and reports names in value holes (DYNA210),
-/// placeholders in the text (DYNA211) and what DynamoDB's grammar rejects (DYNA212). The rules are in <see cref="ExpressionParser"/>. The text functions on a handle of a number are valid
+/// placeholders in the text (DYNA211), what DynamoDB's grammar rejects (DYNA212), a reserved word as a bare name (DYNA220), and on a command of a mapped type a bare name that a path starts with and the type has no attribute of (DYNA213). The rules are in <see cref="ExpressionParser"/>. The text functions on a handle of a number are valid
 /// grammar that matches nothing (DYNA216), which only the type of the hole tells, so that is looked at here, and so is the one <c>BeginsWith</c> by handle that no overload can refuse.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -36,7 +36,7 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [Descriptors.StringInNamePosition, Descriptors.PlaceholderInExpression, Descriptors.ExpressionSyntaxError, Descriptors.TextFunctionOnNumber];
+        [Descriptors.StringInNamePosition, Descriptors.PlaceholderInExpression, Descriptors.ExpressionSyntaxError, Descriptors.TextFunctionOnNumber, Descriptors.ReservedWordInExpression, Descriptors.PathMatchesNoAttribute];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -48,13 +48,14 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
             if (start.Compilation.GetTypeByMetadataName(WellKnownNames.ExpressionHandler) is { } handler)
             {
                 var models = new ModelCatalog(start.Compilation);
-                start.RegisterOperationAction(operation => Analyze(operation, handler, models), OperationKind.InterpolatedStringHandlerCreation);
+                var attributes = new AttributeCatalog(models);
+                start.RegisterOperationAction(operation => Analyze(operation, handler, models, attributes), OperationKind.InterpolatedStringHandlerCreation);
                 start.RegisterOperationAction(operation => AnalyzeBeginsWith(operation, models), OperationKind.Invocation);
             }
         });
     }
 
-    private static void Analyze(OperationAnalysisContext context, INamedTypeSymbol handler, ModelCatalog models)
+    private static void Analyze(OperationAnalysisContext context, INamedTypeSymbol handler, ModelCatalog models, AttributeCatalog attributes)
     {
         var creation = (IInterpolatedStringHandlerCreationOperation)context.Operation;
         if (!SymbolEqualityComparer.Default.Equals(creation.Type, handler))
@@ -64,10 +65,19 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
 
         var expression = new Expression(models);
         expression.Add(creation.Content);
-        foreach (var problem in ExpressionParser.Check(KindOf(creation), expression.Parts))
+        var method = MethodOf(creation);
+        var command = method?.ContainingType;
+        foreach (var problem in ExpressionParser.Check(KindOf(method), expression.Parts, withNames: command is { IsRefLikeType: true, IsGenericType: true }))
         {
             var location = Location.Create(creation.Syntax.SyntaxTree, expression.SpanOf(problem, creation.Syntax.Span));
-            context.ReportDiagnostic(Diagnostic.Create(DescriptorOf(problem.Kind), location, problem.Detail));
+            if (problem.Kind != ExpressionProblemKind.BareName)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(DescriptorOf(problem.Kind), location, problem.Detail));
+            }
+            else if (attributes.TypeWithout(command!, problem.Detail) is { } mapped)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Descriptors.PathMatchesNoAttribute, location, problem.Detail, mapped.Name));
+            }
         }
 
         foreach (var (span, function) in expression.TextFunctionsOnNumbers())
@@ -112,20 +122,16 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
             && model.Enums.Any(known => known.StoreAsNumber && AttrsEmitter.ForwarderPrefix + known.ConverterName == converter.Name));
 
     // A wrapper of the consumer may forward the handler to either grammar, so only the methods of the library say which one it is.
-    private static ExpressionKind KindOf(IOperation creation)
-    {
-        if (creation.Parent is not IArgumentOperation { Parameter: { } parameter } || !DynaSharpTypes.IsDeclaredByDynaSharp(parameter.ContainingType))
-        {
-            return ExpressionKind.Unknown;
-        }
+    private static IMethodSymbol? MethodOf(IOperation creation) =>
+        creation.Parent is IArgumentOperation { Parameter.ContainingSymbol: IMethodSymbol method } && DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) ? method : null;
 
-        return parameter.ContainingSymbol.Name == SetMethod ? ExpressionKind.SetAction : ExpressionKind.Condition;
-    }
+    private static ExpressionKind KindOf(IMethodSymbol? method) => method is null ? ExpressionKind.Unknown : method.Name == SetMethod ? ExpressionKind.SetAction : ExpressionKind.Condition;
 
     private static DiagnosticDescriptor DescriptorOf(ExpressionProblemKind kind) => kind switch
     {
         ExpressionProblemKind.StringInNamePosition => Descriptors.StringInNamePosition,
         ExpressionProblemKind.Placeholder => Descriptors.PlaceholderInExpression,
+        ExpressionProblemKind.ReservedWord => Descriptors.ReservedWordInExpression,
         _ => Descriptors.ExpressionSyntaxError,
     };
 

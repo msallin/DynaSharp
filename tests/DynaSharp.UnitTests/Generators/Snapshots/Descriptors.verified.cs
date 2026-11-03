@@ -70,6 +70,12 @@ DYNA216 | https://msallin.github.io/DynaSharp/diagnostics.html#expressions
 DYNA217 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA218 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA219 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA220 | https://msallin.github.io/DynaSharp/diagnostics.html#expressions
+DYNA221 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA222 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA223 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA224 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA225 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -142,3 +148,9 @@ DYNA216 | Warning | DynaSharp.Expressions | Text function on a number | {0} neve
 DYNA217 | Warning | DynaSharp.Commands | Nested RetryOnConflictAsync | RetryOnConflictAsync runs inside the delegate of another RetryOnConflictAsync, so the runs multiply and an exhausted inner retry counts as a conflict of the outer one. Move the follow-up write after the outer call.
 DYNA218 | Warning | DynaSharp.Commands | Version read before the retry | '{0}' was read before RetryOnConflictAsync started, so every run sends the same version and fails the same way. Read it inside the delegate.
 DYNA219 | Warning | DynaSharp.Commands | Write to what a key of an index is computed from | '{0}' {1}, so this update throws when it ends. Put the changed entity instead.
+DYNA220 | Warning | DynaSharp.Expressions | Reserved word as a name | '{0}' is a reserved word of DynamoDB, which rejects it as a bare name in an expression. Write the name in Attr(...) or use a handle, which DynaSharp sends as a #name placeholder.
+DYNA221 | Warning | DynaSharp.Commands | Filter on what the key condition decides | '{0}' is held by the key '{1}' that this query reads, so the key condition decides what this filter tests{2}. Test it there.
+DYNA222 | Info | DynaSharp.Commands | Filter on what a key holds in part | '{0}' is held in part by the key '{1}' that this query reads, so the key condition can narrow the read before this filter. A filter finer than the key is fine.
+DYNA223 | Warning | DynaSharp.Commands | Two actions on one path | This {0} changes '{1}', and an earlier action of this update changes '{2}', so DynamoDB rejects the request for paths that overlap. Keep one action per path.
+DYNA224 | Warning | DynaSharp.Commands | Key of another attribute | {0} builds a key of the attribute {1}, and this query of {2} reads {3}, so {4}
+DYNA225 | Warning | DynaSharp.Commands | Included entity has another key | '{0}' has the key {1}, and '{2}' has {3}, so they cannot share a table and Including throws ArgumentException

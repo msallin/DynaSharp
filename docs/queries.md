@@ -22,7 +22,7 @@ await foreach (var order in bigOrders)
 
 A file that works on one entity can shorten this with `using Attrs = Shop.Order.Attrs;` at the top, and write `Attrs.Total.Gt(100m)`.
 
-A filter can also be text, as in `.Filter($"Total > {100}")`. Text takes reserved words as they are, so DynamoDB rejects a name such as `Value`, where `Attrs` needs no care. No name in it is checked against the attributes of the entity, so a wrong one finds nothing.
+A filter can also be text, as in `.Filter($"{Order.Attrs.Total} > {100}")`, where a handle in a hole stands for the name. Text takes a bare name as it is, so DynamoDB rejects a reserved word such as `Total` or `Value` (`DYNA220`), where `Attrs` needs no care, and a bare name the entity does not have is `DYNA213`.
 
 `Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is, and it stops reading once it has them:
 

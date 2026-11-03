@@ -7,7 +7,7 @@ namespace DynaSharp.Generators;
 /// <para>
 /// A false error breaks a build and a missed one only moves the error to run time, so the grammar accepts everything DynamoDB might. Its rules
 /// were run against DynamoDB Local, which reports the service's own messages. What it accepts here and DynamoDB rejects for other reasons is
-/// meant: redundant parentheses, reserved words, operand types. A hole is an operand wherever it stands, because what it holds at run time
+/// meant: redundant parentheses and operand types. A reserved word as a bare name is no syntax error here but a problem of its own, DYNA220, a warning. A hole is an operand wherever it stands, because what it holds at run time
 /// is not known; only a constant string is looked at.
 /// </para>
 /// <para>
@@ -39,16 +39,19 @@ internal sealed class ExpressionParser
 
     private readonly bool _inUpdate;
 
+    private readonly bool _withNames;
+
     private int _index;
 
     private bool _failed;
 
-    private ExpressionParser(IReadOnlyList<ExpressionPart> parts, List<ExpressionToken> tokens, List<ExpressionProblem> problems, bool inUpdate)
+    private ExpressionParser(IReadOnlyList<ExpressionPart> parts, List<ExpressionToken> tokens, List<ExpressionProblem> problems, bool inUpdate, bool withNames)
     {
         _parts = parts;
         _tokens = tokens;
         _problems = problems;
         _inUpdate = inUpdate;
+        _withNames = withNames;
     }
 
     [Flags]
@@ -75,12 +78,13 @@ internal sealed class ExpressionParser
     /// <summary>Checks an expression.</summary>
     /// <param name="kind">The grammar to read it with.</param>
     /// <param name="parts">The parts. Literal parts never touch, as a word could span them.</param>
+    /// <param name="withNames">Whether to add a <see cref="ExpressionProblemKind.BareName"/> for each bare word a path starts with, for a caller that knows the attributes.</param>
     /// <returns>The placeholders first, then the rest as the parser met it.</returns>
-    public static List<ExpressionProblem> Check(ExpressionKind kind, IReadOnlyList<ExpressionPart> parts)
+    public static List<ExpressionProblem> Check(ExpressionKind kind, IReadOnlyList<ExpressionPart> parts, bool withNames = false)
     {
         var problems = new List<ExpressionProblem>();
         var tokens = ExpressionLexer.Read(parts, problems);
-        var parser = new ExpressionParser(parts, tokens, problems, kind != ExpressionKind.Condition);
+        var parser = new ExpressionParser(parts, tokens, problems, kind != ExpressionKind.Condition, withNames);
         switch (kind)
         {
             case ExpressionKind.Condition:
@@ -282,6 +286,7 @@ internal sealed class ExpressionParser
                     return ParseFunction(token);
                 }
 
+                NoteName(token, isRoot: true);
                 ParseTail();
                 return Node.Operand;
             default:
@@ -350,7 +355,7 @@ internal sealed class ExpressionParser
             if (At(TokenKind.Dot))
             {
                 Advance();
-                ParseName();
+                ParseName(isRoot: false);
             }
             else if (At(TokenKind.OpenBracket))
             {
@@ -367,11 +372,11 @@ internal sealed class ExpressionParser
 
     private void ParsePath()
     {
-        ParseName();
+        ParseName(isRoot: true);
         ParseTail();
     }
 
-    private void ParseName()
+    private void ParseName(bool isRoot)
     {
         var token = Current;
         if (token.Kind == TokenKind.Hole)
@@ -379,8 +384,13 @@ internal sealed class ExpressionParser
             Flag(HoleNode(token));
             Advance();
         }
-        else if (token.Kind == TokenKind.NamePlaceholder || (token.Kind == TokenKind.Word && !IsKeyword(token)))
+        else if (token.Kind == TokenKind.NamePlaceholder)
         {
+            Advance();
+        }
+        else if (token.Kind == TokenKind.Word && !IsKeyword(token))
+        {
+            NoteName(token, isRoot);
             Advance();
         }
         else
@@ -567,6 +577,19 @@ internal sealed class ExpressionParser
         if (node.StringPart >= 0)
         {
             _problems.Add(new ExpressionProblem(ExpressionProblemKind.StringInNamePosition, node.StringPart, 0, 0, _parts[node.StringPart].Text));
+        }
+    }
+
+    // A word in the place of a name: status in status = :v and in a.status = :v. DynamoDB rejects a reserved one wherever it stands, and only the first name of a path is an attribute of the item.
+    private void NoteName(ExpressionToken token, bool isRoot)
+    {
+        if (ReservedWords.Contains(_parts[token.Part].Text, token.Start, token.Length))
+        {
+            _problems.Add(new ExpressionProblem(ExpressionProblemKind.ReservedWord, token.Part, token.Start, token.Length, TextOf(token)));
+        }
+        else if (isRoot && _withNames)
+        {
+            _problems.Add(new ExpressionProblem(ExpressionProblemKind.BareName, token.Part, token.Start, token.Length, TextOf(token)));
         }
     }
 

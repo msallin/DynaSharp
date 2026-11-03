@@ -483,6 +483,60 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor ReservedWordInExpression = new(
+        "DYNA220",
+        "Reserved word as a name",
+        "'{0}' is a reserved word of DynamoDB, which rejects it as a bare name in an expression. Write the name in Attr(...) or use a handle, which DynaSharp sends as a #name placeholder.",
+        Expressions,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: ExpressionHelp);
+
+    public static readonly DiagnosticDescriptor FilterOnLosslessKey = new(
+        "DYNA221",
+        "Filter on what the key condition decides",
+        "'{0}' is held by the key '{1}' that this query reads, so the key condition decides what this filter tests{2}. Test it there.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor FilterOnLossyKey = new(
+        "DYNA222",
+        "Filter on what a key holds in part",
+        "'{0}' is held in part by the key '{1}' that this query reads, so the key condition can narrow the read before this filter. A filter finer than the key is fine.",
+        Commands,
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor OverlappingUpdatePaths = new(
+        "DYNA223",
+        "Two actions on one path",
+        "This {0} changes '{1}', and an earlier action of this update changes '{2}', so DynamoDB rejects the request for paths that overlap. Keep one action per path.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor KeyOfAnotherAttribute = new(
+        "DYNA224",
+        "Key of another attribute",
+        "{0} builds a key of the attribute {1}, and this query of {2} reads {3}, so {4}",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor IncludedKeyDiffers = new(
+        "DYNA225",
+        "Included entity has another key",
+        "'{0}' has the key {1}, and '{2}' has {3}, so they cannot share a table and Including throws ArgumentException",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -492,6 +546,7 @@ internal static class Descriptors
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
+        ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

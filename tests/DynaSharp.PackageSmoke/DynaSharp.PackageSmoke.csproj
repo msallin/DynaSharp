@@ -71,6 +71,11 @@
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA216'))" Text="DYNA216 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA217'))" Text="DYNA217 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA218'))" Text="DYNA218 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA220'))" Text="DYNA220 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA221'))" Text="DYNA221 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA223'))" Text="DYNA223 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA224'))" Text="DYNA224 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA225'))" Text="DYNA225 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA026'))" Text="DYNA026 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA031'))" Text="DYNA031 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA032'))" Text="DYNA032 did not appear. The compiler printed: $(_MistakesOutput)" />

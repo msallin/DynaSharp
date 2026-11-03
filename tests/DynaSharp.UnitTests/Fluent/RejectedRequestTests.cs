@@ -107,10 +107,10 @@ public sealed class RejectedRequestTests
         var name = "status";
 
         // Act
-        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await shop.Update("a").If($"pending = {name} AND other = {"open"}").SendAsync());
+        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await shop.Update("a").If($"pending = {name} AND kind = {"open"}").SendAsync());
 
         // Assert
-        await Assert.That(failure.Message).EndsWith("Expression: pending = :v0 AND other = :v1, where :v0 (S), :v1 (S)");
+        await Assert.That(failure.Message).EndsWith("Expression: pending = :v0 AND kind = :v1, where :v0 (S), :v1 (S)");
     }
 
     [Test]

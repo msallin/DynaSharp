@@ -29,3 +29,9 @@ DYNA216 | DynaSharp.Expressions | Warning | Text function on a number
 DYNA217 | DynaSharp.Commands | Warning | Nested RetryOnConflictAsync
 DYNA218 | DynaSharp.Commands | Warning | Version read before the retry
 DYNA219 | DynaSharp.Commands | Warning | Write to what a key of an index is computed from
+DYNA220 | DynaSharp.Expressions | Warning | Reserved word as a name
+DYNA221 | DynaSharp.Commands | Warning | Filter on what the key condition decides
+DYNA222 | DynaSharp.Commands | Info | Filter on what a key holds in part
+DYNA223 | DynaSharp.Commands | Warning | Two actions on one path
+DYNA224 | DynaSharp.Commands | Warning | Key of another attribute
+DYNA225 | DynaSharp.Commands | Warning | Included entity has another key

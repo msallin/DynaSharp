@@ -56,6 +56,16 @@ public static class Code
 
     public static void Dyna214() => Shop.Update("a").Remove("a..b");
 
+    public static void Dyna220() => Shop.Scan().Filter($"status = {"open"}");
+
+    public static string Dyna221() => Shipments.Query("SHIPMENT#a").Filter(Shipment.Attrs.Id.Eq("a")).ToRequestJson();
+
+    public static string Dyna223() => Orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Total, 1m).Add(Order.Attrs.Total, 2m).ToRequestJson();
+
+    public static string Dyna224() => Tickets.Index(Ticket.Indexes.ByCode).Query(Ticket.Keys.Pk.Of("a")).ToRequestJson();
+
+    public static CreateTableCommand Dyna225() => Orders.CreateTable().Including<Shipment>();
+
     public static void Dyna215() => Invoices.Scan().Filter(Order.Attrs.Total.Gt(1m));
 
     public static void Dyna216() => Orders.Update("a").If($"contains({Order.Attrs.Total}, {1})");
@@ -73,4 +83,6 @@ public static class Code
     private static readonly Table<Invoice> Invoices = null!;
 
     private static readonly Table<Shipment> Shipments = null!;
+
+    private static readonly Table<Ticket> Tickets = null!;
 }

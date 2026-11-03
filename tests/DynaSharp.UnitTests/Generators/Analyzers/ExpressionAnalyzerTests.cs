@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>DYNA210 to DYNA212 on real snippets: which strings are looked at, and where the diagnostic lands.</summary>
+/// <summary>DYNA210 to DYNA212, DYNA216, DYNA220 and the bare names of DYNA213 on real snippets: which strings are looked at, and where the diagnostic lands.</summary>
 public sealed class ExpressionAnalyzerTests
 {
     private const string FlagsModel = """
@@ -83,7 +83,58 @@ public sealed class ExpressionAnalyzerTests
         }
         """;
 
+    private const string OrderModel = """
+
+        [DynamoDbEntity]
+        [Discriminator("ORDER")]
+        [PartitionKey("USER#{UserId}")]
+        [SortKey("ORDER#{OrderId}")]
+        [GlobalIndexKey("GSI1", PartitionKey = "MARKET#{Market}")]
+        public partial class Order
+        {
+            public required string UserId { get; init; }
+
+            [KeyOnly]
+            public required string OrderId { get; init; }
+
+            public required string Market { get; init; }
+
+            public required decimal Total { get; init; }
+
+            public Address? ShipTo { get; init; }
+
+            public List<string> Tags { get; init; } = [];
+        }
+
+        [DynamoDbDocument]
+        public partial record Address(string Street);
+
+        [DynamoDbEntity]
+        [Discriminator("INVOICE")]
+        [PartitionKey("USER#{UserId}")]
+        public partial class Invoice
+        {
+            public required string UserId { get; init; }
+
+            public decimal Refund { get; init; }
+        }
+
+        public static class Mine
+        {
+            public static UpdateCommand<T> Touch<T>(this UpdateCommand<T> command, [InterpolatedStringHandlerArgument("command")] ExpressionHandler action)
+                where T : IDynamoDbDocument<T> => command.Set(action);
+        }
+        """;
+
+    private const string OrderFields = """
+        private static readonly Table<Order> orders = null!;
+        private static UpdateCommand<Order> update => default;
+
+        """;
+
     private static readonly AnalyzerFixture WithFlags = new(FlagsModel);
+
+    private static readonly AnalyzerFixture WithOrders = new(OrderModel);
 
     [Test]
     public async Task Analyze_LiteralLeftOfAnOperator_ReportsItsSpan()
@@ -456,7 +507,7 @@ public sealed class ExpressionAnalyzerTests
     [Test]
     public async Task Analyze_ExpressionsOfTheOperationVectorsAsInterpolatedStrings_ReportNothing()
     {
-        // Arrange: each placeholder of the vectors in its hole, as a user would write them.
+        // Arrange: each placeholder of the vectors in its hole, as a user would write them. botocore wrote them and no DynamoDB ran them, so a bare total in them is reserved, DYNA220, and only the grammar counts here.
         var statements = VectorExpressions.All().Select(static vector => Statement(vector.Kind, vector.Text)).OfType<string>().ToList();
         var source = AnalyzerRun.Statements(string.Join("\n", statements));
 
@@ -465,7 +516,7 @@ public sealed class ExpressionAnalyzerTests
 
         // Assert
         await Assert.That(statements.Count).IsGreaterThan(30);
-        await Assert.That(report).IsEmpty();
+        await Assert.That(report.Split('\n', StringSplitOptions.RemoveEmptyEntries).Where(static line => !line.StartsWith("DYNA220 ", StringComparison.Ordinal))).IsEmpty();
     }
 
     [Test]
@@ -570,6 +621,131 @@ public sealed class ExpressionAnalyzerTests
         await Assert.That(WithFlags.CompilerErrors(source)).IsEmpty();
         await Assert.That(report).DoesNotContain("DYNA216");
     }
+
+    [Test]
+    [Arguments("""shop.Update("a").If($"[|status|] = {"open"}");""", "status")]
+    [Arguments("""shop.Scan().Filter($"[|Total|] > {100}");""", "Total")]
+    [Arguments("""shop.Update("a").If($"attribute_exists([|name|])");""", "name")]
+    [Arguments("""shop.Update("a").If($"size([|data|]) > {1}");""", "data")]
+    [Arguments("""shop.Update("a").If($"info.[|year|] = {1}");""", "year")]
+    [Arguments("""shop.Update("a").If($"{Attr("info")}.[|year|] = {1}");""", "year")]
+    [Arguments("""shop.Query("a").Filter($"{Attr("a")} = {1} OR NOT ([|USER|] IN ({1}, {2}))");""", "USER")]
+    [Arguments("""shop.Update("a").Set($"a = {1} REMOVE [|data|]");""", "data")]
+    [Arguments("""shop.Update("a").Set($"a = {1} ADD [|count|] {1}");""", "count")]
+    public async Task Analyze_ReservedWordAsABareName_ReportsTheWord(string statement, string word)
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements(statement);
+
+        // Act
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Reserved(word)));
+    }
+
+    [Test]
+    public async Task Analyze_ReservedWordOnBothSidesOfAnAction_ReportsEach()
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements("""shop.Update("a").Set($"[|count|] = [|count|] + {1}");""");
+
+        // Act
+        var report = await AnalyzerFixture.NoModel.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Reserved("count"), Reserved("count")));
+    }
+
+    [Test]
+    [Arguments("""shop.Update("a").If($"{Attr("status")} = {"open"}");""")]
+    [Arguments("""shop.Update("a").If($"kind = {"status"}");""")]
+    [Arguments("""shop.Update("a").If($"size(tags) > {1} AND kind BETWEEN {1} AND {2}");""")]
+    [Arguments("""shop.Update("a").If($"NOT contains(tags, {"x"})");""")]
+    [Arguments("""shop.Update("a").Set($"kind = if_not_exists(kind, {1}) REMOVE tags");""")]
+    [Arguments("""update.Touch($"status = {1}");""")]
+    public async Task Analyze_ReservedWordWhereNoBareNameStands_ReportsNothing(string statement)
+    {
+        // Arrange (a function, a keyword, a value, a name in a hole and a method of the consumer, which reads no grammar)
+        var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + statement + " }");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""orders.Scan().Filter($"[|Totl|] > {1}");""", "Totl")]
+    [Arguments("""orders.Scan().Filter($"attribute_exists([|Shipto|].Street)");""", "Shipto")]
+    [Arguments("""orders.Scan().Filter($"Market = {"eu"} AND [|Markte|] = {"eu"}");""", "Markte")]
+    [Arguments("""update.If($"[|OrderId|] = {"a"}");""", "OrderId")]
+    [Arguments("""update.Set($"[|Totl|] = {1}");""", "Totl")]
+    [Arguments("""update.Set($"Tags = {1} REMOVE [|Tagz|]");""", "Tagz")]
+    [Arguments("""update.Set($"Tags = list_append([|Tagz|], {1})");""", "Tagz")]
+    [Arguments("""shop.Query("a").Of<Order, Invoice>().Filter($"[|Nope|] = {1}");""", "Nope")]
+    public async Task Analyze_BareNameTheTypeOfTheCommandDoesNotHave_Warns(string statement, string name)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + statement + " }");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA213 Warning: Path '{name}' matches no attribute of 'Order'. Check the spelling, unless the attribute is outside the entity."));
+    }
+
+    [Test]
+    [Arguments("""orders.Scan().Filter($"Market = {"eu"} AND UserId = {"u"}");""")]
+    [Arguments("""orders.Scan().Filter($"attribute_exists(ShipTo.Stret) AND size(Tags) > {1}");""")]
+    [Arguments("""orders.Scan().Filter($"pk = {1} AND sk = {1} AND gsi1pk = {1} AND _type = {1}");""")]
+    [Arguments("""update.Set($"Tags = list_append(Tags, {1})");""")]
+    [Arguments("""shop.Query("a").Of<Order, Invoice>().Filter($"Refund > {1} AND Market = {"eu"}");""")]
+    [Arguments("""shop.Scan().Filter($"Nope = {1}");""")]
+    [Arguments("""update.Touch($"Nope = {1}");""")]
+    public async Task Analyze_BareNameTheTypeHasOrThatCannotBeChecked_ReportsNothing(string statement)
+    {
+        // Arrange (a nested name is not looked at, Item has no attributes to compare with, and neither has a method of the consumer)
+        var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + statement + " }");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_BareNameOnATransactionStep_HasNoEntityToCheck()
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(OrderFields + """public static void Run(DynamoDbClient client) { client.TransactWrite().Update(orders, "a").Set($"Nope = {1}"); }""");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""orders.Scan().Filter($"[|Total|] > {1}");""", "Total")]
+    [Arguments("""update.If($"[|Value|] = {1}");""", "Value")]
+    public async Task Analyze_ReservedBareName_IsOnlyTheReservedWord(string statement, string word)
+    {
+        // Arrange (whether the type has the attribute or not, DynamoDB rejects the word first)
+        var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + statement + " }");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Reserved(word)));
+    }
+
+    private static string Reserved(string word) => $"DYNA220 Warning: '{word}' is a reserved word of DynamoDB, which rejects it as a bare name in an expression. Write the name in Attr(...) or use a handle, which DynaSharp sends as a #name placeholder.";
 
     private static string NamePosition(string name) => $"DYNA210 Warning: String '{name}' is a value here, but this position needs a name. Wrap it in Attr(...).";
 

@@ -400,6 +400,76 @@ public sealed class ExpressionParserTests
         await Assert.That(problems.Select(static problem => problem.Kind)).IsEquivalentTo([ExpressionProblemKind.Syntax]);
     }
 
+    [Test]
+    [Arguments("Condition", "status = :v", 0, 6)]
+    [Arguments("Condition", "a.Status = :v", 2, 6)]
+    [Arguments("Condition", "a[1].status = :v", 5, 6)]
+    [Arguments("Condition", "attribute_exists(name)", 17, 4)]
+    [Arguments("Condition", "a IN (:v, value)", 10, 5)]
+    [Arguments("Condition", "a = b AND (NOT data < :v)", 15, 4)]
+    [Arguments("Update", "SET a = :v REMOVE b, count", 21, 5)]
+    [Arguments("Update", "ADD count :v", 4, 5)]
+    [Arguments("SetAction", "a = if_not_exists(total, :v)", 18, 5)]
+    public async Task Check_ReservedWordAsAName_IsFlaggedWhereItStands(string kind, string expression, int start, int length)
+    {
+        // Arrange (DynamoDB rejects a reserved word as a name in any case and at any depth of a path)
+        var parts = new[] { ExpressionPart.Literal(expression) };
+
+        // Act
+        var problems = Problems(Enum.Parse<ExpressionKind>(kind), expression, withoutPlaceholders: true);
+
+        // Assert
+        await Assert.That(problems).IsEquivalentTo([new ExpressionProblem(ExpressionProblemKind.ReservedWord, 0, start, length, parts[0].Text.Substring(start, length))]);
+    }
+
+    [Test]
+    [Arguments("Condition", "size(a) > :v AND a BETWEEN :v AND :w")]
+    [Arguments("Condition", "NOT contains(a, :v) OR a IN (:v)")]
+    [Arguments("Update", "SET a = :v REMOVE b ADD c :v DELETE d :v")]
+    [Arguments("Unknown", "status = :v")]
+    public async Task Check_ReservedWordThatIsNoName_IsNotFlagged(string kind, string expression)
+    {
+        // Arrange (a function, a keyword of the grammar, and text that no grammar reads)
+        var parts = new[] { ExpressionPart.Literal(expression) };
+
+        // Act
+        var problems = ExpressionParser.Check(Enum.Parse<ExpressionKind>(kind), parts);
+
+        // Assert
+        await Assert.That(problems.Where(static problem => problem.Kind != ExpressionProblemKind.Placeholder)).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("Condition", "a.b = c AND attribute_exists(d[0].e) AND size(f) > :v", "a c d f")]
+    [Arguments("Condition", "{0}.b = :v", "")]
+    [Arguments("Update", "SET a = b + :v, g = list_append(h, :v) REMOVE c.x ADD d :v DELETE e :v", "a b g h c d e")]
+    [Arguments("SetAction", "a = if_not_exists(b, :v)", "a b")]
+    [Arguments("Condition", "total = :v AND a = :v", "a")]
+    public async Task Check_WithNames_FlagsTheFirstNameOfEachPathThatIsNotReserved(string kind, string template, string names)
+    {
+        // Arrange
+        var parts = Parts(template, NameHole);
+
+        // Act
+        var problems = ExpressionParser.Check(Enum.Parse<ExpressionKind>(kind), parts, withNames: true);
+
+        // Assert
+        await Assert.That(string.Join(' ', problems.Where(static problem => problem.Kind == ExpressionProblemKind.BareName).Select(static problem => problem.Detail))).IsEqualTo(names);
+    }
+
+    [Test]
+    public async Task Check_WithoutNames_FlagsNoBareName()
+    {
+        // Arrange
+        var kind = ExpressionKind.Condition;
+
+        // Act
+        var problems = Problems(kind, "a.b = c", withoutPlaceholders: true);
+
+        // Assert
+        await Assert.That(problems).IsEmpty();
+    }
+
     private static bool HasSyntaxProblem(ExpressionKind kind, string expression) =>
         Problems(kind, expression).Any(static problem => problem.Kind == ExpressionProblemKind.Syntax);
 

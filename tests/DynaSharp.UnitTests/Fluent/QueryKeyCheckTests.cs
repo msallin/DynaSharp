@@ -28,9 +28,10 @@ public sealed class QueryKeyCheckTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var invoices = client.Table<TenantInvoice>("Billing");
+        var key = TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid); // in a variable, which DYNA224 does not follow
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)));
+        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query(key));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
@@ -88,9 +89,10 @@ public sealed class QueryKeyCheckTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var devices = client.Table<PlainDevice>("Shop");
+        var key = PlainDevice.Keys.ByShelfPk.Of("s"); // in a variable, which DYNA224 does not follow
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => _ = devices.Query(PlainDevice.Keys.ByShelfPk.Of("s")));
+        var failure = Assert.Throws<ArgumentException>(() => _ = devices.Query(key));
 
         // Assert
         await Assert.That(failure.Message).Contains("PlainDevice.Keys.Pk.Of");
@@ -199,9 +201,10 @@ public sealed class QueryKeyCheckTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var invoices = client.Table<TenantInvoice>("Billing");
+        var key = TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid); // in a variable, which DYNA224 does not follow
 
         // Act
-        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query([TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Paid)]));
+        var failure = Assert.Throws<ArgumentException>(() => _ = invoices.Query([key]));
 
         // Assert
         await Assert.That(failure.Message).Contains("TenantInvoice.Keys.Pk.Of");
