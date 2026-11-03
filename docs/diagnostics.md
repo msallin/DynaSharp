@@ -249,7 +249,7 @@ its name, and anything else in a hole is a value. DynaSharp generates every plac
 `DYNA211` (error): the text holds `#name` or `:value` placeholders of its own. They would clash with the generated ones. Write the name
 in `Attr(...)` and the value in a hole.
 
-`DYNA212` (warning in 0.x): the expression breaks DynamoDB's grammar: a parenthesis that is not closed, a function that does not exist or has the wrong number of operands, `BETWEEN` without `AND`, more than 100 operands of `IN`. Function names are case-sensitive, and condition functions and update functions are separate groups. Only the first error is reported, because what follows it is noise.
+`DYNA212` (warning): the expression breaks DynamoDB's grammar: a parenthesis that is not closed, a function that does not exist or has the wrong number of operands, `BETWEEN` without `AND`, more than 100 operands of `IN`. Function names are case-sensitive, and condition functions and update functions are separate groups. Only the first error is reported, because what follows it is noise.
 
 - **Fix.** Fix the expression, or if DynamoDB accepts it, suppress the warning and report the case: the grammar is a copy of the service's, and a warning is what lets a false one pass.
 
@@ -258,7 +258,7 @@ in `Attr(...)` and the value in a hole.
 - **Fix.** Check the spelling. An attribute outside the entity is legitimate, so suppress the warning there, or pass the path in a variable.
 - **Not reported.** A path in a variable. In the text only the first name of a path counts, so `ShipTo.Stret` is not looked at, and neither is the text of a step of a transaction, which has no type, or of a method of your own that takes the expression.
 
-`DYNA214` (warning in 0.x): a constant path is not a path. A path is names joined by dots, with list indexes in brackets, such as
+`DYNA214` (warning): a constant path is not a path. A path is names joined by dots, with list indexes in brackets, such as
 `a.b[2].c`, so `a..b` and `a[` are not. The same path throws `ArgumentException` when the command is built. An attribute whose name holds a
 dot or a bracket cannot be addressed by a path at all.
 

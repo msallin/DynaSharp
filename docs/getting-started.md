@@ -11,17 +11,6 @@ dotnet add package DynaSharp
 dotnet add package DynaSharp.Testing   # in a test project
 ```
 
-**Previews.** A build that is not on NuGet comes from a clone of the repository: pack it into a folder, make the folder a source, and add the package from there. MinVer derives the version from git, so a clone without a release tag packs `0.0.0-alpha.0.N`, and a commit after the tag `v0.1.0` packs `0.1.1-alpha.0.N`, where N counts the commits since. Pin the version the folder holds, which the file name shows: `--prerelease` takes whatever is newest.
-
-```shell
-dotnet pack src/DynaSharp -c Release -o /path/to/packages
-dotnet pack src/DynaSharp.Testing -c Release -o /path/to/packages
-dotnet nuget add source /path/to/packages --name dynasharp
-dotnet add package DynaSharp --version 0.0.0-alpha.0.227
-```
-
-The default .NET `.gitignore` holds `*.nupkg`, so a folder source in a repository needs `git add -f`, and a filled package cache hides the loss until a clean machine restores.
-
 ## Creating the client
 
 All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them.
@@ -233,7 +222,6 @@ A source that applies but is broken fails the request and does not fall through 
 - **Exchange:** the client trades the token for credentials at STS with `AssumeRoleWithWebIdentity`, and renews them before they expire.
 - **Rotation:** it reads the token file again for each exchange, because the kubelet replaces it.
 - **Other issuers:** any other OpenID Connect issuer that the account trusts takes the same request.
-- **Status:** all of this is tested against `StubSts` and has not run on AWS.
 
 Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported.
 
@@ -243,4 +231,4 @@ Assume role, SSO, `credential_process` and web identity through the profile keys
 - [Tables](tables.md): open a table, and create it from what the entities declare.
 - [Reading and writing](commands.md) and [Queries and scans](queries.md): the operations.
 - [Migrating](migrating.md), if you come from the AWS SDK or from EfficientDynamoDb, and [How DynaSharp compares](comparison.md) for what each of them has.
-- [Compatibility](compatibility.md): what a release of 0.x promises.
+- [Compatibility](compatibility.md): what a release promises.

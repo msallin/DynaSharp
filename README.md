@@ -22,17 +22,6 @@ dotnet add package DynaSharp
 dotnet add package DynaSharp.Testing   # in a test project
 ```
 
-**Previews.** A build that is not on NuGet comes from a clone of the repository: pack it into a folder, make the folder a source, and add the package from there. MinVer derives the version from git, so a clone without a release tag packs `0.0.0-alpha.0.N`, and a commit after the tag `v0.1.0` packs `0.1.1-alpha.0.N`, where N counts the commits since. Pin the version the folder holds, which the file name shows: `--prerelease` takes whatever is newest.
-
-```shell
-dotnet pack src/DynaSharp -c Release -o /path/to/packages
-dotnet pack src/DynaSharp.Testing -c Release -o /path/to/packages
-dotnet nuget add source /path/to/packages --name dynasharp
-dotnet add package DynaSharp --version 0.0.0-alpha.0.227
-```
-
-The default .NET `.gitignore` holds `*.nupkg`, so a folder source in a repository needs `git add -f`, and a filled package cache hides the loss until a clean machine restores.
-
 ### A first table
 
 All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program to copy, a local emulator to run it against, the options and the credential chain.
@@ -211,7 +200,7 @@ Inside DynaSharp, by API level, in bytes:
 
 ## Compatibility
 
-DynaSharp is at 0.x. A patch release fixes and does not break, and a minor release can break the public API, with upgrade notes. From 0.1.0 on, what an entity writes to a table stays the same in every release. Analyzers may report more in a later release, and a rule that is new after 0.1.0 starts at Info. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
+A patch release fixes and does not break, and a minor release can break the public API, with release notes. What an entity writes to a table stays the same in every release. Analyzers may report more in a later release, and a rule that is new after 0.1.0 starts at Info. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
 
 ## Building
 

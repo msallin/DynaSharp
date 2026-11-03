@@ -2,7 +2,7 @@
 
 DynamoDB has no joins and few indexes, and it finds an item by its key and nothing else. So a table is designed from the questions it must answer, not from the shape of the data: list the access patterns first, such as "the orders of a customer, newest first" or "the open tickets of an agent, oldest first", and give each one a key or an index that answers it with one `Query`. Single-table design follows from that. Items that are read together share a table and a partition, whatever their type, so one request reads them, and the discriminator `_type` tells them apart.
 
-DynaSharp was designed around a catalog of such patterns. Each one runs as a scenario test against DynamoDB emulators, in [the recipes](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.IntegrationTests/Recipes), and the examples on these pages come from those tests. They share one table: `shop` is `client.Table("Shop", "pk", "sk")`, and `shop.Of<T>()` opens it for one type. [Tables](tables.md) says how to create it.
+DynaSharp was designed around a catalog of such patterns. Each one runs as a scenario test, in [the recipes](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.IntegrationTests/Recipes), and the examples on these pages come from those tests. They share one table: `shop` is `client.Table("Shop", "pk", "sk")`, and `shop.Of<T>()` opens it for one type. [Tables](tables.md) says how to create it.
 
 | Pattern | What it is for |
 |---|---|
