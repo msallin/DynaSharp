@@ -47,8 +47,8 @@ internal sealed class Sandbox : IAsyncDisposable
     /// <returns>The name of the table.</returns>
     public async Task<string> CreateTableAsync(TableSpec? spec = null)
     {
-        var name = await Tables.CreateAsync(Client, spec ?? TableSpec.PartitionOnly);
-        _tables.Add(name);
+        var name = Tables.UniqueName();
+        await CreateTableAsync(Tables.Request(name, spec ?? TableSpec.PartitionOnly));
         return name;
     }
 
@@ -57,9 +57,9 @@ internal sealed class Sandbox : IAsyncDisposable
     /// <returns>The response of CreateTable.</returns>
     public async Task<CreateTableResponse> CreateTableAsync(CreateTableRequest request)
     {
-        var response = await Tables.CreateAsync(Client, request);
-        _tables.Add(request.TableName);
-        return response;
+        // Before the call: a create whose wait fails has made the table all the same.
+        Track(request.TableName);
+        return await Tables.CreateAsync(Client, request);
     }
 
     /// <summary>Sends a command that creates a table, which is dropped when the sandbox is disposed.</summary>
@@ -70,9 +70,8 @@ internal sealed class Sandbox : IAsyncDisposable
     public async Task<CreateTableResult> CreateTableAsync<T>(Table<T> table, CreateTableCommand command)
         where T : IDynamoDbDocument<T>
     {
-        var result = await Tables.SendAsync(command);
-        _tables.Add(table.Name);
-        return result;
+        Track(table.Name);
+        return await Tables.SendAsync(command);
     }
 
     /// <inheritdoc/>
@@ -93,5 +92,14 @@ internal sealed class Sandbox : IAsyncDisposable
         Client.Dispose();
         Streams.Dispose();
         _handler?.Dispose();
+    }
+
+    // A test may send a create for a table it has, which then is deleted once.
+    private void Track(string table)
+    {
+        if (!_tables.Contains(table))
+        {
+            _tables.Add(table);
+        }
     }
 }

@@ -295,7 +295,7 @@ public sealed class TableManagementTests(Backend backend)
                 },
             ],
         });
-        var description = await table.WaitUntilActiveAsync(TimeSpan.FromMinutes(1));
+        var description = await table.WaitUntilActiveAsync(Tables.IndexBuildTime);
         var red = await table.Index("by-color", "color").Query("red").CountAsync();
 
         // Assert
@@ -394,14 +394,31 @@ public sealed class TableManagementTests(Backend backend)
         var table = await sandbox.CreateTableAsync();
         await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = table, DeletionProtectionEnabled = true });
 
-        // Act
-        var protectedDescription = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
+        // Act (DescribeTable is eventually consistent, so each wait is for the setting, not only for an active table)
+        await Tables.WaitUntilAsync(sandbox.Client, table, static description => Tables.IsSettled(description) && description.DeletionProtectionEnabled == true);
         var failure = await Items.FailureOfAsync<ValidationException>(() => sandbox.Client.DeleteTableAsync(new DeleteTableRequest { TableName = table }));
         await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = table, DeletionProtectionEnabled = false });
-        var unprotectedDescription = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
+        await Tables.WaitUntilAsync(sandbox.Client, table, static description => Tables.IsSettled(description) && description.DeletionProtectionEnabled == false);
+        var gone = await DeleteAndDescribeAsync(sandbox.Client, table);
 
         // Assert
-        await Assert.That((protectedDescription.DeletionProtectionEnabled, failure.OperationName, unprotectedDescription.DeletionProtectionEnabled)).IsEqualTo((true, (string?)"DeleteTable", false));
+        await Assert.That((failure.OperationName, gone)).IsEqualTo(((string?)"DeleteTable", true));
+    }
+
+    [Test]
+    public async Task Cleanup_ProtectedTable_TurnsProtectionOffAndDeletesIt()
+    {
+        // Arrange (what the cleanup meets after a test that failed before it turned protection off)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync();
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = table, DeletionProtectionEnabled = true });
+        await Tables.WaitUntilAsync(sandbox.Client, table, static description => Tables.IsSettled(description) && description.DeletionProtectionEnabled == true);
+
+        // Act
+        var gone = await DeleteAndDescribeAsync(sandbox.Client, table);
+
+        // Assert
+        await Assert.That(gone).IsTrue();
     }
 
     [Test]
@@ -449,6 +466,22 @@ public sealed class TableManagementTests(Backend backend)
 
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("ValidationException");
+    }
+
+    // Deletes through the cleanup of the tests, which bears with a throttle of real DynamoDB, and waits until the table is on its way out: gone, or DELETING on real DynamoDB,
+    // whose DescribeTable can show the table as it was for a moment. A table that stays is a timeout of the wait.
+    private static async Task<bool> DeleteAndDescribeAsync(DynamoDbClient client, string table)
+    {
+        await Tables.DeleteAsync(client, table);
+        try
+        {
+            await Tables.WaitUntilAsync(client, table, static description => description.TableStatus == TableStatus.Deleting);
+            return true;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return true;
+        }
     }
 
     private static async Task<string> CreateProvisionedAsync(Sandbox sandbox, bool withIndex = false)

@@ -5,8 +5,8 @@ using DynaSharp.Requests;
 namespace DynaSharp.IntegrationTests.Operations;
 
 /// <summary>
-/// ConsumedCapacity as the emulators report it. All items here are far below 1 KB, 4 KB and 8 KB, so one write unit and half a read
-/// unit (a full one for a strongly consistent read) are the documented costs.
+/// ConsumedCapacity as DynamoDB and the emulators report it. All items here are far below 1 KB, 4 KB and 8 KB, so one write unit and half a read
+/// unit (a full one for a strongly consistent read) are the documented costs. A scan pays that per partition it reads.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
 public sealed class ConsumedCapacityTests(Backend backend)
@@ -177,18 +177,21 @@ public sealed class ConsumedCapacityTests(Backend backend)
     }
 
     [Test]
-    public async Task Scan_Total_ReportsCapacityForTheItemsRead()
+    public async Task Scan_Total_ReportsHalfUnitsAndTwiceThatForAConsistentScan()
     {
-        // Arrange
+        // Arrange (a scan reads every partition of the table and rounds what it read in each up to 4 KB: an emulator has one partition and
+        // reports 0.5, a new on-demand table of real DynamoDB several, and 0.5 for each, also for an empty one)
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.Sequence);
         await Items.PutSequenceAsync(sandbox.Client, table, "a", 3);
 
         // Act
-        var response = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, ReturnConsumedCapacity = ReturnConsumedCapacity.Total });
+        var eventual = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, ReturnConsumedCapacity = ReturnConsumedCapacity.Total });
+        var consistent = await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, ConsistentRead = true, ReturnConsumedCapacity = ReturnConsumedCapacity.Total });
 
         // Assert
-        await Assert.That((response.ConsumedCapacity!.TableName, response.ConsumedCapacity.CapacityUnits)).IsEqualTo((table, 0.5));
+        var units = eventual.ConsumedCapacity!.CapacityUnits!.Value;
+        await Assert.That((eventual.ConsumedCapacity.TableName, units > 0 && units % 0.5 == 0, consistent.ConsumedCapacity!.CapacityUnits)).IsEqualTo((table, true, units * 2));
     }
 
     [Test]

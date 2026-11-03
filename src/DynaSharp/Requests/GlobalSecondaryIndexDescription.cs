@@ -4,7 +4,7 @@ namespace DynaSharp.Requests;
 /// A global secondary index as DynamoDB reports it. Only the commonly needed subset of what DynamoDB returns.
 /// </summary>
 /// <remarks>
-/// Creating an index on a table that holds data takes time: the index is filled from the table (<see cref="Backfilling"/>) before it
+/// Creating an index on a table that exists takes minutes, even on an empty table: DynamoDB allocates the index and then fills it from the table (<see cref="Backfilling"/>) before it
 /// is <see cref="IndexStatus.Active"/>.
 /// </remarks>
 public sealed record GlobalSecondaryIndexDescription

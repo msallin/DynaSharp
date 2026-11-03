@@ -214,8 +214,8 @@ public sealed class Table<T>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
     /// <summary>
-    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, for at most five minutes, which the backfill of an index on a table with much data can take
-    /// longer than. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
+    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, for at most five minutes, which an index that <c>UpdateTable</c> added can take
+    /// longer than, even on a small table. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
     /// </summary>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
@@ -246,7 +246,8 @@ public sealed class Table<T>
     /// </para>
     /// <para>
     /// A table reads <c>ACTIVE</c> while an index it was given by <c>UpdateTable</c> backfills, and the index misses items until it is done, so this waits for the indexes too, and
-    /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. A backfill takes as long as the table is large, which can be hours, so that wait needs a longer timeout than the default of five minutes.
+    /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. DynamoDB first allocates such an index, which takes minutes on any table, often more than five, and then backfills it, which takes as long as the table is large and can take hours.
+    /// So that wait needs a longer timeout than the default of five minutes: half an hour for a small table, more for a large one.
     /// Local secondary indexes have no status: they exist from the creation of the table.
     /// </para>
     /// <para>
@@ -255,7 +256,7 @@ public sealed class Table<T>
     /// <c>client.Table(name, "pk", "sk")</c> waits for what the table lists, which is the wait before <c>UpdateTable</c> adds an index, and <see cref="Of{TOther}"/> gives a table that waits for what that entity declares.
     /// </para>
     /// </remarks>
-    /// <param name="timeout">How long to wait, which for the backfill of an index goes with the size of the table. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
+    /// <param name="timeout">How long to wait, which for an index that <c>UpdateTable</c> added is half an hour or more, longer for a large table. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative.</exception>

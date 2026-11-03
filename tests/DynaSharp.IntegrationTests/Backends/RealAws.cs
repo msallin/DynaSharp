@@ -46,9 +46,11 @@ internal static class RealAws
 
     private static DynamoDbClientOptions CreateOptions() => new() { Credentials = Credentials, AttemptTimeout = TimeSpan.FromMinutes(2) };
 
+    // A table that cannot go does not keep the others: every one is tried, and the failures are thrown together at the end.
     private static async Task DeleteTablesAsync(Func<string, bool> selected)
     {
         using var client = new DynamoDbClient(CreateOptions());
+        var failures = new List<Exception>();
         string? start = null;
         do
         {
@@ -63,11 +65,20 @@ internal static class RealAws
                 {
                     // It was on its way out.
                 }
+                catch (Exception exception) when (exception is DynamoDbException or OperationCanceledException)
+                {
+                    failures.Add(new InvalidOperationException($"The table {name} could not be deleted.", exception));
+                }
             }
 
             start = page.LastEvaluatedTableName;
         }
         while (start is not null);
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException(failures);
+        }
     }
 
     // The client signs and sends, the handler keeps what came back: the tests want the response as it was on the wire.

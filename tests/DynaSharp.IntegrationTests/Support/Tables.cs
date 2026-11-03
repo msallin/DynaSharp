@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using DynaSharp.Requests;
 
 namespace DynaSharp.IntegrationTests.Support;
@@ -18,6 +19,12 @@ internal static class Tables
 
     /// <summary>What the name of every table starts with.</summary>
     public const string Prefix = "dynasharp-it-";
+
+    /// <summary>
+    /// How long a wait for an index lasts. An emulator takes milliseconds. Real DynamoDB first allocates an index that <c>UpdateTable</c> adds and then backfills it, and
+    /// takes minutes for that even on a table of three items: eight to nine minutes for an on-demand table, more than fifteen for a provisioned one.
+    /// </summary>
+    public static readonly TimeSpan IndexBuildTime = TimeSpan.FromMinutes(30);
 
     private const string StartFormat = "yyyyMMdd'T'HHmmss";
 
@@ -78,10 +85,10 @@ internal static class Tables
     /// <param name="name">The name of the table.</param>
     /// <param name="condition">What the description must show.</param>
     /// <returns>The description for which the condition held.</returns>
-    /// <exception cref="OperationCanceledException">The condition did not hold within ten minutes. An emulator takes milliseconds; real DynamoDB builds an index that long.</exception>
+    /// <exception cref="OperationCanceledException">The condition did not hold within <see cref="IndexBuildTime"/>.</exception>
     public static async Task<TableDescription> WaitUntilAsync(DynamoDbClient client, string name, Func<TableDescription, bool> condition)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+        using var timeout = new CancellationTokenSource(IndexBuildTime);
         while (true)
         {
             var description = (await client.DescribeTableAsync(name, timeout.Token)).Table!;
@@ -100,25 +107,41 @@ internal static class Tables
     public static bool IsSettled(TableDescription description) =>
         description.TableStatus == TableStatus.Active && description.GlobalSecondaryIndexes.All(static index => index.IndexStatus == IndexStatus.Active);
 
-    /// <summary>Deletes a table, waiting for as long as it is busy: real DynamoDB refuses while a table is created or updated.</summary>
+    /// <summary>
+    /// Deletes a table, waiting for as long as it is busy: real DynamoDB refuses while a table is created or updated, and refuses a change of tables
+    /// that come too fast with a throttle. A table with deletion protection gets it turned off first, so that a test that failed before it did so leaves nothing behind.
+    /// </summary>
     /// <param name="client">The client of the backend.</param>
     /// <param name="name">The name of the table.</param>
     /// <returns>A task that completes when the backend accepted the deletion.</returns>
-    /// <exception cref="OperationCanceledException">The table was still busy after five minutes.</exception>
+    /// <exception cref="OperationCanceledException">The table was still busy after <see cref="IndexBuildTime"/>: DynamoDB refuses to delete a table while an index of it is created.</exception>
     public static async Task DeleteAsync(DynamoDbClient client, string name)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeout = new CancellationTokenSource(IndexBuildTime);
         while (true)
         {
+            ValidationException refused;
             try
             {
                 await client.DeleteTableAsync(new DeleteTableRequest { TableName = name }, timeout.Token);
                 return;
             }
-            catch (ResourceInUseException)
+            catch (Exception exception) when (exception is ResourceInUseException or ThrottlingException)
             {
                 await Task.Delay(TimeSpan.FromSeconds(1), timeout.Token);
+                continue;
             }
+            catch (ValidationException exception)
+            {
+                refused = exception;
+            }
+
+            if ((await client.DescribeTableAsync(name, timeout.Token)).Table?.DeletionProtectionEnabled != true)
+            {
+                ExceptionDispatchInfo.Throw(refused);
+            }
+
+            await UpdateAsync(client, new UpdateTableRequest { TableName = name, DeletionProtectionEnabled = false });
         }
     }
 
@@ -154,7 +177,10 @@ internal static class Tables
         };
     }
 
-    /// <summary>Updates a table, repeating the call when DynamoDB Local answers it with InternalFailure because other tables change at the same time.</summary>
+    /// <summary>
+    /// Updates a table, repeating the call when DynamoDB Local answers it with InternalFailure because other tables change at the same time, and when real DynamoDB throttles
+    /// a second change of a table that follows the first within a second, which outlasts the retries of the client.
+    /// </summary>
     /// <param name="client">The client of the emulator.</param>
     /// <param name="request">The update.</param>
     /// <returns>The response of UpdateTable.</returns>
@@ -163,7 +189,7 @@ internal static class Tables
 
     // DynamoDB Local answers some CreateTable calls with InternalFailure (HTTP 500) while other tables are being created or deleted at
     // the same time, which parallel tests do all the time. The table does not exist after such an answer, so the call is repeated.
-    // The client does not retry on its own (MaxAttempts is 1 in the tests) and would not repeat it as a throttle either.
+    // The client of an emulator does not retry on its own (MaxAttempts is 1) and would not repeat it as a throttle either.
     private static async Task<T> RepeatOnInternalFailureAsync<T>(Func<Task<T>> call)
     {
         for (var attempt = 1; ; attempt++)
@@ -176,9 +202,10 @@ internal static class Tables
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(System.Security.Cryptography.RandomNumberGenerator.GetInt32(20, 150)));
             }
-            catch (LimitExceededException) when (attempt < 25)
+            catch (Exception exception) when (exception is LimitExceededException or ThrottlingException && attempt < 25)
             {
-                // Real DynamoDB limits the tables that change at the same time, which a run may touch. Space frees up as fast as tables turn active.
+                // Real DynamoDB limits the tables that change at the same time, which a run may touch, and the rate of CreateTable, UpdateTable and DeleteTable.
+                // Space frees up as fast as tables turn active.
                 await Task.Delay(TimeSpan.FromSeconds(attempt));
             }
         }

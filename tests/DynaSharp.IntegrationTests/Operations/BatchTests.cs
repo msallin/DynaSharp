@@ -254,17 +254,19 @@ public sealed class BatchTests(Backend backend)
     [NotInParallel] // Moves 35 MB through the emulator; running beside the other tests slows every one of them down.
     public async Task BatchGetItem_ResponseOver16MB_ReturnsUnprocessedKeysThatAFollowUpFetches()
     {
-        // Arrange: 45 items of 390 KB are 17.5 MB; a response holds at most 16 MB, so the rest comes back as unprocessed keys
+        // Arrange: 45 items of 390 KB are 17.5 MB; a response holds at most 16 MB, so the rest comes back as unprocessed keys. Real DynamoDB also leaves
+        // writes and keys unprocessed when a partition runs out of throughput, which items of 390 KB do on a new table, so both sides go on until nothing is left.
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         var big = new string('x', 390 * 1024);
         const int count = 45;
         foreach (var chunk in Enumerable.Range(0, count).Chunk(20))
         {
-            await sandbox.Client.BatchWriteItemAsync(new BatchWriteItemRequest
+            IReadOnlyDictionary<string, IReadOnlyList<WriteRequest>> writes = new Dictionary<string, IReadOnlyList<WriteRequest>> { [table] = [.. chunk.Select(i => Put(Items.Item($"big-{i}", big)))] };
+            while (writes.Count > 0)
             {
-                RequestItems = new Dictionary<string, IReadOnlyList<WriteRequest>> { [table] = [.. chunk.Select(i => Put(Items.Item($"big-{i}", big)))] },
-            });
+                writes = (await sandbox.Client.BatchWriteItemAsync(new BatchWriteItemRequest { RequestItems = writes })).UnprocessedItems;
+            }
         }
 
         var keys = Enumerable.Range(0, count).Select(i => (IReadOnlyDictionary<string, AttributeValue>)Items.Key($"big-{i}")).ToList();
@@ -274,14 +276,20 @@ public sealed class BatchTests(Backend backend)
         {
             RequestItems = new Dictionary<string, KeysAndAttributes> { [table] = new KeysAndAttributes { Keys = keys, ConsistentRead = true } },
         });
-        var second = await sandbox.Client.BatchGetItemAsync(new BatchGetItemRequest { RequestItems = first.UnprocessedKeys });
+        var followedUp = 0;
+        for (var left = first.UnprocessedKeys; left.Count > 0;)
+        {
+            var next = await sandbox.Client.BatchGetItemAsync(new BatchGetItemRequest { RequestItems = left });
+            followedUp += next.Responses.TryGetValue(table, out var items) ? items.Count : 0;
+            left = next.UnprocessedKeys;
+        }
 
         // Assert
         var unprocessed = first.UnprocessedKeys[table];
         await Assert.That(unprocessed.Keys.Count).IsGreaterThan(0);
         await Assert.That(first.Responses[table].Count + unprocessed.Keys.Count).IsEqualTo(count);
         await Assert.That(unprocessed.ConsistentRead).IsTrue();
-        await Assert.That(first.Responses[table].Count + second.Responses[table].Count).IsEqualTo(count);
+        await Assert.That(first.Responses[table].Count + followedUp).IsEqualTo(count);
     }
 
     private static WriteRequest Put(IReadOnlyDictionary<string, AttributeValue> item) => new() { PutRequest = new PutRequest { Item = item } };

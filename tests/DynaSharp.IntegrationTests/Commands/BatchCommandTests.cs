@@ -208,7 +208,8 @@ public sealed class BatchCommandTests(Backend backend)
     [NotInParallel] // Moves 35 MB through the emulator; running beside the other tests slows every one of them down.
     public async Task BatchGet_ResponseOver16MB_ReadsWhatDynamoDBLeavesInTheNextRound()
     {
-        // Arrange (45 items of 390 KB are 17.5 MB, and a response holds 16 MB, so DynamoDB leaves keys unprocessed)
+        // Arrange (45 items of 390 KB are 17.5 MB, and a response holds 16 MB, so DynamoDB leaves keys unprocessed. Real DynamoDB leaves more when a partition
+        // runs out of throughput, so there are at least two rounds, and on a new table more)
         const int Count = 45;
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var big = new string('x', 390 * 1024);
@@ -218,7 +219,7 @@ public sealed class BatchCommandTests(Backend backend)
         var result = await sandbox.Shop.BatchGet().Keys(Keys(Count)).Consistent().SendAsync();
 
         // Assert
-        await Assert.That((result.Items.Count, result.Requests, result.Items.Select(static item => item.GetString("pk")).Distinct().Count())).IsEqualTo((Count, 2, Count));
+        await Assert.That((result.Items.Count, result.Requests >= 2, result.Items.Select(static item => item.GetString("pk")).Distinct().Count())).IsEqualTo((Count, true, Count));
     }
 
     private static BatchWriteCommand<Item> Puts(Table<Item> table, int count)

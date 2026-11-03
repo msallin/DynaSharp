@@ -291,7 +291,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = shop.Name, AttributeDefinitions = keys, GlobalSecondaryIndexUpdates = [new GlobalSecondaryIndexUpdate { Create = added }] });
-        var result = await Tables.SendAsync(command.IfNotExists().WaitUntilActive(TimeSpan.FromMinutes(5)));
+        var result = await Tables.SendAsync(command.IfNotExists().WaitUntilActive(Tables.IndexBuildTime));
 
         // Assert
         await Assert.That((result.Created, result.Table.GlobalSecondaryIndexes.Single().IndexStatus)).IsEqualTo((false, IndexStatus.Active));

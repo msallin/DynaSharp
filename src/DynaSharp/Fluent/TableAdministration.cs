@@ -14,7 +14,7 @@ internal static class TableAdministration
     /// </summary>
     public const int CatchUpLooks = 5;
 
-    /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes, and only the largest restores and the backfill of an index on a table with much data take longer: those know what to pass.</summary>
+    /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes. An index that UpdateTable adds can take longer on any table, and the largest restores do too: those know what to pass.</summary>
     public static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>The first wait between two looks at a table. Tables turn active within seconds, usually. DescribeTable is a control plane call with its own, lower limits, so a poll backs off.</summary>

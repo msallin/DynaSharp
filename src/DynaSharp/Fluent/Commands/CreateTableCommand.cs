@@ -97,8 +97,8 @@ public sealed class CreateTableCommand
 
     /// <summary>
     /// Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, as <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/> does, with its rules on the timeout.
-    /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active. With <see cref="IfNotExists"/> over a table that has data, an index can still backfill, which
-    /// can take longer than the default of five minutes.
+    /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active. With <see cref="IfNotExists"/> over a table that exists, an index that <c>UpdateTable</c> added can
+    /// still be <c>CREATING</c>, which takes minutes even on an empty table and often longer than the default of five, so give that wait half an hour or more.
     /// </summary>
     /// <remarks>
     /// Every global index that this command declares, by its entity and by <see cref="Including{TOther}"/>, has to be listed and active, and a local one needs no wait. With <see cref="IfNotExists"/> over an older table that lacks
