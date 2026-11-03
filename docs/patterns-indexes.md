@@ -1,12 +1,12 @@
 # Single table and indexes
 
-Items that are read together share a partition, whatever their type, and a global index gives a second way in. These patterns share the indexes `GSI1` and `GSI2` of one table, whose keys are the attributes `gsi1pk`, `gsi1sk`, `gsi2pk` and `gsi2sk`. `shop` is the table of [Design patterns](patterns.md).
+Items read together share a partition, whatever their type, and a global index gives a second way in. These patterns share the indexes `GSI1` and `GSI2` of one table, keyed by `gsi1pk`, `gsi1sk`, `gsi2pk` and `gsi2sk`. `shop` is the table of [Design patterns](patterns.md).
 
-A global index is eventually consistent. An item shows up in it, moves or leaves it a moment after the write, and a query of an index cannot be `Consistent()`.
+A global index is eventually consistent: an item enters, moves or leaves it a moment after the write, and a query of an index cannot be `Consistent()`.
 
 ## Adjacency list and inverted index
 
-A graph in one table: users, teams, and the memberships between them. A node and the edges that leave it share a partition, so one query reads a user and their memberships, each as its type. A global index with the key the other way round walks the edges backwards, from a team to its members.
+A graph in one table: users, teams and memberships. A node shares a partition with its outgoing edges, so one query reads a user and their memberships. A global index with the key reversed walks from a team to its members.
 
 ```csharp
 [DynamoDbEntity]
@@ -42,7 +42,7 @@ public partial record Team
 }
 ```
 
-`Of<A, B>()` reads each item of a query as what it is. The memberships of a user come first, because `GROUP#` sorts before `PROFILE`:
+`Of<A, B>()` reads each item as its type. Memberships come first, since `GROUP#` sorts before `PROFILE`:
 
 ```csharp
 await foreach (var item in shop.Query(Member.Keys.Pk.Of("alice")).Of<Member, Membership>().ItemsAsync(ct))
@@ -51,7 +51,7 @@ await foreach (var item in shop.Query(Member.Keys.Pk.Of("alice")).Of<Member, Mem
 }
 ```
 
-In the index, the partition of a team holds the team under `INFO` and a membership per user:
+In the index, a team's partition holds the team and a membership per user:
 
 ```csharp
 var byGroup = shop.Index<Membership>(Membership.Indexes.Gsi1);
@@ -63,12 +63,12 @@ await foreach (var item in byGroup.Query(Team.Keys.Gsi1Pk.Of("staff")).Of<Team, 
 
 Caveats:
 
-- A query of a table opened for one type, such as `shop.Of<Membership>()`, leaves out the items of other types, but DynamoDB reads them and charges for them: the profile counts in `ScannedCount`. A sort key condition such as `Membership.Keys.Sk.BeginsWith()` reads only the memberships.
+- A table opened for one type, such as `shop.Of<Membership>()`, leaves out other types, but DynamoDB reads and charges for them (the profile counts in `ScannedCount`). A sort key condition such as `Membership.Keys.Sk.BeginsWith()` reads only the memberships.
 - The index copies every membership, so each edge costs a write in the table and one in the index.
 
 ## Index overloading
 
-A table has few global indexes, so each type gives the same key attributes a meaning of its own, and one index answers a question per type: the staff of a team by the date of hire, the expenses of a team by amount, the warehouses of a city by name.
+A table has few global indexes, so each type gives the same key attributes its own meaning, and one index answers a question per type:
 
 ```csharp
 [DynamoDbEntity]
@@ -108,7 +108,7 @@ public partial record Warehouse
 }
 ```
 
-Each type reads the index through its own key builders. `Gsi1Sk.BeginsWith()` is the prefix `HIRED#`, so it reads the staff of the team and none of its expenses, oldest hire first:
+`Gsi1Sk.BeginsWith()` is the prefix `HIRED#`, so it reads the team's staff, oldest hire first, and none of its expenses:
 
 ```csharp
 var hires = shop.Of<Staffer>().Index(Staffer.Indexes.Gsi1)
@@ -118,7 +118,7 @@ var hires = shop.Of<Staffer>().Index(Staffer.Indexes.Gsi1)
 var inBern = shop.Of<Warehouse>().Index(Warehouse.Indexes.Gsi1).Query(Warehouse.Keys.Gsi1Pk.Of("Bern")).ItemsAsync(ct);
 ```
 
-Where two types share a partition of the index, one query reads both, the expenses first, because `AMOUNT#` sorts before `HIRED#`:
+Where two types share an index partition, one query reads both, expenses first, since `AMOUNT#` sorts before `HIRED#`:
 
 ```csharp
 var byTeam = shop.Index<Staffer>(Staffer.Indexes.Gsi1);
@@ -130,12 +130,12 @@ await foreach (var item in byTeam.Query(Staffer.Keys.Gsi1Pk.Of("red")).Of<Staffe
 
 Caveats:
 
-- The prefix of each sort key keeps the types of a shared partition apart. Without a condition on it, a typed query reads the other types too and pays for them.
+- The sort key prefix keeps the types of a shared partition apart. Without a condition on it, a typed query reads the other types too and pays for them.
 - `{Amount:n8.2}` has a sign and a fixed width, so a refund of -15.50 sorts before an expense of 40.
 
 ## Sparse index
 
-An index holds only the items that have its key attributes, so a rare state of a large table, such as the paying subscribers, is read at the cost of what is in that state. With `Sparse = true`, an item whose inputs are null writes no key of the index.
+An index holds only items that have its key attributes, so reading a rare state of a large table, such as paying subscribers, costs only what is in that state. With `Sparse = true`, an item with null inputs writes no index key.
 
 ```csharp
 [DynamoDbEntity]
@@ -151,7 +151,7 @@ public partial record Subscriber
 }
 ```
 
-`Set` of the inputs takes an item into the index, and `Remove` of one of them takes it out. The item stays in the table:
+`Set` of the inputs puts an item into the index; `Remove` of one takes it out. The item stays in the table:
 
 ```csharp
 var subscribers = shop.Of<Subscriber>();
@@ -165,7 +165,7 @@ var pro = subscribers.Index(Subscriber.Indexes.Gsi2).Query(Subscriber.Keys.Gsi2P
 await subscribers.Update(Subscriber.Keys.Of("s1")).Remove(Subscriber.Attrs.Plan).SendAsync(ct);
 ```
 
-A partition key without a placeholder makes the index one list, such as the featured articles by day:
+A partition key without a placeholder makes the index one list, such as featured articles by day:
 
 ```csharp
 [DynamoDbEntity]
@@ -189,12 +189,12 @@ var featured = articles.Index(Article.Indexes.Gsi2).Query(Article.Keys.Gsi2Pk.Of
 
 Caveats:
 
-- Membership is the presence of the key attributes, nothing else. A `Set` of null of one input takes the item out, as a `Remove` does.
-- A constant partition key is one partition of the index, with its limits. A list that many items enter needs [write sharding](patterns-keys.md#write-sharding).
+- A `Set` of null of one input takes the item out, as a `Remove` does.
+- A constant partition key is one index partition, with its limits. A list that many items enter needs [write sharding](patterns-keys.md#write-sharding).
 
 ## Status-keyed index
 
-"My open items, oldest first": a global index over the owner, with the status and the age behind it in the sort key, reads that with one query. The age is the id: a [version-7 `Guid`](patterns-keys.md#newest-first-with-version-7-guid-sort-keys) starts with the time it was made.
+"My open items, oldest first" is one query of a global index over the owner, with status and age in the sort key. The age is the id: a [version-7 `Guid`](patterns-keys.md#newest-first-with-version-7-guid-sort-keys) starts with its creation time.
 
 ```csharp
 public enum WorkStatus
@@ -227,7 +227,7 @@ var openedThisWeek = items.Index(WorkItem.Indexes.Gsi1)
     .ItemsAsync(ct);
 ```
 
-A change of the status rewrites the sort key of the index. The other input of that key is the id, which the update knows from the key it was given, so the status is all that closing an item sets:
+A status change rewrites the index sort key. Its other input, the id, comes with the update's key, so closing an item sets only the status:
 
 ```csharp
 var items = shop.Of<WorkItem>();
@@ -239,12 +239,12 @@ await items.Update(WorkItem.Keys.Of(id)).Set(WorkItem.Attrs.Status, WorkStatus.C
 
 Caveats:
 
-- DynamoDB cannot build a key of several values from what an item holds, so an update brings every input of a key it changes. An input of the key of the table comes with the key; any other comes from the caller. With a time of its own, `{Status}#{CreatedAt}`, closing an item sets `CreatedAt` as well, to the value the item holds, which is a read before the write. The build reports an update without it as [`DYNA226`](diagnostics.md#commands), and the update throws `InvalidOperationException`, naming the `Set` to add, before anything is sent, rather than leave the index behind. A `Put` of the changed item writes the whole key.
-- A change of status moves the item in the index: DynamoDB deletes the old entry and writes a new one.
+- DynamoDB cannot build a composite key from what an item holds, so an update brings every input of a key it changes: table key inputs come with the key, others from the caller. With `{Status}#{CreatedAt}`, closing an item also sets `CreatedAt` to its stored value, which takes a read first. Without it the build reports [`DYNA226`](diagnostics.md#commands) and the update throws `InvalidOperationException` naming the `Set` to add, before anything is sent. A `Put` of the changed item writes the whole key.
+- A status change moves the item in the index: DynamoDB deletes the old entry and writes a new one.
 
 ## Soft delete
 
-A deleted item stays, with a mark, and leaves a sparse index that lists what is live. Undo stays possible, and the lists need no filter. The owner of a note is in the key of the table as well as in the key of the index, which is what lets a restore set the time alone.
+A deleted item stays, with a mark, and leaves a sparse index of what is live. Undo stays possible, and the lists need no filter.
 
 ```csharp
 [DynamoDbEntity]
@@ -261,7 +261,7 @@ public partial record Note
 }
 ```
 
-The delete sets the mark and removes an input of the index key, which takes the item out of the index, under a condition that keeps the time of the first delete:
+The delete sets the mark and removes `LiveSince`, which takes the item out of the index; the condition keeps the first delete's time:
 
 ```csharp
 var notes = shop.Of<Note>();
@@ -274,7 +274,7 @@ await notes.Update(Note.Keys.Of("ann", "n1"))
 var live = notes.Index(Note.Indexes.Gsi2).Query(Note.Keys.Gsi2Pk.Of("ann")).ItemsAsync(ct);
 ```
 
-A restore writes both keys of the index again. The owner is in the key of the table, so the update has it, and the time is all that a restore sets:
+A restore writes both index keys again; the owner comes with the table key, so it sets only the time:
 
 ```csharp
 await shop.Of<Note>().Update(Note.Keys.Of("ann", "n1"))
@@ -286,7 +286,7 @@ await shop.Of<Note>().Update(Note.Keys.Of("ann", "n1"))
 
 Caveats:
 
-- The table knows nothing of the mark. A `Get` or a query of the table still finds a deleted item, so each reader there looks at `DeletedAt`.
+- The table knows nothing of the mark. A `Get` or table query still finds a deleted item, so each such reader checks `DeletedAt`.
 - A second delete fails its condition with `ConditionalCheckFailedException`.
-- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds: the delete took both keys of the index away, an update does not read the item to build `OWNER#{Owner}` again, and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands). An index whose partition key is the owner alone, `PartitionKey = "{Owner}"`, needs no such `Set`: that key is the text of the `Owner` attribute, so the restore copies it, `SET gsi2pk = Owner`, and a note without an owner fails the restore with `ValidationException` instead of staying out of the list.
-- The index has the partition key of the table, so a local index would do as well, and read consistently, but DynamoDB creates a local index with its table or never.
+- A table key cannot change, so a note that changes hands is deleted and put again. With the owner outside the table key, `NOTE#{Id}`, a restore must also set `Owner` to the value the item holds: the delete removed both index keys, an update does not read the item to rebuild `OWNER#{Owner}`, and a sparse index takes an item only with both keys. Without it the build reports [`DYNA226`](diagnostics.md#commands). An index whose partition key is the owner alone, `PartitionKey = "{Owner}"`, needs no such `Set`: the restore copies the `Owner` attribute (`SET gsi2pk = Owner`), and a note without an owner fails the restore with `ValidationException` instead of staying out of the list.
+- The index has the table's partition key, so a local index would do too, with consistent reads, but DynamoDB creates a local index only with its table.

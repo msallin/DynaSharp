@@ -1,10 +1,10 @@
 # Safe writes
 
-A write that races another, or that a client sends twice, must still leave the right state. These patterns use conditions, `[Version]` and transactions for it. `shop` is the table of [Design patterns](patterns.md).
+Writes that race, or that a client sends twice, must still leave the right state. `shop` is the table of [Design patterns](patterns.md).
 
 ## Optimistic locking
 
-A read-modify-write stays correct without a lock, because the write holds only if nobody wrote since the read. `[Version]` turns it on for a type.
+A read-modify-write needs no lock if the write holds only when nobody wrote since the read. `[Version]` turns this on for a type.
 
 ```csharp
 [DynamoDbEntity]
@@ -21,7 +21,7 @@ public partial record Account
 }
 ```
 
-A `Put` carries the version it read, and fails with `ConditionalCheckFailedException` if the stored one moved on. `RetryOnConflictAsync` then runs the delegate again, which reads again:
+A `Put` fails with `ConditionalCheckFailedException` if the stored version moved on since the read. `RetryOnConflictAsync` then reruns the delegate, which reads again:
 
 ```csharp
 var accounts = shop.Of<Account>();
@@ -34,13 +34,13 @@ await client.RetryOnConflictAsync(async token =>
 
 Caveats:
 
-- It is opt-in per type. Two writers of a type without `[Version]` both succeed, and the second silently undoes the first.
-- It is enforced per write. An `Update` or a `Delete` by key says `IfVersion(n)` or `IgnoreVersion()`, or it throws before anything is sent, see [Optimistic locking](commands.md#optimistic-locking).
-- Nothing retries a conflict by itself. `RetryOnConflictAsync` makes 5 runs. With a fixed set of n writers that each write once, a run loses at most n - 1 times, but while new writers keep arriving it can lose any number of times, so pass `maxAttempts` for a hot item.
+- Opt-in per type: two writers of a type without `[Version]` both succeed, and the second silently undoes the first.
+- Enforced per write: an `Update` or `Delete` by key says `IfVersion(n)` or `IgnoreVersion()`, or throws before sending, see [Optimistic locking](commands.md#optimistic-locking).
+- Nothing retries a conflict by itself. `RetryOnConflictAsync` makes 5 runs. With n writers that each write once, a run loses at most n - 1 times, but while new writers keep arriving it can lose any number of times: pass `maxAttempts` for a hot item.
 
 ## Uniqueness constraints
 
-DynamoDB keeps only a primary key unique. A value that must be unique, such as an email address or a handle, gets a claim item whose key is that value, written in one transaction with the record. With several values, the marker of each claim tells which one was taken.
+DynamoDB keeps only a primary key unique. A value that must be unique, such as an email address, gets a claim item keyed by that value, written in one transaction with the record. With several values, each claim's marker tells which one was taken.
 
 ```csharp
 public enum Registration
@@ -109,9 +109,9 @@ Task<Registration> RegisterAsync(Registrant user) => client.RetryOnConflictAsync
 }, ConflictKind.TransactionConflict, ct);
 ```
 
-`ConflictKind.TransactionConflict` runs the delegate again only when another registration of the same value is in flight, where only asking again tells who got it. A failed condition surfaces at once, here the `IfNotExists` of a record that exists, because nothing is read that could change the answer.
+`ConflictKind.TransactionConflict` reruns the delegate only when another registration of the same value is in flight. A failed condition, here the `IfNotExists` of an existing record, surfaces at once.
 
-A change of the value releases the old claim in the same transaction, under a condition that it is the user's:
+Changing the value releases the old claim in the same transaction, on condition that it is the user's:
 
 ```csharp
 var mails = shop.Of<MailClaim>();
@@ -125,11 +125,11 @@ await client.TransactWrite()
 Caveats:
 
 - `Unique` is a put with `attribute_not_exists` on the key, see [TransactWriteItems](transactions.md#transactwriteitems). A transaction costs twice the capacity of its writes.
-- Which retry: the plain `RetryOnConflictAsync` repeats a failed condition and a transaction in the way, which is right for a read-modify-write that reads again, as with [optimistic locking](#optimistic-locking). A run that reads nothing, or turns every failed condition it expects into its result, takes `ConflictKind.TransactionConflict`, so that a failed condition is its answer and is not asked 5 times.
+- Which retry: plain `RetryOnConflictAsync` also repeats on a failed condition, right for a read-modify-write that reads again, as with [optimistic locking](#optimistic-locking). A run that reads nothing, or turns every expected failed condition into its result, takes `ConflictKind.TransactionConflict`, so a failed condition is its answer, not asked 5 times.
 
 ## Idempotency keys
 
-A client retries with a key it chose, and the second call does nothing and answers like the first. A record of the key goes into the same transaction as the effect and holds the answer, and time to live removes it later.
+A client retries with a key it chose; the second call does nothing and answers like the first. A record of the key, holding the answer, is written in the effect's transaction and removed later by time to live.
 
 ```csharp
 [DynamoDbEntity]
@@ -156,7 +156,7 @@ public partial record Charge
 }
 ```
 
-The record takes the key unless a record holds it that has not expired. If one does, the call answers with what that record says:
+The record takes the key unless an unexpired record holds it; then the call answers with that record:
 
 ```csharp
 var records = shop.Of<IdempotencyRecord>();
@@ -185,18 +185,18 @@ string answer = await client.RetryOnConflictAsync(async token =>
 }, ct);
 ```
 
-The table turns time to live on for the attribute with `.TimeToLive(IdempotencyRecord.Attrs.ExpiresAt)`, see [Creating a table](tables.md#creating-a-table).
+Turn time to live on with `.TimeToLive(IdempotencyRecord.Attrs.ExpiresAt)`, see [Creating a table](tables.md#creating-a-table).
 
 Caveats:
 
-- The time to live must be longer than the retry horizon of the client. After it, a retry counts as a new call.
-- DynamoDB deletes an expired item up to days later, so the condition goes by the time and not by the absence of the record. Never use time to live as a timer.
-- A conflict means that the first call is still running. `RetryOnConflictAsync` asks again, and then gets its answer.
-- Every charge goes to the one partition `CHARGES`, which takes the writes of one partition. A busier table puts the charge under a key of its own, such as `CHARGE#{Id}`.
+- The time to live must exceed the client's retry horizon; after it, a retry counts as a new call.
+- DynamoDB deletes an expired item up to days later, so the condition checks the time, not the record's absence. Never use time to live as a timer.
+- A conflict means the first call is still running; `RetryOnConflictAsync` asks again and gets its answer.
+- Every charge goes to the one partition `CHARGES`, limited to one partition's writes. A busier table gives each charge its own key, such as `CHARGE#{Id}`.
 
 ## Counters
 
-`ADD` counts on the server, so concurrent writers need no read and no lock, and `Return` gives each of them the value after its own add.
+`ADD` counts on the server, so concurrent writers need no read or lock, and `Return` gives each the value after its own add.
 
 ```csharp
 [DynamoDbEntity]
@@ -218,9 +218,9 @@ long views = await shop.Of<PageViews>().Update(PageViews.Keys.Of("/home"))
     .SendAsync(ct);
 ```
 
-A retry counts twice: when the response is lost after the write took effect, the client sends the add again. `MaxAttempts(1)` makes it count at most once, so it can undercount: a failure leaves the caller unable to tell whether it counted. The idempotent counter below counts each request exactly once, apart from the cases its caveats name.
+A retry counts twice when the response was lost after the write took effect. `MaxAttempts(1)` counts at most once, so it can undercount: after a failure the caller cannot tell whether it counted.
 
-A counter that a retry cannot count twice remembers the ids it has counted, and the write holds only for a new one. The set of ids is windowed, an item per day:
+An idempotent counter remembers the ids it counted, and the write holds only for a new one. The set of ids is windowed, an item per day:
 
 ```csharp
 [DynamoDbEntity]
@@ -252,19 +252,19 @@ catch (ConditionalCheckFailedException)
 }
 ```
 
-`Contains` on a set takes an element of the set, and `Negate()` puts `NOT` in front of it. A set that does not exist holds nothing, so the first write of a window passes the condition.
+`Contains` on a set takes an element, and `Negate()` puts `NOT` in front. A missing set holds nothing, so the first write of a window passes.
 
 Caveats:
 
-- One item takes about 1000 writes a second. A hotter counter is [sharded](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ShardedCounterTests.cs).
-- A write is billed on the larger of the old and the new item, so the cost of the idempotent counter grows with its set: with ten ids of 300 bytes, an add costs 4 write units where the first cost 1. Keep the window small.
-- The set grows with every id of the day. On a busy day it reaches the item limit of 400 KB, and from then on every write of that day fails with a `ValidationException`.
-- The window is the day the caller builds the key. A retry of the caller that crosses midnight UTC lands in the item of the next day, which has not seen the id, and counts twice. The retries of the client resend the same key.
-- Numbers from an atomic counter have gaps where a write failed. Numbers without gaps, as invoices need, are the [gapless sequence](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/GaplessSequenceTests.cs).
+- One item takes about 1000 writes a second; [shard](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ShardedCounterTests.cs) a hotter counter.
+- A write is billed on the larger of the old and new item, so the cost grows with the set: with ten ids of 300 bytes an add costs 4 write units, where the first cost 1. Keep the window small.
+- On a busy day the set reaches the 400 KB item limit, and every further write that day fails with a `ValidationException`.
+- The window is the day the caller builds the key. A caller's retry across midnight UTC lands in the next day's item, which has not seen the id, and counts twice. The client's own retries resend the same key.
+- An atomic counter has gaps where a write failed. For numbers without gaps, as invoices need, see the [gapless sequence](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/GaplessSequenceTests.cs).
 
 ## Transactional outbox
 
-A change of state and the event about it are written in one transaction, so neither happens without the other. A relay publishes what it finds and deletes it.
+A state change and its event are written in one transaction, so neither happens without the other.
 
 ```csharp
 [DynamoDbEntity]
@@ -295,7 +295,7 @@ await client.TransactWrite()
     .SendAsync(ct);
 ```
 
-The relay reads the outbox in order of time, publishes each event and deletes it:
+A relay reads the outbox in time order, publishes each event and deletes it:
 
 ```csharp
 var outbox = shop.Of<OutboxEvent>();
@@ -308,6 +308,6 @@ foreach (var pending in await outbox.Query(OutboxEvent.Keys.Pk.Of()).Consistent(
 
 Caveats:
 
-- It delivers at least once. A relay that stops after the publish and before the delete publishes the same event again, so a consumer goes by `EventId`.
-- The outbox is one partition, which takes the writes of one.
-- Often the [stream of the table](streams.md) already is this outbox, which saves the item and the relay.
+- At least once: a relay that stops between publish and delete publishes the event again, so consumers deduplicate by `EventId`.
+- The outbox is one partition, limited to one partition's writes.
+- Often the [table's stream](streams.md) already is this outbox, without the item and the relay.
