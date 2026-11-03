@@ -70,11 +70,10 @@ public sealed class FakeDynamoDbTests
     {
         // Arrange
         var fake = new FakeDynamoDb();
-        fake.CreateTable(Users);
         using var client = fake.CreateClient();
 
         // Act
-        var exception = await TestClient.CaptureAsync<DynamoDbException>(() => client.PutItemAsync(new PutItemRequest { TableName = "Users", Item = AliceKey, ReturnValues = ReturnValue.AllOld }));
+        var exception = await TestClient.CaptureAsync<DynamoDbException>(() => client.CreateTableAsync(Users with { Tags = [new TableTag { Key = "team", Value = "shop" }] }));
 
         // Assert
         await Assert.That((exception.ErrorCode, exception.StatusCode)).IsEqualTo(("UnsupportedByFakeException", HttpStatusCode.BadRequest));

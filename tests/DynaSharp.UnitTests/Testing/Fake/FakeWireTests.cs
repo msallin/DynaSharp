@@ -48,24 +48,6 @@ public sealed class FakeWireTests
     }
 
     [Test]
-    [Arguments("UpdateItem")]
-    [Arguments("BatchGetItem")]
-    [Arguments("BatchWriteItem")]
-    [Arguments("TransactGetItems")]
-    [Arguments("TransactWriteItems")]
-    public async Task Handle_OperationOfTheClientWithoutItsHandler_AnswersUnknownOperation(string operation)
-    {
-        // Arrange
-        var db = new FakeDatabase(TimeProvider.System);
-
-        // Act
-        var answer = FakeWire.Handle(db, operation, "{}"u8);
-
-        // Assert
-        await Assert.That(JsonElement.Parse(answer.Body.Span).GetProperty("message").GetString()).IsEqualTo($"FakeDynamoDb does not implement {operation}. It is not supported.");
-    }
-
-    [Test]
     [Arguments("")]
     [Arguments("{")]
     [Arguments("[]")]

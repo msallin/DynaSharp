@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace DynaSharp.Testing.Fake;
 
-/// <summary>A <c>DeleteItem</c>: the item of the key goes, with its entries in every index. A key without an item is no error.</summary>
+/// <summary>
+/// A <c>DeleteItem</c>: under its condition, the item of the key goes, with its entries in every index. A key without an item is no error. <c>ReturnValues</c> takes <c>NONE</c>
+/// and <c>ALL_OLD</c>.
+/// </summary>
 internal static class DeleteItem
 {
     /// <summary>The operation.</summary>
@@ -27,9 +30,11 @@ internal static class DeleteItem
             "ReturnConsumedCapacity",
             "ReturnItemCollectionMetrics");
         var tableName = TableOperations.ReadTableName(request);
-        var key = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");
-        SingleWrite.ThrowIfUnsupported(request, Name);
+        var keyItem = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");
+        var options = SingleWrite.Read(request, Name);
         var table = db.GetTable(tableName);
-        table.Remove(table.KeySchema.ReadKey(key));
+        var key = table.KeySchema.ReadKey(keyItem);
+        options.ThrowIfConditionFails(table.Get(key));
+        options.Answer(response, table, new WriteOutcome(key, table.Remove(key), null));
     }
 }

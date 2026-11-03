@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace DynaSharp.Testing.Fake;
 
-/// <summary>A <c>PutItem</c>: the item replaces the one with its key, after the checks of its keys, the keys of the indexes and its size, and every index follows at once.</summary>
+/// <summary>
+/// A <c>PutItem</c>: under its condition, the item replaces the one with its key, after the checks of its keys, the keys of the indexes and its size, and every index follows at once.
+/// <c>ReturnValues</c> takes <c>NONE</c> and <c>ALL_OLD</c>.
+/// </summary>
 internal static class PutItem
 {
     /// <summary>The operation.</summary>
@@ -28,7 +31,11 @@ internal static class PutItem
             "ReturnItemCollectionMetrics");
         var tableName = TableOperations.ReadTableName(request);
         var item = RequestJson.ReadItem(RequestJson.Required(request, "Item"), "Item");
-        SingleWrite.ThrowIfUnsupported(request, Name);
-        db.GetTable(tableName).Put(item);
+        var options = SingleWrite.Read(request, Name);
+        var table = db.GetTable(tableName);
+        var key = table.KeySchema.KeyOf(item);
+        options.ThrowIfConditionFails(table.Get(key));
+        var old = table.Put(item);
+        options.Answer(response, table, new WriteOutcome(key, old, table.Get(key)));
     }
 }

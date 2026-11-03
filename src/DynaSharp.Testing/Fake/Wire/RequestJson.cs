@@ -183,6 +183,17 @@ internal static class RequestJson
         return [.. value.EnumerateArray()];
     }
 
+    /// <summary>Reads the members of an object whose member names are data, such as the table names of <c>RequestItems</c>.</summary>
+    /// <param name="value">The value.</param>
+    /// <param name="member">The member, for the message.</param>
+    /// <returns>The members, JSON <c>null</c> values left out.</returns>
+    /// <exception cref="FakeError">A <c>SerializationException</c>.</exception>
+    public static IReadOnlyList<JsonProperty> ReadObject(JsonElement value, string member)
+    {
+        ThrowIfNotKind(value, JsonValueKind.Object, member, "an object");
+        return [.. value.EnumerateObject().Where(static entry => entry.Value.ValueKind != JsonValueKind.Null)];
+    }
+
     /// <summary>Reads an array of strings.</summary>
     /// <param name="value">The value.</param>
     /// <param name="member">The member, for the message.</param>

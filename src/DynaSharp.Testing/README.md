@@ -106,6 +106,8 @@ The clock given to the constructor dates the tables. Time to live is stored and 
 
 Reads go through the same code as on DynamoDB: `Query` by key condition on the table or an index, `Scan` with or without segments, `GetItem` with a projection. Pages are cut as DynamoDB cuts them, by `Limit` counted before the filter and at 1 MB read, with `LastEvaluatedKey` holding the key of the index too, so a loop that follows the key or a filter that empties a page behaves as it does against DynamoDB. `ReturnConsumedCapacity` reports the read units of the Developer Guide.
 
+Writes go through the same code as well: `PutItem`, `UpdateItem` and `DeleteItem` under a condition, with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, the batches, and the transactions, all or nothing, with one cancellation reason per action. So an optimistic lock, a create that must not overwrite, or a transaction whose condition fails behaves as it does against DynamoDB, and the item stays as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the clock of the fake, so a retried transaction is written once. Writes report the write units of the Developer Guide, indexes included, twice for a transaction. A batch never leaves unprocessed items or keys; a test of a client that retries them queues that answer on the handler.
+
 What the fake answers, and how it answers what it does not do, is listed on [the page of this package](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does). It never ignores a member of a request: what it does not implement fails with the code `UnsupportedByFakeException`, and an operation it does not answer with `UnknownOperationException`.
 
 ## STS

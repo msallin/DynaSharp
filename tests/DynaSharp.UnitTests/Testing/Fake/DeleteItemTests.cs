@@ -12,10 +12,10 @@ public sealed class DeleteItemTests
     {
         // Arrange
         var fake = FakeCalls.With(FakeCalls.Orders);
-        FakeCalls.Ok(fake, "PutItem", $$"""{"TableName":"Orders","Item":{{Key}}}""");
+        FakeCalls.Ok(fake, "PutItem", $$$$$"""{"TableName":"Orders","Item":{{{{{Key}}}}}}""");
 
         // Act
-        var body = FakeCalls.Ok(fake, "DeleteItem", $$"""{"TableName":"Orders","Key":{{Key}}}""");
+        var body = FakeCalls.Ok(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}}}""");
 
         // Assert
         await Assert.That((FakeCalls.SameJson("{}", body), fake.Items("Orders").Count)).IsEqualTo((true, 0));
@@ -28,24 +28,64 @@ public sealed class DeleteItemTests
         var fake = FakeCalls.With(FakeCalls.Orders);
 
         // Act
-        var body = FakeCalls.Ok(fake, "DeleteItem", $$"""{"TableName":"Orders","Key":{{Key}}}""");
+        var body = FakeCalls.Ok(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}}}""");
 
         // Assert
         await Assert.That(FakeCalls.SameJson("{}", body)).IsTrue();
     }
 
     [Test]
-    public async Task Handle_ConditionExpression_AnswersUnsupportedAndKeepsTheItem()
+    public async Task Handle_ConditionFails_AnswersConditionalCheckFailedAndKeepsTheItem()
     {
         // Arrange
         var fake = FakeCalls.With(FakeCalls.Orders);
-        FakeCalls.Ok(fake, "PutItem", $$"""{"TableName":"Orders","Item":{{Key}}}""");
+        FakeCalls.Ok(fake, "PutItem", $$$$$"""{"TableName":"Orders","Item":{"pk":{"S":"c#1"},"sk":{"N":"1"},"state":{"S":"open"}}}""");
 
         // Act
-        var (_, code, _) = FakeCalls.Error(fake, "DeleteItem", $$"""{"TableName":"Orders","Key":{{Key}},"ConditionExpression":"attribute_exists(pk)"}""");
+        var answer = FakeCalls.Error(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ConditionExpression":"#s = :closed","ExpressionAttributeNames":{"#s":"state"},"ExpressionAttributeValues":{":closed":{"S":"closed"}}}""");
 
         // Assert
-        await Assert.That((code, fake.Items("Orders").Count)).IsEqualTo(("UnsupportedByFakeException", 1));
+        await Assert.That((answer, fake.Items("Orders").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ConditionalCheckFailedException", "The conditional request failed"), 1));
+    }
+
+    [Test]
+    public async Task Handle_ConditionHoldsWithAllOld_RemovesTheItemAndReturnsIt()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", $$$$$"""{"TableName":"Orders","Item":{{{{{Key}}}}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ConditionExpression":"attribute_exists(pk)","ReturnValues":"ALL_OLD"}""");
+
+        // Assert
+        await Assert.That((FakeCalls.SameJson($$$$$"""{"Attributes":{{{{{Key}}}}}}""", body), fake.Items("Orders").Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task Handle_TotalCapacityForNoItem_ReportsOneWriteUnit()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var body = FakeCalls.Ok(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ReturnConsumedCapacity":"TOTAL"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"ConsumedCapacity":{"TableName":"Orders","CapacityUnits":1}}""", body)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_UpdatedNew_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ReturnValues":"UPDATED_NEW"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Return values set to invalid value"));
     }
 
     [Test]

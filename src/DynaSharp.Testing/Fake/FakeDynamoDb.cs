@@ -21,15 +21,16 @@ namespace DynaSharp.Testing;
 /// </para>
 /// <para>
 /// <b>What it answers.</b> <c>CreateTable</c>, <c>DescribeTable</c>, <c>UpdateTable</c>, <c>DeleteTable</c>, <c>ListTables</c>, <c>DescribeTimeToLive</c>, <c>UpdateTimeToLive</c>,
-/// <c>DescribeLimits</c>, and <c>GetItem</c>, <c>PutItem</c> and <c>DeleteItem</c> by key. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
+/// <c>DescribeLimits</c>, <c>GetItem</c>, <c>PutItem</c>, <c>UpdateItem</c>, <c>DeleteItem</c>, <c>Query</c>, <c>Scan</c>, <c>BatchGetItem</c>, <c>BatchWriteItem</c>, <c>TransactGetItems</c> and
+/// <c>TransactWriteItems</c>, with condition, update, key condition, filter and projection expressions, <c>ReturnValues</c>, <c>ReturnConsumedCapacity</c> and a transaction token that holds for
+/// 10 minutes on the clock. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
 /// of its table at once and follows every write at once, and every read sees the last write. Keys are checked against the schema with the messages of DynamoDB, as are the type of a key of an index,
 /// empty keys, the sizes of keys and the item limit of 400 KB, and numbers keep their 38 digits and come back in canonical form, <c>1.50</c> as <c>1.5</c>.
 /// </para>
 /// <para>
-/// <b>What it does not do.</b> An operation it does not answer, such as PartiQL, a scan or a query, is HTTP 400 with <c>UnknownOperationException</c>. A member it does not implement inside an
-/// operation it answers, such as <c>ConditionExpression</c>, <c>ProjectionExpression</c>, <c>ReturnValues</c> other than <c>NONE</c>, <c>ReturnConsumedCapacity</c>, a stream, tags or a legacy
-/// parameter, is HTTP 400 with the code <c>UnsupportedByFakeException</c>, which names the member: the fake never ignores a member. Nothing throttles, nothing is eventually consistent,
-/// and nothing expires by itself.
+/// <b>What it does not do.</b> An operation it does not answer, such as PartiQL or the streams API, is HTTP 400 with <c>UnknownOperationException</c>. A member it does not implement inside an
+/// operation it answers, such as a stream, tags or a legacy parameter, is HTTP 400 with the code <c>UnsupportedByFakeException</c>, which names the member: the fake never ignores a member. Nothing throttles, nothing is eventually consistent,
+/// no transaction conflicts, a batch leaves nothing unprocessed, and nothing expires by itself.
 /// </para>
 /// <para>
 /// <b>Time.</b> The clock given to the constructor dates the tables, and <see cref="ExpireItems"/> deletes what has expired by it. One fake per test, made with <see langword="new"/>: it holds no static state
@@ -56,7 +57,7 @@ public sealed partial class FakeDynamoDb
     private readonly FakeDatabase _db;
 
     /// <summary>Initializes a new instance of the <see cref="FakeDynamoDb"/> class, without tables.</summary>
-    /// <param name="timeProvider">The clock of creation times and of time to live, <see cref="TimeProvider.System"/> if <see langword="null"/>.</param>
+    /// <param name="timeProvider">The clock of creation times, of time to live and of the 10 minutes a client request token of a transaction holds,<see cref="TimeProvider.System"/> if <see langword="null"/>.</param>
     public FakeDynamoDb(TimeProvider? timeProvider = null)
     {
         _db = new FakeDatabase(timeProvider ?? TimeProvider.System);
@@ -160,7 +161,7 @@ public sealed partial class FakeDynamoDb
         Direct(TableOperations.DeleteTableName, tableName, () => TableOperations.Delete(_db, tableName));
     }
 
-    /// <summary>Drops every table with its items. The handlers and clients of this fake stay valid and see no tables.</summary>
+    /// <summary>Drops every table with its items, and forgets every client request token. The handlers and clients of this fake stay valid and see no tables.</summary>
     public void Reset()
     {
         lock (_db.Gate)

@@ -22,6 +22,9 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <summary>Gets the tables by name, in ordinal order, which is also the order of <c>ListTables</c>.</summary>
     public SortedDictionary<string, FakeTable> Tables { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>Gets the client request tokens of the transactions that went through.</summary>
+    public IdempotencyCache Tokens { get; } = new();
+
     /// <summary>Gets a table for an item operation.</summary>
     /// <param name="name">The name.</param>
     /// <returns>The table.</returns>
@@ -59,6 +62,10 @@ internal sealed class FakeDatabase(TimeProvider clock)
         return table;
     }
 
-    /// <summary>Drops every table and what belongs to them.</summary>
-    public void Reset() => Tables.Clear();
+    /// <summary>Drops every table and what belongs to them, and every client request token.</summary>
+    public void Reset()
+    {
+        Tables.Clear();
+        Tokens.Clear();
+    }
 }
