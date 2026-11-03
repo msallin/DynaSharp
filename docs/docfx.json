@@ -28,8 +28,8 @@
     "globalMetadata": {
       "_appName": "DynaSharp",
       "_appTitle": "DynaSharp",
-      "_appLogoPath": "images/logo.svg",
-      "_appFaviconPath": "images/logo.svg",
+      "_appLogoPath": "images/logo-nav.svg",
+      "_appFaviconPath": "images/logo-nav.svg",
       "_appFooter": "DynaSharp is MIT licensed. <a href=\"https://github.com/msallin/DynaSharp\">Source on GitHub</a>.",
       "_enableSearch": true,
       "_disableContribution": true
