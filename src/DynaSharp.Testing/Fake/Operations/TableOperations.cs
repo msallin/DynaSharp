@@ -15,7 +15,12 @@ namespace DynaSharp.Testing.Fake;
 /// none in a record, as the client writes them; on the wire DynamoDB rejects an empty list of indexes, and so does the reader here.
 /// </para>
 /// <para>
-/// Provisioned throughput is kept and reported, never enforced. Tags, encryption settings and streams are not part of the fake and are <c>UnsupportedByFakeException</c>.
+/// Provisioned throughput is kept and reported, never enforced. Tags and encryption settings are not part of the fake and are <c>UnsupportedByFakeException</c>.
+/// </para>
+/// <para>
+/// A <c>StreamSpecification</c> with <c>StreamEnabled: true</c> enables a new <see cref="FakeStream"/>, with a new ARN and label each time, and <c>false</c> in <c>UpdateTable</c>
+/// disables it, which closes its shard; so does <c>DeleteTable</c>. The description names the stream enabled last in <c>LatestStreamArn</c> and <c>LatestStreamLabel</c>, also after
+/// it was disabled, and carries <c>StreamSpecification</c> while it is enabled.
 /// </para>
 /// </remarks>
 internal static class TableOperations
@@ -131,9 +136,9 @@ internal static class TableOperations
             throw FakeError.Unsupported("the member SSESpecification", CreateTableName);
         }
 
-        if (request.StreamSpecification is { StreamEnabled: true })
+        if (request.StreamSpecification is { StreamEnabled: true } stream)
         {
-            throw FakeError.Unsupported("a stream", CreateTableName);
+            ThrowIfNoViewType(stream);
         }
 
         var types = Types(request.AttributeDefinitions);
@@ -173,6 +178,11 @@ internal static class TableOperations
 
         ThrowIfUnusedDefinitions(table, types);
         db.Create(table);
+        if (request.StreamSpecification is { StreamEnabled: true } enabled)
+        {
+            db.EnableStream(table, enabled.StreamViewType);
+        }
+
         return table;
     }
 
@@ -186,15 +196,10 @@ internal static class TableOperations
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(request);
         ThrowIfInvalidName(request.TableName, "tableName");
-        if (request.StreamSpecification is not null)
-        {
-            throw FakeError.Unsupported("the member StreamSpecification", UpdateTableName);
-        }
-
         var table = db.DescribeTable(request.TableName);
         var updates = request.GlobalSecondaryIndexUpdates ?? [];
         if (request.BillingMode == BillingMode.Unspecified && request.ProvisionedThroughput is null && updates.Count == 0
-            && request.TableClass == TableClass.Unspecified && request.DeletionProtectionEnabled is null)
+            && request.TableClass == TableClass.Unspecified && request.DeletionProtectionEnabled is null && request.StreamSpecification is null)
         {
             throw FakeError.Validation("At least one of ProvisionedThroughput, BillingMode, UpdateStreamEnabled, GlobalSecondaryIndexUpdates or SSESpecification or ReplicaUpdates is required");
         }
@@ -214,6 +219,8 @@ internal static class TableOperations
             throw FakeError.Validation("The provisioned throughput for the table will not change. The requested value equals the current value. Current ReadCapacityUnits provisioned for the table: "
                 + $"{read}. Requested ReadCapacityUnits: {read}. Current WriteCapacityUnits provisioned for the table: {write}. Requested WriteCapacityUnits: {write}. Refer to the Amazon DynamoDB Developer Guide for current limits and how to request higher limits.");
         }
+
+        ThrowIfInvalidStreamChange(table, request.StreamSpecification);
 
         // Everything is checked on copies first, so that a request that fails leaves the table as it was.
         var indexes = table.GlobalIndexes.ToList();
@@ -268,6 +275,11 @@ internal static class TableOperations
         table.AttributeDefinitions = [.. types.Where(type => KeyNames(table).Contains(type.Key)).Select(static type => new AttributeDefinition(type.Key, type.Value))];
         table.TableClass = request.TableClass == TableClass.Unspecified ? table.TableClass : request.TableClass;
         table.DeletionProtectionEnabled = request.DeletionProtectionEnabled ?? table.DeletionProtectionEnabled;
+        if (request.StreamSpecification is { } stream)
+        {
+            ChangeStream(db, table, stream);
+        }
+
         return table;
     }
 
@@ -285,7 +297,9 @@ internal static class TableOperations
             throw FakeError.Validation("Resource cannot be deleted as it is currently protected against deletion. Disable deletion protection first.");
         }
 
-        return db.Delete(name);
+        var table = db.Delete(name);
+        table.LatestStream?.Close(db.Clock.GetUtcNow());
+        return table;
     }
 
     /// <summary>Checks the name of a table or an index: 3 to 255 characters of <c>a-z</c>, <c>A-Z</c>, <c>0-9</c>, <c>_</c>, <c>-</c> and <c>.</c>.</summary>
@@ -316,6 +330,45 @@ internal static class TableOperations
         var name = RequestJson.ReadString(RequestJson.Required(request, "TableName"), "TableName");
         ThrowIfInvalidName(name, "tableName");
         return name;
+    }
+
+    private static void ThrowIfNoViewType(StreamSpecification stream)
+    {
+        if (stream.StreamViewType == StreamViewType.Unspecified)
+        {
+            throw FakeError.Validation(Invalid + "StreamViewType must be specified when StreamEnabled is true");
+        }
+    }
+
+    // DynamoDB enables a stream only on a table without an enabled one, and disables only an enabled one: a new view type takes both, one request after the other.
+    private static void ThrowIfInvalidStreamChange(FakeTable table, StreamSpecification? stream)
+    {
+        var enabled = table.LatestStream is { IsEnabled: true };
+        if (stream is { StreamEnabled: true })
+        {
+            if (enabled)
+            {
+                throw FakeError.Validation($"Table already has an enabled stream: TableName: {table.Name}");
+            }
+
+            ThrowIfNoViewType(stream);
+        }
+        else if (stream is not null && !enabled)
+        {
+            throw FakeError.Validation($"Table does not have an enabled stream: TableName: {table.Name}");
+        }
+    }
+
+    private static void ChangeStream(FakeDatabase db, FakeTable table, StreamSpecification stream)
+    {
+        if (stream.StreamEnabled)
+        {
+            db.EnableStream(table, stream.StreamViewType);
+        }
+        else
+        {
+            table.LatestStream!.Close(db.Clock.GetUtcNow());
+        }
     }
 
     private static FakeIndex Existing(List<FakeIndex> indexes, string name) =>

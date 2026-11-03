@@ -10,10 +10,10 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 
 | Operation | What it does |
 |---|---|
-| `CreateTable` | Checks the key schema against the attribute definitions, the local and global indexes, the projections, the billing mode and the throughput as DynamoDB does. The table and its indexes are `ACTIVE` in the answer. A name that is taken is `ResourceInUseException`. |
-| `DescribeTable` | The table with its item count and size, and those of each index, as they are at that moment. |
-| `UpdateTable` | Billing mode, provisioned throughput of the table and of each global index, table class, deletion protection, and one global index created or deleted per call. A new index holds the items of the table in the answer. |
-| `DeleteTable` | Deletes the table with its items and frees the name at once. A table with deletion protection is a `ValidationException`. |
+| `CreateTable` | Checks the key schema against the attribute definitions, the local and global indexes, the projections, the billing mode and the throughput as DynamoDB does, and enables the stream of `StreamSpecification`. The table and its indexes are `ACTIVE` in the answer. A name that is taken is `ResourceInUseException`. |
+| `DescribeTable` | The table with its item count and size, and those of each index, as they are at that moment, with `StreamSpecification` while its stream is enabled and `LatestStreamArn` and `LatestStreamLabel` of the stream enabled last. |
+| `UpdateTable` | Billing mode, provisioned throughput of the table and of each global index, table class, deletion protection, the stream enabled or disabled, and one global index created or deleted per call. A new index holds the items of the table in the answer. |
+| `DeleteTable` | Deletes the table with its items and frees the name at once, and disables its stream. A table with deletion protection is a `ValidationException`. |
 | `ListTables` | The names in ordinal order, with `Limit` and `ExclusiveStartTableName`, and `LastEvaluatedTableName` when more follow. |
 | `DescribeTimeToLive`, `UpdateTimeToLive` | `ENABLED` or `DISABLED` at once. Enabling twice, or disabling what is off, is a `ValidationException`, as on DynamoDB. |
 | `DescribeLimits` | The default quotas of an account: 80,000 units for the account and 40,000 for a table. |
@@ -26,6 +26,10 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 | `TransactWriteItems` | Up to 100 condition checks, puts, deletes and updates over several tables, all or nothing, with `ClientRequestToken`, `ReturnConsumedCapacity` and `ReturnItemCollectionMetrics`. |
 | `Query` | One partition of the table or of an index by `KeyConditionExpression`, in sort key order or the other way round with `ScanIndexForward: false`, with `FilterExpression`, `ProjectionExpression`, `Select`, `Limit`, `ExclusiveStartKey`, `ConsistentRead` and `ReturnConsumedCapacity`. |
 | `Scan` | Every item of the table or of an index, or with `Segment` and `TotalSegments` those of one segment, with the options of `Query` but the key condition and the direction. |
+| `ListStreams` | The streams of every table or of the one named, in the order they were enabled, with `Limit`, `ExclusiveStartStreamArn` and `LastEvaluatedStreamArn` when more follow. |
+| `DescribeStream` | The stream with its status, view type, key schema and its shard: open, without `EndingSequenceNumber`, while the stream is enabled, and closed once it is disabled. `ExclusiveStartShardId` and `Limit` page the shards, and `ShardFilter` with `CHILD_SHARDS` finds the children of a shard, of which a shard of the fake has none. |
+| `GetShardIterator` | An iterator at `TRIM_HORIZON`, the oldest record kept, at `LATEST`, behind the newest, or at or after a sequence number with `AT_SEQUENCE_NUMBER` and `AFTER_SEQUENCE_NUMBER`. |
+| `GetRecords` | The records from the iterator on, at most `Limit`, 1,000 by default, and 1 MB, and `NextShardIterator`, which the last page of a closed shard leaves out. An open shard read to its end answers an empty page with a next iterator. |
 
 ### What a test can rely on
 
@@ -46,13 +50,18 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 - Batches take up to 100 keys or 25 writes; more, a key twice in one request, and a write with both or neither of `PutRequest` and `DeleteRequest` are a `ValidationException`. `UnprocessedKeys` and `UnprocessedItems` are always empty: a test of a client that retries them queues that answer on the handler.
 - A transaction checks every condition against the items as they were before it. If one fails, it is `TransactionCanceledException` with one `CancellationReasons` entry per action, in order: `ConditionalCheckFailed` with the item where `ALL_OLD` asked for it, `ValidationError` for an action the item cannot take, such as an update that makes it larger than 400 KB, and `None` for the others; nothing is written. One item twice in a transaction is a `ValidationException`.
 - `ClientRequestToken` makes `TransactWriteItems` idempotent for 10 minutes on the clock given to the constructor: the same token with the same request again changes nothing and succeeds, reporting the read units of reading the items, and with another request is `IdempotentParameterMismatchException`. A cancelled transaction does not keep its token, and `Reset` forgets every token.
+- A table with a stream records each change of an item as `INSERT`, `MODIFY` or `REMOVE`, in the order of the writes, with ascending sequence numbers, and with the images of its view type: the keys for `KEYS_ONLY`, the item after for `NEW_IMAGE`, before for `OLD_IMAGE`, both for `NEW_AND_OLD_IMAGES`. A write that leaves the item as it was, such as the same `PutItem` again, records nothing, as on DynamoDB. A transaction or a batch records its changes together, a request that fails records none, and the direct API records as a request does. A record is there in the answer of the write that made it. `SizeBytes` is the size of the keys and the images, counted as item sizes are, and `ApproximateCreationDateTime` the clock of the fake in seconds.
+- Each stream that `CreateTable` or `UpdateTable` enables is a new one, with a new `LatestStreamArn` and `LatestStreamLabel`, so another view type takes an `UpdateTable` that disables the stream and one that enables it again. Enabling a stream on a table that has one enabled, disabling one that is off, and `StreamEnabled: true` without `StreamViewType` are a `ValidationException`. A disabled stream, also that of a deleted table, is readable and listed for 24 hours after it closed, and `ResourceNotFoundException` from then on.
+- An iterator is valid for 15 minutes on the clock given to the constructor and is `ExpiredIteratorException` then; every page hands out a new one. Records are kept 24 hours, and a position older than that is `TrimmedDataAccessException`. A sequence number outside the range of the shard is a `ValidationException`, as is a text that is no iterator.
+- `ExpireItems()` records each delete as a `REMOVE` whose `userIdentity` is `{"Type":"Service","PrincipalId":"dynamodb.amazonaws.com"}`, as DynamoDB records the deletes of time to live; a delete of a client has none.
 - Errors are HTTP 400 with the code of DynamoDB in `__type`, so the client throws the exception it throws for DynamoDB, and each answer carries an `x-amzn-RequestId`.
 
 ### What the fake is not
 
 - Not eventually consistent, and nothing throttles: provisioned throughput is stored and reported, never enforced. Faults come from the handler, as in the README above.
 - No automatic expiry: `ExpireItems()` deletes what has expired when a test calls it, and, as DynamoDB, leaves an item whose expiry lies more than five years before the clock.
-- No streams, PartiQL, backups, point-in-time recovery, export or import, tags, resource policies, global tables, encryption settings, Contributor Insights or Kinesis destinations.
+- No PartiQL, backups, point-in-time recovery, export or import, tags, resource policies, global tables, encryption settings, Contributor Insights or Kinesis destinations.
+- One shard per stream: it closes when the stream is disabled and at no other time, and it never splits, so there is no lineage of shards. A stream is `ENABLED` or `DISABLED` at once, never `ENABLING` or `DISABLING`.
 - Not concurrent: no `TransactionConflict` or `TransactionInProgress`, no unprocessed keys or items, and a batch is as atomic as a transaction.
 - Not the fine print: the exact order of validation, the wording of every message, the 10 GB limit of an item collection and its exact size estimate, the 16 MB limit of a batch, `x-amz-crc32` as a checksum.
 
@@ -60,6 +69,6 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 
 It fails loudly and never differs in silence.
 
-- An operation it does not answer, such as PartiQL or the streams API, is HTTP 400 with `UnknownOperationException` and the message `FakeDynamoDb does not implement <Op>. It is not supported.`
-- A member it does not implement inside an operation it answers is HTTP 400 with the code `UnsupportedByFakeException`, which `DynamoDbException.ErrorCode` gives, and a message that names the member and the operation. In every item operation, batch, transaction and read it is the legacy parameters, such as `AttributesToGet`, `AttributeUpdates`, `Expected`, `KeyConditions`, `QueryFilter` and `ScanFilter`. In the table operations it is tags, `SSESpecification`, a stream, and any member the fake does not know.
+- An operation it does not answer, such as PartiQL, is HTTP 400 with `UnknownOperationException` and the message `FakeDynamoDb does not implement <Op>. It is not supported.`
+- A member it does not implement inside an operation it answers is HTTP 400 with the code `UnsupportedByFakeException`, which `DynamoDbException.ErrorCode` gives, and a message that names the member and the operation. In every item operation, batch, transaction and read it is the legacy parameters, such as `AttributesToGet`, `AttributeUpdates`, `Expected`, `KeyConditions`, `QueryFilter` and `ScanFilter`. In the table operations it is tags, `SSESpecification`, and any member the fake does not know.
 - A value DynamoDB rejects is the `ValidationException` DynamoDB answers, also where the fake implements little: an enum value DynamoDB does not have, such as `"AttributeType":"BOOL"`, and `ExpressionAttributeNames` or `ExpressionAttributeValues` in a request without an expression.

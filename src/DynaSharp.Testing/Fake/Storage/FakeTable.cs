@@ -72,6 +72,9 @@ internal sealed class FakeTable
     /// <summary>Gets or sets the attribute of time to live, or <see langword="null"/> while it is off.</summary>
     public string? TimeToLiveAttribute { get; set; }
 
+    /// <summary>Gets or sets the stream enabled last, which the description names until the table is gone, or <see langword="null"/> if it never had one. Every change of an item is staged on it while it is enabled.</summary>
+    public FakeStream? LatestStream { get; set; }
+
     /// <summary>Gets the global secondary indexes in the order they were declared or added.</summary>
     public List<FakeIndex> GlobalIndexes { get; } = [];
 
@@ -117,6 +120,7 @@ internal sealed class FakeTable
         var old = Get(key);
         _items.Set(key.Partition, SlotKey.OfTable(key), stored);
         Reindex(old, stored);
+        LatestStream?.Stage(old, stored);
         return old;
     }
 
@@ -130,6 +134,7 @@ internal sealed class FakeTable
         {
             _items.Remove(key.Partition, SlotKey.OfTable(key));
             Reindex(old, null);
+            LatestStream?.Stage(old, null);
         }
 
         return old;
