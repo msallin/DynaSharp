@@ -17,7 +17,10 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 | `ListTables` | The names in ordinal order, with `Limit` and `ExclusiveStartTableName`, and `LastEvaluatedTableName` when more follow. |
 | `DescribeTimeToLive`, `UpdateTimeToLive` | `ENABLED` or `DISABLED` at once. Enabling twice, or disabling what is off, is a `ValidationException`, as on DynamoDB. |
 | `DescribeLimits` | The default quotas of an account: 80,000 units for the account and 40,000 for a table. |
-| `GetItem`, `PutItem`, `DeleteItem` | By key, without a condition: the item of the key, or the item replacing the one of its key, or the item gone. |
+| `GetItem` | The item of the key, or what `ProjectionExpression` takes of it, with `ConsistentRead` and `ReturnConsumedCapacity`. |
+| `PutItem`, `DeleteItem` | By key, without a condition: the item replacing the one of its key, or the item gone. |
+| `Query` | One partition of the table or of an index by `KeyConditionExpression`, in sort key order or the other way round with `ScanIndexForward: false`, with `FilterExpression`, `ProjectionExpression`, `Select`, `Limit`, `ExclusiveStartKey`, `ConsistentRead` and `ReturnConsumedCapacity`. |
+| `Scan` | Every item of the table or of an index, or with `Segment` and `TotalSegments` those of one segment, with the options of `Query` but the key condition and the direction. |
 
 ### What a test can rely on
 
@@ -26,7 +29,11 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 - An item is in a secondary index if it holds every key attribute of the index; the index holds what its projection says, `ALL`, `KEYS_ONLY` or `INCLUDE`.
 - Numbers keep their 38 significant digits, from `1E-130` to just below `1E+126`, and come back in canonical form: `01.50` as `1.5`. A key `1.0` names the item of the key `1`. Sets with a duplicate and documents nested deeper than 32 levels are rejected.
 - Sort keys order as on DynamoDB: strings by their UTF-8 bytes, binaries by their bytes, numbers by value. The order of partitions is fixed per run, and a test does not depend on it, as on DynamoDB.
-- Errors are HTTP 400 with the code of DynamoDB in `__type`, so the client throws the exception it throws for DynamoDB, and each answer carries an `x-amzn-RequestId`.
+- Reads page as on DynamoDB: `Limit` counts the items read, before the filter, and a page ends where what it read reaches 1 MB, counted by item size. A page cut by either carries `LastEvaluatedKey`, also when nothing follows and also when the filter dropped every item of it, so a page can be empty and not be the last. The key holds the key of the table, and for a read of an index the key of the index too. `ExclusiveStartKey` must be such a key, of the partition and the sort key range of a query and of the segment of a scan; an empty one is a `ValidationException`.
+- `Count` is the items that passed the filter, `ScannedCount` the items read. `Select` defaults to all attributes for a table, the projected ones for an index and the named ones with a projection. `SPECIFIC_ATTRIBUTES` without a projection, a projection with any other `Select`, `ALL_PROJECTED_ATTRIBUTES` on a table and `ALL_ATTRIBUTES` on a global index that does not project everything are a `ValidationException`. A local index fetches from its table what it does not hold. A filter of a query on a key attribute, and `ConsistentRead` on a global index, are a `ValidationException`.
+- Every item is in exactly one segment of a parallel scan; which one is fixed per run, and a test does not depend on it.
+- A projection takes the paths it names, nested ones and list elements included, and not the key unless it names it.
+- `ReturnConsumedCapacity` follows the arithmetic of the Developer Guide: a read is 1 unit per 4 KB, rounded up and at least 1, and half of that when eventually consistent. `GetItem` pays for the whole item whatever it projects, and for a key without an item; `Query` and `Scan` add up the items they read, before the filter. With `INDEXES` the units of an index read are reported under the index, with the table at 0 or at what a local index fetched from it.- Errors are HTTP 400 with the code of DynamoDB in `__type`, so the client throws the exception it throws for DynamoDB, and each answer carries an `x-amzn-RequestId`.
 
 ### What the fake is not
 
@@ -39,6 +46,6 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 
 It fails loudly and never differs in silence.
 
-- An operation it does not answer, such as `Query`, `Scan`, `UpdateItem`, the batches, the transactions, PartiQL or the streams API, is HTTP 400 with `UnknownOperationException` and the message `FakeDynamoDb does not implement <Op>. It is not supported.`
-- A member it does not implement inside an operation it answers is HTTP 400 with the code `UnsupportedByFakeException`, which `DynamoDbException.ErrorCode` gives, and a message that names the member and the operation. In `GetItem`, `PutItem` and `DeleteItem` that is `ConditionExpression`, `ProjectionExpression`, `ReturnValues`, `ReturnConsumedCapacity` and `ReturnItemCollectionMetrics` with a value other than `NONE`, and the legacy parameters such as `AttributesToGet` and `Expected`. In the table operations it is tags, `SSESpecification`, a stream, and any member the fake does not know.
+- An operation it does not answer, such as `UpdateItem`, the batches, the transactions, PartiQL or the streams API, is HTTP 400 with `UnknownOperationException` and the message `FakeDynamoDb does not implement <Op>. It is not supported.`
+- A member it does not implement inside an operation it answers is HTTP 400 with the code `UnsupportedByFakeException`, which `DynamoDbException.ErrorCode` gives, and a message that names the member and the operation. In `PutItem` and `DeleteItem` that is `ConditionExpression`, and `ReturnValues`, `ReturnConsumedCapacity` and `ReturnItemCollectionMetrics` with a value other than `NONE`. In every item operation and read it is the legacy parameters, such as `AttributesToGet`, `Expected`, `KeyConditions`, `QueryFilter` and `ScanFilter`. In the table operations it is tags, `SSESpecification`, a stream, and any member the fake does not know.
 - A value DynamoDB rejects is the `ValidationException` DynamoDB answers, also where the fake implements little: an enum value DynamoDB does not have, such as `"AttributeType":"BOOL"`, and `ExpressionAttributeNames` or `ExpressionAttributeValues` in a request without an expression.

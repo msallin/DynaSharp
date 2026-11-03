@@ -104,6 +104,8 @@ using var lost = new StubHandler(request =>
 
 The clock given to the constructor dates the tables. Time to live is stored and reported, and nothing expires by itself: `fake.ExpireItems()` is the background sweep of DynamoDB, run when the test says, and deletes every item whose attribute of time to live is a number of epoch seconds at or before that clock. As on DynamoDB, an expiry more than five years before the clock is left alone.
 
+Reads go through the same code as on DynamoDB: `Query` by key condition on the table or an index, `Scan` with or without segments, `GetItem` with a projection. Pages are cut as DynamoDB cuts them, by `Limit` counted before the filter and at 1 MB read, with `LastEvaluatedKey` holding the key of the index too, so a loop that follows the key or a filter that empties a page behaves as it does against DynamoDB. `ReturnConsumedCapacity` reports the read units of the Developer Guide.
+
 What the fake answers, and how it answers what it does not do, is listed on [the page of this package](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does). It never ignores a member of a request: what it does not implement fails with the code `UnsupportedByFakeException`, and an operation it does not answer with `UnknownOperationException`.
 
 ## STS

@@ -49,8 +49,6 @@ public sealed class FakeWireTests
 
     [Test]
     [Arguments("UpdateItem")]
-    [Arguments("Query")]
-    [Arguments("Scan")]
     [Arguments("BatchGetItem")]
     [Arguments("BatchWriteItem")]
     [Arguments("TransactGetItems")]

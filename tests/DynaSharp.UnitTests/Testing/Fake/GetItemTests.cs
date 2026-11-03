@@ -74,9 +74,8 @@ public sealed class GetItemTests
     }
 
     [Test]
-    [Arguments(""","ProjectionExpression":"total" """, "the member ProjectionExpression in GetItem")]
-    [Arguments(""","ReturnConsumedCapacity":"INDEXES" """, "ReturnConsumedCapacity INDEXES in GetItem")]
     [Arguments(""","AttributesToGet":["total"]""", "the member AttributesToGet in GetItem")]
+    [Arguments(""","ExpressionAttributeValues":{":v":{"S":"x"}}""", "the member ExpressionAttributeValues in GetItem")]
     public async Task Handle_MemberTheFakeDoesNotImplement_AnswersUnsupported(string options, string named)
     {
         // Arrange
@@ -87,6 +86,69 @@ public sealed class GetItemTests
 
         // Assert
         await Assert.That((status, code, message.Contains(named, StringComparison.Ordinal))).IsEqualTo((HttpStatusCode.BadRequest, "UnsupportedByFakeException", true));
+    }
+
+    [Test]
+    [Arguments("TOTAL", false, """{"TableName":"Orders","CapacityUnits":0.5}""")]
+    [Arguments("TOTAL", true, """{"TableName":"Orders","CapacityUnits":1.0}""")]
+    [Arguments("INDEXES", true, """{"TableName":"Orders","CapacityUnits":1.0,"Table":{"CapacityUnits":1.0}}""")]
+    public async Task Handle_ReturnConsumedCapacity_ReportsTheUnitsOfTheRead(string mode, bool consistent, string expected)
+    {
+        // Arrange: the item is far below 4 KB, one read unit, half of it eventually consistent
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", Put);
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "GetItem",
+            $$$"""{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ConsistentRead":{{{(consistent ? "true" : "false")}}},"ReturnConsumedCapacity":"{{{mode}}}"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(expected, body.GetProperty("ConsumedCapacity"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_ReturnConsumedCapacityForAKeyWithoutAnItem_ReportsAReadUnit()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var body = FakeCalls.Ok(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ConsistentRead":true,"ReturnConsumedCapacity":"TOTAL"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"ConsumedCapacity":{"TableName":"Orders","CapacityUnits":1.0}}""", body)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_ReturnConsumedCapacityOfALargeItem_ReportsOneUnitPerFourKilobytes()
+    {
+        // Arrange: 9000 bytes of text are three units of 4 KB, one and a half eventually consistent
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", $$$$"""{"TableName":"Orders","Item":{"pk":{"S":"c#1"},"sk":{"N":"1"},"text":{"S":"{{{{new string('x', 9000)}}}}"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ReturnConsumedCapacity":"TOTAL"}""");
+
+        // Assert
+        await Assert.That(body.GetProperty("ConsumedCapacity").GetProperty("CapacityUnits").GetDouble()).IsEqualTo(1.5);
+    }
+
+    [Test]
+    public async Task Handle_ReturnConsumedCapacityNotKnown_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ReturnConsumedCapacity":"ALL"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "1 validation error detected: Value 'ALL' at 'returnConsumedCapacity' failed to satisfy constraint: Member must satisfy enum value set: [NONE, TOTAL, INDEXES]"));
     }
 
     [Test]
@@ -126,5 +188,46 @@ public sealed class GetItemTests
 
         // Assert
         await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Cannot do operations on a non-existent table"));
+    }
+
+    [Test]
+    public async Task Handle_ProjectionExpression_AnswersWhatItNamesWithoutTheKey()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", Put);
+
+        // Act
+        var body = FakeCalls.Ok(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ProjectionExpression":"#t, #l[0].sku","ExpressionAttributeNames":{"#t":"total","#l":"lines"}}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"Item":{"total":{"N":"12.5"},"lines":{"L":[{"M":{"sku":{"S":"KB-01"}}}]}}}""", body)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_ProjectionWithANameItDoesNotUse_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var (_, code, message) = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ProjectionExpression":"sk","ExpressionAttributeNames":{"#t":"total"}}""");
+
+        // Assert
+        await Assert.That((code, message.Contains("unused in expressions", StringComparison.Ordinal))).IsEqualTo(("ValidationException", true));
+    }
+
+    [Test]
+    public async Task Handle_ProjectionOfALargeItem_CostsTheWholeItem()
+    {
+        // Arrange: 9000 bytes of text are three units of 4 KB, whatever the projection takes
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", $$$$"""{"TableName":"Orders","Item":{"pk":{"S":"c#1"},"sk":{"N":"1"},"text":{"S":"{{{{new string('x', 9000)}}}}"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ProjectionExpression":"pk","ConsistentRead":true,"ReturnConsumedCapacity":"TOTAL"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"Item":{"pk":{"S":"c#1"}},"ConsumedCapacity":{"TableName":"Orders","CapacityUnits":3.0}}""", body)).IsTrue();
     }
 }
