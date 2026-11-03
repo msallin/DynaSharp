@@ -6,7 +6,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 **Documentation: [msallin.github.io/DynaSharp](https://msallin.github.io/DynaSharp/)**, with the full guide, the [API reference](https://msallin.github.io/DynaSharp/api/DynaSharp.html) and the [diagnostics](https://msallin.github.io/DynaSharp/diagnostics.html) of the analyzers.
 
-- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 12 % fewer for a query of 100 items to 3.3 times fewer for a `PutItem` (1.49 KB against 4.99 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
+- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation.
 - **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
@@ -192,17 +192,17 @@ Bytes allocated per call, mapped APIs:
 
 | Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
 |---|---|---|---|
-| GetItem | 2,384 | 5,936 | 40,794 |
-| PutItem | 1,528 | 5,112 | 44,420 |
-| Query, 100 items | 81,120 | 91,810 | 991,052 |
+| GetItem | 2,384 | 5,456 | 40,778 |
+| PutItem | 1,528 | 4,632 | 44,403 |
+| Query, 100 items | 81,120 | 91,329 | 990,973 |
 
 Low-level APIs, in KB:
 
 | Call | DynaSharp request API | EfficientDynamoDb | AWS SDK |
 |---|---|---|---|
-| GetItem | 2.55 | 7.16 | 30.51 |
-| PutItem | 1.60 | 4.99 | 26.71 |
-| Query, 100 items | 98.03 | 202.21 | 379.10 |
+| GetItem | 2.55 | 6.69 | 30.49 |
+| PutItem | 1.60 | 4.52 | 26.68 |
+| Query, 100 items | 98.03 | 201.74 | 379.07 |
 
 Inside DynaSharp, by API level, in bytes:
 

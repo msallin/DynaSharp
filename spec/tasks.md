@@ -675,7 +675,10 @@ Branch `m4/r2-signed-tokens`. Approved by the owner. The threat, from the focus 
 ### D6 leftovers
 
 - [ ] `AnalyzerReleases.Shipped.md` and `PublicAPI.Shipped.txt` are labelled 0.1.0 before the release: release prep moves Unshipped into Shipped, so that "a rule that is new after 0.1.0 starts at Info" holds from the tag.
-- [ ] Benchmark timings (mean and error per call) to back a speed claim; the README compares allocations only.
+- [ ] Benchmark timings (mean and error per call) to back a speed claim; the README compares allocations only. Measured on 2026-11-03 at d934906, idle 8-core AMD EPYC Genoa, .NET 11 RC 3, BenchmarkDotNet defaults, canned responses (mean ± error per call):
+  - `ClientComparisonBenchmarks` (low-level APIs): GetItem 5.86 ± 0.12 µs against EfficientDynamoDb 16.84 ± 0.34 and the AWS SDK 22.55 ± 0.45; PutItem 5.00 ± 0.10 against 15.45 ± 0.30 and 19.90 ± 0.40; Query of 100 items 130.0 ± 2.6 against 182.2 ± 3.6 and 346.4 ± 6.9.
+  - `EntityBenchmarks` (mapped APIs, with a set): GetItem 5.52 ± 0.11 µs against 15.67 ± 0.31 and `DynamoDBContext` 31.85 ± 0.63; PutItem 4.91 ± 0.09 against 15.50 ± 0.31 and 31.25 ± 0.62; Query of 100 items 126.4 ± 2.5 against 138.8 ± 2.8 and 878.4 ± 22.1.
+  - So about 3 times the speed of EfficientDynamoDb for a single item and 1.1 to 1.4 times for a query of 100, and 4 to 7 times the AWS SDK. Whether the README makes a speed claim is the owner's call; allocations stay its main table.
 
 ### R1 - read features before 0.1.0
 
