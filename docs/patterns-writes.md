@@ -36,7 +36,7 @@ Caveats:
 
 - It is opt-in per type. Two writers of a type without `[Version]` both succeed, and the second silently undoes the first.
 - It is enforced per write. An `Update` or a `Delete` by key says `IfVersion(n)` or `IgnoreVersion()`, or it throws before anything is sent, see [Optimistic locking](commands.md#optimistic-locking).
-- Nothing retries a conflict by itself. `RetryOnConflictAsync` makes 5 runs, and with n writers on one item a run can lose up to n - 1 times, so pass `maxAttempts` for a hot item.
+- Nothing retries a conflict by itself. `RetryOnConflictAsync` makes 5 runs. With a fixed set of n writers that each write once, a run loses at most n - 1 times, but while new writers keep arriving it can lose any number of times, so pass `maxAttempts` for a hot item.
 
 ## Uniqueness constraints
 
@@ -192,6 +192,7 @@ Caveats:
 - The time to live must be longer than the retry horizon of the client. After it, a retry counts as a new call.
 - DynamoDB deletes an expired item up to days later, so the condition goes by the time and not by the absence of the record. Never use time to live as a timer.
 - A conflict means that the first call is still running. `RetryOnConflictAsync` asks again, and then gets its answer.
+- Every charge goes to the one partition `CHARGES`, which takes the writes of one partition. A busier table puts the charge under a key of its own, such as `CHARGE#{Id}`.
 
 ## Counters
 
@@ -217,7 +218,7 @@ long views = await shop.Of<PageViews>().Update(PageViews.Keys.Of("/home"))
     .SendAsync(ct);
 ```
 
-A retry counts twice: when the response is lost after the write took effect, the client sends the add again. `MaxAttempts(1)` makes an exact counter, and a failure then leaves the caller unable to tell whether it counted.
+A retry counts twice: when the response is lost after the write took effect, the client sends the add again. `MaxAttempts(1)` makes it count at most once, so it can undercount: a failure leaves the caller unable to tell whether it counted. The idempotent counter below counts each request exactly once, apart from the cases its caveats name.
 
 A counter that a retry cannot count twice remembers the ids it has counted, and the write holds only for a new one. The set of ids is windowed, an item per day:
 
@@ -257,6 +258,8 @@ Caveats:
 
 - One item takes about 1000 writes a second. A hotter counter is [sharded](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ShardedCounterTests.cs).
 - A write is billed on the larger of the old and the new item, so the cost of the idempotent counter grows with its set: with ten ids of 300 bytes, an add costs 4 write units where the first cost 1. Keep the window small.
+- The set grows with every id of the day. On a busy day it reaches the item limit of 400 KB, and from then on every write of that day fails with a `ValidationException`.
+- The window is the day the caller builds the key. A retry of the caller that crosses midnight UTC lands in the item of the next day, which has not seen the id, and counts twice. The retries of the client resend the same key.
 - Numbers from an atomic counter have gaps where a write failed. Numbers without gaps, as invoices need, are the [gapless sequence](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/GaplessSequenceTests.cs).
 
 ## Transactional outbox

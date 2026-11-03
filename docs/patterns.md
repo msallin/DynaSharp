@@ -43,7 +43,7 @@ These run as tests too, with the same primitives, and each file explains its pat
 - [Token bucket](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/TokenBucketTests.cs): a rate with bursts, refilled on the client under a condition on what it read.
 - [Reservation with auto-release](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ReservationTests.cs): a hold that ends by its time, with nothing that has to release it.
 - [Service registry with liveness](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ServiceRegistryTests.cs): instances that renew a time, and readers that filter on it.
-- [Counting semaphore](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/CountingSemaphoreTests.cs): at most n holders across processes, an item per permit with a lease.
+- [Counting semaphore](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/CountingSemaphoreTests.cs): at most n holders across processes, an item per permit with a lease. It has no fencing token, so a holder whose lease ran out can still act while the next one holds the permit: it bounds concurrency only among holders that stop at the end of their lease.
 - [Barrier](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/BarrierTests.cs): n parties add their names to a set, and exactly one sees it complete.
 - [HyperLogLog](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/HyperLogLogTests.cs): distinct counts in a fixed kilobyte, merged on the client under `[Version]`.
 

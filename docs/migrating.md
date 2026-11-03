@@ -143,7 +143,7 @@ public partial record Shipment
 | A region found in EC2 instance metadata. | `AWS_REGION`, or `Region` in the options. DynaSharp does not ask the metadata service, see [Region](getting-started.md#region). |
 | A mock of `IDynamoDBContext` or `IAmazonDynamoDB`. | `StubClient.Create(stub)` over a `StubHandler`, which fakes the wire, and `StubSts` for the way through STS. See [Testing](testing.md). |
 
-- **Key ranges.** `Between` and `Range` take values and not strings. `Range` exists only when something follows the field in the template, so a key that ends in the field takes `Between` with `to` one step lower, such as `to.AddMilliseconds(-1)` under `{At:ms}`.
+- **Key ranges.** `Between` and `Range` take values and not strings. `Range` exists only when something follows the field in the template. Where the field is the last part of the key, use `Between` and pass the value one step before `to`, such as `to.AddMilliseconds(-1)` under `{At:ms}`.
 - **Creating the table.** `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. For a table that lacks an index, see [Adding an index](tables.md#adding-an-index).
 
 ## From EfficientDynamoDb

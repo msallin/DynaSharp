@@ -242,4 +242,6 @@ if (manifest is not null)
 Caveats:
 
 - The chunks and the manifest are not one transaction. A writer that stops halfway leaves chunks without a manifest, which a reader takes for no file.
+- A rewrite with fewer chunks leaves the old ones behind, and this reader, which takes every chunk of the partition, appends them. Delete the chunks past the new count, or read only the `Chunks` that the manifest names.
+- A reader during a rewrite can get chunks of the old and the new version. To prevent it, put a version in the key of a chunk, write the chunks of the new version first and switch the manifest to it last.
 - A read pays for every chunk. Beyond a few MB, an object in S3 with its key in the item is the better design.

@@ -212,7 +212,7 @@ Without `Credentials`, the client uses the default chain of the AWS SDKs and tak
 
 1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
 2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`
-3. the profile selected by `AWS_PROFILE` in the shared credentials and config files
+3. the profile selected by `AWS_PROFILE`, or `default` when it is unset or empty, in the shared credentials and config files
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 

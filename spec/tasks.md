@@ -578,6 +578,11 @@ Branch `m4/r2-signed-tokens`. Approved by the owner. The threat, from the focus 
 - Finding: no telemetry was added. A rejected token throws before the read starts its span, and the exception is the signal; a counter of forgeries would be a new metric, to decide with the owner.
 - Finding: switching signing on or off rejects the tokens in flight once. A mode that accepts plain text tokens during a rollout was left out; it is additive.
 
+### D6 leftovers
+
+- [ ] `AnalyzerReleases.Shipped.md` and `PublicAPI.Shipped.txt` are labelled 0.1.0 before the release: release prep moves Unshipped into Shipped, so that "a rule that is new after 0.1.0 starts at Info" holds from the tag.
+- [ ] Benchmark timings (mean and error per call) to back a speed claim; the README compares allocations only.
+
 ## M7 - DynaSharp.Coordination (after M3)
 
 - [ ] Lease / lock: Lock Client semantics (relative lease duration, record version number, heartbeat at most half the

@@ -4,7 +4,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 **Documentation: [msallin.github.io/DynaSharp](https://msallin.github.io/DynaSharp/)**, with the full guide, the [API reference](https://msallin.github.io/DynaSharp/api/DynaSharp.html) and the [diagnostics](https://msallin.github.io/DynaSharp/diagnostics.html) of the analyzers.
 
-- **Lean:** a `PutItem` allocates 1.5 KB against 5.1 KB for EfficientDynamoDb and 44.4 KB for the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
+- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 12 % fewer for a query of 100 items to 3.3 times fewer for a `PutItem` (1.49 KB against 4.99 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation.
 - **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
@@ -83,7 +83,7 @@ There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where
 
 A few things DynaSharp does, on the shop of the sample. The guide has each of them in full: [Reading and writing](https://msallin.github.io/DynaSharp/commands.html), [Queries and scans](https://msallin.github.io/DynaSharp/queries.html), [Expressions](https://msallin.github.io/DynaSharp/expressions.html), [Transactions and batches](https://msallin.github.io/DynaSharp/transactions.html), [Tables](https://msallin.github.io/DynaSharp/tables.html) and [Testing](https://msallin.github.io/DynaSharp/testing.html). [Design patterns](https://msallin.github.io/DynaSharp/patterns.html) shows the common DynamoDB designs, such as single-table, sharding, idempotency and the outbox, each with its code.
 
-**Typed queries.** `ItemsAsync` follows pages for you, including pages a filter left empty. `Keys` builds the key, and `Attrs` makes the filter typed, so comparing a total with a string does not compile.
+**Typed queries**, with keys and filters that the compiler checks. [Query](https://msallin.github.io/DynaSharp/queries.html#query)
 
 ```csharp
 var bigOrders = orders.Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.BeginsWith())
@@ -92,7 +92,7 @@ var bigOrders = orders.Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.BeginsWith
     .ItemsAsync(ct);
 ```
 
-**Updates that say what they change.** An update changes what it names and leaves the rest. `At` walks into a nested document, and `ReturnNew` gives back the item in one round trip.
+**Updates that say what they change**, down into a nested document. [UpdateItem](https://msallin.github.io/DynaSharp/commands.html#updateitem)
 
 ```csharp
 var moved = await customers.Update(Customer.Keys.Of("alice"))
@@ -103,7 +103,7 @@ var moved = await customers.Update(Customer.Keys.Of("alice"))
     .SendAsync(ct);
 ```
 
-**Transactions with typed failure reasons.** Everything is written together or not at all. A marker tells which action failed, and each step type only offers what that action can do, so `.Add` after `.Put` does not compile.
+**Transactions with typed failure reasons**: a marker tells which action failed. [TransactWriteItems](https://msallin.github.io/DynaSharp/transactions.html#transactwriteitems)
 
 ```csharp
 TransactMarker emailTaken = default;
@@ -120,7 +120,7 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 }
 ```
 
-**Several types in one query.** Each item arrives as what it is, without a dictionary in between.
+**Several types in one query**, each item as its own type. [Several types in one query](https://msallin.github.io/DynaSharp/queries.html#several-types-in-one-query)
 
 ```csharp
 await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Order>().ItemsAsync(ct))
@@ -129,7 +129,7 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 }
 ```
 
-**Optimistic locking, and a retry on a conflict.** A `[Version]` property turns every write of the entity into a compare-and-swap, and `RetryOnConflictAsync` runs a read-modify-write again when it loses to another writer.
+**Optimistic locking, and a retry on a conflict**, for a read-modify-write that loses to another writer. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking)
 
 ```csharp
 await carts.RetryOnConflictAsync(async token =>
@@ -172,7 +172,7 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 
 ## Benchmarks
 
-Allocations are exact. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
+The tables compare allocations, which are exact, and not speed. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
 
 Bytes allocated per call, mapped APIs:
 
