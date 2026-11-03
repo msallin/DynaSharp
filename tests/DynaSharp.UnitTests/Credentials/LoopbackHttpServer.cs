@@ -31,9 +31,11 @@ internal sealed class LoopbackHttpServer : IDisposable
 
     public void Dispose()
     {
+        // The listener stops only after the loop has ended: stopped first, an accept the loop starts after the stop
+        // throws "Not listening" instead of seeing the cancellation.
         _stop.Cancel();
-        _listener.Dispose();
         _serving.Wait();
+        _listener.Dispose();
         _stop.Dispose();
     }
 
