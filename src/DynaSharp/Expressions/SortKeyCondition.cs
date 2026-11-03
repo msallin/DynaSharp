@@ -10,6 +10,10 @@ namespace DynaSharp;
 /// <remarks>
 /// A generated key builder has these conditions for its template, from the values of its placeholders: <c>Order.Keys.Sk.Between(from, to)</c>. The ones here are for a value that is at hand already, such as a
 /// sort key of a table without a mapped type. Strings compare by their UTF-8 bytes, so a condition on the text of a composite key means what those bytes mean.
+/// <para>
+/// The generated ranges go by the template: <c>Between(from, to)</c> includes every key at <c>to</c>, and <c>Range(from, to)</c> ends before the keys at <c>to</c>. A value is cut to the format of its placeholder first,
+/// so under <c>{OrderDate:yyyy-MM-dd}</c> <c>Between(march1, march31)</c> reads all of March 31.
+/// </para>
 /// </remarks>
 public readonly struct SortKeyCondition
 {

@@ -21,7 +21,8 @@ namespace DynaSharp.Mapping;
 /// <c>Keys.TryOf</c> is the tool for a value from outside. A stored key that holds one does not fit the template, and a read that restores an input from it throws <see cref="DynamoDbMappingException"/>.
 /// </para>
 /// <para>
-/// A timestamp is written in UTC and takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
+/// A timestamp is written in UTC: a <see cref="DateTime"/> of kind <see cref="DateTimeKind.Local"/> is converted, and one of kind <see cref="DateTimeKind.Unspecified"/>, which <c>new DateTime(2026, 1, 15)</c> and <c>default</c> have, names no instant, so the write throws <see cref="KeyFormatException"/>.
+/// Give it <see cref="DateTimeKind.Utc"/>, or use a <see cref="DateOnly"/>, which has no kind and is written as <c>yyyy-MM-dd</c>. A timestamp takes <c>yyyy</c>, <c>yyyy-MM</c>, <c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH</c>, <c>yyyy-MM-ddTHH:mm</c>, <c>s</c>, <c>ms</c>, <c>us</c> or <c>ticks</c>. A bare
 /// <c>{At}</c> is <c>ticks</c>, seven fraction digits as in the attribute: it is the only lossless format, so a read can restore the property from the key. Every other format truncates, and
 /// <c>{At:ms}</c> is the one that matches keys the AWS SDK for .NET wrote.
 /// </para>

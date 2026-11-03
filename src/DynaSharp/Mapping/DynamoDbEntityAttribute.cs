@@ -6,7 +6,8 @@ namespace DynaSharp.Mapping;
 /// </summary>
 /// <remarks>
 /// Every <c>public</c> instance property that can be read and that has a setter or a matching constructor parameter becomes an
-/// attribute named like the property. Null values are left out of the item. The attribute applies to the marked type only: a
+/// attribute named like the property. Null values are left out of the item. So is an empty set, which DynamoDB cannot store, and a read gives a missing set back as an empty one, so <c>Tags = []</c> round-trips.
+/// An empty string, list or map is stored, unless <see cref="OmitEmptyAttribute"/> leaves it out. The attribute applies to the marked type only: a
 /// derived entity declares its own keys and discriminator, and inherits the mapped properties of its base.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]

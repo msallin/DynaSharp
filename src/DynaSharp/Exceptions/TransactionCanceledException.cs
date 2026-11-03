@@ -15,7 +15,7 @@ namespace DynaSharp;
 /// call is cancelled when it conflicts with a concurrent write or is throttled. Some causes pass (a conflict, throttling), so
 /// whether to repeat the transaction is the decision of the caller, who can look at the reasons; <see cref="TransactionFailure"/> says which.
 /// <para>
-/// DynamoDB lists the codes in its message and nothing else: <c>[None, ConditionalCheckFailed]</c>. After <c>client.TransactWrite()</c> or <c>client.TransactGet()</c>, <see cref="Exception.Message"/> gains a
+/// DynamoDB lists the codes in its message and nothing else, one per action in their order: <c>[None, ConditionalCheckFailed]</c>, where <c>None</c> is an action that caused no problem and was cancelled with the rest (<see cref="TransactionFailure.None"/>). After <c>client.TransactWrite()</c> or <c>client.TransactGet()</c>, <see cref="Exception.Message"/> gains a
 /// line that names each action that failed by its position, verb and table, with its code: <c>Action 2 of 2, Put on Users: ConditionalCheckFailed</c>. It holds no key and no value.
 /// </para>
 /// </remarks>

@@ -95,7 +95,7 @@ public sealed class Table<T>
     /// <summary>
     /// Starts a put of a whole item. The item is written to the request here and now, so changing it afterwards changes nothing. A put replaces
     /// everything under the key; <see cref="PutCommand{T}.IfNotExists"/> makes it a create. An entity with a <see cref="VersionAttribute"/> adds the condition on its version and stores
-    /// the next one, see there, unless <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/> says otherwise.
+    /// the next one, see there, unless <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/> says otherwise. It takes the version from the entity, so a put has no <c>IfVersion</c>: put the entity as it was read.
     /// </summary>
     /// <param name="item">The item, which must hold the key attributes.</param>
     /// <returns>The command.</returns>

@@ -117,8 +117,9 @@ public interface IUpdatable<TSelf>
     public TSelf Add(string path, AttributeValue value);
 
     /// <summary>
-    /// Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set. A retry after a lost response repeats the addition to a number. <c>MaxAttempts(1)</c> makes it
-    /// at most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a version, makes it exact.
+    /// Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set. A negative number subtracts: <c>Add(Product.Attrs.Stock, -quantity)</c> with
+    /// <c>If(Product.Attrs.Stock.Ge(quantity))</c> takes stock without going below zero. A retry of the client after a lost response repeats the addition to a number, except in a transaction, whose attempts carry one
+    /// <c>ClientRequestToken</c>, so DynamoDB applies it once. <c>MaxAttempts(1)</c> makes it at most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a version, makes it exact.
     /// </summary>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter, of a number or a set: <c>ADD</c> takes nothing else, so an attribute of another type is a compile error.</typeparam>

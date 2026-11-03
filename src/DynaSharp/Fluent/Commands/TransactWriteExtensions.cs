@@ -278,8 +278,9 @@ public static class TransactWriteExtensions
         where TKey : IKey<T> => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, key, out marker));
 
     /// <summary>
-    /// Sets the idempotency token of the transaction, in place of the one each send generates. Use one that stays the same across your own retries, such as the
-    /// id of the business operation: for 10 minutes DynamoDB answers a repeat with the outcome of the first and does not do it again.
+    /// Sets the idempotency token of the transaction, in place of the one <see cref="SendAsync{TChain}"/> generates. A generated token is made once per send, and the client's own retries of that send carry it unchanged,
+    /// so a lost response does not apply the transaction twice. A retry of your own builds and sends the transaction again, which generates a new token: for that, set one that stays the same, such as the
+    /// id of the business operation. For 10 minutes DynamoDB answers a repeat with the outcome of the first and does not do it again.
     /// </summary>
     /// <typeparam name="TChain">The type of the command or step.</typeparam>
     /// <param name="chain">The command or step, which this replaces.</param>

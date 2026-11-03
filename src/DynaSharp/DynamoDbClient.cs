@@ -139,7 +139,7 @@ public sealed class DynamoDbClient : IDisposable
     /// Opens a table as an entity type sees it: key names, indexes and discriminator come from the entity. It makes no request, so a table that does
     /// not exist shows up with the first command. Hold the result in a field: it is immutable and thread-safe.
     /// </summary>
-    /// <typeparam name="T">The entity. A nested document has no key, so it does not fit here, which the constraint enforces.</typeparam>
+    /// <typeparam name="T">The entity. A nested document has no key, so it does not fit here, which the constraint enforces, and neither does <see cref="Item"/>: a table without a schema is opened with <see cref="Table(string, string, string)"/>.</typeparam>
     /// <param name="name">The table name, or its ARN.</param>
     /// <returns>The table.</returns>
     /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>

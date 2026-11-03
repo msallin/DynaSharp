@@ -196,7 +196,8 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
 
     /// <summary>
     /// Lets the batch write entities with a <see cref="VersionAttribute"/> as they are. A batch cannot carry a condition, so the version of what it writes is not checked and does
-    /// not advance, and without this <see cref="SendAsync"/> throws <see cref="InvalidOperationException"/>. It holds for the whole batch, wherever in the chain it stands.
+    /// not advance, and without this <see cref="SendAsync"/> throws <see cref="InvalidOperationException"/>. It holds for the whole batch, wherever in the chain it stands. Each item is stored with the version its entity holds, so seed at 1 or above: an item stored at 0 reads as 0, which the next checked write takes for
+    /// no item, and fails, unless the entity has <c>[Version(Missing = VersionMissing.Allow)]</c>.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public BatchWriteCommand<T> IgnoreVersion()
