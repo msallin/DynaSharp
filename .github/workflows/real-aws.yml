@@ -8,7 +8,9 @@ name: real-aws
 #
 # 1. An IAM OIDC identity provider with the URL https://token.actions.githubusercontent.com and the audience sts.amazonaws.com.
 #
-# 2. An IAM role with this trust policy, limited to this repository (replace the account id):
+# 2. An IAM role with this trust policy, limited to this repository (replace the account id). This repository sends the immutable subject,
+#    owner and repository with their ids, which `gh api repos/msallin/DynaSharp/actions/oidc/customization/sub` shows as sub_claim_prefix;
+#    a repository on the default subject sends "repo:msallin/DynaSharp:..." instead, and a role that expects the other form denies the token:
 #
 #      {
 #        "Version": "2012-10-17",
@@ -18,7 +20,7 @@ name: real-aws
 #          "Action": "sts:AssumeRoleWithWebIdentity",
 #          "Condition": {
 #            "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-#            "StringLike": { "token.actions.githubusercontent.com:sub": "repo:msallin/DynaSharp:*" }
+#            "StringLike": { "token.actions.githubusercontent.com:sub": "repo:msallin@7792779/DynaSharp@1440878896:*" }
 #          }
 #        }]
 #      }
