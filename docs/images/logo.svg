@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">DynaSharp</title>
+  <defs>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0E2A6B"/>
+      <stop offset="0.45" stop-color="#2F6FE4"/>
+      <stop offset="1" stop-color="#0B225A"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9FD0FF"/>
+      <stop offset="1" stop-color="#4C8DF0"/>
+    </linearGradient>
+    <linearGradient id="sharp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B6CFF"/>
+      <stop offset="1" stop-color="#512BD4"/>
+    </linearGradient>
+
+    <!-- The sharp is cut out of the stack with a gap around it -->
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#fff"/>
+      <g fill="none" stroke="#000" stroke-width="26" stroke-linecap="round">
+        <line x1="112" y1="28" x2="98" y2="228"/>
+        <line x1="160" y1="28" x2="146" y2="228"/>
+        <path d="M44 104 a84 22 0 0 0 168 0"/>
+        <path d="M44 160 a84 22 0 0 0 168 0"/>
+      </g>
+    </mask>
+  </defs>
+
+  <!-- Three partitions of a table -->
+  <g mask="url(#cut)">
+    <path d="M44 52 v30 a84 22 0 0 0 168 0 v-30 z" fill="url(#side)"/>
+    <ellipse cx="128" cy="52" rx="84" ry="22" fill="url(#top)"/>
+    <path d="M44 108 v30 a84 22 0 0 0 168 0 v-30 z" fill="url(#side)"/>
+    <ellipse cx="128" cy="108" rx="84" ry="22" fill="url(#top)" fill-opacity="0.9"/>
+    <path d="M44 164 v30 a84 22 0 0 0 168 0 v-30 z" fill="url(#side)"/>
+    <ellipse cx="128" cy="164" rx="84" ry="22" fill="url(#top)" fill-opacity="0.8"/>
+  </g>
+
+  <!-- The sharp: its bars run in the gaps between the partitions -->
+  <g fill="none" stroke="url(#sharp)" stroke-width="12" stroke-linecap="round">
+    <line x1="112" y1="28" x2="98" y2="228"/>
+    <line x1="160" y1="28" x2="146" y2="228"/>
+    <path d="M44 104 a84 22 0 0 0 168 0"/>
+    <path d="M44 160 a84 22 0 0 0 168 0"/>
+  </g>
+</svg>

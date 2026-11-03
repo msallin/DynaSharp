@@ -621,6 +621,7 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
 
 - [~] M5: SSO, `credential_process`, assume role, see the M5 section above
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
+      Package icon: a 128 px PNG of `docs/images/logo.svg` as `PackageIcon` of both packages (NuGet takes no SVG).
 
 ### R4 - one-shard stream reader (before 0.1.0, approved by the owner)
 

@@ -1,3 +1,5 @@
+<img src="https://msallin.github.io/DynaSharp/images/logo.svg" alt="" width="112" align="right">
+
 # DynaSharp
 
 A high-performance DynamoDB client for .NET. Items are mapped by a source generator, requests go straight to the wire as UTF-8, and the API speaks DynamoDB: every verb is an operation or an expression clause.

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title" color="#000">
+  <title id="title">DynaSharp</title>
+  <defs>
+    <!-- One colour: the sharp keeps its gap, and a thin cut marks the front edge of each slab's top -->
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#fff"/>
+      <g fill="none" stroke="#000" stroke-linecap="round">
+        <g stroke-width="26">
+          <line x1="112" y1="28" x2="98" y2="228"/>
+          <line x1="160" y1="28" x2="146" y2="228"/>
+          <path d="M44 104 a84 22 0 0 0 168 0"/>
+          <path d="M44 160 a84 22 0 0 0 168 0"/>
+        </g>
+        <g stroke-width="5">
+          <path d="M44 52 a84 22 0 0 0 168 0"/>
+          <path d="M44 108 a84 22 0 0 0 168 0"/>
+          <path d="M44 164 a84 22 0 0 0 168 0"/>
+        </g>
+      </g>
+    </mask>
+  </defs>
+
+  <g fill="currentColor" mask="url(#cut)">
+    <path d="M44 52 v30 a84 22 0 0 0 168 0 v-30 z"/>
+    <ellipse cx="128" cy="52" rx="84" ry="22"/>
+    <path d="M44 108 v30 a84 22 0 0 0 168 0 v-30 z"/>
+    <ellipse cx="128" cy="108" rx="84" ry="22"/>
+    <path d="M44 164 v30 a84 22 0 0 0 168 0 v-30 z"/>
+    <ellipse cx="128" cy="164" rx="84" ry="22"/>
+  </g>
+
+  <g fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round">
+    <line x1="112" y1="28" x2="98" y2="228"/>
+    <line x1="160" y1="28" x2="146" y2="228"/>
+    <path d="M44 104 a84 22 0 0 0 168 0"/>
+    <path d="M44 160 a84 22 0 0 0 168 0"/>
+  </g>
+</svg>
