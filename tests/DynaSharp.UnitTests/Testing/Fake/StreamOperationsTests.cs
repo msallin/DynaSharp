@@ -686,4 +686,23 @@ public sealed class StreamOperationsTests
         // Assert
         await Assert.That(FakeStreams.Names(FakeStreams.Records(fake))).IsEquivalentTo(["INSERT"]);
     }
+
+    [Test]
+    public async Task HandleGetRecords_IteratorFromBeforeAResetOnTheSameClock_AnswersResourceNotFound()
+    {
+        // Arrange: the table and its stream come back at the same millisecond, so only what Reset keeps tells the streams apart.
+        var clock = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(clock);
+        FakeStreams.Put(fake, "old", 1);
+        var iterator = FakeStreams.Iterator(fake, "TRIM_HORIZON");
+        fake.Reset();
+        FakeCalls.Ok(fake, "CreateTable", FakeStreams.Users("NEW_AND_OLD_IMAGES"));
+        FakeStreams.Put(fake, "new", 1);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "GetRecords", $$"""{"ShardIterator":"{{iterator}}"}""");
+
+        // Assert
+        await Assert.That(answer.Code).IsEqualTo("ResourceNotFoundException");
+    }
 }

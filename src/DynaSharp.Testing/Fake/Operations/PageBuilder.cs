@@ -16,7 +16,12 @@ namespace DynaSharp.Testing.Fake;
 /// <para>
 /// <c>Select</c> without a value is <c>ALL_ATTRIBUTES</c> for a table, <c>ALL_PROJECTED_ATTRIBUTES</c> for an index and <c>SPECIFIC_ATTRIBUTES</c> with a projection. A local index
 /// that does not project everything fetches the item from the table for <c>ALL_ATTRIBUTES</c>, and for a projection that names an attribute only the table holds; each fetch costs
-/// the units of the whole item. A global index cannot fetch, so <c>ALL_ATTRIBUTES</c> on one that does not project everything is a <c>ValidationException</c>.
+/// the units of the whole item. A global index cannot fetch, so <c>ALL_ATTRIBUTES</c> on one that does not project everything is a <c>ValidationException</c>, and so is a projection
+/// that names an attribute it does not project.
+/// </para>
+/// <para>
+/// The filter of a <c>Query</c> of a secondary index, global or local, may read only what the index projects, else the query is a <c>ValidationException</c>, as on DynamoDB Local. The
+/// filter of a <c>Scan</c> of an index is evaluated on the item of the table where it reads an attribute the index does not project, as on DynamoDB Local, and costs nothing more.
 /// </para>
 /// </remarks>
 internal static class PageBuilder
@@ -30,12 +35,29 @@ internal static class PageBuilder
     /// <param name="items">The items in the order of the read, after <c>ExclusiveStartKey</c>, as the table or the index holds them. They are read lazily, up to where the page ends.</param>
     /// <param name="options">How to cut it.</param>
     /// <returns>The page.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c> for a <c>Select</c> that does not fit the projection or the index, before anything is read.</exception>
+    /// <exception cref="FakeError">
+    /// A <c>ValidationException</c> for a <c>Select</c> that does not fit the projection or the index, for a filter of a query or a projection of a global index that reads what the
+    /// index does not project, before anything is read.
+    /// </exception>
     public static Page Build(IEnumerable<Item> items, PageOptions options)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(options);
+        var unprojected = options.Index is { } read ? options.FilterAttributes.Where(attribute => !read.Projects(attribute)).Order(StringComparer.Ordinal).ToList() : [];
+        if (unprojected.Count > 0 && options.IsQuery)
+        {
+            throw FakeError.Validation(Invalid + $"Secondary index {options.Index!.Name} does not project one or more filter attributes: [{string.Join(", ", unprojected)}]");
+        }
+
         var select = EffectiveSelect(options);
+        if (select == SelectKind.SpecificAttributes
+            && options.Index is { IsGlobal: true } global
+            && options.ProjectionAttributes.Where(attribute => !global.Projects(attribute)).ToList() is { Count: > 0 } missing)
+        {
+            throw FakeError.Validation(Invalid + $"Global secondary index {global.Name} does not project [{string.Join(", ", missing)}]");
+        }
+
+        var filterReadsTable = unprojected.Count > 0;
         var fetches = options.Index is { IsGlobal: false } index && index.Projection.ProjectionType != ProjectionType.All;
         var result = new List<Item>();
         var count = 0;
@@ -48,7 +70,7 @@ internal static class PageBuilder
             scanned++;
             bytes += ItemSize.Of(entry);
             var source = fetches ? Source(entry, select, options, ref fetchUnits) : entry;
-            if (options.Filter is null || options.Filter(source))
+            if (options.Filter is null || options.Filter(filterReadsTable ? options.Table.Get(options.Table.KeySchema.KeyOf(entry))! : source))
             {
                 count++;
                 if (select != SelectKind.Count)

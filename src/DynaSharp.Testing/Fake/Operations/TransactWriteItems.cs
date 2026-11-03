@@ -8,7 +8,7 @@ namespace DynaSharp.Testing.Fake;
 /// before any write; if one fails, the transaction is cancelled with one reason per action in its order, <c>ConditionalCheckFailed</c> where a condition failed, with the item when
 /// the action asked for it with <c>ALL_OLD</c>, and <c>None</c> for the others. A write the table rejects, such as an update that makes an item over 400 KB, cancels it with
 /// <c>ValidationError</c> and takes back the writes before it, and so does a key that does not match the schema of its table. One item twice is a <c>ValidationException</c>, and so is
-/// an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes.
+/// an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes, and an index key that is too large.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,7 +21,7 @@ namespace DynaSharp.Testing.Fake;
 /// <c>INDEXES</c> repeats the units as <c>WriteCapacityUnits</c>, and on a replay as <c>ReadCapacityUnits</c>, as DynamoDB answers it.
 /// </para>
 /// <para>
-/// An empty index key comes to light only when the action is applied, after every condition is checked. If the condition of another action fails, the fake answers the cancellation
+/// An empty or too large index key comes to light only when the action is applied, after every condition is checked. If the condition of another action fails, the fake answers the cancellation
 /// where DynamoDB may answer the <c>ValidationException</c>.
 /// </para>
 /// </remarks>

@@ -468,4 +468,23 @@ public sealed class TransactWriteItemsTests
         // Assert
         await Assert.That(failure!.CancellationReasons!.Single().Code).IsEqualTo("ConditionalCheckFailed");
     }
+
+    [Test]
+    public async Task Handle_UpdateWithAnIndexKeyTooLarge_AnswersValidationAndNoCancellation()
+    {
+        // Arrange: DynamoDB Local 3.3.2 answers the ValidationException, not TransactionCanceledException with a reason per action.
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            $$$$$"""
+            {"TransactItems":[{"Put":{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"}}}},
+              {"Update":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}},"UpdateExpression":"SET #d = :d","ExpressionAttributeNames":{"#d":"date"},"ExpressionAttributeValues":{":d":{"S":"{{{{{FakeWrites.Text(1025)}}}}}"}}}}]}
+            """);
+
+        // Assert
+        await Assert.That((answer, fake.Items("Forum").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values were invalid: Size limit exceeded"), 0));
+    }
 }

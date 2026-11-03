@@ -10,12 +10,13 @@ namespace DynaSharp.Testing.Fake;
 /// past the end appends to the list for <c>SET</c> and <c>ADD</c>, and does nothing for <c>REMOVE</c> and <c>DELETE</c>.</item>
 /// <item><c>ADD</c> to a missing path writes the value; to a number it adds, with all 38 digits; to a set of its type it adds the elements. <c>DELETE</c> takes elements out of a set
 /// of its type, and an empty set goes. Any other type at the path is a <c>ValidationException</c>.</item>
-/// <item>Several <c>REMOVE</c> of one list remove the elements of the indexes the list had before the update.</item>
+/// <item>Several <c>REMOVE</c> of one list remove the elements of the indexes the list had before the update. Several elements past the end of one list are appended in the order of
+/// their indexes, whatever the order of the expression: <c>SET l[11] = :b, l[10] = :a</c> on <c>[x, y]</c> gives <c>[x, y, :a, :b]</c>.</item>
 /// <item>The key attributes cannot be changed. An update that creates the item starts from the key.</item>
 /// </list>
 /// <c>UPDATED_OLD</c> and <c>UPDATED_NEW</c> hold only the paths the actions named, as fragments, the way a <c>ProjectionExpression</c> returns them: <c>SET a.b = :v</c> on a map <c>a</c> returns <c>a</c>
 /// with <c>b</c> alone, and a list element comes inside its list. The old values are those of the paths of the actions before the update, none where there is no item. The new values are those
-/// of the paths the actions took, so an element appended to a list shows at its real index. A path only a <c>REMOVE</c> touched is not in <c>UPDATED_NEW</c>. Real DynamoDB does this (the Parity Suite);
+/// of the paths the actions took, so an element appended to a list, or one behind a removed element, shows at its index in the new item. A path only a <c>REMOVE</c> touched is not in <c>UPDATED_NEW</c>. Real DynamoDB does this (the Parity Suite);
 /// DynamoDB Local returns the top-level attributes whole instead.
 /// </remarks>
 internal static class UpdateApplier
@@ -46,6 +47,7 @@ internal static class UpdateApplier
         var changes = actions.Where(static action => action is not UpdateAction.Remove)
             .Select(action => (action.Path, Change: ChangeOf(action, original)))
             .ToList();
+        OrderElementsOfEachList(changes);
         var removals = actions.OfType<UpdateAction.Remove>().Select(static action => action.Path).OrderByDescending(static path => path, PathOrder.Instance);
         foreach (var (path, change) in changes)
         {
@@ -58,11 +60,33 @@ internal static class UpdateApplier
 
         foreach (var path in removals)
         {
-            Modify(image, path, static _ => null);
+            if (!IsPastTheEndBefore(path, original))
+            {
+                Modify(image, path, static _ => null);
+                ShiftAfterRemoval(updated, path);
+            }
         }
 
         var before = current is null ? [] : Projection.Apply(current, [.. actions.Select(static action => action.Path)]);
         return (image, before, Projection.Apply(image, updated));
+    }
+
+    // Elements past the end of one list are appended in the order of their indexes, not of the expression: SET l[11] = :b, l[10] = :a on a list of two appends :a, then :b
+    // (DynamoDB Local). The changes of the elements of each list swap places among themselves, from the lowest index up, and every other change keeps its place.
+    private static void OrderElementsOfEachList(List<(DocumentPath Path, Func<AttributeValue?, AttributeValue?> Change)> changes)
+    {
+        var lists = changes.Select(static (change, position) => (change, position))
+            .Where(static entry => entry.change.Path.Segments[^1].IsIndex)
+            .GroupBy(static entry => string.Join('\0', entry.change.Path.Segments.SkipLast(1).Select(static segment => segment.IsIndex ? $"[{segment.Index}]" : "." + segment.Name)));
+        foreach (var list in lists)
+        {
+            var positions = list.Select(static entry => entry.position).ToList();
+            var ordered = list.Select(static entry => entry.change).OrderBy(static change => change.Path.Segments[^1].Index).ToList();
+            for (var i = 0; i < positions.Count; i++)
+            {
+                changes[positions[i]] = ordered[i];
+            }
+        }
     }
 
     private static Func<AttributeValue?, AttributeValue?> ChangeOf(UpdateAction action, Item original)
@@ -225,6 +249,35 @@ internal static class UpdateApplier
         }
 
         return AttributeValue.FromList(list);
+    }
+
+    // A REMOVE of an index the list did not have before the update does nothing, also where a SET of the same update appended up to it (DynamoDB Local).
+    private static bool IsPastTheEndBefore(DocumentPath path, Item original) =>
+        path.Segments[^1].IsIndex
+        && new DocumentPath([.. path.Segments.SkipLast(1)]).TryResolve(original, out var list)
+        && list.Type == AttributeType.List
+        && path.Segments[^1].Index >= list.AsList().Count;
+
+    // An element removed from a list moves the ones behind it down, so an updated path through one of them names the index it has in the new item.
+    private static void ShiftAfterRemoval(List<DocumentPath> updated, DocumentPath removed)
+    {
+        var last = removed.Segments.Count - 1;
+        if (!removed.Segments[last].IsIndex)
+        {
+            return;
+        }
+
+        for (var i = 0; i < updated.Count; i++)
+        {
+            var segments = updated[i].Segments;
+            if (segments.Count > last
+                && segments[last].IsIndex
+                && segments[last].Index > removed.Segments[last].Index
+                && segments.Take(last).SequenceEqual(removed.Segments.Take(last)))
+            {
+                updated[i] = new DocumentPath([.. segments.Take(last), PathSegment.At(segments[last].Index - 1), .. segments.Skip(last + 1)]);
+            }
+        }
     }
 
     private static FakeError InvalidPath() => FakeError.Validation("The document path provided in the update expression is invalid for update");

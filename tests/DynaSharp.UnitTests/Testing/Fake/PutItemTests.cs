@@ -269,4 +269,32 @@ public sealed class PutItemTests
         // Assert
         await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "1 validation error detected: Value null at 'item' failed to satisfy constraint: Member must not be null"));
     }
+
+    [Test]
+    [Arguments("author", 2049)]
+    [Arguments("date", 1025)]
+    public async Task Handle_IndexKeyTooLarge_AnswersValidationAndWritesNothing(string attribute, int length)
+    {
+        // Arrange: DynamoDB Local 3.3.2 answers this beyond 2048 bytes for the partition key of an index and 1024 for its sort key.
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "PutItem", $$$$"""{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"},"{{{{attribute}}}}":{"S":"{{{{FakeWrites.Text(length)}}}}"}}}""");
+
+        // Assert
+        await Assert.That((answer, fake.Items("Forum").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values were invalid: Size limit exceeded"), 0));
+    }
+
+    [Test]
+    public async Task Handle_IndexKeysOfTheLargestSize_WritesTheItem()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        FakeCalls.Ok(fake, "PutItem", $$$$"""{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"},"author":{"S":"{{{{FakeWrites.Text(2048)}}}}"},"date":{"S":"{{{{FakeWrites.Text(1024)}}}}"}}}""");
+
+        // Assert
+        await Assert.That(fake.Items("Forum").Count).IsEqualTo(1);
+    }
 }

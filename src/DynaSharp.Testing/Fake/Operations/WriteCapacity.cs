@@ -58,8 +58,8 @@ internal static class WriteCapacity
         var units = new List<IndexUnits>();
         foreach (var index in table.GlobalIndexes.Concat(table.LocalIndexes))
         {
-            var before = oldImage is not null && index.KeySchema.Covers(oldImage) ? index.Project(oldImage) : null;
-            var after = newImage is not null && index.KeySchema.Covers(newImage) ? index.Project(newImage) : null;
+            var before = oldImage is not null && index.KeySchema.Admits(oldImage) ? index.Project(oldImage) : null;
+            var after = newImage is not null && index.KeySchema.Admits(newImage) ? index.Project(newImage) : null;
             var cost = (before, after) switch
             {
                 (null, null) => 0,

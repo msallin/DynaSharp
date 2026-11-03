@@ -768,6 +768,28 @@ public sealed class TableOperationsTests
         await Assert.That(table.GetProperty("LatestStreamLabel").GetString()).IsEqualTo("2026-01-01T00:00:00.001");
     }
 
+    [Test]
+    public async Task HandleUpdateTable_CreateIndexOverItemsWhoseIndexKeyDoesNotFit_LeavesThemOut()
+    {
+        // Arrange: the Developer Guide, "Detecting and correcting index key violations": an item whose index key has another type, or is too large, is not written to the index.
+        // DynamoDB Local 3.3.2 leaves out the empty value and backfills the other two.
+        var fake = FakeCalls.With(FakeCalls.Users);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"fits"},"g":{"S":"v"}}}""");
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"empty"},"g":{"S":""}}}""");
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"number"},"g":{"N":"1"}}}""");
+        FakeCalls.Ok(fake, "PutItem", $$$$"""{"TableName":"Users","Item":{"pk":{"S":"large"},"g":{"S":"{{{{FakeWrites.Text(2049)}}}}"}}}""");
+        FakeCalls.Ok(
+            fake,
+            "UpdateTable",
+            """{"TableName":"Users","AttributeDefinitions":[{"AttributeName":"g","AttributeType":"S"}],"GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByG","KeySchema":[{"AttributeName":"g","KeyType":"HASH"}],"Projection":{"ProjectionType":"KEYS_ONLY"}}}]}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Scan", """{"TableName":"Users","IndexName":"ByG"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""[{"pk":{"S":"fits"},"g":{"S":"v"}}]""", body.GetProperty("Items"))).IsTrue();
+    }
+
     private static CreateTableRequest UsersRequest() => new()
     {
         TableName = "Users",

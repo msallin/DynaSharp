@@ -177,4 +177,22 @@ public sealed class BatchWriteItemTests
         // Assert
         await Assert.That((code, message.Contains(named, StringComparison.Ordinal))).IsEqualTo(("UnsupportedByFakeException", true));
     }
+
+    [Test]
+    public async Task Handle_PutWithAnIndexKeyTooLarge_AnswersValidationAndWritesNothing()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "BatchWriteItem",
+            $$$$$"""
+            {"RequestItems":{"Forum":[{"PutRequest":{"Item":{"pk":{"S":"a"},"sk":{"S":"1"}}}},{"PutRequest":{"Item":{"pk":{"S":"b"},"sk":{"S":"1"},"author":{"S":"{{{{{FakeWrites.Text(2049)}}}}}"}}}}]}}
+            """);
+
+        // Assert
+        await Assert.That((answer.Message, fake.Items("Forum").Count)).IsEqualTo(("One or more parameter values were invalid: Size limit exceeded", 0));
+    }
 }

@@ -40,6 +40,40 @@ public sealed class FakeIndexTests
     }
 
     [Test]
+    public async Task Backfill_ItemsWithAnEmptyOrTooLargeKey_LeavesThemOut()
+    {
+        // Arrange
+        var index = new FakeIndex("ByStatus", new KeySchema("status", ScalarAttributeType.String), new IndexProjection { ProjectionType = ProjectionType.All }, true, TableKey);
+        Item[] items = [Order, new() { ["pk"] = "c", ["sk"] = "o2", ["status"] = string.Empty }, new() { ["pk"] = "c", ["sk"] = "o3", ["status"] = new string('s', 2049) }];
+
+        // Act
+        index.Backfill(items);
+
+        // Assert
+        await Assert.That(index.ItemCount).IsEqualTo(1L);
+    }
+
+    [Test]
+    [Arguments(ProjectionType.All, "anything", true)]
+    [Arguments(ProjectionType.KeysOnly, "pk", true)]
+    [Arguments(ProjectionType.KeysOnly, "status", true)]
+    [Arguments(ProjectionType.KeysOnly, "total", false)]
+    [Arguments(ProjectionType.Include, "total", true)]
+    [Arguments(ProjectionType.Include, "note", false)]
+    public async Task Projects_Attribute_IsTrueForWhatTheProjectionHolds(ProjectionType type, string attribute, bool expected)
+    {
+        // Arrange
+        var projection = new IndexProjection { ProjectionType = type, NonKeyAttributes = type == ProjectionType.Include ? ["total"] : null };
+        var index = new FakeIndex("ByStatus", new KeySchema("status", ScalarAttributeType.String), projection, true, TableKey);
+
+        // Act
+        var projects = index.Projects(attribute);
+
+        // Assert
+        await Assert.That(projects).IsEqualTo(expected);
+    }
+
+    [Test]
     public async Task Locate_IndexWithASortKey_SortsByItThenTheTableKey()
     {
         // Arrange

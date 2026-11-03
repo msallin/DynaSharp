@@ -9,4 +9,14 @@ namespace DynaSharp.Testing.Fake;
 /// <param name="ConsistentRead"><see langword="true"/> for a strongly consistent read, which costs twice the units.</param>
 /// <param name="Table">The table read.</param>
 /// <param name="Index">The index read, or <see langword="null"/> for the table.</param>
-internal sealed record PageOptions(int? Limit, Func<Item, bool>? Filter, Func<Item, Item>? Projection, SelectKind Select, bool ConsistentRead, FakeTable Table, FakeIndex? Index);
+internal sealed record PageOptions(int? Limit, Func<Item, bool>? Filter, Func<Item, Item>? Projection, SelectKind Select, bool ConsistentRead, FakeTable Table, FakeIndex? Index)
+{
+    /// <summary>Gets the attributes the filter reads, the first step of each of its paths.</summary>
+    public IReadOnlyCollection<string> FilterAttributes { get; init; } = [];
+
+    /// <summary>Gets the attributes the projection names, the first step of each of its paths, in the order of the expression and each once.</summary>
+    public IReadOnlyList<string> ProjectionAttributes { get; init; } = [];
+
+    /// <summary>Gets a value indicating whether the read is a <c>Query</c>, whose filter must not read what the index does not project.</summary>
+    public bool IsQuery { get; init; }
+}

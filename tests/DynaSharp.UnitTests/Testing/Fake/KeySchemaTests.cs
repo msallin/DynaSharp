@@ -38,6 +38,8 @@ internal sealed class KeySchemaTests
             "One or more parameter values were invalid: Type mismatch for Index Key id Expected: N Actual: S IndexName: ByX");
         yield return () => (new KeySchema("g", ScalarAttributeType.String), new Item { ["g"] = string.Empty },
             "One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty string value. IndexName: ByX, IndexKey: g");
+        yield return () => (Composite, new Item { ["pk"] = new string('a', 2049) }, "One or more parameter values were invalid: Size limit exceeded");
+        yield return () => (Composite, new Item { ["sk"] = new byte[1025] }, "One or more parameter values were invalid: Size limit exceeded");
     }
 
     public static IEnumerable<Func<(Action Act, bool Expected)>> Failures()
@@ -45,9 +47,21 @@ internal sealed class KeySchemaTests
         yield return () => (() => Composite.KeyOf(new Item { ["pk"] = string.Empty, ["sk"] = new byte[] { 1 } }), true);
         yield return () => (() => Composite.ReadKey(new Item { ["pk"] = "a", ["sk"] = Array.Empty<byte>() }), true);
         yield return () => (() => new KeySchema("g", ScalarAttributeType.String).ThrowIfInvalidIndexKey(new Item { ["g"] = string.Empty }, "ByX"), true);
+        yield return () => (() => new KeySchema("g", ScalarAttributeType.String).ThrowIfInvalidIndexKey(new Item { ["g"] = new string('a', 2049) }, "ByX"), true);
         yield return () => (() => Composite.KeyOf(new Item { ["pk"] = true, ["sk"] = new byte[] { 1 } }), false);
         yield return () => (() => Composite.ReadKey(new Item { ["pk"] = new string('a', 2049), ["sk"] = new byte[] { 1 } }), false);
         yield return () => (() => Composite.ThrowIfInvalidIndexKey(new Item { ["pk"] = 1 }, "ByX"), false);
+    }
+
+    public static IEnumerable<Func<(KeySchema Schema, Item Item, bool Expected)>> Admission()
+    {
+        yield return () => (Composite, new Item { ["pk"] = new string('a', 2048), ["sk"] = new byte[1024] }, true);
+        yield return () => (Composite, new Item { ["pk"] = "a" }, false);
+        yield return () => (Composite, new Item { ["pk"] = string.Empty, ["sk"] = new byte[] { 1 } }, false);
+        yield return () => (Composite, new Item { ["pk"] = new string('a', 2049), ["sk"] = new byte[] { 1 } }, false);
+        yield return () => (Composite, new Item { ["pk"] = "a", ["sk"] = Array.Empty<byte>() }, false);
+        yield return () => (Composite, new Item { ["pk"] = "a", ["sk"] = new byte[1025] }, false);
+        yield return () => (Simple, new Item { ["id"] = 1 }, true);
     }
 
     public static IEnumerable<Func<(KeySchema Schema, Item Item, bool Expected)>> Coverage()
@@ -173,6 +187,18 @@ internal sealed class KeySchemaTests
 
         // Assert
         await Assert.That(covers).IsEqualTo(expected);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(Admission))]
+    public async Task Admits_Item_IsTrueOnlyWithTheWholeKeyNoneEmptyOrTooLarge(KeySchema schema, Item item, bool expected)
+    {
+        // Arrange
+        // Act
+        var admits = schema.Admits(item);
+
+        // Assert
+        await Assert.That(admits).IsEqualTo(expected);
     }
 
     [Test]

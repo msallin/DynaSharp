@@ -76,7 +76,12 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
             ItemRequests.ThrowIfMapsWithoutExpression(request);
         }
 
-        return new PageOptions(Limit, filter is null ? null : filter.Evaluate, projection is null ? null : projection.Apply, Select, ConsistentRead, Table, Index);
+        return new PageOptions(Limit, filter is null ? null : filter.Evaluate, projection is null ? null : projection.Apply, Select, ConsistentRead, Table, Index)
+        {
+            FilterAttributes = filter is null ? [] : filter.AttributeNames,
+            ProjectionAttributes = projection is null ? [] : [.. projection.Paths.Select(static path => path.Root).Distinct(StringComparer.Ordinal)],
+            IsQuery = queried is not null,
+        };
     }
 
     /// <summary>Writes the answer: <c>Items</c> unless the request counts only, <c>Count</c>, <c>ScannedCount</c>, <c>LastEvaluatedKey</c> and <c>ConsumedCapacity</c> when asked for.</summary>

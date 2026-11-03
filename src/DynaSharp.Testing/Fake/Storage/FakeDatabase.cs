@@ -23,6 +23,11 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <summary>What DynamoDB answers an item operation on a table it does not have.</summary>
     public const string NoSuchTableForItems = "Cannot do operations on a non-existent table";
 
+    // Every stream ARN the fake handed out, and how many streams it enabled, which Reset keeps: a stream enabled after it has another ARN and shard id than one before it on the same
+    // clock, so an iterator of a stream that is gone finds none.
+    private readonly HashSet<string> _streamArns = new(StringComparer.Ordinal);
+    private int _streamsEnabled;
+
     // Sequence numbers of DynamoDB Streams are decimal strings of 21 digits and more, and those of the fake grow from here, over all its streams.
     private BigInteger _nextSequence = BigInteger.Pow(10, 20);
 
@@ -78,7 +83,9 @@ internal sealed class FakeDatabase(TimeProvider clock)
         return table;
     }
 
-    /// <summary>Enables a stream on a table: a new one, with a label of the clock that no stream of the table had before, so that enabling again gives a new ARN.</summary>
+    /// <summary>
+    /// Enables a stream on a table: a new one, with a label of the clock that no stream of the table had before, also before a <see cref="Reset"/>, so that enabling again gives a new ARN.
+    /// </summary>
     /// <param name="table">The table, which has no enabled stream.</param>
     /// <param name="viewType">What the records hold of the item.</param>
     /// <returns>The stream, which is now <see cref="FakeTable.LatestStream"/> of the table.</returns>
@@ -87,12 +94,12 @@ internal sealed class FakeDatabase(TimeProvider clock)
         ArgumentNullException.ThrowIfNull(table);
         var now = Clock.GetUtcNow();
         var at = now;
-        while (Streams.Exists(stream => stream.TableName == table.Name && stream.Label == Label(at)))
+        while (!_streamArns.Add(table.Arn + "/stream/" + Label(at)))
         {
             at = at.AddMilliseconds(1);
         }
 
-        var created = new FakeStream(table, viewType, Label(at), now, NextSequenceNumber(), Streams.Count + 1);
+        var created = new FakeStream(table, viewType, Label(at), now, NextSequenceNumber(), ++_streamsEnabled);
         Streams.Add(created);
         table.LatestStream = created;
         return created;
@@ -135,7 +142,7 @@ internal sealed class FakeDatabase(TimeProvider clock)
         }
     }
 
-    /// <summary>Drops every table and what belongs to them, every stream, and every client request token.</summary>
+    /// <summary>Drops every table and what belongs to them, every stream, and every client request token. The ARNs of the streams stay taken.</summary>
     public void Reset()
     {
         Tables.Clear();

@@ -131,5 +131,24 @@ public sealed class FakeDatabaseTests
         await Assert.That(act).Throws<FakeError>().WithMessage("Requested resource not found: Stream: arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x not found", StringComparison.Ordinal);
     }
 
+    [Test]
+    public async Task EnableStream_AfterAResetOnTheSameClock_GivesAnotherArnAndShard()
+    {
+        // Arrange
+        var db = new FakeDatabase(new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        var before = Table("Users");
+        db.Create(before);
+        var first = db.EnableStream(before, StreamViewType.KeysOnly);
+        db.Reset();
+        var after = Table("Users");
+        db.Create(after);
+
+        // Act
+        var second = db.EnableStream(after, StreamViewType.KeysOnly);
+
+        // Assert
+        await Assert.That((second.Arn == first.Arn, second.ShardId == first.ShardId)).IsEqualTo((false, false));
+    }
+
     private static FakeTable Table(string name) => new(name, new KeySchema("pk", ScalarAttributeType.String), [], DateTimeOffset.UnixEpoch);
 }

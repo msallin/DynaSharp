@@ -334,4 +334,75 @@ public sealed class QueryTests
         // Assert
         await Assert.That((code, message.Contains("Invalid KeyConditionExpression", StringComparison.Ordinal))).IsEqualTo(("ValidationException", true));
     }
+
+    [Test]
+    [Arguments("ByCustomer", "v", "", "Global secondary index ByCustomer does not project [v]")]
+    [Arguments("ByCustomer", "#s.a, v, #t.x, pk, #s.b", "\"ExpressionAttributeNames\":{\"#s\":\"status\",\"#t\":\"total\"},", "Global secondary index ByCustomer does not project [status, v, total]")]
+    [Arguments("ByTotal", "v, sk, #s[0]", "\"ExpressionAttributeNames\":{\"#s\":\"status\"},", "Global secondary index ByTotal does not project [status]")]
+    public async Task Handle_ProjectionOfAGlobalIndexOfAnAttributeItDoesNotProject_AnswersValidation(string index, string projection, string names, string message)
+    {
+        // Arrange: DynamoDB Local 3.3.2 answers this for an attribute the index does not hold; the fake lists the attributes in the order of the expression.
+        var fake = ReadTables.ShopWith(("a", 1));
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "Query",
+            $$$$"""{"TableName":"Shop","IndexName":"{{{{index}}}}","KeyConditionExpression":"customer = :c",{{{{names}}}}"ExpressionAttributeValues":{":c":{"S":"k"}},"ProjectionExpression":"{{{{projection}}}}"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values were invalid: " + message));
+    }
+
+    [Test]
+    public async Task Handle_ProjectionOfAGlobalIndexOfWhatItIncludes_AnswersIt()
+    {
+        // Arrange
+        var fake = ReadTables.ShopWith(("a", 1));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Query", """{"TableName":"Shop","IndexName":"ByTotal","KeyConditionExpression":"customer = :c","ExpressionAttributeValues":{":c":{"S":"k"}},"ProjectionExpression":"v, pk"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""[{"v":{"N":"1"},"pk":{"S":"a"}}]""", body.GetProperty("Items"))).IsTrue();
+    }
+
+    [Test]
+    [Arguments("ByCustomer", "customer = :c", "v = :v AND attribute_exists(#s) AND sk = :v AND size(#t.x[0]) > :v", "\"ExpressionAttributeNames\":{\"#s\":\"status\",\"#t\":\"total\"},", "[status, total, v]")]
+    [Arguments("ByTotal", "customer = :c", "v = :v OR #s = :c", "\"ExpressionAttributeNames\":{\"#s\":\"status\"},", "[status]")]
+    [Arguments("ByStatus", "pk = :c", "v = :v", "", "[v]")]
+    public async Task Handle_FilterOfAnIndexOnAnAttributeItDoesNotProject_AnswersValidation(string index, string keyCondition, string filter, string names, string attributes)
+    {
+        // Arrange: DynamoDB Local 3.3.2 answers this for a global and a local index alike, also with Select ALL_ATTRIBUTES, and lists the attributes in ordinal order.
+        var fake = ReadTables.ShopWith(("k", 1));
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "Query",
+            $$$$"""
+            {"TableName":"Shop","IndexName":"{{{{index}}}}","KeyConditionExpression":"{{{{keyCondition}}}}","FilterExpression":"{{{{filter}}}}","Select":"ALL_ATTRIBUTES",
+             {{{{names}}}}"ExpressionAttributeValues":{":c":{"S":"k"},":v":{"N":"1"}}}
+            """);
+
+        // Assert
+        await Assert.That(answer).IsEqualTo(
+            (HttpStatusCode.BadRequest, "ValidationException", $"One or more parameter values were invalid: Secondary index {index} does not project one or more filter attributes: {attributes}"));
+    }
+
+    [Test]
+    public async Task Handle_FilterOfAGlobalIndexOnWhatItIncludes_AnswersTheMatches()
+    {
+        // Arrange
+        var fake = ReadTables.ShopWith(("a", 3));
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "Query",
+            """{"TableName":"Shop","IndexName":"ByTotal","KeyConditionExpression":"customer = :c","FilterExpression":"v = :v","ExpressionAttributeValues":{":c":{"S":"k"},":v":{"N":"2"}}}""");
+
+        // Assert
+        await Assert.That(string.Join(",", ReadTables.Keys(body))).IsEqualTo("a/2");
+    }
 }

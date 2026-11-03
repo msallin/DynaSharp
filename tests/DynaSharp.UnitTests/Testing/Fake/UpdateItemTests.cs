@@ -222,4 +222,38 @@ public sealed class UpdateItemTests
         // Assert
         await Assert.That((code, message.Contains("the member AttributeUpdates in UpdateItem", StringComparison.Ordinal))).IsEqualTo(("UnsupportedByFakeException", true));
     }
+
+    [Test]
+    public async Task Handle_SetOfAnIndexKeyTooLarge_AnswersValidationAndKeepsTheItem()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeWrites.Forum);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"},"author":{"S":"ann"}}}""");
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "UpdateItem",
+            $$$$"""{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET author = :a","ExpressionAttributeValues":{":a":{"S":"{{{{FakeWrites.Text(2049)}}}}"}}}""");
+
+        // Assert
+        await Assert.That((answer.Message, fake.Items("Forum").Single()["author"].AsString())).IsEqualTo(("One or more parameter values were invalid: Size limit exceeded", "ann"));
+    }
+
+    [Test]
+    public async Task Handle_TwoAppendsPastTheEndOutOfIndexOrder_AppendsInIndexOrder()
+    {
+        // Arrange: DynamoDB Local 3.3.2 answers [x, y, A, B].
+        var fake = FakeCalls.With(FakeCalls.Users);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"a"},"l":{"L":[{"S":"x"},{"S":"y"}]}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "UpdateItem",
+            """{"TableName":"Users","Key":{"pk":{"S":"a"}},"UpdateExpression":"SET l[11] = :b, l[10] = :a","ExpressionAttributeValues":{":a":{"S":"A"},":b":{"S":"B"}},"ReturnValues":"ALL_NEW"}""");
+
+        // Assert
+        await Assert.That(body.GetProperty("Attributes").GetProperty("l").GetRawText()).IsEqualTo("""{"L":[{"S":"x"},{"S":"y"},{"S":"A"},{"S":"B"}]}""");
+    }
 }

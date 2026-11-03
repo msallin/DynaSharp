@@ -173,7 +173,10 @@ public sealed partial class FakeDynamoDb
         Direct(TableOperations.DeleteTableName, tableName, () => TableOperations.Delete(_db, tableName));
     }
 
-    /// <summary>Drops every table with its items, and forgets every client request token. The handlers and clients of this fake stay valid and see no tables.</summary>
+    /// <summary>
+    /// Drops every table with its items and streams, and forgets every client request token. The handlers and clients of this fake stay valid and see no tables. A stream enabled
+    /// afterwards gets another ARN than the streams before, also on the same clock, so a shard iterator from before is <c>ResourceNotFoundException</c>.
+    /// </summary>
     public void Reset()
     {
         lock (_db.Gate)

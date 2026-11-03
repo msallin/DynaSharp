@@ -338,4 +338,32 @@ public sealed class ScanTests
         // Assert
         await Assert.That((code, message.Contains("unused in expressions", StringComparison.Ordinal))).IsEqualTo(("ValidationException", true));
     }
+
+    [Test]
+    public async Task Handle_ProjectionOfAGlobalIndexOfAnAttributeItDoesNotProject_AnswersValidation()
+    {
+        // Arrange
+        var fake = ReadTables.ShopWith(("a", 1));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "Scan", """{"TableName":"Shop","IndexName":"ByCustomer","ProjectionExpression":"v"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values were invalid: Global secondary index ByCustomer does not project [v]"));
+    }
+
+    [Test]
+    [Arguments("ByCustomer")]
+    [Arguments("ByStatus")]
+    public async Task Handle_FilterOfAnIndexOnAnAttributeItDoesNotProject_FiltersTheItemsOfTheTable(string index)
+    {
+        // Arrange: DynamoDB Local 3.3.2 rejects this filter in a query, and in a scan evaluates it on the item of the table and answers the entries of the index.
+        var fake = ReadTables.ShopWith(("a", 3));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Scan", $$$$"""{"TableName":"Shop","IndexName":"{{{{index}}}}","FilterExpression":"v = :v","ExpressionAttributeValues":{":v":{"N":"2"}}}""");
+
+        // Assert
+        await Assert.That((string.Join(",", ReadTables.Keys(body)), body.GetProperty("Items")[0].TryGetProperty("v", out _))).IsEqualTo(("a/2", false));
+    }
 }
