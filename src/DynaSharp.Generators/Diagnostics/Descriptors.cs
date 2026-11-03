@@ -564,6 +564,51 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor KeyOfAnotherEntity = new(
+        "DYNA230",
+        "Key that does not fit the table",
+        "'{0}' is {1}, and {2}. {3}.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor NotAnEntity = new(
+        "DYNA231",
+        "Type is not an entity",
+        "'{0}' {1}. {2}.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor ValueOfAnotherType = new(
+        "DYNA232",
+        "Value of another type than its handle",
+        "The handle '{0}' holds '{1}', and this value is '{2}'. Pass a value of '{1}', or the handle of the attribute you meant.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor AddWithoutNumberOrSet = new(
+        "DYNA233",
+        "Add on a handle that is no number or set",
+        "Add adds to a number or a set, and '{0}' holds '{1}'. Use Set to write the value.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor ItemMethodOnRead = new(
+        "DYNA234",
+        "Method of the items called on a read",
+        "'{0}' works on the items that a read streams, not on the read. Call {1}() first, as in {1}().{0}(...).",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -574,6 +619,7 @@ internal static class Descriptors
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
+        KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

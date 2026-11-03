@@ -278,6 +278,77 @@ public sealed class ReadTerminalAnalyzerTests
         await Assert.That(errors.Select(static error => error.Id)).Contains("CS0315");
     }
 
+    [Test]
+    [Arguments("""shop.Query("a").Descending().[|Take|](100);""", "Take", "ItemsAsync")]
+    [Arguments("""shop.Query(["a", "b"]).Descending().[|Take|](100);""", "Take", "ItemsAsync")]
+    [Arguments("""shop.Scan().[|Where|](item => item.Count > 0);""", "Where", "ItemsAsync")]
+    [Arguments("""shop.Scan().Parallel(4).[|ToListAsync|]();""", "ToListAsync", "ItemsAsync")]
+    [Arguments("""shop.Query("a").Select(Attr<int>("n")).[|Take|](1);""", "Take", "ValuesAsync")]
+    [Arguments("""shop.Query("a").Of<Order, Order>().[|FirstAsync|]();""", "FirstAsync", "ItemsAsync")]
+    [Arguments("""shop.Query("a").[|ToList|]();""", "ToList", "ItemsAsync")]
+    public async Task Analyze_MethodOfTheItemsOnARead_ReportsTheName(string statement, string method, string terminal)
+    {
+        // Arrange: a fan-out query read as a window, where Take belongs after ItemsAsync.
+        var source = AnalyzerRun.Statements(statement, Order);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA234 Error: '{method}' works on the items that a read streams, not on the read. Call {terminal}() first, as in {terminal}().{method}(...)."));
+    }
+
+    [Test]
+    [Arguments("""_ = shop.Query("a").ItemsAsync().Take(100);""")]
+    [Arguments("""_ = shop.Query("a").Limit(1);""")]
+    [Arguments("""_ = shop.Query("a").Select(item => item);""")]
+    [Arguments("""_ = shop.Query("a").Nope(1);""")]
+    [Arguments("""_ = new List<int>().Take(1);""")]
+    [Arguments("""_ = shop.Get("a").Take(1);""")]
+    public async Task Analyze_MethodOfTheItemsWhereItBelongs_ReportsNothing(string statement)
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements(statement, Order);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report.Contains("DYNA234", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Analyze_ExtensionOfTheConsumerNamedLikeLinq_ReportsNothing()
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(
+            """
+            public static QueryCommand<T> Take<T>(this QueryCommand<T> query, int count)
+                where T : IDynamoDbDocument<T> => query.Limit(count);
+
+            public static void Run() => _ = shop.Query("a").Take(1);
+            """);
+
+        // Act
+        var report = await AnalyzerRun.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_CompilerErrorOnTake_IsNotSuppressed()
+    {
+        // Arrange
+        var source = AnalyzerRun.Statements("""shop.Query("a").Take(1);""");
+
+        // Act
+        var errors = AnalyzerRun.CompilerErrors(source);
+
+        // Assert
+        await Assert.That(errors.Select(static error => error.Id)).Contains("CS1061");
+    }
+
     private static bool Streams(Type type) =>
         type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any(static method => method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
 }

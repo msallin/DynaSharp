@@ -79,6 +79,11 @@ DYNA224 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA225 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA226 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA227 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA230 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA231 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA232 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA233 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA234 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -160,3 +165,8 @@ DYNA224 | Warning | DynaSharp.Commands | Key of another attribute | {0} builds a
 DYNA225 | Warning | DynaSharp.Commands | Included entity has another key | '{0}' has the key {1}, and '{2}' has {3}, so they cannot share a table and Including throws ArgumentException
 DYNA226 | Warning | DynaSharp.Commands | Index key without all its inputs | This update of '{0}' sets {1} and not {2}, so it cannot write the key {3} of the index {4} and throws when it is sent, because an update does not read the item and cannot tell what it holds for {2}. {5}.
 DYNA227 | Info | DynaSharp.Commands | Value without Found | Value of this SelectResult throws InvalidOperationException when the read found no item, and this member never looks at Found. Test Found first, or use GetValueOrDefault().
+DYNA230 | Error | DynaSharp.Commands | Key that does not fit the table | '{0}' is {1}, and {2}. {3}.
+DYNA231 | Error | DynaSharp.Commands | Type is not an entity | '{0}' {1}. {2}.
+DYNA232 | Error | DynaSharp.Commands | Value of another type than its handle | The handle '{0}' holds '{1}', and this value is '{2}'. Pass a value of '{1}', or the handle of the attribute you meant.
+DYNA233 | Error | DynaSharp.Commands | Add on a handle that is no number or set | Add adds to a number or a set, and '{0}' holds '{1}'. Use Set to write the value.
+DYNA234 | Error | DynaSharp.Commands | Method of the items called on a read | '{0}' works on the items that a read streams, not on the read. Call {1}() first, as in {1}().{0}(...).

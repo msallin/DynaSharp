@@ -241,6 +241,32 @@ Not reported:
 - **Fix.** Test `Found` first, `result.Found ? result.Value : 0m`, or say the same with `result.GetValueOrDefault(0m)`, or `GetValueOrDefault()` for the default of the type.
 - **Not reported.** A member that reads `Found` of any `SelectResult` anywhere, in a condition, a guard clause, a property pattern such as `{ Found: true, Value: var total }` or a lambda: the rule goes by member and not by flow, so a check of another result or on another path keeps it quiet too. `nameof(result.Value)`.
 
+`DYNA230` to `DYNA234` stand beside a compiler error on a call that does not compile. The verbs are generic, so the compiler names a constraint, an interface of DynaSharp such as `IKey<Order>` or a nullable value type, where these say what is wrong with the call and what to write. They are errors, because they report only code that does not compile: they list with the compiler's error under a filter for errors, and they fail no build that would pass.
+
+`DYNA230` (error) reports a key that the table does not take, where the compiler says `CS0315`: the key of another entity, `orders.Get(Customer.Keys.Of(id))`, a partition key where the call needs the whole key, `orders.Get(Order.Keys.Pk.Of(id))`, or a value that is no key, `orders.Get(id)` with a `Guid`. It covers every verb that takes a key: `Get`, `Update`, `Delete` and `Query` of a table, the steps of `TransactWrite` and `TransactGet`, and `BatchGet` and `BatchWrite`.
+
+- **Fix.** Build the key with the builders of the entity of the table, `Order.Keys.Of(...)`. A table without an entity, `shop`, takes the values of a key, and `shop.Of<Customer>()` opens it as a table that takes `Customer.Keys`.
+- **Not reported.** A table of a type parameter of your own, and a value that is no key on a table without an entity, which takes the values of a key as `AttributeValue`.
+
+`DYNA231` (error) reports a type argument that is no entity where a table, a read of several types or `Is<T>()` takes one, with `CS0311` or `CS0315` beside it: `client.Table<Customer>("Shop")` for a `Customer` without `[DynamoDbEntity]`, `orders.CreateTable().Including<Address>()` of a document, and `shop.Query(pk).Of<Order, Legacy>()` of an entity with `[Discriminator(OptOut = true)]`. A type that names it, `Table<Customer>` in a field, is reported the same way.
+
+- **Fix.** What the message says: `[DynamoDbEntity]` with a `[PartitionKey]` on a partial type, an entity in place of a document, or a `[Discriminator]` in place of the opt-out.
+- **Not reported.** A type with `[DynamoDbEntity]` or `[DynamoDbDocument]` that the generator could not map, which has an error of its own under [Entities](#entities), and a type of DynaSharp, such as `Item`.
+
+`DYNA232` (error) reports a value of another type than its handle holds, `customers.Update(key).Set(Customer.Attrs.Name, 5)`, also in `SetIfNotNull` and on the steps of a transaction. The compiler reports the overload for a nullable value type and says `CS0453`, that `string` must be a non-nullable value type.
+
+- **Fix.** Pass a value of the type the handle holds, or the handle of the attribute you meant.
+- **Not reported.** A handle of a value type, such as `Set(Customer.Attrs.OrderCount, "x")`, where the compiler says `CS1503` and names both types.
+
+`DYNA233` (error) reports `Add` by a handle that is no number or set, `customers.Update(key).Add(Customer.Attrs.Name, "x")` or `orders.Update(key).Add(Order.Attrs.Lines, lines)`, where the compiler says `CS0315` about `IAddableConverter`. DynamoDB's `ADD` adds to a number or to a set and nothing else.
+
+- **Fix.** `Set` writes the value. `Add` stays for a counter, `Add(Customer.Attrs.OrderCount, 1)`, and for a set, `Add(Customer.Attrs.Interests, ["books"])`.
+
+`DYNA234` (error) reports a method of LINQ called on a read instead of on its items, `orders.Query(pk).Descending().Take(10)`, where the compiler says `CS1061`, that the read has no `Take`, or `CS0411` about `AsyncEnumerable.Take`. A read is a command, and only its terminal streams the items. It covers every method of `AsyncEnumerable` and `Enumerable` that the read does not have itself, such as `Take`, `Where`, `FirstAsync` and `ToListAsync`.
+
+- **Fix.** Call `ItemsAsync()` first, `orders.Query(pk).Descending().ItemsAsync().Take(10)`, or `ValuesAsync()` after `Select`. `Limit(n)` is not the same: it sets how many items DynamoDB reads for a page, not how many the read returns.
+- **Not reported.** A method that the read has, such as `Limit` or `Select`, and an extension method of your own that binds.
+
 ## Expressions
 
 In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text is DynamoDB's grammar, an attribute in a hole stands for

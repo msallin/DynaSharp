@@ -38,3 +38,8 @@ DYNA224 | DynaSharp.Commands | Warning | Key of another attribute
 DYNA225 | DynaSharp.Commands | Warning | Included entity has another key
 DYNA226 | DynaSharp.Commands | Warning | Index key without all its inputs
 DYNA227 | DynaSharp.Commands | Info | Value without Found
+DYNA230 | DynaSharp.Commands | Error | Key that does not fit the table
+DYNA231 | DynaSharp.Commands | Error | Type is not an entity
+DYNA232 | DynaSharp.Commands | Error | Value of another type than its handle
+DYNA233 | DynaSharp.Commands | Error | Add on a handle that is no number or set
+DYNA234 | DynaSharp.Commands | Error | Method of the items called on a read

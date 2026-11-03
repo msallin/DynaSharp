@@ -78,6 +78,16 @@ public static class Code
         await client.RetryOnConflictAsync(async ct => await Orders.Put(order!).SendAsync(ct));
     }
 
+    public static void Dyna230() => Orders.Get(Shipment.Keys.Of("a"));
+
+    public static void Dyna231() => _ = Shop.Of<Note>();
+
+    public static void Dyna232() => Shipments.Update(Shipment.Keys.Of("a")).Set(Shipment.Attrs.Carrier, 5);
+
+    public static void Dyna233() => Shipments.Update(Shipment.Keys.Of("a")).Add(Shipment.Attrs.Carrier, "x");
+
+    public static void Dyna234() => Shipments.Query(Shipment.Keys.Pk.Of("a")).Take(1);
+
     private static readonly Table<Order> Orders = null!;
 
     private static readonly Table<Invoice> Invoices = null!;
@@ -86,3 +96,6 @@ public static class Code
 
     private static readonly Table<Ticket> Tickets = null!;
 }
+
+// A class that nobody marked as an entity, for DYNA231.
+public sealed class Note;

@@ -32,7 +32,7 @@ internal static class AnalyzerRun
         """;
 
     /// <summary>The analyzers that <see cref="AnalyzerFixture"/> can run. <see cref="DiscriminatorAnalyzer"/> is not one: it reports when a compilation ends.</summary>
-    public static readonly ImmutableArray<DiagnosticAnalyzer> TreeAnalyzers = [new CommandLifetimeAnalyzer(), new ExpressionAnalyzer(), new HandleOwnerAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer()];
+    public static readonly ImmutableArray<DiagnosticAnalyzer> TreeAnalyzers = [new CommandLifetimeAnalyzer(), new ExpressionAnalyzer(), new HandleOwnerAnalyzer(), new PathAnalyzer(), new ReadTerminalAnalyzer(), new TypeArgumentAnalyzer()];
 
     private const string Header = Usings + """
 
