@@ -423,6 +423,64 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
+    public async Task SendAsync_ItemOfAnotherTypeOnALaterRound_ReportsTheKeysOfThatRoundAndWhatEarlierRoundsRead()
+    {
+        // Arrange (the first round reads a and leaves b, the second answers b with an item Customer cannot read)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"CUSTOMER#a"},"_type":{"S":"CUSTOMER"},"fullName":{"S":"Alice"}}]},"UnprocessedKeys":{"Shop":{"Keys":[{"pk":{"S":"CUSTOMER#b"}}]}}}"""));
+        handler.Enqueue(StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"CUSTOMER#b"},"_type":{"S":"ORDER"},"fullName":{"S":"Bob"}}]}}"""));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Customer>>(async () => await customers.BatchGet().Key(Customer.Keys.Of("a")).Key(Customer.Keys.Of("b")).SendAsync());
+
+        // Assert
+        var unprocessed = string.Join(',', failure.UnprocessedKeys["Shop"].Keys.Select(static key => key["pk"].AsString()));
+        await Assert.That((unprocessed, string.Join(',', failure.Items.Select(static item => item.Id)), failure.InnerException is DynamoDbMappingException, failure.Message))
+            .IsEqualTo(("CUSTOMER#b", "a", true, "DynamoDB answered 1 of 2 keys in 2 requests and left the rest unprocessed."));
+    }
+
+    [Test]
+    public async Task SendAsync_ItemOfAnotherTypeAfterAnItemOfTheSameRound_TakesTheItemOfThatRoundBack()
+    {
+        // Arrange (the second round reads b and then fails on c, so b counts as unread)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"CUSTOMER#a"},"_type":{"S":"CUSTOMER"},"fullName":{"S":"Alice"}}]},"UnprocessedKeys":{"Shop":{"Keys":[{"pk":{"S":"CUSTOMER#b"}},{"pk":{"S":"CUSTOMER#c"}}]}}}"""));
+        handler.Enqueue(StubResponse.Json("""{"Responses":{"Shop":[{"pk":{"S":"CUSTOMER#b"},"_type":{"S":"CUSTOMER"},"fullName":{"S":"Bob"}},{"pk":{"S":"CUSTOMER#c"},"_type":{"S":"ORDER"}}]}}"""));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Customer>>(
+            async () => await customers.BatchGet().Key(Customer.Keys.Of("a")).Key(Customer.Keys.Of("b")).Key(Customer.Keys.Of("c")).SendAsync());
+
+        // Assert
+        var unprocessed = string.Join(',', failure.UnprocessedKeys["Shop"].Keys.Select(static key => key["pk"].AsString()));
+        await Assert.That((unprocessed, string.Join(',', failure.Items.Select(static item => item.Id)))).IsEqualTo(("CUSTOMER#b,CUSTOMER#c", "a"));
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseThatIsNoResponseOnALaterRound_ReportsTheKeysOfThatRound()
+    {
+        // Arrange (of 150 keys the first request leaves id-99, and the answer to its repeat cannot be read)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"UnprocessedKeys":{"Shop":{"Keys":[{"pk":{"S":"id-99"}}]}}}"""));
+        handler.DefaultResponse = StubResponse.Json("""{"UnprocessedKeys":{"Shop":{"Keys":{}}}}""");
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var ids = Enumerable.Range(0, 150).Select(static i => new TextKey("id-" + i));
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+
+        // Assert
+        var left = failure.UnprocessedKeys["Shop"].Keys;
+        await Assert.That((left.Count, left[0]["pk"].AsString(), failure.InnerException is DynamoDbException { ErrorCode: "UnrecognizedResponse" }, failure.Message))
+            .IsEqualTo((51, "id-99", true, "DynamoDB answered 99 of 150 keys in 2 requests and left the rest unprocessed."));
+    }
+
+    [Test]
     public async Task SendAsync_WaitBetweenRounds_FollowsTheJitterOfTheRetryPolicyOnTheClockOfTheClient()
     {
         // Arrange

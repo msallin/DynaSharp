@@ -283,7 +283,7 @@ command, sends nothing and renders the body with everything enforced, for tests 
 | `ReturnCapacity(detail = Total)` | All commands; the result carries it, except on `ReturnCommand<,>`, where only the metric does |
 | `ReturnMetrics()` | Put, Update, Delete, `BatchWrite`, a transaction |
 | `Consistent()` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. `InvalidOperationException` on an index known to be global: one opened through its entity, or by hand with another partition key than the table. An index of the partition key of the table opened by hand is left to DynamoDB |
-| `Project(paths)`, `Project(attrs)` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. A typed read adds the discriminator and the keys it needs, and throws `DynamoDbMappingException` for what else the entity needs, which `DYNA208` reports |
+| `Project(paths)`, `Project(attrs)` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. A typed read adds the discriminator and the keys it needs, and throws `DynamoDbMappingException` for what else the entity needs, which `DYNA208` reports. A path already in the projection is left out; paths that overlap are DynamoDB's `ValidationException` |
 | `Select(handle)` | Get, Query, Scan. One attribute without the entity, section 6. It ends the chain, as `Return(attr)` does, so every other clause comes before it |
 | `Filter`, `Limit(n)` | Query, Scan, fan-out, mixed reads. `Limit` is per page and works before the filter, as DynamoDB means it. A cap on items is `.ItemsAsync(ct).Take(n)`, which reads until it has them and stops |
 | `Descending()` | Query, fan-out, mixed query |

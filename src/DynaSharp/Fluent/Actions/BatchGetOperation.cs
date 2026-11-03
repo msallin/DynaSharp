@@ -53,34 +53,50 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
     public static ArraySegment<byte> WriteBody(CommandState state, CallBuffers buffers) =>
         BatchDriver.WriteBody<BatchGetOperation<T>, BatchGetResult<T>>(state, buffers.Request);
 
+    // The carry is what this request sent, and it stays until the whole response is read: a response that fails halfway leaves the carry and the items as
+    // they were, so that a batch that gives up reports the keys of this request as unprocessed, and not those of the requests before it.
     public static BatchResponse ReadResponse(ReadOnlySpan<byte> utf8Json, CommandState state)
     {
         var actions = state.Actions;
-        actions.Carry.Truncate(0);
+        var items = (List<T>)actions.Results!;
+        var before = items.Count;
         var unprocessed = 0;
+        var carry = default(Range);
         IReadOnlyList<ConsumedCapacity> capacity = [];
-        var reader = new DynamoDbReader(utf8Json);
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
+        actions.ReadFailed = true;
+        try
         {
-            if (reader.AttributeNameEquals("Responses"u8))
+            var reader = new DynamoDbReader(utf8Json);
+            reader.ReadStartItem();
+            while (reader.TryReadAttributeName())
             {
-                ReadItems(ref reader, (List<T>)actions.Results!, state.Table);
-            }
-            else if (reader.AttributeNameEquals("UnprocessedKeys"u8))
-            {
-                unprocessed = CopyUnprocessed(ref reader, utf8Json, actions.Carry);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
+                if (reader.AttributeNameEquals("Responses"u8))
+                {
+                    ReadItems(ref reader, items, state.Table);
+                }
+                else if (reader.AttributeNameEquals("UnprocessedKeys"u8))
+                {
+                    unprocessed = FindUnprocessed(ref reader, out carry);
+                }
+                else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
+                {
+                    capacity = OperationJson.ReadConsumedCapacityList(ref reader);
+                }
+                else
+                {
+                    OperationJson.SkipValue(ref reader);
+                }
             }
         }
+        catch
+        {
+            items.RemoveRange(before, items.Count - before);
+            throw;
+        }
 
+        actions.ReadFailed = false;
+        actions.Carry.Truncate(0);
+        actions.Carry.Append(utf8Json[carry]);
         return new BatchResponse(unprocessed, capacity, null);
     }
 
@@ -139,8 +155,8 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
     }
 
     // "UnprocessedKeys":{"Shop":{"Keys":[{...},{...}],"ConsistentRead":true}}. The object is the next RequestItems as it stands, with the projection, so it is
-    // copied, and walked only to count the keys.
-    private static int CopyUnprocessed(ref DynamoDbReader reader, ReadOnlySpan<byte> utf8Json, PooledByteBuffer carry)
+    // copied, and walked only to count the keys. The range is empty if there are none.
+    private static int FindUnprocessed(ref DynamoDbReader reader, out Range json)
     {
         reader.ReadStartItem();
         var start = (int)reader.Json.TokenStartIndex;
@@ -166,11 +182,7 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
             }
         }
 
-        if (count > 0)
-        {
-            carry.Append(utf8Json[start..(int)reader.Json.BytesConsumed]);
-        }
-
+        json = count > 0 ? start..(int)reader.Json.BytesConsumed : default;
         return count;
     }
 }

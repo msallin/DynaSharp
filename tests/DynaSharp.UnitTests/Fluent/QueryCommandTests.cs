@@ -221,6 +221,20 @@ public sealed class QueryCommandTests
     }
 
     [Test]
+    public async Task Project_SamePathInASecondCall_WritesItOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Query("a").Project("x").Project("x").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("\"ProjectionExpression\":\"#n1\"");
+    }
+
+    [Test]
     public async Task Project_Item_AddsNothing()
     {
         // Arrange

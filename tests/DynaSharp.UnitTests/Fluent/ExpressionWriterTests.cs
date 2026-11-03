@@ -197,6 +197,40 @@ public sealed class ExpressionWriterTests
     }
 
     [Test]
+    [Arguments("a, a", "#n0")]
+    [Arguments("a, b, a", "#n0, #n1")]
+    [Arguments("a, b, b", "#n0, #n1")]
+    [Arguments("a.b[1], a.b[1], a.b", "#n0.#n1[1], #n0.#n1")]
+    [Arguments("a, a.b", "#n0, #n0.#n1")]
+    [Arguments("a[1], a[10]", "#n0[1], #n0[10]")]
+    public async Task Project_SamePathTwice_WritesItOnce(string paths, string expected)
+    {
+        // Arrange
+        ArgumentNullException.ThrowIfNull(paths);
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+
+        // Act
+        writer.Project(paths.Split(", "));
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Projection])).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Project_SameAttributeInASecondCall_WritesItOnce()
+    {
+        // Arrange
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.Project([Expr.Attr("a"), Expr.Attr("b")]);
+
+        // Act
+        writer.Project([Expr.Attr("b")]);
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Projection])).IsEqualTo("#n0, #n1");
+    }
+
+    [Test]
     [Arguments("a", "#n0")]
     [Arguments("b", "#n0, #n1")]
     public async Task AddToProjection_OneName_AddsItUnlessItIsThere(string name, string expected)

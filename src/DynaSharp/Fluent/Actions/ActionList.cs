@@ -50,6 +50,12 @@ internal sealed class ActionList
     /// </summary>
     public PooledByteBuffer Carry { get; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the body of the last response could not be read. DynamoDB answered that request, but what it did is not known, so the response leaves
+    /// <see cref="Carry"/> and <see cref="Results"/> as they were before the request, and a batch that gives up reports its actions as unprocessed.
+    /// </summary>
+    public bool ReadFailed { get; set; }
+
     /// <summary>Gets or sets the body of the request on its way, which explains a rejection. Valid during the call.</summary>
     public ArraySegment<byte> SentBody { get; set; }
 
@@ -146,6 +152,7 @@ internal sealed class ActionList
         SentBody = default;
         Token = null;
         Results = null;
+        ReadFailed = false;
     }
 
     private int IndexOf(TableModel table)

@@ -653,6 +653,24 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
+    public async Task SendAsync_ResponseThatIsNoResponseAfterAPartOfTheRequest_HoldsWhatWasLeftAndTheRest()
+    {
+        // Arrange (the first response leaves one of 25, and the answer to its repeat cannot be read)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"UnprocessedItems":{"Shop":[{"PutRequest":{"Item":{"pk":{"S":"item-24"}}}}]}}"""));
+        handler.DefaultResponse = StubResponse.Json("""{"UnprocessedItems":{"Shop":{}}}""");
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 30));
+
+        // Assert
+        await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException is DynamoDbException { ErrorCode: "UnrecognizedResponse" }, failure.Message))
+            .IsEqualTo((24, 6, true, "DynamoDB took 24 of 30 writes in 2 requests and left the rest unprocessed."));
+    }
+
+    [Test]
     public async Task SendAsync_NetworkFailureAfterARequestWentThrough_HoldsTheProgressAndTheFailure()
     {
         // Arrange

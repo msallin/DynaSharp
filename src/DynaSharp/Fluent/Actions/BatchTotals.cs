@@ -36,6 +36,9 @@ internal struct BatchTotals
         }
     }
 
+    /// <summary>Counts a request whose response could not be read: it was answered, but none of its actions counts as taken.</summary>
+    public void AddUnread() => Requests++;
+
     [SuppressMessage("Style", "IDE0028:Simplify collection initialization", Justification = "The compiler in Stryker cannot parse collection expression arguments.")]
     private void Merge(IReadOnlyDictionary<string, IReadOnlyList<ItemCollectionMetrics>> metrics)
     {

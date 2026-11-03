@@ -429,19 +429,26 @@ internal sealed class ExpressionWriter
     /// <param name="attributeName">The attribute name.</param>
     public void RemoveAttribute(string attributeName) => AppendAttributeName(StartAction(Clause.Remove, "REMOVE "u8), attributeName);
 
-    /// <summary>Adds paths to the projection.</summary>
+    /// <summary>Adds paths to the projection. A path that is in it already is left out, because DynamoDB rejects a projection that names a path twice.</summary>
     /// <param name="paths">The paths.</param>
     public void Project(ReadOnlySpan<string> paths)
     {
         var text = this[Clause.Projection];
         foreach (var path in paths)
         {
-            if (text.WrittenCount > 0)
+            // A name has one placeholder, so the same path is the same text: it is written, and taken back if an earlier path reads the same.
+            var mark = text.WrittenCount;
+            if (mark > 0)
             {
                 text.Append(", "u8);
             }
 
+            var start = text.WrittenCount;
             AppendPath(text, path);
+            if (mark > 0 && HasPath(text.WrittenSpan[..mark], text.WrittenSpan[start..]))
+            {
+                text.Truncate(mark);
+            }
         }
     }
 
@@ -733,6 +740,28 @@ internal sealed class ExpressionWriter
         }
 
         return false;
+    }
+
+    // Finds whether a projection holds a path.
+    // Projection: #n0, #n1.#n2[3]
+    // Path #n1.#n2[3]: true. Path #n1: false, it only overlaps.
+    private static bool HasPath(ReadOnlySpan<byte> projection, ReadOnlySpan<byte> path)
+    {
+        while (true)
+        {
+            var comma = projection.IndexOf((byte)',');
+            if ((comma < 0 ? projection : projection[..comma]).SequenceEqual(path))
+            {
+                return true;
+            }
+
+            if (comma < 0)
+            {
+                return false;
+            }
+
+            projection = projection[(comma + ", "u8.Length)..];
+        }
     }
 
     // Finds whether a path of a projection starts with a placeholder.

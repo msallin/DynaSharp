@@ -59,6 +59,11 @@ internal static class BatchDriver
                     }
                     catch (Exception exception) when (EndsIncomplete(exception, totals.Requests))
                     {
+                        if (actions.ReadFailed)
+                        {
+                            totals.AddUnread();
+                        }
+
                         // The call has used up its attempts by now, so this is the end of the batch, and the caller gets to see what was done before it.
                         throw GiveUp<TOperation, TResult>(state, totals, exception);
                     }

@@ -145,11 +145,14 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
     public static ArraySegment<byte> WriteBody(CommandState state, CallBuffers buffers) =>
         BatchDriver.WriteBody<BatchWriteOperation, BatchWriteResult>(state, buffers.Request);
 
+    // The carry is what this request sent, and it stays until the whole response is read: a batch that gives up on a response it cannot read reports the
+    // writes of this request as unprocessed, and not those of the requests before it.
     public static BatchResponse ReadResponse(ReadOnlySpan<byte> utf8Json, CommandState state)
     {
-        var carry = state.Actions.Carry;
-        carry.Truncate(0);
+        var actions = state.Actions;
+        actions.ReadFailed = true;
         var unprocessed = 0;
+        var carry = default(Range);
         IReadOnlyList<ConsumedCapacity> capacity = [];
         Dictionary<string, IReadOnlyList<ItemCollectionMetrics>>? metrics = null;
         var reader = new DynamoDbReader(utf8Json);
@@ -158,7 +161,7 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
         {
             if (reader.AttributeNameEquals("UnprocessedItems"u8))
             {
-                unprocessed = CopyUnprocessed(ref reader, utf8Json, carry);
+                unprocessed = FindUnprocessed(ref reader, out carry);
             }
             else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
             {
@@ -174,6 +177,9 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
             }
         }
 
+        actions.ReadFailed = false;
+        actions.Carry.Truncate(0);
+        actions.Carry.Append(utf8Json[carry]);
         return new BatchResponse(unprocessed, capacity, metrics);
     }
 
@@ -207,8 +213,8 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
     }
 
     // "UnprocessedItems":{"Shop":[{"PutRequest":{...}},{"DeleteRequest":{...}}]}. The object is the next RequestItems as it stands, so it is copied, and walked
-    // only to count the writes.
-    private static int CopyUnprocessed(ref DynamoDbReader reader, ReadOnlySpan<byte> utf8Json, PooledByteBuffer carry)
+    // only to count the writes. The range is empty if there are none.
+    private static int FindUnprocessed(ref DynamoDbReader reader, out Range json)
     {
         reader.ReadStartItem();
         var start = (int)reader.Json.TokenStartIndex;
@@ -223,11 +229,7 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
             }
         }
 
-        if (count > 0)
-        {
-            carry.Append(utf8Json[start..(int)reader.Json.BytesConsumed]);
-        }
-
+        json = count > 0 ? start..(int)reader.Json.BytesConsumed : default;
         return count;
     }
 }
