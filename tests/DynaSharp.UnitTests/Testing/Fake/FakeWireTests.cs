@@ -14,6 +14,8 @@ public sealed class FakeWireTests
     [Test]
     [Arguments("DynamoDB_20120810.DescribeLimits")]
     [Arguments("DescribeLimits")]
+    [Arguments("DynamoDBStreams_20120810.ListStreams")]
+    [Arguments("ListStreams")]
     public async Task Handle_TargetOrBareName_FindsTheOperation(string target)
     {
         // Arrange
@@ -29,9 +31,9 @@ public sealed class FakeWireTests
     [Test]
     [Arguments(null, "FakeDynamoDb does not implement a request without X-Amz-Target. It is not supported.")]
     [Arguments("DynamoDB_20120810.ExecuteStatement", "FakeDynamoDb does not implement ExecuteStatement. It is not supported.")]
-    [Arguments("DynamoDBStreams_20120810.GetRecords", "FakeDynamoDb does not implement GetRecords. It is not supported.")]
+    [Arguments("DynamoDBStreams_20120810.ListShards", "FakeDynamoDb does not implement ListShards. It is not supported.")]
     [Arguments("DynamoDBStreams_20120810.DescribeLimits", "FakeDynamoDb does not implement DescribeLimits. It is not supported.")]
-    [Arguments("GetRecords", "FakeDynamoDb does not implement GetRecords. It is not supported.")]
+    [Arguments("ListShards", "FakeDynamoDb does not implement ListShards. It is not supported.")]
     [Arguments("Other_2020.GetItem", "FakeDynamoDb does not implement Other_2020.GetItem. It is not supported.")]
     public async Task Handle_OperationTheFakeDoesNotAnswer_AnswersUnknownOperation(string? target, string message)
     {

@@ -272,7 +272,6 @@ public sealed class ErrorMappingTests(Backend backend)
     public async Task GetRecords_InvalidIterator_ThrowsValidationMatchingTheWire()
     {
         // Arrange
-        Gaps.SkipIfMissing(backend, Gap.Streams);
         await using var sandbox = await Sandbox.StartAsync(backend);
         const string json = """{"ShardIterator":"not-an-iterator"}""";
 

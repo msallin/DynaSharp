@@ -1,0 +1,284 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "disable-a-stream-that-is-off",
+      "decides": "P6 open: disabling the stream of a table that has none.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "UpdateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "StreamSpecification": {
+              "StreamEnabled": false
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Table has no stream to disable",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "disabled-with-a-view-type",
+      "decides": "P6 open: StreamEnabled false with a StreamViewType, in CreateTable and in UpdateTable.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "StreamSpecification": {
+              "StreamEnabled": false,
+              "StreamViewType": "NEW_IMAGE"
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.",
+          "compareMessage": true
+        },
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "StreamSpecification": {
+              "StreamEnabled": true,
+              "StreamViewType": "NEW_AND_OLD_IMAGES"
+            }
+          },
+          "status": 200
+        },
+        {
+          "operation": "UpdateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "StreamSpecification": {
+              "StreamEnabled": false,
+              "StreamViewType": "NEW_IMAGE"
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "iterator-with-a-sequence-number",
+      "decides": "P6 open: GetShardIterator with a SequenceNumber for TRIM_HORIZON and LATEST. (AFTER_SEQUENCE_NUMBER past the last record is an InternalFailure of DynamoDB Local, so it decides nothing.)",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "StreamSpecification": {
+              "StreamEnabled": true,
+              "StreamViewType": "NEW_AND_OLD_IMAGES"
+            }
+          },
+          "status": 200
+        },
+        {
+          "operation": "DescribeStream",
+          "request": {
+            "StreamArn": "${streamArn}"
+          },
+          "status": 200,
+          "select": {
+            "StreamDescription.StreamStatus": "ENABLED"
+          },
+          "present": {}
+        },
+        {
+          "operation": "GetShardIterator",
+          "request": {
+            "StreamArn": "${streamArn}",
+            "ShardId": "${shardId}",
+            "ShardIteratorType": "TRIM_HORIZON",
+            "SequenceNumber": "1"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type",
+          "compareMessage": true
+        },
+        {
+          "operation": "GetShardIterator",
+          "request": {
+            "StreamArn": "${streamArn}",
+            "ShardId": "${shardId}",
+            "ShardIteratorType": "LATEST",
+            "SequenceNumber": "1"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "list-streams-of-what-does-not-exist",
+      "decides": "P6 open: ListStreams with the name of a table that never existed, and with an ExclusiveStartStreamArn nobody has.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "ListStreams",
+          "request": {
+            "TableName": "never-existed"
+          },
+          "status": 200,
+          "select": {
+            "Streams": []
+          },
+          "present": {}
+        },
+        {
+          "operation": "ListStreams",
+          "request": {
+            "ExclusiveStartStreamArn": "arn:aws:dynamodb:us-east-1:000000000000:table/never-existed/stream/2026-01-01T00:00:00.000"
+          },
+          "status": 200,
+          "select": {
+            "Streams": []
+          },
+          "present": {}
+        }
+      ]
+    },
+    {
+      "name": "describe-table-after-disabling",
+      "decides": "P6 open: what DescribeTable reports of a stream that was disabled.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "StreamSpecification": {
+              "StreamEnabled": true,
+              "StreamViewType": "NEW_AND_OLD_IMAGES"
+            }
+          },
+          "status": 200
+        },
+        {
+          "operation": "UpdateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "StreamSpecification": {
+              "StreamEnabled": false
+            }
+          },
+          "status": 200
+        },
+        {
+          "operation": "DescribeTable",
+          "request": {
+            "TableName": "fake-vectors"
+          },
+          "status": 200,
+          "select": {
+            "Table.StreamSpecification": null
+          },
+          "present": {
+            "Table.LatestStreamArn": true,
+            "Table.LatestStreamLabel": true
+          }
+        }
+      ]
+    }
+  ]
+}

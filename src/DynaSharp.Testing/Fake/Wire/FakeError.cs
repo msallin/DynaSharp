@@ -104,6 +104,15 @@ internal sealed class FakeError : Exception
     public static FakeError IdempotentParameterMismatch() =>
         new(DynamoDbNamespace + "IdempotentParameterMismatchException", "The request uses the same client token as a previous, but non-identical request.");
 
+    /// <summary>A shard iterator older than the 15 minutes it is valid.</summary>
+    /// <returns>The error.</returns>
+    public static FakeError ExpiredIterator() => new(DynamoDbNamespace + "ExpiredIteratorException", "Shard iterator has expired");
+
+    /// <summary>A position in a shard older than the 24 hours records are kept.</summary>
+    /// <returns>The error.</returns>
+    public static FakeError TrimmedDataAccess() =>
+        new(DynamoDbNamespace + "TrimmedDataAccessException", "The operation attempted to read past the oldest stream record in a shard");
+
     /// <summary>An operation the fake does not implement, or a request without one.</summary>
     /// <param name="operation">The operation, or <see langword="null"/> for a request without <c>X-Amz-Target</c>.</param>
     /// <returns>The error.</returns>

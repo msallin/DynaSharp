@@ -108,6 +108,32 @@ Reads go through the same code as on DynamoDB: `Query` by key condition on the t
 
 Writes go through the same code as well: `PutItem`, `UpdateItem` and `DeleteItem` under a condition, with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, the batches, and the transactions, all or nothing, with one cancellation reason per action. So an optimistic lock, a create that must not overwrite, or a transaction whose condition fails behaves as it does against DynamoDB, and the item stays as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the clock of the fake, so a retried transaction is written once. Writes report the write units of the Developer Guide, indexes included, twice for a transaction. A batch never leaves unprocessed items or keys; a test of a client that retries them queues that answer on the handler.
 
+A table with a stream records its changes, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it. Each change of an item is a record in the one shard of the stream, there in the answer of the write, in the order of the writes and with the images of the view type; a transaction records its changes together, and a request that fails records none. So the code that consumes a stream is tested with the code that writes:
+
+```csharp
+var fake = new FakeDynamoDb();
+fake.CreateTable<Customer>("Shop");
+using var client = fake.CreateClient();
+using var streams = fake.CreateStreamsClient();
+var updated = await client.UpdateTableAsync(new UpdateTableRequest
+{
+    TableName = "Shop",
+    StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.NewAndOldImages },
+}, ct);
+
+await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+
+var arn = updated.TableDescription!.LatestStreamArn!;
+var shard = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn }, ct)).StreamDescription!.Shards[0];
+await foreach (var change in streams.ReadShardAsync(new ReadShardRequest { StreamArn = arn, ShardId = shard.ShardId!, ShardIteratorType = ShardIteratorType.TrimHorizon }, ct))
+{
+    Console.WriteLine(change.EventName); // Insert
+    break;
+}
+```
+
+An iterator expires after 15 minutes on the clock of the fake, records are trimmed after 24 hours, and the shard of a disabled stream is closed, so a read of it ends. `ExpireItems()` records its deletes as DynamoDB does, with the service as the `userIdentity`.
+
 What the fake answers, and how it answers what it does not do, is listed on [the page of this package](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does). It never ignores a member of a request: what it does not implement fails with the code `UnsupportedByFakeException`, and an operation it does not answer with `UnknownOperationException`.
 
 ## STS

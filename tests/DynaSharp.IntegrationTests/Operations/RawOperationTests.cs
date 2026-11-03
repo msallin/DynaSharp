@@ -140,7 +140,6 @@ public sealed class RawOperationTests(Backend backend)
     public async Task SendRawAsync_StreamsListStreams_ReturnsTheStreamsOfTheAccount()
     {
         // Arrange
-        Gaps.SkipIfMissing(backend, Gap.Streams);
         await using var sandbox = await Sandbox.StartAsync(backend);
 
         // Act

@@ -42,10 +42,12 @@ public sealed partial class FakeVectorTests
 
         // Act
         var differences = new List<string>();
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (step, index) in steps.Select(static (step, index) => (step!.AsObject(), index)))
         {
             var operation = step["operation"]!.GetValue<string>();
-            var answer = fake.Answer(operation, Expand(step["request"]!).ToJsonString());
+            var answer = fake.Answer(operation, Expand(step["request"]!, variables).ToJsonString());
+            Capture(JsonNode.Parse(answer.Body)!.AsObject(), variables);
             differences.AddRange(Compare(step, answer).Select(difference => $"step {index} ({operation}): {difference}"));
         }
 
@@ -60,10 +62,24 @@ public sealed partial class FakeVectorTests
         var node = JsonNode.Parse("""{"v":{"S":"${x*3}"},"w":["${y*2}","plain"]}""")!;
 
         // Act
-        var expanded = Expand(node).ToJsonString();
+        var expanded = Expand(node, new Dictionary<string, string>()).ToJsonString();
 
         // Assert
         await Assert.That(expanded).IsEqualTo("""{"v":{"S":"xxx"},"w":["yy","plain"]}""");
+    }
+
+    [Test]
+    public async Task Expand_Variable_IsWhatAnEarlierAnswerNamed()
+    {
+        // Arrange
+        var node = JsonNode.Parse("""{"StreamArn":"${streamArn}","ShardId":"${shardId}"}""")!;
+        var variables = new Dictionary<string, string> { ["streamArn"] = "arn", ["shardId"] = "shard" };
+
+        // Act
+        var expanded = Expand(node, variables).ToJsonString();
+
+        // Assert
+        await Assert.That(expanded).IsEqualTo("""{"StreamArn":"arn","ShardId":"shard"}""");
     }
 
     private static IEnumerable<string> Compare(JsonObject step, StubResponse answer)
@@ -103,6 +119,42 @@ public sealed partial class FakeVectorTests
         {
             yield return $"body {body.ToJsonString()}, expected {response.ToJsonString()}";
         }
+
+        foreach (var (path, expected) in step["select"]?.AsObject() ?? [])
+        {
+            if (Canonical(At(body, path)) != Canonical(expected))
+            {
+                yield return $"{path} {At(body, path)?.ToJsonString() ?? "missing"}, expected {expected?.ToJsonString() ?? "missing"}";
+            }
+        }
+
+        foreach (var (path, expected) in step["present"]?.AsObject() ?? [])
+        {
+            if ((At(body, path) is not null) != expected!.GetValue<bool>())
+            {
+                yield return $"{path} {(expected.GetValue<bool>() ? "missing" : "present")}, expected {(expected.GetValue<bool>() ? "present" : "missing")}";
+            }
+        }
+    }
+
+    // Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or null.
+    private static JsonNode? At(JsonNode body, string path) => path.Split('.').Aggregate((JsonNode?)body, static (node, name) => node is JsonObject value ? value[name] : null);
+
+    // The stream ARN and the shard id an answer names, for the requests after it, as build/generate_fake_vectors.py keeps them.
+    private static void Capture(JsonObject body, Dictionary<string, string> variables)
+    {
+        foreach (var holder in (string[])["TableDescription", "Table"])
+        {
+            if (body[holder] is JsonObject table && table["LatestStreamArn"] is { } arn)
+            {
+                variables["streamArn"] = arn.GetValue<string>();
+            }
+        }
+
+        if (At(body, "StreamDescription.Shards") is JsonArray { Count: > 0 } shards)
+        {
+            variables["shardId"] = shards[0]!["ShardId"]!.GetValue<string>();
+        }
     }
 
     private static string Codes(JsonNode? reasons) => reasons is JsonArray array ? string.Join(",", array.Select(static reason => reason!["Code"]!.GetValue<string>())) : "none";
@@ -120,13 +172,15 @@ public sealed partial class FakeVectorTests
         _ => node!.DeepClone(),
     };
 
-    // Input: {"S":"${x*3}"} -> {"S":"xxx"}; see the remarks of build/generate_fake_vectors.py.
-    private static JsonNode Expand(JsonNode node) => node switch
+    // Input: {"S":"${x*3}"} -> {"S":"xxx"}, "${streamArn}" -> the ARN an earlier answer named; see the remarks of build/generate_fake_vectors.py.
+    private static JsonNode Expand(JsonNode node, Dictionary<string, string> variables) => node switch
     {
-        JsonObject value => new JsonObject(value.Select(static pair => KeyValuePair.Create(pair.Key, (JsonNode?)Expand(pair.Value!)))),
-        JsonArray value => new JsonArray([.. value.Select(static element => Expand(element!))]),
+        JsonObject value => new JsonObject(value.Select(pair => KeyValuePair.Create(pair.Key, (JsonNode?)Expand(pair.Value!, variables)))),
+        JsonArray value => new JsonArray([.. value.Select(element => Expand(element!, variables))]),
         JsonValue value when value.GetValueKind() == JsonValueKind.String && RepeatMarker().Match(value.GetValue<string>()) is { Success: true } match =>
             JsonValue.Create(new string(match.Groups[1].Value[0], int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture))),
+        JsonValue value when value.GetValueKind() == JsonValueKind.String && VariableMarker().Match(value.GetValue<string>()) is { Success: true } match =>
+            JsonValue.Create(variables[match.Groups[1].Value]),
         _ => node.DeepClone(),
     };
 
@@ -149,4 +203,7 @@ public sealed partial class FakeVectorTests
 
     [GeneratedRegex(@"^\$\{(.)\*(\d+)\}$")]
     private static partial Regex RepeatMarker();
+
+    [GeneratedRegex(@"^\$\{(streamArn|shardId)\}$")]
+    private static partial Regex VariableMarker();
 }

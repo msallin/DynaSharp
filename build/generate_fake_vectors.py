@@ -11,8 +11,9 @@ step by step: the HTTP status and the error code always, the message where the s
 successful answer as JSON (member order free, set elements in any order). The answers of CreateTable and DeleteTable are not
 recorded, because they hold dates and ARNs; only their status is.
 
-A string value "${x*307200}" in a request stands for 307200 times "x", so that items near the size limits stay small in the file.
-Both this script and the test expand it.
+A string value "${x*307200}" in a request stands for 307200 times "x", so that items near the size limits stay small in the file, and "${streamArn}"
+and "${shardId}" for the stream ARN and the first shard id the last answer of the case named. Both this script and the test expand them. A step can
+record only some paths of its answer ("select" for the value, "present" for whether there is one), where the rest holds ARNs, ids and dates.
 
 Setup (outside the repository):
     python3 -m venv /tmp/botocore-venv
@@ -52,6 +53,11 @@ GRIN = chr(0x1F600)  # 4 bytes in UTF-8, 2 UTF-16 units
 
 # Input: "${x*3}" -> "xxx"
 REPEAT = re.compile(r"^\$\{(.)\*(\d+)\}$")
+# Input: "${streamArn}" -> the LatestStreamArn of the last answer that had one
+VARIABLE = re.compile(r"^\$\{(streamArn|shardId)\}$")
+
+# Their target prefix is DynamoDBStreams_20120810, and their answers hold ARNs, ids and dates, so only status, code and what a step selects are recorded.
+STREAM_OPERATIONS = {"ListStreams", "DescribeStream", "GetShardIterator", "GetRecords"}
 
 
 def S(value):
@@ -137,6 +143,37 @@ def delete_if(key, condition, values):
 def message(step):
     """Marks a step whose error message is part of what it decides."""
     return step + ({"compareMessage": True},)
+
+
+def selecting(step, select=(), present=()):
+    """Records of a success only the values at the paths of select, and whether there is one at the paths of present."""
+    return step + ({"select": list(select), "present": list(present)},)
+
+
+def stream_table(view="NEW_AND_OLD_IMAGES", enabled=True):
+    name, request = table()
+    specification = {"StreamEnabled": enabled}
+    if view:
+        specification["StreamViewType"] = view
+    return (name, {**request, "StreamSpecification": specification})
+
+
+def stream_spec(enabled, view=None):
+    specification = {"StreamEnabled": enabled}
+    if view:
+        specification["StreamViewType"] = view
+    return ("UpdateTable", {"TableName": TABLE, "StreamSpecification": specification})
+
+
+def iterator(kind, sequence=None):
+    request = {"StreamArn": "${streamArn}", "ShardId": "${shardId}", "ShardIteratorType": kind}
+    if sequence:
+        request["SequenceNumber"] = sequence
+    return ("GetShardIterator", request)
+
+
+DESCRIBE_STREAM = ("DescribeStream", {"StreamArn": "${streamArn}"})
+UNKNOWN_STREAM = "arn:aws:dynamodb:us-east-1:000000000000:table/never-existed/stream/2026-01-01T00:00:00.000"
 
 
 IN_VALUES = {f":v{i}": N(i) for i in range(101)}
@@ -257,24 +294,62 @@ CASES = [
      "P4 open: an index entry is sized without the 100 bytes of overhead. The item is 1000 bytes, so with 100 bytes more its index write would cost 2 units.",
      [table(global_index="ALL"),
       ("PutItem", {"TableName": TABLE, "Item": {"pk": S("a"), "g": S("g"), "v": S("${x*994}")}, "ReturnConsumedCapacity": "INDEXES"})]),
+    ("streams", "disable-a-stream-that-is-off",
+     "P6 open: disabling the stream of a table that has none.",
+     [table(), message(stream_spec(False))]),
+    ("streams", "disabled-with-a-view-type",
+     "P6 open: StreamEnabled false with a StreamViewType, in CreateTable and in UpdateTable.",
+     [message(stream_table(view="NEW_IMAGE", enabled=False)), stream_table(), message(stream_spec(False, "NEW_IMAGE"))]),
+    ("streams", "iterator-with-a-sequence-number",
+     "P6 open: GetShardIterator with a SequenceNumber for TRIM_HORIZON and LATEST. (AFTER_SEQUENCE_NUMBER past the last record is an InternalFailure of DynamoDB Local, so it decides nothing.)",
+     [stream_table(), selecting(DESCRIBE_STREAM, select=["StreamDescription.StreamStatus"]),
+      message(iterator("TRIM_HORIZON", "1")), message(iterator("LATEST", "1"))]),
+    ("streams", "list-streams-of-what-does-not-exist",
+     "P6 open: ListStreams with the name of a table that never existed, and with an ExclusiveStartStreamArn nobody has.",
+     [table(), selecting(("ListStreams", {"TableName": "never-existed"}), select=["Streams"]), selecting(("ListStreams", {"ExclusiveStartStreamArn": UNKNOWN_STREAM}), select=["Streams"])]),
+    ("streams", "describe-table-after-disabling",
+     "P6 open: what DescribeTable reports of a stream that was disabled.",
+     [stream_table(), stream_spec(False),
+      selecting(("DescribeTable", {"TableName": TABLE}), select=["Table.StreamSpecification"], present=["Table.LatestStreamArn", "Table.LatestStreamLabel"])]),
 ]
 
 
-def expand(value):
-    """Replaces every "${c*n}" string in a request by n times c."""
+def expand(value, variables=None):
+    """Replaces every "${c*n}" string in a request by n times c, and "${streamArn}" or "${shardId}" by what an earlier answer of the case held."""
     if isinstance(value, dict):
-        return {key: expand(member) for key, member in value.items()}
+        return {key: expand(member, variables) for key, member in value.items()}
     if isinstance(value, list):
-        return [expand(element) for element in value]
+        return [expand(element, variables) for element in value]
     if isinstance(value, str):
         match = REPEAT.match(value)
-        return match.group(1) * int(match.group(2)) if match else value
+        if match:
+            return match.group(1) * int(match.group(2))
+        match = VARIABLE.match(value)
+        return (variables or {})[match.group(1)] if match else value
     return value
 
 
-def send(endpoint, operation, request):
-    body = json.dumps(expand(request)).encode("utf-8")
-    headers = {"Content-Type": "application/x-amz-json-1.0", "X-Amz-Target": "DynamoDB_20120810." + operation}
+def capture(body, variables):
+    """Keeps the stream ARN and the shard id an answer names, for the requests after it; the replay does the same with the answers of the fake."""
+    for holder in ("TableDescription", "Table"):
+        if isinstance(body.get(holder), dict) and "LatestStreamArn" in body[holder]:
+            variables["streamArn"] = body[holder]["LatestStreamArn"]
+    shards = body.get("StreamDescription", {}).get("Shards") or []
+    if shards:
+        variables["shardId"] = shards[0]["ShardId"]
+
+
+def at(body, path):
+    """Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or None."""
+    for name in path.split("."):
+        body = body.get(name) if isinstance(body, dict) else None
+    return body
+
+
+def send(endpoint, operation, request, variables=None):
+    body = json.dumps(expand(request, variables)).encode("utf-8")
+    prefix = "DynamoDBStreams_20120810." if operation in STREAM_OPERATIONS else "DynamoDB_20120810."
+    headers = {"Content-Type": "application/x-amz-json-1.0", "X-Amz-Target": prefix + operation}
     signed = botocore.awsrequest.AWSRequest(method="POST", url=endpoint, data=body, headers=headers)
     botocore.auth.SigV4Auth(botocore.credentials.Credentials("test", "test"), "dynamodb", REGION).add_auth(signed)
     http = urllib.request.Request(endpoint, data=body, headers=dict(signed.headers.items()), method="POST")
@@ -287,13 +362,18 @@ def send(endpoint, operation, request):
 
 def record(endpoint, steps):
     recorded = []
+    variables = {}
     for step in steps:
         operation, request = step[0], step[1]
         options = step[2] if len(step) > 2 else {}
-        status, body = send(endpoint, operation, request)
+        status, body = send(endpoint, operation, request, variables)
+        capture(body, variables)
         entry = {"operation": operation, "request": request, "status": status}
         if status == 200:
-            if operation not in ("CreateTable", "DeleteTable"):
+            if "select" in options or "present" in options:
+                entry["select"] = {path: at(body, path) for path in options.get("select", [])}
+                entry["present"] = {path: at(body, path) is not None for path in options.get("present", [])}
+            elif operation not in ("CreateTable", "DeleteTable", "UpdateTable", "DescribeTable") and operation not in STREAM_OPERATIONS:
                 entry["response"] = body
         else:
             entry["code"] = body["__type"].rsplit("#", 1)[-1]

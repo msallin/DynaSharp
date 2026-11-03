@@ -141,7 +141,6 @@ public sealed class TableOperationTests(Backend backend)
     public async Task CreateTable_WithStream_ReturnsTheStreamSettings(StreamViewType viewType)
     {
         // Arrange
-        Gaps.SkipIfMissing(backend, Gap.Streams);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var name = Tables.UniqueName();
 

@@ -4,6 +4,7 @@ using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
 using DynaSharp.Serialization;
+using DynaSharp.Streams;
 using DynaSharp.Testing.Fake;
 
 namespace DynaSharp.Testing;
@@ -14,7 +15,7 @@ namespace DynaSharp.Testing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Clients.</b> <see cref="CreateClient"/> gives a client over the fake, and <c>StubClient.Create(fake.CreateHandler())</c> is the same: <see cref="CreateHandler"/> returns a
+/// <b>Clients.</b> <see cref="CreateClient"/> gives a client over the fake, <see cref="CreateStreamsClient"/> one of DynamoDB Streams, and <c>StubClient.Create(fake.CreateHandler())</c> is the same: <see cref="CreateHandler"/> returns a
 /// <see cref="StubHandler"/> whose responder is <see cref="Answer(RecordedRequest)"/>, so <see cref="StubHandler.Requests"/> records what the client sent, and a response queued with
 /// <see cref="StubHandler.Enqueue"/> answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as a throttle of DynamoDB does not. Every handler
 /// of one fake shares its state. A test of a write whose response is lost wraps the fake in a responder of its own that answers, and then returns an error in place of the answer.
@@ -23,17 +24,19 @@ namespace DynaSharp.Testing;
 /// <b>What it answers.</b> <c>CreateTable</c>, <c>DescribeTable</c>, <c>UpdateTable</c>, <c>DeleteTable</c>, <c>ListTables</c>, <c>DescribeTimeToLive</c>, <c>UpdateTimeToLive</c>,
 /// <c>DescribeLimits</c>, <c>GetItem</c>, <c>PutItem</c>, <c>UpdateItem</c>, <c>DeleteItem</c>, <c>Query</c>, <c>Scan</c>, <c>BatchGetItem</c>, <c>BatchWriteItem</c>, <c>TransactGetItems</c> and
 /// <c>TransactWriteItems</c>, with condition, update, key condition, filter and projection expressions, <c>ReturnValues</c>, <c>ReturnConsumedCapacity</c> and a transaction token that holds for
-/// 10 minutes on the clock. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
+/// 10 minutes on the clock, and of DynamoDB Streams <c>ListStreams</c>, <c>DescribeStream</c>, <c>GetShardIterator</c> and <c>GetRecords</c>: a table with a stream records every change
+/// of an item in one shard, in the order of the writes, the records of a request together and none of a request that failed. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
 /// of its table at once and follows every write at once, and every read sees the last write. Keys are checked against the schema with the messages of DynamoDB, as are the type of a key of an index,
 /// empty keys, the sizes of keys and the item limit of 400 KB, and numbers keep their 38 digits and come back in canonical form, <c>1.50</c> as <c>1.5</c>.
 /// </para>
 /// <para>
-/// <b>What it does not do.</b> An operation it does not answer, such as PartiQL or the streams API, is HTTP 400 with <c>UnknownOperationException</c>. A member it does not implement inside an
-/// operation it answers, such as a stream, tags or a legacy parameter, is HTTP 400 with the code <c>UnsupportedByFakeException</c>, which names the member: the fake never ignores a member. Nothing throttles, nothing is eventually consistent,
-/// no transaction conflicts, a batch leaves nothing unprocessed, and nothing expires by itself.
+/// <b>What it does not do.</b> An operation it does not answer, such as PartiQL, is HTTP 400 with <c>UnknownOperationException</c>. A member it does not implement inside an
+/// operation it answers, such as tags or a legacy parameter, is HTTP 400 with the code <c>UnsupportedByFakeException</c>, which names the member: the fake never ignores a member. Nothing throttles, nothing is eventually consistent,
+/// no transaction conflicts, a batch leaves nothing unprocessed, a stream has one shard, and nothing expires by itself.
 /// </para>
 /// <para>
-/// <b>Time.</b> The clock given to the constructor dates the tables, and <see cref="ExpireItems"/> deletes what has expired by it. One fake per test, made with <see langword="new"/>: it holds no static state
+/// <b>Time.</b> The clock given to the constructor dates the tables and the stream records, expires shard iterators after 15 minutes and trims records after 24 hours, and
+/// <see cref="ExpireItems"/> deletes what has expired by it. One fake per test, made with <see langword="new"/>: it holds no static state
 /// and nothing to dispose. It is thread-safe, and each request runs under one lock from start to end.
 /// </para>
 /// <para>
@@ -57,7 +60,7 @@ public sealed partial class FakeDynamoDb
     private readonly FakeDatabase _db;
 
     /// <summary>Initializes a new instance of the <see cref="FakeDynamoDb"/> class, without tables.</summary>
-    /// <param name="timeProvider">The clock of creation times, of time to live and of the 10 minutes a client request token of a transaction holds,<see cref="TimeProvider.System"/> if <see langword="null"/>.</param>
+    /// <param name="timeProvider">The clock of creation times, of time to live, of the 10 minutes a client request token of a transaction holds and of the streams, <see cref="TimeProvider.System"/> if <see langword="null"/>.</param>
     public FakeDynamoDb(TimeProvider? timeProvider = null)
     {
         _db = new FakeDatabase(timeProvider ?? TimeProvider.System);
@@ -84,6 +87,15 @@ public sealed partial class FakeDynamoDb
     /// <returns>The client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
     public DynamoDbClient CreateClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) => StubClient.Create(CreateHandler(), configure);
+
+    /// <summary>
+    /// Creates a client of DynamoDB Streams over a new handler of this fake, as <see cref="StubClient.CreateStreams"/> makes it: it reads the streams of the tables of this fake, and
+    /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> works over it as over DynamoDB.
+    /// </summary>
+    /// <param name="configure">Adjusts the options with a <c>with</c> expression, or <see langword="null"/> to keep them.</param>
+    /// <returns>The client.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
+    public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) => StubClient.CreateStreams(CreateHandler(), configure);
 
     /// <summary>Answers a request a <see cref="StubHandler"/> received: the operation from <c>X-Amz-Target</c>, and the body as sent.</summary>
     /// <param name="request">The request.</param>
@@ -232,7 +244,8 @@ public sealed partial class FakeDynamoDb
 
     /// <summary>
     /// Deletes every item that has expired: in each table with time to live <c>ENABLED</c>, an item whose attribute of time to live is a number of epoch seconds at or before the clock of the fake. An expiry more than five years before the clock is left, as DynamoDB leaves it.
-    /// Nothing expires by itself; this is the background sweep of DynamoDB, run when the test says.
+    /// Nothing expires by itself; this is the background sweep of DynamoDB, run when the test says. A table with a stream records each delete as a <c>REMOVE</c> whose <c>userIdentity</c> is
+    /// the service, <c>dynamodb.amazonaws.com</c> of type <c>Service</c>, as DynamoDB records it.
     /// </summary>
     /// <returns>The number of items deleted.</returns>
     public int ExpireItems()
@@ -266,11 +279,17 @@ public sealed partial class FakeDynamoDb
         {
             try
             {
-                return call();
+                var result = call();
+                _db.CommitChanges();
+                return result;
             }
             catch (FakeError error)
             {
                 throw error.ToDynamoDbException(operation, tableName);
+            }
+            finally
+            {
+                _db.DiscardChanges();
             }
         }
     }

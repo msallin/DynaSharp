@@ -189,7 +189,6 @@ public sealed class TableManagementTests(Backend backend)
     public async Task UpdateTable_EnableStream_TableHasAStream()
     {
         // Arrange
-        Gaps.SkipIfMissing(backend, Gap.Streams);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
 
@@ -210,7 +209,6 @@ public sealed class TableManagementTests(Backend backend)
     public async Task UpdateTable_DisableStream_StreamIsOff()
     {
         // Arrange
-        Gaps.SkipIfMissing(backend, Gap.Streams);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
 

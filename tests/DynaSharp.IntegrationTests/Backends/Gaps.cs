@@ -48,9 +48,6 @@ public enum Gap
     /// <summary>A transaction reports the capacity of every item it writes: two write units per item of up to 1 KB, also for several items of one table.</summary>
     TransactionCapacityPerItem,
 
-    /// <summary>A table has a stream, and the streams API (ListStreams, DescribeStream, GetShardIterator, GetRecords) reads it.</summary>
-    Streams,
-
     /// <summary>PartiQL: ExecuteStatement, BatchExecuteStatement and ExecuteTransaction.</summary>
     PartiQl,
 
@@ -111,7 +108,7 @@ public static class Gaps
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
 
         // The fake's rows name only what docs/testing.md lists as outside the fake, see Backend.Fake.
-        [(Backend.Fake, Gap.Streams)] = "The fake has no streams: a stream specification is UnsupportedByFakeException, and the streams API UnknownOperationException.",
+        [(Backend.Fake, Gap.MultiShardStreams)] = "The fake's streams have a single shard.",
         [(Backend.Fake, Gap.PartiQl)] = "The fake does not answer PartiQL: ExecuteStatement is UnknownOperationException.",
         [(Backend.Fake, Gap.Tags)] = "The fake does not keep tags: Tags in CreateTable is UnsupportedByFakeException.",
         [(Backend.Fake, Gap.BatchResponseLimit)] = "The fake leaves no key unprocessed: it does not cut a BatchGetItem response at 16 MB.",
