@@ -1,6 +1,9 @@
 using System.Text;
 using DynaSharp.Testing;
 
+// These tests pass the values that a key refuses on purpose, to see the builders throw at run time.
+#pragma warning disable DYNA122
+
 namespace DynaSharp.UnitTests.Mapping.KeyEntities;
 
 /// <summary>

@@ -52,7 +52,9 @@ public sealed class PubSubTests(Backend backend)
     public async Task Format_TopicWithTheDelimiterOfTheKey_Throws()
     {
         // Act
+#pragma warning disable DYNA122 // The value is one that the key refuses, on purpose.
         var failure = await Assert.That(static () => Subscription.Keys.Pk.Format("sensors|temperature")).Throws<KeyFormatException>();
+#pragma warning restore DYNA122
 
         // Assert
         await Assert.That(failure!.Message).Contains("Topic", StringComparison.Ordinal);

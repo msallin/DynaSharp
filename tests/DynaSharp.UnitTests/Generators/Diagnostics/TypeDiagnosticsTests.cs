@@ -1285,4 +1285,98 @@ public sealed class TypeDiagnosticsTests
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA022 Error: [Discriminator] on 'E' is invalid: {reason}"));
     }
+
+    [Test]
+    [Arguments("Customer")]
+    [Arguments("Customer?")]
+    [Arguments("List<Customer>")]
+    [Arguments("IReadOnlyList<Customer?>")]
+    [Arguments("Dictionary<string, Customer>")]
+    [Arguments("Customer[]")]
+    public async Task Build_EntityAsAPropertyOfAnEntity_ReportsDyna031(string type)
+    {
+        // Arrange (an order that keeps its customer as it was: the copy carries the pk, sk and _type of a customer, which no read of an order takes)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("CUSTOMER"), PartitionKey("CUSTOMER#{Id}")]
+            public partial class Customer { public required string Id { get; init; } }
+
+            [DynamoDbEntity, Discriminator("ORDER"), PartitionKey("ORDER#{Id}")]
+            public partial class Order { public required string Id { get; init; } public {{type}} [|Buyer|] { get; init; } = default!; }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA031 Warning: Property 'Buyer' stores the entity 'Customer' as a map, with key and index attributes that nothing reads. Use a [DynamoDbDocument] type for it."));
+    }
+
+    [Test]
+    public async Task Build_EntityThatHoldsItself_ReportsDyna031()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("NODE"), PartitionKey("NODE#{Id}")]
+            public partial class Node { public required string Id { get; init; } public Node? [|Parent|] { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA031 Warning: Property 'Parent' stores the entity 'Node' as a map, with key and index attributes that nothing reads. Use a [DynamoDbDocument] type for it."));
+    }
+
+    [Test]
+    [Arguments("public Address Buyer { get; init; } = default!;")]
+    [Arguments("public List<Address> Buyers { get; init; } = [];")]
+    [Arguments("[DynamoDbIgnore] public Customer? Buyer { get; init; }")]
+    [Arguments("public Customer? Buyer => null;")]
+    [Arguments("[DynamoDbConverter(typeof(CustomerAsId))] public Customer? Buyer { get; init; }")]
+    public async Task Build_DocumentOrEntityThatIsNotStoredAsAMap_ReportsNothing(string member)
+    {
+        // Arrange (a document is what a nested value is for, and an entity that is ignored, computed or written by a converter of its own carries no keys into the item)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("CUSTOMER"), PartitionKey("CUSTOMER#{Id}")]
+            public partial class Customer { public required string Id { get; init; } }
+
+            [DynamoDbDocument]
+            public partial class Address { public string? Street { get; init; } }
+
+            public readonly struct CustomerAsId : IDynamoDbConverter<Customer>
+            {
+                public static void Write(DynamoDbWriter writer, Customer value) => writer.WriteString(value.Id);
+
+                public static Customer Read(ref DynamoDbReader reader, AttributeType type) => new() { Id = StringConverter.Read(ref reader, type) };
+            }
+
+            [DynamoDbEntity, Discriminator("ORDER"), PartitionKey("ORDER#{Id}")]
+            public partial class Order { public required string Id { get; init; } {{member}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_EntityAsAPropertyOfADocument_ReportsNothing()
+    {
+        // Arrange (the rule is about the entity whose item holds the copy, which a document does not say)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("CUSTOMER"), PartitionKey("CUSTOMER#{Id}")]
+            public partial class Customer { public required string Id { get; init; } }
+
+            [DynamoDbDocument]
+            public partial class Snapshot { public Customer? Buyer { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
 }

@@ -400,6 +400,13 @@ Branch `m3/q1-create-result`, from item 3 of the second focus group.
 - Decision: the grace counts looks that find the table, not time, as the create loop counts creates, and a look that lists every declared index starts it over, because a replica that lags can answer between two that do not.
 - Finding: the grace holds for the recipe of the README as long as each instance sends its `UpdateTable` (or loses it to one that is accepted) before the typed wait, and `DescribeTable` lists an accepted index within 1.5 seconds. Not measured on real DynamoDB yet.
 
+### Q2 - warnings on models and key templates, before 0.1.0
+
+- [x] **Q2.** `DYNA031` for an entity stored as a map in an entity, `DYNA032` for a getter with `[ComputedFrom]` that reads a stored property the attribute does not name, `DYNA120` through `[ComputedFrom]` for a getter that hands a raw input on, with `DYNA121` at Info for any other getter, and `DYNA122` for a constant that a key builder always refuses. A new Warning fails every consumer that builds with warnings as errors, which is cheap only before 0.1.0.
+- Decision: `DYNA120` and `DYNA121` through a getter stand on the computed property, not on the strict template: they come from `ComputedGetterAnalyzer`, which sees the getter, and the model holds no place of a template, which would cost the incrementality of the generator.
+- Decision: `DYNA031` is for a property of an entity, as the item of an entity is what carries the copy of the keys. An entity inside a document is not reported.
+- Decision: `DYNA122` checks an empty value and a delimiter, what `KeyWriter` refuses of every string, and leaves control characters, lone surrogates and U+10FFFF to the run time.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

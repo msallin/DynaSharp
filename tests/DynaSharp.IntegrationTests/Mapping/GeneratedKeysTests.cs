@@ -612,7 +612,9 @@ public sealed class GeneratedKeysTests(Backend backend)
         await using var shop = await ShopSandbox.StartAsync(backend);
 
         // Act (the key throws when it is made, so a command never sees it)
+#pragma warning disable DYNA122 // The value is one that the key refuses, on purpose.
         async Task Act() => await shop.Comments.Get(Comment.Keys.Of(First, "a#b")).SendAsync();
+#pragma warning restore DYNA122
 
         // Assert
         await Assert.That(Act).ThrowsExactly<KeyFormatException>();

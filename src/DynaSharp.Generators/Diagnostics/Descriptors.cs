@@ -153,6 +153,24 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor InvalidOmitEmpty = new(
         "DYNA030", "[OmitEmpty] is not valid here", "[OmitEmpty] on '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor EntityInsideEntity = new(
+        "DYNA031",
+        "Entity stored inside an entity",
+        "Property '{0}' stores the entity '{1}' as a map, with key and index attributes that nothing reads. Use a [DynamoDbDocument] type for it.",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor UnnamedComputedSource = new(
+        "DYNA032",
+        "Getter reads a property that [ComputedFrom] does not name",
+        "The getter of '{0}' reads '{1}', which [ComputedFrom] does not name, so an update of '{1}' leaves a key built from '{0}' behind. Name it in [ComputedFrom].",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -276,7 +294,25 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor RawBesideStrict = new(
         "DYNA120",
         "Raw value is strict in another template",
-        "'{0}' is raw in '{1}' and strict in '{2}', so a value with a delimiter of the second ('{3}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.",
+        "'{0}' is raw in '{1}' and strict in '{2}'{4}, so a value with a delimiter of the second ('{3}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.",
+        KeyGrammar,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: KeyHelp);
+
+    public static readonly DiagnosticDescriptor RawThroughGetter = new(
+        "DYNA121",
+        "Raw value reaches a strict template through a getter",
+        "'{0}' is raw in '{1}', and '{2}', computed from it, is strict in '{3}', so a value with a delimiter of the second ('{4}') throws KeyFormatException there, unless the getter of '{2}' takes the delimiter out",
+        KeyGrammar,
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: KeyHelp);
+
+    public static readonly DiagnosticDescriptor ConstantNoKeyHolds = new(
+        "DYNA122",
+        "Constant that no key can hold",
+        "The value of '{0}' {1}, so this call throws KeyFormatException every time",
         KeyGrammar,
         DiagnosticSeverity.Warning,
         true,
@@ -452,9 +488,9 @@ internal static class Descriptors
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
         InvalidConverter, DuplicateKey, InvalidAttributeName, InvalidVersion, NotValidOnDocument, EntityAndDocument, MemberConflict,
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
-        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
+        InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, EntityInsideEntity, UnnamedComputedSource, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
     ];
 

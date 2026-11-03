@@ -39,9 +39,11 @@ internal static class ShapeChecks
         check(KeyedOrder.Keys.Gsi2Sk.Parse(KeyedOrder.Keys.Gsi2Sk.Format(Noon)).ShippedAt == Noon, "a sparse index has builders");
 
         check(KeyedMember.Keys.Sk.Prefix("eu") == "REGION#eu#CITY#" && KeyedMember.Keys.Sk.PrefixPartial("eu", "zu") == "REGION#eu#CITY#zu", "strings have partial prefixes");
+#pragma warning disable DYNA122 // The values are ones that the key refuses, on purpose.
         check(Throws<KeyFormatException>(() => KeyedMember.Keys.Pk.Format("a#b", "c")), "a delimiter in a value throws");
         check(KeyedMember.Keys.Pk.TryOf("a", "c", out var memberKey) && memberKey.Value == KeyedMember.Keys.Pk.Format("a", "c") && !KeyedMember.Keys.Pk.TryOf("a#b", "c", out _), "TryOf answers without an exception");
         check(Throws<KeyFormatException>(() => KeyedMember.Keys.Of("a#b", "c", "eu", "zu")) && !KeyedMember.Keys.TryOf("a#b", "c", "eu", "zu", out _), "Keys.Of checks at the call");
+#pragma warning restore DYNA122
         check(Suffixed.Keys.Sk.Format("x") == "A-x#B" && Suffixed.Keys.Sk.Parse("A-x#B").Name == "x", "a literal may follow the last placeholder");
         check(Adjacent.Keys.Sk.Parse("007abc") == new Adjacent.Keys.SkParts(7, "abc"), "a fixed width needs no delimiter");
         check(Ledger.Keys.Pk.Format(Noon) == "LEDGER#2026-10" && Ledger.Keys.Sk.Parse(Ledger.Keys.Sk.Format(Noon, Id)).At == Noon, "one property has two formats");

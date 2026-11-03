@@ -165,7 +165,7 @@ internal sealed class EntityKeyBuilder(
             var raw = placeholders.Find(entry => entry.Placeholder.Encoding is StringEncoding { IsRaw: true } && entry.Placeholder.Property == strict.Placeholder.Property);
             if (raw.Template is not null)
             {
-                bag.Report(Descriptors.RawBesideStrict, strict.Spot, strict.Placeholder.Property, raw.Template.Text, strict.Template.Text, strict.Template.Delimiters);
+                bag.Report(Descriptors.RawBesideStrict, strict.Spot, strict.Placeholder.Property, raw.Template.Text, strict.Template.Text, strict.Template.Delimiters, string.Empty);
             }
         }
     }

@@ -237,7 +237,9 @@ public sealed partial class GeneratedSortKeyConditionTests
     public async Task Range_InvalidBound_ThrowsAsTheKeyWould()
     {
         // Arrange, Act
+#pragma warning disable DYNA122 // The value is one that the key refuses, on purpose.
         var failure = await TestClient.CaptureAsync<KeyFormatException>(static () => Task.FromResult(Ranged.Keys.Sk.Range("a b", "c")));
+#pragma warning restore DYNA122
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("Name");
@@ -592,7 +594,9 @@ public sealed partial class GeneratedSortKeyConditionTests
     public async Task Ge_EmptyString_ThrowsLikeTheKeyWould()
     {
         // Arrange, Act
+#pragma warning disable DYNA122 // The value is one that the key refuses, on purpose.
         var failure = await TestClient.CaptureAsync<KeyFormatException>(static () => Task.FromResult(Edge.Keys.Sk.Ge(string.Empty)));
+#pragma warning restore DYNA122
 
         // Assert
         await Assert.That(failure.Message).Contains("Target");
@@ -602,7 +606,9 @@ public sealed partial class GeneratedSortKeyConditionTests
     public async Task Between_DelimiterInAValue_ThrowsAndDoesNotQuoteIt()
     {
         // Arrange, Act
+#pragma warning disable DYNA122 // The value is one that the key refuses, on purpose.
         var failure = await TestClient.CaptureAsync<KeyFormatException>(static () => Task.FromResult(Member.Keys.Sk.Between("EU", "a#b", "c")));
+#pragma warning restore DYNA122
 
         // Assert
         await Assert.That(failure.Message).DoesNotContain("a#b");

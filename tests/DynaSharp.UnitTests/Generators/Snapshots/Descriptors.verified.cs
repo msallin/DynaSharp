@@ -26,6 +26,8 @@ DYNA025 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA026 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA029 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA030 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA031 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA032 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA100 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA101 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA102 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
@@ -47,6 +49,8 @@ DYNA117 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA118 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA119 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA120 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
+DYNA121 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
+DYNA122 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA201 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA202 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA203 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -94,6 +98,8 @@ DYNA025 | Error | DynaSharp.Mapping | Type has the name of a generated class | T
 DYNA026 | Warning | DynaSharp.Mapping | Two entities share a discriminator | Entity '{0}' has the discriminator '{1}' in the attribute '{2}', as '{3}' has, so on one table their items cannot be told apart. Give one of them another value, unless they never share a table.
 DYNA029 | Error | DynaSharp.Mapping | [DynamoDbDefaultConverter] is not valid | [DynamoDbDefaultConverter] for '{0}' is not valid: {1}
 DYNA030 | Error | DynaSharp.Mapping | [OmitEmpty] is not valid here | [OmitEmpty] on '{0}' is not valid: {1}
+DYNA031 | Warning | DynaSharp.Mapping | Entity stored inside an entity | Property '{0}' stores the entity '{1}' as a map, with key and index attributes that nothing reads. Use a [DynamoDbDocument] type for it.
+DYNA032 | Warning | DynaSharp.Mapping | Getter reads a property that [ComputedFrom] does not name | The getter of '{0}' reads '{1}', which [ComputedFrom] does not name, so an update of '{1}' leaves a key built from '{0}' behind. Name it in [ComputedFrom].
 DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
 DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
 DYNA102 | Error | DynaSharp.Keys | Unknown property in a key template | Key template references unknown property '{0}'
@@ -114,7 +120,9 @@ DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table k
 DYNA117 | Warning | DynaSharp.Keys | Key property starts empty | Key property '{0}' starts empty and nothing has to set it, so a write that forgets it fails at run time. Make it required, or set it in a constructor.
 DYNA118 | Error | DynaSharp.Keys | Raw value does not end the template | '{0}' has the format raw, which reads to the end of the key, so nothing can follow it in the template
 DYNA119 | Error | DynaSharp.Keys | [ComputedFrom] is not valid here | [ComputedFrom] on '{0}' is not valid: {1}
-DYNA120 | Warning | DynaSharp.Keys | Raw value is strict in another template | '{0}' is raw in '{1}' and strict in '{2}', so a value with a delimiter of the second ('{3}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.
+DYNA120 | Warning | DynaSharp.Keys | Raw value is strict in another template | '{0}' is raw in '{1}' and strict in '{2}'{4}, so a value with a delimiter of the second ('{3}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.
+DYNA121 | Info | DynaSharp.Keys | Raw value reaches a strict template through a getter | '{0}' is raw in '{1}', and '{2}', computed from it, is strict in '{3}', so a value with a delimiter of the second ('{4}') throws KeyFormatException there, unless the getter of '{2}' takes the delimiter out
+DYNA122 | Warning | DynaSharp.Keys | Constant that no key can hold | The value of '{0}' {1}, so this call throws KeyFormatException every time
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
 DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.

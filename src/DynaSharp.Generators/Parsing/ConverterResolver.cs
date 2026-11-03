@@ -9,7 +9,8 @@ namespace DynaSharp.Generators;
 /// <param name="enums">Where enums register their generated converter.</param>
 /// <param name="bag">Where problems go.</param>
 /// <param name="defaults">What the assembly of the type says.</param>
-internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, ProjectDefaults defaults)
+/// <param name="isEntity">Whether the properties belong to an entity, where an entity stored as a document is DYNA031.</param>
+internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, ProjectDefaults defaults, bool isEntity)
 {
     private const string Serialization = "global::DynaSharp.Serialization.";
 
@@ -303,7 +304,18 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
             return Inner(inner, property) is { } wrapped ? Wrapped(inner, wrapped) : null;
         }
 
-        return IsDocument(type) ? $"{Serialization}DocumentConverter<{code}>" : Collection(type, property);
+        if (!IsDocument(type))
+        {
+            return Collection(type, property);
+        }
+
+        // The copy is written with its keys, its index keys and its discriminator, and a read of the outer item takes none of them.
+        if (isEntity && AttributeReader.Find(type, WellKnownNames.EntityAttribute) is not null)
+        {
+            bag.Report(Descriptors.EntityInsideEntity, property.Spot, property.Name, type.Name);
+        }
+
+        return $"{Serialization}DocumentConverter<{code}>";
     }
 
     private string? Collection(ITypeSymbol type, PropertyFacts property)

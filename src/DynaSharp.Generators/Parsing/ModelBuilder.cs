@@ -190,7 +190,7 @@ internal sealed class ModelBuilder
 
         var reserved = discriminator?.Value is null ? null : discriminator.AttributeName;
         var claims = new Dictionary<string, AttributeClaim>();
-        var resolver = new ConverterResolver(_enums, _bag, _defaults);
+        var resolver = new ConverterResolver(_enums, _bag, _defaults, _kind == MappedKind.Entity);
         foreach (var property in properties)
         {
             MapProperty(property, reserved, claims, resolver);

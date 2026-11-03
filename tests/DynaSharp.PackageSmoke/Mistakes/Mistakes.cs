@@ -9,6 +9,8 @@ public static class Code
 {
     private static readonly Table<Item> Shop = null!;
 
+    public static void Dyna122() => _ = Ticket.Keys.ByCodePk.Of("a#b");
+
     public static async Task Dyna201()
     {
         var command = Shop.Update("a");
