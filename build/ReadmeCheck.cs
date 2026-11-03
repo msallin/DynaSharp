@@ -25,6 +25,7 @@ const string SharedUsings = """
     using DynaSharp.Requests;
     using DynaSharp.Sample;
     using DynaSharp.Serialization;
+    using DynaSharp.Streams;
     using DynaSharp.Testing;
     using static DynaSharp.Expr;
 

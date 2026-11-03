@@ -58,12 +58,9 @@ Without options it reads the environment as `DynamoDbClient` does, with `AWS_END
 
 A stream is split into shards, and a record is in the shard of the partition of its item. DynamoDB closes a shard from time to time, and when its partition splits, and its children go on from there and name it in `ParentShardId`. So the changes of one item come in order only if a parent is read to its end before its children.
 
-The reader below starts at every shard whose parent is not listed, reads each to its end, then finds the children with a `ShardFilter` and reads those. An image is an `Item`, and `To<T>()` reads it as an entity.
+The reader below starts at every shard whose parent is not listed, reads each to its end, then finds the children with a `ShardFilter` and reads those. An image is an `Item`, `Is<T>()` says whether it is of an entity, and `To<T>()` reads it as one.
 
 ```csharp
-using DynaSharp;
-using DynaSharp.Streams;
-
 public static class OrderFeed
 {
     // onChange gets the order before and after the change: (null, order) for an insert, (order, null) for a delete.
@@ -132,7 +129,7 @@ public static class OrderFeed
         var change = record.DynamoDb!;
 
         // The table holds customers too, and To<Order>() refuses an item of another entity.
-        if ((change.NewImage ?? change.OldImage)?.GetString("_type") != "ORDER")
+        if ((change.NewImage ?? change.OldImage)?.Is<Order>() != true)
         {
             return;
         }

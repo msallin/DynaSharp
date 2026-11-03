@@ -1,4 +1,5 @@
 using DynaSharp.UnitTests.Fluent;
+using DynaSharp.UnitTests.Fluent.Mix;
 
 namespace DynaSharp.UnitTests.Mapping;
 
@@ -80,6 +81,115 @@ public sealed class ItemDocumentTests
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("value");
+    }
+
+    [Test]
+    public async Task Is_ItemOfTheType_IsTrue()
+    {
+        // Arrange
+        var item = Item.From(new Alpha { Pk = "a", Sk = "1" });
+
+        // Act
+        var isAlpha = item.Is<Alpha>();
+
+        // Assert
+        await Assert.That(isAlpha).IsTrue();
+    }
+
+    [Test]
+    public async Task Is_ItemOfAnotherType_IsFalse()
+    {
+        // Arrange
+        var item = Item.From(new Beta { Pk = "a", Sk = "1", Amount = 5 });
+
+        // Act
+        var isAlpha = item.Is<Alpha>();
+
+        // Assert
+        await Assert.That(isAlpha).IsFalse();
+    }
+
+    [Test]
+    public async Task Is_ImagesOfASingleTable_TellsTheEntitiesApart()
+    {
+        // Arrange: the new image of a stream record from a table that holds customers and orders, which a reader of orders skips
+        var image = Item.From(new Customer("alice", "Alice", 2));
+
+        // Act
+        var kinds = (image.Is<Customer>(), image.Is<SchemaOrder>());
+
+        // Assert
+        await Assert.That(kinds).IsEqualTo((true, false));
+    }
+
+    [Test]
+    public async Task Is_TypeWithItsOwnAttributeName_ReadsThatAttribute()
+    {
+        // Arrange
+        var inKind = new Item { ["pk"] = "a", ["kind"] = "KINDED" };
+        var inType = new Item { ["pk"] = "a", ["_type"] = "KINDED" };
+
+        // Act
+        var answers = (inKind.Is<Kinded>(), inType.Is<Kinded>());
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, false));
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    public async Task Is_NoDiscriminatorAsAString_IsFalse(int kind)
+    {
+        // Arrange
+        var item = new Item { ["pk"] = "a" };
+        switch (kind)
+        {
+            case 1:
+                item["_type"] = AttributeValue.Null;
+                break;
+            case 2:
+                item["_type"] = 1;
+                break;
+            case 3:
+                item["_type"] = "alpha";
+                break;
+        }
+
+        // Act
+        var isAlpha = item.Is<Alpha>();
+
+        // Assert
+        await Assert.That(isAlpha).IsFalse();
+    }
+
+    [Test]
+    public async Task Is_ItemThatSaysItIsTheTypeAndLacksAnAttribute_IsTrueWhileToThrows()
+    {
+        // Arrange
+        var item = new Item { ["pk"] = "a", ["sk"] = "1", ["_type"] = "BETA" };
+
+        // Act
+        var isBeta = item.Is<Beta>();
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(() => Task.FromResult(item.To<Beta>()));
+
+        // Assert
+        await Assert.That((isBeta, failure.AttributeName)).IsEqualTo((true, "Amount"));
+    }
+
+    [Test]
+    public async Task Is_HandWrittenTypeWithoutADiscriminator_Throws()
+    {
+        // Arrange
+        var item = new Item { ["pk"] = "a", ["_type"] = string.Empty };
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(item.Is<Undeclared>()));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("This type has no discriminator, so its items cannot be told from others.");
     }
 
     [Test]

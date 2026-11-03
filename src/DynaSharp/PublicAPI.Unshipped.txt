@@ -329,3 +329,4 @@ static DynaSharp.Serialization.NullableReferenceHandleConverter<T, TConverter>.C
 static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
 static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+DynaSharp.Item.Is<T>() -> bool

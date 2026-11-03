@@ -346,6 +346,22 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     public T To<T>()
         where T : IDynamoDbDocument<T> => Convert<Item, T>(this);
 
+    /// <summary>
+    /// Gets whether the item is of an entity: its discriminator attribute, <c>_type</c> or the <see cref="DiscriminatorAttribute.AttributeName"/> the type names, holds the type's
+    /// discriminator value. It is the test a mixed read sorts items by, for an item that is already read, such as an image of a stream record from a table of several entities:
+    /// <c>if (image.Is&lt;Order&gt;()) { var order = image.To&lt;Order&gt;(); }</c>.
+    /// </summary>
+    /// <remarks>
+    /// It looks at that one attribute and reads nothing else, so it costs no allocation, and an item that says it is a <typeparamref name="T"/> can still fail
+    /// <see cref="To{T}"/> on another attribute. The comparison is ordinal. An item without the attribute, with the DynamoDB null value there or with a value that is no string is
+    /// not of the type, as it is of no type to a mixed read.
+    /// </remarks>
+    /// <typeparam name="T">The entity. One without a discriminator, with <c>[Discriminator(OptOut = true)]</c>, does not compile, because nothing in its items tells them from others.</typeparam>
+    /// <returns><see langword="true"/> if the item holds the discriminator of <typeparamref name="T"/>.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> is written by hand and claims a discriminator that its <see cref="DynamoDbEntityInfo"/> does not have.</exception>
+    public bool Is<T>()
+        where T : IDynamoDbDiscriminated<T> => Fluent.MixedSchema.Of<T>.Schema.FindType(this) == 0;
+
     /// <summary>Gets an enumerator over the attributes, which does not allocate when used on this type directly.</summary>
     /// <returns>The enumerator.</returns>
     public Enumerator GetEnumerator() => new(this);

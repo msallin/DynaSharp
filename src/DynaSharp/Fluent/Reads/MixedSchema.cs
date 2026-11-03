@@ -127,6 +127,23 @@ internal sealed class MixedSchema
         throw DynamoDbMappingException.Missing(_typeName, _attribute);
     }
 
+    /// <summary>
+    /// Finds which type an item that is already read is, by the rule of the wire overload: the discriminator attribute holds a string equal to the discriminator of the type. Asking is no
+    /// read, so an item of none of the types answers -1 instead of throwing, also one without the attribute or with a value of another kind there.
+    /// </summary>
+    /// <param name="item">The item.</param>
+    /// <returns>The index of the type in the combination, or -1.</returns>
+    /// <exception cref="ArgumentException">The combination cannot be told apart, see <see cref="FindProblem"/>.</exception>
+    public int FindType(Item item)
+    {
+        if (_problem is not null)
+        {
+            throw new ArgumentException(_problem);
+        }
+
+        return item.TryGetValue(_attribute, out var value) && value.Type == AttributeType.String ? Array.IndexOf(_discriminators, value.AsString()) : -1;
+    }
+
     private static void Require(List<string> required, string? name)
     {
         if (name is not null && !required.Contains(name))
@@ -171,7 +188,8 @@ internal sealed class MixedSchema
     {
         if (type.Discriminator is null)
         {
-            return $"The type at position {index} of this mix has no discriminator, so its items cannot be told from others.";
+            var which = _discriminators.Length == 1 ? "This type" : $"The type at position {index} of this mix";
+            return $"{which} has no discriminator, so its items cannot be told from others.";
         }
 
         if (type.DiscriminatorAttributeName != _attribute)
@@ -182,5 +200,14 @@ internal sealed class MixedSchema
         return Array.IndexOf(_discriminators, type.Discriminator, 0, index) >= 0
             ? $"The discriminator {type.Discriminator} occurs twice in this mix, so its items cannot be told apart."
             : null;
+    }
+
+    /// <summary>The schema of one type, which is what <see cref="Item.Is{T}"/> asks with, built once per type as that of a mix is.</summary>
+    /// <typeparam name="T">The type.</typeparam>
+    internal static class Of<T>
+        where T : IDynamoDbDiscriminated<T>
+    {
+        /// <summary>What the type knows about its items.</summary>
+        public static readonly MixedSchema Schema = new(T.Info);
     }
 }

@@ -198,7 +198,8 @@ so a new read option comes along by itself. The remarks of `FanOutMerge` explain
 
 **Mixed reads.** `Mixed<T1, ...>` implements `IDynamoDbDocument<...>`, so the normal page path reads it. `MixedSchema` is built once per type combination, holds the `IN` filter, the required projection and
 `FindType`, which reads a copy of the reader as a checkpoint to find `_type` and then lets the type read from the start. A problem with a combination is stored and thrown at `Of<...>()`, never from a type
-initializer. The mixed commands repeat the read clauses by hand per arity, and a test keeps them forwarding every clause.
+initializer. The mixed commands repeat the read clauses by hand per arity, and a test keeps them forwarding every clause. `Item.Is<T>()` asks a schema of one type, `MixedSchema.Of<T>`, whose
+`FindType(Item)` applies the same rule to an item that is already read and answers -1 where the wire overload throws.
 
 **`Item`.** `AttributeValueConverter` reads an `Item` as parallel arrays over a shared `ItemShape`, found through the process-wide `ShapeTable` of 2048 slots, so a page of alike items holds its names once. Nothing
 in the table grows, and its remarks say what happens when shapes outnumber its slots.

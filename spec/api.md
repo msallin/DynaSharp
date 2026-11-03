@@ -661,7 +661,10 @@ It is not a snapshot, and there is no `PagesAsync` and no `Parallel`.
 is what makes `Table<Item>` the same engine. Build it with the indexer, and `Remove(name)` takes an attribute out and says whether it was there. `item["x"]` throws `KeyNotFoundException` naming the attribute. `GetString`, `GetNumber<T>`,
 `GetBool`, `GetBinary`, `GetMap`, `GetList`, `GetStringSet`, `GetNumberSet` and `GetBinarySet` return null for a missing attribute and for DynamoDB NULL, and throw
 `InvalidOperationException` for another type; a number that does not fit throws `FormatException` or `OverflowException`. These messages name the attribute, never the value. `ToString()`
-returns DynamoDB JSON, which does contain values. `Item.From(value)` and `item.To<T>()` convert to and from a mapped type. An `Item` inside an `AttributeValue`, which is what `GetMap` returns, is
+returns DynamoDB JSON, which does contain values. `Item.From(value)` and `item.To<T>()` convert to and from a mapped type. `item.Is<T>()` says whether the item is of an entity: its discriminator attribute, `_type` or
+the `AttributeName` of the type, holds a string equal to the type's discriminator, which is the rule of a mixed read, from the same `MixedSchema`. A missing attribute, NULL or another kind of value is false, the type argument is
+constrained to `IDynamoDbDiscriminated<T>` as `Of<...>()` is, a hand-written type that claims it without a discriminator throws `ArgumentException`, and it allocates nothing. It reads no other attribute, so an item that is a `T` can
+still fail `To<T>()`. There is no `TryTo<T>(out T)`: a `Try` method that throws a mapping failure of the right type breaks the pattern, and one that returns false hides it, so the caller writes `Is<T>()` and then `To<T>()`. An `Item` inside an `AttributeValue`, which is what `GetMap` returns, is
 read-only, which only shows at run time: the type is the same, because a type of its own would repeat every getter. `new Item(other)` makes an editable copy. Read items have no attribute order, hand-built ones keep insertion order, and `Equals` is the only
 sanctioned comparison. Its hash follows its content, so it does not belong in a `HashSet`.
 
@@ -696,8 +699,9 @@ has no `PageAsync`, and `BeginsWith` takes no handle of a number.
 Escape hatches: `client.SendRawAsync("ListTables", """{"Limit":1}"""u8.ToArray(), ct)` for what nothing models, with the pipeline's signing, retries and
 telemetry; raw paths and interpolated expressions on typed commands; `Item.From` and `To<T>`.
 
-`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity. There is
-no consumer, by scope.
+`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity and `Is<T>()` tells the entities of one table apart. The members of
+the responses are nullable as the service model has them: botocore's `dynamodbstreams` marks no member of an output shape required but those of `KeySchemaElement`, and the API reference says `Required: No` for each, so a
+response without one reads as null, as everywhere else in the library, and nothing throws for it. There is no consumer, by scope.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,
