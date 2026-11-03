@@ -16,6 +16,8 @@
     href: ../transactions.md
   - name: Tables
     href: ../tables.md
+  - name: Streams
+    href: ../streams.md
   - name: Testing
     href: ../testing.md
 - name: Moving to DynaSharp

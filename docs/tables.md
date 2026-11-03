@@ -26,7 +26,7 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
-`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain.
+`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream.
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, and `TimeToLiveEnabled` whether this call turned time to live on.
 
