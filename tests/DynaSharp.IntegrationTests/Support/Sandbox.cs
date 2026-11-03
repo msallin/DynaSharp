@@ -66,13 +66,13 @@ internal sealed class Sandbox : IAsyncDisposable
     /// <typeparam name="T">What the table reads and writes.</typeparam>
     /// <param name="table">The table.</param>
     /// <param name="command">The command, one of <paramref name="table"/>.</param>
-    /// <returns>The description the command returns.</returns>
-    public async Task<TableDescription> CreateTableAsync<T>(Table<T> table, CreateTableCommand command)
+    /// <returns>What the command returns.</returns>
+    public async Task<CreateTableResult> CreateTableAsync<T>(Table<T> table, CreateTableCommand command)
         where T : IDynamoDbDocument<T>
     {
-        var description = await Tables.SendAsync(command);
+        var result = await Tables.SendAsync(command);
         _tables.Add(table.Name);
-        return description;
+        return result;
     }
 
     /// <inheritdoc/>

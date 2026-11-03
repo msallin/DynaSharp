@@ -2,12 +2,13 @@ namespace DynaSharp;
 
 /// <summary>
 /// A wait for a table and its global secondary indexes to turn <c>ACTIVE</c> ran out of time: <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>, or
-/// <see cref="CreateTableCommand.WaitUntilActive(TimeSpan)"/>. It is a <see cref="TimeoutException"/>, so a <c>catch (TimeoutException)</c> around a wait keeps working, and it says what the table was doing at the last look.
+/// <see cref="CreateTableCommand.WaitUntilActive(TimeSpan)"/>, which also ends early on a table that lacks an index the command declares. It is a <see cref="TimeoutException"/>, so a <c>catch (TimeoutException)</c> around a wait keeps working, and it says what the table was doing at the last look.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Nothing here says that the table will not turn active: restoring a table, or the backfill of an index on a table with much data, can take longer than a wait, and DynamoDB goes on by itself, so wait again with a
-/// longer timeout. A status such as <see cref="TableStatus.Deleting"/> says otherwise. <see cref="LastStatus"/> tells these apart, and a <see langword="null"/> there means that the last look did not find the table, which can be a
+/// A wait that ran out says nothing about whether the table will turn active: restoring a table, or the backfill of an index on a table with much data, can take longer than a wait, and DynamoDB goes on by itself, so wait again with a
+/// longer timeout. A status such as <see cref="TableStatus.Deleting"/> says otherwise, and so does the wait of <see cref="CreateTableCommand"/> that ends before its timeout because the table did not list an index
+/// the command declares, at five looks in a row: no wait adds that index, only an <c>UpdateTable</c>. <see cref="LastStatus"/> tells these apart, and a <see langword="null"/> there means that the last look did not find the table, which can be a
 /// wrong name, and then <see cref="Exception.InnerException"/> is the <see cref="ResourceNotFoundException"/>. <see cref="PendingIndex"/> names an index that held the wait up, which can happen with a table that reads
 /// <see cref="TableStatus.Active"/>.
 /// </para>

@@ -38,10 +38,11 @@ Output.Section("1. Creating the table, and the one call that drops to DynaSharp.
 // request. ToRequest gives what this would send, for what it does not model, such as tags.
 try
 {
-    var description = await orders.CreateTable()
+    var creation = await orders.CreateTable()
         .Including<Product>().Including<Customer>().Including<Cart>().Including<EmailClaim>()
         .WaitUntilActive()
         .SendAsync(ct);
+    var description = creation.Table;
     Output.Say($"Table {description.TableName} is {description.TableStatus}, with {description.GlobalSecondaryIndexes.Count} global indexes");
 }
 catch (HttpRequestException exception)

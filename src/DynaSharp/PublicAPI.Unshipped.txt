@@ -83,17 +83,21 @@ DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.Cance
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
 DynaSharp.CreateTableCommand
-DynaSharp.CreateTableCommand.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.Requests.TableDescription!>
+DynaSharp.CreateTableCommand.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.CreateTableResult!>
 DynaSharp.CreateTableCommand.IfNotExists() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.Including<TOther>() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.Provisioned(long read, long write) -> DynaSharp.CreateTableCommand!
-DynaSharp.CreateTableCommand.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.CreateTableCommand.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.CreateTableResult!>
 DynaSharp.CreateTableCommand.Stream(DynaSharp.Requests.StreamViewType view) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.TimeToLive(DynaSharp.Attr attribute) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.TimeToLive(string! attributeName) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.ToRequest() -> DynaSharp.Requests.CreateTableRequest!
 DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
+DynaSharp.CreateTableResult
+DynaSharp.CreateTableResult.Created.get -> bool
+DynaSharp.CreateTableResult.Table.get -> DynaSharp.Requests.TableDescription!
+DynaSharp.CreateTableResult.TimeToLiveEnabled.get -> bool
 DynaSharp.Item.Remove(string! name) -> bool
 DynaSharp.PartitionKey<TEntity>.PartitionKey(DynaSharp.AttributeValue value, string! attributeName) -> void
 static DynaSharp.Serialization.ConverterChecks.ToAttributeValue<T, TConverter>(T value) -> DynaSharp.AttributeValue

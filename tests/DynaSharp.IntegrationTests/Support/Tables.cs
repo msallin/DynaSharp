@@ -70,8 +70,8 @@ internal static class Tables
 
     /// <summary>Sends a command that creates a table, repeated like every other creation here.</summary>
     /// <param name="command">The command.</param>
-    /// <returns>The description the command returns.</returns>
-    public static Task<TableDescription> SendAsync(CreateTableCommand command) => RepeatOnInternalFailureAsync(async () => await command.SendAsync());
+    /// <returns>What the command returns.</returns>
+    public static Task<CreateTableResult> SendAsync(CreateTableCommand command) => RepeatOnInternalFailureAsync(async () => await command.SendAsync());
 
     /// <summary>Describes the table until <paramref name="condition"/> holds for it, for the changes that UpdateTable makes asynchronously.</summary>
     /// <param name="client">The client of the emulator.</param>

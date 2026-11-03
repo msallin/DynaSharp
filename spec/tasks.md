@@ -389,6 +389,17 @@ The owner had an independent reviewer judge what the services still asked for, a
 - Decision: a result of the generator shared between tests is rebuilt under Stryker (`SharedResult<T>`). Its MTP runner keeps a test host for many mutants, so a kept result would hide later mutants and fail on others.
 - Decision: an item of another type reports the type before a key that does not fit: a read finishes its walk first. A value of a shared attribute that the converter refuses can still fail first, under its own name, because finding the discriminator from there would cost every read a copy of the reader.
 
+### Q1 - what `CreateTable()` reports, and an index that is not listed
+
+Branch `m3/q1-create-result`, from item 3 of the second focus group.
+
+- [x] **`CreateTableResult`.** `SendAsync` and the awaiter return it instead of `TableDescription`: `Table`, `Created`, `TimeToLiveEnabled`. Breaking, so before 0.1.0.
+- [x] **Fail fast on an index that is not listed.** The wait of `CreateTableCommand` ends at the fifth look in a row without a declared index, 1.5 seconds in, instead of at the timeout. The wait of `Table<T>` keeps polling.
+- Decision: a sealed class with an internal constructor, like `TransactGetResult`: administration is no hot path, and a default struct would have a null `Table`.
+- Decision: `Created` is false after a retry of a lost create that meets the table, because nothing tells it from a table of another process. `TimeToLiveEnabled` is false when another instance won the update.
+- Decision: the grace counts looks that find the table, not time, as the create loop counts creates, and a look that lists every declared index starts it over, because a replica that lags can answer between two that do not.
+- Finding: the grace holds for the recipe of the README as long as each instance sends its `UpdateTable` (or loses it to one that is accepted) before the typed wait, and `DescribeTable` lists an accepted index within 1.5 seconds. Not measured on real DynamoDB yet.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

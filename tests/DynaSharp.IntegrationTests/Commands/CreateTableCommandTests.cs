@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Support;
 using DynaSharp.Requests;
@@ -39,7 +40,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Assert (the number keys sort as numbers, so 9 is below 10 and 11 above it, which strings would turn around)
         await Assert.That((
-            created.TableStatus,
+            created.Table.TableStatus,
             string.Join(",", byStatus.Select(static item => item.Number)),
             byTier.Single().Name,
             string.Join(",", byCategory.Select(static item => item.Sku)),
@@ -157,10 +158,10 @@ public sealed class CreateTableCommandTests(Backend backend)
         await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
 
         // Act
-        var description = await Tables.SendAsync(shop.CreateTable().Including<Shopper>().IfNotExists());
+        var result = await Tables.SendAsync(shop.CreateTable().Including<Shopper>().IfNotExists());
 
         // Assert
-        await Assert.That((description.TableName, description.GlobalSecondaryIndexes.Count)).IsEqualTo((shop.Name, 0));
+        await Assert.That((result.Table.TableName, result.Table.GlobalSecondaryIndexes.Count, result.Created)).IsEqualTo((shop.Name, 0, false));
     }
 
     [Test]
@@ -175,7 +176,7 @@ public sealed class CreateTableCommandTests(Backend backend)
         var second = await Tables.SendAsync(shop.CreateTable().WaitUntilActive().IfNotExists());
 
         // Assert
-        await Assert.That((first.TableStatus, second.TableStatus)).IsEqualTo((TableStatus.Active, TableStatus.Active));
+        await Assert.That((first.Table.TableStatus, first.Created, second.Table.TableStatus, second.Created)).IsEqualTo((TableStatus.Active, true, TableStatus.Active, false));
     }
 
     [Test]
@@ -220,11 +221,11 @@ public sealed class CreateTableCommandTests(Backend backend)
         var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
 
         // Act
-        var descriptions = await Task.WhenAll(Enumerable.Range(0, Instances).Select(_ => Tables.SendAsync(shop.CreateTable().IfNotExists().WaitUntilActive())));
+        var results = await Task.WhenAll(Enumerable.Range(0, Instances).Select(_ => Tables.SendAsync(shop.CreateTable().IfNotExists().WaitUntilActive())));
         await sandbox.CreateTableAsync(shop, shop.CreateTable().IfNotExists());
 
-        // Assert
-        await Assert.That(descriptions.Select(static description => description.TableStatus).Distinct().Single()).IsEqualTo(TableStatus.Active);
+        // Assert (one create wins, and the others find its table)
+        await Assert.That((results.Select(static result => result.Table.TableStatus).Distinct().Single(), results.Count(static result => result.Created))).IsEqualTo((TableStatus.Active, 1));
     }
 
     [Test]
@@ -256,6 +257,44 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Assert
         await Assert.That(description.GlobalSecondaryIndexes.Select(static index => index.IndexStatus).Distinct().Single()).IsEqualTo(IndexStatus.Active);
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnATableWithoutADeclaredIndex_FailsWithinSecondsNamingIt()
+    {
+        // Arrange (an old table that no wait gives the index, so the wait ends long before its five minutes)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+        var started = Stopwatch.GetTimestamp();
+
+        // Act
+        var failure = await Items.FailureOfAsync<TableNotActiveException>(async () => await Tables.SendAsync(shop.CreateTable().Including<Ticket>().IfNotExists().WaitUntilActive()));
+        var elapsed = Stopwatch.GetElapsedTime(started);
+
+        // Assert
+        await Assert.That((failure.PendingIndex, failure.LastStatus, elapsed < TimeSpan.FromMinutes(1))).IsEqualTo(((string?)"ByDesk", (TableStatus?)TableStatus.Active, true));
+    }
+
+    [Test]
+    [NotInParallel] // DynamoDB Local answers calls around a new index with InternalFailure while other tables change.
+    public async Task SendAsync_IfNotExistsAfterUpdateTableAddedTheIndex_WaitsForItAndCreatesNothing()
+    {
+        // Arrange (the recipe of the README: the index goes in through UpdateTable, and the command that follows waits for it)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
+        await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
+        var command = shop.CreateTable().Including<Ticket>();
+        var declared = command.ToRequest();
+        var added = declared.GlobalSecondaryIndexes!.Single();
+        var keys = declared.AttributeDefinitions.Where(attribute => added.KeySchema.Any(key => key.AttributeName == attribute.AttributeName)).ToList();
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = shop.Name, AttributeDefinitions = keys, GlobalSecondaryIndexUpdates = [new GlobalSecondaryIndexUpdate { Create = added }] });
+        var result = await Tables.SendAsync(command.IfNotExists().WaitUntilActive(TimeSpan.FromMinutes(5)));
+
+        // Assert
+        await Assert.That((result.Created, result.Table.GlobalSecondaryIndexes.Single().IndexStatus)).IsEqualTo((false, IndexStatus.Active));
     }
 
     [Test]
@@ -297,11 +336,12 @@ public sealed class CreateTableCommandTests(Backend backend)
         var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
 
         // Act
-        var description = await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
+        var result = await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
         var timeToLive = await DescribeTimeToLiveAsync(sandbox, shop);
 
         // Assert
-        await Assert.That((description.TableStatus, timeToLive!.TimeToLiveStatus is TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling, timeToLive.AttributeName)).IsEqualTo((TableStatus.Active, true, (string?)"expires"));
+        await Assert.That((result.Table.TableStatus, result.Created, result.TimeToLiveEnabled, timeToLive!.TimeToLiveStatus is TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling, timeToLive.AttributeName))
+            .IsEqualTo((TableStatus.Active, true, true, true, (string?)"expires"));
     }
 
     [Test]
@@ -314,10 +354,10 @@ public sealed class CreateTableCommandTests(Backend backend)
         var name = new Attr("expires");
 
         // Act
-        await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive(name));
+        var result = await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive(name));
 
         // Assert
-        await Assert.That((await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName).IsEqualTo("expires");
+        await Assert.That(((await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName, result.Created, result.TimeToLiveEnabled)).IsEqualTo(((string?)"expires", false, true));
     }
 
     [Test]
@@ -331,10 +371,10 @@ public sealed class CreateTableCommandTests(Backend backend)
         using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
 
         // Act
-        await Tables.SendAsync(client.Table(shop.Name, "pk", "sk").CreateTable().IfNotExists().TimeToLive("expires"));
+        var result = await Tables.SendAsync(client.Table(shop.Name, "pk", "sk").CreateTable().IfNotExists().TimeToLive("expires"));
 
         // Assert
-        await Assert.That(log.Operations).IsEqualTo("DescribeTable,DescribeTimeToLive");
+        await Assert.That((log.Operations, result.TimeToLiveEnabled)).IsEqualTo(("DescribeTable,DescribeTimeToLive", false));
     }
 
     [Test]

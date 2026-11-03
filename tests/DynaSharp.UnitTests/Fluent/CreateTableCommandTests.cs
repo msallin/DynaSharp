@@ -15,6 +15,7 @@ public sealed class CreateTableCommandTests
     private const string Deleting = """{"Table":{"TableName":"Shop","TableStatus":"DELETING"}}""";
     private const string Disabled = """{"TimeToLiveDescription":{"TimeToLiveStatus":"DISABLED"}}""";
     private const string Updated = """{"TimeToLiveSpecification":{"Enabled":true,"AttributeName":"expires"}}""";
+    private const string AllOfTheOrderIndexes = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"ACTIVE"},{"IndexName":"ByTracking","IndexStatus":"ACTIVE"}]}}""";
 
     private static readonly TimeSpan Forever = TimeSpan.FromDays(30);
 
@@ -476,7 +477,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Creating, 1));
@@ -506,10 +507,90 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable();
+        var result = await client.Table("Shop", "pk").CreateTable();
 
         // Assert
-        await Assert.That((description.TableName, handler.Requests.Single().Operation)).IsEqualTo(("Shop", "CreateTable"));
+        await Assert.That((result.Table.TableName, result.Created, handler.Requests.Single().Operation)).IsEqualTo(("Shop", true, "CreateTable"));
+    }
+
+    [Test]
+    public async Task SendAsync_NewTable_SaysItCreatedItAndTurnedNoTimeToLiveOn()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Created));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().SendAsync();
+
+        // Assert
+        await Assert.That((result.Created, result.TimeToLiveEnabled)).IsEqualTo((true, false));
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndTheFirstLookFindsTheTable_SaysItCreatedNothing()
+    {
+        // Arrange (what a program that creates its table at every start sees from the second start on)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That((result.Created, result.Table.TableStatus)).IsEqualTo((false, TableStatus.Active));
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndAnotherProcessCreatedTheTableFirst_SaysItCreatedNothing()
+    {
+        // Arrange (two instances start together: the first look of this one finds nothing, and its create loses)
+        using var handler = new StubHandler();
+        handler.Enqueue(NotFound());
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table already exists."));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That(result.Created).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndNoTable_SaysItCreatedIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(NotFound());
+        handler.Enqueue(StubResponse.Json(Created));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That(result.Created).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_RetryOfACreateWhoseResponseWasLost_SaysItCreatedNothing()
+    {
+        // Arrange (the first attempt created the table, and the retry cannot tell it from one of another process, as the docs say)
+        using var handler = new StubHandler();
+        handler.Enqueue(NotFound());
+        handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Lost.", System.Net.HttpStatusCode.InternalServerError));
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table already exists."));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), maxAttempts: 2, random: new FixedRandom(0));
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That(result.Created).IsFalse();
     }
 
     [Test]
@@ -528,7 +609,7 @@ public sealed class CreateTableCommandTests
         var delays = await AdvanceThroughDelaysAsync(waiting, time, Forever);
 
         // Assert
-        await Assert.That(((await waiting).TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)), delays.Single())).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable,DescribeTable", TimeSpan.FromMilliseconds(100)));
+        await Assert.That(((await waiting).Table.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)), delays.Single())).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable,DescribeTable", TimeSpan.FromMilliseconds(100)));
     }
 
     [Test]
@@ -545,7 +626,7 @@ public sealed class CreateTableCommandTests
         // Act
         var waiting = client.Table("Shop", "pk").CreateTable().WaitUntilActive().SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
-        var description = await waiting;
+        var description = (await waiting).Table;
 
         // Assert
         await Assert.That((description.GlobalSecondaryIndexes.Single().IndexStatus, handler.Requests.Count)).IsEqualTo((DynaSharp.Requests.IndexStatus.Active, 3));
@@ -582,7 +663,7 @@ public sealed class CreateTableCommandTests
         // Act
         var waiting = client.Table<SchemaOrder>("Shop").CreateTable().WaitUntilActive().SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
-        var description = await waiting;
+        var description = (await waiting).Table;
 
         // Assert
         await Assert.That((description.GlobalSecondaryIndexes.Count, handler.Requests.Count)).IsEqualTo((2, 3));
@@ -672,7 +753,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler, new ManualTimeProvider());
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().WaitUntilActive(TimeSpan.Zero).SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().WaitUntilActive(TimeSpan.Zero).SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 2));
@@ -717,7 +798,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, handler.Requests.Single().Operation, handler.Requests.Single().BodyText)).IsEqualTo((TableStatus.Active, "DescribeTable", """{"TableName":"Shop"}"""));
@@ -734,7 +815,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)), handler.Requests[2].BodyText))
@@ -750,7 +831,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableName, description.TableStatus, handler.Requests.Count)).IsEqualTo(("Shop", TableStatus.Unknown, 1));
@@ -781,7 +862,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)))).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable"));
@@ -797,7 +878,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)))).IsEqualTo((TableStatus.Creating, "DescribeTable,CreateTable"));
@@ -846,7 +927,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(sending, time, Forever);
 
         // Assert
-        await Assert.That(((await sending).TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation))))
+        await Assert.That(((await sending).Table.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation))))
             .IsEqualTo((wait ? TableStatus.Active : TableStatus.Creating, wait ? "DescribeTable,CreateTable,DescribeTable,CreateTable,DescribeTable" : "DescribeTable,CreateTable,DescribeTable,CreateTable"));
     }
 
@@ -877,7 +958,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(sending, time, Forever);
 
         // Assert
-        await Assert.That(((await sending).TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, wait ? 8 : 7));
+        await Assert.That(((await sending).Table.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, wait ? 8 : 7));
     }
 
     [Test]
@@ -929,7 +1010,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That(description.TableStatus).IsEqualTo(TableStatus.Creating);
@@ -951,7 +1032,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
 
         // Assert
-        await Assert.That(((await waiting).TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)))).IsEqualTo((TableStatus.Active, "DescribeTable,DescribeTable,DescribeTable"));
+        await Assert.That(((await waiting).Table.TableStatus, string.Join(",", handler.Requests.Select(static request => request.Operation)))).IsEqualTo((TableStatus.Active, "DescribeTable,DescribeTable,DescribeTable"));
     }
 
     [Test]
@@ -1000,7 +1081,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(waiting, time, Forever);
 
         // Assert
-        await Assert.That(((await waiting).GlobalSecondaryIndexes.Single().IndexStatus, handler.Requests.Count)).IsEqualTo((DynaSharp.Requests.IndexStatus.Active, 3));
+        await Assert.That(((await waiting).Table.GlobalSecondaryIndexes.Single().IndexStatus, handler.Requests.Count)).IsEqualTo((DynaSharp.Requests.IndexStatus.Active, 3));
     }
 
     [Test]
@@ -1016,6 +1097,137 @@ public sealed class CreateTableCommandTests
 
         // Assert
         await Assert.That((failure.PendingIndex, handler.Requests.Any(static request => request.Operation == "CreateTable"))).IsEqualTo(((string?)"GSI1", false));
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnATableThatNeverListsADeclaredIndex_FailsAtTheFifthLookNamingIt()
+    {
+        // Arrange (an old table, which no wait gives the index: the five looks of 1.5 seconds and not the five minutes of the timeout)
+        var time = new ManualTimeProvider();
+        var started = time.GetUtcNow();
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.PendingIndex, failure.LastStatus, handler.Requests.Count, time.GetUtcNow() - started))
+            .IsEqualTo(((string?)"GSI1", (TableStatus?)TableStatus.Active, 1 + 5, TimeSpan.FromMilliseconds(1500)));
+    }
+
+    [Test]
+    public async Task SendAsync_DeclaredIndexNeverListed_SaysSoAndWhatAddsIt()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.Message)
+            .IsEqualTo("The table Shop was Active, and the index GSI1 was not listed at 5 looks in a row. CreateTable adds no index to a table that exists: add it with UpdateTable first.");
+    }
+
+    [Test]
+    public async Task SendAsync_DeclaredIndexListedAtTheFifthLook_Returns()
+    {
+        // Arrange (DescribeTable lags behind an UpdateTable that added the index, which the recipe sends before this command)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        for (var look = 0; look < 4; look++)
+        {
+            handler.Enqueue(StubResponse.Json(Active));
+        }
+
+        handler.Enqueue(StubResponse.Json(AllOfTheOrderIndexes));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+
+        // Assert
+        await Assert.That(((await sending).Table.GlobalSecondaryIndexes.Count, handler.Requests.Count)).IsEqualTo((2, 6));
+    }
+
+    [Test]
+    public async Task SendAsync_LookThatListsEveryDeclaredIndex_StartsTheCountOver()
+    {
+        // Arrange (a look can reach a replica that lags, so only five looks in a row without the index end the wait)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        for (var look = 0; look < 4; look++)
+        {
+            handler.Enqueue(StubResponse.Json(Active));
+        }
+
+        handler.Enqueue(StubResponse.Json("""{"Table":{"TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"CREATING"},{"IndexName":"ByTracking","IndexStatus":"CREATING"}]}}"""));
+        for (var look = 0; look < 4; look++)
+        {
+            handler.Enqueue(StubResponse.Json(Active));
+        }
+
+        handler.Enqueue(StubResponse.Json(AllOfTheOrderIndexes));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+
+        // Assert
+        await Assert.That(((await sending).Table.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 11));
+    }
+
+    [Test]
+    public async Task SendAsync_LookThatDoesNotFindTheTable_NeitherCountsNorStartsOver()
+    {
+        // Arrange (such a look says nothing about the index)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        for (var look = 0; look < 4; look++)
+        {
+            handler.Enqueue(StubResponse.Json(Active));
+        }
+
+        handler.Enqueue(NotFound());
+        handler.DefaultResponse = StubResponse.Json(Active);
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.PendingIndex, handler.Requests.Count)).IsEqualTo(((string?)"GSI1", 1 + 6));
+    }
+
+    [Test]
+    public async Task SendAsync_IndexBackfillingAndAnotherNeverListed_FailsNamingTheOneNotListed()
+    {
+        // Arrange (a backfill can take hours, and the index that is not there does not wait for it)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableStatus":"ACTIVE","GlobalSecondaryIndexes":[{"IndexName":"GSI1","IndexStatus":"CREATING"}]}}"""));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().WaitUntilActive(TimeSpan.FromHours(2)).SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.PendingIndex, handler.Requests.Count)).IsEqualTo(((string?)"ByTracking", 6));
     }
 
     [Test]
@@ -1047,7 +1259,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler, new ManualTimeProvider(), maxAttempts: 2, random: new FixedRandom(0));
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, handler.Requests.Count)).IsEqualTo((TableStatus.Active, 4));
@@ -1170,7 +1382,7 @@ public sealed class CreateTableCommandTests
         // Act
         var sending = client.Table("Shop", "pk").CreateTable().TimeToLive("expires").SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var description = await sending;
+        var description = (await sending).Table;
 
         // Assert
         await Assert.That((description.TableStatus, Operations(handler), handler.Requests[3].BodyText, handler.Requests[4].BodyText)).IsEqualTo((
@@ -1234,7 +1446,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler, new ManualTimeProvider());
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, Operations(handler))).IsEqualTo((TableStatus.Active, "DescribeTable,DescribeTimeToLive,UpdateTimeToLive,DescribeTimeToLive"));
@@ -1276,6 +1488,96 @@ public sealed class CreateTableCommandTests
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnANewTable_SaysItCreatedTheTableAndTurnedTimeToLiveOn()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json(Updated));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().TimeToLive("expires").SendAsync();
+
+        // Assert
+        await Assert.That((result.Created, result.TimeToLiveEnabled)).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnAFoundTableThatLacksIt_SaysItTurnedItOnAndCreatedNothing()
+    {
+        // Arrange (an older table, which the program now gives time to live)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json(Updated));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
+
+        // Assert
+        await Assert.That((result.Created, result.TimeToLiveEnabled)).IsEqualTo((false, true));
+    }
+
+    [Test]
+    [Arguments("ENABLED")]
+    [Arguments("ENABLING")]
+    public async Task SendAsync_TimeToLiveOnAlready_SaysItTurnedNothingOn(string status)
+    {
+        // Arrange (what a program that creates its table at every start sees from the second start on)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(TimeToLive(status, "expires")));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
+
+        // Assert
+        await Assert.That(result.TimeToLiveEnabled).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveThatAnotherInstanceTurnedOnFirst_SaysThisCallDidNot()
+    {
+        // Arrange (only the instance whose update DynamoDB accepted turned it on)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.DynamoDbError("ValidationException", "TimeToLive is already enabled"));
+        handler.Enqueue(StubResponse.Json(TimeToLive("ENABLED", "expires")));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
+
+        // Assert
+        await Assert.That(result.TimeToLiveEnabled).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveOnAFoundTableThatNeverListsADeclaredIndex_FailsAtTheFifthLookAndLeavesItOff()
+    {
+        // Arrange (the implied wait of five minutes ends early the way a wait that was asked for does)
+        var time = new ManualTimeProvider();
+        var started = time.GetUtcNow();
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().TimeToLive("expires").SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.PendingIndex, time.GetUtcNow() - started, Operations(handler).Contains("TimeToLive", StringComparison.Ordinal)))
+            .IsEqualTo(((string?)"GSI1", TimeSpan.FromMilliseconds(1500), false));
     }
 
     [Test]
@@ -1353,7 +1655,7 @@ public sealed class CreateTableCommandTests
         await AdvanceThroughDelaysAsync(sending, time, Forever);
 
         // Assert
-        await Assert.That(((await sending).TableStatus, Operations(handler))).IsEqualTo((TableStatus.Active, "DescribeTable,DescribeTable,DescribeTable,DescribeTimeToLive"));
+        await Assert.That(((await sending).Table.TableStatus, Operations(handler))).IsEqualTo((TableStatus.Active, "DescribeTable,DescribeTable,DescribeTable,DescribeTimeToLive"));
     }
 
     [Test]
@@ -1382,7 +1684,7 @@ public sealed class CreateTableCommandTests
         using var client = TestClient.Create(handler, new ManualTimeProvider());
 
         // Act
-        var description = await client.Table("Shop", "pk").CreateTable().TimeToLive("expires").SendAsync();
+        var description = (await client.Table("Shop", "pk").CreateTable().TimeToLive("expires").SendAsync()).Table;
 
         // Assert
         await Assert.That((description.TableStatus, Operations(handler))).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable,DescribeTimeToLive"));

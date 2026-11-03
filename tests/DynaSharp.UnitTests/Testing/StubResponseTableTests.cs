@@ -413,10 +413,10 @@ public sealed class StubResponseTableTests
         stub.Enqueue(StubResponse.TableCreated("Orders", TableStatus.Active));
 
         // Act
-        var table = await client.Table<SchemaOrder>("Orders").CreateTable().SendAsync();
+        var result = await client.Table<SchemaOrder>("Orders").CreateTable().SendAsync();
 
         // Assert
-        await Assert.That(table.TableStatus).IsEqualTo(TableStatus.Active);
+        await Assert.That(result.Table.TableStatus).IsEqualTo(TableStatus.Active);
     }
 
     [Test]

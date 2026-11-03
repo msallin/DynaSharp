@@ -8,6 +8,12 @@ namespace DynaSharp.Fluent;
 /// <summary>The calls about a table that a user of a table makes, without going to the request API. They run the operations of that API, so they have its spans and metrics.</summary>
 internal static class TableAdministration
 {
+    /// <summary>
+    /// How many looks bear with a description that does not show yet what a call just did, because <c>DescribeTable</c> is eventually consistent. With the waits of <see cref="FirstDelay"/> in between, doubling,
+    /// they span 1.5 seconds.
+    /// </summary>
+    public const int CatchUpLooks = 5;
+
     /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes, and only the largest restores and the backfill of an index on a table with much data take longer: those know what to pass.</summary>
     public static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
 
@@ -54,14 +60,14 @@ internal static class TableAdministration
     /// <returns><see langword="true"/> if the table and all its indexes are active, and the declared ones are among them.</returns>
     public static bool IsActive(TableDescription description, IReadOnlyList<string> declared) => description.TableStatus == TableStatus.Active && FindPending(description, declared) is null;
 
-    /// <summary>Waits for a table as its entity declares it. See <see cref="WaitUntilActiveAsync(TableModel, IReadOnlyList{string}, TimeSpan, CancellationToken)"/>.</summary>
+    /// <summary>Waits for a table as its entity declares it. See <see cref="WaitUntilActiveAsync(TableModel, IReadOnlyList{string}, TimeSpan, bool, CancellationToken)"/>.</summary>
     /// <param name="table">The table.</param>
     /// <param name="timeout">How long to wait.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
     /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
     public static ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken) =>
-        WaitUntilActiveAsync(table, GlobalIndexNames(table.Entity?.Indexes ?? []), timeout, cancellationToken);
+        WaitUntilActiveAsync(table, GlobalIndexNames(table.Entity?.Indexes ?? []), timeout, unlistedIsFinal: false, cancellationToken);
 
     /// <summary>
     /// Polls a table on the clock of the client until it and all its global secondary indexes are active. A table reads <c>ACTIVE</c> while an index backfills, so its status alone says too little, and
@@ -70,19 +76,27 @@ internal static class TableAdministration
     /// <param name="table">The table.</param>
     /// <param name="declared">The global secondary indexes that have to be listed.</param>
     /// <param name="timeout">How long to wait.</param>
+    /// <param name="unlistedIsFinal">
+    /// <see langword="true"/> if every <c>UpdateTable</c> that adds a declared index was sent before the wait, so that an index the table has not listed at <see cref="CatchUpLooks"/> looks in a row will not turn up,
+    /// and the wait ends there instead of at the timeout. A caller that cannot know, such as the wait of a <see cref="Table{T}"/>, passes <see langword="false"/>.
+    /// </param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
-    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
-    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, IReadOnlyList<string> declared, TimeSpan timeout, CancellationToken cancellationToken)
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, or, with <paramref name="unlistedIsFinal"/>, a declared index was not listed.</exception>
+    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, IReadOnlyList<string> declared, TimeSpan timeout, bool unlistedIsFinal, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
         var clock = table.Core.TimeProvider;
         var start = clock.GetTimestamp();
         var delay = FirstDelay;
+
+        // Only looks that find the table count, and one that lists every declared index starts over, because a look can still reach a replica that lags behind.
+        var unlistedLooks = 0;
         while (true)
         {
             TableStatus? status = null;
             PendingIndex? pending = null;
+            string? unlisted = null;
             ResourceNotFoundException? missing = null;
             try
             {
@@ -94,11 +108,22 @@ internal static class TableAdministration
                 }
 
                 status = description.TableStatus;
+                unlisted = unlistedIsFinal ? FindUnlisted(description, declared) : null;
+                unlistedLooks = unlisted is null ? 0 : unlistedLooks + 1;
             }
             catch (ResourceNotFoundException exception)
             {
                 // DescribeTable is eventually consistent, so right after CreateTable the table may not be there yet.
                 missing = exception;
+            }
+
+            if (unlistedLooks == CatchUpLooks)
+            {
+                throw new TableNotActiveException(
+                    $"The table {table.Name} was {status}, and the index {unlisted} was not listed at {CatchUpLooks} looks in a row. CreateTable adds no index to a table that exists: add it with UpdateTable first.",
+                    table.Name,
+                    status,
+                    unlisted);
             }
 
             var left = timeout - clock.GetElapsedTime(start);
@@ -116,13 +141,13 @@ internal static class TableAdministration
     /// <param name="table">The table.</param>
     /// <param name="attributeName">The attribute.</param>
     /// <param name="cancellationToken">Cancels the calls.</param>
-    /// <returns>A task that completes when time to live is on, or turning on.</returns>
+    /// <returns><see langword="true"/> if this call turned time to live on; <see langword="false"/> if it was on, or turning on, already, also when another instance got there first.</returns>
     /// <exception cref="ValidationException">DynamoDB refused, and that was not because another instance got there first.</exception>
-    public static async ValueTask EnsureTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
+    public static async ValueTask<bool> EnsureTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
     {
         if (await TimeToLiveIsOnAsync(table, attributeName, cancellationToken).ConfigureAwait(false))
         {
-            return;
+            return false;
         }
 
         ValidationException rejected;
@@ -130,7 +155,7 @@ internal static class TableAdministration
         {
             var request = new UpdateTimeToLiveRequest { TableName = table.Name, TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = attributeName } };
             await table.Core.ExecuteAsync<UpdateTimeToLiveOperation, UpdateTimeToLiveRequest, UpdateTimeToLiveResponse>(request, cancellationToken).ConfigureAwait(false);
-            return;
+            return true;
         }
         catch (ValidationException exception)
         {
@@ -142,6 +167,8 @@ internal static class TableAdministration
         {
             ExceptionDispatchInfo.Throw(rejected);
         }
+
+        return false;
     }
 
     private static async ValueTask<bool> TimeToLiveIsOnAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
@@ -163,11 +190,16 @@ internal static class TableAdministration
             }
         }
 
+        return FindUnlisted(description, declared) is { } unlisted ? new PendingIndex(unlisted, "was not listed") : null;
+    }
+
+    private static string? FindUnlisted(TableDescription description, IReadOnlyList<string> declared)
+    {
         foreach (var name in declared)
         {
             if (!description.GlobalSecondaryIndexes.Any(index => index.IndexName == name))
             {
-                return new PendingIndex(name, "was not listed");
+                return name;
             }
         }
 

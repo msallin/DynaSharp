@@ -74,3 +74,16 @@ internal sealed partial record Reading
 
     public required int Value { get; init; }
 }
+
+/// <summary>An entity of one global index, which a table that exists gets through UpdateTable.</summary>
+[DynamoDbEntity]
+[Discriminator("TICKET")]
+[PartitionKey("TICKET#{Id}")]
+[SortKey("DETAILS")]
+[GlobalIndexKey("ByDesk", PartitionKey = "DESK#{Desk}")]
+internal sealed partial record Ticket
+{
+    public required string Id { get; init; }
+
+    public required string Desk { get; init; }
+}

@@ -276,6 +276,29 @@ public sealed class TableAdministrationTests
     }
 
     [Test]
+    public async Task WaitUntilActiveAsync_DeclaredIndexNotListedForMoreThanFiveLooks_KeepsWaiting()
+    {
+        // Arrange (unlike CreateTable, a wait of a table cannot know whether an UpdateTable that adds the index is still to come, so it does not end early)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        for (var look = 0; look < 8; look++)
+        {
+            handler.Enqueue(StubResponse.Json(OneOfTheOrderIndexes));
+        }
+
+        handler.Enqueue(StubResponse.Json(AllOfTheOrderIndexes));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var waiting = client.Table<SchemaOrder>("Shop").WaitUntilActiveAsync().AsTask();
+        await AdvanceThroughDelaysAsync(waiting, time, Forever);
+        var description = await waiting;
+
+        // Assert
+        await Assert.That((description.GlobalSecondaryIndexes.Count, handler.Requests.Count)).IsEqualTo((2, 9));
+    }
+
+    [Test]
     public async Task WaitUntilActiveAsync_DeclaredIndexNotListedAtTheEnd_NamesItAndSaysSo()
     {
         // Arrange
