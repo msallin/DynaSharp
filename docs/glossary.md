@@ -28,7 +28,7 @@ A second key on other attributes, so the same items can be found another way, su
 
 ## Local secondary index (LSI)
 
-Another sort key for the same partition key, such as the orders of a customer by total. It can only be created with the table, and it allows strongly consistent reads. `[LocalIndexKey]` declares one, and it is read like a global index, see [Indexes](queries.md#indexes).
+Another sort key for the same partition key, such as the orders of a customer by total. It can only be created with the table, and it allows strongly consistent reads. `[LocalIndexKey]` declares one, see [Local indexes](entities.md#local-indexes). It is read like a global index, through `Index(...)` with the partition key of the table, and `Consistent()` works on it, see [Indexes](queries.md#indexes).
 
 ## Sparse index
 

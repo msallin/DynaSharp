@@ -14,7 +14,7 @@ var carts = shop.Of<Cart>();
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
 
-`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
+`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes. `DYNA221` and `DYNA224`, which check a query against the keys of what it reads, know the index only from an `Index(...)` in the chain of the query, so they pass over a query of an index kept in a field or a variable, such as `byStatus`: see [Commands](diagnostics.md#commands) on the diagnostics page.
 
 ## Creating a table
 
@@ -42,7 +42,12 @@ var invoices = client.Table<Invoice>("Invoices");
 await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 ```
 
-`IfNotExists()` describes first, and a table it finds ends the create there. So a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable` for a table that exists, and no failed call shows in CloudTrail; creating the table takes both. It compares no schemas, and it changes nothing about a table it finds unless `TimeToLive` is on the chain, which goes on and takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`. `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it fails within seconds with a `TableNotActiveException` that names the index. `WaitUntilActive(timeout)` bounds the wait and nothing else, not the calls before it and not `TimeToLive` after it. A `CancellationToken` on the same timeout races it, and when the token wins the caller gets a bare `TaskCanceledException` or `OperationCanceledException`, which names no table and no index, so give the wait less time.
+`IfNotExists()` describes the table first, and a table it finds ends the create there.
+
+- **Permissions.** Over a table that exists, a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable`, and no failed call shows in CloudTrail. Creating the table takes both.
+- **Changes.** It compares no schemas, and it changes nothing about a table it finds unless `TimeToLive` is on the chain, which goes on and takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`.
+- **The wait.** `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it fails within seconds with a `TableNotActiveException` that names the index. [Adding an index](#adding-an-index) says how to add it.
+- **Timeouts.** `WaitUntilActive(timeout)` bounds the wait and nothing else: not the calls before it, and not `TimeToLive` after it. A `CancellationToken` on the same timeout races it, and when the token wins the caller gets a bare `TaskCanceledException` or `OperationCanceledException`, which names no table and no index. So give the wait less time than the token.
 
 ## Adding an index
 

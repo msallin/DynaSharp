@@ -52,6 +52,9 @@ const string PageFields = """
         private static TimeProvider clock = null!;
         private static string tokenFile = "";
         private static string roleArn = "";
+        private static DynamoDbStreamsClient streams = null!;
+        private static string streamArn = "";
+        private static string shardId = "";
 
     """;
 
@@ -89,6 +92,7 @@ File.WriteAllText(project, """
       </PropertyGroup>
       <ItemGroup>
         <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />
+        <Compile Include="../../samples/DynaSharp.Sample/OrderFeed.cs" />
         <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
