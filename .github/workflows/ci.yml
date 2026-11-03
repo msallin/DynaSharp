@@ -52,11 +52,9 @@ jobs:
       # Only what this job uses. The other projects of the solution compile in the jobs below: the integration tests, the sample and the benchmarks in integration, the AOT smoke test in aot.
       - run: dotnet build tests/DynaSharp.UnitTests -c Release --no-restore
 
-      # The pages for users promise examples that compile, and nothing else builds them.
-      - name: README examples compile
-        run: |
-          dotnet run build/ReadmeCheck.cs -- README.md
-          dotnet run build/ReadmeCheck.cs -- src/DynaSharp.Testing/README.md
+      # The pages for users promise examples that compile, and nothing else builds them. One compilation takes all of them.
+      - name: README and docs examples compile
+        run: dotnet run build/ReadmeCheck.cs -- README.md src/DynaSharp.Testing/README.md docs/*.md
 
       # The solution also holds the integration tests, which need Docker and run in their own job.
       - name: Unit tests with coverage

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src/DynaSharp.Testing/bin/Release/net11.0",
+          "files": ["DynaSharp.dll", "DynaSharp.Testing.dll"]
+        }
+      ],
+      "dest": "api",
+      "enumSortOrder": "declaringOrder"
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": ["**/*.{md,yml}"], "exclude": ["obj/**"] }
+    ],
+    "output": "../artifacts/site",
+    "template": ["default", "modern"],
+    "xref": ["https://learn.microsoft.com/en-us/dotnet/.xrefmap.json"],
+    "sitemap": {
+      "baseUrl": "https://msallin.github.io/DynaSharp/"
+    },
+    "globalMetadata": {
+      "_appName": "DynaSharp",
+      "_appTitle": "DynaSharp",
+      "_appFooter": "DynaSharp is MIT licensed. <a href=\"https://github.com/msallin/DynaSharp\">Source on GitHub</a>.",
+      "_enableSearch": true,
+      "_disableContribution": true
+    }
+  }
+}

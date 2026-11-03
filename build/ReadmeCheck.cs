@@ -1,5 +1,6 @@
-// Compiles the C# blocks of a README of this repository against the projects, and fails on an error, which names the line of the README.
-// Usage: dotnet run build/ReadmeCheck.cs -- <README.md>
+// Compiles the C# blocks of pages of this repository, the READMEs and docs/*.md, against the projects, and fails on an error, which names the
+// page and its line. All pages given go into one compilation, so a type or an [assembly: ...] attribute is declared on one page only.
+// Usage: dotnet run build/ReadmeCheck.cs -- <page.md> [<page.md> ...]
 //
 // A block goes in as it stands on the page, and this adds only what the page leaves out. The types of the page are those of the sample, and the
 // names it introduces as it goes, such as client, orders and ct, are the fields of the class Page below. That leaves four kinds of block:
@@ -25,6 +26,7 @@ const string SharedUsings = """
     using DynaSharp.Sample;
     using DynaSharp.Serialization;
     using DynaSharp.Testing;
+    using static DynaSharp.Expr;
 
     """;
 const string PageFields = """
@@ -52,10 +54,9 @@ const string PageFields = """
 
     """;
 
-var readme = Path.GetFullPath(args[0]);
-var root = RepositoryOf(readme);
+var readmes = Array.ConvertAll(args, Path.GetFullPath);
+var root = RepositoryOf(readmes[0]);
 var output = Path.Combine(root, "artifacts", "readme-check");
-var source = Path.GetRelativePath(output, readme).Replace('\\', '/');
 Directory.CreateDirectory(output);
 foreach (var stale in Directory.GetFiles(output, "*.cs"))
 {
@@ -64,22 +65,68 @@ foreach (var stale in Directory.GetFiles(output, "*.cs"))
 
 var pageUsings = new StringBuilder();
 var pageMethods = new StringBuilder();
-var page = File.ReadAllLines(readme);
 var blocks = 0;
-for (var index = 0; index < page.Length; index++)
+foreach (var readme in readmes)
 {
-    if (page[index] != Fence + "csharp")
+    AddBlocksOf(readme);
+}
+
+// Inside this namespace a type of the sample wins over one of a block, which is how Order stays the sample's while Invoice comes from its block.
+Write("Page", $"{SharedUsings}\nnamespace DynaSharp.Sample;\n\n{pageUsings}\ninternal static class Page\n{{\n{PageFields}\n{pageMethods}}}\n");
+
+// Inside the repository the settings of its projects would apply, and they are for code that this project does not hold: every warning fatal, a lock file, central versions.
+File.WriteAllText(Path.Combine(output, "Directory.Build.props"), "<Project />\n");
+File.WriteAllText(Path.Combine(output, "Directory.Packages.props"), "<Project />\n");
+var project = Path.Combine(output, "ReadmeCheck.csproj");
+File.WriteAllText(project, """
+    <Project Sdk="Microsoft.NET.Sdk">
+      <PropertyGroup>
+        <TargetFramework>net11.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <DebugType>none</DebugType>
+      </PropertyGroup>
+      <ItemGroup>
+        <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />
+        <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+        <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+        <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+      </ItemGroup>
+    </Project>
+
+    """);
+
+Console.WriteLine($"Compiling {blocks} blocks of {readmes.Length} page(s)");
+using var build = Process.Start("dotnet", ["build", project, "-c", "Release", "--nologo", "-clp:ErrorsOnly"]);
+build.WaitForExit();
+return build.ExitCode;
+
+void AddBlocksOf(string readme)
+{
+    var source = Path.GetRelativePath(output, readme).Replace('\\', '/');
+
+    // The page and the line make the name of a block: docs/tables.md line 12 is docs_tables_md_12.
+    var prefix = string.Concat(Path.GetRelativePath(root, readme).Select(static c => char.IsAsciiLetterOrDigit(c) ? c : '_'));
+    var page = File.ReadAllLines(readme);
+    for (var index = 0; index < page.Length; index++)
     {
-        continue;
+        if (page[index] != Fence + "csharp")
+        {
+            continue;
+        }
+
+        var end = Array.IndexOf(page, Fence, index);
+        var block = page[(index + 1)..end];
+        var line = index + 2;
+        var id = string.Create(CultureInfo.InvariantCulture, $"{prefix}_{line}");
+        blocks++;
+        index = end;
+        AddBlock(block, line, id, source);
     }
+}
 
-    var end = Array.IndexOf(page, Fence, index);
-    var block = page[(index + 1)..end];
-    var line = index + 2;
-    var id = line.ToString(CultureInfo.InvariantCulture);
-    blocks++;
-    index = end;
-
+void AddBlock(string[] block, int line, string id, string source)
+{
     // The using lines of a block come first, and the rest keeps its line numbers in the README.
     var first = Array.FindLastIndex(block, IsUsing) + 1;
     var usings = string.Join('\n', block[..first]);
@@ -120,36 +167,6 @@ for (var index = 0; index < page.Length; index++)
         pageMethods.Append(CultureInfo.InvariantCulture, $"    public static async Task Block{id}()\n    {{\n{body}    }}\n\n");
     }
 }
-
-// Inside this namespace a type of the sample wins over one of a block, which is how Order stays the sample's while Invoice comes from its block.
-Write("Page", $"{SharedUsings}\nnamespace DynaSharp.Sample;\n\n{pageUsings}\ninternal static class Page\n{{\n{PageFields}\n{pageMethods}}}\n");
-
-// Inside the repository the settings of its projects would apply, and they are for code that this project does not hold: every warning fatal, a lock file, central versions.
-File.WriteAllText(Path.Combine(output, "Directory.Build.props"), "<Project />\n");
-File.WriteAllText(Path.Combine(output, "Directory.Packages.props"), "<Project />\n");
-var project = Path.Combine(output, "ReadmeCheck.csproj");
-File.WriteAllText(project, """
-    <Project Sdk="Microsoft.NET.Sdk">
-      <PropertyGroup>
-        <TargetFramework>net11.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <DebugType>none</DebugType>
-      </PropertyGroup>
-      <ItemGroup>
-        <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />
-        <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
-        <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
-        <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-      </ItemGroup>
-    </Project>
-
-    """);
-
-Console.WriteLine($"Compiling {blocks} blocks of {readme}");
-using var build = Process.Start("dotnet", ["build", project, "-c", "Release", "--nologo", "-clp:ErrorsOnly"]);
-build.WaitForExit();
-return build.ExitCode;
 
 void Write(string name, string text) => File.WriteAllText(Path.Combine(output, $"Block{name}.cs"), text);
 

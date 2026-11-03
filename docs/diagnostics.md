@@ -1,4 +1,4 @@
-# DynaSharp - diagnostics
+# Diagnostics
 
 What the generator and the analyzers of DynaSharp report about entities and the code that uses them, and how to fix it. The help link of every
 diagnostic in the IDE or the build output points at a section of this page, one per family of rules, so the headings here are stable: a test keeps every

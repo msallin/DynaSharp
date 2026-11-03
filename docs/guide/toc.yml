@@ -1,0 +1,36 @@
+- name: Overview
+  href: ../index.md
+- name: Guide
+  items:
+  - name: Getting started
+    href: ../getting-started.md
+  - name: Entities and keys
+    href: ../entities.md
+  - name: Reading and writing
+    href: ../commands.md
+  - name: Queries and scans
+    href: ../queries.md
+  - name: Expressions
+    href: ../expressions.md
+  - name: Transactions and batches
+    href: ../transactions.md
+  - name: Tables
+    href: ../tables.md
+  - name: Testing
+    href: ../testing.md
+- name: Moving to DynaSharp
+  items:
+  - name: Migrating
+    href: ../migrating.md
+  - name: Adopting an existing table
+    href: ../adopting.md
+- name: Reference
+  items:
+  - name: Diagnostics
+    href: ../diagnostics.md
+  - name: API levels
+    href: ../api-levels.md
+  - name: Design principles
+    href: ../design-principles.md
+  - name: Benchmarks
+    href: ../benchmarks.md

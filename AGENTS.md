@@ -7,7 +7,7 @@
 - `spec/tasks.md` is the shared blackboard: claim a task before starting it, keep its status current, record decisions and findings there.
 - `spec/history/` holds the design documents as they were written. It is not updated, and it describes designs that were dropped.
 - Specs, plans, designs and decisions go into `spec/`. Nowhere else.
-- `README.md` is the page for users: intro, getting started, examples, API levels, design principles, benchmarks. Plans and status of work stay out of it, its examples must compile, and its numbers come from a benchmark run.
+- `README.md` is the overview for users: intro, installation, a short getting started, a few examples, API levels, design principles, benchmarks. Plans and status of work stay out of it, its examples must compile, and its numbers come from a benchmark run. The full guide is in `docs/`, published with DocFX (`docs/docfx.json`, `.github/workflows/docs.yml`) at https://msallin.github.io/DynaSharp/, whose home page is the README. Its examples compile too, and a link between pages is relative (`tables.md#adding-an-index`), so that it works on the site and on GitHub. The README ships in the package, so it links to the site with absolute URLs.
 
 ## Principles
 - Keep it simple. No speculative abstractions, no duplicated logic. Hide internals: `internal` by default, public API only on purpose.
@@ -33,7 +33,8 @@
 
 ## Commands
 - `dotnet build DynaSharp.slnx` (warnings are errors, formatting included), `dotnet format whitespace DynaSharp.slnx --verify-no-changes` (which sees line endings too)
-- `dotnet run build/ReadmeCheck.cs -- README.md` (compiles the C# blocks of the README against the projects)
+- `dotnet run build/ReadmeCheck.cs -- README.md src/DynaSharp.Testing/README.md docs/*.md` (compiles the C# blocks of the pages against the projects, in one compilation)
+- `dotnet build src/DynaSharp.Testing -c Release`, then `dotnet docfx docs/docfx.json --serve` (builds the site into `artifacts/site` and serves it)
 - `dotnet test --project tests/DynaSharp.UnitTests`, `dotnet stryker`
 - `dotnet test --project tests/DynaSharp.IntegrationTests` (needs Docker; `DYNASHARP_BACKENDS` selects `dynoxide` (default), `dynamodb-local` or both, comma separated. `aws` is real DynamoDB, costs money, needs no Docker and is not part of `all`; `.github/workflows/real-aws.yml` runs it)
 - `dotnet publish tests/DynaSharp.AotSmoke -c Release -r linux-x64` (fails on any AOT/trim warning)
