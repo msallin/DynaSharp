@@ -67,7 +67,9 @@ public sealed class UlidSortKeyTests(Backend backend)
         }
 
         // Act
-        var range = SortKeyCondition.Between(Timestamp(Noon.AddSeconds(30)), Timestamp(Noon.AddSeconds(150)) + "Z");
+        // The upper bound is the first millisecond after the range: an id of the last millisecond is longer than
+        // its timestamp, so it sorts after the bare timestamp of its own millisecond and before that of the next.
+        var range = SortKeyCondition.Between(Timestamp(Noon.AddSeconds(30)), Timestamp(Noon.AddSeconds(150).AddMilliseconds(1)));
         var read = await messages.Query(ChatMessage.Keys.Pk.Of(Ann), range).ItemsAsync().ToListAsync();
 
         // Assert
