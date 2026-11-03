@@ -203,6 +203,11 @@ internal sealed class ClientCore : IDisposable
     {
         ClientLog.RegionResolved(logger, configuration.Region.Name, configuration.RegionSource);
         ClientLog.EndpointResolved(logger, configuration.Endpoint, configuration.EndpointSource);
+        if (ClientConfiguration.IsUnencryptedRemote(configuration.Endpoint))
+        {
+            ClientLog.UnencryptedEndpoint(logger, configuration.Endpoint.Host);
+        }
+
         var credentialsType = configuration.Credentials.GetType();
         ClientLog.CredentialsProviderConfigured(logger, credentialsType);
     }

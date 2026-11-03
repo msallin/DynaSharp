@@ -108,7 +108,7 @@ again, of the `ConflictKind` the call names, and `RetryPolicy.GetConflictDelay` 
 
 Telemetry is one span per request (`DynamoDB.GetItem`), `db.client.operation.duration`, `dynasharp.client.operation.retries` and `.throttles`,
 `dynasharp.client.conflict.retries` and `.exhausted`, and `dynasharp.client.consumed_capacity`, all from `OperationTelemetry`, one per client. A batch of three requests is three spans. A conflict retry has no span of its own: the
-failed calls of a run have theirs under the span of the caller, so another one would add a level and no fact, and its counters take the operation and the table from the exception. Logs exist for what no single request sees: resolved configuration,
+failed calls of a run have theirs under the span of the caller, so another one would add a level and no fact, and its counters take the operation and the table from the exception. Logs exist for what no single request sees: resolved configuration, an endpoint over plain http to a host that is not loopback (`ClientConfiguration.IsUnencryptedRemote`, once per client and once per web identity provider),
 retries given up, a corrected clock, a batch that gave up, a conflict retry that gave up, credential refresh. Neither ever carries a key or a value.
 
 The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and `RequestCall` forwards to it.
@@ -491,6 +491,6 @@ Each entry names where the reasons are. "Decisions" and "Findings" are sections 
 15. **`DYNA212` and `DYNA214` are warnings for 0.x.** Findings, maintainability review.
 16. **`src/` stays parseable by Roslyn 5.9, and the generator stays on C# 12.** Stryker compiles with that version. `AGENTS.md`, and `history/generator-design.md` section 9.
 17. **No string `switch` of 7 or more cases, and no throwing arm on a closed set.** Hidden branches break the coverage gate. Findings, entry C, and the remarks of `KeyEncoding`.
-18. **Pooled buffers are returned uncleared.** Decisions 2026-10-31.
+18. **Pooled buffers are returned uncleared.** All of them: request and response bodies, the SigV4 buffer with the session token, and the arrays of `KeyWriter`. The threat model is in-process. The same keys, items and credentials live as immutable strings on the GC heap, where nothing can clear them, and anything that can rent from the shared pool already runs inside the process and can read that heap. The runtime does not promise that zeroing managed memory removes the data either, since the GC copies objects as it compacts. Clearing would cost on every call and protect nothing. Decisions 2026-10-31.
 19. **A skew resend counts against `MaxAttempts`.** 1 must mean one request. M1b review findings, L2.
 20. **`Query` by `PartitionKey<T>` is an extension method.** An extension applies only when no member does, so no call that compiled before can change what it binds to, which `CompileGuardTests` pins. The cost is a worse error on a receiver that has no `Query` at all. `api.md` section 6.

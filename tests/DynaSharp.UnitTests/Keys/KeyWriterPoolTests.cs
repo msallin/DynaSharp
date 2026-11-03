@@ -4,7 +4,7 @@ using DynaSharp.UnitTests.Serialization;
 
 namespace DynaSharp.UnitTests.Keys;
 
-/// <summary>The pooled fallback of <see cref="KeyWriter"/>: it rents only when the stack buffer is too small and returns every array, cleared.</summary>
+/// <summary>The pooled fallback of <see cref="KeyWriter"/>: it rents only when the stack buffer is too small and returns every array.</summary>
 public sealed class KeyWriterPoolTests
 {
     private const string Name = "Name";
@@ -63,19 +63,6 @@ public sealed class KeyWriterPoolTests
 
         // Assert
         await Assert.That(text).IsEqualTo("abcdefghij00000000-0000-0000-0000-000000000000007");
-    }
-
-    [Test]
-    public async Task Write_PoolArraysAreReturnedCleared()
-    {
-        // Arrange
-        var pool = new CountingArrayPool<byte>();
-
-        // Act
-        _ = Text(pool, 2, (ref KeyWriter writer) => writer.WriteString("personal data", default, Name));
-
-        // Assert
-        await Assert.That(pool.ReturnedUncleared).IsFalse();
     }
 
     [Test]

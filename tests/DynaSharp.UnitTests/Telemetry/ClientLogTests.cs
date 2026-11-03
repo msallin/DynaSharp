@@ -179,4 +179,56 @@ public sealed class ClientLogTests
         // Assert
         await Assert.That(logs.Entries.Count).IsEqualTo(3);
     }
+
+    [Test]
+    [Arguments("http://localhost:8000")]
+    [Arguments("http://127.0.0.1:8000")]
+    [Arguments("http://[::1]:8000")]
+    public async Task Constructor_HttpOnLoopback_LogsNoWarning(string endpoint)
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        using var handler = new StubHandler();
+
+        // Act
+        using var client = TestClient.Create(handler, serviceUrl: new Uri(endpoint), loggerFactory: logs);
+
+        // Assert
+        await Assert.That(logs.Entries).IsEmpty();
+    }
+
+    [Test]
+    public async Task Constructor_HttpsOnRemoteHost_LogsNoWarning()
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        using var handler = new StubHandler();
+
+        // Act
+        using var client = TestClient.Create(handler, serviceUrl: new Uri("https://dynamodb-local:8000"), loggerFactory: logs);
+
+        // Assert
+        await Assert.That(logs.Entries).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetItemAsync_HttpOnRemoteHost_WarnsOnceNamingTheHost()
+    {
+        // Arrange: DynamoDB Local in docker-compose, reached by its service name
+        var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        using var client = TestClient.Create(handler, serviceUrl: new Uri("http://dynamodb-local:8000"), loggerFactory: logs);
+
+        // Act
+        for (var i = 0; i < 3; i++)
+        {
+            await client.GetItemAsync(TestClient.GetItem());
+        }
+
+        // Assert
+        await Assert.That(logs.Entries.Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single()).IsEqualTo((
+            9,
+            LogLevel.Warning,
+            "DynamoDB client sends requests to dynamodb-local over plain http. The requests, their signatures and the session token travel unencrypted."));
+    }
 }

@@ -784,6 +784,55 @@ public sealed class WebIdentityCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_HttpEndpointOnRemoteHost_WarnsOnceAcrossFetches()
+    {
+        // Arrange: an STS emulator in docker-compose, reached by its service name
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+        var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        world.Provider.TryInvalidate(first);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert (the drop logs event 23 besides)
+        await Assert.That((world.Handler.Requests.Count, logs.Entries.Where(static entry => entry.EventId.Id != 23).Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())).IsEqualTo((
+            2,
+            (25, LogLevel.Warning, "STS is reached at sts-emulator over plain http. The web identity token in the request and the session token in the response travel unencrypted.")));
+    }
+
+    [Test]
+    [Arguments("http://localhost:4566")]
+    [Arguments("http://127.0.0.1:4566")]
+    [Arguments("http://[::1]:4566")]
+    public async Task GetCredentialsAsync_HttpEndpointOnLoopback_LogsNoWarning(string endpoint)
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", endpoint)]), logger: logs.CreateLogger("test"));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_HttpsEndpointOnRemoteHost_LogsNoWarning()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "https://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries).IsEmpty();
+    }
+
+    [Test]
     [Arguments("IDPCommunicationError", HttpStatusCode.BadRequest)]
     [Arguments("Throttling", HttpStatusCode.BadRequest)]
     [Arguments("InternalFailure", HttpStatusCode.InternalServerError)]

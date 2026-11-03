@@ -357,8 +357,8 @@ public ref struct KeyWriter
     {
         if (_rented is not null)
         {
-            // Keys can hold personal data, and the pool hands arrays to the next caller as they are.
-            _pool!.Return(_rented, clearArray: true);
+            // Not cleared, like every pooled buffer: architecture.md, decision 18.
+            _pool!.Return(_rented);
         }
 
         this = default;
@@ -466,7 +466,7 @@ public ref struct KeyWriter
         _buffer[.._length].CopyTo(next);
         if (_rented is not null)
         {
-            _pool.Return(_rented, clearArray: true);
+            _pool.Return(_rented);
         }
 
         _rented = next;

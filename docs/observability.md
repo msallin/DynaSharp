@@ -77,7 +77,7 @@ The two conflict counters carry the operation that met the conflict, such as `Pu
 
 ## Logs
 
-The client logs only what no caller of one call can see: how it was configured, retries that ran out, a corrected clock, credentials that failed to refresh. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as a retry quota that is empty. The categories are the types: `DynaSharp.DynamoDbClient`, `DynaSharp.Streams.DynamoDbStreamsClient`, and `DynaSharp.Credentials.DefaultCredentialsProvider` with the providers it uses, `WebIdentityCredentialsProvider`, `ContainerCredentialsProvider` and `InstanceMetadataCredentialsProvider`. The event ids are stable.
+The client logs only what no caller of one call can see: how it was configured, retries that ran out, a corrected clock, credentials that failed to refresh, an endpoint over plain http. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as a retry quota that is empty. The categories are the types: `DynaSharp.DynamoDbClient`, `DynaSharp.Streams.DynamoDbStreamsClient`, and `DynaSharp.Credentials.DefaultCredentialsProvider` with the providers it uses, `WebIdentityCredentialsProvider`, `ContainerCredentialsProvider` and `InstanceMetadataCredentialsProvider`. The event ids are stable.
 
 | Id | Level | Event | Message |
 |---|---|---|---|
@@ -89,13 +89,19 @@ The client logs only what no caller of one call can see: how it was configured, 
 | 6 | Warning | The signing clock was corrected | `The local clock differs from the DynamoDB clock by {Offset}. ...` |
 | 7 | Warning | A batch gave up with work left | `DynamoDB {Operation} on table {Table} gave up with {Unprocessed} actions unprocessed after {Requests} requests. ...` |
 | 8 | Warning | `RetryOnConflictAsync` used up its runs | `DynamoDB {Operation} on table {Table} lost to another writer with {ErrorType} on run {Runs} of RetryOnConflictAsync, ...` |
+| 9 | Warning | The endpoint is http on a host that is not loopback, once per client | `DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.` |
 | 20 | Debug | The default chain chose a source | `Credentials come from the {Source}.` |
 | 21 | Warning | A refresh failed while the credentials are still good | `Refreshing the credentials from the {Source} failed in the advisory refresh period: {Reason}. ...`, with the exception |
 | 22 | Warning | A refresh failed and requests fail until one succeeds | `Refreshing the credentials from the {Source} failed in the mandatory refresh period: {Reason}. ...`, with the exception |
 | 23 | Warning | DynamoDB rejected the credentials as expired, and they were dropped | `DynamoDB rejected the credentials from the {Source} as expired. ...` |
 | 24 | Warning | STS rejected the web identity token as expired, and the file is read again | `STS rejected the token of the {Source} as expired. ...` |
+| 25 | Warning | The STS endpoint is http on a host that is not loopback, once per provider | `STS is reached at {Host} over plain http. The web identity token in the request and the session token in the response travel unencrypted.` |
 
 `{Table}` is the table of the call, and `{ErrorType}` the error code. A message names no key, no token and no file content, and of a URL at most its host.
+
+## A handler of your own
+
+`HttpHandler` in the options takes any `HttpMessageHandler`, such as a `DelegatingHandler` that records the wire for inspection. The content of a request is a view of a pooled buffer, valid until the handler's `SendAsync` returns. After that the buffer belongs to another call, so a handler reads the content before it returns and never later, and a body read late fails the signature check of DynamoDB. A handler sends a request once and never twice in parallel, which rules out a hedging handler. A retry handler is not needed: the client retries by itself, see [Errors and retries](errors.md).
 
 ## What stays out
 

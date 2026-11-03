@@ -221,6 +221,14 @@ internal sealed record ClientConfiguration
         _ => null,
     };
 
+    /// <summary>
+    /// Tells whether requests to an endpoint leave the machine unencrypted: http to a host that is not loopback, such as DynamoDB Local at
+    /// <c>http://dynamodb-local:8000</c> in another container. Such an endpoint is allowed, and the caller warns.
+    /// </summary>
+    /// <param name="endpoint">A valid endpoint.</param>
+    /// <returns><see langword="true"/> for http to a host other than <c>localhost</c> or a loopback address.</returns>
+    internal static bool IsUnencryptedRemote(Uri endpoint) => endpoint.Scheme == Uri.UriSchemeHttp && !endpoint.IsLoopback;
+
     private static (Uri Endpoint, string Source) ResolveEndpoint(DynamoDbClientOptions options, AwsRegion region, Func<string, string?> getEnvironmentVariable, AwsService service)
     {
         if (options.ServiceUrl is { } serviceUrl)

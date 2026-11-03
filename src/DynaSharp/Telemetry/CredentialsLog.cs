@@ -4,7 +4,7 @@ namespace DynaSharp.Telemetry;
 
 /// <summary>
 /// Log messages of the credential providers. Only events outside a single request are logged: which source the default chain
-/// chose, refreshes that failed, and credentials that the service rejected as expired. Event ids are stable. Messages never contain keys, tokens or file content. Of a URL they
+/// chose, refreshes that failed, credentials that the service rejected as expired, and an STS endpoint over plain http. Event ids are stable. Messages never contain keys, tokens or file content. Of a URL they
 /// show at most the host, which the reason of a failed refresh names for the container endpoint: the host is no secret, and the rest of that URI holds a credential identifier.
 /// </summary>
 internal static partial class CredentialsLog
@@ -35,4 +35,10 @@ internal static partial class CredentialsLog
         Level = LogLevel.Warning,
         Message = "STS rejected the token of the {Source} as expired. The file is read again and the request is sent once more.")]
     public static partial void WebIdentityTokenExpired(ILogger logger, string source);
+
+    [LoggerMessage(
+        EventId = 25,
+        Level = LogLevel.Warning,
+        Message = "STS is reached at {Host} over plain http. The web identity token in the request and the session token in the response travel unencrypted.")]
+    public static partial void UnencryptedStsEndpoint(ILogger logger, string host);
 }

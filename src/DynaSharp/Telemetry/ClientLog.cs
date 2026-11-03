@@ -32,4 +32,7 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 8, Level = LogLevel.Warning, Message = "DynamoDB {Operation} on table {Table} lost to another writer with {ErrorType} on run {Runs} of RetryOnConflictAsync, the last one allowed. The error is passed on to the caller.")]
     public static partial void ConflictRunsExhausted(ILogger logger, string operation, string table, string errorType, int runs);
+
+    [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.")]
+    public static partial void UnencryptedEndpoint(ILogger logger, string host);
 }

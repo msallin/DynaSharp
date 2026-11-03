@@ -126,8 +126,8 @@ internal sealed class DynamoDbPipeline : IDisposable
         var buffers = _buffers.Rent() ?? new CallBuffers(_pool);
         try
         {
-            // The array of the request goes back to the pool when the call is over (see the finally block). That assumes the handler
-            // no longer reads the content then, which holds for HTTP/1.1, the version requests use.
+            // The array of the request goes back to the pool when the call is over (see the finally block). The handler no longer reads
+            // the content then: that is the contract of DynamoDbClientOptions.HttpHandler, and SocketsHttpHandler keeps it on HTTP/1.1.
             var prepared = Prepare(tableName, call.WriteBody(buffers));
 
             // The loop lives here, not in a method of its own, so that a call costs one async state machine less. A call that works

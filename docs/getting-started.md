@@ -36,7 +36,7 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 });
 ```
 
-`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging.
+`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging. A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
 
 ## Running locally
 
@@ -59,6 +59,8 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 ```
 
 The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000`, `AWS_REGION` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set, `new DynamoDbClient()` goes to the emulator, and the same build goes to AWS where they are not set. An option that is set wins over its variable.
+
+An http endpoint on another host, such as `http://dynamodb-local:8000` in a compose network, works the same. The requests and the session token then travel unencrypted, and the client logs a warning once (event 9, see [Observability](observability.md#logs)).
 
 DynamoDB Local runs [time to live](glossary.md#time-to-live-ttl): its sweeper deletes items whose expiry attribute holds a past date, which looks like a read that finds nothing. Give test data dates in the future, or turn time to live off for such a test.
 

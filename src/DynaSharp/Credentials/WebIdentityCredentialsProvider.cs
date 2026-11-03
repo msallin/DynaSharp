@@ -35,7 +35,7 @@ namespace DynaSharp.Credentials;
 /// <para>
 /// As in botocore, <c>AWS_ENDPOINT_URL_STS</c> and then <c>AWS_ENDPOINT_URL</c> go ahead of all of that: with either one set the fetch needs no region and <c>AWS_STS_REGIONAL_ENDPOINTS</c> counts for nothing. An empty
 /// variable counts as unset, and a value takes what the endpoint of a client takes, an absolute http or https URL without user info, path, query or fragment; any other throws, and names the variable. So a process that
-/// points <c>AWS_ENDPOINT_URL</c> at an emulator for DynamoDB sends the token there too, and over http the token travels in the clear. All of these variables are read from the environment at every fetch, also when the
+/// points <c>AWS_ENDPOINT_URL</c> at an emulator for DynamoDB sends the token there too, and over http the token travels in the clear; for a host other than a loopback address the provider logs a warning once. All of these variables are read from the environment at every fetch, also when the
 /// token file, the role and the region were passed to the constructor. Only an endpoint passed to <see cref="WebIdentityCredentialsProvider(string, string, Uri, string?)"/> goes ahead of them: as for the token file and the role, an explicit
 /// setting replaces the environment, so that provider reads no variable at all and needs no region. The profile settings <c>sts_regional_endpoints</c> and <c>endpoint_url</c>, the <c>services</c> sections of the shared config file and <c>AWS_IGNORE_CONFIGURED_ENDPOINT_URLS</c> are not read.
 /// </para>
@@ -116,6 +116,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private readonly AwsRegion? _region;
     private readonly Settings? _settings;
     private readonly RefreshingCredentialsCache _cache;
+    private int _unencryptedWarned;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WebIdentityCredentialsProvider"/> class that reads its settings from the environment of the
@@ -403,6 +404,11 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     {
         var settings = ResolveSettings();
         var endpoint = ResolveEndpoint(settings);
+        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
+        {
+            CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
+        }
+
         var http = CredentialsHttp.GetClientFor(endpoint, _handler);
 
         var failedAttempts = 0;

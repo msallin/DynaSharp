@@ -31,6 +31,8 @@ public sealed record DynamoDbClientOptions
     /// the <c>AWS_ENDPOINT_URL_DYNAMODB</c> and then the <c>AWS_ENDPOINT_URL</c> environment variable is used, and
     /// otherwise the public endpoint of the region (<see cref="AwsRegion.DynamoDbEndpoint"/>). It must be an absolute http or
     /// https URL without user info, path, query and fragment; the client rejects anything else when it is created.
+    /// Over http the requests, their signatures and the session token travel unencrypted, so for an http endpoint whose host is not
+    /// <c>localhost</c> or a loopback address, such as <c>http://dynamodb-local:8000</c> in docker-compose, the client logs a warning once when it is created.
     /// A <see cref="Streams.DynamoDbStreamsClient"/> created from the same options uses the same URL (an emulator such as DynamoDB Local
     /// serves both APIs on one address); without it, it reads <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c>, then
     /// <c>AWS_ENDPOINT_URL</c>, and otherwise uses <see cref="AwsRegion.DynamoDbStreamsEndpoint"/>.
@@ -69,6 +71,12 @@ public sealed record DynamoDbClientOptions
     /// <remarks>
     /// It carries the requests to DynamoDB, and no others. The providers of credentials have HTTP clients of their own, for the token of <see cref="Credentials.WebIdentityCredentialsProvider"/> and the
     /// keys of the container and metadata endpoints, so a client with a stub here still calls the real STS or metadata endpoint when the environment selects that provider. A test sets <see cref="Credentials"/> as well.
+    /// <para>
+    /// The content of a request is valid only until its <see cref="HttpMessageHandler.SendAsync(HttpRequestMessage, CancellationToken)"/> returns: it is a view of a pooled
+    /// buffer that goes back to the pool when the call ends, and then holds the body of another call. A handler reads the content before it returns, never after, and sends
+    /// a request once, never twice in parallel, so a hedging handler does not work here. A body read late belongs to another call and fails the signature check of
+    /// DynamoDB. A retry handler is not needed: the client retries by itself (see <see cref="MaxAttempts"/>).
+    /// </para>
     /// </remarks>
     public HttpMessageHandler? HttpHandler { get; init; }
 
