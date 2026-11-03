@@ -370,6 +370,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | Public surface | `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt` in `DynaSharp` and `DynaSharp.Testing` | `RS0016` and `RS0017` of `PublicApiAnalyzers`, build time only. `RS0026` and `RS0027` are off in `.editorconfig`, and a pair of overloads that differ only in `T?` of a value type share a line |
 | Compile guards | `Fluent/CompileGuardTests` | The compiler, asked in-process whether a misuse fails and which overload binds |
 | Analyzer grammar | `Generators/Analyzers/ExpressionCorpus` | The Developer Guide, botocore's examples, DynamoDB Local 3.3.2 |
+| Expression engine of the fake | `Testing/Fake/Expressions` | The same `ExpressionCorpus`, which the fake must parse or reject as DynamoDB Local does; evaluation and update tables written by hand from the Developer Guide; the word lists against the client's and the generator's |
 | Behavior of the service | `tests/DynaSharp.IntegrationTests` | Dynoxide and DynamoDB Local, and DynamoDB itself on demand. `Backends/Gaps.cs` names what each lacks, and such a test is skipped there |
 | Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators |
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
@@ -512,7 +513,7 @@ Each entry names where the reasons are. "Decisions" and "Findings" are sections 
 |---|---|
 | `Wire` | `FakeWire`, the registry of `OperationHandler`s and the one entry: target to handler, body parsed, the handler under `FakeDatabase.Gate`, a `FakeError` rendered as the body of DynamoDB, any other exception passed through as a bug. `FakeAnswer`, `FakeError` (`ValidationException`, `SerializationException`, `ResourceNotFound`, `ResourceInUse`, `LimitExceeded`, `ConditionalCheckFailed`, `TransactionCanceled`, `IdempotentParameterMismatch`, `UnknownOperation`, `Unsupported`), `RequestJson`, `ResponseJson` |
 | `Storage` | `FakeDatabase` (tables, clock, gate), `FakeTable`, `FakeIndex`, `ItemStore` (partition, then `SlotKey`), `KeySchema`, `ItemKey`, `KeyComparer`, `KeyRange`, `SortKeyRange`, `ItemSize`, `AttributeRules`, `Segments` |
-| `Expressions` | `DecimalNumber`, `AttributeComparer`, and the entry points of the engine: `Expressions`, `PlaceholderScope`, `ParsedCondition`, `ParsedUpdate`, `ParsedProjection`, which answer `UnsupportedByFakeException` |
+| `Expressions` | The expression engine, below: `ExpressionTokenizer`, `ExpressionParser` and its trees, `PlaceholderScope`, `ConditionEvaluator`, `UpdateApplier`, `KeyConditionCompiler`, `Projection`, `ReservedWords`, with `DecimalNumber` and `AttributeComparer`, behind the entry points `Expressions`, `ParsedCondition`, `ParsedUpdate` and `ParsedProjection` |
 | `Operations` | One static class per operation: `GetItem`, `PutItem`, `DeleteItem` with `ItemRequests` and `SingleWrite`, `TableOperations`, `TimeToLive`, `DescribeLimits`. `UpdateItem`, `Query`, `Scan`, the batches and the transactions answer `UnknownOperationException`, and `PageBuilder`, `Capacity` and `WriteReturns` are entry points that answer `UnsupportedByFakeException` |
 
 Rules that are easy to break:
@@ -523,3 +524,9 @@ Rules that are easy to break:
 - The table description has one writer, `ResponseJson.WriteTableDescription`; the direct API reads it back with `TableJson.ReadTable`, so it returns what a client reads.
 - The direct API throws `FakeError.ToDynamoDbException`, which renders the body and maps it through `ErrorMapper`, the mapper of the client.
 - Independent of the client on purpose: the request readers, the response writers, numbers, ordering and sizes. Reused: `AttributeValue`, `Item`, `AttributeValueConverter`, `WireNames`, `TableJson` writers, `ErrorMapper`, `TableSchema`, the handler seam.
+
+### The expression engine
+
+`Fake/Expressions` parses and evaluates the expressions of a request with code of its own. It echoes neither the client's `ExpressionWriter` nor the generator's parser, so that a mistake in an expression the client writes fails against the fake as it would against DynamoDB. `ExpressionTokenizer` reads the text into tokens, and `ExpressionParser` builds the trees by recursive descent: `ConditionNode` for conditions, filters and key conditions, `UpdateAction` for updates, `DocumentPath` for projections. It resolves each placeholder through the `PlaceholderScope` of the request, which the operation asks once, after the last expression, for entries no expression used, and it raises what DynamoDB raises before it reads an item: syntax, reserved words, function operands, constant operand types, `BETWEEN` bounds, overlapping paths.
+
+`ConditionEvaluator` evaluates a condition on an item, `UpdateApplier` makes the new item and the paths `UPDATED_OLD` and `UPDATED_NEW` return, `KeyConditionCompiler` turns a key condition into the `KeyRange` a read walks, and `Projection` takes paths out of an item. Numbers go through `DecimalNumber`, order and equality through `AttributeComparer`. `Expressions` is the entry the operations call. The keywords, functions and reserved words are copies, which `ExpressionTokenizerTests` and `ReservedWordsTests` keep equal to the client's and the generator's.

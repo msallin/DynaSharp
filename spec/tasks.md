@@ -561,7 +561,7 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
       In packages P1 to P6, on branches `m4/p<n>-...`.
   - [x] P1 seam: every internal type and entry point the other packages code against, `DecimalNumber` and `AttributeComparer` complete.
   - [x] P1 foundation: `FakeDynamoDb` (facade, direct API, `CreateTable<T>`, `ExpireItems`), wire layer and registry, storage with indexes and sizes, `GetItem`/`PutItem`/`DeleteItem` without conditions, `CreateTable`/`DescribeTable`/`UpdateTable`/`DeleteTable`/`ListTables`, `DescribeTimeToLive`/`UpdateTimeToLive`, `DescribeLimits`, docs in the Testing README and `docs/testing.md`.
-  - [ ] P2 expression engine: `Fake/Expressions/*` behind `Expressions`, `PlaceholderScope`, `ParsedCondition`, `ParsedUpdate`, `ParsedProjection`; key conditions into `KeyRange`/`SortKeyRange` of `Storage`.
+  - [x] P2 expression engine: `Fake/Expressions/*` behind `Expressions`, `PlaceholderScope`, `ParsedCondition`, `ParsedUpdate`, `ParsedProjection`; key conditions into `KeyRange`/`SortKeyRange` of `Storage`.
   - [ ] P3 reads: `Query`, `Scan`, `PageBuilder`, the read half of `Capacity`; `ProjectionExpression` and `ReturnConsumedCapacity` of `GetItem`.
   - [ ] P4 writes: `UpdateItem`, conditions and `ReturnValues` of `PutItem`/`DeleteItem` (in `SingleWrite`), `WriteReturns`, the write half of `Capacity`, batches, transactions, `IdempotencyCache`; `Reset` drops the tokens too.
   - [ ] P5 backend `fake` in the integration suite, the HTTP tool, the Parity run and its score table here.
@@ -573,6 +573,16 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
 - Decision: numbers are stored in the canonical text of `DecimalNumber`, `1.50` as `1.5`, which is what DynamoDB answers with; above 40 plain digits the text is in exponent form, `1E+125`. Open: the exact text DynamoDB returns for huge or tiny numbers is unverified; the vectors of P5 check it.
 - Decision: the size of a list or a map counts 1 byte per element, as the Developer Guide says. `InternalsVisibleTo` to `DynaSharp.UnitTests`, so the internals of the fake are tested directly.
 - Finding: `KeyRange` and `SortKeyRange` live in `Fake/Storage`, not with the expression engine, because `FakeTable.Range` consumes them; P2 produces them. The entry point of the engine is the class `Expressions` in namespace `DynaSharp.Testing.Fake`; a test in `DynaSharp.UnitTests` names it with `global::`, because `DynaSharp.UnitTests.Expressions` is a namespace.
+- Finding: a bare name that starts with `_` is a syntax error in the fake, as in DynamoDB Local; the generator's analyzer accepts it (`ExpressionLexer`), which is to be checked against DynamoDB.
+- Open, to verify with the P5 vectors against DynamoDB Local (the expression engine of P2 assumes each):
+  1. `size` of a string counts UTF-8 bytes, not characters.
+  2. `size` of a number, a boolean or a null is a `ValidationException` on the item, not a false condition.
+  3. `a <> :v` holds where `a` is missing or of another type.
+  4. `size(:v)`, `begins_with(:v, a)`, `contains(:v, a)` and `:v = :w` are accepted and evaluated; a constant of the wrong type is rejected before the item for `begins_with`, `ADD`, `DELETE`, `+`, `-` and `list_append`, not for `<`.
+  5. The messages: `near` of a syntax error, "The function is not allowed in a condition expression", "The IN operator is provided with too many operands", "Invalid operator used in KeyConditionExpression: X", "Invalid condition in KeyConditionExpression: Multiple attribute names used in one condition" and "No key attribute specified", "Query key condition not supported" for a non-key attribute.
+  6. `REMOVE a.b` without `a` is "invalid for update", and with `a` but no `b` does nothing; `ADD` past the end of a list appends, `DELETE` there does nothing.
+  7. `UPDATED_OLD` and `UPDATED_NEW` hold the updated nested paths, not the whole top-level attribute; an appended element is at the index it got, a removed path is not in `UPDATED_NEW`.
+  8. A key condition takes the value on either side (`:v < sk` as `sk > :v`), and rejects an empty partition value but not an empty sort value.
 - [ ] M5: SSO, `credential_process`, assume role
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
 
