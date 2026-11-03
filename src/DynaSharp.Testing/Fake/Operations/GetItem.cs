@@ -18,6 +18,7 @@ internal static class GetItem
     /// <param name="response">The writer, inside the object of the response.</param>
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
+        ItemRequests.ThrowIfLegacyWithExpressions(request);
         RequestJson.Members(request, Name, "TableName", "Key", "ConsistentRead", "ProjectionExpression", "ExpressionAttributeNames", "ReturnConsumedCapacity");
         var tableName = TableOperations.ReadTableName(request);
         var key = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");

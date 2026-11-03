@@ -84,6 +84,24 @@ public sealed class TableOperationTests(Backend backend)
     }
 
     [Test]
+    public async Task CreateTable_SseEnabled_DescribesTheTableAsEncryptedWithAKmsKey()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.ServerSideEncryptionDescription);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var name = Tables.UniqueName();
+        var request = Tables.Request(name, TableSpec.PartitionOnly) with { SSESpecification = new SSESpecification { Enabled = true } };
+
+        // Act
+        await sandbox.CreateTableAsync(request);
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = name })).Table!;
+
+        // Assert
+        var encryption = description.SSEDescription!;
+        await Assert.That((encryption.Status, encryption.SSEType, encryption.KMSMasterKeyArn!.StartsWith("arn:aws:kms:", StringComparison.Ordinal))).IsEqualTo((SSEStatus.Enabled, SSEType.Kms, true));
+    }
+
+    [Test]
     public async Task CreateTable_LocalIndex_AllowsQueriesByTheIndexSortKey()
     {
         // Arrange

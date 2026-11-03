@@ -65,7 +65,7 @@ internal static partial class ResponseJson
     {
         var response = JsonNode.Parse(botocoreJson)!.AsObject();
         var table = response["TableDescription"]!.AsObject();
-        Keep(table, "TableName", "TableArn", "TableStatus", "KeySchema", "AttributeDefinitions", "ItemCount", "TableSizeBytes", "CreationDateTime", "BillingModeSummary", "LocalSecondaryIndexes", "GlobalSecondaryIndexes", "StreamSpecification", "LatestStreamArn", "LatestStreamLabel", "DeletionProtectionEnabled", "ProvisionedThroughput", "TableClassSummary");
+        Keep(table, "TableName", "TableArn", "TableStatus", "KeySchema", "AttributeDefinitions", "ItemCount", "TableSizeBytes", "CreationDateTime", "BillingModeSummary", "LocalSecondaryIndexes", "GlobalSecondaryIndexes", "StreamSpecification", "LatestStreamArn", "LatestStreamLabel", "DeletionProtectionEnabled", "ProvisionedThroughput", "TableClassSummary", "SSEDescription");
         table.TryAdd("KeySchema", new JsonArray());
         table.TryAdd("AttributeDefinitions", new JsonArray());
         table.TryAdd("ItemCount", 0);
@@ -77,6 +77,11 @@ internal static partial class ResponseJson
         if (table["TableClassSummary"] is JsonObject summary)
         {
             Keep(summary, "TableClass");
+        }
+
+        if (table["SSEDescription"] is JsonObject encryption)
+        {
+            Keep(encryption, "Status", "SSEType", "KMSMasterKeyArn", "InaccessibleEncryptionDateTime");
         }
 
         foreach (var index in table["LocalSecondaryIndexes"]!.AsArray().Select(static node => node!.AsObject()))
@@ -184,6 +189,29 @@ internal static partial class ResponseJson
         {
             json.WriteStartObject("TableClassSummary");
             WriteString(json, "TableClass", table.TableClass == TableClass.Standard ? "STANDARD" : "STANDARD_INFREQUENT_ACCESS");
+            json.WriteEndObject();
+        }
+
+        if (table.SSEDescription is { } encryption)
+        {
+            json.WriteStartObject("SSEDescription");
+            WriteString(json, "Status", encryption.Status switch
+            {
+                SSEStatus.Enabling => "ENABLING",
+                SSEStatus.Enabled => "ENABLED",
+                SSEStatus.Disabling => "DISABLING",
+                SSEStatus.Disabled => "DISABLED",
+                SSEStatus.Updating => "UPDATING",
+                _ => null,
+            });
+            WriteString(json, "SSEType", encryption.SSEType switch
+            {
+                SSEType.Aes256 => "AES256",
+                SSEType.Kms => "KMS",
+                _ => null,
+            });
+            WriteString(json, "KMSMasterKeyArn", encryption.KMSMasterKeyArn);
+            WriteDate(json, "InaccessibleEncryptionDateTime", encryption.InaccessibleEncryptionDateTime);
             json.WriteEndObject();
         }
 

@@ -132,6 +132,12 @@ public sealed class ExpressionParserTests
     [Arguments("a BETWEEN :n AND :v", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {S:abc}")]
     [Arguments("a BETWEEN :b AND :l", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {B:AQI=}, upper bound operand: AttributeValue: {L}")]
     [Arguments("a BETWEEN :n AND :one", "The BETWEEN operator requires upper bound to be greater than or equal to lower bound; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {N:1}")]
+    [Arguments("((a = :v))", "The expression has redundant parentheses;")]
+    [Arguments("((attribute_exists(a)))", "The expression has redundant parentheses;")]
+    [Arguments("NOT ((a = :v))", "The expression has redundant parentheses;")]
+    [Arguments("((a = :v)) AND b = :v", "The expression has redundant parentheses;")]
+    [Arguments("(((a = :v) AND b = :v))", "The expression has redundant parentheses;")]
+    [Arguments("contains(a, a)", "The first operand must be distinct from the remaining operands for this operator or function; operator: contains, first operand: [a]")]
     public async Task ParseCondition_Rejected_ThrowsValidationWithTheMessage(string expression, string message)
     {
         // Arrange
@@ -142,6 +148,49 @@ public sealed class ExpressionParserTests
 
         // Assert
         await Assert.That(Act).Throws<FakeError>().WithMessage("Invalid ConditionExpression: " + message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("(a = :v)")]
+    [Arguments("(a = :v AND (b = :v))")]
+    [Arguments("(a = :v) AND (b = :v)")]
+    [Arguments("NOT (a = :v)")]
+    public async Task ParseCondition_SingleParenthesesAroundConditions_Parse(string expression)
+    {
+        // Arrange
+        var scope = Scope("""{":v":{"S":"abc"}}""");
+
+        // Act
+        void Act() => FakeExpressions.ParseCondition(expression, scope);
+
+        // Assert
+        await Assert.That(Act).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task ParseCondition_KeyConditionWithRedundantParentheses_NamesTheMember()
+    {
+        // Arrange
+        var scope = Scope("""{":v":{"S":"abc"}}""");
+
+        // Act
+        void Act() => FakeExpressions.ParseCondition("((a = :v))", scope, "KeyConditionExpression");
+
+        // Assert
+        await Assert.That(Act).Throws<FakeError>().WithMessage("Invalid KeyConditionExpression: The expression has redundant parentheses;", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ParseCondition_ContainsOfTwoPaths_Parses()
+    {
+        // Arrange
+        var scope = Scope("""{":v":{"S":"abc"}}""");
+
+        // Act
+        void Act() => FakeExpressions.ParseCondition("contains(a, b)", scope);
+
+        // Assert
+        await Assert.That(Act).ThrowsNothing();
     }
 
     [Test]

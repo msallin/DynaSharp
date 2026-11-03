@@ -83,6 +83,14 @@ internal static class WireNames
         (SSEType.Aes256, "AES256"),
         (SSEType.Kms, "KMS"));
 
+    public static readonly EnumWireNames<SSEStatus> SSEStatuses = new(
+        nameof(SSEStatus),
+        (SSEStatus.Enabling, "ENABLING"),
+        (SSEStatus.Enabled, "ENABLED"),
+        (SSEStatus.Disabling, "DISABLING"),
+        (SSEStatus.Disabled, "DISABLED"),
+        (SSEStatus.Updating, "UPDATING"));
+
     public static readonly EnumWireNames<TableStatus> TableStatuses = new(
         nameof(TableStatus),
         (TableStatus.Creating, "CREATING"),

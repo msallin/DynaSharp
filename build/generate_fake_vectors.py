@@ -13,7 +13,9 @@ recorded, because they hold dates and ARNs; only their status is.
 
 A string value "${x*307200}" in a request stands for 307200 times "x", so that items near the size limits stay small in the file, and "${streamArn}"
 and "${shardId}" for the stream ARN and the first shard id the last answer of the case named. Both this script and the test expand them. A step can
-record only some paths of its answer ("select" for the value, "present" for whether there is one), where the rest holds ARNs, ids and dates.
+record only some paths of its answer ("select" for the value, "present" for whether there is one, a number naming an element of a list), where the rest
+holds ARNs, ids and dates, or where DynamoDB Local answers otherwise than DynamoDB: it leaves out ReadCapacityUnits and WriteCapacityUnits of a transaction,
+and gives whole top-level attributes for UPDATED_NEW and UPDATED_OLD.
 
 Setup (outside the repository):
     python3 -m venv /tmp/botocore-venv
@@ -246,8 +248,8 @@ CASES = [
     ("updates", "updated-old-and-new",
      "Open 7: what UPDATED_OLD and UPDATED_NEW hold for an update of a nested path, and that a removed path is not in UPDATED_NEW.",
      [table(), put({"pk": S("a"), "m": M(x=N(1), y=N(2)), "l": L(N(1), N(2)), "t": S("top")}),
-      update("a", "SET m.x = :n", {":n": N(10)}, returns="UPDATED_NEW"),
-      update("a", "SET m.x = :n", {":n": N(11)}, returns="UPDATED_OLD"),
+      selecting(update("a", "SET m.x = :n", {":n": N(10)}, returns="UPDATED_NEW"), select=["Attributes.m.M.x"]),
+      selecting(update("a", "SET m.x = :n", {":n": N(11)}, returns="UPDATED_OLD"), select=["Attributes.m.M.x"]),
       update("a", "REMOVE m.y SET t = :s", {":s": S("changed")}, returns="UPDATED_NEW"),
       update("a", "REMOVE m.x", returns="UPDATED_OLD")]),
     ("keys", "key-condition-sides-and-empty-values",
@@ -285,11 +287,11 @@ CASES = [
     ("writes", "transaction-capacity",
      "P4 open: what a condition check costs, and what a transaction with a token costs the first time.",
      [table(), put({"pk": S("a")}),
-      ("TransactWriteItems", {"TransactItems": [
+      selecting(("TransactWriteItems", {"TransactItems": [
           {"ConditionCheck": {"TableName": TABLE, "Key": {"pk": S("a")}, "ConditionExpression": "attribute_exists(pk)"}}],
-          "ReturnConsumedCapacity": "TOTAL"}),
-      ("TransactWriteItems", {"TransactItems": [{"Put": {"TableName": TABLE, "Item": {"pk": S("b")}}}],
-                              "ClientRequestToken": "token-1", "ReturnConsumedCapacity": "TOTAL"})]),
+          "ReturnConsumedCapacity": "TOTAL"}), select=["ConsumedCapacity.0.CapacityUnits"]),
+      selecting(("TransactWriteItems", {"TransactItems": [{"Put": {"TableName": TABLE, "Item": {"pk": S("b")}}}],
+                                        "ClientRequestToken": "token-1", "ReturnConsumedCapacity": "TOTAL"}), select=["ConsumedCapacity.0.CapacityUnits"])]),
     ("writes", "index-entry-size",
      "P4 open: an index entry is sized without the 100 bytes of overhead. The item is 1000 bytes, so with 100 bytes more its index write would cost 2 units.",
      [table(global_index="ALL"),
@@ -340,9 +342,14 @@ def capture(body, variables):
 
 
 def at(body, path):
-    """Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or None."""
+    """Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or None; a number names an element of a list, "ConsumedCapacity.0.CapacityUnits"."""
     for name in path.split("."):
-        body = body.get(name) if isinstance(body, dict) else None
+        if isinstance(body, dict):
+            body = body.get(name)
+        elif isinstance(body, list) and name.isdigit() and int(name) < len(body):
+            body = body[int(name)]
+        else:
+            body = None
     return body
 
 

@@ -190,6 +190,37 @@ public sealed class FakeDynamoDbTests
     }
 
     [Test]
+    public async Task CreateTable_SseEnabledWithAKeyId_DescribesTheKeyOfTheFakesAccount()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var description = fake.CreateTable(Users with { SSESpecification = new SSESpecification { Enabled = true, KMSMasterKeyId = "1234abcd" } });
+
+        // Assert
+        await Assert.That(description.SSEDescription).IsEqualTo(new SSEDescription
+        {
+            Status = SSEStatus.Enabled,
+            SSEType = SSEType.Kms,
+            KMSMasterKeyArn = "arn:aws:kms:us-east-1:123456789012:key/1234abcd",
+        });
+    }
+
+    [Test]
+    public async Task CreateTable_SseDisabled_DescribesNoEncryption()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var description = fake.CreateTable(Users with { SSESpecification = new SSESpecification { Enabled = false } });
+
+        // Assert
+        await Assert.That(description.SSEDescription).IsNull();
+    }
+
+    [Test]
     public async Task CreateTableOfT_EntityWithAnIndex_DeclaresKeysAndIndexOnDemand()
     {
         // Arrange

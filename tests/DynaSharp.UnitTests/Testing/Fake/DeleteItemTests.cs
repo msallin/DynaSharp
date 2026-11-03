@@ -89,6 +89,19 @@ public sealed class DeleteItemTests
     }
 
     [Test]
+    public async Task Handle_ExpectedWithAConditionExpression_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"Expected":{"total":{"Exists":true}},"ConditionExpression":"attribute_exists(total)"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {Expected} Expression parameters: {ConditionExpression}"));
+    }
+
+    [Test]
     public async Task Handle_KeyWithoutTheSortKey_AnswersValidation()
     {
         // Arrange

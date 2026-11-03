@@ -7,15 +7,22 @@ namespace DynaSharp.Testing.Fake;
 /// A <c>TransactWriteItems</c>: up to 100 condition checks, puts, deletes and updates over several tables, all or nothing. Every condition is checked against the items as they are
 /// before any write; if one fails, the transaction is cancelled with one reason per action in its order, <c>ConditionalCheckFailed</c> where a condition failed, with the item when
 /// the action asked for it with <c>ALL_OLD</c>, and <c>None</c> for the others. A write the table rejects, such as an update that makes an item over 400 KB, cancels it with
-/// <c>ValidationError</c> and takes back the writes before it, and so does a key that does not match the schema of its table. One item twice is a <c>ValidationException</c>.
+/// <c>ValidationError</c> and takes back the writes before it, and so does a key that does not match the schema of its table. One item twice is a <c>ValidationException</c>, and so is
+/// an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <c>ClientRequestToken</c> makes the call idempotent for 10 minutes on the clock of the fake: the same token with the same request again changes nothing and answers success, the same
-/// token with another request is <c>IdempotentParameterMismatchException</c>. A replay reports, as the API reference says, the read units of reading the items, not the write units of the first call.
+/// token with another request is <c>IdempotentParameterMismatchException</c>. A replay reports, as the API reference says, the read units of reading the items, not the write units of the first call:
+/// twice a strongly consistent read of each item, as a transactional read costs.
 /// </para>
 /// <para>
 /// A transaction writes every item twice, to prepare and to commit, so each action costs twice the units of its write, a condition check twice a write of the item it reads.
+/// <c>INDEXES</c> repeats the units as <c>WriteCapacityUnits</c>, and on a replay as <c>ReadCapacityUnits</c>, as DynamoDB answers it.
+/// </para>
+/// <para>
+/// An empty index key comes to light only when the action is applied, after every condition is checked. If the condition of another action fails, the fake answers the cancellation
+/// where DynamoDB may answer the <c>ValidationException</c>.
 /// </para>
 /// </remarks>
 internal static class TransactWriteItems
@@ -67,7 +74,11 @@ internal static class TransactWriteItems
         {
             if (capacity != ReturnConsumedCapacity.None)
             {
-                WriteCapacity.WriteAll(response, capacity, actions.Select(static action => new CapacityShare(action.Table.Name, ReadCapacity.Units(SizeOf(action.Table.Get(action.Key)), consistent: true), [])));
+                WriteCapacity.WriteAll(
+                    response,
+                    capacity,
+                    actions.Select(static action => new CapacityShare(action.Table.Name, 2 * ReadCapacity.Units(SizeOf(action.Table.Get(action.Key)), consistent: true), [])),
+                    WriteCapacity.Split.Read);
             }
 
             WriteReturns.WriteAll(response, metrics, actions.Where(static action => action.Kind != ActionKind.ConditionCheck).Select(static action => (action.Table, new WriteOutcome(action.Key, null, null))));
@@ -78,7 +89,7 @@ internal static class TransactWriteItems
         var outcomes = Apply(actions);
         if (capacity != ReturnConsumedCapacity.None)
         {
-            WriteCapacity.WriteAll(response, capacity, actions.Zip(outcomes, static (action, outcome) => Share(action, outcome)));
+            WriteCapacity.WriteAll(response, capacity, actions.Zip(outcomes, static (action, outcome) => Share(action, outcome)), WriteCapacity.Split.Write);
         }
 
         WriteReturns.WriteAll(
@@ -143,7 +154,7 @@ internal static class TransactWriteItems
         {
             key = item is not null ? table.KeySchema.KeyOf(item) : table.KeySchema.ReadKey(keyMap!);
         }
-        catch (FakeError error) when (error.Code == "ValidationException")
+        catch (FakeError error) when (!error.IsInputError)
         {
             // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json.
             rejected = error;
@@ -227,6 +238,11 @@ internal static class TransactWriteItems
             catch (FakeError error) when (error.Code == "ValidationException")
             {
                 journal.Undo();
+                if (error.IsInputError)
+                {
+                    throw;
+                }
+
                 var reasons = Enumerable.Repeat(None, actions.Count).ToArray();
                 reasons[i] = ValidationError(error);
                 throw FakeError.TransactionCanceled(reasons);

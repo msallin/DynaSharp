@@ -13,6 +13,7 @@ internal static class BatchWriteItem
     public const string Name = "BatchWriteItem";
 
     private const int MaxWrites = 25;
+    private const string NoMatch = "The provided key element does not match the schema";
 
     /// <summary>Answers the operation.</summary>
     /// <param name="db">The state.</param>
@@ -77,6 +78,13 @@ internal static class BatchWriteItem
                 {
                     RequestJson.Members(body, "PutRequest of " + Name, "Item");
                     var item = RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item");
+
+                    // Unlike PutItem, a batch answers a missing or mistyped key with the schema message; an empty or oversized value keeps its own.
+                    if (!table.KeySchema.Covers(item))
+                    {
+                        throw FakeError.Validation(NoMatch);
+                    }
+
                     write = (table.KeySchema.KeyOf(item), item);
                 }
                 else

@@ -52,7 +52,7 @@ internal sealed class FakeErrorTests
             "DynaSharp.Testing#UnsupportedByFakeException",
             "UnsupportedByFakeException",
             HttpStatusCode.BadRequest,
-            "FakeDynamoDb does not support the member Tags in CreateTable. It answers what https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does lists, and nothing it does not implement is ignored."));
+            "FakeDynamoDb does not support the member Tags in CreateTable: it is not supported by the fake, which answers what https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does lists and ignores nothing it does not implement."));
     }
 
     [Test]
@@ -63,7 +63,18 @@ internal sealed class FakeErrorTests
         var error = FakeError.Unsupported("a page of a read");
 
         // Assert
-        await Assert.That(error.Message).StartsWith("FakeDynamoDb does not support a page of a read. It answers", StringComparison.Ordinal);
+        await Assert.That(error.Message).StartsWith("FakeDynamoDb does not support a page of a read: it is not supported", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task InvalidInput_Message_IsAValidationExceptionFlaggedAsAnInputError()
+    {
+        // Arrange
+        // Act
+        var error = FakeError.InvalidInput("empty");
+
+        // Assert
+        await Assert.That((error.Code, error.Message, error.IsInputError, FakeError.Validation("empty").IsInputError)).IsEqualTo(("ValidationException", "empty", true, false));
     }
 
     [Test]

@@ -57,6 +57,39 @@ public sealed class TransactGetItemsTests
     }
 
     [Test]
+    public async Task Handle_ProjectionMatchingNothing_AnswersAnEmptyElement()
+    {
+        // Arrange: DynamoDB leaves Item out when the projection matches no attribute of the item
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Orders","Item":{"pk":{"S":"o#1"},"sk":{"N":"1"},"total":{"N":"5"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "TransactGetItems", """{"TransactItems":[{"Get":{"TableName":"Orders","Key":{"pk":{"S":"o#1"},"sk":{"N":"1"}},"ProjectionExpression":"nowhere"}}]}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"Responses":[{}]}""", body)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_IndexesCapacity_ReportsReadCapacityUnitsOnTheTable()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Orders","Item":{"pk":{"S":"o#1"},"sk":{"N":"1"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "TransactGetItems",
+            """{"TransactItems":[{"Get":{"TableName":"Orders","Key":{"pk":{"S":"o#1"},"sk":{"N":"1"}}}}],"ReturnConsumedCapacity":"INDEXES"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(
+            """[{"TableName":"Orders","CapacityUnits":2,"ReadCapacityUnits":2,"Table":{"CapacityUnits":2,"ReadCapacityUnits":2}}]""",
+            body.GetProperty("ConsumedCapacity"))).IsTrue();
+    }
+
+    [Test]
     [Arguments("""{"TransactItems":[]}""", "1 validation error detected: Value at 'transactItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
     [Arguments("""{"TransactItems":[{}]}""", "1 validation error detected: Value null at 'get' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"TransactItems":[{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}}}},{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}}}}]}""", "Transaction request cannot include multiple operations on one item")]

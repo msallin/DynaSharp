@@ -5,9 +5,13 @@ namespace DynaSharp.Testing.Fake;
 
 /// <summary>
 /// A <c>TransactGetItems</c>: up to 100 gets, each a strongly consistent read of one item, all at one moment. <c>Responses</c> has one element per get, in its order: <c>{"Item":{...}}</c>,
-/// or <c>{}</c> for a key without an item. A projection takes only what it names, not even the key. One item twice is a <c>ValidationException</c>.
+/// or <c>{}</c> for a key without an item. A projection takes only what it names, not even the key, and one that matches no attribute of the item gives <c>{}</c> as well.
+/// One item twice is a <c>ValidationException</c>.
 /// </summary>
-/// <remarks>A transactional read costs twice a strongly consistent read of the item, as the Developer Guide says.</remarks>
+/// <remarks>
+/// A transactional read costs twice a strongly consistent read of the item, as the Developer Guide says. <c>INDEXES</c> repeats the units as <c>ReadCapacityUnits</c>, at the top and of
+/// the table, as DynamoDB answers it.
+/// </remarks>
 internal static class TransactGetItems
 {
     /// <summary>The operation.</summary>
@@ -50,9 +54,10 @@ internal static class TransactGetItems
         {
             var item = table.Get(key);
             response.WriteStartObject();
-            if (item is not null)
+            var projected = item is null || projection is null ? item : projection.Apply(item);
+            if (projected is { Count: > 0 })
             {
-                ResponseJson.WriteItem(response, "Item", projection is null ? item : projection.Apply(item));
+                ResponseJson.WriteItem(response, "Item", projected);
             }
 
             response.WriteEndObject();
@@ -65,7 +70,7 @@ internal static class TransactGetItems
         response.WriteEndArray();
         if (capacity != ReturnConsumedCapacity.None)
         {
-            WriteCapacity.WriteAll(response, capacity, shares);
+            WriteCapacity.WriteAll(response, capacity, shares, WriteCapacity.Split.Read);
         }
     }
 }

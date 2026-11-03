@@ -147,7 +147,7 @@ public sealed class TableOperationsTests
 
     [Test]
     [Arguments(""","Tags":[{"Key":"team","Value":"shop"}]""", "the member Tags in CreateTable")]
-    [Arguments(""","SSESpecification":{"Enabled":true}""", "the member SSESpecification in CreateTable")]
+    [Arguments(""","SSESpecification":{"Enabled":true,"Unknown":1}""", "the member Unknown in SSESpecification of CreateTable")]
     [Arguments(""","OnDemandThroughput":{"MaxReadRequestUnits":10}""", "the member OnDemandThroughput in CreateTable")]
 
     [Arguments(""","StreamSpecification":{"StreamEnabled":false,"Shards":1}""", "the member Shards in StreamSpecification of CreateTable")]
@@ -176,6 +176,71 @@ public sealed class TableOperationsTests
 
         // Assert
         await Assert.That(body.GetProperty("TableDescription").GetProperty("DeletionProtectionEnabled").GetBoolean()).IsTrue();
+    }
+
+    [Test]
+    [Arguments("""{"Enabled":true}""", "arn:aws:kms:us-east-1:123456789012:key/8f2b1c4e-6d3a-4e5f-9a7b-0c1d2e3f4a5b")]
+    [Arguments("""{"Enabled":true,"SSEType":"KMS"}""", "arn:aws:kms:us-east-1:123456789012:key/8f2b1c4e-6d3a-4e5f-9a7b-0c1d2e3f4a5b")]
+    [Arguments("""{"Enabled":true,"SSEType":"AES256"}""", "arn:aws:kms:us-east-1:123456789012:key/8f2b1c4e-6d3a-4e5f-9a7b-0c1d2e3f4a5b")]
+    [Arguments("""{"Enabled":true,"KMSMasterKeyId":"1234abcd-12ab-34cd-56ef-1234567890ab"}""", "arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab")]
+    [Arguments("""{"Enabled":true,"KMSMasterKeyId":"alias/orders"}""", "arn:aws:kms:us-east-1:123456789012:alias/orders")]
+    [Arguments("""{"Enabled":true,"KMSMasterKeyId":"arn:aws:kms:us-west-2:111122223333:key/1234abcd"}""", "arn:aws:kms:us-west-2:111122223333:key/1234abcd")]
+    public async Task HandleCreateTable_SseEnabled_DescribesTheKmsKey(string sse, string keyArn)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","SSESpecification":""" + sse + "}";
+
+        // Act
+        var body = FakeCalls.Ok(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").GetProperty("SSEDescription").GetRawText()).IsEqualTo($$"""{"Status":"ENABLED","SSEType":"KMS","KMSMasterKeyArn":"{{keyArn}}"}""");
+    }
+
+    [Test]
+    [Arguments("""{"Enabled":false}""")]
+    [Arguments("""{}""")]
+    [Arguments("""{"Enabled":false,"SSEType":"KMS","KMSMasterKeyId":"alias/orders"}""")]
+    public async Task HandleCreateTable_SseNotEnabled_DescribesNoEncryption(string sse)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","SSESpecification":""" + sse + "}";
+
+        // Act
+        var body = FakeCalls.Ok(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").TryGetProperty("SSEDescription", out _)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("DescribeTable", "Table")]
+    [Arguments("DeleteTable", "TableDescription")]
+    public async Task HandleDescribeAndDeleteTable_SseEnabled_DescribeTheKmsKey(string operation, string member)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users.TrimEnd()[..^1] + ""","SSESpecification":{"Enabled":true}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, operation, """{"TableName":"Users"}""");
+
+        // Assert
+        await Assert.That(body.GetProperty(member).GetProperty("SSEDescription").GetProperty("Status").GetString()).IsEqualTo("ENABLED");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_SseEnabled_KeepsTheEncryption()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users.TrimEnd()[..^1] + ""","SSESpecification":{"Enabled":true}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","DeletionProtectionEnabled":true}""");
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").GetProperty("SSEDescription").GetProperty("KMSMasterKeyArn").GetString()).IsEqualTo(FakeTable.AwsManagedKeyArn);
     }
 
     [Test]
@@ -270,6 +335,25 @@ public sealed class TableOperationsTests
         var index = table.GetProperty("GlobalSecondaryIndexes")[0];
         await Assert.That((index.GetProperty("IndexName").GetString(), index.GetProperty("IndexStatus").GetString(), index.GetProperty("ItemCount").GetInt64(), table.GetProperty("AttributeDefinitions").GetArrayLength()))
             .IsEqualTo(("ByEmail", "ACTIVE", 1L, 2));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_CreateIndexOnTheTableKeyDeclaredInTheRequest_BackfillsIt()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"u1"},"g3":{"S":"x"}}}""");
+        const string Request = """
+            {"TableName":"Users","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g3","AttributeType":"S"}],
+             "GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByPkAndG3","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"g3","KeyType":"RANGE"}],"Projection":{"ProjectionType":"KEYS_ONLY"}}}]}
+            """;
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", Request);
+
+        // Assert
+        var index = body.GetProperty("TableDescription").GetProperty("GlobalSecondaryIndexes")[0];
+        await Assert.That((index.GetProperty("IndexName").GetString(), index.GetProperty("ItemCount").GetInt64())).IsEqualTo(("ByPkAndG3", 1L));
     }
 
     [Test]
@@ -376,6 +460,8 @@ public sealed class TableOperationsTests
     [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Delete":{"IndexName":"Missing"}}]}""", "ResourceNotFoundException", "Requested resource not found: Index: Missing not found")]
     [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"Missing","ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}]}""", "ResourceNotFoundException", "Requested resource not found: Index: Missing not found")]
     [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByAuthor","KeySchema":[{"AttributeName":"Author","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"},"ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}]}""", "ValidationException", Invalid + "Attempting to create an index which already exists: ByAuthor")]
+    [Arguments("""{"TableName":"Thread","AttributeDefinitions":[{"AttributeName":"Likes","AttributeType":"N"}],"GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByLikes","KeySchema":[{"AttributeName":"ForumName","KeyType":"HASH"},{"AttributeName":"Likes","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"},"ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}]}""", "ValidationException", Invalid + "Some index key attributes are not defined in AttributeDefinitions. Keys: [ForumName, Likes], AttributeDefinitions: [Likes]")]
+    [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByLikes","KeySchema":[{"AttributeName":"ForumName","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"},"ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}]}""", "ValidationException", Invalid + "Some index key attributes are not defined in AttributeDefinitions. Keys: [ForumName], AttributeDefinitions: []")]
     [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{}]}""", "ValidationException", Invalid + "A GlobalSecondaryIndexUpdate must have one of Create, Update or Delete")]
     [Arguments("""{"TableName":"Thread","BillingMode":"PROVISIONED","ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":6}}""", "", "")]
     [Arguments("""{"TableName":"Missing","BillingMode":"PAY_PER_REQUEST"}""", "ResourceNotFoundException", "Requested resource not found: Table: Missing not found")]
@@ -523,17 +609,17 @@ public sealed class TableOperationsTests
     }
 
     [Test]
-    public async Task Create_RecordWithEncryption_ThrowsUnsupported()
+    public async Task Create_RecordWithEncryption_KeepsTheAwsManagedKey()
     {
         // Arrange
         var db = new FakeDatabase(TimeProvider.System);
         var request = UsersRequest() with { SSESpecification = new SSESpecification { Enabled = true } };
 
         // Act
-        var act = () => TableOperations.Create(db, request);
+        var table = TableOperations.Create(db, request);
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessageContaining("the member SSESpecification in CreateTable", StringComparison.Ordinal);
+        await Assert.That(table.KmsMasterKeyArn).IsEqualTo(FakeTable.AwsManagedKeyArn);
     }
 
     [Test]

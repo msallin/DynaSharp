@@ -12,6 +12,15 @@ public sealed class AttributeRulesTests
         yield return () => (AttributeValue.WrapBinarySet([new byte[] { 1 }, new byte[] { 1 }]), "AQ==, AQ==");
     }
 
+    public static IEnumerable<Func<(AttributeValue Set, string Expected)>> Unordered()
+    {
+        yield return () => (AttributeValue.WrapStringSet(["b", string.Empty, "a"]), """{"SS":["","a","b"]}""");
+        yield return () => (AttributeValue.WrapStringSet(["é", "z"]), """{"SS":["z","é"]}""");
+        yield return () => (AttributeValue.WrapStringSet(["\U0001F600", "\uFF5E"]), AttributeValue.WrapStringSet(["\uFF5E", "\U0001F600"]).ToString());
+        yield return () => (AttributeValue.FromNumberSet(["10", "9", "-1"]), """{"NS":["-1","9","10"]}""");
+        yield return () => (AttributeValue.WrapBinarySet([new byte[] { 2 }, new byte[] { 1, 0 }, Array.Empty<byte>()]), """{"BS":["","AQA=","Ag=="]}""");
+    }
+
     [Test]
     public async Task Normalize_NumbersAtAnyDepth_GivesTheirCanonicalText()
     {
@@ -31,6 +40,20 @@ public sealed class AttributeRulesTests
 
         // Assert
         await Assert.That(normalized.ToString()).IsEqualTo("""{"n":{"N":"1.5"},"l":{"L":[{"N":"2"}]},"m":{"M":{"k":{"N":"0"}}},"ns":{"NS":["1","20"]},"s":{"S":"keep"},"bs":{"BS":["AQ=="]}}""");
+    }
+
+    [Test]
+    [MethodDataSource(nameof(Unordered))]
+    public async Task Normalize_Sets_ComeInDynamoDbOrder(AttributeValue set, string expected)
+    {
+        // Arrange: strings and binaries order by unsigned bytes (strings by UTF-8, not UTF-16), numbers by value.
+        var item = new Item { ["set"] = set };
+
+        // Act
+        var normalized = AttributeRules.Normalize(item);
+
+        // Assert
+        await Assert.That(normalized["set"].ToString()).IsEqualTo(expected);
     }
 
     [Test]

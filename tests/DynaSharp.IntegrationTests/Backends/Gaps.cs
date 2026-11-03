@@ -54,6 +54,9 @@ public enum Gap
     /// <summary>A table takes tags when it is created.</summary>
     Tags,
 
+    /// <summary>A table created with server-side encryption enabled reports it in SSEDescription.</summary>
+    ServerSideEncryptionDescription,
+
     /// <summary>A BatchGetItem whose response would pass 16 MB returns the rest as UnprocessedKeys.</summary>
     BatchResponseLimit,
 
@@ -106,6 +109,7 @@ public static class Gaps
         [(Backend.Dynoxide, Gap.DescribeLimits)] = "Dynoxide answers DescribeLimits with UnknownOperationException.",
         [(Backend.DynamoDbLocal, Gap.UpdateTableClass)] = "DynamoDB Local rejects an UpdateTable that only changes the table class with 'Nothing to update'.",
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
+        [(Backend.DynamoDbLocal, Gap.ServerSideEncryptionDescription)] = "DynamoDB Local accepts SSESpecification and leaves SSEDescription out of the table description.",
 
         // The fake's rows name only what docs/testing.md lists as outside the fake, see Backend.Fake.
         [(Backend.Fake, Gap.MultiShardStreams)] = "The fake's streams have a single shard.",

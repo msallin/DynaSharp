@@ -59,6 +59,7 @@ internal static class TableJson
         var deletionProtectionEnabled = false;
         ProvisionedThroughputDescription? provisionedThroughput = null;
         var tableClass = TableClass.Unspecified;
+        SSEDescription? sseDescription = null;
 
         reader.ReadStartItem();
         while (reader.TryReadAttributeName())
@@ -131,6 +132,10 @@ internal static class TableJson
             {
                 tableClass = ReadTableClassSummary(ref reader);
             }
+            else if (reader.AttributeNameEquals("SSEDescription"u8))
+            {
+                sseDescription = ReadSseDescription(ref reader);
+            }
             else
             {
                 OperationJson.SkipValue(ref reader);
@@ -156,6 +161,7 @@ internal static class TableJson
             DeletionProtectionEnabled = deletionProtectionEnabled,
             ProvisionedThroughput = provisionedThroughput,
             TableClass = tableClass,
+            SSEDescription = sseDescription,
         };
     }
 
@@ -375,6 +381,46 @@ internal static class TableJson
         }
 
         return tableClass;
+    }
+
+    private static SSEDescription ReadSseDescription(ref DynamoDbReader reader)
+    {
+        var status = SSEStatus.Unknown;
+        var sseType = SSEType.Unspecified;
+        string? kmsMasterKeyArn = null;
+        DateTimeOffset? inaccessibleSince = null;
+        reader.ReadStartItem();
+        while (reader.TryReadAttributeName())
+        {
+            if (reader.AttributeNameEquals("Status"u8))
+            {
+                status = OperationJson.ReadEnum(ref reader, WireNames.SSEStatuses);
+            }
+            else if (reader.AttributeNameEquals("SSEType"u8))
+            {
+                sseType = OperationJson.ReadEnum(ref reader, WireNames.SSETypes);
+            }
+            else if (reader.AttributeNameEquals("KMSMasterKeyArn"u8))
+            {
+                kmsMasterKeyArn = OperationJson.ReadString(ref reader);
+            }
+            else if (reader.AttributeNameEquals("InaccessibleEncryptionDateTime"u8))
+            {
+                inaccessibleSince = OperationJson.ReadEpochSeconds(ref reader);
+            }
+            else
+            {
+                OperationJson.SkipValue(ref reader);
+            }
+        }
+
+        return new SSEDescription
+        {
+            Status = status,
+            SSEType = sseType,
+            KMSMasterKeyArn = kmsMasterKeyArn,
+            InaccessibleEncryptionDateTime = inaccessibleSince,
+        };
     }
 
     private static StreamSpecification ReadStreamSpecification(ref DynamoDbReader reader)

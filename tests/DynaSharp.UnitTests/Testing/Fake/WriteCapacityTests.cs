@@ -198,6 +198,40 @@ public sealed class WriteCapacityTests
     }
 
     [Test]
+    [Arguments("Read", "ReadCapacityUnits")]
+    [Arguments("Write", "WriteCapacityUnits")]
+    public async Task WriteAll_Split_CopiesTheUnitsIntoReadOrWrite(string split, string member)
+    {
+        // Arrange
+        CapacityShare[] shares = [new("Forum", 4, [new IndexUnits("ByAuthor", true, 2), new IndexUnits("ByDate", false, 1)])];
+
+        // Act
+        var json = Render(writer => WriteCapacity.WriteAll(writer, ReturnConsumedCapacity.Indexes, shares, Enum.Parse<WriteCapacity.Split>(split)));
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(
+            $$$$"""
+            {"ConsumedCapacity":[
+              {"TableName":"Forum","CapacityUnits":7,"{{{{member}}}}":7,"Table":{"CapacityUnits":4,"{{{{member}}}}":4},
+               "LocalSecondaryIndexes":{"ByDate":{"CapacityUnits":1,"{{{{member}}}}":1}},"GlobalSecondaryIndexes":{"ByAuthor":{"CapacityUnits":2,"{{{{member}}}}":2}}}]}
+            """,
+            json)).IsTrue();
+    }
+
+    [Test]
+    public async Task WriteAll_TotalWithASplit_ReportsCapacityUnitsAlone()
+    {
+        // Arrange
+        CapacityShare[] shares = [new("Forum", 4, [new IndexUnits("ByAuthor", true, 2)])];
+
+        // Act
+        var json = Render(writer => WriteCapacity.WriteAll(writer, ReturnConsumedCapacity.Total, shares, WriteCapacity.Split.Write));
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"ConsumedCapacity":[{"TableName":"Forum","CapacityUnits":6}]}""", json)).IsTrue();
+    }
+
+    [Test]
     public async Task OfWrite_InATransaction_DoublesTheTableAndTheIndexes()
     {
         // Arrange

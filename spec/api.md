@@ -85,6 +85,9 @@ There are three ways in, and the shape of a call tells them apart.
 both run on the same pipeline with the same telemetry. Its member names follow the service model in botocore, and so does what it requires: a response record marks `required` only what the model does, and a
 member the model leaves optional is nullable or reads as its default, even one DynamoDB sends in practice, such as `TableDescription.TableName` or `CreateTableResponse.TableDescription`. An `Item` goes into any request, because it implements
 `IReadOnlyDictionary<string, AttributeValue>`, and `ContinuationToken.ToKey()` and `FromKey(...)` bridge paging.
+`TableDescription` holds the commonly needed subset of what DynamoDB describes, and an enum value of a response that the library does not know reads as the zero member of its enum. Its
+`SSEDescription` (`Status` as `SSEStatus`, `SSEType`, `KMSMasterKeyArn`, `InaccessibleEncryptionDateTime`) describes encryption with an AWS KMS key and is `null` for a table encrypted with the key
+that DynamoDB owns, the default, for which DynamoDB sends none.
 
 ## 2. Client
 

@@ -276,20 +276,12 @@
             "ReturnValues": "UPDATED_NEW"
           },
           "status": 200,
-          "response": {
-            "Attributes": {
-              "m": {
-                "M": {
-                  "x": {
-                    "N": "10"
-                  },
-                  "y": {
-                    "N": "2"
-                  }
-                }
-              }
+          "select": {
+            "Attributes.m.M.x": {
+              "N": "10"
             }
-          }
+          },
+          "present": {}
         },
         {
           "operation": "UpdateItem",
@@ -309,20 +301,12 @@
             "ReturnValues": "UPDATED_OLD"
           },
           "status": 200,
-          "response": {
-            "Attributes": {
-              "m": {
-                "M": {
-                  "x": {
-                    "N": "10"
-                  },
-                  "y": {
-                    "N": "2"
-                  }
-                }
-              }
+          "select": {
+            "Attributes.m.M.x": {
+              "N": "10"
             }
-          }
+          },
+          "present": {}
         },
         {
           "operation": "UpdateItem",

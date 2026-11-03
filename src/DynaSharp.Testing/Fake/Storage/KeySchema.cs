@@ -8,7 +8,8 @@ namespace DynaSharp.Testing.Fake;
 /// </summary>
 /// <remarks>
 /// <see cref="ReadKey"/> is for a request that names an item by its key, <c>Key</c> of <c>GetItem</c>, which must hold the key attributes and nothing else. <see cref="KeyOf"/> is for an item
-/// that is written, which holds the key attributes among others. Both check the type, that a string or a binary is not empty, and the sizes: 2048 bytes for a partition key, 1024 for a sort key.
+/// that is written, which holds the key attributes among others. Both check the type, that a string or a binary is not empty, and the sizes: 2048 bytes for a partition key, 1024 for a sort key. An empty value, of the table key or of an index key, is
+/// <see cref="FakeError.InvalidInput"/>, which a transaction does not turn into a cancellation reason.
 /// </remarks>
 /// <param name="PartitionKeyName">The attribute of the partition key.</param>
 /// <param name="PartitionKeyType">Its type.</param>
@@ -141,7 +142,7 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
 
         if (IsEmpty(value))
         {
-            throw FakeError.Validation(
+            throw FakeError.InvalidInput(
                 $"One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty {Kind(value)} value. IndexName: {indexName}, IndexKey: {name}");
         }
     }
@@ -154,12 +155,12 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     {
         if (IsEmpty(partition))
         {
-            throw FakeError.Validation($"One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty {Kind(partition)} value. Key: {PartitionKeyName}");
+            throw FakeError.InvalidInput($"One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty {Kind(partition)} value. Key: {PartitionKeyName}");
         }
 
         if (sort is { } sortValue && IsEmpty(sortValue))
         {
-            throw FakeError.Validation($"One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty {Kind(sortValue)} value. Key: {SortKeyName}");
+            throw FakeError.InvalidInput($"One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty {Kind(sortValue)} value. Key: {SortKeyName}");
         }
 
         if (ItemSize.Of(partition) > MaxPartitionKeyBytes)

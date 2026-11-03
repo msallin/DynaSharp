@@ -220,8 +220,14 @@ internal sealed class ExpressionParser
         Term left;
         if (Accept(ExpressionTokenKind.OpenParenthesis))
         {
-            left = ParseOr();
+            var inner = ParseOr();
             Expect(ExpressionTokenKind.CloseParenthesis);
+            if (inner is { Condition: not null, Parenthesized: true })
+            {
+                throw FakeError.Validation($"Invalid {_member}: The expression has redundant parentheses;");
+            }
+
+            left = inner with { Parenthesized = true };
         }
         else
         {
@@ -236,7 +242,7 @@ internal sealed class ExpressionParser
         var isComparator = At(ExpressionTokenKind.Equal) || At(ExpressionTokenKind.Comparator);
         if (!isComparator && !AtKeyword("BETWEEN") && !AtKeyword("IN"))
         {
-            return left.IsTest ? Term.Of(left.Condition!) : left;
+            return left.IsTest ? Term.Of(left.Condition!) with { Parenthesized = left.Parenthesized } : left;
         }
 
         // attribute_exists(a) = :v: a function that is a condition is no operand.
@@ -370,6 +376,14 @@ internal sealed class ExpressionParser
         if (operands.Count != expected)
         {
             throw FakeError.Validation($"Invalid {_member}: Incorrect number of operands for operator or function; operator or function: {name}, number of operands: {operands.Count}");
+        }
+
+        if (shape == FunctionShape.Contains
+            && operands[0] is Operand.Attribute { Path: var first }
+            && operands[1] is Operand.Attribute { Path: var second }
+            && first.ToString() == second.ToString())
+        {
+            throw FakeError.Validation($"Invalid {_member}: The first operand must be distinct from the remaining operands for this operator or function; operator: contains, first operand: {first}");
         }
 
         return shape switch
@@ -600,7 +614,7 @@ internal sealed class ExpressionParser
     }
 
     // What a rule parsed: a condition, an operand, or a function that is a condition but has not yet shown that no comparator follows it.
-    private readonly record struct Term(ConditionNode? Condition, Operand? Operand, bool IsTest)
+    private readonly record struct Term(ConditionNode? Condition, Operand? Operand, bool IsTest, bool Parenthesized = false)
     {
         public static Term Of(ConditionNode condition) => new(condition, null, false);
 

@@ -165,6 +165,19 @@ public sealed class GetItemTests
     }
 
     [Test]
+    public async Task Handle_AttributesToGetWithAProjectionExpression_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"AttributesToGet":["total"],"ProjectionExpression":"total"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {AttributesToGet} Expression parameters: {ProjectionExpression}"));
+    }
+
+    [Test]
     public async Task Handle_ConsistentReadNotABoolean_AnswersSerialization()
     {
         // Arrange

@@ -69,6 +69,24 @@ public sealed partial class FakeVectorTests
     }
 
     [Test]
+    [Arguments("ConsumedCapacity.0.CapacityUnits", "2")]
+    [Arguments("ConsumedCapacity.1.CapacityUnits", "null")]
+    [Arguments("ConsumedCapacity.x", "null")]
+    [Arguments("ConsumedCapacity.0.CapacityUnits.y", "null")]
+    public async Task At_Path_IsTheValueThereWithANumberForAnElement(string path, string expected)
+    {
+        // Arrange
+        ArgumentNullException.ThrowIfNull(path);
+        var body = JsonNode.Parse("""{"ConsumedCapacity":[{"CapacityUnits":2}]}""")!;
+
+        // Act
+        var value = At(body, path);
+
+        // Assert
+        await Assert.That(value?.ToJsonString() ?? "null").IsEqualTo(expected);
+    }
+
+    [Test]
     public async Task Expand_Variable_IsWhatAnEarlierAnswerNamed()
     {
         // Arrange
@@ -137,8 +155,13 @@ public sealed partial class FakeVectorTests
         }
     }
 
-    // Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or null.
-    private static JsonNode? At(JsonNode body, string path) => path.Split('.').Aggregate((JsonNode?)body, static (node, name) => node is JsonObject value ? value[name] : null);
+    // Input: {"Table":{"StreamSpecification":{...}}}, "Table.StreamSpecification" -> the value there, or null; a number names an element of an array, "ConsumedCapacity.0.CapacityUnits".
+    private static JsonNode? At(JsonNode body, string path) => path.Split('.').Aggregate((JsonNode?)body, static (node, name) => node switch
+    {
+        JsonObject value => value[name],
+        JsonArray value when int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out var index) && index < value.Count => value[index],
+        _ => null,
+    });
 
     // The stream ARN and the shard id an answer names, for the requests after it, as build/generate_fake_vectors.py keeps them.
     private static void Capture(JsonObject body, Dictionary<string, string> variables)

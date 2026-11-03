@@ -14,10 +14,27 @@ namespace DynaSharp.Testing.Fake;
 /// <c>TOTAL</c> reports <c>CapacityUnits</c>, as the reads of <see cref="ReadCapacity"/> do; <c>INDEXES</c> adds the share of the table and of every
 /// index that paid: <c>{"TableName":"T","CapacityUnits":2.0,"Table":{"CapacityUnits":1.0},"GlobalSecondaryIndexes":{"ByX":{"CapacityUnits":1.0}}}</c>.
 /// </para>
+/// <para>
+/// A transaction with <c>INDEXES</c> also tells read units from write units, as DynamoDB answers it: <c>ReadCapacityUnits</c> or <c>WriteCapacityUnits</c> beside each
+/// <c>CapacityUnits</c>, at the top, of the table and of every index, see <see cref="Split"/>. With <c>TOTAL</c> it stays <c>CapacityUnits</c> alone, which is all that was observed of it.
+/// </para>
 /// </summary>
 internal static class WriteCapacity
 {
     private const long WriteUnitBytes = 1024;
+
+    /// <summary>Which units a <c>ConsumedCapacity</c> of <c>INDEXES</c> repeats its <c>CapacityUnits</c> in.</summary>
+    public enum Split
+    {
+        /// <summary>Neither: <c>CapacityUnits</c> alone, as the single writes and the batches answer.</summary>
+        None,
+
+        /// <summary><c>ReadCapacityUnits</c>, as <c>TransactGetItems</c> and the replay of a <c>TransactWriteItems</c> answer.</summary>
+        Read,
+
+        /// <summary><c>WriteCapacityUnits</c>, as <c>TransactWriteItems</c> answers.</summary>
+        Write,
+    }
 
     /// <summary>Gets the units of a write to a table.</summary>
     /// <param name="oldSizeBytes">The size of the old image, 0 for none.</param>
@@ -71,14 +88,15 @@ internal static class WriteCapacity
     {
         ArgumentNullException.ThrowIfNull(response);
         response.WritePropertyName("ConsumedCapacity"u8);
-        ResponseJson.WriteConsumedCapacity(response, Of(mode, new CapacityShare(tableName, tableUnits, indexes)));
+        ResponseJson.WriteConsumedCapacity(response, Of(mode, new CapacityShare(tableName, tableUnits, indexes), Split.None));
     }
 
     /// <summary>Writes <c>ConsumedCapacity</c> of a batch or a transaction: an array with one element per table, in the order the tables first come, each the sum of its shares.</summary>
     /// <param name="response">The writer, inside the object of the response.</param>
     /// <param name="mode">What the request asked for, not <see cref="ReturnConsumedCapacity.None"/>.</param>
     /// <param name="shares">The units of each item, with its table.</param>
-    public static void WriteAll(Utf8JsonWriter response, ReturnConsumedCapacity mode, IEnumerable<CapacityShare> shares)
+    /// <param name="split">The units that <c>INDEXES</c> repeats <c>CapacityUnits</c> in; ignored for <c>TOTAL</c>.</param>
+    public static void WriteAll(Utf8JsonWriter response, ReturnConsumedCapacity mode, IEnumerable<CapacityShare> shares, Split split = Split.None)
     {
         ArgumentNullException.ThrowIfNull(response);
         ArgumentNullException.ThrowIfNull(shares);
@@ -91,7 +109,7 @@ internal static class WriteCapacity
                     .GroupBy(static index => (index.IndexName, index.IsGlobal))
                     .Select(static index => new IndexUnits(index.Key.IndexName, index.Key.IsGlobal, index.Sum(static units => units.Units))),
             ];
-            ResponseJson.WriteConsumedCapacity(response, Of(mode, new CapacityShare(table.Key, table.Sum(static share => share.TableUnits), indexes)));
+            ResponseJson.WriteConsumedCapacity(response, Of(mode, new CapacityShare(table.Key, table.Sum(static share => share.TableUnits), indexes), split));
         }
 
         response.WriteEndArray();
@@ -101,22 +119,28 @@ internal static class WriteCapacity
 
     private static bool SameKey(KeySchema key, Item old, Item entry) => key.Names.All(name => old[name].Equals(entry[name]));
 
-    private static ConsumedCapacity Of(ReturnConsumedCapacity mode, CapacityShare share)
+    private static ConsumedCapacity Of(ReturnConsumedCapacity mode, CapacityShare share, Split split)
     {
-        var capacity = new ConsumedCapacity { TableName = share.TableName, CapacityUnits = share.TableUnits + share.Indexes.Sum(static index => index.Units) };
+        var units = share.TableUnits + share.Indexes.Sum(static index => index.Units);
+        var capacity = new ConsumedCapacity { TableName = share.TableName, CapacityUnits = units };
         return mode != ReturnConsumedCapacity.Indexes
             ? capacity
             : capacity with
             {
-                Table = new CapacityDetail { CapacityUnits = share.TableUnits },
-                GlobalSecondaryIndexes = Details(share.Indexes, isGlobal: true),
-                LocalSecondaryIndexes = Details(share.Indexes, isGlobal: false),
+                ReadCapacityUnits = split == Split.Read ? units : null,
+                WriteCapacityUnits = split == Split.Write ? units : null,
+                Table = Detail(share.TableUnits, split),
+                GlobalSecondaryIndexes = Details(share.Indexes, isGlobal: true, split),
+                LocalSecondaryIndexes = Details(share.Indexes, isGlobal: false, split),
             };
     }
 
-    private static Dictionary<string, CapacityDetail>? Details(IReadOnlyList<IndexUnits> indexes, bool isGlobal)
+    private static CapacityDetail Detail(double units, Split split) =>
+        new() { CapacityUnits = units, ReadCapacityUnits = split == Split.Read ? units : null, WriteCapacityUnits = split == Split.Write ? units : null };
+
+    private static Dictionary<string, CapacityDetail>? Details(IReadOnlyList<IndexUnits> indexes, bool isGlobal, Split split)
     {
-        var details = indexes.Where(index => index.IsGlobal == isGlobal).ToDictionary(static index => index.IndexName, static index => new CapacityDetail { CapacityUnits = index.Units }, StringComparer.Ordinal);
+        var details = indexes.Where(index => index.IsGlobal == isGlobal).ToDictionary(static index => index.IndexName, index => Detail(index.Units, split), StringComparer.Ordinal);
         return details.Count == 0 ? null : details;
     }
 }

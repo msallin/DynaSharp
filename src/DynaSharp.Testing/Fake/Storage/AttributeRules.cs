@@ -82,15 +82,15 @@ internal static class AttributeRules
                 return AttributeValue.WrapMap(map);
             case AttributeType.StringSet:
                 ThrowIfDuplicates(value.AsStringSet(), value.AsStringSet(), StringComparer.Ordinal);
-                return value;
+                return AttributeSets.Create(value.Type, AttributeSets.Elements(value));
             case AttributeType.NumberSet:
                 string[] numbers = [.. value.AsNumberSet().Select(static number => DecimalNumber.Parse(number).ToString())];
                 ThrowIfDuplicates(value.AsNumberSet(), numbers, StringComparer.Ordinal);
-                return AttributeValue.WrapNumberSet(numbers);
+                return AttributeSets.Create(value.Type, numbers.Select(static number => AttributeValue.FromNumber(number)));
             case AttributeType.BinarySet:
                 string[] encoded = [.. value.AsBinarySet().Select(static element => Convert.ToBase64String(element.Span))];
                 ThrowIfDuplicates(encoded, encoded, StringComparer.Ordinal);
-                return value;
+                return AttributeSets.Create(value.Type, AttributeSets.Elements(value));
             default:
                 return value;
         }

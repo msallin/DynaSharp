@@ -124,6 +124,15 @@ internal static class ResponseJson
             json.WriteEndObject();
         }
 
+        if (table.KmsMasterKeyArn is { } keyArn)
+        {
+            json.WriteStartObject("SSEDescription"u8);
+            WireNames.SSEStatuses.Write(json, "Status"u8, SSEStatus.Enabled);
+            WireNames.SSETypes.Write(json, "SSEType"u8, SSEType.Kms);
+            json.WriteString("KMSMasterKeyArn"u8, keyArn);
+            json.WriteEndObject();
+        }
+
         json.WriteBoolean("DeletionProtectionEnabled"u8, table.DeletionProtectionEnabled);
         json.WriteEndObject();
     }

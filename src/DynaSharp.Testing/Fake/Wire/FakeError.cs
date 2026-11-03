@@ -35,12 +35,13 @@ internal sealed class FakeError : Exception
 
     private const string ConditionFailedMessage = "The conditional request failed";
 
-    private FakeError(string type, string message, HttpStatusCode status = HttpStatusCode.BadRequest, Action<Utf8JsonWriter>? extraBody = null)
+    private FakeError(string type, string message, HttpStatusCode status = HttpStatusCode.BadRequest, Action<Utf8JsonWriter>? extraBody = null, bool isInputError = false)
         : base(message)
     {
         Type = type;
         Status = status;
         ExtraBody = extraBody;
+        IsInputError = isInputError;
     }
 
     /// <summary>Gets the error code, the part of <see cref="Type"/> after the <c>#</c>.</summary>
@@ -52,6 +53,12 @@ internal sealed class FakeError : Exception
     /// <summary>Gets the HTTP status.</summary>
     public HttpStatusCode Status { get; }
 
+    /// <summary>
+    /// Gets a value indicating whether the error is in the input itself, whatever the items hold, such as an empty string as a key value. A transaction fails the request with it,
+    /// where it cancels with a <c>ValidationError</c> reason for the other validation errors of an action.
+    /// </summary>
+    public bool IsInputError { get; }
+
     /// <summary>Gets what the body holds beyond <c>__type</c> and <c>message</c>, or <see langword="null"/>.</summary>
     public Action<Utf8JsonWriter>? ExtraBody { get; }
 
@@ -59,6 +66,11 @@ internal sealed class FakeError : Exception
     /// <param name="message">The message, in the words of DynamoDB where they are known.</param>
     /// <returns>The error.</returns>
     public static FakeError Validation(string message) => new(DynamoDbNamespace + "ValidationException", message);
+
+    /// <summary>A <c>ValidationException</c> for a value of the input that DynamoDB rejects whatever the items hold, with <see cref="IsInputError"/> set.</summary>
+    /// <param name="message">The message, in the words of DynamoDB where they are known.</param>
+    /// <returns>The error.</returns>
+    public static FakeError InvalidInput(string message) => new(DynamoDbNamespace + "ValidationException", message, isInputError: true);
 
     /// <summary>A body that is not the JSON an operation takes, such as a string where a number goes.</summary>
     /// <param name="message">The message.</param>
@@ -126,7 +138,7 @@ internal sealed class FakeError : Exception
     public static FakeError Unsupported(string what, string? operation = null) =>
         new(
             "DynaSharp.Testing#" + UnsupportedCode,
-            $"FakeDynamoDb does not support {what}{(operation is null ? string.Empty : " in " + operation)}. It answers what {ScopeLink} lists, and nothing it does not implement is ignored.");
+            $"FakeDynamoDb does not support {what}{(operation is null ? string.Empty : " in " + operation)}: it is not supported by the fake, which answers what {ScopeLink} lists and ignores nothing it does not implement.");
 
     /// <summary>Renders the body DynamoDB sends for this error.</summary>
     /// <returns>The UTF-8 JSON.</returns>

@@ -155,14 +155,10 @@
             "ReturnConsumedCapacity": "TOTAL"
           },
           "status": 200,
-          "response": {
-            "ConsumedCapacity": [
-              {
-                "TableName": "fake-vectors",
-                "CapacityUnits": 2.0
-              }
-            ]
-          }
+          "select": {
+            "ConsumedCapacity.0.CapacityUnits": 2.0
+          },
+          "present": {}
         },
         {
           "operation": "TransactWriteItems",
@@ -183,14 +179,10 @@
             "ReturnConsumedCapacity": "TOTAL"
           },
           "status": 200,
-          "response": {
-            "ConsumedCapacity": [
-              {
-                "TableName": "fake-vectors",
-                "CapacityUnits": 2.0
-              }
-            ]
-          }
+          "select": {
+            "ConsumedCapacity.0.CapacityUnits": 2.0
+          },
+          "present": {}
         }
       ]
     },

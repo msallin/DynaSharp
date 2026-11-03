@@ -20,6 +20,15 @@ internal sealed class FakeTable
     /// <summary>The start of every ARN: the region of <see cref="StubClient"/> and the sample account of the AWS documentation, which <see cref="StubResponse"/> uses as well.</summary>
     public const string ArnPrefix = "arn:aws:dynamodb:" + StubClient.RegionName + ":123456789012:table/";
 
+    /// <summary>The start of the ARN of a KMS key of the fake: the region and account of <see cref="ArnPrefix"/>.</summary>
+    public const string KmsArnPrefix = "arn:aws:kms:" + StubClient.RegionName + ":123456789012:";
+
+    /// <summary>
+    /// The ARN of the AWS managed key <c>alias/aws/dynamodb</c> of the fake's account, which encrypts a table created with <c>SSESpecification</c> enabled and no
+    /// <c>KMSMasterKeyId</c>. It is one fixed key, as in DynamoDB, where that key is one per account and region and so the same for every such table.
+    /// </summary>
+    public const string AwsManagedKeyArn = KmsArnPrefix + "key/8f2b1c4e-6d3a-4e5f-9a7b-0c1d2e3f4a5b";
+
     private readonly ItemStore _items = new();
 
     /// <summary>Initializes a new instance of the <see cref="FakeTable"/> class, empty.</summary>
@@ -68,6 +77,9 @@ internal sealed class FakeTable
 
     /// <summary>Gets or sets a value indicating whether the table refuses <c>DeleteTable</c>.</summary>
     public bool DeletionProtectionEnabled { get; set; }
+
+    /// <summary>Gets or sets the ARN of the KMS key that encrypts the table, or <see langword="null"/> for the key that DynamoDB owns, which the description does not report.</summary>
+    public string? KmsMasterKeyArn { get; set; }
 
     /// <summary>Gets or sets the attribute of time to live, or <see langword="null"/> while it is off.</summary>
     public string? TimeToLiveAttribute { get; set; }

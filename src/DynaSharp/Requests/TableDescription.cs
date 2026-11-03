@@ -76,6 +76,12 @@ public sealed record TableDescription
     /// </summary>
     public string? LatestStreamLabel { get; init; }
 
+    /// <summary>
+    /// Gets the server-side encryption with an AWS KMS key, or <see langword="null"/> for a table encrypted with the key that DynamoDB owns,
+    /// the default, for which DynamoDB reports none.
+    /// </summary>
+    public SSEDescription? SSEDescription { get; init; }
+
     /// <summary>Gets a value indicating whether the table is protected from deletion. <see langword="false"/> if DynamoDB did not say.</summary>
     public bool DeletionProtectionEnabled { get; init; }
 }

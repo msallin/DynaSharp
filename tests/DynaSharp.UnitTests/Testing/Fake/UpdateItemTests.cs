@@ -21,6 +21,20 @@ public sealed class UpdateItemTests
     }
 
     [Test]
+    public async Task Handle_AddEmptyStringToAStringSet_ReadsBackTheEmptyStringFirst()
+    {
+        // Arrange: captured from DynamoDB, which answers set members sorted.
+        var fake = FakeCalls.With(FakeCalls.Users);
+        FakeCalls.Ok(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"UpdateExpression":"ADD tags :a","ExpressionAttributeValues":{":a":{"SS":["a"]}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"UpdateExpression":"ADD tags :e","ExpressionAttributeValues":{":e":{"SS":[""]}},"ReturnValues":"UPDATED_NEW"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"Attributes":{"tags":{"SS":["","a"]}}}""", body)).IsTrue();
+    }
+
+    [Test]
     public async Task Handle_AddTwice_AddsTheNumbers()
     {
         // Arrange

@@ -471,3 +471,29 @@ DynaSharp.Credentials.SsoCredentialsProvider.GetCredentialsAsync(System.Threadin
 DynaSharp.Credentials.SsoCredentialsProvider.SsoCredentialsProvider(string! startUrl, DynaSharp.AwsRegion! ssoRegion, string! accountId, string! roleName, string? sessionName = null) -> void
 DynaSharp.Credentials.SsoCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.EnvironmentCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Requests.SSEDescription
+DynaSharp.Requests.SSEDescription.<Clone>$() -> DynaSharp.Requests.SSEDescription!
+DynaSharp.Requests.SSEDescription.Equals(DynaSharp.Requests.SSEDescription? other) -> bool
+DynaSharp.Requests.SSEDescription.InaccessibleEncryptionDateTime.get -> System.DateTimeOffset?
+DynaSharp.Requests.SSEDescription.InaccessibleEncryptionDateTime.init -> void
+DynaSharp.Requests.SSEDescription.KMSMasterKeyArn.get -> string?
+DynaSharp.Requests.SSEDescription.KMSMasterKeyArn.init -> void
+DynaSharp.Requests.SSEDescription.SSEDescription() -> void
+DynaSharp.Requests.SSEDescription.SSEType.get -> DynaSharp.Requests.SSEType
+DynaSharp.Requests.SSEDescription.SSEType.init -> void
+DynaSharp.Requests.SSEDescription.Status.get -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEDescription.Status.init -> void
+DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Disabled = 4 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Disabling = 3 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Enabled = 2 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Enabling = 1 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Unknown = 0 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.SSEStatus.Updating = 5 -> DynaSharp.Requests.SSEStatus
+DynaSharp.Requests.TableDescription.SSEDescription.get -> DynaSharp.Requests.SSEDescription?
+DynaSharp.Requests.TableDescription.SSEDescription.init -> void
+override DynaSharp.Requests.SSEDescription.Equals(object? obj) -> bool
+override DynaSharp.Requests.SSEDescription.GetHashCode() -> int
+override DynaSharp.Requests.SSEDescription.ToString() -> string!
+static DynaSharp.Requests.SSEDescription.operator !=(DynaSharp.Requests.SSEDescription? left, DynaSharp.Requests.SSEDescription? right) -> bool
+static DynaSharp.Requests.SSEDescription.operator ==(DynaSharp.Requests.SSEDescription? left, DynaSharp.Requests.SSEDescription? right) -> bool

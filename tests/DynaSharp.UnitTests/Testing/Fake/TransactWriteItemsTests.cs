@@ -88,6 +88,65 @@ public sealed class TransactWriteItemsTests
     }
 
     [Test]
+    [Arguments("""{"Put":{"TableName":"Users","Item":{"pk":{"S":""}}}}""")]
+    [Arguments("""{"Update":{"TableName":"Users","Key":{"pk":{"S":""}},"UpdateExpression":"SET v = :v","ExpressionAttributeValues":{":v":{"S":"x"}}}}""")]
+    [Arguments("""{"Delete":{"TableName":"Users","Key":{"pk":{"S":""}}}}""")]
+    [Arguments("""{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":""}},"ConditionExpression":"attribute_not_exists(pk)"}}""")]
+    public async Task Handle_EmptyStringKey_AnswersValidationAndWritesNothing(string action)
+    {
+        // Arrange: DynamoDB fails the request here, where it cancels with a reason for a key of the wrong type
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "TransactWriteItems", $$$$$"""{"TransactItems":[{{{{{PutA}}}}},{{{{{action}}}}}]}""");
+
+        // Assert
+        await Assert.That((answer, fake.Items("Users").Count)).IsEqualTo((
+            (HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: pk"),
+            0));
+    }
+
+    [Test]
+    public async Task Handle_PutWithAnEmptyIndexKey_AnswersValidationAndTakesTheEarlierWritesBack()
+    {
+        // Arrange: the put of c is the last action, so the put of a and the delete of b are applied before it fails
+        var fake = FakeCalls.With(FakeWrites.Forum);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Forum","Item":{"pk":{"S":"b"},"sk":{"S":"1"}}}""");
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Put":{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"}}}},{"Delete":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}}}},
+              {"Put":{"TableName":"Forum","Item":{"pk":{"S":"c"},"sk":{"S":"1"},"author":{"S":""}}}}]}
+            """);
+
+        // Assert
+        await Assert.That((answer.Code, answer.Message, fake.Items("Forum").Single()["pk"].AsString())).IsEqualTo((
+            "ValidationException",
+            "One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty string value. IndexName: ByAuthor, IndexKey: author",
+            "b"));
+    }
+
+    [Test]
+    public async Task Handle_UpdateSettingAnEmptyIndexKey_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeWrites.Forum);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"},"author":{"S":"ann"}}}""");
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """{"TransactItems":[{"Update":{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET author = :e","ExpressionAttributeValues":{":e":{"S":""}}}}]}""");
+
+        // Assert
+        await Assert.That((answer.Code, answer.Message.Contains("secondary index key", StringComparison.Ordinal), fake.Items("Forum").Single()["author"].AsString())).IsEqualTo(("ValidationException", true, "ann"));
+    }
+
+    [Test]
     public async Task Handle_WriteTheTableRejects_CancelsWithValidationErrorAndTakesTheEarlierWritesBack()
     {
         // Arrange
@@ -151,8 +210,8 @@ public sealed class TransactWriteItemsTests
         // Assert
         await Assert.That(FakeCalls.SameJson(
             """
-            {"ConsumedCapacity":[{"TableName":"Forum","CapacityUnits":6,"Table":{"CapacityUnits":4},
-                                  "GlobalSecondaryIndexes":{"ByAuthor":{"CapacityUnits":2}}}],
+            {"ConsumedCapacity":[{"TableName":"Forum","CapacityUnits":6,"WriteCapacityUnits":6,"Table":{"CapacityUnits":4,"WriteCapacityUnits":4},
+                                  "GlobalSecondaryIndexes":{"ByAuthor":{"CapacityUnits":2,"WriteCapacityUnits":2}}}],
              "ItemCollectionMetrics":{"Forum":[{"ItemCollectionKey":{"pk":{"S":"a"}},"SizeEstimateRangeGB":[0,1]}]}}
             """,
             body)).IsTrue();
@@ -177,7 +236,7 @@ public sealed class TransactWriteItemsTests
     [Test]
     public async Task Handle_ReplayWithTotal_ReportsTheReadUnitsOfReadingTheItems()
     {
-        // Arrange: the API reference says a repeated call returns the read capacity units of reading the item, not the write units of the first call
+        // Arrange: the API reference says a repeated call returns the read capacity units of reading the item, not the write units of the first call; a transactional read costs two
         var fake = FakeCalls.With(FakeCalls.Users);
         var request = $$$"""{"ClientRequestToken":"t-1","ReturnConsumedCapacity":"TOTAL","TransactItems":[{{{PutA}}}]}""";
         FakeCalls.Ok(fake, "TransactWriteItems", request);
@@ -186,7 +245,47 @@ public sealed class TransactWriteItemsTests
         var body = FakeCalls.Ok(fake, "TransactWriteItems", request);
 
         // Assert
-        await Assert.That(FakeCalls.SameJson("""{"ConsumedCapacity":[{"TableName":"Users","CapacityUnits":1}]}""", body)).IsTrue();
+        await Assert.That(FakeCalls.SameJson("""{"ConsumedCapacity":[{"TableName":"Users","CapacityUnits":2}]}""", body)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_ReplayOfAnItemOverAKilobyte_ReportsWriteUnitsThenTwiceAConsistentRead()
+    {
+        // Arrange: about 1.5 KB is 2 write units, twice in a transaction; on the replay 1 consistent read unit, twice
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var request = $$$$$"""
+            {"ClientRequestToken":"t-1","ReturnConsumedCapacity":"INDEXES",
+             "TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"},"v":{"S":"{{{{{FakeWrites.Text(1500)}}}}}"}}}}]}
+            """;
+
+        // Act
+        var first = FakeCalls.Ok(fake, "TransactWriteItems", request);
+        var replay = FakeCalls.Ok(fake, "TransactWriteItems", request);
+
+        // Assert
+        await Assert.That((
+            FakeCalls.SameJson("""{"ConsumedCapacity":[{"TableName":"Users","CapacityUnits":4,"WriteCapacityUnits":4,"Table":{"CapacityUnits":4,"WriteCapacityUnits":4}}]}""", first),
+            FakeCalls.SameJson("""{"ConsumedCapacity":[{"TableName":"Users","CapacityUnits":2,"ReadCapacityUnits":2,"Table":{"CapacityUnits":2,"ReadCapacityUnits":2}}]}""", replay)))
+            .IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task Handle_StandaloneConditionCheckWithIndexes_ReportsWriteCapacityUnits()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"a"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "TransactWriteItems",
+            """{"TransactItems":[{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":"a"}},"ConditionExpression":"attribute_exists(pk)"}}],"ReturnConsumedCapacity":"INDEXES"}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(
+            """{"ConsumedCapacity":[{"TableName":"Users","CapacityUnits":2,"WriteCapacityUnits":2,"Table":{"CapacityUnits":2,"WriteCapacityUnits":2}}]}""",
+            body)).IsTrue();
     }
 
     [Test]

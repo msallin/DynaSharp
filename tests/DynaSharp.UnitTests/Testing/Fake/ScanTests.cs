@@ -114,6 +114,7 @@ public sealed class ScanTests
     [Arguments(""","ExpressionAttributeValues":{":a":{"S":"a"}}""", "ExpressionAttributeValues can only be specified when using expressions")]
     [Arguments(""","Select":"SPECIFIC_ATTRIBUTES" """, "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES")]
     [Arguments(""","ExclusiveStartKey":{}""", "The provided starting key is invalid: The provided key element does not match the schema")]
+    [Arguments(""","ScanFilter":{"a":{"ComparisonOperator":"NULL"}},"FilterExpression":"attribute_exists(a)" """, "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {ScanFilter} Expression parameters: {FilterExpression}")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string options, string message)
     {
         // Arrange

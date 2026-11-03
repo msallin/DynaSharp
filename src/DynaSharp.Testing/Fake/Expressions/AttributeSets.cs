@@ -19,14 +19,19 @@ internal static class AttributeSets
         _ => value.AsList(),
     };
 
-    /// <summary>Makes a set of the elements.</summary>
+    /// <summary>Makes a set of the elements, in the order DynamoDB answers with: strings by their UTF-8 bytes, binaries by unsigned bytes, numbers by value.</summary>
     /// <param name="type">The type of the set.</param>
-    /// <param name="elements">The elements, at least one, of the element type, without duplicates.</param>
+    /// <param name="elements">The elements, at least one, of the element type, without duplicates, in any order.</param>
     /// <returns>The set.</returns>
-    public static AttributeValue Create(AttributeType type, IEnumerable<AttributeValue> elements) => type switch
+    public static AttributeValue Create(AttributeType type, IEnumerable<AttributeValue> elements)
     {
-        AttributeType.StringSet => AttributeValue.FromStringSet(elements.Select(static element => element.AsString())),
-        AttributeType.NumberSet => AttributeValue.FromNumberSet(elements.Select(static element => element.AsNumber())),
-        _ => AttributeValue.FromBinarySet(elements.Select(static element => element.AsBinary().ToArray())),
-    };
+        var sorted = elements.ToList();
+        sorted.Sort(AttributeComparer.Instance.Compare);
+        return type switch
+        {
+            AttributeType.StringSet => AttributeValue.FromStringSet(sorted.Select(static element => element.AsString())),
+            AttributeType.NumberSet => AttributeValue.FromNumberSet(sorted.Select(static element => element.AsNumber())),
+            _ => AttributeValue.FromBinarySet(sorted.Select(static element => element.AsBinary().ToArray())),
+        };
+    }
 }

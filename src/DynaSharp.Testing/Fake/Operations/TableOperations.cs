@@ -15,7 +15,14 @@ namespace DynaSharp.Testing.Fake;
 /// none in a record, as the client writes them; on the wire DynamoDB rejects an empty list of indexes, and so does the reader here.
 /// </para>
 /// <para>
-/// Provisioned throughput is kept and reported, never enforced. Tags and encryption settings are not part of the fake and are <c>UnsupportedByFakeException</c>.
+/// Provisioned throughput is kept and reported, never enforced. Tags are not part of the fake and are <c>UnsupportedByFakeException</c>.
+/// </para>
+/// <para>
+/// An <c>SSESpecification</c> with <c>Enabled: true</c> in <c>CreateTable</c> encrypts the table with a KMS key, in name only: the description reports
+/// <c>SSEDescription</c> with <c>ENABLED</c>, <c>KMS</c> and the ARN of the key. Without <c>KMSMasterKeyId</c> that is <see cref="FakeTable.AwsManagedKeyArn"/>; an ARN is
+/// echoed, and a key id or an alias name becomes an ARN of the fake's region and account (DynamoDB reports the key behind an alias, which the fake cannot know).
+/// <c>SSEType</c> is KMS whatever the request says, the only type DynamoDB documents for a request. <c>Enabled: false</c> or no specification is the key that DynamoDB owns,
+/// which has no <c>SSEDescription</c>. <c>UpdateTable</c> does not change the encryption.
 /// </para>
 /// <para>
 /// A <c>StreamSpecification</c> with <c>StreamEnabled: true</c> enables a new <see cref="FakeStream"/>, with a new ARN and label each time, and <c>false</c> in <c>UpdateTable</c>
@@ -131,11 +138,6 @@ internal static class TableOperations
             throw FakeError.Unsupported("the member Tags", CreateTableName);
         }
 
-        if (request.SSESpecification is not null)
-        {
-            throw FakeError.Unsupported("the member SSESpecification", CreateTableName);
-        }
-
         if (request.StreamSpecification is { } stream)
         {
             ThrowIfInvalidStreamSpecification(stream);
@@ -147,6 +149,7 @@ internal static class TableOperations
             BillingMode = request.BillingMode == BillingMode.Unspecified ? BillingMode.Provisioned : request.BillingMode,
             TableClass = request.TableClass,
             DeletionProtectionEnabled = request.DeletionProtectionEnabled,
+            KmsMasterKeyArn = KmsKeyArn(request.SSESpecification),
         };
         var locals = request.LocalSecondaryIndexes ?? [];
         var globals = request.GlobalSecondaryIndexes ?? [];
@@ -211,6 +214,9 @@ internal static class TableOperations
 
         var billingMode = request.BillingMode == BillingMode.Unspecified ? table.BillingMode : request.BillingMode;
         var types = Types(table.AttributeDefinitions.Concat(request.AttributeDefinitions ?? []).DistinctBy(static definition => definition.AttributeName));
+
+        // DynamoDB resolves the key attributes of a new index against the request's AttributeDefinitions only, not against the ones the table stores.
+        var declared = Types(request.AttributeDefinitions ?? []);
         var (read, write) = request.ProvisionedThroughput is null && billingMode == table.BillingMode
             ? (table.ReadCapacityUnits, table.WriteCapacityUnits)
             : Throughput(billingMode, request.ProvisionedThroughput, null);
@@ -235,7 +241,7 @@ internal static class TableOperations
                     throw FakeError.Validation(Invalid + $"Attempting to create an index which already exists: {create.IndexName}");
                 }
 
-                created = NewGlobalIndex(table, create.IndexName, create.KeySchema, create.Projection, types);
+                created = NewGlobalIndex(table, create.IndexName, create.KeySchema, create.Projection, declared);
                 indexes.Add(created);
                 throughput[create.IndexName] = Throughput(billingMode, create.ProvisionedThroughput, create.IndexName);
             }
@@ -331,6 +337,15 @@ internal static class TableOperations
         ThrowIfInvalidName(name, "tableName");
         return name;
     }
+
+    private static string? KmsKeyArn(SSESpecification? specification) => specification switch
+    {
+        { Enabled: false } or null => null,
+        { KMSMasterKeyId: null } => FakeTable.AwsManagedKeyArn,
+        { KMSMasterKeyId: { } id } when id.StartsWith("arn:", StringComparison.Ordinal) => id,
+        { KMSMasterKeyId: { } id } when id.StartsWith("alias/", StringComparison.Ordinal) => FakeTable.KmsArnPrefix + id,
+        { KMSMasterKeyId: { } id } => FakeTable.KmsArnPrefix + "key/" + id,
+    };
 
     private static void ThrowIfInvalidStreamSpecification(StreamSpecification stream)
     {
@@ -544,6 +559,7 @@ internal static class TableOperations
             "BillingMode",
             "ProvisionedThroughput",
             "StreamSpecification",
+            "SSESpecification",
             "TableClass",
             "DeletionProtectionEnabled");
         return new CreateTableRequest
@@ -556,6 +572,7 @@ internal static class TableOperations
             BillingMode = ReadOptionalEnum(request, "BillingMode", WireNames.BillingModes),
             ProvisionedThroughput = ReadOptionalThroughput(request, "ProvisionedThroughput", CreateTableName),
             StreamSpecification = RequestJson.Optional(request, "StreamSpecification") is { } stream ? ReadStream(stream, CreateTableName) : null,
+            SSESpecification = RequestJson.Optional(request, "SSESpecification") is { } sse ? ReadSse(sse) : null,
             TableClass = ReadOptionalEnum(request, "TableClass", WireNames.TableClasses),
             DeletionProtectionEnabled = RequestJson.Optional(request, "DeletionProtectionEnabled") is { } protection && RequestJson.ReadBool(protection, "DeletionProtectionEnabled"),
         };
@@ -708,6 +725,17 @@ internal static class TableOperations
         {
             StreamEnabled = RequestJson.ReadBool(RequestJson.Required(value, "StreamEnabled"), "StreamEnabled"),
             StreamViewType = ReadOptionalEnum(value, "StreamViewType", WireNames.StreamViewTypes),
+        };
+    }
+
+    private static SSESpecification ReadSse(JsonElement value)
+    {
+        RequestJson.Members(value, "SSESpecification of CreateTable", "Enabled", "SSEType", "KMSMasterKeyId");
+        return new SSESpecification
+        {
+            Enabled = RequestJson.Optional(value, "Enabled") is { } enabled && RequestJson.ReadBool(enabled, "Enabled"),
+            SSEType = ReadOptionalEnum(value, "SSEType", WireNames.SSETypes),
+            KMSMasterKeyId = RequestJson.Optional(value, "KMSMasterKeyId") is { } key ? RequestJson.ReadString(key, "KMSMasterKeyId") : null,
         };
     }
 

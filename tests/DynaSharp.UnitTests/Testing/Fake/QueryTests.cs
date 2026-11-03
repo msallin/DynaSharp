@@ -12,6 +12,7 @@ public sealed class QueryTests
     [Arguments(""","KeyConditionExpression":"pk = :pk","Limit":0""", "1 validation error detected: Value '0' at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1")]
     [Arguments(""","KeyConditionExpression":"pk = :pk","IndexName":"Nope" """, "The table does not have the specified index: Nope")]
     [Arguments(""","KeyConditionExpression":"customer = :c","IndexName":"ByCustomer","ConsistentRead":true""", "Consistent reads are not supported on global secondary indexes")]
+    [Arguments(""","KeyConditions":{"pk":{"ComparisonOperator":"EQ","AttributeValueList":[{"S":"a"}]}},"KeyConditionExpression":"pk = :pk" """, "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {KeyConditions} Expression parameters: {KeyConditionExpression}")]
     public async Task Handle_RequestDynamoDbRejectsBeforeTheKeyCondition_AnswersValidation(string options, string message)
     {
         // Arrange

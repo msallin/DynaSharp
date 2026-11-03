@@ -447,5 +447,85 @@ public sealed class DescribeTableOperationTests
         await Assert.That(definitions is IList<AttributeDefinition> { IsReadOnly: true }).IsTrue();
     }
 
+    [Test]
+    public async Task ReadResponse_SSEDescription_ReturnsEveryMember()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","SSEDescription":{"Status":"ENABLED","SSEType":"KMS","KMSMasterKeyArn":"arn:aws:kms:eu-central-2:123456789012:key/1","InaccessibleEncryptionDateTime":1761901254.5,"FutureMember":[1]}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.SSEDescription).IsEqualTo(new SSEDescription
+        {
+            Status = SSEStatus.Enabled,
+            SSEType = SSEType.Kms,
+            KMSMasterKeyArn = "arn:aws:kms:eu-central-2:123456789012:key/1",
+            InaccessibleEncryptionDateTime = DateTimeOffset.FromUnixTimeMilliseconds(1_761_901_254_500),
+        });
+    }
+
+    [Test]
+    [Arguments("ENABLING", SSEStatus.Enabling)]
+    [Arguments("ENABLED", SSEStatus.Enabled)]
+    [Arguments("DISABLING", SSEStatus.Disabling)]
+    [Arguments("DISABLED", SSEStatus.Disabled)]
+    [Arguments("UPDATING", SSEStatus.Updating)]
+    [Arguments("SOMETHING_NEW", SSEStatus.Unknown)]
+    public async Task ReadResponse_SSEStatus_MapsToTheEnum(string wire, SSEStatus expected)
+    {
+        // Arrange
+        var json = $$$$"""{"Table":{"TableName":"Music","SSEDescription":{"Status":"{{{{wire}}}}"}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.SSEDescription!.Status).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("AES256", SSEType.Aes256)]
+    [Arguments("KMS", SSEType.Kms)]
+    [Arguments("SOMETHING_NEW", SSEType.Unspecified)]
+    public async Task ReadResponse_SSEType_MapsToTheEnum(string wire, SSEType expected)
+    {
+        // Arrange
+        var json = $$$$"""{"Table":{"TableName":"Music","SSEDescription":{"SSEType":"{{{{wire}}}}"}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.SSEDescription!.SSEType).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task ReadResponse_EmptySSEDescription_HasTheDefaults()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","SSEDescription":{}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.SSEDescription).IsEqualTo(new SSEDescription());
+    }
+
+    [Test]
+    public async Task ReadResponse_NoSSEDescription_IsNull()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","TableStatus":"ACTIVE"}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.SSEDescription).IsNull();
+    }
+
     private static DescribeTableResponse Read(string json) => TestJson.Read(json, static (ref reader) => DescribeTableOperation.ReadResponse(ref reader));
 }

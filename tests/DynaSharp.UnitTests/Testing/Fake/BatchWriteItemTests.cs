@@ -103,7 +103,10 @@ public sealed class BatchWriteItemTests
     [Arguments("""{"RequestItems":{"Users":[{}]}}""", "Supplied WriteRequest must have exactly one of PutRequest or DeleteRequest")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{}}]}}""", "1 validation error detected: Value null at 'item' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"RequestItems":{"Users":[{"DeleteRequest":{"Key":{"pk":{"N":"1"}}}}]}}""", "The provided key element does not match the schema")]
-    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"id":{"S":"a"}}}}]}}""", "One or more parameter values were invalid: Missing the key pk in the item")]
+    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"id":{"S":"a"}}}}]}}""", "The provided key element does not match the schema")]
+    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"N":"1"}}}}]}}""", "The provided key element does not match the schema")]
+    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"L":[{"S":"a"}]}}}}]}}""", "The provided key element does not match the schema")]
+    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":""}}}}]}}""", "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: pk")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"a"}}}}]},"ReturnItemCollectionMetrics":"ALL"}""", "1 validation error detected: Value 'ALL' at 'returnItemCollectionMetrics' failed to satisfy constraint: Member must satisfy enum value set: [NONE, SIZE]")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string request, string message)
     {

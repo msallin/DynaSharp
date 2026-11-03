@@ -23,6 +23,7 @@ public sealed class WireNamesTests
         yield return ("TableClasses", () => Check(WireNames.TableClasses));
         yield return ("StreamViewTypes", () => Check(WireNames.StreamViewTypes));
         yield return ("SSETypes", () => Check(WireNames.SSETypes));
+        yield return ("SSEStatuses", () => Check(WireNames.SSEStatuses));
         yield return ("TableStatuses", () => Check(WireNames.TableStatuses));
         yield return ("IndexStatuses", () => Check(WireNames.IndexStatuses));
         yield return ("TimeToLiveStatuses", () => Check(WireNames.TimeToLiveStatuses));
@@ -66,6 +67,11 @@ public sealed class WireNamesTests
         yield return ("KEYS_ONLY", Name(WireNames.StreamViewTypes, StreamViewType.KeysOnly));
         yield return ("AES256", Name(WireNames.SSETypes, SSEType.Aes256));
         yield return ("KMS", Name(WireNames.SSETypes, SSEType.Kms));
+        yield return ("ENABLING", Name(WireNames.SSEStatuses, SSEStatus.Enabling));
+        yield return ("ENABLED", Name(WireNames.SSEStatuses, SSEStatus.Enabled));
+        yield return ("DISABLING", Name(WireNames.SSEStatuses, SSEStatus.Disabling));
+        yield return ("DISABLED", Name(WireNames.SSEStatuses, SSEStatus.Disabled));
+        yield return ("UPDATING", Name(WireNames.SSEStatuses, SSEStatus.Updating));
         yield return ("CREATING", Name(WireNames.TableStatuses, TableStatus.Creating));
         yield return ("UPDATING", Name(WireNames.TableStatuses, TableStatus.Updating));
         yield return ("DELETING", Name(WireNames.TableStatuses, TableStatus.Deleting));
