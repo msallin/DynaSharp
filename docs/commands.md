@@ -56,6 +56,8 @@ await customers.Update(Customer.Keys.Of("alice"))
     .SendAsync(ct);
 ```
 
+On an entity with a discriminator, every update also writes `_type = if_not_exists(_type, "CUSTOMER")`, so an item that an update creates reads back as its entity. `ToRequestJson()` below shows it.
+
 ## DeleteItem
 
 A delete takes the key, or the entity, which gives the key and, on a `[Version]` entity, the version it was read with.

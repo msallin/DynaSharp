@@ -71,7 +71,7 @@ await orders.CreateTable()
 ```
 
 1. `CreateTable().IfNotExists()` without a wait creates a missing table with all its indexes and leaves one that exists alone.
-2. `shop` is `client.Table("Shop", "pk", "sk")`, which has no entity, so its wait takes what the table lists, and `UpdateTable` needs an active table. A typed wait here would time out on the index that is not there yet.
+2. `shop` is `client.Table("Shop", "pk", "sk")`, which has no entity, so its wait takes what the table lists, and `UpdateTable` needs an active table. A typed wait here would not return: `orders.WaitUntilActiveAsync()` keeps polling until its timeout for the index that is not there yet, and `CreateTable().WaitUntilActive()` fails within seconds naming it.
 3. `UpdateTableAsync`, from `DynaSharp.Requests`, adds one index per call, and `AttributeDefinitions` holds the keys of that index. A second index is a call of its own after the wait on `shop`. So is a stream on a table that exists, with `StreamSpecification`, before the wait of step 4, because it puts the table back into updating.
 4. Only now does a typed wait end, once DynamoDB lists the index and has backfilled it, so give it a timeout that fits the size of the table. Every `TimeToLive` implies that wait, with a default of five minutes, which is why it comes last.
 
