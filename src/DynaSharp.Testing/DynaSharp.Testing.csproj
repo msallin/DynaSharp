@@ -11,6 +11,7 @@
     <PackageTags>dynamodb;aws;testing;fake;stub;aot</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -27,6 +28,7 @@
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../docs/images/icon.png" Pack="true" PackagePath="/" Visible="false" />
     <InternalsVisibleTo Include="DynaSharp.UnitTests" />
   </ItemGroup>
 

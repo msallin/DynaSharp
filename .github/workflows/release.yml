@@ -35,11 +35,10 @@ jobs:
         id: version
         run: echo "version=$(./build/next-version.sh)" >> "$GITHUB_OUTPUT"
 
+      # MinVer takes the package version from this tag, so it is set before the pack and pushed only once the packages carry it.
       - name: Tag
         if: steps.version.outputs.version != ''
-        run: |
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+        run: git tag "v${{ steps.version.outputs.version }}"
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         if: steps.version.outputs.version != ''
@@ -51,6 +50,17 @@ jobs:
         run: |
           dotnet pack src/DynaSharp -c Release -o artifacts/packages
           dotnet pack src/DynaSharp.Testing -c Release -o artifacts/packages
+
+      - name: Packages carry the version
+        if: steps.version.outputs.version != ''
+        run: |
+          ls artifacts/packages
+          test -f "artifacts/packages/DynaSharp.${{ steps.version.outputs.version }}.nupkg"
+          test -f "artifacts/packages/DynaSharp.Testing.${{ steps.version.outputs.version }}.nupkg"
+
+      - name: Push the tag
+        if: steps.version.outputs.version != ''
+        run: git push origin "v${{ steps.version.outputs.version }}"
 
       - name: GitHub release
         if: steps.version.outputs.version != ''

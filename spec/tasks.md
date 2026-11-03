@@ -14,7 +14,7 @@ Where the code is:
 
 Next steps, in order:
 1. Stryker: the sharded run 41671331841 (`ci.yml` via `workflow_dispatch`, on `cbc1c4b`) measures the tree before the reviews; check its survivors against `main`, fix them, and run it again before 0.1.0. Break at 90 %.
-2. Release prep for 0.1.0 (M6): move `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` and `AnalyzerReleases.Unshipped.md` into `Shipped.md` (both labelled 0.1.0 already, see D6 leftovers), release notes, the package icon, enable `PUBLISH_TO_NUGET` and trusted publishing. The first green CI on `main` with a tag releases.
+2. Release 0.1.0 (M6): the prep is done (shipped API files, icon, version check in `release.yml`), and so is the GitHub side. Left: the trusted publishing policy on nuget.org, then land the commit that arms `release.yml`; the first green CI on `main` after it tags and releases.
 3. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
 
 How to work:
@@ -652,8 +652,15 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
   8. A key condition takes the value on either side, `:v < sk` as `sk > :v`. Not so: an empty sort value is rejected as an empty partition value is, "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: sk" (`Vectors/keys.json`, `key-condition-sides-and-empty-values`).
 
 - [~] M5: SSO, `credential_process`, assume role, see the M5 section above
-- [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
-      Package icon: a 128 px PNG of `docs/images/logo.svg` as `PackageIcon` of both packages (NuGet takes no SVG).
+- [~] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
+  - [x] Shipped API files: `PublicAPI.Unshipped.txt` and `AnalyzerReleases.Unshipped.md` moved into Shipped (see D6 leftovers); the Unshipped files keep their header.
+  - [x] Package icon: `docs/images/icon.png`, 128 px with a transparent background, rendered from `docs/images/logo.svg`, `PackageIcon` of both packages (NuGet takes no SVG). Svg.Skia draws no stroke whose `objectBoundingBox` gradient sits on an arc between two points of the same height (it takes the height as 0), so the PNG was rendered from a copy with the gradient of the sharp in user space; browsers show the SVG as it is.
+  - [x] Version: MinVer takes it from the `v*` tag, which `release.yml` sets on the checked-out commit before `dotnet pack`, so no `-p:Version` is needed. A pack without a tag gives `0.0.0-alpha.0.<height>`, which `PackageSmoke` (`*-*`) and `ci.yml` take. The workflow pushes the tag only after a step checks that both packages carry the version, so a failed pack leaves no tag behind. The generator references MinVer too, so its file and informational version name the release (assembly version `0.0.0.0` while the major is 0).
+  - [x] `build/next-version.sh` gives `0.1.0` for the history without tags (`feat:` bumps the minor, a breaking change stays a minor while the major is 0).
+  - [x] Release notes: `gh release create --generate-notes` is enough. A `PackageReleaseNotes` that says "first release" would be wrong from 0.2.0 on, and nuget.org shows the README with its links to the site.
+  - [x] GitHub (owner, 2026-11-03): repository variables `PUBLISH_TO_NUGET=true` and `NUGET_USER=msallin`, environment `nuget` limited to deployments from `main`. A `workflow_run` job runs on the default branch, so the policy admits it.
+  - [ ] nuget.org (owner): a trusted publishing policy with repository owner `msallin`, repository `DynaSharp`, workflow file `release.yml`, environment `nuget`, under the account `NUGET_USER` names. A first push creates `DynaSharp` and `DynaSharp.Testing` under that account.
+  - [ ] Land the commit that arms `release.yml` (`workflow_run` on `ci`, branches `main`, types `completed`). `ci.yml` runs on every push to `main`, docs-only ones included (it has no path filter), and the job's `if` takes only a successful run of a `push` event, so neither a `ci/**` branch (the `branches` filter) nor a pull request nor a manual run releases.
 
 ### R4 - one-shard stream reader (before 0.1.0, approved by the owner)
 
@@ -684,7 +691,7 @@ Branch `m4/r2-signed-tokens`. Approved by the owner. The threat, from the focus 
 
 ### D6 leftovers
 
-- [ ] `AnalyzerReleases.Shipped.md` and `PublicAPI.Shipped.txt` are labelled 0.1.0 before the release: release prep moves Unshipped into Shipped, so that "a rule that is new after 0.1.0 starts at Info" holds from the tag.
+- [x] `AnalyzerReleases.Shipped.md` and `PublicAPI.Shipped.txt` are labelled 0.1.0 before the release: release prep moves Unshipped into Shipped, so that "a rule that is new after 0.1.0 starts at Info" holds from the tag. Done in the release prep: one table of 91 rules under `## Release 0.1.0`, and the `*REMOVED*` lines of `PublicAPI.Unshipped.txt` taken out of Shipped.
 - [x] Benchmark timings (mean and error per call) to back a speed claim; the README compares allocations only. Measured on 2026-11-03 at d934906, idle 8-core AMD EPYC Genoa, .NET 11 RC 3, BenchmarkDotNet defaults, canned responses (mean ± error per call):
   - `ClientComparisonBenchmarks` (low-level APIs): GetItem 5.86 ± 0.12 µs against EfficientDynamoDb 16.84 ± 0.34 and the AWS SDK 22.55 ± 0.45; PutItem 5.00 ± 0.10 against 15.45 ± 0.30 and 19.90 ± 0.40; Query of 100 items 130.0 ± 2.6 against 182.2 ± 3.6 and 346.4 ± 6.9.
   - `EntityBenchmarks` (mapped APIs, with a set): GetItem 5.52 ± 0.11 µs against 15.67 ± 0.31 and `DynamoDBContext` 31.85 ± 0.63; PutItem 4.91 ± 0.09 against 15.50 ± 0.31 and 31.25 ± 0.62; Query of 100 items 126.4 ± 2.5 against 138.8 ± 2.8 and 878.4 ± 22.1.
