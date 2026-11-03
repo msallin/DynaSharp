@@ -5,26 +5,30 @@ completes it, and record decisions and findings below. Requirements live in `req
 
 Legend: `[ ]` open, `[~]` in progress (owner), `[x]` done, `[-]` dropped (reason).
 
-## Handoff (state at 2026-10-31)
+## Handoff (state at 2026-11-03)
 
-- The first branch holds M0 and the M1a implementation (B1, B2, B3, C merged).
-  Verified on the merged state with `CI=true`: locked restore, format, build, 1106 tests, coverage gate 100 % line
-  and branch for all of `src/`, AOT smoke publish without warnings and exit code 0. Stryker (reported by the
-  packages): 97.9 % for both library projects.
-- `main` does not exist yet on GitHub: create it from this branch (or from `3cdca21` for M0 only), set squash merges
-  only, and let CI run once to verify the workflows on GitHub (they have never run there).
-- Next steps, in order:
-  1. Merge `m1/lead` work back to this branch and let CI run on GitHub.
-  2. M1b (contracts and packages below), then the key grammar spike before M2.
-- Local setup: SDK exactly `11.0.100-rc.3.26522.148` (`global.json`, no roll-forward; bump when .NET 11 GA ships),
-  `dotnet tool restore` (Stryker 5, uses the preview MTP runner). Docker for the M1b container tests. Signing vectors
-  are regenerated with `tests/DynaSharp.UnitTests/Signing/generate_sigv4_vectors.py` in a venv with `botocore`.
-- Working mode that worked: lead session owns contracts and this file; implementers get one work package each, in a
-  separate git worktree, with explicit gates; the lead merges.
+Repository: https://github.com/msallin/DynaSharp (private). Docs site: https://msallin.github.io/DynaSharp/ (public, deployed by `docs.yml` from `main`). Commits are authored as `Marc Sallin <7792779+msallin@users.noreply.github.com>`; the `gh` account is `msallin` (`GH_TOKEN="$(gh auth token --user msallin)"` when several accounts are signed in).
 
-Local verification 2026-10-31 (SDK `11.0.100-rc.3.26522.148`, `CI=true`): on Windows locked restore, format, build,
-1106 tests, coverage 100 % line and branch, pack, Stryker 97.94 %; in an Ubuntu 24.04 container locked restore, build,
-1106 tests, coverage 100 %, AOT publish `-r linux-x64` without warnings, smoke test exit 0. Client benchmark below.
+Where the code is:
+- `main` (`82dba85`): everything up to M5 and the fake's P1 to P4, green in CI. History is linear, one commit per package.
+- `m4/lead-handoff`: `main` plus P6 (streams in the fake) and this handoff. CI fails only the coverage gate: branch rate 99.99 %, one branch in the P6 code uncovered. Find it in the coverage report of the `ci.yml` run (artifact or `TestResults/coverage.cobertura.xml` locally), cover it, then put the branch onto `main`.
+- `m4/p5-fake-backend`: P5, two commits on top of `m4/lead-handoff`. Done and committed: the fake as integration backend `fake` and the local default of `DYNASHARP_BACKENDS` (CI runs `dynoxide,dynamodb-local,fake`), fixes from the integration suite and from vectors of DynamoDB Local (`build/generate_fake_vectors.py`, `tests/DynaSharp.UnitTests/Testing/Fake/Vectors/`), `tools/DynaSharp.FakeServer`, `build/parity.sh`/`parity.ps1`, `.github/workflows/parity.yml`, architecture docs. The last commit (`wip:`) is unfinished: the stream tests on the fake, `Gaps.cs` for the fake (only `MultiShardStreams` is expected), and the stream vectors. Not yet done: AotSmoke round trip with the fake, the Parity run and its score table below under M4, the P5 lines of the M4 section.
+
+Next steps, in order:
+1. Cover the branch P6 left, push `m4/lead-handoff` onto `main` after a green CI.
+2. Finish P5 on top of that (squash its `wip:` commit), run the integration suite on `fake` (`DYNASHARP_BACKENDS=fake`, no Docker), merge after a green CI. Then trigger `parity.yml` once and record the score under M4.
+3. Close M4: the open behaviours listed under M4 (P2, P3, P4, P6 lines) are checked by the P5 vectors; whatever stays open stays listed.
+4. Stryker on GitHub: `ci.yml` via `workflow_dispatch`, sharded (fluent, core, generators, testing), break at 90 %. Fix survivors.
+5. Release prep for 0.1.0 (M6): move `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` and `AnalyzerReleases.Unshipped.md` into `Shipped.md` (both are labelled 0.1.0 already, see D6 leftovers), release notes, benchmarks rerun (`benchmarks/`, numbers into the README), enable `PUBLISH_TO_NUGET` and trusted publishing. The first green CI on `main` with a tag releases.
+6. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
+
+How to work:
+- Local: SDK exactly `11.0.100-rc.3.26522.148` (`global.json`, no roll-forward), `dotnet tool restore` (docfx, Stryker). Docker only for the emulator backends; the default backend `fake` needs none. Python with `botocore` for the vector scripts.
+- Run only the build, the tests that cover a change, `dotnet format whitespace --verify-no-changes` and ReadmeCheck locally; the full unit suite with the 100 % coverage gate, the AOT smoke and the integration tests run in GitHub CI. Gate a change by pushing its tree as a `ci/merge-*` branch, wait for `ci.yml` and `docs.yml`, then put it onto `main` as one commit per package and delete the branch.
+- Docs-only changes may go to `main` without the gate. Docs are v1 docs: what the library does, no status notes, no "not yet"; open work goes into this file.
+- Real AWS: `real-aws.yml` (`workflow_dispatch`) assumes `arn:aws:iam::211125322028:role/dynasharp-integration-tests` in `eu-central-1` over GitHub OIDC (repo variables `AWS_ROLE_ARN`, `AWS_REGION`; the trust policy uses the immutable subject `repo:msallin@7792779/DynaSharp@1440878896:*`). It costs money and takes about 90 minutes; the last run passed 886, skipped 10, failed 0. Leftover tables older than six hours are removed by the next run.
+- Specs: `requirements.md` (why and what), `api.md` (public API contract), `architecture.md` (the code as it is), `m4-fake-plan.md` (the design of the fake), `patterns.md` (design patterns), `history/` (frozen). This file holds tasks, decisions and findings.
+- Services that adopted DynaSharp on preview packages (data-pond, customer-adapter, yats, socce-cockpit) have local, unpushed branches on preview 6 on the old machine; a push of those deploys to a shared environment.
 
 ## M0 - repository and quality gates
 
