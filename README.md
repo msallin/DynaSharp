@@ -6,6 +6,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 **Documentation: [msallin.github.io/DynaSharp](https://msallin.github.io/DynaSharp/)**, with the full guide, the [API reference](https://msallin.github.io/DynaSharp/api/DynaSharp.html) and the [diagnostics](https://msallin.github.io/DynaSharp/diagnostics.html) of the analyzers.
 
+- **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 9 % less than EfficientDynamoDb and a seventh of `DynamoDBContext`.
 - **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation.
 - **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
@@ -186,7 +187,15 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 
 ## Benchmarks
 
-The tables compare allocations, which are exact, and not speed. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
+Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 RC 3, each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
+
+Time per call, mapped APIs, in µs:
+
+| Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
+|---|---|---|---|
+| GetItem | 5.5 | 15.7 | 31.8 |
+| PutItem | 4.9 | 15.5 | 31.2 |
+| Query, 100 items | 126 | 139 | 878 |
 
 Bytes allocated per call, mapped APIs:
 
