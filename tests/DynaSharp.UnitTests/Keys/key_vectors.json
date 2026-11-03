@@ -15144,6 +15144,80 @@
   },
   {
    "id": "composite/spec-order-sort-key",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "values": [
+    {
+     "year": 2026,
+     "month": 10,
+     "day": 31,
+     "hour": 12,
+     "minute": 34,
+     "second": 56,
+     "ticks": 7890123,
+     "offset": 0
+    },
+    "4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
+   ],
+   "expected_hex": "4f5244455223323032362d31302d33315431323a33343a35362e373839303132335a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "expected": "ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
+  },
+  {
+   "id": "composite/spec-order-guid-uppercase",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "values": [
+    {
+     "year": 2026,
+     "month": 10,
+     "day": 31,
+     "hour": 12,
+     "minute": 34,
+     "second": 56,
+     "ticks": 7890123,
+     "offset": 0
+    },
+    "4F9C2A7E-0B1D-4E5F-8A6B-7C8D9E0F1A2B"
+   ],
+   "expected_hex": "4f5244455223323032362d31302d33315431323a33343a35362e373839303132335a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "expected": "ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
+  },
+  {
+   "id": "composite/sdk-order-sort-key",
    "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
    "parts": [
     {
@@ -15175,43 +15249,6 @@
      "offset": 0
     },
     "4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
-   ],
-   "expected_hex": "4f5244455223323032362d31302d33315431323a33343a35362e3738395a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
-   "expected": "ORDER#2026-10-31T12:34:56.789Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
-  },
-  {
-   "id": "composite/spec-order-guid-uppercase",
-   "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
-   "parts": [
-    {
-     "literal": "ORDER#"
-    },
-    {
-     "placeholder": "CreatedAt",
-     "spec": "ms",
-     "delimiters": "#"
-    },
-    {
-     "literal": "#"
-    },
-    {
-     "placeholder": "OrderId",
-     "spec": "guid",
-     "delimiters": "#"
-    }
-   ],
-   "values": [
-    {
-     "year": 2026,
-     "month": 10,
-     "day": 31,
-     "hour": 12,
-     "minute": 34,
-     "second": 56,
-     "ticks": 7890123,
-     "offset": 0
-    },
-    "4F9C2A7E-0B1D-4E5F-8A6B-7C8D9E0F1A2B"
    ],
    "expected_hex": "4f5244455223323032362d31302d33315431323a33343a35362e3738395a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
    "expected": "ORDER#2026-10-31T12:34:56.789Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
@@ -15921,6 +15958,131 @@
   },
   {
    "id": "composite-read/spec-order",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35362e373839303132335a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "text": "ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
+   "accept": true
+  },
+  {
+   "id": "composite-read/spec-order-uppercase-guid",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35362e373839303132335a2334463943324137452d304231442d344535462d384136422d374338443945304631413242",
+   "text": "ORDER#2026-10-31T12:34:56.7890123Z#4F9C2A7E-0B1D-4E5F-8A6B-7C8D9E0F1A2B",
+   "accept": false
+  },
+  {
+   "id": "composite-read/spec-order-no-fraction",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35365a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "text": "ORDER#2026-10-31T12:34:56Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
+   "accept": false
+  },
+  {
+   "id": "composite-read/spec-order-milliseconds",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35362e3738395a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "text": "ORDER#2026-10-31T12:34:56.789Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
+   "accept": false
+  },
+  {
+   "id": "composite-read/spec-order-impossible-date",
+   "template": "ORDER#{CreatedAt:ticks}#{OrderId:guid}",
+   "parts": [
+    {
+     "literal": "ORDER#"
+    },
+    {
+     "placeholder": "CreatedAt",
+     "spec": "ticks",
+     "delimiters": "#"
+    },
+    {
+     "literal": "#"
+    },
+    {
+     "placeholder": "OrderId",
+     "spec": "guid",
+     "delimiters": "#"
+    }
+   ],
+   "input_hex": "4f5244455223323032362d30322d33305431323a33343a35362e373839303132335a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "text": "ORDER#2026-02-30T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
+   "accept": false
+  },
+  {
+   "id": "composite-read/sdk-order",
    "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
    "parts": [
     {
@@ -15945,7 +16107,7 @@
    "accept": true
   },
   {
-   "id": "composite-read/spec-order-uppercase-guid",
+   "id": "composite-read/sdk-order-seven-digits",
    "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
    "parts": [
     {
@@ -15965,58 +16127,8 @@
      "delimiters": "#"
     }
    ],
-   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35362e3738395a2334463943324137452d304231442d344535462d384136422d374338443945304631413242",
-   "text": "ORDER#2026-10-31T12:34:56.789Z#4F9C2A7E-0B1D-4E5F-8A6B-7C8D9E0F1A2B",
-   "accept": false
-  },
-  {
-   "id": "composite-read/spec-order-no-fraction",
-   "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
-   "parts": [
-    {
-     "literal": "ORDER#"
-    },
-    {
-     "placeholder": "CreatedAt",
-     "spec": "ms",
-     "delimiters": "#"
-    },
-    {
-     "literal": "#"
-    },
-    {
-     "placeholder": "OrderId",
-     "spec": "guid",
-     "delimiters": "#"
-    }
-   ],
-   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35365a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
-   "text": "ORDER#2026-10-31T12:34:56Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
-   "accept": false
-  },
-  {
-   "id": "composite-read/spec-order-impossible-date",
-   "template": "ORDER#{CreatedAt:ms}#{OrderId:guid}",
-   "parts": [
-    {
-     "literal": "ORDER#"
-    },
-    {
-     "placeholder": "CreatedAt",
-     "spec": "ms",
-     "delimiters": "#"
-    },
-    {
-     "literal": "#"
-    },
-    {
-     "placeholder": "OrderId",
-     "spec": "guid",
-     "delimiters": "#"
-    }
-   ],
-   "input_hex": "4f5244455223323032362d30322d33305431323a33343a35362e3738395a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
-   "text": "ORDER#2026-02-30T12:34:56.789Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
+   "input_hex": "4f5244455223323032362d31302d33315431323a33343a35362e373839303132335a2334663963326137652d306231642d346535662d386136622d376338643965306631613262",
+   "text": "ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b",
    "accept": false
   },
   {

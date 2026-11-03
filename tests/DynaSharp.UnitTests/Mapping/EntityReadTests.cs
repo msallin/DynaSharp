@@ -319,6 +319,19 @@ public sealed class EntityReadTests
     }
 
     [Test]
+    public async Task ReadAttributes_RequiredTimestampWithoutAFormat_IsRestoredFromTheKeyToTheTick()
+    {
+        // Arrange (what an update leaves under ORDER#{CreatedAt}#{OrderId}: a placeholder without a format keeps ticks)
+        const string Json = """{"_type":{"S":"ORDER"},"pk":{"S":"USER#0f8fad5b-d9cb-469f-a165-70867728950e"},"sk":{"S":"ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"},"Status":{"S":"Free"},"Total":{"N":"1"}}""";
+
+        // Act
+        var order = EntityJson.Read<KeyedOrder>(Json);
+
+        // Assert
+        await Assert.That(order.CreatedAt.UtcTicks).IsEqualTo(new DateTime(2026, 10, 31, 12, 34, 56, DateTimeKind.Utc).Ticks + 7_890_123);
+    }
+
+    [Test]
     public async Task ReadAttributes_RequiredInputOfALossyFormat_ThrowsNamingTheAttribute()
     {
         // Arrange (At is in the sort key by the format ms, which is no way back to the ticks)

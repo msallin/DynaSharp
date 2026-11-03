@@ -19,7 +19,7 @@ public sealed class GeneratedKeyVectorTests
         ["{Id}"] = new(v => V.V03Pk.Format(Text(v, 0)), b => V.V03Pk.TryParse(b, out var p) ? [p.Id] : null, s => V.V03Pk.TryParse(s, out var p) ? V.V03Pk.Format(p.Id) : null),
         ["TENANT#{Tenant}#USER#{Id}"] = new(v => V.V04Pk.Format(Text(v, 0), Text(v, 1)), b => V.V04Pk.TryParse(b, out var p) ? [p.Tenant, p.Id] : null, s => V.V04Pk.TryParse(s, out var p) ? V.V04Pk.Format(p.Tenant, p.Id) : null),
         ["COUNTRY#{Country}#CANTON#{Canton}"] = new(v => V.V05Pk.Format(Text(v, 0), Text(v, 1)), b => V.V05Pk.TryParse(b, out var p) ? [p.Country, p.Canton] : null, s => V.V05Pk.TryParse(s, out var p) ? V.V05Pk.Format(p.Country, p.Canton) : null),
-        ["ORDER#{CreatedAt:ms}#{OrderId:guid}"] = new(v => V.V06Pk.Format(KeyVectorValues.Offset(v[0]), Guid.Parse(v[1].GetString()!)), b => V.V06Pk.TryParse(b, out var p) ? [p.CreatedAt.UtcTicks, p.OrderId] : null, s => V.V06Pk.TryParse(s, out var p) ? V.V06Pk.Format(p.CreatedAt, p.OrderId) : null),
+        ["ORDER#{CreatedAt:ticks}#{OrderId:guid}"] = new(v => V.V06Pk.Format(KeyVectorValues.Offset(v[0]), Guid.Parse(v[1].GetString()!)), b => V.V06Pk.TryParse(b, out var p) ? [p.CreatedAt.UtcTicks, p.OrderId] : null, s => V.V06Pk.TryParse(s, out var p) ? V.V06Pk.Format(p.CreatedAt, p.OrderId) : null),
         ["{Total:n10.2}"] = new(v => V.V07Pk.Format(Number(v, 0)), b => V.V07Pk.TryParse(b, out var p) ? [p.Total] : null, s => V.V07Pk.TryParse(s, out var p) ? V.V07Pk.Format(p.Total) : null),
         ["TOTAL#{Total:n10.2}"] = new(v => V.V08Pk.Format(Number(v, 0)), b => V.V08Pk.TryParse(b, out var p) ? [p.Total] : null, s => V.V08Pk.TryParse(s, out var p) ? V.V08Pk.Format(p.Total) : null),
         ["A-{X}#B"] = new(v => V.V09Pk.Format(Text(v, 0)), b => V.V09Pk.TryParse(b, out var p) ? [p.X] : null, s => V.V09Pk.TryParse(s, out var p) ? V.V09Pk.Format(p.X) : null),
@@ -31,6 +31,7 @@ public sealed class GeneratedKeyVectorTests
         ["{A}#{B}#{C}"] = new(v => V.V15Pk.Format(Text(v, 0), Text(v, 1), Text(v, 2)), b => V.V15Pk.TryParse(b, out var p) ? [p.A, p.B, p.C] : null, s => V.V15Pk.TryParse(s, out var p) ? V.V15Pk.Format(p.A, p.B, p.C) : null),
         ["{A}#{B}"] = new(v => V.V16Pk.Format(Text(v, 0), Text(v, 1)), b => V.V16Pk.TryParse(b, out var p) ? [p.A, p.B] : null, s => V.V16Pk.TryParse(s, out var p) ? V.V16Pk.Format(p.A, p.B) : null),
         ["L#{City}#{Name}"] = new(v => V.V17Pk.Format(Text(v, 0), Text(v, 1)), b => V.V17Pk.TryParse(b, out var p) ? [p.City, p.Name] : null, s => V.V17Pk.TryParse(s, out var p) ? V.V17Pk.Format(p.City, p.Name) : null),
+        ["ORDER#{CreatedAt:ms}#{OrderId:guid}"] = new(v => V.V18Pk.Format(KeyVectorValues.Offset(v[0]), Guid.Parse(v[1].GetString()!)), b => V.V18Pk.TryParse(b, out var p) ? [p.CreatedAt.UtcTicks, p.OrderId] : null, s => V.V18Pk.TryParse(s, out var p) ? V.V18Pk.Format(p.CreatedAt, p.OrderId) : null),
     };
 
     public static IEnumerable<KeyVector> WrittenComposites() => KeyVectors.Composites(error: false);

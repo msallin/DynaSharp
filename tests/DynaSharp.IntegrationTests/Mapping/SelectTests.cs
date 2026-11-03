@@ -285,12 +285,13 @@ public sealed class SelectTests(Backend backend)
     [Test]
     public async Task Get_HandleOfAConverter_ReadsThroughIt()
     {
-        // Arrange
+        // Arrange (a Put wrote the order, so its sort key input has an attribute; DYNA209 reports a handle of it, and a variable is no such place)
         await using var shop = await SeededAsync();
+        var placedAt = Order.Attrs.PlacedAt;
 
         // Act
         var status = await shop.Orders.Get(FirstOrder).Consistent().Select(Order.Attrs.Status).SendAsync();
-        var placed = await shop.Orders.Get(FirstOrder).Consistent().Select(Order.Attrs.PlacedAt).SendAsync();
+        var placed = await shop.Orders.Get(FirstOrder).Consistent().Select(placedAt).SendAsync();
 
         // Assert
         await Assert.That((status.Value, placed.Value)).IsEqualTo((OrderStatus.Paid, Noon));

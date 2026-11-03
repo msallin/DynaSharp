@@ -533,8 +533,8 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         }
 
         if ((!fields.Utc__set)
-            && __Ser.ConverterChecks.TryFindString(__item, "datetimetickspk"u8, out var __text14)
-            && Keys.DateTimeTicksPk.TryParse(__text14, out var __restored14))
+            && __Ser.ConverterChecks.TryFindString(__item, "datetimepk"u8, out var __text14)
+            && Keys.DateTimePk.TryParse(__text14, out var __restored14))
         {
             if (!fields.Utc__set) { fields.Utc = __restored14.Utc; fields.Utc__set = true; }
         }

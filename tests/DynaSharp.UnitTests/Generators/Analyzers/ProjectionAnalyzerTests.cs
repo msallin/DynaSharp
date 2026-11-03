@@ -118,6 +118,32 @@ public sealed class ProjectionAnalyzerTests
         }
 
         [DynamoDbEntity]
+        [Discriminator("READING")]
+        [PartitionKey("METER#{Meter}")]
+        [SortKey("AT#{At}")]
+        public partial record Reading
+        {
+            public required string Meter { get; init; }
+
+            public required DateTimeOffset At { get; init; }
+
+            public int Value { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("SDKREADING")]
+        [PartitionKey("METER#{Meter}")]
+        [SortKey("AT#{At:ms}")]
+        public partial record SdkReading
+        {
+            public required string Meter { get; init; }
+
+            public required DateTimeOffset At { get; init; }
+
+            public int Value { get; init; }
+        }
+
+        [DynamoDbEntity]
         [Discriminator("LEDGER")]
         [PartitionKey("LEDGER#{Id}")]
         public partial record Ledger
@@ -307,6 +333,8 @@ public sealed class ProjectionAnalyzerTests
         private static readonly Table<Route> routes = null!;
         private static readonly Table<Parcel> parcels = null!;
         private static readonly Table<Event> events = null!;
+        private static readonly Table<Reading> readings = null!;
+        private static readonly Table<SdkReading> sdkReadings = null!;
         private static readonly Table<Note> notes = null!;
         private static readonly Table<Hand> hands = null!;
         private static readonly Table<Omitter> omitters = null!;
@@ -361,6 +389,7 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Query("a").[|Project|]("sum", "PlacedAt").ItemsAsync();""", "Status", "Order")]
     [Arguments("""_ = byStatus.Query("a").[|Project|]("sum").ItemsAsync();""", "PlacedAt", "Order")]
     [Arguments("""_ = events.Query("a").[|Project|]("Id").ItemsAsync();""", "At", "Event")]
+    [Arguments("""_ = sdkReadings.Query("a").[|Project|]("Value").ItemsAsync();""", "At", "SdkReading")]
     [Arguments("""_ = trips.Scan().[|Project|]("Page").ItemsAsync();""", "Driver", "Trip")]
 
     // The name of a [KeyOnly] property is no attribute, and a parameter of a constructor counts as a required member does.
@@ -426,6 +455,7 @@ public sealed class ProjectionAnalyzerTests
 
     // Not named and still there: a key the read adds, what such a key restores, and a key that is named.
     [Arguments("""_ = visits.Query("a").Project("Page").ItemsAsync();""")]
+    [Arguments("""_ = readings.Query("a").Project("Value").ItemsAsync();""")]
     [Arguments("""_ = devices.Scan().Project("Vendor").ItemsAsync();""")]
     [Arguments("""_ = parcels.Scan().Project("Carrier").ItemsAsync();""")]
     [Arguments("""_ = byStatus.Query("a").Project("PlacedAt", "sum").ItemsAsync();""")]
@@ -682,6 +712,7 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Get(key).Select([|Order.Attrs.UserId|]).SendAsync();""", "UserId", "Order", "pk")]
     [Arguments("""_ = orders.Query("a").Select([|Order.Attrs.OrderId|]).ValuesAsync();""", "OrderId", "Order", "sk")]
     [Arguments("""_ = routes.Scan().Select([|Route.Attrs.Id|]).ValuesAsync();""", "Id", "Route", "pk")]
+    [Arguments("""_ = readings.Query("a").Select([|Reading.Attrs.At|]).ValuesAsync();""", "At", "Reading", "sk")]
     public async Task Select_KeyInputOfTheTable_Reports(string statement, string property, string type, string key)
     {
         // Arrange
@@ -703,6 +734,7 @@ public sealed class ProjectionAnalyzerTests
 
     // A key that loses what it holds restores nothing for a read of the entity either.
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.PlacedAt).SendAsync();""")]
+    [Arguments("""_ = sdkReadings.Query("a").Select(SdkReading.Attrs.At).ValuesAsync();""")]
 
     // An input of an index is an attribute that an update sets, on a table with a sort key and on one without.
     [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ValuesAsync();""")]

@@ -146,9 +146,9 @@ holds the implementation.
 [GlobalIndexKey("GSI1", PartitionKey = "STATUS#{Status}", SortKey = "{Total:n10.2}")]
 public partial record Order { /* UserId, CreatedAt, OrderId, Status, Total */ }
 
-Order.Keys.Sk.Format(createdAt, orderId);    // "ORDER#2026-10-31T12:34:56.789Z#4f9c2a7e-..."
+Order.Keys.Sk.Format(createdAt, orderId);    // "ORDER#2026-10-31T12:34:56.7890123Z#4f9c2a7e-..."
 Order.Keys.Sk.Prefix();                      // "ORDER#"
-Order.Keys.Sk.Prefix(createdAt);             // "ORDER#2026-10-31T12:34:56.789Z#"
+Order.Keys.Sk.Prefix(createdAt);             // "ORDER#2026-10-31T12:34:56.7890123Z#"
 Order.Keys.Sk.UpperBound(createdAt);         // the prefix plus U+10FFFF, for an inclusive BETWEEN
 Order.Keys.Sk.Parse(text);                   // SkParts(CreatedAt, OrderId); TryParse as well
 ```
@@ -171,7 +171,7 @@ getter reads; an update that changes one of those by handle throws, because it c
 | enum | member name | `d<w>` value | variable or fixed | by name or value |
 | integers up to 64 bits | plain digits (`plain`) | `d<w>`, `n<i>` | variable or fixed | numeric only with a fixed format |
 | `decimal` | shortest form (`plain`) | `n<i>.<f>` | variable or fixed | numeric only with a fixed format |
-| `DateTimeOffset`, `DateTime` | `ms` | `yyyy`, `yyyy-MM`, `yyyy-MM-dd`, `yyyy-MM-ddTHH`, `yyyy-MM-ddTHH:mm`, `s`, `ms`, `us`, `ticks` | fixed | chronological |
+| `DateTimeOffset`, `DateTime` | `ticks` | `yyyy`, `yyyy-MM`, `yyyy-MM-dd`, `yyyy-MM-ddTHH`, `yyyy-MM-ddTHH:mm`, `s`, `ms`, `us`, `ticks` | fixed | chronological |
 | `DateOnly` | `yyyy-MM-dd` | | 10 | chronological |
 | `IUtf8SpanFormattable` + `IUtf8SpanParsable<T>` | invariant | | variable | the type's text |
 
@@ -188,10 +188,12 @@ Encodings, chosen so that ordinal byte order equals value order, because DynamoD
   form is never written. Values out of range throw, and so do values where `decimal.Round(value, f) != value`, so `12.500`
   fits `n4.2` and nothing rounds silently. `n<i>` is the same without the point, for integers.
 - `plain` for `decimal`: trailing zeros dropped, negative zero as `0`, because `1.0m` and `1m` are equal and must be one key.
-- Timestamps are converted to UTC and written with a fixed width: `ms` is `2026-10-31T12:34:56.789Z`, and `ticks` has seven
-  fraction digits. Every format truncates finer precision; truncation is deliberate, it is how time buckets are expressed
-  (`{At:yyyy-MM}`), so `a < b` gives `enc(a) <= enc(b)` within a bucket. Only `ticks` is lossless for `DateTime`; no format
-  keeps the offset of a `DateTimeOffset`. A `Local` `DateTime` is converted, an `Unspecified` one throws, and `Parse` returns
+- Timestamps are converted to UTC and written with a fixed width: `ticks`, the default, is `2026-10-31T12:34:56.7890123Z`,
+  seven fraction digits as in the attribute (`O`), and `ms` is `2026-10-31T12:34:56.789Z`, which matches keys the AWS SDK
+  for .NET wrote. Every other format truncates finer precision; truncation is deliberate, it is how time buckets are expressed
+  (`{At:yyyy-MM}`), so `a < b` gives `enc(a) <= enc(b)` within a bucket. Only `ticks` is lossless for `DateTime`, which is why
+  it is the default: a read restores a key input from the key, `[KeyOnly]` works, and a key built from a value that was read
+  from the attribute finds its item. No format keeps the offset of a `DateTimeOffset`. A `Local` `DateTime` is converted, an `Unspecified` one throws, and `Parse` returns
   `Kind == Utc`. Formats up to minutes are byte prefixes of the finer ones; `s` is not a prefix of `ms`.
 
 Values are validated, not escaped. Escaping was rejected: a value with a separator is either a bug or an attack, because

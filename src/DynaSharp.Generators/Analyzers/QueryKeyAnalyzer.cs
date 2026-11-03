@@ -139,7 +139,8 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
         return "it throws ArgumentException." + (read.PartitionKeyModel is { } wanted ? " Use " + read.Type.Name + "." + KeysClass + "." + wanted.BuilderName + "." : string.Empty);
     }
 
-    // The sort key of an index can have another attribute and the same template, and then the text of the condition fits it.
+    // The sort key of an index can have another attribute and the same template, and then the text of the condition fits it. The same means the same segments, so {At} and {At:ticks},
+    // which write the same bytes, are one template although their text differs. Keys of one plain property have no template, and their value is the same.
     private static string? WhySortKeyFails(KeyModel key, Read read)
     {
         if (read.SortKey is null)
@@ -148,7 +149,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
         }
 
         if (key.AttributeName == read.SortKey
-            || (read.SortKeyModel is { } wanted && key.PlainProperty == wanted.PlainProperty && key.Template == wanted.Template))
+            || (read.SortKeyModel is { } wanted && key.PlainProperty == wanted.PlainProperty && (key.Template is null || key.Template.Segments == wanted.Template!.Segments)))
         {
             return null;
         }

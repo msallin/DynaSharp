@@ -29,11 +29,11 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("pk", "LOG#{Stream}", true, new[] { new __Map.DynamoDbKeyInput("Stream", "Stream", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Stream } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("Sequence", "Sequence", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Day, null, __parts.Sequence } : null, LosesValues = true },
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At:ms}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("Sequence", "Sequence", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Day, null, __parts.Sequence } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("byownersk", "TAG#{Tag}", false, new[] { new __Map.DynamoDbKeyInput("Tag", "Tag") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("bywhenpk", "W#{When:ticks}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenPk.Format((global::System.DateTime)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("bywhensk", "{When}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenSk.Format((global::System.DateTime)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bywhenpk", "W#{When}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenPk.Format((global::System.DateTime)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bywhensk", "{When:ms}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenSk.Format((global::System.DateTime)__values[0]!)),
             });
     }
 
@@ -536,7 +536,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct SkParts(global::System.DateOnly Day, global::System.DateTimeOffset At, int Sequence);
 
-        /// <summary>Builds and parses the sort key <c>sk</c> of <c>LogLine</c>, with the template <c>AT#{Day}#{At}#{Sequence:d4}</c>.</summary>
+        /// <summary>Builds and parses the sort key <c>sk</c> of <c>LogLine</c>, with the template <c>AT#{Day}#{At:ms}#{Sequence:d4}</c>.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
@@ -554,7 +554,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -602,7 +602,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -625,7 +625,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -678,7 +678,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -703,7 +703,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -818,7 +818,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -826,7 +826,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template AT#{Day}#{At}#{Sequence:d4}.");
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template AT#{Day}#{At:ms}#{Sequence:d4}.");
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence)
             {
@@ -848,7 +848,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                    throw __failure.InTemplate("AT#{Day}#{At:ms}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -1159,7 +1159,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByWhenPkParts(global::System.DateTime When);
 
-        /// <summary>Builds and parses the partition key <c>bywhenpk</c> of <c>LogLine</c>, with the template <c>W#{When:ticks}</c>.</summary>
+        /// <summary>Builds and parses the partition key <c>bywhenpk</c> of <c>LogLine</c>, with the template <c>W#{When}</c>.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByWhenPk
         {
@@ -1177,7 +1177,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("W#{When:ticks}", "#");
+                    throw __failure.InTemplate("W#{When}", "#");
                 }
                 finally
                 {
@@ -1265,7 +1265,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("W#{When:ticks}", "#");
+                    throw __failure.InTemplate("W#{When}", "#");
                 }
                 finally
                 {
@@ -1273,7 +1273,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template W#{When:ticks}.");
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template W#{When}.");
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTime when)
             {
@@ -1287,7 +1287,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly record struct ByWhenSkParts(global::System.DateTime When);
 
-        /// <summary>Builds and parses the sort key <c>bywhensk</c> of <c>LogLine</c>, with the template <c>{When}</c>.</summary>
+        /// <summary>Builds and parses the sort key <c>bywhensk</c> of <c>LogLine</c>, with the template <c>{When:ms}</c>.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class ByWhenSk
         {
@@ -1305,7 +1305,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("{When}", "");
+                    throw __failure.InTemplate("{When:ms}", "");
                 }
                 finally
                 {
@@ -1390,7 +1390,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
                 catch (global::DynaSharp.KeyFormatException __failure)
                 {
-                    throw __failure.InTemplate("{When}", "");
+                    throw __failure.InTemplate("{When:ms}", "");
                 }
                 finally
                 {
@@ -1398,7 +1398,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 }
             }
 
-            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template {When}.");
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template {When:ms}.");
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTime when)
             {

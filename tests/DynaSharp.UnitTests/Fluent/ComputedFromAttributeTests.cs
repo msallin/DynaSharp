@@ -33,7 +33,7 @@ public sealed class ComputedFromAttributeTests
         var json = client.Table<Visit>("Shop").Put(AVisit).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"VISIT#v1"},"byarrivalpk":{"S":"SITE#bern"},"byarrivalsk":{"S":"2026-11-02T08:30:00.250Z#a1"},"byloadpk":{"S":"LOAD#3"},"_type":{"S":"VISIT"},"Id":{"S":"v1"},"Site":{"S":"bern"},"AppointmentKey":{"S":"a1"},"Message":{"M":{"Arrival":{"S":"2026-11-02T08:30:00.2500000Z"},"Sender":{"S":"desk"}}},"Guests":{"N":"2"},"Tags":{"SS":["x"]}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"VISIT#v1"},"byarrivalpk":{"S":"SITE#bern"},"byarrivalsk":{"S":"2026-11-02T08:30:00.2500000Z#a1"},"byloadpk":{"S":"LOAD#3"},"_type":{"S":"VISIT"},"Id":{"S":"v1"},"Site":{"S":"bern"},"AppointmentKey":{"S":"a1"},"Message":{"M":{"Arrival":{"S":"2026-11-02T08:30:00.2500000Z"},"Sender":{"S":"desk"}}},"Guests":{"N":"2"},"Tags":{"SS":["x"]}}}""");
     }
 
     [Test]
@@ -43,7 +43,7 @@ public sealed class ComputedFromAttributeTests
         var key = Visit.Keys.ByArrivalSk.Format(Arrival, "a1");
 
         // Assert
-        await Assert.That(key).IsEqualTo("2026-11-02T08:30:00.250Z#a1");
+        await Assert.That(key).IsEqualTo("2026-11-02T08:30:00.2500000Z#a1");
     }
 
     [Test]

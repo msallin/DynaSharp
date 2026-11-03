@@ -66,7 +66,7 @@ public sealed class GeneratedKeysTests(Backend backend)
 
         // Assert
         await Assert.That((stored.GetString("gsi1pk"), stored.GetString("gsi1sk"), stored.GetString("gsi2pk"), stored.GetString("gsi2sk"), stored.GetString("lsi1sk")))
-            .IsEqualTo(("STATUS#Paid", "N9999999987.49", "TRACK#33333333-3333-3333-3333-333333333333", "2026-10-31T12:00:00.000Z", "TOTAL#N9999999987.49"));
+            .IsEqualTo(("STATUS#Paid", "N9999999987.49", "TRACK#33333333-3333-3333-3333-333333333333", "2026-10-31T12:00:00.0000000Z", "TOTAL#N9999999987.49"));
     }
 
     [Test]
@@ -470,6 +470,23 @@ public sealed class GeneratedKeysTests(Backend backend)
 
         // Assert
         await Assert.That((stored.ContainsKey("Visitor"), stored.ContainsKey("At"))).IsEqualTo((false, false));
+    }
+
+    [Test]
+    public async Task Get_TimestampOfAnItemAnUpdateCreated_IsRestoredFromTheKeyToTheTick()
+    {
+        // Arrange (ORDER#{PlacedAt}#{OrderId} has no format, so it keeps ticks, and an update stores no input of the table key)
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        var placedAt = Noon.AddTicks(1_234_567);
+        var key = Order.Keys.Of("alice", placedAt, First);
+        await shop.Orders.Update(key).Set(Order.Attrs.Status, OrderStatus.Paid).Set(Order.Attrs.Total, 12.5m).SendAsync();
+
+        // Act
+        var stored = (await shop.Shop.Get(Order.Keys.Pk.Format("alice"), Order.Keys.Sk.Format(placedAt, First)).Consistent().SendAsync()).Item!;
+        var order = (await shop.Orders.Get(key).Consistent().SendAsync()).Item!;
+
+        // Assert
+        await Assert.That((stored.ContainsKey("PlacedAt"), stored.GetString("sk"), order.PlacedAt)).IsEqualTo((false, "ORDER#2026-10-31T12:00:00.1234567Z#" + First, placedAt));
     }
 
     [Test]

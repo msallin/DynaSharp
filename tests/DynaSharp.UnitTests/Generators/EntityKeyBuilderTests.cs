@@ -427,7 +427,8 @@ public sealed class EntityKeyBuilderTests
 
     [Test]
     [Arguments("PROFILE", 7)]
-    [Arguments("ORDER#{At}#{Unique}", 67)]
+    [Arguments("ORDER#{At}#{Unique}", 71)]
+    [Arguments("ORDER#{At:ms}#{Unique}", 67)]
     [Arguments("{Unique}", 36)]
     [Arguments("{Id}", 256)]
     [Arguments("A#{Unique}#{Id}", 256)]

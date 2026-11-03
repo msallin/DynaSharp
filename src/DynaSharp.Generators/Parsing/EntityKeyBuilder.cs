@@ -133,7 +133,7 @@ internal sealed class EntityKeyBuilder(
     }
 
     // What ends the primary key decides whether two items are one. An index is not unique, and a partition key beside a sort key is not all of the key. A format of a minute or coarser says one item per
-    // period, which is the design of a counter or a summary; the default and the finer formats stand for a moment, and there the cut is what loses an item.
+    // period, which is the design of a counter or a summary; s, ms and us stand for a moment, and there the cut is what loses an item.
     private void ReportTruncatedEnd(KeyModel? lastKey, KeySlot slot)
     {
         var last = (lastKey?.Template?.Segments ?? default).OfType<PlaceholderSegment>().LastOrDefault();
@@ -605,7 +605,7 @@ internal sealed class EntityKeyBuilder(
             var lossless = holders.Find(static holder => holder.Placeholder.Encoding.IsLossless);
             if (lossless.Key is null)
             {
-                bag.Report(Descriptors.InvalidKeyOnly, spot, property.Name, "no key holds it without loss, a timestamp needs the format ticks");
+                bag.Report(Descriptors.InvalidKeyOnly, spot, property.Name, "no key holds it without loss, a timestamp needs the format ticks, which a placeholder without a format has");
                 continue;
             }
 

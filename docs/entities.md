@@ -24,7 +24,18 @@ public partial record Order
 }
 ```
 
-`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC and keeps milliseconds unless it says otherwise: `{PlacedAt:ms}` and a bare `{PlacedAt}` both store `2026-10-31T12:34:56.789Z`. `{PlacedAt:ticks}` keeps seven digits, and only that format keeps the whole value. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
+`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC, and a bare `{PlacedAt}` is `ticks`: the seven fraction digits of the attribute, so a key built from a value that was read back finds its item, and a read can restore the property from the key. Every other format cuts the value off, and only `ticks` keeps all of it. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
+
+| Where | Text |
+|---|---|
+| The attribute `PlacedAt`, round-trip form `O` in UTC | `2026-10-31T12:34:56.7890123Z` |
+| A key with `{PlacedAt}` or `{PlacedAt:ticks}` | `2026-10-31T12:34:56.7890123Z` |
+| A key with `{PlacedAt:us}` | `2026-10-31T12:34:56.789012Z` |
+| A key with `{PlacedAt:ms}`, the form of keys the AWS SDK wrote | `2026-10-31T12:34:56.789Z` |
+| A key with `{PlacedAt:s}` | `2026-10-31T12:34:56Z` |
+| A key with `{PlacedAt:yyyy-MM-ddTHH:mm}`, `yyyy-MM-ddTHH`, `yyyy-MM-dd`, `yyyy-MM` or `yyyy` | `2026-10-31T12:34` to `2026` |
+
+No format keeps the offset, and the attribute does not either. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
 
 | `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
 |---|---|---|---|---|---|

@@ -826,6 +826,10 @@ def build_formattable_reads():
 # --------------------------------------------------------------------------------------------------------------------------
 
 
+# The timestamp formats a composite template names: ticks is what a placeholder without a format means, ms what the AWS SDK writes.
+TIME_SPECS = {"ticks": "Ticks", "ms": "Millisecond"}
+
+
 def parse_template(template):
     """Splits "USER#{Id}#X" into ["USER#", ("Id", kind), "#X"]. Placeholders are written {Name:kind}; literals are printable ASCII."""
     parts = []
@@ -851,15 +855,15 @@ def delimiters_of(parts, index):
 
 
 def encode_spec(spec, value, delimiters):
-    """Encodes one placeholder. `spec`: string, integer, guid, ms (timestamp), n<i>.<f> (fixed point), d<w> (digits)."""
+    """Encodes one placeholder. `spec`: string, integer, guid, ticks or ms (timestamp), n<i>.<f> (fixed point), d<w> (digits)."""
     if spec == "string":
         return encode_string(units_of(value) if isinstance(value, str) else value, delimiters)
     if spec == "integer":
         return encode_integer(int(value), delimiters)
     if spec == "guid":
         return encode_guid(value)
-    if spec == "ms":
-        return encode_timestamp(value, "Millisecond")
+    if spec in TIME_SPECS:
+        return encode_timestamp(value, TIME_SPECS[spec])
     if spec.startswith("n"):
         integer_digits, _, fraction_digits = spec[1:].partition(".")
         return encode_fixed_point(value, int(integer_digits), int(fraction_digits or "0"))
@@ -881,8 +885,9 @@ def regex_of(parts):
             pattern += b"([^" + excluded + b"]+)" if delimiters else b"(.+)"
         elif spec == "guid":
             pattern += rb"([0-9a-fA-F-]{36})"
-        elif spec == "ms":
-            pattern += rb"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)"
+        elif spec in TIME_SPECS:
+            fraction_digits = {"Ticks": b"7", "Millisecond": b"3"}[TIME_SPECS[spec]]
+            pattern += rb"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{" + fraction_digits + rb"}Z)"
         elif spec.startswith("n"):
             integer_digits, _, fraction_digits = spec[1:].partition(".")
             width = 1 + int(integer_digits) + (1 + int(fraction_digits) if fraction_digits not in ("", "0") else 0)
@@ -899,8 +904,8 @@ def decode_spec(spec, raw, delimiters):
         return str(decode_integer(raw, delimiters))
     if spec == "guid":
         return decode_guid(raw)
-    if spec == "ms":
-        return decode_timestamp(raw, "Millisecond")
+    if spec in TIME_SPECS:
+        return decode_timestamp(raw, TIME_SPECS[spec])
     if spec.startswith("n"):
         integer_digits, _, fraction_digits = spec[1:].partition(".")
         return decode_fixed_point(raw, int(integer_digits), int(fraction_digits or "0"))
@@ -975,7 +980,7 @@ def add_composite_read(case_id, template, text, intended):
 
 
 def build_composites():
-    ms = timestamp_fields(2026, 10, 31, 12, 34, 56, 7_890_123)
+    at = timestamp_fields(2026, 10, 31, 12, 34, 56, 7_890_123)
     guid = "4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
     add_composite("composite/user-id", "USER#{Id}", ["42"])
     add_composite("composite/user-id-with-delimiter", "USER#{Id}", ["1#ORDER"], True)
@@ -988,8 +993,9 @@ def build_composites():
     add_composite("composite/tenant-injection-in-last", "TENANT#{Tenant}#USER#{Id}", ["acme", "1#USER#2"], True)
     add_composite("composite/tenant-injection-in-first", "TENANT#{Tenant}#USER#{Id}", ["a#USER#b", "1"], True)
     add_composite("composite/country-canton", "COUNTRY#{Country}#CANTON#{Canton}", ["CH", "Z" + U_UMLAUT + "rich"])
-    add_composite("composite/spec-order-sort-key", "ORDER#{CreatedAt:ms}#{OrderId:guid}", [ms, guid])
-    add_composite("composite/spec-order-guid-uppercase", "ORDER#{CreatedAt:ms}#{OrderId:guid}", [ms, guid.upper()])
+    add_composite("composite/spec-order-sort-key", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", [at, guid])
+    add_composite("composite/spec-order-guid-uppercase", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", [at, guid.upper()])
+    add_composite("composite/sdk-order-sort-key", "ORDER#{CreatedAt:ms}#{OrderId:guid}", [at, guid])
     add_composite("composite/total-fixed-point", "{Total:n10.2}", ["-1234.5"])
     add_composite("composite/total-after-literal", "TOTAL#{Total:n10.2}", ["1234.5"])
     add_composite("composite/total-with-too-many-decimals", "TOTAL#{Total:n10.2}", ["1234.567"], True)
@@ -1010,6 +1016,7 @@ def build_composites():
 
 
 def build_composite_reads():
+    ticks = "2026-10-31T12:34:56.7890123Z"
     ms = "2026-10-31T12:34:56.789Z"
     guid = "4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b"
     for name, template, text, intended in [
@@ -1028,10 +1035,13 @@ def build_composite_reads():
         ("tenant-user-shifted-literal", "TENANT#{Tenant}#USER#{Id}", "TENANT#a#USER#b#USER#7", False),
         ("tenant-user-empty-tenant", "TENANT#{Tenant}#USER#{Id}", "TENANT##USER#7", False),
         ("tenant-user-empty-id", "TENANT#{Tenant}#USER#{Id}", "TENANT#acme#USER#", False),
-        ("spec-order", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#" + ms + "#" + guid, True),
-        ("spec-order-uppercase-guid", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#" + ms + "#" + guid.upper(), False),
-        ("spec-order-no-fraction", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#2026-10-31T12:34:56Z#" + guid, False),
-        ("spec-order-impossible-date", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#2026-02-30T12:34:56.789Z#" + guid, False),
+        ("spec-order", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", "ORDER#" + ticks + "#" + guid, True),
+        ("spec-order-uppercase-guid", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", "ORDER#" + ticks + "#" + guid.upper(), False),
+        ("spec-order-no-fraction", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", "ORDER#2026-10-31T12:34:56Z#" + guid, False),
+        ("spec-order-milliseconds", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", "ORDER#" + ms + "#" + guid, False),
+        ("spec-order-impossible-date", "ORDER#{CreatedAt:ticks}#{OrderId:guid}", "ORDER#2026-02-30T12:34:56.7890123Z#" + guid, False),
+        ("sdk-order", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#" + ms + "#" + guid, True),
+        ("sdk-order-seven-digits", "ORDER#{CreatedAt:ms}#{OrderId:guid}", "ORDER#" + ticks + "#" + guid, False),
         ("total", "TOTAL#{Total:n10.2}", "TOTAL#P0000001234.50", True),
         ("total-negative", "TOTAL#{Total:n10.2}", "TOTAL#N9999998765.49", True),
         ("total-all-nines", "TOTAL#{Total:n10.2}", "TOTAL#N9999999999.99", False),

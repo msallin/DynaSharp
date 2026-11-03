@@ -405,7 +405,7 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
-    [Arguments("""[[|KeyOnly|]] public DateTime At { get; set; }""", "ORDER#{At:yyyy-MM-dd}", "At", "no key holds it without loss, a timestamp needs the format ticks")]
+    [Arguments("""[[|KeyOnly|]] public DateTime At { get; set; }""", "ORDER#{At:yyyy-MM-dd}", "At", "no key holds it without loss, a timestamp needs the format ticks, which a placeholder without a format has")]
     [Arguments("""[[|KeyOnly|]] public string Other { get; set; } = "";""", "E", "Other", "no key template uses it")]
     [Arguments("""[[|KeyOnly|]] public string Calculated => "x";""", "A#{Calculated}", "Calculated", "it is computed")]
     [Arguments("""[[|KeyOnly|], DynamoDbIgnore] public string Id { get; set; } = "";""", "E", "Id", "it is also [DynamoDbIgnore]")]
@@ -457,16 +457,19 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
-    public async Task Build_KeyOnlyWithALosslessKey_ReportsNothing()
+    [Arguments("A#{At:ticks}", "DateTime")]
+    [Arguments("A#{At}", "DateTime")]
+    [Arguments("A#{At}", "DateTimeOffset")]
+    public async Task Build_KeyOnlyWithALosslessKey_ReportsNothing(string template, string type)
     {
-        // Arrange
-        const string Source = """
-            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{At:ticks}")]
-            public partial class E { [KeyOnly] public DateTime At { get; set; } }
+        // Arrange (a placeholder without a format keeps ticks)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("{{template}}")]
+            public partial class E { [KeyOnly] public {{type}} At { get; set; } }
             """;
 
         // Act
-        var report = Analysis.Report(Source);
+        var report = Analysis.Report(source);
 
         // Assert
         await Assert.That(report).IsEmpty();
@@ -1008,14 +1011,13 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
-    [Arguments("""PartitionKey("E"), SortKey([|"{At}"|])""")]
-    [Arguments("""PartitionKey("E"), SortKey([|"AT#{At}"|])""")]
-    [Arguments("""PartitionKey("E"), SortKey([|"{Number:d4}#{At}"|])""")]
     [Arguments("""PartitionKey("E"), SortKey([|"{At:ms}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"AT#{At:ms}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{Number:d4}#{At:us}"|])""")]
     [Arguments("""PartitionKey("E"), SortKey([|"{At:us}"|])""")]
     [Arguments("""PartitionKey("E"), SortKey([|"{At:s}"|])""")]
-    [Arguments("""PartitionKey("E"), SortKey([|"{At}#END"|])""")]
-    [Arguments("""PartitionKey([|"EVENT#{At}"|])""")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{At:ms}#END"|])""")]
+    [Arguments("""PartitionKey([|"EVENT#{At:s}"|])""")]
     public async Task Build_TruncatedTimestampAtTheEndOfATableKey_ReportsDyna116(string attributes)
     {
         // Arrange
@@ -1029,7 +1031,7 @@ public sealed class KeyDiagnosticsTests
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA116 Warning: Timestamp 'At' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {At:ticks}."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA116 Warning: Timestamp 'At' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or drop the format: {At} keeps ticks, all seven digits."));
     }
 
     [Test]
@@ -1037,7 +1039,7 @@ public sealed class KeyDiagnosticsTests
     {
         // Arrange
         const string Source = """
-            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey([|"{Utc}"|])]
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey([|"{Utc:ms}"|])]
             public partial class E { public DateTime Utc { get; set; } }
             """;
 
@@ -1045,11 +1047,16 @@ public sealed class KeyDiagnosticsTests
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA116 Warning: Timestamp 'Utc' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {Utc:ticks}."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA116 Warning: Timestamp 'Utc' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or drop the format: {Utc} keeps ticks, all seven digits."));
     }
 
     [Test]
     [Arguments("""PartitionKey("E"), SortKey("{At:ticks}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("AT#{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{Number:d4}#{At}")""")]
+    [Arguments("""PartitionKey("E"), SortKey("{At}#END")""")]
+    [Arguments("""PartitionKey("EVENT#{At}")""")]
     [Arguments("""PartitionKey("E"), SortKey("{Unique}#{At:ticks}")""")]
     [Arguments("""PartitionKey("E"), SortKey("{At}#{Unique}")""")]
     [Arguments("""PartitionKey("E"), SortKey("{At:ms}#{Id}")""")]
@@ -1295,7 +1302,7 @@ public sealed class KeyDiagnosticsTests
         "string" => "no format, or raw at the end of the template",
         "int" => "plain, the default, d<w>, such as d6, or n<i>, such as n10",
         "decimal" => "plain, the default, or n<i>.<f>, such as n10.2",
-        "DateTimeOffset" or "DateTime" => "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, the default, us or ticks",
+        "DateTimeOffset" or "DateTime" => "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, us or ticks, the default",
         "Color" => "no format for the member name, or d<w>, such as d3, for its value",
         _ => "no format",
     };

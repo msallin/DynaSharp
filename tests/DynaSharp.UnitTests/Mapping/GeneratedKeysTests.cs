@@ -19,7 +19,7 @@ public sealed class GeneratedKeysTests
 
     private const string OrderText = "4f9c2a7e-0b1d-4e5f-8a6b-7c8d9e0f1a2b";
 
-    private const string OrderKey = "ORDER#2026-10-31T12:34:56.789Z#" + OrderText;
+    private const string OrderKey = "ORDER#2026-10-31T12:34:56.7890000Z#" + OrderText;
 
     private static readonly Guid User = Guid.Parse(UserText);
 
@@ -132,7 +132,7 @@ public sealed class GeneratedKeysTests
         // Arrange
         string[] expected =
         [
-            "USER#" + UserText, OrderKey, "STATUS#Pro", "P0000000012.50", "TRACK#" + OrderText, "2026-10-31T12:34:56.789Z", "TOTAL#N9999999987.49",
+            "USER#" + UserText, OrderKey, "STATUS#Pro", "P0000000012.50", "TRACK#" + OrderText, "2026-10-31T12:34:56.7890000Z", "TOTAL#N9999999987.49",
         ];
 
         // Act
@@ -245,7 +245,7 @@ public sealed class GeneratedKeysTests
         // Assert
         await Assert.That(keys).IsEquivalentTo(
         [
-            "T#2026-10-31T12:34:56.789Z", "T#2026-10-31T12:34:56.7890001Z", "T#2026-10-31", "C#10.0.0.1", "G#" + OrderText, "E#Enterprise",
+            "T#2026-10-31T12:34:56.7890000Z", "T#2026-10-31T12:34:56.7890001Z", "T#2026-10-31", "C#10.0.0.1", "G#" + OrderText, "E#Enterprise",
         ]);
     }
 
@@ -484,7 +484,7 @@ public sealed class GeneratedKeysTests
         string[] prefixes = [KeyedOrder.Keys.Sk.Prefix(), KeyedOrder.Keys.Sk.Prefix(At), Member.Keys.Sk.Prefix(), Member.Keys.Sk.Prefix("EU")];
 
         // Assert
-        await Assert.That(prefixes).IsEquivalentTo(["ORDER#", "ORDER#2026-10-31T12:34:56.789Z#", "REGION#", "REGION#EU#CITY#"]);
+        await Assert.That(prefixes).IsEquivalentTo(["ORDER#", "ORDER#2026-10-31T12:34:56.7890000Z#", "REGION#", "REGION#EU#CITY#"]);
     }
 
     [Test]
@@ -568,7 +568,7 @@ public sealed class GeneratedKeysTests
         var deeper = orders.Query(key, KeyedOrder.Keys.Sk.BeginsWith(At)).ToRequestJson();
 
         // Assert
-        await Assert.That((whole.Contains("""{"S":"ORDER#"}""", StringComparison.Ordinal), deeper.Contains("""{"S":"ORDER#2026-10-31T12:34:56.789Z#"}""", StringComparison.Ordinal))).IsEqualTo((true, true));
+        await Assert.That((whole.Contains("""{"S":"ORDER#"}""", StringComparison.Ordinal), deeper.Contains("""{"S":"ORDER#2026-10-31T12:34:56.7890000Z#"}""", StringComparison.Ordinal))).IsEqualTo((true, true));
     }
 
     [Test]
@@ -638,7 +638,7 @@ public sealed class GeneratedKeysTests
         // Assert
         await Assert.That(bounds).IsEquivalentTo(
         [
-            "REGION#\U0010FFFF", "REGION#EU#CITY#\U0010FFFF", "ORDER#2026-10-31T12:34:56.789Z#\U0010FFFF", "A-x#\U0010FFFF",
+            "REGION#\U0010FFFF", "REGION#EU#CITY#\U0010FFFF", "ORDER#2026-10-31T12:34:56.7890000Z#\U0010FFFF", "A-x#\U0010FFFF",
         ]);
     }
 
@@ -723,7 +723,7 @@ public sealed class GeneratedKeysTests
     public async Task Parse_DateTime_HasKindUtc()
     {
         // Arrange, Act
-        var parsed = KeyFormats.Keys.DateTimePk.Parse("T#2026-10-31T12:34:56.789Z").Utc;
+        var parsed = KeyFormats.Keys.DateTimePk.Parse("T#2026-10-31T12:34:56.7890000Z").Utc;
 
         // Assert
         await Assert.That((parsed, parsed.Kind)).IsEqualTo((Utc, DateTimeKind.Utc));

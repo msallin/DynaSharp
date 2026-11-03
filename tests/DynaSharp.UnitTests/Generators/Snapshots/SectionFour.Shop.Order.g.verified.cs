@@ -29,7 +29,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.UserId } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("OrderId", "OrderId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null, __parts.OrderId } : null, LosesValues = true },
+                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("OrderId", "OrderId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.CreatedAt, __parts.OrderId } : null },
                 new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::Shop.OrderStatus)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),
@@ -298,10 +298,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             if (!fields.UserId__set) { fields.UserId = __restored0.UserId; fields.UserId__set = true; }
         }
 
-        if ((!fields.OrderId__set)
+        if ((!fields.CreatedAt__set || !fields.OrderId__set)
             && __Ser.ConverterChecks.TryFindString(__item, "sk"u8, out var __text1)
             && Keys.Sk.TryParse(__text1, out var __restored1))
         {
+            if (!fields.CreatedAt__set) { fields.CreatedAt = __restored1.CreatedAt; fields.CreatedAt__set = true; }
             if (!fields.OrderId__set) { fields.OrderId = __restored1.OrderId; fields.OrderId__set = true; }
         }
 
@@ -320,7 +321,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         }
 
         if (!fields.UserId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "UserId", "pk"); }
-        if (!fields.CreatedAt__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "CreatedAt"); }
+        if (!fields.CreatedAt__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "CreatedAt", "sk"); }
         if (!fields.OrderId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "OrderId", "sk"); }
         if (!fields.Status__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Status", "gsi1pk"); }
         if (!fields.Total__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("Order", "Total", "gsi1sk"); }
@@ -426,27 +427,6 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);
                 Sk.Write(writer, _1, _2);
-            }
-
-            /// <inheritdoc/>
-            public object? ValueOf(string propertyName)
-            {
-                if (propertyName == "UserId")
-                {
-                    return _0;
-                }
-
-                if (propertyName == "CreatedAt")
-                {
-                    return _1;
-                }
-
-                if (propertyName == "OrderId")
-                {
-                    return _2;
-                }
-
-                return null;
             }
         }
 
@@ -558,7 +538,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Sk
         {
-            private const int BufferLength = 67;
+            private const int BufferLength = 71;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -610,7 +590,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 try
                 {
                     __key.WriteLiteral("ORDER#"u8);
-                    __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                    __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Ticks);
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
@@ -628,7 +608,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 try
                 {
                     __key.WriteLiteral("ORDER#"u8);
-                    __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                    __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Ticks);
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
@@ -721,7 +701,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
                 if (__key.TryReadLiteral("ORDER#"u8)
-                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Ticks, out global::System.DateTimeOffset __p0)
                     && __key.TryReadLiteral("#"u8)
                     && __key.TryReadGuid(out global::System.Guid __p1)
                     && __key.IsAtEnd)
@@ -753,7 +733,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset createdAt, global::System.Guid orderId)
             {
                 __key.WriteLiteral("ORDER#"u8);
-                __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Ticks);
                 __key.WriteLiteral("#"u8);
                 __key.WriteGuid(orderId);
             }
@@ -1118,7 +1098,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class Gsi2Sk
         {
-            private const int BufferLength = 24;
+            private const int BufferLength = 28;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -1192,7 +1172,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
             public static bool TryParse(global::System.ReadOnlySpan<byte> utf8Text, out Gsi2SkParts parts)
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
-                if (__key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                if (__key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Ticks, out global::System.DateTimeOffset __p0)
                     && __key.IsAtEnd)
                 {
                     parts = new Gsi2SkParts(__p0);
@@ -1221,7 +1201,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
 
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset shippedAt)
             {
-                __key.WriteTimestamp(shippedAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteTimestamp(shippedAt, global::DynaSharp.Keys.KeyTimeFormat.Ticks);
             }
         }
     }

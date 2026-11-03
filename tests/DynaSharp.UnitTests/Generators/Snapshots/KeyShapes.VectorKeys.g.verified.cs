@@ -37,6 +37,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 new __Map.DynamoDbIndexInfo("V15", "v15pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V15Pk" },
                 new __Map.DynamoDbIndexInfo("V16", "v16pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V16Pk" },
                 new __Map.DynamoDbIndexInfo("V17", "v17pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V17Pk" },
+                new __Map.DynamoDbIndexInfo("V18", "v18pk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "V18Pk" },
             },
             versionAttributeName: null,
             discriminatorAttributeName: "_type",
@@ -59,6 +60,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 new __Map.DynamoDbKeyTemplate("v15pk", "{A}#{B}#{C}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B"), new __Map.DynamoDbKeyInput("C", "C") }, static __values => Keys.V15Pk.Format((string)__values[0]!, (string)__values[1]!, (string)__values[2]!)),
                 new __Map.DynamoDbKeyTemplate("v16pk", "{A}#{B}", false, new[] { new __Map.DynamoDbKeyInput("A", "A"), new __Map.DynamoDbKeyInput("B", "B") }, static __values => Keys.V16Pk.Format((string)__values[0]!, (string)__values[1]!)),
                 new __Map.DynamoDbKeyTemplate("v17pk", "L#{City}#{Name}", false, new[] { new __Map.DynamoDbKeyInput("City", "City"), new __Map.DynamoDbKeyInput("Name", "Name") }, static __values => Keys.V17Pk.Format((string)__values[0]!, (string)__values[1]!)),
+                new __Map.DynamoDbKeyTemplate("v18pk", "ORDER#{CreatedAt:ms}#{OrderId}", false, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt"), new __Map.DynamoDbKeyInput("OrderId", "OrderId") }, static __values => Keys.V18Pk.Format((global::System.DateTimeOffset)__values[0]!, (global::System.Guid)__values[1]!)),
             });
     }
 
@@ -136,6 +138,8 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         Keys.V16Pk.Write(writer, entity.A, entity.B);
         writer.WriteAttributeName("v17pk"u8);
         Keys.V17Pk.Write(writer, entity.City, entity.Name);
+        writer.WriteAttributeName("v18pk"u8);
+        Keys.V18Pk.Write(writer, entity.CreatedAt, entity.OrderId);
         writer.WriteAttributeName("_type"u8);
         writer.WriteString("VECTORS"u8);
         writer.WriteAttributeName("Id"u8);
@@ -359,10 +363,11 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
             if (!fields.Canton__set) { fields.Canton = __restored2.Canton; fields.Canton__set = true; }
         }
 
-        if ((!fields.OrderId__set)
+        if ((!fields.CreatedAt__set || !fields.OrderId__set)
             && __Ser.ConverterChecks.TryFindString(__item, "v06pk"u8, out var __text3)
             && Keys.V06Pk.TryParse(__text3, out var __restored3))
         {
+            if (!fields.CreatedAt__set) { fields.CreatedAt = __restored3.CreatedAt; fields.CreatedAt__set = true; }
             if (!fields.OrderId__set) { fields.OrderId = __restored3.OrderId; fields.OrderId__set = true; }
         }
 
@@ -415,7 +420,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         if (!fields.Tenant__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "Tenant", "v04pk"); }
         if (!fields.Country__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "Country", "v05pk"); }
         if (!fields.Canton__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "Canton", "v05pk"); }
-        if (!fields.CreatedAt__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "CreatedAt"); }
+        if (!fields.CreatedAt__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "CreatedAt", "v06pk"); }
         if (!fields.OrderId__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "OrderId", "v06pk"); }
         if (!fields.Total__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "Total", "v07pk"); }
         if (!fields.X__set) { throw global::DynaSharp.DynamoDbMappingException.Missing("VectorKeys", "X", "v09pk"); }
@@ -1158,7 +1163,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class V06Pk
         {
-            private const int BufferLength = 67;
+            private const int BufferLength = 71;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -1213,7 +1218,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
                 if (__key.TryReadLiteral("ORDER#"u8)
-                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Ticks, out global::System.DateTimeOffset __p0)
                     && __key.TryReadLiteral("#"u8)
                     && __key.TryReadGuid(out global::System.Guid __p1)
                     && __key.IsAtEnd)
@@ -1245,7 +1250,7 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset createdAt, global::System.Guid orderId)
             {
                 __key.WriteLiteral("ORDER#"u8);
-                __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Ticks);
                 __key.WriteLiteral("#"u8);
                 __key.WriteGuid(orderId);
             }
@@ -2684,6 +2689,109 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 __key.WriteString(name, "#"u8, "Name");
             }
         }
+
+        /// <summary>The values of a parsed <c>v18pk</c>.</summary>
+        /// <param name="CreatedAt">The value of the placeholder <c>CreatedAt</c>.</param>
+        /// <param name="OrderId">The value of the placeholder <c>OrderId</c>.</param>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public readonly record struct V18PkParts(global::System.DateTimeOffset CreatedAt, global::System.Guid OrderId);
+
+        /// <summary>Builds and parses the partition key <c>v18pk</c> of <c>VectorKeys</c>, with the template <c>ORDER#{CreatedAt:ms}#{OrderId}</c>.</summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+        public static class V18Pk
+        {
+            private const int BufferLength = 67;
+
+            /// <summary>Formats the complete key.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static string Format(global::System.DateTimeOffset createdAt, global::System.Guid orderId)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength]);
+                try
+                {
+                    Encode(ref __key, createdAt, orderId);
+                    return __key.ToString();
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
+
+            /// <summary>Formats the complete key as a key of <c>VectorKeys</c>, which a query of another entity does not take.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys> Of(global::System.DateTimeOffset createdAt, global::System.Guid orderId) => new global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>(Format(createdAt, orderId), "v18pk");
+
+            /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
+            public static V18PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
+
+            /// <summary>Parses a key given as UTF-8. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
+            /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
+            public static V18PkParts Parse(global::System.ReadOnlySpan<byte> utf8Text) => TryParse(utf8Text, out var parts) ? parts : throw Invalid();
+
+            /// <summary>Tries to parse a key. Text that is not well-formed is never a key.</summary>
+            public static bool TryParse(string? text, out V18PkParts parts)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength]);
+                try
+                {
+                    if (__key.TryWriteText(text))
+                    {
+                        return TryParse(__key.WrittenSpan, out parts);
+                    }
+
+                    parts = default;
+                    return false;
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
+
+            /// <summary>Tries to parse a key given as UTF-8.</summary>
+            public static bool TryParse(global::System.ReadOnlySpan<byte> utf8Text, out V18PkParts parts)
+            {
+                var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
+                if (__key.TryReadLiteral("ORDER#"u8)
+                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTimeOffset __p0)
+                    && __key.TryReadLiteral("#"u8)
+                    && __key.TryReadGuid(out global::System.Guid __p1)
+                    && __key.IsAtEnd)
+                {
+                    parts = new V18PkParts(__p0, __p1);
+                    return true;
+                }
+
+                parts = default;
+                return false;
+            }
+
+            internal static void Write(global::DynaSharp.Serialization.DynamoDbWriter __writer, global::System.DateTimeOffset createdAt, global::System.Guid orderId)
+            {
+                var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength]);
+                try
+                {
+                    Encode(ref __key, createdAt, orderId);
+                    __writer.WriteString(__key.WrittenSpan);
+                }
+                finally
+                {
+                    __key.Dispose();
+                }
+            }
+
+            private static global::DynaSharp.KeyFormatException Invalid() => new global::DynaSharp.KeyFormatException("The text is not a key of the template ORDER#{CreatedAt:ms}#{OrderId}.");
+
+            private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTimeOffset createdAt, global::System.Guid orderId)
+            {
+                __key.WriteLiteral("ORDER#"u8);
+                __key.WriteTimestamp(createdAt, global::DynaSharp.Keys.KeyTimeFormat.Millisecond);
+                __key.WriteLiteral("#"u8);
+                __key.WriteGuid(orderId);
+            }
+        }
     }
 
     /// <summary>The names of the indexes of <c>VectorKeys</c>, for <c>table.Index(...)</c>.</summary>
@@ -2737,5 +2845,8 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
 
         /// <summary>The index <c>V17</c>.</summary>
         public const string V17 = "V17";
+
+        /// <summary>The index <c>V18</c>.</summary>
+        public const string V18 = "V18";
     }
 }

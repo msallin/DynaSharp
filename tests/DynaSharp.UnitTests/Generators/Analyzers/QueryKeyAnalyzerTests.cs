@@ -10,7 +10,7 @@ public sealed class QueryKeyAnalyzerTests
         [DynamoDbEntity]
         [Discriminator("ORDER")]
         [PartitionKey("USER#{UserId}")]
-        [SortKey("ORDER#{PlacedAt:ticks}#{OrderId}")]
+        [SortKey("ORDER#{PlacedAt}#{OrderId}")]
         [GlobalIndexKey("ByMarket", PartitionKey = "MARKET#{Market}#{Channel}", SortKey = "{PlacedOn:yyyy-MM}#{OrderId}")]
         [GlobalIndexKey("ByUser", PartitionKey = "USER#{UserId}", SortKey = "ORDER#{PlacedAt:ticks}#{OrderId}")]
         [GlobalIndexKey("ByReference", PartitionKey = "{Reference}", PartitionKeyAttributeName = "Reference")]
@@ -53,6 +53,17 @@ public sealed class QueryKeyAnalyzerTests
         }
 
         [DynamoDbEntity]
+        [Discriminator("PASS")]
+        public partial class Pass
+        {
+            [PartitionKey]
+            public required string Code { get; init; }
+
+            [SortKey, DynamoDbAttribute("position")]
+            public required int Seq { get; init; }
+        }
+
+        [DynamoDbEntity]
         [Discriminator("SUMMARY")]
         [PartitionKey("MONTH#{Month:yyyy-MM}")]
         public partial class Summary
@@ -60,6 +71,19 @@ public sealed class QueryKeyAnalyzerTests
             public required DateTimeOffset Month { get; init; }
 
             public decimal Sum { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("SAMPLE")]
+        [PartitionKey("SAMPLE#{Meter}")]
+        [SortKey("{At:ms}#{Seq}")]
+        public partial class Sample
+        {
+            public required string Meter { get; init; }
+
+            public required DateTimeOffset At { get; init; }
+
+            public required int Seq { get; init; }
         }
 
         public static class Fake
@@ -97,7 +121,9 @@ public sealed class QueryKeyAnalyzerTests
     private const string Fields = """
         private static readonly Table<Order> orders = null!;
         private static readonly Table<Ticket> tickets = null!;
+        private static readonly Table<Pass> passes = null!;
         private static readonly Table<Summary> summaries = null!;
+        private static readonly Table<Sample> samples = null!;
         private static readonly Index<Order> byMarket = null!;
         private static readonly DateTimeOffset now = default;
         private static string Name() => "ByMarket";
@@ -138,6 +164,7 @@ public sealed class QueryKeyAnalyzerTests
     [Test]
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m").Filter([|Order.Attrs.PlacedOn|].Gt(now))""", "PlacedOn", "bymarketsk")]
     [Arguments("""summaries.Query("MONTH#2026-01").Filter([|Summary.Attrs.Month|].Gt(now))""", "Month", "pk")]
+    [Arguments("""samples.Query("SAMPLE#m").Filter([|Sample.Attrs.At|].Gt(now))""", "At", "sk")]
     public async Task Analyze_FilterOnWhatAKeyHoldsInPart_IsInfo(string chain, string name, string key)
     {
         // Arrange (a month in the key and a day in the filter: the filter is finer than the key, which is correct)
@@ -220,6 +247,11 @@ public sealed class QueryKeyAnalyzerTests
 
     [Test]
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u"), Order.Keys.Sk.BeginsWith())""")]
+
+    // A plain sort key of one property under another attribute holds the same value.
+    [Arguments("""passes.Query("c", Ticket.Keys.Sk.Gt(1))""")]
+
+    // ORDER#{PlacedAt}#{OrderId} of the table and ORDER#{PlacedAt:ticks}#{OrderId} of ByUser are one template in two spellings.
     [Arguments("""orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.Sk.BeginsWith())""")]
     [Arguments("""orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.ByUserSk.BeginsWith())""")]
     [Arguments("""orders.Index(Order.Indexes.ByTotal).Query(Order.Keys.Pk.Of("u"), Order.Keys.ByTotalSk.Gt(1m))""")]

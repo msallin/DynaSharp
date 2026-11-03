@@ -267,7 +267,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor TruncatedTimestampEndsTableKey = new(
         "DYNA116",
         "Truncated timestamp at the end of a table key",
-        "Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or use {{{0}:ticks}}.",
+        "Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or drop the format: {{{0}}} keeps ticks, all seven digits.",
         KeyGrammar,
         DiagnosticSeverity.Warning,
         true,

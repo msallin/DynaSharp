@@ -207,8 +207,8 @@ public sealed partial class KeysEmitterTests
         // Act
         var body = Body(model);
 
-        // Assert ("ORDER#" 6, ms 24, "#" 1, Guid 36; STATUS is an enum name)
-        await Assert.That(body.Contains("BufferLength = 67;", StringComparison.Ordinal) && body.Contains("BufferLength = 256;", StringComparison.Ordinal)).IsTrue();
+        // Assert ("ORDER#" 6, ticks 28, "#" 1, Guid 36; STATUS is an enum name)
+        await Assert.That(body.Contains("BufferLength = 71;", StringComparison.Ordinal) && body.Contains("BufferLength = 256;", StringComparison.Ordinal)).IsTrue();
     }
 
     [Test]

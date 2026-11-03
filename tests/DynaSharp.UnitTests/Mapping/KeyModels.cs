@@ -505,6 +505,7 @@ public partial record KeyOnlyPlan
 [GlobalIndexKey("V15", PartitionKey = "{A}#{B}#{C}")]
 [GlobalIndexKey("V16", PartitionKey = "{A}#{B}")]
 [GlobalIndexKey("V17", PartitionKey = "L#{City}#{Name}")]
+[GlobalIndexKey("V18", PartitionKey = "ORDER#{CreatedAt:ms}#{OrderId}")]
 public partial record VectorKeys
 {
     public required string Id { get; init; }
@@ -542,9 +543,9 @@ public partial record VectorKeys
 [DynamoDbEntity]
 [Discriminator("LOGLINE")]
 [PartitionKey("LOG#{Stream}")]
-[SortKey("AT#{Day}#{At}#{Sequence:d4}")]
+[SortKey("AT#{Day}#{At:ms}#{Sequence:d4}")]
 [GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "TAG#{Tag}", Sparse = true)]
-[GlobalIndexKey("ByWhen", PartitionKey = "W#{When:ticks}", SortKey = "{When}")]
+[GlobalIndexKey("ByWhen", PartitionKey = "W#{When}", SortKey = "{When:ms}")]
 public partial record LogLine
 {
     public required string Stream { get; init; }

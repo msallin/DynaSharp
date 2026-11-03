@@ -208,6 +208,7 @@ internal static class KeyVectorRunner
         "string" => KeyVectorValues.FromUnits(value),
         "integer" => long.Parse(value.GetString()!, CultureInfo.InvariantCulture),
         "guid" => Guid.Parse(value.GetString()!),
+        "ticks" => KeyVectorValues.Time(value, DateTimeKind.Utc).Ticks,
         "ms" => TruncateToMilliseconds(KeyVectorValues.Time(value, DateTimeKind.Utc).Ticks),
         _ when spec.StartsWith('n', StringComparison.Ordinal) => KeyVectorValues.ParseDecimal(value.GetString()!),
         _ => long.Parse(value.GetString()!, CultureInfo.InvariantCulture),
@@ -227,6 +228,9 @@ internal static class KeyVectorRunner
                 break;
             case "guid":
                 writer.WriteGuid(Guid.Parse(value.GetString()!));
+                break;
+            case "ticks":
+                writer.WriteTimestamp(KeyVectorValues.Offset(value), KeyTimeFormat.Ticks);
                 break;
             case "ms":
                 writer.WriteTimestamp(KeyVectorValues.Offset(value), KeyTimeFormat.Millisecond);
@@ -258,6 +262,8 @@ internal static class KeyVectorRunner
                 return reader.TryReadInt64(delimiters, out var number) ? number : null;
             case "guid":
                 return reader.TryReadGuid(out var guid) ? guid : null;
+            case "ticks":
+                return reader.TryReadTimestamp(KeyTimeFormat.Ticks, out DateTime exact) ? exact.Ticks : null;
             case "ms":
                 return reader.TryReadTimestamp(KeyTimeFormat.Millisecond, out DateTime time) ? time.Ticks : null;
             default:

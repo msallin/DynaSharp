@@ -92,7 +92,7 @@ public sealed partial class FailedConditionTests
         var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(async () => await orders.Put(Order).IfNotExists().SendAsync());
 
         // Assert
-        await Assert.That(failure.Key).IsEqualTo(new Item { ["pk"] = "USER#" + UserText, ["sk"] = "ORDER#2026-10-31T12:34:56.789Z#" + OrderText });
+        await Assert.That(failure.Key).IsEqualTo(new Item { ["pk"] = "USER#" + UserText, ["sk"] = "ORDER#2026-10-31T12:34:56.7890000Z#" + OrderText });
     }
 
     [Test]

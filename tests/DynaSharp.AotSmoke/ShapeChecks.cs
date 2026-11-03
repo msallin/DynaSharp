@@ -28,11 +28,11 @@ internal static class ShapeChecks
     {
         var sk = KeyedOrder.Keys.Sk.Format(Noon, Id);
         var prefix = KeyedOrder.Keys.Sk.Prefix(Noon);
-        check(sk == "ORDER#2026-10-31T12:00:00.000Z#11111111-1111-1111-1111-111111111111", "Format encodes a composite key");
+        check(sk == "ORDER#2026-10-31T12:00:00.0000000Z#11111111-1111-1111-1111-111111111111", "Format encodes a composite key");
         check(KeyedOrder.Keys.Sk.Parse(sk) == new KeyedOrder.Keys.SkParts(Noon, Id), "Parse reads a composite key");
         check(KeyedOrder.Keys.Sk.Parse(Encoding.UTF8.GetBytes(sk)).OrderId == Id, "Parse reads UTF-8");
         check(!KeyedOrder.Keys.Sk.TryParse("ORDER#nonsense", out _) && !KeyedOrder.Keys.Sk.TryParse((string?)null, out _), "TryParse refuses what does not match");
-        check(KeyedOrder.Keys.Sk.Prefix() == "ORDER#" && prefix == "ORDER#2026-10-31T12:00:00.000Z#", "Prefix stops at a field");
+        check(KeyedOrder.Keys.Sk.Prefix() == "ORDER#" && prefix == "ORDER#2026-10-31T12:00:00.0000000Z#", "Prefix stops at a field");
         check(string.CompareOrdinal(KeyedOrder.Keys.Sk.UpperBound(Noon), sk) > 0 && KeyedOrder.Keys.Sk.UpperBound(Noon).StartsWith(prefix, StringComparison.Ordinal), "UpperBound is above every key of the field");
         check(KeyedOrder.Keys.Gsi1Sk.Format(-12.5m) == "N9999999987.49" && KeyedOrder.Keys.Gsi1Sk.Parse("N9999999987.49").Total == -12.5m, "a fixed point key is signed");
         check(KeyedOrder.Keys.Lsi1Sk.Parse("TOTAL#P0000000012.50").Total == 12.5m, "a local index has builders");
@@ -93,7 +93,7 @@ internal static class ShapeChecks
             Formats.YearPk.Parse(Key("year")).At.Year == 2026 && Formats.MonthPk.Parse(Key("month")).At.Month == 10 && Formats.DayPk.Parse(Key("day")).At.Day == 31
             && Formats.HourPk.Parse(Key("hour")).At.Hour == 12 && Formats.MinutePk.Parse(Key("minute")).At.Minute == 0 && Formats.SecondPk.Parse(Key("second")).At.Second == 0
             && Formats.MilliPk.Parse(Key("milli")).At == Noon && Formats.MicroPk.Parse(Key("micro")).At == Noon.AddTicks(1230) && Formats.TicksPk.Parse(Key("ticks")).At == formats.At
-            && Formats.DateTimePk.Parse(Key("datetime")).Utc == NoonUtc && Formats.DateTimeTicksPk.Parse(Key("datetimeticks")).Utc == formats.Utc && Formats.DatePk.Parse(Key("date")).Date == formats.Date,
+            && Formats.DateTimePk.Parse(Key("datetime")).Utc == formats.Utc && Formats.DateTimeTicksPk.Parse(Key("datetimeticks")).Utc == formats.Utc && Formats.DatePk.Parse(Key("date")).Date == formats.Date,
             "times parse");
 
         string Key(string index) => stored.GetString(index + "pk")!;
@@ -197,7 +197,7 @@ internal static class ShapeChecks
 
         handler.Enqueue(StubResponse.Json(stored));
         var got = await orders.Get(key).Consistent().SendAsync();
-        check(got.Item?.Status == Plan.Pro && handler.Requests[^1].BodyText.Contains("\"sk\":{\"S\":\"ORDER#2026-10-31T12:00:00.000Z#", StringComparison.Ordinal), "Get takes a generated key");
+        check(got.Item?.Status == Plan.Pro && handler.Requests[^1].BodyText.Contains("\"sk\":{\"S\":\"ORDER#2026-10-31T12:00:00.0000000Z#", StringComparison.Ordinal), "Get takes a generated key");
 
         handler.Enqueue(StubResponse.Json("{\"Items\":[" + Item.From(order) + "],\"Count\":1,\"ScannedCount\":2}"));
         var page = await orders.Query(KeyedOrder.Keys.Pk.Format(User), SortKeyCondition.BeginsWith(KeyedOrder.Keys.Sk.Prefix()))

@@ -8,7 +8,7 @@
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public static class DateTimePk
         {
-            private const int BufferLength = 26;
+            private const int BufferLength = 30;
 
             /// <summary>Formats the complete key.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
@@ -89,7 +89,7 @@
             {
                 var __key = new global::DynaSharp.Keys.KeyReader(utf8Text);
                 if (__key.TryReadLiteral("T#"u8)
-                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Millisecond, out global::System.DateTime __p0)
+                    && __key.TryReadTimestamp(global::DynaSharp.Keys.KeyTimeFormat.Ticks, out global::System.DateTime __p0)
                     && __key.IsAtEnd)
                 {
                     parts = new DateTimePkParts(__p0);
@@ -123,6 +123,6 @@
             private static void Encode(ref global::DynaSharp.Keys.KeyWriter __key, global::System.DateTime utc)
             {
                 __key.WriteLiteral("T#"u8);
-                __key.WriteTimestamp(utc, global::DynaSharp.Keys.KeyTimeFormat.Millisecond, "Utc");
+                __key.WriteTimestamp(utc, global::DynaSharp.Keys.KeyTimeFormat.Ticks, "Utc");
             }
         }

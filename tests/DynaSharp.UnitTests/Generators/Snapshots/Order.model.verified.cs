@@ -54,7 +54,7 @@ Properties:
     IsConstructorParameter: False
     IsWriteOnly: False
     RestoredFromKey: null
-    FallbackKey: null
+    FallbackKey: sk
     ParameterName: createdAt
     IsPublic: True
     OmitEmptyConverter: null
@@ -339,13 +339,13 @@ Entity: EntityModel
           ParameterName: createdAt
           ValueType: global::System.DateTimeOffset
           Encoding: TimestampEncoding
-            Format: Millisecond
-            Width: 24
+            Format: Ticks
+            Width: 28
             IsOffset: True
-            IsLossless: False
+            IsLossless: True
             CanReject: False
             IsBucket: False
-            FixedWidth: 24
+            FixedWidth: 28
           InputIsNullable: False
         - LiteralSegment
           Text: #
@@ -359,7 +359,7 @@ Entity: EntityModel
             IsLossless: True
           InputIsNullable: False
       Delimiters: #
-      StackBufferLength: 67
+      StackBufferLength: 71
       CanReject: False
     PlainProperty: null
     SharesAttribute: False
@@ -459,16 +459,16 @@ Entity: EntityModel
               ParameterName: shippedAt
               ValueType: global::System.DateTimeOffset
               Encoding: TimestampEncoding
-                Format: Millisecond
-                Width: 24
+                Format: Ticks
+                Width: 28
                 IsOffset: True
-                IsLossless: False
+                IsLossless: True
                 CanReject: False
                 IsBucket: False
-                FixedWidth: 24
+                FixedWidth: 28
               InputIsNullable: True
           Delimiters: 
-          StackBufferLength: 24
+          StackBufferLength: 28
           CanReject: False
         PlainProperty: null
         SharesAttribute: False
