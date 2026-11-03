@@ -1,6 +1,6 @@
 # Reading and writing
 
-Every operation on a table is a command: a chain that starts with the operation, takes its clauses, and ends in a terminal such as `SendAsync` or `ItemAsync`, which sends it. A chain is built and sent in one expression, which [API levels](api-levels.md) explains, and the [diagnostics](diagnostics.md#commands) say what the compiler and the analyzers report when it is not. The examples use the shop of the [sample](https://github.com/msallin/DynaSharp/tree/main/samples).
+Every operation on a table is a command: a chain that starts with the operation, takes its clauses, and ends in a terminal such as `SendAsync` or `ItemAsync`, which sends it. A chain is built and sent in one expression, which [API levels](api-levels.md) explains, and the [diagnostics](diagnostics.md#commands) say what the compiler and the analyzers report when it is not. `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
 
 ## GetItem
 

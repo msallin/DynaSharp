@@ -2,6 +2,8 @@
 
 A stream is the change log of a table: each write to an item becomes a record, kept for 24 hours. `DynamoDbStreamsClient` reads it through the DynamoDB Streams API, with `DescribeStreamAsync`, `GetShardIteratorAsync` and `GetRecordsAsync`.
 
+`orders`, `customers` and `shop` are the tables of [the shop](getting-started.md#the-shop).
+
 It is the plain API and no consumer, by scope. Nothing stores how far a reader got, and nothing shares the shards out among several workers, so a reader that restarts or runs twice is yours to coordinate. For a consumer in production, a Lambda function with an event source mapping on the stream does both, and so does the Kinesis Client Library with the DynamoDB Streams Kinesis Adapter.
 
 ## Turning a stream on

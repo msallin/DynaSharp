@@ -2,6 +2,8 @@
 
 A query reads one partition, or a range of it, in the order of the sort key. A scan reads the whole table. Both end in `ItemsAsync`, which streams the items, and most reads also end in `PageAsync`, `PagesAsync` or `CountAsync`: `DYNA202` under [Commands](diagnostics.md#commands) says which read has which.
 
+`orders`, `customers`, `shop` and `byStatus` are the tables of [the shop](getting-started.md#the-shop).
+
 ## Query
 
 `ItemsAsync` follows pages for you, including pages a filter left empty. `Keys` builds the key, and `Attrs` makes the filter typed, so comparing a total with a string does not compile.

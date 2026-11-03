@@ -4,6 +4,8 @@
   items:
   - name: Getting started
     href: ../getting-started.md
+  - name: DynamoDB in short
+    href: ../glossary.md
   - name: Entities and keys
     href: ../entities.md
   - name: Reading and writing
@@ -26,6 +28,8 @@
     href: ../testing.md
 - name: Moving to DynaSharp
   items:
+  - name: How DynaSharp compares
+    href: ../comparison.md
   - name: Migrating
     href: ../migrating.md
   - name: Adopting an existing table
@@ -52,5 +56,7 @@
     href: ../api-levels.md
   - name: Design principles
     href: ../design-principles.md
+  - name: Compatibility
+    href: ../compatibility.md
   - name: Performance
     href: ../performance.md

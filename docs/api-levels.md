@@ -2,6 +2,8 @@
 
 There is one client and one pipeline, with four ways in. Use the highest level that fits. You can drop down for one call: all levels share a client, its retries and its telemetry.
 
+`orders` and `shop` are the tables of [the shop](getting-started.md#the-shop).
+
 | Level | You write | Use it for |
 |---|---|---|
 | **`Table<T>`** with generated entities | `orders.Get(Order.Keys.Of("alice", 1))` | Application code. Start here. |

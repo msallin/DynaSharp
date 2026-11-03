@@ -2,6 +2,8 @@
 
 DynaSharp has no context that loads and saves objects. A table takes commands named after DynamoDB's operations, and each is sent where its chain ends. This page maps the verbs first, then what changes for code and for stored data coming from the AWS SDK's `DynamoDBContext` or from EfficientDynamoDb. A table that other code wrote keeps working under the rules of [Adopting an existing table](adopting.md).
 
+`orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
+
 ## Verbs
 
 | AWS SDK `DynamoDBContext` | EfficientDynamoDb | DynaSharp |

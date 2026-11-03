@@ -4,14 +4,17 @@ A table is opened once and kept. `CreateTable()` creates it from what its entiti
 
 ## Opening a table
 
-Open a table once and keep it. Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys.
+Open a table once and keep it. Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys. These are the tables of [the shop](getting-started.md#the-shop).
 
 ```csharp
 var orders = client.Table<Order>("Shop");
 var customers = client.Table<Customer>("Shop");
 var shop = client.Table("Shop", "pk", "sk");
+var carts = shop.Of<Cart>();
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
+
+`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
 
 ## Creating a table
 

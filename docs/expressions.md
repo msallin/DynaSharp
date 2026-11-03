@@ -2,6 +2,8 @@
 
 Conditions, filters, updates and projections are DynamoDB expressions. DynaSharp writes them for you from typed handles, and takes the grammar as text where a handle has no method for it. Either way every name and value becomes a placeholder, which `ToRequestJson()` shows.
 
+`orders` and `shop` are the tables of [the shop](getting-started.md#the-shop).
+
 ## Typed handles
 
 `Attrs` holds a handle per stored property of an entity, with the type of the property. A handle compares with `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge` and `Between`, asks for `Exists()` and `NotExists()`, and takes `BeginsWith` where the stored value is a string or a binary. Conditions compose with `And`, `Or` and `Negate`, and allocate nothing.

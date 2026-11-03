@@ -15,22 +15,27 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 ### Installation
 
-DynaSharp needs .NET 11. The package brings its source generator and analyzers along.
+DynaSharp needs .NET 11. The package brings its source generator and analyzers along, and has no other dependencies.
 
-There is no public feed. Pack a clone of this repository into a folder, make that folder a source, and add the package from it. A clone without a tag packs a prerelease version, so pin the version the folder holds: `--prerelease` takes the newest.
+```shell
+dotnet add package DynaSharp
+dotnet add package DynaSharp.Testing   # in a test project
+```
+
+**Previews.** A build that is not on NuGet comes from a clone of the repository: pack it into a folder, make the folder a source, and add the package from there. MinVer derives the version from git, so a clone without a release tag packs `0.0.0-alpha.0.N`, and a commit after the tag `v0.1.0` packs `0.1.1-alpha.0.N`, where N counts the commits since. Pin the version the folder holds, which the file name shows: `--prerelease` takes whatever is newest.
 
 ```shell
 dotnet pack src/DynaSharp -c Release -o /path/to/packages
 dotnet pack src/DynaSharp.Testing -c Release -o /path/to/packages
 dotnet nuget add source /path/to/packages --name dynasharp
-dotnet add package DynaSharp --version 0.1.0-preview.4
+dotnet add package DynaSharp --version 0.0.0-alpha.0.227
 ```
 
-The default .NET `.gitignore` holds `*.nupkg`, so a folder source in a repository needs `git add -f`, and a filled package cache hides the loss until a clean machine restores. On Windows `PublishAot` needs the C++ workload of Visual Studio.
+The default .NET `.gitignore` holds `*.nupkg`, so a folder source in a repository needs `git add -f`, and a filled package cache hides the loss until a clean machine restores.
 
 ### A first table
 
-All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the options, the credential chain and a local emulator.
+All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program to copy, a local emulator to run it against, the options and the credential chain.
 
 ```csharp
 using DynaSharp;
@@ -70,7 +75,7 @@ await foreach (var placed in orders.Query(Order.Keys.Pk.Of("alice")).ItemsAsync(
 }
 ```
 
-The guide uses a small shop on one table. The full version is a runnable tour: start with [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples).
+The guide and the examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), with `orders`, `customers`, `carts`, `emails` and `shop`. The full version is a runnable tour: start with [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples).
 
 ### Coming from the AWS SDK or EfficientDynamoDb
 
@@ -83,7 +88,7 @@ The guide uses a small shop on one table. The full version is a runnable tour: s
 | `ScanAsync` | `Scan<T>()` | `orders.Scan().Filter(...).ItemsAsync(ct)` |
 | `CreateBatchWrite` | `BatchWrite()` | `orders.BatchWrite().PutAll(items).SendAsync(ct)` |
 
-There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where its chain ends. [Migrating](https://msallin.github.io/DynaSharp/migrating.html) has the full table, what changes for stored data, and [Adopting an existing table](https://msallin.github.io/DynaSharp/adopting.html) the rules for a table that other code wrote.
+There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where its chain ends. [Migrating](https://msallin.github.io/DynaSharp/migrating.html) has the full table, what changes for stored data, and [Adopting an existing table](https://msallin.github.io/DynaSharp/adopting.html) the rules for a table that other code wrote. [How DynaSharp compares](https://msallin.github.io/DynaSharp/comparison.html) sets the features of the three side by side.
 
 ## Examples
 
@@ -203,6 +208,10 @@ Inside DynaSharp, by API level, in bytes:
 | GetItem | 2,256 | 2,576 | 2,608 |
 | PutItem | 1,528 | n/a | 1,640 |
 | Query, 100 items | 68,320 | 100,320 | 100,456 |
+
+## Compatibility
+
+DynaSharp is at 0.x. A patch release fixes and does not break, and a minor release can break the public API, with upgrade notes. From 0.1.0 on, what an entity writes to a table stays the same in every release. Analyzers may report more in a later release, and a rule that is new after 0.1.0 starts at Info. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
 
 ## Building
 

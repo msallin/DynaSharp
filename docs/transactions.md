@@ -2,6 +2,8 @@
 
 A transaction writes or reads up to 100 items as one step: all of it or nothing, at twice the capacity. A batch moves many items in as few requests as DynamoDB takes, and is not atomic.
 
+`customers`, `products`, `carts` and `emails` are the tables of [the shop](getting-started.md#the-shop).
+
 ## TransactWriteItems
 
 Everything is written together or not at all. A marker tells which action failed, and each step type only offers what that action can do, so `.Add` after `.Put` does not compile.
