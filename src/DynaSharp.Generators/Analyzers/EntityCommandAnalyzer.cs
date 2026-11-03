@@ -14,6 +14,7 @@ namespace DynaSharp.Generators;
 /// nothing and is not reported. DYNA207: a constant name in the <c>Index(string)</c> that takes the names from the entity, which throws at run time when the entity does not declare it. DYNA219: a write by handle,
 /// also to a path inside it, to a property that a computed input of a key of an index is derived from, or to that computed input itself, which <c>KeyInputChanges</c> throws for. Behind a key of the table that is DYNA205, one step removed.
 /// DYNA225: <c>Including&lt;T&gt;</c> of an entity whose key names differ from those of the table or of the entity included first, which <c>TableSchema.Add</c> throws for.
+/// DYNA236: a write of a batch to a table of an entity with a version, without <c>IgnoreVersion</c> in the batch, which <c>WriteState.Settle</c> throws for when the batch is sent.
 /// </summary>
 /// <remarks>A command says what it is on by a type argument, and a step of a transaction by the table of the verb it came from. Whatever cannot be followed, such as a generic helper or a step in a variable, is not reported.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -45,8 +46,15 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private const string CreateTableVerb = "CreateTable";
 
+    private const string BatchWriteCommand = "BatchWriteCommand";
+
+    private const string TableParameter = "table";
+
+    // The writes of BatchWriteCommand<T>, each of which settles a version that a batch cannot carry.
+    private static readonly HashSet<string> BatchWrites = ["Put", "PutAll", "Delete", "DeleteAll"];
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex, Descriptors.IncludedKeyDiffers];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex, Descriptors.IncludedKeyDiffers, Descriptors.VersionedBatchWrite];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -134,6 +142,20 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     internal static bool Holds(KeyModel key, string property) =>
         key.PlainProperty == property || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
 
+    /// <summary>The entity of a command or a step of a verb: the type argument of <c>PutCommand&lt;T&gt;</c>, or the table of the verb a <c>PutStep</c> came from.</summary>
+    /// <param name="receiver">The command or the step.</param>
+    /// <param name="verb">The verb, such as <c>Put</c>.</param>
+    /// <returns>The entity, or null for another type, a type parameter and a step that cannot be followed to its verb.</returns>
+    internal static INamedTypeSymbol? EntityOfCommand(IOperation receiver, string verb)
+    {
+        if (receiver.Type is not INamedTypeSymbol type)
+        {
+            return null;
+        }
+
+        return type.Name == verb + "Command" ? type.TypeArguments[0] as INamedTypeSymbol : type.Name == verb + "Step" ? EntityOfStep(receiver, verb) : null;
+    }
+
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
@@ -142,7 +164,11 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (WriteMethods.Contains(invocation.TargetMethod.Name))
+        if (invocation.TargetMethod.ContainingType is { Name: BatchWriteCommand, Arity: 1 } && BatchWrites.Contains(invocation.TargetMethod.Name))
+        {
+            AnalyzeBatchWrite(context, invocation, models);
+        }
+        else if (WriteMethods.Contains(invocation.TargetMethod.Name))
         {
             AnalyzeWrite(context, invocation, models);
         }
@@ -206,6 +232,67 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     // TableSchema.Add compares the names of the keys, so this is the text its message gives: (pk, sk) or (pk).
     private static string KeyOf(EntityModel entity) => entity.SortKey is { } sortKey ? $"({entity.PartitionKey.AttributeName}, {sortKey.AttributeName})" : $"({entity.PartitionKey.AttributeName})";
+
+    // shop.BatchWrite().Put(lockedA).Put(lockedB): BatchWriteOperation notes every write to a table of an entity with a version, and WriteState.Settle throws for it at the terminal
+    // unless IgnoreVersion stands anywhere in the batch. The first such write of a chain is reported, and a batch that leaves the member, where a caller may add IgnoreVersion, is not.
+    private static void AnalyzeBatchWrite(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
+    {
+        if (VersionedEntityOfBatchWrite(invocation, models) is not { } entity
+            || ChainCalls(invocation, IgnoreVersion)
+            || LeavesMember(invocation)
+            || EarlierVersionedBatchWrite(invocation, models))
+        {
+            return;
+        }
+
+        var name = ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)invocation.Syntax).Expression).Name;
+        context.ReportDiagnostic(Diagnostic.Create(Descriptors.VersionedBatchWrite, name.GetLocation(), entity.Name));
+    }
+
+    // Put<TOther>(Table<TOther> table, TOther item) and the deletes on another table write to the table of their first type argument, the others to the table of the batch.
+    private static INamedTypeSymbol? VersionedEntityOfBatchWrite(IInvocationOperation invocation, ModelCatalog models)
+    {
+        var method = invocation.TargetMethod;
+        var entity = method.Parameters.Any(static parameter => parameter.Name == TableParameter) ? method.TypeArguments[0] : method.ContainingType.TypeArguments[0];
+        return entity is INamedTypeSymbol named && models.ModelOf(named)?.Entity?.VersionProperty is not null ? named : null;
+    }
+
+    private static bool EarlierVersionedBatchWrite(IInvocationOperation invocation, ModelCatalog models)
+    {
+        var current = invocation.Instance;
+        while (current is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.Type, invocation.Type))
+        {
+            if (BatchWrites.Contains(call.TargetMethod.Name) && VersionedEntityOfBatchWrite(call, models) is not null)
+            {
+                return true;
+            }
+
+            current = call.Instance;
+        }
+
+        return false;
+    }
+
+    // Whether the member hands a batch of this type on, by a return, an argument or a store into anything but a local, so that IgnoreVersion can still follow there.
+    private static bool LeavesMember(IInvocationOperation invocation)
+    {
+        IOperation root = invocation;
+        while (root.Parent is { } parent)
+        {
+            root = parent;
+        }
+
+        var batch = invocation.Type;
+        return root.Descendants().Any(operation => operation switch
+        {
+            IReturnOperation returned => Is(returned.ReturnedValue, batch),
+            IArgumentOperation argument => Is(argument.Value, batch),
+            ISimpleAssignmentOperation assignment => Is(assignment.Value, batch) && assignment.Target is not ILocalReferenceOperation,
+            _ => false,
+        });
+    }
+
+    private static bool Is(IOperation? value, ITypeSymbol? type) => value is not null && SymbolEqualityComparer.Default.Equals(value.Type, type);
 
     private static void AnalyzeIfNotExists(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
     {
@@ -275,16 +362,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);
 
     // A method of the library with one of these names is an instance or an extension method, so there is a receiver.
-    private static INamedTypeSymbol? EntityOf(IInvocationOperation invocation, string verb)
-    {
-        var receiver = ReceiverOf(invocation)!;
-        if (receiver.Type is not INamedTypeSymbol type)
-        {
-            return null;
-        }
-
-        return type.Name == verb + "Command" ? type.TypeArguments[0] as INamedTypeSymbol : type.Name == verb + "Step" ? EntityOfStep(receiver, verb) : null;
-    }
+    private static INamedTypeSymbol? EntityOf(IInvocationOperation invocation, string verb) => EntityOfCommand(ReceiverOf(invocation)!, verb);
 
     // The verb has the table as its second type argument: Update<TChain, T>(chain, table, ...).
     private static INamedTypeSymbol? EntityOfStep(IOperation step, string verb)

@@ -1,3 +1,5 @@
+// The run-time check of a batch of an entity with a version is under test here, so some batches do on purpose what DYNA236 reports.
+#pragma warning disable DYNA236
 using DynaSharp.Mapping;
 using DynaSharp.Testing;
 using static DynaSharp.UnitTests.Fluent.WriteRulesFixture;

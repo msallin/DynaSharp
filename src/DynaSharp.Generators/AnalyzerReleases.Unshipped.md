@@ -44,3 +44,6 @@ DYNA231 | DynaSharp.Commands | Error | Type is not an entity
 DYNA232 | DynaSharp.Commands | Error | Value of another type than its handle
 DYNA233 | DynaSharp.Commands | Error | Add on a handle that is no number or set
 DYNA234 | DynaSharp.Commands | Error | Method of the items called on a read
+DYNA235 | DynaSharp.Commands | Error | IfVersion on a Put
+DYNA236 | DynaSharp.Commands | Warning | Batch of an entity with a version
+DYNA237 | DynaSharp.Commands | Warning | DateTime without a kind

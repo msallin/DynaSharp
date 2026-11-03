@@ -344,7 +344,9 @@ public sealed class WriteRulesTransactionTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
+#pragma warning disable DYNA236 // The batch throws on purpose.
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.BatchWrite().Put(Held(1)).ToRequestJson());
+#pragma warning restore DYNA236
 
         // Assert
         await Assert.That(failure.Message).Contains(nameof(Ticket));

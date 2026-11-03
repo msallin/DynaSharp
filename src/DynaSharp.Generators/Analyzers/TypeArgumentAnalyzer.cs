@@ -26,6 +26,10 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 {
+    private const string ClientTable = "Table";
+
+    private const string Client = "DynamoDbClient";
+
     // Customer.Keys.PrimaryKey, PartitionKey<Customer>, int?: as the type is written in the code of a consumer.
     private static readonly SymbolDisplayFormat TypeName = new(
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
@@ -65,9 +69,10 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     {
         var name = (GenericNameSyntax)context.Node;
         var info = context.SemanticModel.GetSymbolInfo(name, context.CancellationToken);
+        var candidate = info.Symbol is INamedTypeSymbol ? null : info.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(method => method.TypeArguments.Length == name.TypeArgumentList.Arguments.Count);
         var (declaring, parameters, arguments) = info.Symbol is INamedTypeSymbol type
             ? (type, type.OriginalDefinition.TypeParameters, type.TypeArguments)
-            : info.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(method => method.TypeArguments.Length == name.TypeArgumentList.Arguments.Count) is { } method
+            : candidate is { } method
                 ? (method.ContainingType, method.TypeParameters, method.TypeArguments)
                 : default;
         if (declaring is null || !DynaSharpTypes.IsDeclaredByDynaSharp(declaring))
@@ -83,7 +88,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 
         for (var i = 0; i < parameters.Length; i++)
         {
-            if (FirstUnmet(parameters[i], arguments[i], map, library, out _) == Need.Entity && NotAnEntity(arguments[i], library) is { } why)
+            if (FirstUnmet(parameters[i], arguments[i], map, library, out _) == Need.Entity && NotAnEntity(arguments[i], library, candidate is { Name: ClientTable, ContainingType.Name: Client }) is { } why)
             {
                 context.ReportDiagnostic(Diagnostic.Create(Descriptors.NotAnEntity, name.TypeArgumentList.Arguments[i].GetLocation(), [arguments[i].Name, .. why]));
                 return;
@@ -187,9 +192,15 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     }
 
     // Why a type is not what a table, a mixed read or Is<T> takes, as what is wrong and what to do, or null where the generator says it already, for a type with
-    // [DynamoDbEntity] or [DynamoDbDocument] that it could not map, and for a type of the library. An entity misses only IDynamoDbDiscriminated<T>.
-    private static string[]? NotAnEntity(ITypeSymbol type, Library library)
+    // [DynamoDbEntity] or [DynamoDbDocument] that it could not map, and for a type of the library. An entity misses only IDynamoDbDiscriminated<T>. Item is the one type of
+    // the library with an answer, and only for client.Table<Item>(...): a table without a schema has a verb of its own.
+    private static string[]? NotAnEntity(ITypeSymbol type, Library library, bool clientTable)
     {
+        if (clientTable && SymbolEqualityComparer.Default.Equals(type, library.Item))
+        {
+            return ["is the item of a table without a schema, and no entity", "Open such a table with Table(name, partitionKey, sortKey), which reads and writes Item"];
+        }
+
         var marked = AttributeReader.Find(type, WellKnownNames.EntityAttribute) is not null || AttributeReader.Find(type, WellKnownNames.DocumentAttribute) is not null;
         var mapped = type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, library.Document));
         var entity = type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, library.Entity));

@@ -88,6 +88,12 @@ public static class Code
 
     public static void Dyna234() => Shipments.Query(Shipment.Keys.Pk.Of("a")).Take(1);
 
+    public static void Dyna235() => _ = Orders.Put(new Order { Id = "a" }).IfVersion(1);
+
+    public static string Dyna236() => Orders.BatchWrite().Put(new Order { Id = "a" }).ToRequestJson();
+
+    public static Shift Dyna237() => new() { Id = "a", Start = new DateTime(2026, 1, 15) };
+
     private static readonly Table<Order> Orders = null!;
 
     private static readonly Table<Invoice> Invoices = null!;

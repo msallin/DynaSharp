@@ -2,7 +2,7 @@ using DynaSharp.Generators;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>DYNA205 to DYNA207, DYNA219 and DYNA225: what a command says about its entity that the model of the entity contradicts.</summary>
+/// <summary>DYNA205 to DYNA207, DYNA219, DYNA225 and DYNA236: what a command says about its entity that the model of the entity contradicts.</summary>
 public sealed class EntityCommandAnalyzerTests
 {
     private const string VersionMessage = "DYNA206 Warning: This Put of 'Locked' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.";
@@ -177,8 +177,13 @@ public sealed class EntityCommandAnalyzerTests
         private static readonly DeviceEvent.Keys.PrimaryKey key = default;
         private static readonly Customer.Keys.PrimaryKey customerKey = default;
         private static readonly Locked.Keys.PrimaryKey lockKey = default;
+        private static Table<Locked> Locks() => locks;
+        private static void Keep(BatchWriteCommand<Locked> batch) { }
+        private static void Give(out BatchWriteCommand<Locked> batch) => batch = locks.BatchWrite().Put(held);
 
         """;
+
+    private const string BatchMessage = "DYNA236 Warning: 'Locked' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.";
 
     private static readonly AnalyzerFixture Shared = new(Entities);
 
@@ -558,6 +563,73 @@ public sealed class EntityCommandAnalyzerTests
 
         // Act
         var report = await AnalyzerRun.ReportWithAsync(source, new EntityCommandAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""_ = locks.BatchWrite().[|Put|](held).ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|PutAll|]([held]).ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|Delete|](lockKey).ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|Delete|]("a").ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|DeleteAll|]([lockKey]).ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().Put(new Item()).[|Put|](locks, held).ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().[|Delete|](locks, lockKey).ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().[|Delete|](locks, "a").ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|Put|](held).Put(held).Delete(lockKey).ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().ReturnCapacity().[|Put|](held).ToRequestJson();""")]
+    [Arguments("""_ = Locks().BatchWrite().[|Put|](held).ToRequestJson();""")]
+    [Arguments("""var batch = locks.BatchWrite(); batch = batch.[|Put|](held); _ = batch.ToRequestJson();""")]
+    [Arguments("""if (args.Length == 0) { return; } _ = locks.BatchWrite().[|Put|](held).ToRequestJson();""")]
+    public async Task Analyze_BatchWriteOfAnEntityWithAVersion_ReportsTheFirstWrite(string statement)
+    {
+        // Arrange (BatchWriteOperation marks each write of such a table, and the terminal throws for it)
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, BatchMessage));
+    }
+
+    [Test]
+    [Arguments("""_ = locks.BatchWrite().IgnoreVersion().Put(held).ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().Put(held).Delete(lockKey).IgnoreVersion().ToRequestJson();""")]
+    [Arguments("""var batch = locks.BatchWrite().Put(held); _ = batch.IgnoreVersion().ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().IgnoreVersion().Put(locks, held).ToRequestJson();""")]
+    [Arguments("""_ = customers.BatchWrite().Put(null!).Delete(customerKey).ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().Put(new Item()).Delete("a").Put(customers, null!).ToRequestJson();""")]
+    [Arguments("""_ = addresses.BatchWrite().Put(new Address("s")).ToRequestJson();""")]
+    [Arguments("""_ = hands.BatchWrite().Put(new Hand()).ToRequestJson();""")]
+    [Arguments("""_ = locks.Put(held).ToRequestJson();""")]
+    [Arguments("""_ = locks.Delete(lockKey).IfVersion(1).ToRequestJson();""")]
+    [Arguments("""Keep(locks.BatchWrite().Put(held));""")]
+    [Arguments("""Give(out var batch);""")]
+    public async Task Analyze_BatchWriteThatSendsNoVersionOrLeavesTheMember_ReportsNothing(string statement)
+    {
+        // Arrange (IgnoreVersion anywhere in the member, an entity without a version, and a batch that a caller can still give IgnoreVersion to)
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("private static BatchWriteCommand<Locked> Run() => locks.BatchWrite().Put(held);")]
+    [Arguments("private static string Run<T>(Table<T> table, T item) where T : IDynamoDbEntity<T> => table.BatchWrite().Put(item).ToRequestJson();")]
+    [Arguments("private static string Run<T>(BatchWriteCommand<Locked> batch, Table<T> table, T item) where T : IDynamoDbEntity<T> => batch.Put(table, item).ToRequestJson();")]
+    public async Task Analyze_BatchWriteInAHelper_ReportsNothing(string member)
+    {
+        // Arrange (a batch that is returned, and a write of a type parameter, which can be of any entity)
+        var source = AnalyzerRun.Member(Fields + member);
+
+        // Act
+        var report = await ReportAsync(source);
 
         // Assert
         await Assert.That(report).IsEmpty();

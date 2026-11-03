@@ -248,7 +248,7 @@ Not reported:
 `DYNA231` (error) reports a type argument that is no entity where a table, a multi-type read or `Is<T>()` takes one, with `CS0311` or `CS0315` beside it: `client.Table<Customer>("Shop")` for a `Customer` without `[DynamoDbEntity]`, `orders.CreateTable().Including<Address>()` of a document, and `shop.Query(pk).Of<Order, Legacy>()` of an entity with `[Discriminator(OptOut = true)]`. A type that names it, `Table<Customer>` in a field, is reported the same way.
 
 - **Fix.** What the message says: `[DynamoDbEntity]` with a `[PartitionKey]` on a partial type, an entity in place of a document, or a `[Discriminator]` in place of the opt-out.
-- **Not reported.** A type with `[DynamoDbEntity]` or `[DynamoDbDocument]` the generator could not map, which has its own error under [Entities](#entities), and a DynaSharp type, such as `Item`.
+- **Not reported.** A type with `[DynamoDbEntity]` or `[DynamoDbDocument]` the generator could not map, which has its own error under [Entities](#entities), and a DynaSharp type, such as `Item` in `shop.Of<Item>()`. `client.Table<Item>("Shop")` is reported: a table without a schema is opened with `client.Table("Shop", "pk", "sk")`, which reads and writes `Item`.
 
 `DYNA232` (error) reports a value of another type than its handle holds, `customers.Update(key).Set(Customer.Attrs.Name, 5)`, also in `SetIfNotNull` and on transaction steps. The compiler reports the overload for a nullable value type and says `CS0453`, that `string` must be a non-nullable value type.
 
@@ -263,6 +263,21 @@ Not reported:
 
 - **Fix.** Call `ItemsAsync()` first, `orders.Query(pk).Descending().ItemsAsync().Take(10)`, or `ValuesAsync()` after `Select`. `Limit(n)` differs: it sets how many items DynamoDB reads per page, not how many the read returns.
 - **Not reported.** A method the read has, such as `Limit` or `Select`, and your own extension method that binds.
+
+`DYNA235` (error) reports `IfVersion` on a `Put`, `carts.Put(cart).IfVersion(3)`, in a transaction too, where the compiler says `CS1061`, that the command has no `IfVersion`, or `CS0411` about the `IfVersion` of an update. A put takes the version from the entity: it writes only where the stored item holds the version of the entity, and stores the next one. It is an error for the reason `DYNA230` to `DYNA234` are: it reports only code that does not compile.
+
+- **Fix.** Put the entity as it was read, with the version it came with, or call `IgnoreVersion()` to write without the check. An entity without a `[Version]` has no version to check: mark a `long` property with `[Version]`, or state the condition with `If(...)`.
+- **Not reported.** An extension method of your own named `IfVersion`, a put of `Item` or of a document, and a step of a transaction in a variable.
+
+`DYNA236` (warning) reports a write of a batch to a table of an entity with a `[Version]`: `carts.BatchWrite().PutAll(items)`, also `Put`, `Delete` and `DeleteAll`, and a `Put` or a `Delete` on another table. A batch cannot carry a condition, so it cannot check a version, and it throws `InvalidOperationException` when it is sent. The first such write of a chain is reported.
+
+- **Fix.** Call `IgnoreVersion()` anywhere in the batch, which writes each item as it is, with the version it holds, and does not advance it. To keep the check, write the items one by one with `Put`, or in a `TransactWrite`.
+- **Not reported.** A member with `IgnoreVersion()` on a batch of that type anywhere in it, and a batch that the member returns, passes to a method or stores outside a local, where the code that gets it can still call `IgnoreVersion()`. A write of a type parameter.
+
+`DYNA237` (warning) reports a `DateTime` from a constructor without a `DateTimeKind`, `new DateTime(2026, 1, 15)`, whose kind is `Unspecified`, where DynaSharp writes it as an instant: in an object initializer or a `with` of a mapped type, to a property that `DateTimeConverter` stores or a key template holds as a timestamp, `new Shift { Start = new DateTime(2026, 1, 15) }`, and as an argument of a generated key builder, `Shift.Keys.Sk.Between(new DateTime(2026, 1, 1), new DateTime(2026, 2, 1))`. Such a time names no instant, so the write of the entity throws, and the key builder throws `KeyFormatException`.
+
+- **Fix.** Pass `DateTimeKind.Utc`, as in `new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)`, or use a `DateOnly` for a date, which has no kind and is written as `yyyy-MM-dd`.
+- **Not reported.** The rule looks at the constructor where it stands: a time in a variable, `default`, `DateTime.MinValue` and `DateTime.Parse(...)` are not followed, and neither is a time given to a handle, in `Set` or a condition. A property with a converter of your own, which decides for itself, a `DateTimeOffset`, which takes such a time for local time, and `TryOf` of a key builder, which gives false for it instead of throwing, are correct.
 
 ## Expressions
 

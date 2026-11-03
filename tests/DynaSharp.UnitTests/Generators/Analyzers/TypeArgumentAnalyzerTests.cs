@@ -101,6 +101,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""shop.Scan().Of<[|Plain|], Order>();""", "'Plain' is no entity: without [DynamoDbEntity] nothing generates its mapping. Add [DynamoDbEntity] and a [PartitionKey], and make the type partial.")]
     [Arguments("""orders.CreateTable().Including<[|Address|]>();""", "'Address' is a document, which is stored inside an entity and has no key of its own. A table holds entities: use [DynamoDbEntity] with a [PartitionKey].")]
     [Arguments("""client.Table<[|Address|]>("x");""", "'Address' is a document, which is stored inside an entity and has no key of its own. A table holds entities: use [DynamoDbEntity] with a [PartitionKey].")]
+    [Arguments("""client.Table<[|Item|]>("x");""", "'Item' is the item of a table without a schema, and no entity. Open such a table with Table(name, partitionKey, sortKey), which reads and writes Item.")]
     [Arguments("""shop.Query("a").Of<Order, [|LegacyRecord|]>();""", "'LegacyRecord' has no discriminator, and a read of several types tells them apart by it. Give it [Discriminator(\"LEGACY_RECORD\")] in place of the opt-out.")]
     [Arguments("""_ = new Item().Is<[|LegacyRecord|]>();""", "'LegacyRecord' has no discriminator, and a read of several types tells them apart by it. Give it [Discriminator(\"LEGACY_RECORD\")] in place of the opt-out.")]
     public async Task Analyze_TypeArgumentThatIsNoEntity_ReportsTheTypeArgument(string statement, string message)
@@ -176,6 +177,8 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""client.Table<Broken>("x");""")]
     [Arguments("""client.Table<AttributeValue>("x");""")]
     [Arguments("""shop.Index<Item>("x");""")]
+    [Arguments("""shop.Of<Item>();""")]
+    [Arguments("""_ = new Item().Is<Item>();""")]
     [Arguments("""orders.Get<int, int>(1);""")]
     [Arguments("""_ = new List<Plain>();""")]
     [Arguments("""orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Name, "x").Set(Order.Attrs.Count, 1).Add(Order.Attrs.Count, 1);""")]
@@ -230,6 +233,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Test]
     [Arguments("""orders.Get(Customer.Keys.Of("a"));""", "CS0315")]
     [Arguments("""client.Table<Plain>("x");""", "CS0311")]
+    [Arguments("""client.Table<Item>("x");""", "CS0311")]
     [Arguments("""orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Name, 5);""", "CS0453")]
     [Arguments("""orders.Update(Order.Keys.Of("a")).Add(Order.Attrs.Name, "x");""", "CS0315")]
     public async Task Compile_TheSameMistake_FailsWithTheErrorTheRuleStandsBeside(string statement, string expected)

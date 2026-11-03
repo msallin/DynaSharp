@@ -1019,7 +1019,9 @@ public sealed class BatchWriteCommandTests
         Ticket[] items = [new() { Id = "t1", OpenedAt = new DateOnly(2026, 10, 31), Revision = 1 }];
 
         // Act
+#pragma warning disable DYNA236 // The batch throws on purpose.
         var failure = TestClient.Catch(() => tickets.BatchWrite().PutAll(items).ToRequestJson());
+#pragma warning restore DYNA236
 
         // Assert
         await Assert.That(failure.Message).Contains(nameof(Ticket));

@@ -618,6 +618,33 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor IfVersionOnPut = new(
+        "DYNA235",
+        "IfVersion on a Put",
+        "{0}. {1}.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor VersionedBatchWrite = new(
+        "DYNA236",
+        "Batch of an entity with a version",
+        "'{0}' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
+    public static readonly DiagnosticDescriptor DateTimeWithoutKind = new(
+        "DYNA237",
+        "DateTime without a kind",
+        "'{0}' is a DateTime of kind Unspecified, which names no instant, so {1}. Pass DateTimeKind.Utc, as in new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc), or use DateOnly for a date.",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -629,7 +656,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter,
+        UnreachableSetter, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);
