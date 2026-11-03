@@ -1,10 +1,14 @@
 name: release
 
-# Off for now: nothing is tagged or released, and a manual run skips the job below. To turn releases on, replace the trigger with
-# workflow_run on ci for main, types completed. It then runs after a green CI on main: derive the version from Conventional Commits,
-# tag, pack, create a GitHub release. Publishing to nuget.org stays off until the repository variable PUBLISH_TO_NUGET is 'true'.
+# Runs after every CI run on main and releases after a green one of a push: derive the version from Conventional Commits, tag, pack,
+# create a GitHub release. A run whose commits warrant no release (only docs, chore, ci, test, ...) does nothing. The branches filter
+# keeps out CI on ci/** branches, and the job's if keeps out pull requests and manual runs. Publishing to nuget.org runs only while the
+# repository variable PUBLISH_TO_NUGET is 'true', in the environment nuget, with NuGet trusted publishing for the user NUGET_USER.
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: [ci]
+    branches: [main]
+    types: [completed]
 
 permissions:
   contents: read
