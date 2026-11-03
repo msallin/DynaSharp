@@ -725,7 +725,13 @@ has no `PageAsync`, and `BeginsWith` takes no handle of a number.
 Escape hatches: `client.SendRawAsync("ListTables", """{"Limit":1}"""u8.ToArray(), ct)` for what nothing models, with the pipeline's signing, retries and
 telemetry; raw paths and interpolated expressions on typed commands; `Item.From` and `To<T>`.
 
-`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` and `SendRawAsync`. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity and `Is<T>()` tells the entities of one table apart. The members of
+`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync` and `SendRawAsync`.
+`ReadShardAsync(ReadShardRequest, ct)` returns `IAsyncEnumerable<ChangeRecord>` for one shard: `StreamArn`, `ShardId`, a required `ShardIteratorType` with `SequenceNumber` exactly for the two sequence positions
+(`ArgumentException` otherwise, `ArgumentOutOfRangeException` for `Unknown`), `Limit` per `GetRecords`, and `EmptyPageDelay` (default 1 s, at least zero and below the 15 minutes of an iterator), waited on the client's
+`TimeProvider` after an empty page of an open shard. Arguments are checked at the call, requests start with the first `MoveNextAsync`. An expired iterator is renewed with `AfterSequenceNumber` of the last record returned, or at
+the request's position before the first record; an iterator that is expired at once surfaces `ExpiredIteratorException`. The sequence ends on a page without `NextShardIterator` or a `GetShardIterator` without an iterator.
+`TrimmedDataAccessException` surfaces, because data was lost. The checkpoint is `StreamRecord.SequenceNumber` of each record; there is no checkpoint store, no lease and no lineage scheduler. Records are returned, not pages: a
+page boundary means nothing to a caller, and the position is per record. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity and `Is<T>()` tells the entities of one table apart. The members of
 the responses are nullable as the service model has them: botocore's `dynamodbstreams` marks no member of an output shape required but those of `KeySchemaElement`, and the API reference says `Required: No` for each, so a
 response without one reads as null, as everywhere else in the library, and nothing throws for it. There is no consumer, by scope.
 

@@ -550,6 +550,18 @@ Branch `m3/q16-transient-enum`. Approved by the owner.
 - [ ] M5: SSO, `credential_process`, assume role
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
 
+### R4 - one-shard stream reader (before 0.1.0, approved by the owner)
+
+- [x] `DynamoDbStreamsClient.ReadShardAsync(ReadShardRequest)`: one shard as `IAsyncEnumerable<ChangeRecord>`, from `TrimHorizon`, `Latest`, `AtSequenceNumber` or `AfterSequenceNumber`;
+      renews an expired iterator after the last record returned; waits `EmptyPageDelay` on `TimeProvider` after an empty page of an open shard; ends on a closed shard read to its end; honours cancellation.
+      Branch `m4/r4-stream-reader`. Docs page and `OrderFeed` use it.
+- Decisions: records, not pages, because the checkpoint is per record (`StreamRecord.SequenceNumber`). `TrimmedDataAccessException` surfaces: the caller lost data and only it knows how to rebuild. An iterator
+  expired right after `GetShardIterator` is not renewed again, so a broken clock or service cannot loop. Before the first record the renewal reuses the request's position, which for `Latest` skips what was written in the
+  gap; the gap only exists when no record arrived, and `EmptyPageDelay` is capped below 15 minutes so a wait alone cannot expire an iterator. No new telemetry: each call is its own span and measurement, and a renewal shows as a
+  failed `GetRecords` followed by `GetShardIterator`. No lineage helper: `OrderFeed` needs the roots and the children of an ended shard, which a sorted snapshot does not give.
+- Notes: an async iterator with `while (cond)` around a `yield` left a compiler branch on the loop line that no test reached under MS CodeCoverage; `while (true)` with an explicit `yield break` and a `for` over the
+  `IReadOnlyList` (no interface enumerator to dispose) are fully covered. `build/ReadmeCheck.cs` has no `checkpoint` field, so the resume snippet of the streams page uses `after`.
+
 ## M7 - DynaSharp.Coordination (after M3)
 
 - [ ] Lease / lock: Lock Client semantics (relative lease duration, record version number, heartbeat at most half the

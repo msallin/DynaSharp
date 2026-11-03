@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Http;
@@ -16,8 +17,9 @@ namespace DynaSharp.Streams;
 /// <remarks>
 /// <para>
 /// This is the plain API: there is no consumer, no checkpointing and no assignment of shards to workers. A reader lists the
-/// shards with <see cref="DescribeStreamAsync"/>, takes an iterator for each with <see cref="GetShardIteratorAsync"/> and calls
-/// <see cref="GetRecordsAsync"/> in a loop. A stream is enabled per table, with <see cref="CreateTableRequest.StreamSpecification"/>
+/// shards with <see cref="DescribeStreamAsync"/> and reads each with <see cref="ReadShardAsync"/>, which takes the iterator, pages through
+/// <see cref="GetRecordsAsync"/> and renews an expired iterator; <see cref="GetShardIteratorAsync"/> and <see cref="GetRecordsAsync"/> are
+/// there for a loop of its own. A stream is enabled per table, with <see cref="CreateTableRequest.StreamSpecification"/>
 /// when the table is created or later through <c>UpdateTable</c>; <see cref="TableDescription.LatestStreamArn"/> names the stream.
 /// </para>
 /// <para>
@@ -45,6 +47,8 @@ namespace DynaSharp.Streams;
 /// </remarks>
 public sealed class DynamoDbStreamsClient : IDisposable
 {
+    private static readonly TimeSpan IteratorLifetime = TimeSpan.FromMinutes(15);
+
     private readonly ClientCore _core;
 
     /// <summary>
@@ -260,6 +264,87 @@ public sealed class DynamoDbStreamsClient : IDisposable
         _core.ExecuteAsync<GetRecordsOperation, GetRecordsRequest, GetRecordsResponse>(request, cancellationToken);
 
     /// <summary>
+    /// Reads one shard from a position to its end, as a sequence of records: it takes the iterator, pages through <c>GetRecords</c>, takes a new
+    /// iterator when one expires, and waits after an empty page.
+    /// </summary>
+    /// <param name="request">The stream, the shard, the position to start at and the paging settings.</param>
+    /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
+    /// <returns>
+    /// The records in the order of the shard, which is the order of the changes to each item in it. The sequence ends when the shard is closed
+    /// and every record of it has been returned, and an open shard has no end: DynamoDB closes a shard after some hours, or when its partition splits.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This reads one shard and is no consumer: nothing stores how far it got, and nothing shares the shards among workers. The position to
+    /// keep is on each record, <see cref="StreamRecord.SequenceNumber"/> of <see cref="ChangeRecord.DynamoDb"/>: a reader that stores the one of
+    /// the last record it handled starts again after it with <see cref="ShardIteratorType.AfterSequenceNumber"/>. Changes of one item can move to
+    /// a child shard when a shard ends, so a reader that wants them in order reads a parent to its end before its children, which
+    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/>.
+    /// </para>
+    /// <para>
+    /// Nothing is requested until the first record is asked for. An iterator lives 15 minutes, and a caller that takes longer between two
+    /// records holds an expired one when the next page is due. The reader then takes a new iterator after the sequence number of the last
+    /// record it returned, so nothing is skipped and nothing repeats. Before the first record it takes one at the position of the request
+    /// again, which for <see cref="ShardIteratorType.Latest"/> skips what was written in between. An iterator that is expired the moment it was
+    /// taken is not renewed again: the <see cref="ExpiredIteratorException"/> surfaces.
+    /// </para>
+    /// <para>
+    /// An open shard answers an empty page when nothing changed, and also when DynamoDB looked at a part of the shard without finding a record,
+    /// so an empty page is no end: the reader waits <see cref="ReadShardRequest.EmptyPageDelay"/> and asks again. A shard read to its end
+    /// answers without a next iterator, and that ends the sequence. A <see cref="GetShardIteratorAsync"/> without an iterator ends it at once.
+    /// </para>
+    /// <para>
+    /// Each call is a span and a measurement of its own, as with the methods it is made of, and a renewal shows as a failed <c>GetRecords</c>
+    /// followed by a <c>GetShardIterator</c>. A record without a sequence number does not move the position.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="ReadShardRequest.ShardIteratorType"/> is <see cref="ShardIteratorType.Unknown"/> or undefined, or
+    /// <see cref="ReadShardRequest.EmptyPageDelay"/> is negative or 15 minutes or more.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <see cref="ReadShardRequest.SequenceNumber"/> is missing for <see cref="ShardIteratorType.AtSequenceNumber"/> or
+    /// <see cref="ShardIteratorType.AfterSequenceNumber"/>, or set for <see cref="ShardIteratorType.TrimHorizon"/> or <see cref="ShardIteratorType.Latest"/>.
+    /// </exception>
+    /// <exception cref="TrimmedDataAccessException">
+    /// The position is older than the 24 hours that records are kept, at the start or while reading, so changes are lost and the reader cannot
+    /// tell which. It is not handled here: start again at <see cref="ShardIteratorType.TrimHorizon"/>, and rebuild from the table what the gap matters for.
+    /// </exception>
+    /// <exception cref="ExpiredIteratorException">A new iterator was expired before it could be used.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed (raised while reading).</exception>
+    /// <exception cref="ResourceNotFoundException">The stream or the shard does not exist (any more): DynamoDB removes a shard 24 hours after it closed.</exception>
+    /// <exception cref="DynamoDbException">
+    /// DynamoDB returns any other error, for example <see cref="ValidationException"/> for a malformed ARN or a limit out of range. A throttling or
+    /// server error surfaces only when the last attempt of a call failed with it too.
+    /// </exception>
+    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
+    /// <exception cref="HttpRequestException">A request could not be sent or its response could not be read, on every attempt.</exception>
+    /// <exception cref="TimeoutException">The last attempt of a call did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    public IAsyncEnumerable<ChangeRecord> ReadShardAsync(ReadShardRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var needsSequenceNumber = request.ShardIteratorType switch
+        {
+            ShardIteratorType.TrimHorizon or ShardIteratorType.Latest => false,
+            ShardIteratorType.AtSequenceNumber or ShardIteratorType.AfterSequenceNumber => true,
+            _ => throw new ArgumentOutOfRangeException(nameof(request), request.ShardIteratorType, "ShardIteratorType must be TrimHorizon, Latest, AtSequenceNumber or AfterSequenceNumber."),
+        };
+        if (needsSequenceNumber != request.SequenceNumber is not null)
+        {
+            throw new ArgumentException("AtSequenceNumber and AfterSequenceNumber need a SequenceNumber, and TrimHorizon and Latest take none.", nameof(request));
+        }
+
+        if (request.EmptyPageDelay < TimeSpan.Zero || request.EmptyPageDelay >= IteratorLifetime)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, "EmptyPageDelay must be zero or more and below the 15 minutes an iterator lives.");
+        }
+
+        return ReadShardCoreAsync(request, cancellationToken);
+    }
+
+    /// <summary>
     /// Sends a DynamoDB Streams operation by name, with a request body that you write as JSON, and returns the response body as
     /// JSON. It is for the operations and parameters that this client does not model.
     /// </summary>
@@ -302,4 +387,73 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// The handler given in <see cref="DynamoDbClientOptions.HttpHandler"/> is not disposed; its owner does that.
     /// </remarks>
     public void Dispose() => _core.Dispose();
+
+    private async IAsyncEnumerable<ChangeRecord> ReadShardCoreAsync(ReadShardRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        string? last = null;
+        var iterator = await IteratorAsync(request, last, cancellationToken).ConfigureAwait(false);
+
+        // True while the iterator comes from GetShardIterator and has not been used: one that expired then would expire again.
+        var fresh = true;
+        while (true)
+        {
+            if (iterator is null)
+            {
+                yield break;
+            }
+
+            var page = await PageAsync(iterator, request.Limit, renewable: !fresh, cancellationToken).ConfigureAwait(false);
+            if (page is null)
+            {
+                iterator = await IteratorAsync(request, last, cancellationToken).ConfigureAwait(false);
+                fresh = true;
+                continue;
+            }
+
+            fresh = false;
+            for (var i = 0; i < page.Records.Count; i++)
+            {
+                var record = page.Records[i];
+                if (record.DynamoDb?.SequenceNumber is { } sequenceNumber)
+                {
+                    last = sequenceNumber;
+                }
+
+                yield return record;
+            }
+
+            iterator = page.NextShardIterator;
+            if (iterator is not null && page.Records.Count == 0)
+            {
+                await Task.Delay(request.EmptyPageDelay, _core.TimeProvider, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    // Null when the iterator expired and may be renewed.
+    private async Task<GetRecordsResponse?> PageAsync(string iterator, int? limit, bool renewable, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator, Limit = limit }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ExpiredIteratorException) when (renewable)
+        {
+            return null;
+        }
+    }
+
+    // At the position of the request until a record was returned, and after the last record returned from then on: Latest again would
+    // skip what was written in between.
+    private async Task<string?> IteratorAsync(ReadShardRequest request, string? last, CancellationToken cancellationToken)
+    {
+        var position = new GetShardIteratorRequest
+        {
+            StreamArn = request.StreamArn,
+            ShardId = request.ShardId,
+            ShardIteratorType = last is null ? request.ShardIteratorType : ShardIteratorType.AfterSequenceNumber,
+            SequenceNumber = last ?? request.SequenceNumber,
+        };
+        return (await GetShardIteratorAsync(position, cancellationToken).ConfigureAwait(false)).ShardIterator;
+    }
 }

@@ -411,3 +411,25 @@ static DynaSharp.GuidExtensions.extension(System.Guid).FirstVersion7(System.Date
 static DynaSharp.GuidExtensions.extension(System.Guid).LastVersion7(System.DateTimeOffset at) -> System.Guid
 static DynaSharp.GuidExtensions.FirstVersion7(System.DateTimeOffset at) -> System.Guid
 static DynaSharp.GuidExtensions.LastVersion7(System.DateTimeOffset at) -> System.Guid
+DynaSharp.Streams.DynamoDbStreamsClient.ReadShardAsync(DynaSharp.Streams.ReadShardRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ChangeRecord!>!
+DynaSharp.Streams.ReadShardRequest
+DynaSharp.Streams.ReadShardRequest.<Clone>$() -> DynaSharp.Streams.ReadShardRequest!
+DynaSharp.Streams.ReadShardRequest.EmptyPageDelay.get -> System.TimeSpan
+DynaSharp.Streams.ReadShardRequest.EmptyPageDelay.init -> void
+DynaSharp.Streams.ReadShardRequest.Equals(DynaSharp.Streams.ReadShardRequest? other) -> bool
+DynaSharp.Streams.ReadShardRequest.Limit.get -> int?
+DynaSharp.Streams.ReadShardRequest.Limit.init -> void
+DynaSharp.Streams.ReadShardRequest.ReadShardRequest() -> void
+DynaSharp.Streams.ReadShardRequest.SequenceNumber.get -> string?
+DynaSharp.Streams.ReadShardRequest.SequenceNumber.init -> void
+DynaSharp.Streams.ReadShardRequest.ShardId.get -> string!
+DynaSharp.Streams.ReadShardRequest.ShardId.init -> void
+DynaSharp.Streams.ReadShardRequest.ShardIteratorType.get -> DynaSharp.Streams.ShardIteratorType
+DynaSharp.Streams.ReadShardRequest.ShardIteratorType.init -> void
+DynaSharp.Streams.ReadShardRequest.StreamArn.get -> string!
+DynaSharp.Streams.ReadShardRequest.StreamArn.init -> void
+override DynaSharp.Streams.ReadShardRequest.Equals(object? obj) -> bool
+override DynaSharp.Streams.ReadShardRequest.GetHashCode() -> int
+override DynaSharp.Streams.ReadShardRequest.ToString() -> string!
+static DynaSharp.Streams.ReadShardRequest.operator !=(DynaSharp.Streams.ReadShardRequest? left, DynaSharp.Streams.ReadShardRequest? right) -> bool
+static DynaSharp.Streams.ReadShardRequest.operator ==(DynaSharp.Streams.ReadShardRequest? left, DynaSharp.Streams.ReadShardRequest? right) -> bool

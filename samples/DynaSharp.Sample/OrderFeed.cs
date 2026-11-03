@@ -4,8 +4,9 @@ namespace DynaSharp.Sample;
 
 /// <summary>
 /// Reads the stream of the shop table and hands each change of an order on, the reader of the Streams page of the guide. It starts at every shard
-/// whose parent is not listed, reads each to its end, then finds the children with a <see cref="ShardFilter"/> and reads those, so the changes of one
-/// item come in order. It keeps no position across restarts and shares no shards with other workers: that is what a consumer in production adds.
+/// whose parent is not listed, reads each to its end with <see cref="DynamoDbStreamsClient.ReadShardAsync"/>, then finds the children with a
+/// <see cref="ShardFilter"/> and reads those, so the changes of one item come in order. It keeps no position across restarts and shares no shards
+/// with other workers: that is what a consumer in production adds.
 /// </summary>
 internal static class OrderFeed
 {
@@ -19,58 +20,17 @@ internal static class OrderFeed
         await Task.WhenAll(roots.Select(shard => ReadTreeAsync(streams, streamArn, shard.ShardId!, onChange, ct)));
     }
 
-    // TrimHorizon while no record of the shard has been handled, and after the last one handled from then on.
-    public static async Task<string?> IteratorAsync(DynamoDbStreamsClient streams, string streamArn, string shardId, string? after, CancellationToken ct)
-    {
-        var request = new GetShardIteratorRequest
-        {
-            StreamArn = streamArn,
-            ShardId = shardId,
-            ShardIteratorType = after is null ? ShardIteratorType.TrimHorizon : ShardIteratorType.AfterSequenceNumber,
-            SequenceNumber = after,
-        };
-        return (await streams.GetShardIteratorAsync(request, ct)).ShardIterator;
-    }
-
+    // A shard ends once it is closed and read, and its children go on from there.
     private static async Task ReadTreeAsync(DynamoDbStreamsClient streams, string streamArn, string shardId, Action<Order?, Order?> onChange, CancellationToken ct)
     {
-        await ReadShardAsync(streams, streamArn, shardId, onChange, ct);
+        var shard = new ReadShardRequest { StreamArn = streamArn, ShardId = shardId, ShardIteratorType = ShardIteratorType.TrimHorizon };
+        await foreach (var record in streams.ReadShardAsync(shard, ct))
+        {
+            Apply(record, onChange);
+        }
+
         var children = await ShardsAsync(streams, streamArn, new ShardFilter { Type = ShardFilterType.ChildShards, ShardId = shardId }, ct);
         await Task.WhenAll(children.Select(child => ReadTreeAsync(streams, streamArn, child.ShardId!, onChange, ct)));
-    }
-
-    private static async Task ReadShardAsync(DynamoDbStreamsClient streams, string streamArn, string shardId, Action<Order?, Order?> onChange, CancellationToken ct)
-    {
-        string? last = null;
-        var iterator = await IteratorAsync(streams, streamArn, shardId, last, ct);
-        while (iterator is not null)
-        {
-            GetRecordsResponse page;
-            try
-            {
-                page = await streams.GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator }, ct);
-            }
-            catch (ExpiredIteratorException)
-            {
-                // An iterator lives 15 minutes. Latest would skip what was written in between, so go on after the last record handled.
-                iterator = await IteratorAsync(streams, streamArn, shardId, last, ct);
-                continue;
-            }
-
-            foreach (var record in page.Records)
-            {
-                Apply(record, onChange);
-                last = record.DynamoDb!.SequenceNumber;
-            }
-
-            // An open shard always has a next iterator, also after a page without records. Only a closed shard read to its end has none.
-            // A shard allows five calls per second, so an empty page waits before the next one.
-            iterator = page.NextShardIterator;
-            if (iterator is not null && page.Records.Count == 0)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            }
-        }
     }
 
     private static void Apply(ChangeRecord record, Action<Order?, Order?> onChange)

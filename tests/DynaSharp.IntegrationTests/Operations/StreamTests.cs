@@ -325,6 +325,67 @@ public sealed class StreamTests(Backend backend)
     }
 
     [Test]
+    public async Task ReadShard_OpenShard_ReturnsTheRecordsInTheOrderOfTheWrites()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Streams.ReadShardAsync(FromTrimHorizon(arn, shard.ShardId!), timeout.Token).Take(3).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(records.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Insert, OperationType.Modify, OperationType.Remove]);
+    }
+
+    [Test]
+    public async Task ReadShard_AfterSequenceNumberOfARecord_ResumesBehindIt()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        var first = await sandbox.Streams.ReadShardAsync(FromTrimHorizon(arn, shard.ShardId!), timeout.Token).FirstAsync(timeout.Token);
+
+        // Act
+        var resumed = FromTrimHorizon(arn, shard.ShardId!) with { ShardIteratorType = ShardIteratorType.AfterSequenceNumber, SequenceNumber = first.DynamoDb!.SequenceNumber };
+        var rest = await sandbox.Streams.ReadShardAsync(resumed, timeout.Token).Take(2).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(rest.Select(static record => record.EventName)).IsEquivalentTo([OperationType.Modify, OperationType.Remove]);
+    }
+
+    [Test]
+    public async Task ReadShard_ShardOfADisabledStream_EndsAfterItsRecords()
+    {
+        // Arrange: the client has no UpdateTable, so the stream is switched off by hand
+        Gaps.SkipIfMissing(backend, Gap.ClosedShardsAfterDisablingTheStream);
+        Gaps.SkipIfMissing(backend, Gap.OneShardPerStream);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        (await sandbox.Emulator.Raw.SendAsync("UpdateTable", $$$$$"""{"TableName":"{{{{{table}}}}}","StreamSpecification":{"StreamEnabled":false}}""")).EnsureSuccess();
+        var shard = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards[0];
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Streams.ReadShardAsync(FromTrimHorizon(arn, shard.ShardId!), timeout.Token).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
     {
         // Arrange
@@ -353,6 +414,15 @@ public sealed class StreamTests(Backend backend)
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("ValidationException");
     }
+
+    // The emulators deliver a record at once, so an empty page waits only briefly.
+    private static ReadShardRequest FromTrimHorizon(string streamArn, string shardId) => new()
+    {
+        StreamArn = streamArn,
+        ShardId = shardId,
+        ShardIteratorType = ShardIteratorType.TrimHorizon,
+        EmptyPageDelay = TimeSpan.FromMilliseconds(50),
+    };
 
     private static async Task WriteInsertModifyRemoveAsync(Sandbox sandbox, string table)
     {
