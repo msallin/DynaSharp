@@ -157,7 +157,7 @@ A stream of samples must not grow one partition without end, so time is cut into
 [DynamoDbEntity]
 [Discriminator("SAMPLE")]
 [PartitionKey("METRIC#{Metric}#{Bucket:d10}")]
-[SortKey("{At:ticks}")]
+[SortKey("{At}")]
 public partial record MetricSample
 {
     public required string Metric { get; init; }

@@ -13,7 +13,7 @@ using DynaSharp.Mapping;
 [Discriminator("ORDER")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("ORDER#{Number:d6}")]
-[GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}", SortKey = "{PlacedAt:ms}")]
+[GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}", SortKey = "{PlacedAt}")]
 public partial record Order
 {
     public required string CustomerId { get; init; }
@@ -40,7 +40,7 @@ No format keeps the offset, and the attribute does not either. A date format nee
 | `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
 |---|---|---|---|---|---|
 | `CUSTOMER#alice` | `PROFILE` | | | `CUSTOMER` | `Id`, `Name`, `Email` |
-| `CUSTOMER#alice` | `ORDER#000001` | `STATUS#Placed` | `2026-10-31T12:34:56.789Z` | `ORDER` | `CustomerId`, `Number`, `Status`, `PlacedAt`, `Total` |
+| `CUSTOMER#alice` | `ORDER#000001` | `STATUS#Placed` | `2026-10-31T12:34:56.7890123Z` | `ORDER` | `CustomerId`, `Number`, `Status`, `PlacedAt`, `Total` |
 
 Those are the default names. A `Put` stores the inputs of a key as attributes of their own too, unless `[KeyOnly]` says that the key is enough: no attribute holds such a property, so it has no handle in `Attrs`. An `Update` writes no input of the key of the table unless `StoreKeyInputs()` asks, so an item it created holds the key and not those attributes, and a read of the entity restores them from the key.
 
@@ -170,7 +170,7 @@ var urgent = client.Table<Ticket>("Tickets").Index(Ticket.Indexes.ByPriority)
 
 `[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property, and [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` says that a stored value counts as if the attribute were not there, so the rest of the item reads.
 
-An enum needs no converter for that. With `[DynamoDbEnum]`, a name it does not have, such as one that a newer version of a service stores during a rollout, keeps the initial value of the property, which is null for a nullable property without an initializer. Writes store the same names as without the attribute. A `required` property still throws, and so does an element of a list, a set or a map, which would otherwise drop out of the collection and be gone after the next `Put`.
+An enum needs no converter for that. With `[DynamoDbEnum]`, a name it does not have, such as one that a newer version of a service stores during a rollout, keeps the initial value of the property, which is null for a nullable property without an initializer. Writes store the same names as without the attribute, so the next `Put` of the entity stores that initial value over the name it did not know. That suits only an enum whose initial value is a safe "unknown": with `Scheduled` as the initial value, an item that a newer version cancelled under a name this one lacks reads as `Scheduled`, and the next `Put` reopens it. A `required` property still throws, and so does an element of a list, a set or a map, which would otherwise drop out of the collection and be gone after the next `Put`. The attribute goes on the enum type, so an enum of another assembly that does not carry it needs a converter of its own, one that answers `CountsAsMissing`.
 
 ```csharp
 [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]

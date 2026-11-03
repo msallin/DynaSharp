@@ -67,10 +67,10 @@ StoreVisit? latest = await visits.Query(bern, StoreVisit.Keys.Sk.Le(today)).Desc
 
 var placedToday = byStatus.Query(
     Order.Keys.ByStatusPk.Of(OrderStatus.Placed),
-    Order.Keys.ByStatusSk.Between(today, today.AddDays(1).AddMilliseconds(-1))).ItemsAsync(ct);             // {PlacedAt} ends the key
+    Order.Keys.ByStatusSk.Between(today, today.AddDays(1).AddTicks(-1))).ItemsAsync(ct);                    // {PlacedAt} ends the key
 ```
 
-`{At}` keeps milliseconds, so one millisecond below midnight is the last key of the day. A coarser format makes buckets: under `{At:yyyy-MM-dd}`, `Between(from, to)` takes whole days and `Gt(day)` starts after that day.
+A bare `{At}` or `{PlacedAt}` is `ticks` and keeps all seven fraction digits, so one tick below midnight is the last key of the day; under `{PlacedAt:ms}` it would be one millisecond. A coarser format makes buckets: under `{At:yyyy-MM-dd}`, `Between(from, to)` takes whole days and `Gt(day)` starts after that day.
 
 ## Indexes
 

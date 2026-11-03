@@ -60,7 +60,7 @@ Without options it reads the environment as `DynamoDbClient` does, with `AWS_END
 
 A stream is split into shards, and a record is in the shard of the partition of its item. DynamoDB closes a shard from time to time, and when its partition splits, and its children go on from there and name it in `ParentShardId`. So the changes of one item come in order only if a parent is read to its end before its children.
 
-The reader of the sample, [`OrderFeed.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/OrderFeed.cs), starts at every shard whose parent is not listed, reads each to its end, then finds the children with a `ShardFilter` and reads those. It hands on the order before and after each change: an image is an `Item`, `Is<T>()` says whether it is of an entity, and `To<T>()` reads it as one. Reading one shard to its end is this loop:
+The reader of the sample, [`OrderFeed.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/OrderFeed.cs), starts at every shard whose parent is not listed, reads each to its end, then finds the children with a `ShardFilter` and reads those. It hands on the order before and after each change: an image is an `Item`, [`Is<T>()`](without-a-model.md#item) says whether it is of an entity, by its discriminator, and `To<T>()` reads it as one. Reading one shard to its end is this loop:
 
 ```csharp
 string? last = null;
@@ -80,8 +80,13 @@ while (iterator is not null)
 
     foreach (var record in page.Records)
     {
-        Console.WriteLine(record.EventName);
-        last = record.DynamoDb!.SequenceNumber;
+        var image = record.DynamoDb!.NewImage;
+        if (image is not null && image.Is<Order>())
+        {
+            Console.WriteLine($"{record.EventName} #{image.To<Order>().Number}");
+        }
+
+        last = record.DynamoDb.SequenceNumber;
     }
 
     iterator = page.NextShardIterator;

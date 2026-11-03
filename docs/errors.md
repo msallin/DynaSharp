@@ -20,6 +20,8 @@ Every error that DynamoDB returns is a `DynamoDbException` with `ErrorCode`, the
 | `InternalServerErrorException`, any HTTP 500, 502, 503 or 504 | DynamoDB or a proxy in front of it failed. A body that is no DynamoDB response has the code `UnrecognizedResponse` | Yes | |
 | `AccessDeniedException` | The credentials lack a permission, see [What a call needs](#what-a-call-needs) | No | |
 | `UnrecognizedClientException` | The access key or the session token is not valid | No | |
+| `DynamoDbException` with `ErrorCode` `InvalidSignatureException` | DynamoDB did not accept the signature: the secret key is not the one of the access key, something between changed the request, or the local clock is off. `Message` is the one DynamoDB sent | No. When the `Date` of the response is more than 4 minutes from the time the request was signed with, the client corrects its clock and sends again at once, see [Retries](#retries) | |
+| `DynamoDbException` with `ErrorCode` `MissingAuthenticationTokenException` | The request arrived without a signature. The client signs every request, so something between took the `Authorization` header off. `Message` is the one DynamoDB sent | No | |
 | `DynamoDbException` with `ErrorCode` `ExpiredTokenException` | The credentials expired | Once and at once, when the provider can fetch new ones: the default chain, and the container, instance metadata and web identity providers. Otherwise no | |
 | `IdempotentParameterMismatchException` | A transaction token came back within 10 minutes with other actions | No | |
 | `ItemCollectionSizeLimitExceededException` | A partition of a table with a local index would grow past 10 GB | No | |
@@ -33,6 +35,7 @@ The client throws these itself:
 | `HttpRequestException` | The network failed. It is retried, except a response above 64 MB, whose `HttpRequestError` is `ConfigurationLimitExceeded` | |
 | `OperationCanceledException` | The caller's `CancellationToken` was cancelled. Never retried | |
 | `CredentialsUnavailableException` | No source of credentials applies, or one that applies is broken. Never retried | |
+| `CredentialsUnavailableException` from STS's `InvalidClientTokenId` | STS refused the `AssumeRoleWithWebIdentity` call of the web identity provider with that code, and the message says `STS rejected the web identity token with InvalidClientTokenId`. The provider tries again only on `IDPCommunicationError`, `Throttling`, HTTP 429 or 5xx and a failure of the network, so it gives up at once, and the client never retries the exception | |
 | `BatchIncompleteException` | A batch write gave up, after its own resends, see [Batches](#batches) | `UnprocessedItems` and `Written`, and the failure as `InnerException`. Its `ErrorCode` is `BatchIncomplete` |
 | `BatchGetIncompleteException<T>` | A batch get gave up | `UnprocessedKeys` and the `Items` read so far |
 | `TableNotActiveException` | A wait for a table ran out, or `CreateTable()` found a table without an index it declares. It is a `TimeoutException` | `TableName`, `LastStatus` and `PendingIndex` |
@@ -41,6 +44,8 @@ The client throws these itself:
 | `ArgumentException` | A key of `Table<Item>` is empty, an index is not declared by the entity, a fan-out repeats a partition key | |
 | `InvalidOperationException` | The chain itself is wrong: a command used twice, a `[Version]` rule, `Value` of a `SelectResult` without an item | |
 | `FormatException` | `ContinuationToken.Parse` got text that is no token of this version | |
+
+No retry fixes `AccessDeniedException`, `UnrecognizedClientException`, `InvalidSignatureException` beyond the correction of the clock, `MissingAuthenticationTokenException`, `ValidationException` and `CredentialsUnavailableException`: the same request with the same credentials fails the same way until the credentials, the policy, the configuration or the code change.
 
 No message names a key or a value. `Key`, `Item`, `UnprocessedItems`, `UnprocessedKeys` and `Items` hold your data, so what code does with them is its own decision, and the client logs none of it.
 
@@ -159,6 +164,6 @@ An index has an ARN of its own, so a policy on the table alone lets no query rea
 }
 ```
 
-A program that does not create its table leaves out the last four actions but `dynamodb:DescribeTable`, which `IfNotExists()` and a wait still take.
+A program that never calls `CreateTable()` leaves out `dynamodb:CreateTable`, `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`. It keeps `dynamodb:DescribeTable` only if it waits for the table or describes it, with `WaitUntilActiveAsync` or `DescribeAsync`.
 
 **IRSA on EKS.** The web identity provider exchanges the token of the pod for credentials with `AssumeRoleWithWebIdentity`, a call that is not signed. So no policy of the pod grants it: the trust policy of the role does, by allowing `sts:AssumeRoleWithWebIdentity` to the OIDC provider of the cluster, with a condition on the service account in `sub` and on `sts.amazonaws.com` in `aud`. EKS Pod Identity goes through the container endpoint instead, and its role trusts `pods.eks.amazonaws.com` with `sts:AssumeRole` and `sts:TagSession`. [Getting started](getting-started.md#credentials) says how the client finds the token.

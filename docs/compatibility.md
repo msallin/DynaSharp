@@ -33,3 +33,12 @@ For a project that built against a preview before 0.1.0. The project default tha
 - After: `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`
 
 Nothing else changes: the entities read and write the same items. [Project defaults](entities.md#project-defaults) has the setting.
+
+### A bare timestamp in a key is `ticks`
+
+For a project that built against a preview before 0.1.0. A placeholder of a `DateTimeOffset` or a `DateTime` without a format, such as `{PlacedAt}`, writes `ticks`, the seven fraction digits that the attribute holds, where it wrote milliseconds before. `{PlacedAt:ms}` keeps the old form:
+
+- Before: `{PlacedAt}` wrote `2026-10-31T12:34:56.789Z`
+- After: `{PlacedAt}` writes `2026-10-31T12:34:56.7890123Z`, and `{PlacedAt:ms}` writes `2026-10-31T12:34:56.789Z`
+
+This changes stored data. A key that an earlier preview wrote with a bare placeholder holds milliseconds, so a key built now does not find it, in a table key and in an index key alike. Either write those items again, which for a key of the table means a new item and a delete of the old one, or change the template to `:ms`. `:ms` at the end of the key of a table reports [`DYNA116`](diagnostics.md#key-templates), because two writes in one millisecond then share a key. [Defining an entity](entities.md#defining-an-entity) has every format.
