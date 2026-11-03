@@ -148,7 +148,7 @@ public partial record Shipment
 
 ## From EfficientDynamoDb
 
-DynaSharp is the successor of EfficientDynamoDb, and keeps its aim: UTF-8 on the wire, little allocation, no AWS SDK. What changes is that the mapping is generated at build time instead of found by reflection, so Native AOT works, and that keys are templates the generator fills instead of strings you put together.
+DynaSharp is an alternative to EfficientDynamoDb, and shares its aim: UTF-8 on the wire, little allocation, no AWS SDK. What changes is that the mapping is generated at build time instead of found by reflection, so Native AOT works, and that keys are templates the generator fills instead of strings you put together.
 
 | What you wrote | What to write |
 |---|---|

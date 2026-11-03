@@ -5,7 +5,7 @@ Source of truth for WHY, WHAT and HOW. Changes to scope or principles are made h
 
 ## WHY
 
-DynaSharp is the successor of [EfficientDynamoDb](https://github.com/AllocZero/EfficientDynamoDb) (MIT).
+DynaSharp is an alternative to [EfficientDynamoDb](https://github.com/AllocZero/EfficientDynamoDb) (MIT).
 
 Keep:
 - A fluent high-level API that stays true to DynamoDB semantics: easy to read and write, no ORM abstraction that
