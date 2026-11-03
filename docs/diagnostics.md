@@ -4,7 +4,7 @@ What DynaSharp's generator and analyzers report, and how to fix it. Every diagno
 
 ## Entities
 
-The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types; `DYNA026`, `DYNA032` and `DYNA033` on an enum come from analyzers. A type with an error generates no code, so the `CS0311` on its table that the build shows beside it goes away with the fix. The exception is `DYNA020`: the type is generated as if it opted out, so its uses compile and the build fails on that error alone.
+The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types; `DYNA026`, `DYNA032` and `DYNA033` on an enum come from analyzers. A type with an error generates no code, so the `CS0311` on its table that the build shows beside it goes away with the fix. The exceptions are `DYNA020`, where the type is generated as if it opted out, and `DYNA104` and `DYNA105` on a key template, where the placeholder takes the default format of its type: the uses of the type compile, and the build fails on that error alone.
 
 | Rule | What is wrong | What to do |
 |---|---|---|

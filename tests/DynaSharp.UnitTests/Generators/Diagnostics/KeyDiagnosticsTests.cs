@@ -1,3 +1,5 @@
+using DynaSharp.Generators;
+
 namespace DynaSharp.UnitTests.Generators.Diagnostics;
 
 /// <summary>
@@ -203,7 +205,7 @@ public sealed class KeyDiagnosticsTests
         var source = $$"""
             {{Enum}}
             [DynamoDbEntity, Discriminator("E"), PartitionKey([|"{V:{{format}}}"|])]
-            public partial class E { public {{type}} V { get; set; } = default!; }
+            public partial class E { public required {{type}} V { get; set; } }
             """;
 
         // Act
@@ -239,6 +241,69 @@ public sealed class KeyDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA105 Error: Format '{format}' is out of range"));
+    }
+
+    [Test]
+    [Arguments("int", "x")]
+    [Arguments("int", "d0")]
+    [Arguments("decimal", "n29.0")]
+    [Arguments("string", "plain")]
+    [Arguments("DateTimeOffset", "HH:mm")]
+    [Arguments("DateOnly", "yyyy-MM-dd")]
+    [Arguments("Color", "d21")]
+    public async Task Build_FormatThatDoesNotFit_KeepsTheModelWithTheDefaultFormat(string type, string format)
+    {
+        // Arrange
+        var source = SingleInput(type, "A#{V:" + format + "}");
+
+        // Act
+        var kept = Analysis.Model(source, "global::Shop.E").Entity!.PartitionKey.Template!.Segments;
+
+        // Assert
+        await Assert.That(kept).IsEqualTo(Analysis.Model(SingleInput(type, "A#{V}"), "global::Shop.E").Entity!.PartitionKey.Template!.Segments);
+    }
+
+    [Test]
+    [Arguments("""PartitionKey([|"{Number:d0}{Id}"|])""", "DYNA105 Error: Format 'd0' is out of range")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{Name:plain}#{Id}"|])""", "DYNA104 Error: Format 'plain' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
+    [Arguments("""PartitionKey([|"A#{Name:RAW}"|]), GlobalIndexKey("GSI1", PartitionKey = "B#{Name:raw}")""", "DYNA104 Error: Format 'RAW' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
+    public async Task Build_FormatThatDoesNotFitBeforeANeighbour_ReportsTheFormatAlone(string attributes, string expected)
+    {
+        // Arrange (the default the placeholder fell back to is variable-width and strict, which is not what the format meant)
+        var source = $$"""
+            {{Enum}}
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { {{Members}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, expected));
+    }
+
+    [Test]
+    public async Task Build_FormatOfAnEnumWithAliasedNames_HasNoModel()
+    {
+        // Arrange (the default of the enum, its member name, is DYNA113 itself, so there is nothing to fall back to)
+        const string Source = """
+            namespace Shop
+            {
+                using DynaSharp.Mapping;
+
+                public enum Mode { A, B = A }
+
+                [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Status:x}")]
+                public partial class E { public Mode Status { get; set; } }
+            }
+            """;
+
+        // Act
+        var result = Analysis.Results(Source, []).Single();
+
+        // Assert
+        await Assert.That((result.Type, result.Diagnostics.Count)).IsEqualTo(((TypeModel?)null, 1));
     }
 
     [Test]
@@ -1296,6 +1361,12 @@ public sealed class KeyDiagnosticsTests
 
     private static string RawBesideStrict(string property, string raw, string strict, string delimiters) =>
         $"DYNA120 Warning: '{property}' is raw in '{raw}' and strict in '{strict}', so a value with a delimiter of the second ('{delimiters}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.";
+
+    private static string SingleInput(string type, string template) => $$"""
+        {{Enum}}
+        [DynamoDbEntity, Discriminator("E"), PartitionKey("{{template}}")]
+        public partial class E { public required {{type}} V { get; set; } }
+        """;
 
     private static string FormatsOf(string type) => type switch
     {

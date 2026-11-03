@@ -137,6 +137,49 @@ public sealed class DynaSharpGeneratorTests
         await Assert.That(string.Join("\n", output.Problems)).IsEqualTo("(7,26): error DYNA020: Entity 'TransportRecord' has no discriminator. Add [Discriminator(\"TRANSPORT_RECORD\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.");
     }
 
+    [Test]
+    public async Task Run_UseOfAnEntityWithAFormatThatDoesNotFit_FailsOnDyna104Alone()
+    {
+        // Arrange (a DateOnly is written as yyyy-MM-dd already, so the format is a slip of one placeholder, not a reason for an error on every use)
+        const string Source = """
+            namespace Shop
+            {
+                using System;
+                using DynaSharp;
+                using DynaSharp.Mapping;
+
+                [DynamoDbEntity, Discriminator("CUSTOMER"), PartitionKey("CUSTOMER#{Id}"), SortKey("PROFILE")]
+                public partial class Customer
+                {
+                    public required string Id { get; init; }
+                }
+
+                [DynamoDbEntity, Discriminator("ORDER"), PartitionKey("CUSTOMER#{CustomerId}"), SortKey("ORDER#{OrderDate:yyyy-MM-dd}")]
+                public partial class Order
+                {
+                    public required string CustomerId { get; init; }
+
+                    public required DateOnly OrderDate { get; init; }
+                }
+
+                public static class Orders
+                {
+                    public static string Of(DynamoDbClient client, DateOnly from, DateOnly to) =>
+                        client.Table<Order>("Shop").Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.Between(from, to)).ToRequestJson();
+
+                    public static string All(DynamoDbClient client) =>
+                        client.Table("Shop", "pk", "sk").Query(Customer.Keys.Pk.Of("alice")).Of<Customer, Order>().ToRequestJson();
+                }
+            }
+            """;
+
+        // Act
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That(string.Join("\n", output.Problems)).IsEqualTo("(13,93): error DYNA104: Format 'yyyy-MM-dd' does not fit type 'System.DateOnly'. It takes no format, because it is written as yyyy-MM-dd already; a DateTime or DateTimeOffset takes the shorter ones, such as yyyy-MM.");
+    }
+
     private static string TransportRecord(string discriminator, string use) => $$"""
         namespace Shop
         {

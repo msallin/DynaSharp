@@ -38,7 +38,7 @@ internal sealed class EntityKeyBuilder(
 
     private readonly List<KeyModel> _keys = [];
 
-    private readonly List<(KeyTemplate Template, Spot Spot)> _templates = [];
+    private readonly List<(KeyTemplate Template, Spot Spot, IReadOnlyCollection<string> Fallbacks)> _templates = [];
 
     public EntityModel? Build(DiscriminatorInfo discriminator)
     {
@@ -158,9 +158,10 @@ internal sealed class EntityKeyBuilder(
     private void ReportRawBesideStrict()
     {
         var placeholders = _templates
-            .SelectMany(static entry => entry.Template.Segments.OfType<PlaceholderSegment>().Select(placeholder => (entry.Template, entry.Spot, Placeholder: placeholder)))
+            .SelectMany(static entry => entry.Template.Segments.OfType<PlaceholderSegment>().Select(placeholder => (entry.Template, entry.Spot, entry.Fallbacks, Placeholder: placeholder)))
             .ToList();
-        foreach (var strict in placeholders.Where(static entry => entry.Template.Delimiters.Length > 0 && entry.Placeholder.Encoding is StringEncoding { IsRaw: false }))
+        foreach (var strict in placeholders.Where(static entry =>
+            entry.Template.Delimiters.Length > 0 && entry.Placeholder.Encoding is StringEncoding { IsRaw: false } && !entry.Fallbacks.Contains(entry.Placeholder.Property)))
         {
             var raw = placeholders.Find(entry => entry.Placeholder.Encoding is StringEncoding { IsRaw: true } && entry.Placeholder.Property == strict.Placeholder.Property);
             if (raw.Template is not null)
@@ -277,12 +278,19 @@ internal sealed class EntityKeyBuilder(
         var binding = KeyTemplateBinder.Bind(template, parsed.Nodes, _inputs, role);
         foreach (var problem in binding.Problems)
         {
-            bag.Report(problem.Descriptor, spot, problem.Arguments);
+            if (problem.KeepsModel)
+            {
+                bag.ReportKeepingTheModel(problem.Descriptor, spot, problem.Arguments);
+            }
+            else
+            {
+                bag.Report(problem.Descriptor, spot, problem.Arguments);
+            }
         }
 
         var key = Claim(new KeyModel(attributeName, builderName, binding.Template, null, SharesAttribute: false), label, spot);
         _keys.Add(key);
-        _templates.Add((binding.Template, spot));
+        _templates.Add((binding.Template, spot, binding.Fallbacks));
         return key;
     }
 

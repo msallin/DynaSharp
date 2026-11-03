@@ -19,21 +19,22 @@ internal static class KeyTemplateBinder
         var segments = new List<TemplateSegment>();
         var problems = new List<KeyProblem>();
         var used = new HashSet<string>();
+        var fallbacks = new HashSet<string>();
         for (var index = 0; index < nodes.Count; index++)
         {
             if (nodes[index] is LiteralNode literal)
             {
                 segments.Add(new LiteralSegment(literal.Text));
             }
-            else if (BindPlaceholder((PlaceholderNode)nodes[index], index + 1 == nodes.Count, inputs, role, used, problems) is { } placeholder)
+            else if (BindPlaceholder((PlaceholderNode)nodes[index], index + 1 == nodes.Count, inputs, role, used, fallbacks, problems) is { } placeholder)
             {
                 segments.Add(placeholder);
             }
         }
 
-        CheckNeighbours(segments, role, problems);
+        CheckNeighbours(segments, role, fallbacks, problems);
         var template = new KeyTemplate(text, new EquatableArray<TemplateSegment>([.. segments]), Delimiters(segments), BufferLength(segments));
-        return new KeyBinding(template, problems);
+        return new KeyBinding(template, problems, fallbacks);
     }
 
     private static PlaceholderSegment? BindPlaceholder(
@@ -42,6 +43,7 @@ internal static class KeyTemplateBinder
         IReadOnlyDictionary<string, TemplateInput> inputs,
         KeyRole role,
         HashSet<string> used,
+        HashSet<string> fallbacks,
         List<KeyProblem> problems)
     {
         if (!inputs.TryGetValue(node.Property, out var input))
@@ -72,6 +74,17 @@ internal static class KeyTemplateBinder
         }
 
         var binding = input.Type.Bind(node.Format, input.Property);
+
+        // A format that does not fit is a slip in one placeholder: the default encoding of the type keeps the model, so the error is not buried under one per use of the entity.
+        if (binding.Problem is { } wrongFormat
+            && (wrongFormat.Descriptor == Descriptors.FormatDoesNotFit || wrongFormat.Descriptor == Descriptors.FormatOutOfRange)
+            && input.Type.Bind(null, input.Property) is { Encoding: not null } fallback)
+        {
+            problems.Add(wrongFormat with { KeepsModel = true });
+            fallbacks.Add(input.Property);
+            binding = fallback;
+        }
+
         if (binding.Encoding is null)
         {
             problems.Add(binding.Problem!);
@@ -93,11 +106,12 @@ internal static class KeyTemplateBinder
         return new PlaceholderSegment(input.Property, input.ParameterName, input.ValueType, binding.Encoding, input.IsNullable);
     }
 
-    private static void CheckNeighbours(List<TemplateSegment> segments, KeyRole role, List<KeyProblem> problems)
+    // A placeholder that fell back to its default has an error already, and the width of the default says nothing about the one the format meant.
+    private static void CheckNeighbours(List<TemplateSegment> segments, KeyRole role, HashSet<string> fallbacks, List<KeyProblem> problems)
     {
         for (var index = 0; index + 1 < segments.Count; index++)
         {
-            if (segments[index] is not PlaceholderSegment { Encoding.FixedWidth: 0 } placeholder)
+            if (segments[index] is not PlaceholderSegment { Encoding.FixedWidth: 0 } placeholder || fallbacks.Contains(placeholder.Property))
             {
                 continue;
             }
