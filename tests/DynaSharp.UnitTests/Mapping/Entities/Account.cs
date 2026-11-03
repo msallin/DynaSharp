@@ -14,7 +14,9 @@ internal sealed partial class Account
 
     public int Logins { get; private set; } = 7;
 
+#pragma warning disable DYNA035 // The tests pin that a read keeps the initializer, which is what DYNA035 warns of.
     public string? Note { get; internal set; } = "kept";
+#pragma warning restore DYNA035
 
     public IList<string> Aliases { get; set; } = ["first"];
 

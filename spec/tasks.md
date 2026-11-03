@@ -546,6 +546,16 @@ Branch `m3/q16-transient-enum`. Approved by the owner.
 - Decision: only what is certain. A required input of a key template that holds it without loss is not reported: the read falls back on the key, which an item written by another tool may hold with a name the enum knows. A `[KeyOnly]` property reads no attribute and an element of a collection throws by the rule of Q10, so neither is reported. A nullable `required` property keeps null, and one that is not required keeps its initial value, so both are silent, and so are `Throw` and no attribute.
 - Decision: the test entities `Squall`, `Vane` and `Sail`, which test the throw, suppress the warning, and `EmitterShapes.Warnings` lists the two that the `LenientEnums` shape reports, so `Run_Shape_CompilesWithoutWarnings` pins them instead of seeing none. No new mistake in `PackageSmoke`: its check is per rule, and `Access` already shows `DYNA033` in a consumer's build.
 
+### Q18 - `DYNA035`, a nullable property that starts with a value, before 0.1.0
+
+Branch `pkg/nullable-init`. Approved by the owner.
+
+- [x] **`DYNA035` (warning, Mapping).** A write leaves null out of the item and a read of an item without the attribute keeps the initial value, so a nullable property with an initializer that is no null, `string? Note { get; set; } = "n/a"`, `int? Count { get; init; } = 0`, `List<string>? Lines { get; set; } = []`, and a constructor parameter of one with a default that is no null, `string? Note = "n/a"` in a positional record, read a written null back as that value. Reported by the generator (`ModelBuilder.ReportNullsThatReadBackAsInitialValues`, `NullableDefault`) on the property or the parameter. `spec/api.md` said in section 7 that a missing attribute reads as null for a nullable property, against section 4 and the code: it now says initial value everywhere.
+- Decision: the generator, because the rule is what `MissingOf` and `ConstructorEmitter` do, as `DYNA034` is.
+- Decision: a `required` nullable member is reported too: `MissingOf` keeps the current value for every nullable property, so it does not throw and keeps the initializer. A converter of its own changes nothing, because null never reaches it on write and an entity read never asks `TryReadMissing`. A key of the table cannot be nullable (`DYNA107`), and a `[Version]` cannot either (`DYNA011`); a nullable input of a sparse index is reported like any property.
+- Decision: only syntax, as `EmptyDefault`: `null`, `default`, `default(string)`, `default(int?)` and any of them with `!` count as null, and `default(int)` on an `int?` does not. A value a constructor body assigns is not reported, nor a base type from a compiled assembly, which shows no initializer. A property of a mapped base type is reported there and not again on each derived type; one of a base type in another project of the solution is reported on the derived type, which has its place in the compilation. A context without nullable annotations is already `DYNA019`, so it needs no rule here.
+- Decision: the test entities `Strict`, `Account`, `Retry`, `Mooring` and `Logbook`, which pin that a read keeps the initializer, suppress the warning.
+
 ## M5 - credentials: credential_process, assume role, SSO
 
 Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils.py`, `compat.py`) is the reference for behaviour and order.

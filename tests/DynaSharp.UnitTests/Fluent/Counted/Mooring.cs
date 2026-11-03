@@ -14,7 +14,9 @@ internal sealed partial record Mooring
     public Payload? Payload { get; init; }
 
     [DynamoDbConverter(typeof(BlankPayloadConverter))]
+#pragma warning disable DYNA035 // The tests pin that a read keeps the initializer, which is what DYNA035 warns of.
     public Payload? Seeded { get; init; } = new("seed");
+#pragma warning restore DYNA035
 
     [DynamoDbConverter(typeof(LenientPositionConverter))]
     public Position Position { get; init; } = Position.Unknown;

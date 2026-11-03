@@ -8,6 +8,8 @@ namespace DynaSharp.UnitTests.Generators.Diagnostics;
 /// </summary>
 public sealed class TypeDiagnosticsTests
 {
+    private const string Dyna035OfInitializer = "Remove the initializer, or make the property non-nullable";
+
     private const string LenientWind = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n";
 
     private const string WindAsNumber = """
@@ -1603,6 +1605,140 @@ public sealed class TypeDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    [Test]
+    [Arguments("public string? [|Note|] { get; set; } = \"n/a\";", "Note")]
+    [Arguments("public int? [|Count|] { get; init; } = 0;", "Count")]
+    [Arguments("public int? [|Count|] { get; init; } = default(int);", "Count")]
+    [Arguments("public required string? [|Note|] { get; init; } = \"n/a\";", "Note")]
+    [Arguments("public List<string>? [|Lines|] { get; set; } = [];", "Lines")]
+    [Arguments("public HashSet<string>? [|Tags|] { get; set; } = new();", "Tags")]
+    [Arguments("[OmitEmpty] public string? [|Note|] { get; set; } = \"n/a\";", "Note")]
+    public async Task Build_NullablePropertyWithAnInitializer_ReportsDyna035(string member, string name)
+    {
+        // Arrange (null is left out on write, and a read of an item without the attribute keeps the initializer, a required one too, since a nullable member does not throw)
+        var source = $"[DynamoDbDocument] public partial class T {{ {member} }}";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, NullReadsBack(name, "the value of its initializer", Dyna035OfInitializer)));
+    }
+
+    [Test]
+    [Arguments("public partial record T(string Id, string? [|Note|] = \"n/a\");", "Note")]
+    [Arguments("public partial class T { public T(int? [|count|] = 0) { Count = count; } public int? Count { get; } }", "count")]
+    public async Task Build_NullablePropertyFromAParameterWithADefault_ReportsDyna035(string declaration, string parameter)
+    {
+        // Arrange (a read passes the default for a missing attribute)
+        var source = "[DynamoDbDocument] " + declaration;
+        var property = parameter == "count" ? "Count" : parameter;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            source,
+            NullReadsBack(property, $"the default value of parameter '{parameter}'", "Make the default value null, or make the property non-nullable")));
+    }
+
+    [Test]
+    public async Task Build_NullableInputOfASparseIndexWithAnInitializer_ReportsDyna035()
+    {
+        // Arrange (null leaves the item out of the index, and a read gives it back the initializer)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)]
+            public partial class E { public required string Id { get; init; } public string? [|Owner|] { get; set; } = "nobody"; }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, NullReadsBack("Owner", "the value of its initializer", Dyna035OfInitializer)));
+    }
+
+    [Test]
+    [Arguments("public class Root { public string? [|Note|] { get; set; } = \"n/a\"; }")]
+    [Arguments("[DynamoDbDocument] public partial class Root { public string? [|Note|] { get; set; } = \"n/a\"; }")]
+    [Arguments("""[DynamoDbEntity, Discriminator("ROOT"), PartitionKey("ROOT#{Id}")] public partial class Root { public required string Id { get; init; } public string? [|Note|] { get; set; } = "n/a"; }""")]
+    public async Task Build_NullablePropertyWithAnInitializerOnABase_ReportsDyna035Once(string root)
+    {
+        // Arrange (a mapped base reports its own property, and a derived type does not repeat it)
+        var source = root + """
+
+            [DynamoDbEntity, Discriminator("T"), PartitionKey("T#{Id}")]
+            public partial class T : Root { public required string Id { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, NullReadsBack("Note", "the value of its initializer", Dyna035OfInitializer)));
+    }
+
+    [Test]
+    [Arguments("public string? Note { get; set; } = null;")]
+    [Arguments("public string? Note { get; set; } = default;")]
+    [Arguments("public string? Note { get; set; } = null!;")]
+    [Arguments("public string? Note { get; set; } = default!;")]
+    [Arguments("public string? Note { get; set; } = default(string);")]
+    [Arguments("public int? Count { get; set; } = default(int?);")]
+    [Arguments("public string? Note { get; set; }")]
+    [Arguments("public string Note { get; set; } = \"n/a\";")]
+    [Arguments("public int Count { get; set; } = 1;")]
+    [Arguments("[DynamoDbIgnore] public string? Note { get; set; } = \"n/a\";")]
+    [Arguments("public string? Note { get; } = \"n/a\";")]
+    [Arguments("[DynamoDbAttribute(\"note\")] public string? Note { get; } = \"n/a\";")]
+    [Arguments("public T() { Note = \"n/a\"; } public string? Note { get; set; }")]
+    [Arguments("public T(string? note) { Note = note; } public string? Note { get; } = \"n/a\";")]
+    [Arguments("public T(string? note = null) { Note = note; } public string? Note { get; }")]
+    [Arguments("public T(int? count = default) { Count = count; } public int? Count { get; }")]
+    public async Task Build_PropertyThatReadsBackNull_ReportsNothing(string members)
+    {
+        // Arrange (no value to start from, a property that cannot hold null, one that is not read, one a constructor body sets, and one a parameter without a value sets)
+        var source = $"[DynamoDbDocument] public partial class T {{ {members} }}";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_NullableInitializerOnABaseOfAnotherProject_ReportsDyna035OnTheType()
+    {
+        // Arrange (a project reference shows the syntax of the base, which has no place in this compilation)
+        var library = Analysis.ProjectReference("namespace Lib { public class Root { public string? Note { get; set; } = \"n/a\"; } }");
+        const string Source = "[DynamoDbDocument] public partial class [|T|] : Lib.Root { }";
+
+        // Act
+        var report = Analysis.Report(Source, LanguageVersion.Latest, library);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, NullReadsBack("Note", "the value of its initializer", Dyna035OfInitializer)));
+    }
+
+    [Test]
+    public async Task Build_NullableInitializerOnABaseFromAnAssembly_ReportsNothing()
+    {
+        // Arrange (a compiled assembly shows no initializer)
+        var library = Analysis.Library("namespace Lib { public class Root { public string? Note { get; set; } = \"n/a\"; } }");
+        const string Source = "[DynamoDbDocument] public partial class T : Lib.Root { }";
+
+        // Act
+        var report = Analysis.Report(Source, LanguageVersion.Latest, library);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    private static string NullReadsBack(string property, string kept, string fix) =>
+        $"DYNA035 Warning: '{property}' is nullable, but a write leaves null out of the item and a read of an item without the attribute keeps {kept}, so a null that was written reads back as that value. {fix}.";
 
     private static string EnumOnProperty(string reason) => $"DYNA033 Warning: Enum 'Wind' asks for an unknown name to count as missing, but {reason}";
 }

@@ -189,6 +189,15 @@ internal static class Descriptors
         true,
         helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor NullReadsBackAsInitialValue = new(
+        "DYNA035",
+        "Nullable property does not read back null",
+        "'{0}' is nullable, but a write leaves null out of the item and a read of an item without the attribute keeps {1}, so a null that was written reads back as that value. {2}.",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -656,7 +665,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

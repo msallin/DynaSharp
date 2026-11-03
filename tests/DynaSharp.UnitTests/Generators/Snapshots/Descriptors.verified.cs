@@ -85,6 +85,7 @@ DYNA232 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA233 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA234 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA034 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA035 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA235 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA236 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA237 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -175,6 +176,7 @@ DYNA232 | Error | DynaSharp.Commands | Value of another type than its handle | T
 DYNA233 | Error | DynaSharp.Commands | Add on a handle that is no number or set | Add adds to a number or a set, and '{0}' holds '{1}'. Use Set to write the value.
 DYNA234 | Error | DynaSharp.Commands | Method of the items called on a read | '{0}' works on the items that a read streams, not on the read. Call {1}() first, as in {1}().{0}(...).
 DYNA034 | Warning | DynaSharp.Mapping | Property of a base type is not stored | '{0}' of '{1}' has a setter that '{2}' cannot reach, so '{2}' does not store it. Make the setter protected, or mark the property [DynamoDbIgnore] if no type is to store it.
+DYNA035 | Warning | DynaSharp.Mapping | Nullable property does not read back null | '{0}' is nullable, but a write leaves null out of the item and a read of an item without the attribute keeps {1}, so a null that was written reads back as that value. {2}.
 DYNA235 | Error | DynaSharp.Commands | IfVersion on a Put | {0}. {1}.
 DYNA236 | Warning | DynaSharp.Commands | Batch of an entity with a version | '{0}' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.
 DYNA237 | Warning | DynaSharp.Commands | DateTime without a kind | '{0}' is a DateTime of kind Unspecified, which names no instant, so {1}. Pass DateTimeKind.Utc, as in new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc), or use DateOnly for a date.

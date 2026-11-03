@@ -69,6 +69,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Make the setter `protected`, or `internal` within one assembly, or set the property through a constructor parameter. Where no type is to store it, mark it `[DynamoDbIgnore]`.
 - **Not reported.** A property without a setter, which is computed, and one with `[DynamoDbAttribute]` or a key attribute, which is written and never read. A base type in a compiled assembly, which shows the compiler no setter that is not public, so the property looks computed.
 
+`DYNA035` (warning): a nullable property that starts with a value, such as `public string? Note { get; set; } = "n/a";`, a `required` one too, or a constructor parameter of one with a default, such as `string? Note = "n/a"` in a positional record. A write leaves null out of the item, and a read of an item without the attribute keeps the initial value, so `Note = null` reads back as `"n/a"`.
+
+- **Fix.** Remove the initializer, or make the default of the parameter null, so that a missing attribute reads as null. Where the value is what a missing attribute should mean, make the property non-nullable.
+- **Not reported.** `= null`, `= default` and `= null!`, a property that is not nullable, not stored or computed, and a value that a constructor body assigns. A base type in a compiled assembly, which shows no initializer.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.

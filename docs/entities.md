@@ -99,7 +99,7 @@ The built-in converters store these types; anything else needs its own converter
 | `HashSet<T>`, `IReadOnlySet<T>` of strings, numbers, `byte[]`, `Guid` or an enum | `SS`, `NS` or `BS`. An empty set is left out, as DynamoDB refuses one, and reads as empty. One in a list or a dictionary cannot be left out, so a write throws an `ArgumentException` that names the property |
 | `Dictionary<string, T>`, `IReadOnlyDictionary<string, T>` | `M`, an attribute per key |
 | A `[DynamoDbDocument]` type | `M` |
-| `T?` of any of these | The form of `T`; a null property is left out of the item |
+| `T?` of any of these | The form of `T`; a null property is left out of the item, and an item without the attribute reads as the initial value, null unless an initializer gives one (`DYNA035`) |
 
 ## Project defaults
 

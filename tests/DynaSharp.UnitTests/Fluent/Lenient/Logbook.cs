@@ -16,7 +16,9 @@ internal sealed partial record Logbook
 
     public Wind? MaybeWind { get; init; }
 
+#pragma warning disable DYNA035 // The tests pin that a read keeps the initializer, which is what DYNA035 warns of.
     public Wind? SeededWind { get; init; } = Wind.Unknown;
+#pragma warning restore DYNA035
 
     public List<Wind> Winds { get; init; } = [];
 

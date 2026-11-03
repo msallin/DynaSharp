@@ -221,6 +221,7 @@ internal sealed class ModelBuilder
         }
 
         ReportUnreachableSetters(properties);
+        ReportNullsThatReadBackAsInitialValues(properties);
         var discriminator = _kind == MappedKind.Entity ? ReadDiscriminator() : null;
         if (_kind == MappedKind.Document)
         {
@@ -248,6 +249,18 @@ internal sealed class ModelBuilder
         foreach (var property in properties.Where(property => property.Symbol.SetMethod is not null && property.IsComputed && !property.IsStored && !property.IsIgnored && property.KeyOnly is null))
         {
             _bag.Report(Descriptors.UnreachableSetter, _spot, property.Name, property.Symbol.ContainingType.Name, _type.Name);
+        }
+    }
+
+    // DYNA035. Null is left out on write, and a read of an item without the attribute keeps the initial value, so a nullable property that starts with a value cannot read back null.
+    private void ReportNullsThatReadBackAsInitialValues(List<PropertyFacts> properties)
+    {
+        foreach (var property in properties)
+        {
+            if (NullableDefault.Of(property, _type, _compilation, _spot) is var (kept, fix, spot))
+            {
+                _bag.Report(Descriptors.NullReadsBackAsInitialValue, spot, property.Name, kept, fix);
+            }
         }
     }
 
