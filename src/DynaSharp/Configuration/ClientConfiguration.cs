@@ -43,10 +43,11 @@ internal sealed record ClientConfiguration
     public required string EndpointSource { get; init; }
 
     /// <summary>
-    /// Gets the endpoint if someone chose it, in the options or the environment, or <see langword="null"/> for the public endpoint of <see cref="Region"/>. That one follows from the region and the service, so a copy
-    /// of the options for another region or the other client must not carry it along.
+    /// Gets the endpoint a copy of the options may carry to another client: the one from the options or from <c>AWS_ENDPOINT_URL</c>, which name one address for every service. It is <see langword="null"/>
+    /// for the public endpoint of <see cref="Region"/> and for one from a service-specific variable, because both follow from the service, so a copy of the options for another region or the other client
+    /// (DynamoDB and DynamoDB Streams have a variable each) must not carry them along.
     /// </summary>
-    public Uri? ChosenEndpoint => EndpointSource == RegionSourceDefault ? null : Endpoint;
+    public Uri? ChosenEndpoint => EndpointSource is OptionsSource or EndpointVariable ? Endpoint : null;
 
     /// <summary>Gets the credentials provider.</summary>
     public required ICredentialsProvider Credentials { get; init; }

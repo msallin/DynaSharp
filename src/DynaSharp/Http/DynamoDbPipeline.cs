@@ -56,7 +56,7 @@ internal sealed class DynamoDbPipeline : IDisposable
     private readonly TimeSpan _attemptTimeout;
     private readonly Uri _endpoint;
 
-    // What the signer needs of the endpoint, and what Uri.Authority would build again on every attempt.
+    // What the signer needs of the endpoint, and what SigV4Signer.GetAuthority would build again on every attempt.
     private readonly string _authority;
     private readonly ArrayPool<byte> _pool;
     private readonly OperationTelemetry _telemetry;
@@ -89,7 +89,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         _timeProvider = configuration.TimeProvider;
         _attemptTimeout = configuration.AttemptTimeout;
         _endpoint = configuration.Endpoint;
-        _authority = _endpoint.Authority;
+        _authority = SigV4Signer.GetAuthority(_endpoint);
         _signer = new SigV4Signer(configuration.Region.Name, pool: pool);
     }
 

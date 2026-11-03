@@ -199,6 +199,22 @@ public sealed class DynamoDbPipelineTests
     }
 
     [Test]
+    public async Task ExecuteAsync_InternationalizedEndpoint_SignatureCoversThePunycodeHost()
+    {
+        // Arrange (HttpClient sends the ASCII form as Host header, so that is what the signature must cover)
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        var time = new ManualTimeProvider();
+        using var client = TestClient.Create(handler, time, serviceUrl: new Uri("http://b\u00fccher.example:8000"));
+
+        // Act
+        await client.GetItemAsync(TestClient.GetItem());
+
+        // Assert
+        var sent = handler.Requests.Single();
+        await Assert.That(sent.Headers["Authorization"]).IsEqualTo(Sign(sent, new Uri("http://xn--bcher-kva.example:8000"), TestClient.Credentials, time));
+    }
+
+    [Test]
     public async Task ExecuteAsync_EndpointWithPort_SendsToThatEndpoint()
     {
         // Arrange

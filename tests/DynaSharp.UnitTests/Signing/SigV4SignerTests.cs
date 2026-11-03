@@ -431,6 +431,56 @@ public sealed class SigV4SignerTests
     }
 
     [Test]
+    [Arguments("http://localhost:8000", "localhost:8000")]
+    [Arguments("http://localhost:80/", "localhost")]
+    [Arguments("https://dynamodb.eu-west-1.amazonaws.com/", "dynamodb.eu-west-1.amazonaws.com")]
+    [Arguments("https://Example.COM:443", "example.com")]
+    [Arguments("http://127.0.0.1:8000", "127.0.0.1:8000")]
+    [Arguments("http://[::1]:8000", "[::1]:8000")]
+    [Arguments("http://[::1]/", "[::1]")]
+    [Arguments("http://b\u00fccher.example:8000/", "xn--bcher-kva.example:8000")]
+    [Arguments("https://b\u00fccher.example/", "xn--bcher-kva.example")]
+    public async Task GetAuthority_Endpoint_IsTheHostWithThePortUnlessItIsTheDefaultOne(string endpoint, string expected)
+    {
+        // Arrange
+        var uri = new Uri(endpoint);
+
+        // Act
+        var authority = SigV4Signer.GetAuthority(uri);
+
+        // Assert
+        await Assert.That(authority).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task GetAuthority_InternationalizedHost_IsWhatHttpClientSendsAsHost()
+    {
+        // Arrange (the name does not resolve, so the connection goes to the loopback server)
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var server = new LoopbackServer();
+        var endpoint = new Uri($"http://b\u00fccher.example:{server.Port}/");
+        using var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (_, token) =>
+            {
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                await socket.ConnectAsync(IPAddress.Loopback, server.Port, token);
+                return new NetworkStream(socket, ownsSocket: true);
+            },
+        };
+        using var client = new HttpClient(handler);
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        var received = server.ReceiveRequestHeadersAsync(cancellation.Token);
+
+        // Act
+        using var response = await client.SendAsync(request, cancellation.Token);
+        var wireHeaders = await received;
+
+        // Assert
+        await Assert.That(wireHeaders["Host"]).IsEqualTo(SigV4Signer.GetAuthority(endpoint));
+    }
+
+    [Test]
     public async Task Sign_PayloadHashWithWrongLength_ThrowsArgumentException()
     {
         // Arrange

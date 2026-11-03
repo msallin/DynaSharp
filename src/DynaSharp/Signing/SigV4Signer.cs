@@ -87,6 +87,19 @@ internal sealed class SigV4Signer
     private static ReadOnlySpan<byte> FormSignedHeadersWithToken => "content-type;host;x-amz-date;x-amz-security-token"u8;
 
     /// <summary>
+    /// Builds the host to sign for an endpoint: what <see cref="HttpClient"/> sends as <c>Host</c> header, which is the host plus the port when it is not the default one of the scheme.
+    /// A name with non-ASCII characters goes out in punycode (<c>xn--bcher-kva.example</c>), whereas <see cref="Uri.Authority"/> keeps the Unicode form, so the signature would not match. An IPv6 address keeps its brackets.
+    /// </summary>
+    /// <param name="endpoint">An absolute endpoint.</param>
+    /// <returns>The host and the port to pass to <see cref="Sign"/> and <see cref="SignForm"/>.</returns>
+    internal static string GetAuthority(Uri endpoint)
+    {
+        // IdnHost has no brackets around an IPv6 address, Host has.
+        var host = endpoint.HostNameType == UriHostNameType.Dns ? endpoint.IdnHost : endpoint.Host;
+        return endpoint.IsDefaultPort ? host : $"{host}:{endpoint.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    /// <summary>
     /// Adds the <c>X-Amz-Date</c>, <c>X-Amz-Security-Token</c> (temporary credentials only) and <c>Authorization</c> headers to a
     /// DynamoDB request. The request is not checked: the pipeline builds it, and it is exactly what the canonical request below
     /// says: <c>POST /</c> without query, content type <see cref="WireProtocol.ContentType"/> without parameters, and the host and
@@ -94,9 +107,9 @@ internal sealed class SigV4Signer
     /// </summary>
     /// <param name="request">A request that has not been signed: the headers are added, not replaced.</param>
     /// <param name="authority">
-    /// The host plus the port when it is not the default one, which is what <see cref="HttpClient"/> sends as <c>Host</c> header
-    /// and what <see cref="Uri.Authority"/> returns. This matters for DynamoDB Local (<c>http://localhost:8000</c>). The caller keeps
-    /// it, because <see cref="Uri.Authority"/> builds a new string on every call.
+    /// The host plus the port when it is not the default one, which is what <see cref="HttpClient"/> sends as <c>Host</c> header,
+    /// as <see cref="GetAuthority"/> returns it. This matters for DynamoDB Local (<c>http://localhost:8000</c>). The caller keeps
+    /// it, because <see cref="GetAuthority"/> builds a new string on every call.
     /// </param>
     /// <param name="target">The value of the <c>X-Amz-Target</c> header of the request.</param>
     /// <param name="payloadSha256">

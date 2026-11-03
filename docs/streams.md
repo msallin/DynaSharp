@@ -54,7 +54,7 @@ using var client = new DynamoDbClient();
 using var streams = new DynamoDbStreamsClient(client.Options);
 ```
 
-Without options it reads the environment as `DynamoDbClient` does, with `AWS_ENDPOINT_URL_DYNAMODB_STREAMS` for the endpoint. A `ServiceUrl` applies to both clients, also one that the first client read from the environment: an emulator serves both APIs on one address, and AWS needs no URL for either. The client is thread-safe, so create one and keep it.
+Without options it reads the environment as `DynamoDbClient` does, with `AWS_ENDPOINT_URL_DYNAMODB_STREAMS` for the endpoint. A `ServiceUrl` applies to both clients, also one that the first client read from `AWS_ENDPOINT_URL` (an endpoint from `AWS_ENDPOINT_URL_DYNAMODB` stays with its client, and the streams client reads its own variable): an emulator serves both APIs on one address, and AWS needs no URL for either. The client is thread-safe, so create one and keep it.
 
 ## Reading a stream
 

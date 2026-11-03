@@ -99,10 +99,10 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRe
 `TransactGet()`, `DescribeTableAsync(tableName, ct)`, `RetryOnConflictAsync(...)`, `SendRawAsync(operation, requestJson, ct)` and `Dispose()`. `DescribeTableAsync` by name returns what the overload of the request API returns, a
 `DescribeTableResponse`, and needs no request and no `using DynaSharp.Requests;`. `new DynamoDbClient()` takes everything from the environment.
 
-`Options`, on `DynamoDbClient` and `DynamoDbStreamsClient`, is a `DynamoDbClientOptions` of what the client really uses, resolved once when it was created and not read again: a region and an endpoint from the environment are there and not
+`Options`, on `DynamoDbClient` and `DynamoDbStreamsClient`, is a `DynamoDbClientOptions` of what the client really uses, resolved once when it was created and not read again: a region and an endpoint from `AWS_ENDPOINT_URL` are there and not
 null, and `Credentials` is the provider in use. `client.Options with { MaxAttempts = 1 }` gives a second working client, which shares the provider and a handler that was given. A handler the client made stays its own, so `HttpHandler` is null then. `ServiceUrl`
-holds an endpoint from the options or the environment. The public endpoint derived from the region stays null, although the client uses it: this narrows "what the client really uses" on purpose, so that `client.Options with { Region = other }` goes to the endpoint of
-the new region, and a streams client built from the `Options` of a client gets its own endpoint. `ToString()` of the options names the type of the provider and shows no key, and an endpoint without user info.
+holds an endpoint from the options or from `AWS_ENDPOINT_URL`. The public endpoint derived from the region and an endpoint from a service-specific variable (`AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_DYNAMODB_STREAMS`) stay null, although the client uses them: this narrows "what the client really uses" on purpose, so that `client.Options with { Region = other }` goes to the endpoint of
+the new region, and a streams client built from the `Options` of a client (and the reverse) reads its own endpoint, also when `AWS_ENDPOINT_URL_DYNAMODB` is set. `ToString()` of the options names the type of the provider and shows no key, and an endpoint without user info.
 There is no interface: the test seam is the `HttpMessageHandler`.
 
 | Option | Default | Note |

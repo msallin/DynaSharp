@@ -92,8 +92,8 @@ public sealed class DynamoDbClient : IDisposable
     }
 
     /// <summary>
-    /// Gets the options as the client resolved them when it was created: what it really uses, so a region from the environment or a profile and an endpoint from the environment are here and not null, and
-    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. The one exception is the public endpoint of the region, see the remarks. Nothing is
+    /// Gets the options as the client resolved them when it was created: what it really uses, so a region from the environment or a profile and an endpoint from <c>AWS_ENDPOINT_URL</c> are here and not null, and
+    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. The exceptions are the endpoints that belong to the service, see the remarks. Nothing is
     /// read again, so the environment of today can say something else.
     /// </summary>
     /// <remarks>
@@ -102,9 +102,10 @@ public sealed class DynamoDbClient : IDisposable
     /// client made stays its own, so <see cref="DynamoDbClientOptions.HttpHandler"/> is <see langword="null"/> there and the second client makes one too, and each outlives the other.
     /// </para>
     /// <para>
-    /// <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or the environment, which a copy keeps. The public endpoint that the client derived from its region is in use and still stays
-    /// <see langword="null"/> here, on purpose: it is no choice of anyone's, but a consequence of the region and of the kind of client. So <c>client.Options with { Region = other }</c> goes to the endpoint of the new region, and
-    /// <c>new DynamoDbStreamsClient(client.Options)</c> gets its own endpoint.
+    /// <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or from <c>AWS_ENDPOINT_URL</c>, which a copy keeps. The public endpoint that the client derived from its region, and one
+    /// from <c>AWS_ENDPOINT_URL_DYNAMODB</c> (or <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c> for a streams client), are in use and still stay <see langword="null"/> here, on purpose: they belong to the service and the region
+    /// of this client, not to a copy. So <c>client.Options with { Region = other }</c> goes to the endpoint of the new region, and <c>new DynamoDbStreamsClient(client.Options)</c> gets its own endpoint, also when
+    /// <c>AWS_ENDPOINT_URL_DYNAMODB</c> is set.
     /// </para>
     /// <para>The options hold a provider and not credentials, and <see cref="DynamoDbClientOptions.ToString"/> prints only its type.</para>
     /// </remarks>

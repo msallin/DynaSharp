@@ -236,7 +236,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         var body = CreateBody();
         var payloadHash = SHA256.HashData(Encoding.UTF8.GetBytes(body));
         var signer = new SigV4Signer(signingRegion, "sts");
-        var authority = endpoint.Authority;
+        var authority = SigV4Signer.GetAuthority(endpoint);
         var timeProvider = _dependencies.TimeProvider;
 
         HttpRequestMessage CreateRequest()

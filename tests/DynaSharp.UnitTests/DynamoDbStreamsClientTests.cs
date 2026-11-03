@@ -29,13 +29,13 @@ public sealed class DynamoDbStreamsClientTests
     }
 
     [Test]
-    public async Task Options_RegionAndEndpointFromTheEnvironment_AreThere()
+    public async Task Options_RegionAndGenericEndpointFromTheEnvironment_AreThere()
     {
         // Arrange
         static string? Variables(string name) => name switch
         {
             "AWS_REGION" => "us-west-2",
-            "AWS_ENDPOINT_URL_DYNAMODB_STREAMS" => "http://localhost:8001",
+            "AWS_ENDPOINT_URL" => "http://localhost:8001",
             _ => null,
         };
 
@@ -46,6 +46,64 @@ public sealed class DynamoDbStreamsClientTests
 
         // Assert
         await Assert.That((options.Region?.Name, options.ServiceUrl, options.Credentials is DefaultCredentialsProvider)).IsEqualTo(((string?)"us-west-2", new Uri("http://localhost:8001"), true));
+    }
+
+    [Test]
+    public async Task Options_EndpointFromTheServiceVariable_StaysNull()
+    {
+        // Arrange (the variable belongs to DynamoDB Streams, so a copy for another client must not carry it along)
+        static string? Environment(string name) => name switch
+        {
+            "AWS_REGION" => "us-west-2",
+            "AWS_ENDPOINT_URL_DYNAMODB_STREAMS" => "http://localhost:8001",
+            _ => null,
+        };
+
+        using var client = new DynamoDbStreamsClient(new DynamoDbClientOptions(), Environment, null, null);
+
+        // Act
+        var endpoint = client.Options.ServiceUrl;
+
+        // Assert
+        await Assert.That(endpoint).IsNull();
+    }
+
+    [Test]
+    public async Task Options_OfAStreamsClientWithServiceSpecificEndpoints_GiveAClientItsOwnEndpoint()
+    {
+        // Arrange
+        static string? Variables(string name) => name switch
+        {
+            "AWS_REGION" => "us-west-2",
+            "AWS_ENDPOINT_URL_DYNAMODB" => "http://localhost:8001",
+            "AWS_ENDPOINT_URL_DYNAMODB_STREAMS" => "http://localhost:8002",
+            _ => null,
+        };
+
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music"}}"""));
+        using var streams = new DynamoDbStreamsClient(new DynamoDbClientOptions { Credentials = Credentials, HttpHandler = handler }, Variables, null, null);
+        using var client = new DynamoDbClient(streams.Options, Variables, null, null);
+
+        // Act
+        await client.DescribeTableAsync("Music");
+
+        // Assert
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:8001"));
+    }
+
+    [Test]
+    public async Task Options_OfAStreamsClientWithAnExplicitServiceUrl_GiveAClientTheSameEndpoint()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music"}}"""));
+        using var streams = new DynamoDbStreamsClient(new DynamoDbClientOptions { Region = TestClient.Region, ServiceUrl = LocalEndpoint, Credentials = Credentials, HttpHandler = handler }, static _ => null, null, null);
+        using var client = new DynamoDbClient(streams.Options, static name => name == "AWS_ENDPOINT_URL_DYNAMODB" ? "http://localhost:8001" : null, null, null);
+
+        // Act
+        await client.DescribeTableAsync("Music");
+
+        // Assert
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:8000/"));
     }
 
     [Test]

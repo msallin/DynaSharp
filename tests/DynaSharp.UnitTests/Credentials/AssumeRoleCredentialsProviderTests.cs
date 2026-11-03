@@ -568,6 +568,33 @@ public sealed class AssumeRoleCredentialsProviderTests
             .IsEqualTo(("POST / HTTP/1.1", true, true));
     }
 
+    [Test]
+    public async Task GetCredentialsAsync_InternationalizedEndpoint_SignsTheHostThatIsSent()
+    {
+        // Arrange (the name does not resolve, so the connection goes to the loopback server)
+        using var server = new LoopbackHttpServer(StsSuccess(AccessKeyId, DateTimeOffset.UtcNow.AddHours(1)));
+        var port = server.Endpoint.Port;
+        using var connecting = new SocketsHttpHandler
+        {
+            ConnectCallback = async (_, token) =>
+            {
+                var socket = new System.Net.Sockets.Socket(System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                await socket.ConnectAsync(IPAddress.Loopback, port, token);
+                return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+            },
+        };
+        var settings = Settings("s") with { Endpoint = new Uri($"http://b\u00fccher.example:{port}/") };
+        var dependencies = new CredentialsDependencies(Env(), NoFiles, NoWrites, CredentialProcess.Runner, connecting, TimeProvider.System, NullLoggerFactory.Instance);
+        var provider = new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), settings, dependencies);
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        server.Requests.TryPeek(out var request);
+        await Assert.That(request!.Headers.Contains($"Host: xn--bcher-kva.example:{port}")).IsTrue();
+    }
+
     internal static string StsSuccess(string accessKeyId, DateTimeOffset expiration) => $"""
         <AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
           <AssumeRoleResult>
