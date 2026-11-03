@@ -503,11 +503,17 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
-    [Arguments("""_ = ledgers.Get("a").Select([|Ledger.Attrs.Revision|]).SendAsync();""", "Ledger")]
-    [Arguments("""_ = ledgers.Query("a").Select([|Ledger.Attrs.Revision|]).ValuesAsync();""", "Ledger")]
-    [Arguments("""_ = ledgers.Scan().Select([|Ledger.Attrs.Revision|]).ValuesAsync();""", "Ledger")]
-    [Arguments("""_ = defaultedLedgers.Get("a").Select([|DefaultedLedger.Attrs.Revision|]).SendAsync();""", "DefaultedLedger")]
-    public async Task Select_VersionThatAReadOfTheEntityDefaults_Reports(string statement, string type)
+
+    // Every write of the library stores the version, and an item without one throws a message that names VersionMissing.Allow, which beats the silent 0 of a read of the entity.
+    [Arguments("""_ = ledgers.Get("a").Select(Ledger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = ledgers.Query("a").Select(Ledger.Attrs.Revision).ValuesAsync();""")]
+    [Arguments("""_ = ledgers.Scan().Select(Ledger.Attrs.Revision).ValuesAsync();""")]
+    [Arguments("""_ = defaultedLedgers.Get("a").Select(DefaultedLedger.Attrs.Revision).SendAsync();""")]
+
+    // A version that a read of the entity needs as well.
+    [Arguments("""_ = strictLedgers.Get("a").Select(StrictLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = positionalLedgers.Get("a").Select(PositionalLedger.Attrs.Revision).SendAsync();""")]
+    public async Task Select_PlainVersion_ReportsNothing(string statement)
     {
         // Arrange
         var source = Source(statement);
@@ -516,7 +522,7 @@ public sealed class ProjectionAnalyzerTests
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA209 Warning: 'Revision' of '{type}' is its version, and an item written without one has no such attribute: a read of the entity gives 0, Select does not and throws. Read the entity, or Select only from items that have a version."));
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -701,10 +707,6 @@ public sealed class ProjectionAnalyzerTests
     // An input of an index is an attribute that an update sets, on a table with a sort key and on one without.
     [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ValuesAsync();""")]
     [Arguments("""_ = routes.Scan().Select(Route.Attrs.City).ValuesAsync();""")]
-
-    // A version that a read of the entity needs as well, so there is nothing that Select does otherwise.
-    [Arguments("""_ = strictLedgers.Get("a").Select(StrictLedger.Attrs.Revision).SendAsync();""")]
-    [Arguments("""_ = positionalLedgers.Get("a").Select(PositionalLedger.Attrs.Revision).SendAsync();""")]
 
     // Handles that cannot be followed, a nested path, and one of a type without a model.
     [Arguments("""_ = orders.Get(key).Select(kept).SendAsync();""")]

@@ -103,6 +103,60 @@ public sealed class DynaSharpGeneratorTests
         await Assert.That(Hints(output)).IsEqualTo("Shop.Address.g.cs, Shop.Order.g.cs");
     }
 
+    [Test]
+    public async Task Run_EntityWithoutADiscriminator_GeneratesWhatAnOptOutGenerates()
+    {
+        // Arrange
+        var missing = TransportRecord(string.Empty, string.Empty);
+        var optedOut = TransportRecord(", Discriminator(OptOut = true)", string.Empty);
+
+        // Act
+        var generated = GeneratedText(GeneratorRun.Generate(missing, new DynaSharpGenerator(), LanguageVersion.Latest));
+
+        // Assert
+        await Assert.That(generated).IsEqualTo(GeneratedText(GeneratorRun.Generate(optedOut, new DynaSharpGenerator(), LanguageVersion.Latest)));
+    }
+
+    [Test]
+    public async Task Run_UseOfAnEntityWithoutADiscriminator_FailsOnDyna020Alone()
+    {
+        // Arrange (a service that forgot the attribute sees one error, not a CS0311 and a CS0426 on every use of the type)
+        var source = TransportRecord(string.Empty, """
+            public static class Transports
+            {
+                public static Table<TransportRecord> Open(DynamoDbClient client) => client.Table<TransportRecord>("Shop");
+
+                public static string Legs(Table<TransportRecord> transports) => transports.Get(TransportRecord.Keys.Of("t1")).Select(TransportRecord.Attrs.Legs).ToRequestJson();
+            }
+            """);
+
+        // Act
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That(string.Join("\n", output.Problems)).IsEqualTo("(7,26): error DYNA020: Entity 'TransportRecord' has no discriminator. Add [Discriminator(\"TRANSPORT_RECORD\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.");
+    }
+
+    private static string TransportRecord(string discriminator, string use) => $$"""
+        namespace Shop
+        {
+            using DynaSharp;
+            using DynaSharp.Mapping;
+
+            [DynamoDbEntity, PartitionKey("TRANSPORT#{Id}"){{discriminator}}]
+            public partial class TransportRecord
+            {
+                public required string Id { get; init; }
+
+                public int Legs { get; init; }
+            }
+
+            {{use}}
+        }
+        """;
+
+    private static string GeneratedText(GeneratorDriverRunResult result) => string.Join("\n", result.GeneratedTrees.Select(static tree => tree.ToString()));
+
     private static string Hints(GeneratorRunOutput output) =>
         string.Join(", ", output.Result.Results[0].GeneratedSources.Select(static source => source.HintName).Order(StringComparer.Ordinal));
 

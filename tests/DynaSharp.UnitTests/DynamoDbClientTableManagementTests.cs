@@ -10,13 +10,11 @@ namespace DynaSharp.UnitTests;
 /// </summary>
 public sealed class DynamoDbClientTableManagementTests
 {
-    private const string UpdatingOrders = """{"TableDescription":{"TableName":"Orders","TableStatus":"UPDATING","BillingModeSummary":{"BillingMode":"PAY_PER_REQUEST"}}}""";
-
     [Test]
     public async Task ListTablesAsync_Request_SendsTheListTablesOperationWithTheRequestBody()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableNames":[]}"""));
+        using var handler = new StubHandler(_ => StubResponse.TablesListed());
         using var client = TestClient.Create(handler);
 
         // Act
@@ -34,7 +32,7 @@ public sealed class DynamoDbClientTableManagementTests
     public async Task ListTablesAsync_Page_ReturnsTheNamesAndTheLastEvaluatedTableName()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"LastEvaluatedTableName":"Reply","TableNames":["Forum","ProductCatalog","Reply"]}"""));
+        using var handler = new StubHandler(_ => StubResponse.TablesListed(["Forum", "ProductCatalog", "Reply"], "Reply"));
         using var client = TestClient.Create(handler);
 
         // Act
@@ -49,7 +47,7 @@ public sealed class DynamoDbClientTableManagementTests
     {
         // Arrange
         var pool = new CountingArrayPool<byte>();
-        using var handler = new StubHandler(_ => StubResponse.Json("""{"TableNames":["a-table"]}"""));
+        using var handler = new StubHandler(_ => StubResponse.TablesListed("a-table"));
         using var client = TestClient.Create(handler, pool: pool);
 
         // Act
@@ -189,7 +187,7 @@ public sealed class DynamoDbClientTableManagementTests
     public async Task UpdateTableAsync_Request_SendsTheUpdateTableOperationWithTheRequestBody()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json(UpdatingOrders));
+        using var handler = new StubHandler(_ => StubResponse.TableUpdated("Orders"));
         using var client = TestClient.Create(handler);
 
         // Act
@@ -207,7 +205,7 @@ public sealed class DynamoDbClientTableManagementTests
     public async Task UpdateTableAsync_Updating_ReturnsTheTableInTheUpdatingState()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.Json(UpdatingOrders));
+        using var handler = new StubHandler(_ => StubResponse.TableUpdated("Orders"));
         using var client = TestClient.Create(handler);
 
         // Act
@@ -222,7 +220,7 @@ public sealed class DynamoDbClientTableManagementTests
     {
         // Arrange
         var pool = new CountingArrayPool<byte>();
-        using var handler = new StubHandler(_ => StubResponse.Json(UpdatingOrders));
+        using var handler = new StubHandler(_ => StubResponse.TableUpdated("Orders"));
         using var client = TestClient.Create(handler, pool: pool);
 
         // Act

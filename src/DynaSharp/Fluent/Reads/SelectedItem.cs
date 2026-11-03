@@ -29,7 +29,13 @@ internal readonly struct SelectedItem<TValue, TConverter> : IItemReader<TValue>
             return value!;
         }
 
-        return TConverter.TryReadMissing(out var missing) ? missing : throw DynamoDbMappingException.Missing(entity, path);
+        if (TConverter.TryReadMissing(out var missing))
+        {
+            return missing;
+        }
+
+        // A version that allows an item without one has a handle that answers above, so this is a version that rejects it.
+        throw path == state.Table.Writes?.VersionAttributeName ? DynamoDbMappingException.MissingVersion(entity, path) : DynamoDbMappingException.Missing(entity, path);
     }
 
     // An item without the attribute passes, as it does in generated code: a read checks a discriminator that is there.

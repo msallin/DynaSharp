@@ -5,12 +5,12 @@ using static DynaSharp.UnitTests.Testing.HandlerRequest;
 namespace DynaSharp.UnitTests.Testing;
 
 /// <summary>
-/// Which operations the answer of each factory is for, as a <see cref="StubHandler"/> reads them: a request to <c>ListTables</c>, which no factory answers, shows what a response is for, or that it fits any.
+/// Which operations the answer of each factory is for, as a <see cref="StubHandler"/> reads them: a request to <c>DescribeLimits</c>, which no factory answers, shows what a response is for, or that it fits any.
 /// </summary>
 public sealed class StubResponseOperationTests
 {
     private const string Write = "PutItem, UpdateItem or DeleteItem";
-    private const string NoFactoryAnswers = "DynamoDB_20120810.ListTables";
+    private const string NoFactoryAnswers = "DynamoDB_20120810.DescribeLimits";
 
     private static readonly Item Key = new() { ["pk"] = "a" };
 
@@ -31,7 +31,10 @@ public sealed class StubResponseOperationTests
         ["BatchItems"] = (() => StubResponse.BatchItems("Orders", [Key]), "BatchGetItem"),
         ["Table"] = (() => StubResponse.Table("Orders"), "DescribeTable"),
         ["TableCreated"] = (() => StubResponse.TableCreated("Orders"), "CreateTable"),
+        ["TableUpdated"] = (() => StubResponse.TableUpdated("Orders"), "UpdateTable"),
         ["TableDeleted"] = (() => StubResponse.TableDeleted("Orders"), "DeleteTable"),
+        ["TablesListed"] = (() => StubResponse.TablesListed("Orders"), "ListTables"),
+        ["TablesListed with more to come"] = (() => StubResponse.TablesListed(["Orders"], "Orders"), "ListTables"),
         ["TimeToLive"] = (() => StubResponse.TimeToLive(TimeToLiveStatus.Enabled, "expires"), "DescribeTimeToLive"),
         ["TimeToLiveUpdated"] = (() => StubResponse.TimeToLiveUpdated(true, "expires"), "UpdateTimeToLive"),
         ["StreamDescription"] = (() => StubResponse.StreamDescription("Orders"), "DescribeStream"),
@@ -65,7 +68,7 @@ public sealed class StubResponseOperationTests
         var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: NoFactoryAnswers));
 
         // Assert
-        await Assert.That(exception.Message).Contains($"for a request to ListTables, but that response is the answer to {answers}.", StringComparison.Ordinal);
+        await Assert.That(exception.Message).Contains($"for a request to DescribeLimits, but that response is the answer to {answers}.", StringComparison.Ordinal);
     }
 
     [Test]

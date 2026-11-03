@@ -1242,16 +1242,56 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
-    public async Task Build_EntityWithoutDiscriminator_ReportsDyna020()
+
+    // The suggestion is the name in snake case, upper case, as the discriminators of a table usually are. Nothing is cut off: a Record or an Entity at the end can be part of the name.
+    [Arguments("E", "E")]
+    [Arguments("TransportRecord", "TRANSPORT_RECORD")]
+    [Arguments("XMLReader", "XML_READER")]
+    [Arguments("Line2Total", "LINE2_TOTAL")]
+    public async Task Build_EntityWithoutDiscriminator_ReportsDyna020WithTheNameInSnakeCase(string name, string suggested)
     {
         // Arrange
-        const string Source = """[DynamoDbEntity, PartitionKey("E")] public partial class [|E|] { }""";
+        var source = $$"""[DynamoDbEntity, PartitionKey("E")] public partial class [|{{name}}|] { }""";
 
         // Act
-        var report = Analysis.Report(Source);
+        var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA020 Error: Entity 'E' has no discriminator. Add [Discriminator(\"E\")], or [Discriminator(OptOut = true)] for a table written by other tools."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA020 Error: Entity '{name}' has no discriminator. Add [Discriminator(\"{suggested}\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project."));
+    }
+
+    [Test]
+    public async Task Build_EntityWithoutDiscriminator_KeepsTheModelOfAnOptOut()
+    {
+        // Arrange (only this error leaves the model whole, so that the type is generated beside it)
+        const string Source = """[DynamoDbEntity, PartitionKey("E")] public partial class E { }""";
+
+        // Act
+        var entity = Analysis.Model(Source, "global::Shop.E").Entity!;
+
+        // Assert
+        await Assert.That((entity.Discriminator, entity.DiscriminatorAttribute)).IsEqualTo(((string?)null, "_type"));
+    }
+
+    [Test]
+    public async Task Build_EntityWithoutDiscriminatorAndAnotherError_HasNoModel()
+    {
+        // Arrange (DYNA021 is an error of the model, which DYNA020 does not make whole)
+        const string Source = """
+            namespace Shop
+            {
+                using DynaSharp.Mapping;
+
+                [DynamoDbEntity]
+                public partial class E { [PartitionKey, DynamoDbIgnore] public string Id { get; set; } = ""; }
+            }
+            """;
+
+        // Act
+        var result = Analysis.Results(Source, []).Single();
+
+        // Assert
+        await Assert.That((result.Type, result.Diagnostics.Count)).IsEqualTo(((TypeModel?)null, 2));
     }
 
     [Test]

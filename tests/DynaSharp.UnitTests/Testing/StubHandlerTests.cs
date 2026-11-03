@@ -719,6 +719,25 @@ public sealed class StubHandlerTests
             StringComparison.Ordinal);
     }
 
+    // The answer of DescribeTable is what a test of an UpdateTable reaches for first, and a ListTables had nothing but Json.
+    [Test]
+    [Arguments("UpdateTable", "StubResponse.TableUpdated for an UpdateTable")]
+    [Arguments("ListTables", "StubResponse.TablesListed for a ListTables")]
+    public async Task SendAsync_QueuedResponseOfAnotherOperation_MessageNamesTheFactoryOfTheOperation(string operation, string factory)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Table("Orders"));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810." + operation));
+
+        // Assert
+        await Assert.That(exception.Message).EndsWith(
+            $"Give the request the answer of its own operation, {factory}, or StubResponse.Json for a body that fits any.",
+            StringComparison.Ordinal);
+    }
+
     [Test]
     public async Task SendAsync_QueuedResponseOfAnotherOperation_StillRecordsTheRequest()
     {

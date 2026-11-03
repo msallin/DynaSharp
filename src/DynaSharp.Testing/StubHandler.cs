@@ -235,9 +235,10 @@ public sealed class StubHandler : HttpMessageHandler
             {
                 var source = position > 0 ? $"queued response {position}" : fromResponder ? "the response of its responder" : nameof(DefaultResponse);
                 var target = operation is null ? "a request without X-Amz-Target" : $"a request to {operation}";
+                var factory = StubResponse.FactoryFor(operation) is { } name ? $", {name}, or" : ", or";
                 throw new InvalidOperationException(
                     $"StubHandler took {source} for {target}, but that response is the answer to {response.DescribeOperations()}. " +
-                    "A test that went on with it would pass for the wrong reason. Give the request the answer of its own operation, or StubResponse.Json for a body that fits any.");
+                    $"A test that went on with it would pass for the wrong reason. Give the request the answer of its own operation{factory} StubResponse.Json for a body that fits any.");
             }
         }
 

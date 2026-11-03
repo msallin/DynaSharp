@@ -118,6 +118,51 @@ public sealed partial class StubResponse
     }
 
     /// <summary>
+    /// Creates the answer to an <c>UpdateTable</c>: the description of <see cref="Table(string, TableStatus, ReadOnlySpan{GlobalSecondaryIndexDescription})"/> under <c>TableDescription</c>, with the status <c>UPDATING</c>, which is
+    /// what DynamoDB sends while it applies the change. What a caller does next is a wait on <c>DescribeTable</c>, so a test queues <see cref="Table(string, TableStatus, ReadOnlySpan{GlobalSecondaryIndexDescription})"/> after this.
+    /// </summary>
+    /// <remarks>
+    /// An index that the update adds is <c>CREATING</c> in the answer of DynamoDB, and the description may still show what the table had before: <c>TableUpdated("Orders", TableStatus.Updating, GlobalIndex("ByCustomer", IndexStatus.Creating))</c>.
+    /// The indexes are written as they are given, so the status of each is the one of its <see cref="GlobalIndex"/>, <c>ACTIVE</c> unless the test says otherwise.
+    /// </remarks>
+    /// <param name="name">The table name.</param>
+    /// <param name="status">The status of the table.</param>
+    /// <param name="globalIndexes">The global secondary indexes, as <see cref="GlobalIndex"/> makes them.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="status"/> or the status of an index is <c>Unknown</c>, which has no name on the wire, or not a member of its enum.</exception>
+    public static StubResponse TableUpdated(string name, TableStatus status = TableStatus.Updating, params ReadOnlySpan<GlobalSecondaryIndexDescription> globalIndexes)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return TableAnswer(For.UpdateTable, "TableDescription", MadeUpTable(name, status, globalIndexes));
+    }
+
+    /// <summary>
+    /// Creates the answer to a <c>ListTables</c> that is the last page: <c>{"TableNames":["Orders","Users"]}</c>. A page that more pages follow is
+    /// <see cref="TablesListed(ReadOnlySpan{string}, string)"/>.
+    /// </summary>
+    /// <remarks>The names are written in the order given. DynamoDB sends them sorted, so a test that reads more than one gives them that way.</remarks>
+    /// <param name="tableNames">The names on the page, none for an account without tables.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException">A name is <see langword="null"/>.</exception>
+    public static StubResponse TablesListed(params ReadOnlySpan<string> tableNames) => TableNamesPage(tableNames, null);
+
+    /// <summary>
+    /// Creates the answer to a <c>ListTables</c> that more pages follow: <c>{"TableNames":["Orders","Users"],"LastEvaluatedTableName":"Users"}</c>. The caller passes the last name as
+    /// <see cref="ListTablesRequest.ExclusiveStartTableName"/> of the next request, which a test answers with the next page.
+    /// </summary>
+    /// <remarks>DynamoDB gives the last name of the page here; the factory writes what it is given, so a test of a client that goes by it can give another.</remarks>
+    /// <param name="tableNames">The names on the page, in the order given.</param>
+    /// <param name="lastEvaluatedTableName">The name to go on after.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException">A name or <paramref name="lastEvaluatedTableName"/> is <see langword="null"/>.</exception>
+    public static StubResponse TablesListed(ReadOnlySpan<string> tableNames, string lastEvaluatedTableName)
+    {
+        ArgumentNullException.ThrowIfNull(lastEvaluatedTableName);
+        return TableNamesPage(tableNames, lastEvaluatedTableName);
+    }
+
+    /// <summary>
     /// Creates the answer to a <c>DeleteTable</c>: <c>TableDescription</c> with the status <c>DELETING</c> and only what the example of the API reference holds, because a table that is going away reports no keys and no indexes.
     /// </summary>
     /// <param name="name">The table name.</param>
@@ -163,6 +208,27 @@ public sealed partial class StubResponse
             json.WriteString("AttributeName", attributeName);
             json.WriteBoolean("Enabled", enabled);
             json.WriteEndObject();
+        }));
+    }
+
+    private static StubResponse TableNamesPage(ReadOnlySpan<string> tableNames, string? lastEvaluatedTableName)
+    {
+        foreach (var tableName in tableNames)
+        {
+            ArgumentNullException.ThrowIfNull(tableName, nameof(tableNames));
+        }
+
+        var names = tableNames.ToArray();
+        return Answer(For.ListTables, Render(json =>
+        {
+            json.WriteStartArray("TableNames");
+            foreach (var tableName in names)
+            {
+                json.WriteStringValue(tableName);
+            }
+
+            json.WriteEndArray();
+            OperationJson.WriteStringIfSet(json, "LastEvaluatedTableName"u8, lastEvaluatedTableName);
         }));
     }
 

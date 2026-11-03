@@ -91,7 +91,10 @@ internal sealed class TableModel
     /// </summary>
     public bool UpdateWritesDiscriminator => Discriminator is not null && !DiscriminatorIsKey;
 
-    /// <summary>Gets what a write of the entity owes its version and its keys, or <see langword="null"/> if there is nothing, which a table without an entity never has.</summary>
+    /// <summary>
+    /// Gets what a write of the entity owes its version and its keys, or <see langword="null"/> if there is nothing, which a table without an entity never has. An index, which is not written, has the one of its
+    /// table, so that a read of one attribute knows the version.
+    /// </summary>
     public EntityWrites? Writes { get; init; }
 
     /// <summary>Gets what the entity of the table declares, or <see langword="null"/> for a table without an entity, which is what creating the table starts from.</summary>
@@ -238,7 +241,7 @@ internal sealed class TableModel
     /// <param name="isGlobal">Whether the entity says that the index is global. A local index has the partition key of its table, so another partition key says the same.</param>
     /// <returns>The model.</returns>
     public TableModel ForIndex(string indexName, string partitionKeyName, string? sortKeyName, bool isGlobal = false) =>
-        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this, isGlobal || partitionKeyName != PartitionKeyName) { ReadTypeName = ReadTypeName };
+        new(Core, Name, partitionKeyName, sortKeyName, Discriminator, DiscriminatorAttributeName, indexName, this, isGlobal || partitionKeyName != PartitionKeyName) { ReadTypeName = ReadTypeName, Writes = Writes };
 
     /// <summary>Stops a consistent read of a global index before it goes out, which DynamoDB would reject at the end of a round trip.</summary>
     /// <exception cref="InvalidOperationException">This model reads an index that is known to be global.</exception>

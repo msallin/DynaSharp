@@ -16,6 +16,16 @@ internal sealed class DiagnosticBag
         HasErrors |= descriptor.DefaultSeverity == DiagnosticSeverity.Error;
     }
 
+    /// <summary>
+    /// Reports an error that leaves the model whole, so the type is generated beside it and every use of it compiles: only the error fails the build, not the <c>CS0311</c> and <c>CS0426</c> a missing
+    /// <c>Keys</c> would add on each use. That holds for a missing discriminator alone, whose model is the one of an opt-out. Every other error means that some part of the model cannot be built.
+    /// </summary>
+    /// <param name="descriptor">The descriptor, an error.</param>
+    /// <param name="spot">Where it is.</param>
+    /// <param name="arguments">The arguments of the message.</param>
+    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) =>
+        _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span));
+
     /// <summary>Records that the compiler already reports a problem, such as a type that does not resolve, so no model can exist.</summary>
     public void MarkBroken() => HasErrors = true;
 

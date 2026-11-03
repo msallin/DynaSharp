@@ -86,6 +86,9 @@ static DynaSharp.Testing.StubResponse.Table(string! name, DynaSharp.TableStatus 
 static DynaSharp.Testing.StubResponse.Table<T>(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Active) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TableCreated(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Creating, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TableDeleted(string! name) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TablesListed(params System.ReadOnlySpan<string!> tableNames) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TablesListed(System.ReadOnlySpan<string!> tableNames, string! lastEvaluatedTableName) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.TableUpdated(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Updating, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TimeToLive(DynaSharp.Requests.TimeToLiveStatus status, string? attributeName = null) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TimeToLiveUpdated(bool enabled, string! attributeName) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubStsResponse.Credentials(DynaSharp.Credentials.AwsCredentials! credentials) -> DynaSharp.Testing.StubStsResponse!

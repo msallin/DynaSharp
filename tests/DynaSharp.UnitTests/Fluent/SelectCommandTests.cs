@@ -14,15 +14,14 @@ public sealed class SelectCommandTests
     [Test]
     public async Task SendAsync_VersionOfAnItemWithoutOne_ThrowsWhereAReadOfTheEntityGivesZero()
     {
-        // Arrange (DYNA209 reports this where it sees a handle, and a variable is no such place)
+        // Arrange (an Update with IgnoreVersion() that created the item leaves it without one)
         using var handler = new StubHandler(static _ => StubResponse.Json("""{"Item":{"pk":{"S":"r1"},"Id":{"S":"r1"},"_type":{"S":"VERSIONED_ROSTER"}}}"""));
         using var client = TestClient.Create(handler);
         var rosters = client.Table<VersionedRoster>("Shop");
-        var revision = VersionedRoster.Attrs.Revision;
 
         // Act
         var entity = await rosters.Get(VersionedRoster.Keys.Of("r1")).ItemAsync();
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await rosters.Get(VersionedRoster.Keys.Of("r1")).Select(revision).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await rosters.Get(VersionedRoster.Keys.Of("r1")).Select(VersionedRoster.Attrs.Revision).SendAsync());
 
         // Assert
         await Assert.That((entity!.Revision, failure.AttributeName)).IsEqualTo((0L, "Revision"));

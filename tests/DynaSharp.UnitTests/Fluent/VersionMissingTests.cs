@@ -8,6 +8,8 @@ public sealed class VersionMissingTests
 {
     private const string Key = """{"pk":{"S":"PARCEL#p1"}}""";
 
+    private const string VersionWrittenWithoutOne = "The item has no version attribute \"Revision\", so Select cannot read the version of Ticket: the item was written without one. A table that keeps such items declares [Version(Missing = VersionMissing.Allow)], which reads them as version 0.";
+
     private const string ReadsAsZero = """
         "ConditionExpression":"(attribute_not_exists(#n0) OR #n0 = :v0)","ExpressionAttributeNames":{"#n0":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"0"}}
         """;
@@ -498,7 +500,7 @@ public sealed class VersionMissingTests
     }
 
     [Test]
-    public async Task SendAsync_SelectOfAVersionThatRejectsIt_StillThrows()
+    public async Task SendAsync_SelectOfAVersionThatRejectsIt_ThrowsThatTheItemWasWrittenWithoutOne()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -507,12 +509,42 @@ public sealed class VersionMissingTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-#pragma warning disable DYNA209 // Which is what this test is about.
         var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await tickets.Get(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).Select(Ticket.Attrs.Revision).SendAsync());
-#pragma warning restore DYNA209
 
         // Assert
-        await Assert.That(failure.Message).Contains("Revision");
+        await Assert.That((failure.Message, failure.AttributeName)).IsEqualTo((VersionWrittenWithoutOne, "Revision"));
+    }
+
+    [Test]
+    public async Task ValuesAsync_SelectOfAVersionThatRejectsItFromAnIndex_ThrowsThatTheItemWasWrittenWithoutOne()
+    {
+        // Arrange (an index is not written, and still knows the version of its table)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        handler.Enqueue(StubResponse.Json("""{"Items":[{"Id":{"S":"t1"}}],"Count":1,"ScannedCount":1}"""));
+        var byState = client.Table<Ticket>("Shop").Index(Ticket.Indexes.ByState);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await byState.Query(Ticket.Keys.ByStatePk.Of(TicketState.Open)).Select(Ticket.Attrs.Revision).ValuesAsync().ToListAsync());
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo(VersionWrittenWithoutOne);
+    }
+
+    [Test]
+    public async Task SendAsync_SelectOfAnotherAttributeOfAVersionedEntity_ThrowsThatItIsMissing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        handler.Enqueue(StubResponse.Json("""{"Item":{"_type":{"S":"TICKET"}}}"""));
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await tickets.Get(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).Select(Ticket.Attrs.Votes).SendAsync());
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("The attribute \"Votes\" is missing, so the item cannot be read as Ticket.");
     }
 
     [Test]

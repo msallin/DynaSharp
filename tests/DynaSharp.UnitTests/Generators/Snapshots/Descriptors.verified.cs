@@ -96,7 +96,7 @@ DYNA016 | Error | DynaSharp.Mapping | Type is not accessible | Type '{0}' used b
 DYNA017 | Error | DynaSharp.Mapping | Property cannot be a key | Property '{0}' of type '{1}' cannot be a DynamoDB key, which must be a string, number or binary
 DYNA018 | Error | DynaSharp.Mapping | Index is invalid | Index '{0}' is invalid: {1}
 DYNA019 | Error | DynaSharp.Mapping | Type is outside a nullable context | Type '{0}' must be in an enabled nullable context, otherwise nullable properties cannot be told from others
-DYNA020 | Error | DynaSharp.Mapping | Entity has no discriminator | Entity '{0}' has no discriminator. Add [Discriminator("{1}")], or [Discriminator(OptOut = true)] for a table written by other tools.
+DYNA020 | Error | DynaSharp.Mapping | Entity has no discriminator | Entity '{0}' has no discriminator. Add [Discriminator("{1}")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.
 DYNA021 | Error | DynaSharp.Mapping | Plain key is ignored | Property '{0}' is a plain key, so it cannot be [DynamoDbIgnore]
 DYNA022 | Error | DynaSharp.Mapping | Discriminator is invalid | [Discriminator] on '{0}' is invalid: {1}
 DYNA023 | Error | DynaSharp.Mapping | [Version] property is part of a key | [Version] property '{0}' is part of a key. A write changes the version, and a key cannot follow it.

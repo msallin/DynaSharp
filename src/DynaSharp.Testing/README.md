@@ -31,12 +31,12 @@ The timeout of a wait for a table, `WaitUntilActiveAsync` and `WaitUntilActive()
 | For | Use |
 |---|---|
 | Items | `Item`, `Items`, `Count`, `Attributes`, `BatchItems`, `Unprocessed` |
-| Tables | `Table`, `Table<T>`, `TableCreated`, `TableDeleted`, `TimeToLive`, `TimeToLiveUpdated` |
+| Tables | `Table`, `Table<T>`, `TableCreated`, `TableUpdated`, `TableDeleted`, `TablesListed`, `TimeToLive`, `TimeToLiveUpdated` |
 | Streams | `StreamDescription`, `Shard`, `ShardIterator`, `Records`, which takes `Inserted<T>`, `Modified<T>`, `Removed<T>` and `Change` |
 | Failures | `ConditionalCheckFailed`, `TransactionCanceled`, `ResourceNotFound`, `ResourceInUse`, `DynamoDbError` |
 | Anything else | `Json` |
 
-Each is the answer to the operations it is written for: `Item` to `GetItem`, `Items` and `Count` to `Query` and `Scan`, `Attributes` and `ConditionalCheckFailed` to `PutItem`, `UpdateItem` and `DeleteItem`, `TransactionCanceled` to the two transactions, `BatchItems` and `Unprocessed` to their batch, and each answer of the tables and streams to the one call it describes, such as `TimeToLiveUpdated` to `UpdateTimeToLive`. `ResourceNotFound` and `ResourceInUse` have the shape of an error that many operations return and fit any, as do `DynamoDbError`, `Json` and `new StubResponse()`.
+Each is the answer to the operations it is written for: `Item` to `GetItem`, `Items` and `Count` to `Query` and `Scan`, `Attributes` and `ConditionalCheckFailed` to `PutItem`, `UpdateItem` and `DeleteItem`, `TransactionCanceled` to the two transactions, `BatchItems` and `Unprocessed` to their batch, and each answer of the tables and streams to the one call it describes, such as `TableUpdated` to `UpdateTable` and `TablesListed` to `ListTables`, whose overload with `lastEvaluatedTableName` is a page that more pages follow. `ResourceNotFound` and `ResourceInUse` have the shape of an error that many operations return and fit any, as do `DynamoDbError`, `Json` and `new StubResponse()`.
 
 `Table<T>(name)` lists the keys and the indexes of the entity as active, so a wait for its indexes ends on it. It describes one entity: a table of several takes `Table(name, status, indexes)`.
 

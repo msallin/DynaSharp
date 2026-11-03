@@ -7,7 +7,7 @@ link on a heading that exists and names the rule.
 ## Entities
 
 The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types, and `DYNA026`, `DYNA032` and `DYNA033` come from analyzers. Each comes with what to change, and a type with an error generates no code, so the `CS0311` on
-its table that a build shows beside it goes away with it.
+its table that a build shows beside it goes away with it. `DYNA020` is the one exception: the type is generated as if it opted out, so its uses compile and the build fails on that error alone.
 
 | Rule | What is wrong | What to do |
 |---|---|---|
@@ -30,7 +30,7 @@ its table that a build shows beside it goes away with it.
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context | Enable nullable reference types |
-| `DYNA020` | An entity has no discriminator | Add the `[Discriminator("ROOM")]` the message suggests, or `[Discriminator(OptOut = true)]` for a table written by other tools. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]` does that for every entity of a project |
+| `DYNA020` | An entity has no discriminator. The type is still generated, as with `OptOut`, so its uses compile and this error alone fails the build | Add the `[Discriminator("TRANSPORT_RECORD")]` the message suggests for `TransportRecord`, its name in snake case and upper case, or `[Discriminator(OptOut = true)]` for a table written by other tools. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, which the message names as well, does that for every entity of a project |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, or both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |
@@ -152,14 +152,13 @@ reported. Neither is a key input that a key restores, because a read adds its ke
 document needs. It looks at all `Project` calls of a chain from the table to its terminal, also on `BatchGet`, a fan-out and a mixed read, where every type counts. A value that is not constant, a chain that is kept in a variable, returned, or passes a method of your own, and a read of `Item` are not looked at, and neither is a `ToRequestJson()` or a `CountAsync()`, which read no item.
 
 `DYNA209` (warning) reports `Select(handle)` of an attribute that an item can lack where a read of the entity goes on, because `Select` reads the attribute and nothing else, and throws `DynamoDbMappingException`. A converter of your own that answers `TryReadMissing` gives `Select` a value, so none of the cases below is reported for it.
-
 The first such attribute is a stored property that a key of the table holds, such as `orders.Get(key).Select(Order.Attrs.UserId)` with `[PartitionKey("USER#{UserId}")]`. An update stores no input of the table key, so an item that an `Update` created has the key and not the attribute, and a read of the entity restores the value from the key. On items that a `Put` wrote `Select` reads the value. Read the entity for such a table, call `StoreKeyInputs()` on every update of the table, or suppress this where every item comes from a `Put`. A `[KeyOnly]` property has no handle at all, so that does not compile, a plain key is its own attribute, an input of a key of an index is set like any other attribute, and a nullable input is not reported, because a missing attribute reads as null.
-
-Another is a `[Version]`, such as `orders.Get(key).Select(Order.Attrs.Revision)`. An item written without one, by other code or by an `Update` that ignored the version, has no such attribute, and a read of the entity gives 0. Read the entity, suppress this where every item has a version, or declare what the table holds with `[Version(Missing = VersionMissing.Allow)]`, whose handle gives 0 and is not reported. A `required` version and a parameter of a constructor without a default are not reported, because a read of the entity throws for such an item as well.
 
 Another is a property with `[OmitEmpty]` that is not nullable, such as `orders.Get(key).Select(Order.Attrs.Lines)` on a `List<OrderLine>`. An empty value is not stored, and a read of the entity keeps the initial value. Read the entity, or make the property nullable, which reads as null. A set is not reported, because a missing attribute reads as an empty set.
 
 The last is a property whose converter implements `CountsAsMissing`, such as `ports.Get(key).Select(Port.Attrs.Position)` on a lenient enum. The attribute is there, but the converter counts its value as missing, and a read of the entity keeps the initial value. Read the entity, make the property nullable, which reads as null, or have the converter answer `TryReadMissing`. A `required` member is not reported, because a read of the entity throws as well, and neither is a plain key, which a read of the entity does not count as missing.
+
+A `[Version]`, such as `orders.Get(key).Select(Order.Attrs.Revision)`, is not reported. Every write of the library stores it but an `Update` with `IgnoreVersion()` that creates the item, and on an item without one, from there or from other code, `Select` throws a `DynamoDbMappingException` that says the item was written without a version and points at `[Version(Missing = VersionMissing.Allow)]`, whose handle reads such an item as 0. That is louder than the 0 a read of the entity gives.
 
 `DYNA217` (warning) reports a `RetryOnConflictAsync` inside the delegate of another one: `client.RetryOnConflictAsync(ct => new(client.RetryOnConflictAsync(Run, ct)))`. The runs multiply, 5 of 5 are 25, and an inner retry that used up its runs throws what it last caught, which the outer one counts as a conflict of its own, so one lost race on the inner item starts the whole run over. A run is one read-modify-write, and a follow-up write goes after the outer call. The delegate is a lambda, an anonymous method or a local function given by name, and the inner retry can stand in a lambda at any depth inside it, or in a method or local function of the same compilation that the delegate calls, one call deep, where it is reported at the retry in that method, also when the method has other callers. A delegate in a variable, a method given by name that is not a local function and a method of another assembly are not followed. A retry with a constant `maxAttempts: 1`, inside or outside, is no retry, so it multiplies nothing and is not reported.
 

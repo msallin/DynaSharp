@@ -98,7 +98,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor NoDiscriminator = new(
         "DYNA020",
         "Entity has no discriminator",
-        "Entity '{0}' has no discriminator. Add [Discriminator(\"{1}\")], or [Discriminator(OptOut = true)] for a table written by other tools.",
+        "Entity '{0}' has no discriminator. Add [Discriminator(\"{1}\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.",
         Mapping,
         DiagnosticSeverity.Error,
         true,

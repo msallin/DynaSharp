@@ -206,9 +206,10 @@ internal sealed class ModelBuilder
     {
         if (AttributeReader.Find(_type, WellKnownNames.DiscriminatorAttribute) is not { } attribute)
         {
+            // The type is generated as if it opted out, so the build fails on this error and not on every use of the type as well.
             if (!_defaults.DiscriminatorOptOut)
             {
-                _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name, _type.Name.ToUpperInvariant());
+                _bag.ReportKeepingTheModel(Descriptors.NoDiscriminator, _spot, _type.Name, NameCasing.ToSnakeCase(_type.Name).ToUpperInvariant());
             }
 
             return new DiscriminatorInfo(null, DefaultDiscriminatorAttribute);

@@ -24,8 +24,8 @@ namespace DynaSharp.Testing;
 /// attributes, which is how a test gives the partial answer of <c>UPDATED_NEW</c>. <see cref="Count(int, int?)"/> answers a <c>Select: COUNT</c>.
 /// </para>
 /// <para>
-/// Table administration has <see cref="Table(string, TableStatus, ReadOnlySpan{Requests.GlobalSecondaryIndexDescription})"/> and <see cref="Table{T}"/> for <c>DescribeTable</c>, <see cref="TableCreated"/>, <see cref="TableDeleted"/>,
-/// <see cref="TimeToLive"/>, <see cref="TimeToLiveUpdated"/>, <see cref="ResourceNotFound"/> and <see cref="ResourceInUse"/>. DynamoDB Streams has <see cref="StreamDescription(string, ReadOnlySpan{Streams.Shard})"/>,
+/// Table administration has <see cref="Table(string, TableStatus, ReadOnlySpan{Requests.GlobalSecondaryIndexDescription})"/> and <see cref="Table{T}"/> for <c>DescribeTable</c>, <see cref="TableCreated"/>, <see cref="TableUpdated"/>, <see cref="TableDeleted"/>,
+/// <see cref="TablesListed(ReadOnlySpan{string})"/> for <c>ListTables</c>, <see cref="TimeToLive"/>, <see cref="TimeToLiveUpdated"/>, <see cref="ResourceNotFound"/> and <see cref="ResourceInUse"/>. DynamoDB Streams has <see cref="StreamDescription(string, ReadOnlySpan{Streams.Shard})"/>,
 /// <see cref="ShardIterator"/> and <see cref="Records"/>. What such an answer holds beyond its arguments is fixed: the region of <see cref="StubClient"/>, an account, a creation time of 2026-01-01, so a test can
 /// compare it and no answer depends on the clock.
 /// </para>
@@ -449,6 +449,23 @@ public sealed partial class StubResponse
         return ReadAttributes(RenderBytes(json => T.WriteKey(new DynamoDbWriter(json), entity)));
     }
 
+    /// <summary>
+    /// Names the factory of the answer to an operation, for the failure of a <see cref="StubHandler"/> that took the answer of another, where a test wrote <see cref="Json"/> for it before the factory existed
+    /// or reached for the one of a neighbour, such as <see cref="Table(string, TableStatus, ReadOnlySpan{GlobalSecondaryIndexDescription})"/> for an <c>UpdateTable</c>.
+    /// </summary>
+    /// <param name="operation">The operation of the request, or <see langword="null"/> for a request without <c>X-Amz-Target</c>.</param>
+    /// <returns><c>StubResponse.TableUpdated for an UpdateTable</c>, or <see langword="null"/> for an operation without such a factory.</returns>
+    internal static string? FactoryFor(string? operation)
+    {
+        // When adding a factory for an operation whose answer was a Json body until then, name it here as well.
+        if (operation == UpdateTableOperation.Name)
+        {
+            return $"{nameof(StubResponse)}.{nameof(TableUpdated)} for an UpdateTable";
+        }
+
+        return operation == ListTablesOperation.Name ? $"{nameof(StubResponse)}.{nameof(TablesListed)} for a ListTables" : null;
+    }
+
     /// <summary>Tells whether this response, which has <see cref="Operations"/>, answers a request of the operation.</summary>
     /// <param name="operation">The operation of the request, or <see langword="null"/> for a request without <c>X-Amz-Target</c>.</param>
     /// <returns><see langword="true"/> if the response names this operation.</returns>
@@ -628,6 +645,8 @@ public sealed partial class StubResponse
         public static readonly string[] DescribeTable = [DescribeTableOperation.Name];
         public static readonly string[] CreateTable = [CreateTableOperation.Name];
         public static readonly string[] DeleteTable = [DeleteTableOperation.Name];
+        public static readonly string[] UpdateTable = [UpdateTableOperation.Name];
+        public static readonly string[] ListTables = [ListTablesOperation.Name];
         public static readonly string[] DescribeTimeToLive = [DescribeTimeToLiveOperation.Name];
         public static readonly string[] UpdateTimeToLive = [UpdateTimeToLiveOperation.Name];
         public static readonly string[] DescribeStream = [DescribeStreamOperation.Name];

@@ -447,6 +447,128 @@ public sealed class StubResponseTableTests
         await Assert.That(act).Throws<ArgumentNullException>();
     }
 
+    [Test]
+    public async Task TableUpdated_Name_IsTheBodyOfAnUpdateTable()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var response = StubResponse.TableUpdated("Orders");
+
+        // Assert
+        await Assert.That(response.Body).IsEqualTo(
+            $$$"""{"TableDescription":{"AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"}],"TableName":"Orders","KeySchema":[{{{Key}}}],"TableStatus":"UPDATING","CreationDateTime":1767225600,"ProvisionedThroughput":{{{NoCapacity}}},"TableSizeBytes":0,"ItemCount":0,"TableArn":"{{{OrdersArn}}}","TableId":"{{{TableId}}}","BillingModeSummary":{"BillingMode":"PAY_PER_REQUEST"},"DeletionProtectionEnabled":false}}""");
+    }
+
+    // An update that adds an index: DynamoDB answers while it builds the index, and the wait on DescribeTable comes after.
+    [Test]
+    public async Task TableUpdated_GlobalIndexThatTheUpdateAdds_ReadsBackWithItsStatus()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var client = StubClient.Create(stub);
+        stub.Enqueue(StubResponse.TableUpdated("Orders", TableStatus.Updating, StubResponse.GlobalIndex("ByCustomer", IndexStatus.Creating)));
+
+        // Act
+        var table = (await client.UpdateTableAsync(TestClient.UpdateTable("Orders"))).TableDescription!;
+
+        // Assert
+        await Assert.That((table.TableName, table.TableStatus, table.GlobalSecondaryIndexes.Single().IndexStatus)).IsEqualTo(("Orders", TableStatus.Updating, IndexStatus.Creating));
+    }
+
+    [Test]
+    public async Task TableUpdated_NullName_Throws()
+    {
+        // Arrange
+        string name = null!;
+
+        // Act
+        var act = () => StubResponse.TableUpdated(name);
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task TablesListed_Names_IsTheBodyOfTheLastPageOfAListTables()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var response = StubResponse.TablesListed("Orders", "Users");
+
+        // Assert
+        await Assert.That(response.Body).IsEqualTo("""{"TableNames":["Orders","Users"]}""");
+    }
+
+    [Test]
+    public async Task TablesListed_NoNames_IsTheBodyOfAnAccountWithoutTables()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var response = StubResponse.TablesListed();
+
+        // Assert
+        await Assert.That(response.Body).IsEqualTo("""{"TableNames":[]}""");
+    }
+
+    [Test]
+    public async Task TablesListed_LastEvaluatedTableName_IsTheBodyOfAPageThatMorePagesFollow()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var response = StubResponse.TablesListed(["Orders", "Users"], "Users");
+
+        // Assert
+        await Assert.That(response.Body).IsEqualTo("""{"TableNames":["Orders","Users"],"LastEvaluatedTableName":"Users"}""");
+    }
+
+    // A loop over the pages of an account, as a cleanup of test tables does it.
+    [Test]
+    public async Task TablesListed_TwoPages_ReadBackThroughListTables()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var client = StubClient.Create(stub);
+        stub.Enqueue(StubResponse.TablesListed(["Orders"], "Orders"));
+        stub.Enqueue(StubResponse.TablesListed("Users"));
+
+        // Act
+        var first = await client.ListTablesAsync(TestClient.ListTables());
+        var second = await client.ListTablesAsync(new ListTablesRequest { ExclusiveStartTableName = first.LastEvaluatedTableName });
+
+        // Assert
+        await Assert.That((string.Join(",", first.TableNames.Concat(second.TableNames)), first.LastEvaluatedTableName, second.LastEvaluatedTableName)).IsEqualTo(("Orders,Users", (string?)"Orders", (string?)null));
+    }
+
+    [Test]
+    public async Task TablesListed_NullName_Throws()
+    {
+        // Arrange
+        string name = null!;
+
+        // Act
+        var act = () => StubResponse.TablesListed("Orders", name);
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("tableNames");
+    }
+
+    [Test]
+    public async Task TablesListed_NullLastEvaluatedTableName_Throws()
+    {
+        // Arrange
+        string name = null!;
+
+        // Act
+        var act = () => StubResponse.TablesListed(["Orders"], name);
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("lastEvaluatedTableName");
+    }
+
     // The members of the example of DeleteTable, and the two names real tables carry: the keys and the indexes are no longer part of the answer.
     [Test]
     public async Task TableDeleted_Name_IsTheBodyOfADeleteTable()
