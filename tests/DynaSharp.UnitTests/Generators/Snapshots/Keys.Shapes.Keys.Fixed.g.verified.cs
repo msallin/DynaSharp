@@ -217,6 +217,10 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
                     Encode(ref __key, tenant);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -301,6 +305,10 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -322,6 +330,10 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
                 {
                     Encode(ref __key, tenant);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
                 }
                 finally
                 {

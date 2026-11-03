@@ -294,6 +294,10 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
                     Encode(ref __key, tag);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -336,6 +340,10 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
                     __key.WriteLiteral("TAG#"u8);
                     __key.WriteString(tag, "#"u8, "Tag");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
                 }
                 finally
                 {
@@ -414,6 +422,10 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
                 {
                     Encode(ref __key, tag);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
                 }
                 finally
                 {

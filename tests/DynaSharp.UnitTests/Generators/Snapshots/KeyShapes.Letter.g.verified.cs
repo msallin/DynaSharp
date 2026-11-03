@@ -225,6 +225,10 @@ partial class Letter : __Map.IDynamoDbDiscriminated<global::KeyShapes.Letter>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LETTER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -309,6 +313,10 @@ partial class Letter : __Map.IDynamoDbDiscriminated<global::KeyShapes.Letter>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LETTER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -330,6 +338,10 @@ partial class Letter : __Map.IDynamoDbDiscriminated<global::KeyShapes.Letter>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LETTER#{Id}", "#");
                 }
                 finally
                 {

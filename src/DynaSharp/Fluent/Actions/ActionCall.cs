@@ -57,9 +57,14 @@ internal readonly struct ActionCall<TOperation, TResponse>(CommandState state, i
 
     public void DescribeFailure(DynamoDbException failure)
     {
-        if (failure is ValidationException rejection)
+        switch (failure)
         {
-            RejectedRequest.Describe(rejection, state.Actions.SentBody);
+            case ValidationException rejection:
+                RejectedRequest.Describe(rejection, state.Actions.SentBody);
+                break;
+            case TransactionCanceledException cancellation:
+                CanceledTransaction.Describe(cancellation, state.Actions, state.Body.WrittenSpan);
+                break;
         }
     }
 

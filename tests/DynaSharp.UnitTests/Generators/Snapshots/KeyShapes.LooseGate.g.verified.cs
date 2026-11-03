@@ -256,6 +256,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -339,6 +343,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -359,6 +367,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -387,6 +399,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, id);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("O#{Id}", "#");
                 }
                 finally
                 {
@@ -472,6 +488,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("O#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -507,6 +527,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, tenant);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {
@@ -550,6 +574,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     __key.WriteLiteral("T#"u8);
                     __key.WriteString(tenant, "#"u8, "Tenant");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {
@@ -629,6 +657,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -664,6 +696,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, note);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("G#{Note}", "#");
                 }
                 finally
                 {
@@ -749,6 +785,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     Encode(ref __key, note);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("G#{Note}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -784,6 +824,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, tenant);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {
@@ -827,6 +871,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                     __key.WriteLiteral("T#"u8);
                     __key.WriteString(tenant, "#"u8, "Tenant");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {
@@ -905,6 +953,10 @@ partial record LooseGate : __Map.IDynamoDbDiscriminated<global::KeyShapes.LooseG
                 {
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {

@@ -145,6 +145,7 @@ internal static class WriteRules
         if (version != 0)
         {
             state.Expressions.AppendVersion(attributeName, version);
+            state.Write.Conditions |= ConditionParts.Version;
         }
         else if (state.Table.Writes!.AllowsMissingVersion)
         {
@@ -152,7 +153,7 @@ internal static class WriteRules
         }
         else
         {
-            IfNotExists(state);
+            NoItem(state, ConditionParts.NewVersion);
         }
 
         state.Write.UnsettledVersion = null;
@@ -177,14 +178,7 @@ internal static class WriteRules
     /// <see cref="WriteState.IgnoreVersion"/> can still take that back.
     /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
-    public static void IfNotExists(CommandState state)
-    {
-        if (!state.Write.ItemMustNotExist)
-        {
-            state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
-            state.Write.ItemMustNotExist = true;
-        }
-    }
+    public static void IfNotExists(CommandState state) => NoItem(state, ConditionParts.NoItem);
 
     /// <summary>Adds the condition that an item has the key. It is noted as well, because version 0 says the opposite, and that is only known at the end of the chain.</summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
@@ -192,7 +186,12 @@ internal static class WriteRules
     {
         state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: true);
         state.Write.ItemMustExist = true;
+        state.Write.Conditions |= ConditionParts.ItemExists;
     }
+
+    /// <summary>Notes a condition of the caller, for the message of a failed one.</summary>
+    /// <param name="state">The state, whose expressions hold the condition.</param>
+    public static void NoteCondition(CommandState state) => state.Write.Conditions |= ConditionParts.Caller;
 
     /// <summary>
     /// Sets an attribute by its handle. A null value is a removal, because a converter takes no null, and because a <c>NULL</c> value would be rejected on an index key. That reads the same
@@ -270,6 +269,18 @@ internal static class WriteRules
         {
             state.KeyInputs.Add(path, change);
         }
+    }
+
+    // IfNotExists and version 0 write the same condition once, and each notes itself, because the message says which of them asked.
+    private static void NoItem(CommandState state, ConditionParts part)
+    {
+        if (!state.Write.ItemMustNotExist)
+        {
+            state.Expressions.AppendItemExists(state.Table.PartitionKeyName, exists: false);
+            state.Write.ItemMustNotExist = true;
+        }
+
+        state.Write.Conditions |= part;
     }
 
     private static string VersionAttribute(CommandState state) => state.Table.Writes?.VersionAttributeName

@@ -52,6 +52,7 @@ internal readonly struct CommandCall<TOperation, TResponse>(CommandState state, 
                 break;
             case ConditionalCheckFailedException condition:
                 FailedCondition.Describe(condition, state.Body.WrittenSegment, state.Table.ItemKeyNames);
+                FailedCondition.Explain(condition, TOperation.Name, state.Table, state.Write.Conditions);
                 break;
         }
     }

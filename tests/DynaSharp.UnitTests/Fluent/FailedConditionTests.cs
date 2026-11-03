@@ -10,7 +10,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// Which item a failed condition was about. The service does not say, so <see cref="ConditionalCheckFailedException.Key"/> comes from the request, and the expected keys here are written
 /// by hand from the key grammar of the entities: <c>CUSTOMER#{Id}</c> over <c>PROFILE</c>, and <c>USER#{UserId}</c> over <c>ORDER#{CreatedAt}#{OrderId}</c>.
 /// </summary>
-public sealed class FailedConditionTests
+public sealed partial class FailedConditionTests
 {
     private const string UserText = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
@@ -234,7 +234,8 @@ public sealed class FailedConditionTests
         var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(async () => await customers.Delete(Customer.Keys.Of("alice")).IfExists().SendAsync());
 
         // Assert
-        await Assert.That((failure.Key is null, failure.ToString().Contains("alice", StringComparison.Ordinal), failure.Message)).IsEqualTo((false, false, "The conditional request failed"));
+        await Assert.That((failure.Key is null, failure.ToString().Contains("alice", StringComparison.Ordinal), failure.Message))
+            .IsEqualTo((false, false, $"The conditional request failed{Environment.NewLine}The condition of this Delete on Shop did not hold: the check that an item has this key."));
     }
 
     [Test]

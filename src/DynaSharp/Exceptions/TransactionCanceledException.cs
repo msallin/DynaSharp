@@ -14,6 +14,10 @@ namespace DynaSharp;
 /// when a table is throttled, when an item or an index grows too large, and when an action is invalid. A <c>TransactGetItems</c>
 /// call is cancelled when it conflicts with a concurrent write or is throttled. Some causes pass (a conflict, throttling), so
 /// whether to repeat the transaction is the decision of the caller, who can look at the reasons; <see cref="TransactionFailure"/> says which.
+/// <para>
+/// DynamoDB lists the codes in its message and nothing else: <c>[None, ConditionalCheckFailed]</c>. After <c>client.TransactWrite()</c> or <c>client.TransactGet()</c>, <see cref="Exception.Message"/> gains a
+/// line that names each action that failed by its position, verb and table, with its code: <c>Action 2 of 2, Put on Users: ConditionalCheckFailed</c>. It holds no key and no value.
+/// </para>
 /// </remarks>
 public sealed class TransactionCanceledException : DynamoDbException
 {
@@ -29,6 +33,8 @@ public sealed class TransactionCanceledException : DynamoDbException
         ["ValidationError"] = TransactionFailure.ValidationError,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
+    private string? _explanation;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="TransactionCanceledException"/> class.
     /// </summary>
@@ -42,6 +48,9 @@ public sealed class TransactionCanceledException : DynamoDbException
         CancellationReasons = cancellationReasons ?? [];
         Failures = FindFailures(CancellationReasons);
     }
+
+    /// <summary>Gets the message of the service, followed for a command by a line that names the actions that failed.</summary>
+    public override string Message => _explanation is null ? base.Message : $"{base.Message}{Environment.NewLine}{_explanation}";
 
     /// <summary>
     /// Gets the reasons, one for each action of the request and in the same order: the reason at an index belongs to the action at
@@ -80,6 +89,10 @@ public sealed class TransactionCanceledException : DynamoDbException
         Item item => item,
         var attributes => new Item(attributes),
     };
+
+    /// <summary>Attaches the line that names the actions that failed.</summary>
+    /// <param name="explanation">The line for the message.</param>
+    internal void Explain(string explanation) => _explanation = explanation;
 
     private static TransactionFailure ToFailure(string? code) => code is not null && Failure.TryGetValue(code, out var failure) ? failure : TransactionFailure.Unknown;
 

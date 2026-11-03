@@ -60,6 +60,59 @@ public sealed class KeyFormatExceptionTests
     }
 
     [Test]
+    [MethodDataSource(nameof(FailingWrites))]
+    public async Task InTemplate_FailedWrite_NamesNoValue(FailingWrite failing)
+    {
+        // Arrange
+        var exception = Capture(failing);
+
+        // Act
+        var named = exception.InTemplate("USER#{Name}", "#");
+
+        // Assert
+        await Assert.That((named.Message.Contains("'USER#{Name}'", StringComparison.Ordinal), named.Message.Contains(failing.Secret, StringComparison.Ordinal), named.ParamName)).IsEqualTo((true, false, Name));
+    }
+
+    [Test]
+    public async Task InTemplate_Delimiter_NamesTheDelimitersOfTheTemplateAndNotWhichOneTheValueHolds()
+    {
+        // Arrange
+        var exception = Capture(FailingWrites().First());
+
+        // Act
+        var named = exception.InTemplate("{A}-{B}.{Name}", "-.");
+
+        // Assert
+        await Assert.That(named.Message).IsEqualTo("The value contains a delimiter of the key template '{A}-{B}.{Name}' ('-.'). (Parameter 'Name')");
+    }
+
+    [Test]
+    public async Task InTemplate_OtherProblem_AddsTheTemplateToTheReason()
+    {
+        // Arrange
+        var exception = new KeyFormatException(Name, "The value is empty.");
+
+        // Act
+        var named = exception.InTemplate("USER#{Name}", "#");
+
+        // Assert
+        await Assert.That(named.Message).IsEqualTo("The value is empty. The key template is 'USER#{Name}'. (Parameter 'Name')");
+    }
+
+    [Test]
+    public async Task InTemplate_MessageOnly_KeepsTheException()
+    {
+        // Arrange (no writer makes one, but a type that formats itself could throw it)
+        var exception = new KeyFormatException("The text is not a key.");
+
+        // Act
+        var named = exception.InTemplate("USER#{Name}", "#");
+
+        // Assert
+        await Assert.That(ReferenceEquals(named, exception)).IsTrue();
+    }
+
+    [Test]
     public async Task Constructor_MessageOnly_HasNoParameterName()
     {
         // Arrange

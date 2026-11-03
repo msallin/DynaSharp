@@ -256,6 +256,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -340,6 +344,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -361,6 +369,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
                 }
                 finally
                 {
@@ -389,6 +401,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 {
                     Encode(ref __key, owner);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
                 }
                 finally
                 {
@@ -474,6 +490,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                     Encode(ref __key, owner);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -510,6 +530,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -529,6 +553,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 {
                     __key.WriteString(id, ""u8, "Id");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -606,6 +634,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
                 {
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {

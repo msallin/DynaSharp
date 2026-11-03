@@ -60,6 +60,12 @@ internal struct WriteState
     /// <summary>Gets or sets the version the write stores, for its result.</summary>
     public long? StoredVersion { get; set; }
 
+    /// <summary>
+    /// Gets or sets the parts of the condition the write sends, for the message of a <see cref="ConditionalCheckFailedException"/>, see <see cref="FailedCondition.Explain"/>. <see cref="Settle"/> leaves it, because the
+    /// response comes after it, so it lasts until the state goes back. A transaction sets it as well and does not read it.
+    /// </summary>
+    public ConditionParts Conditions { get; set; }
+
     /// <summary>Lets the write go out without looking at the version. A put of an entity then stores the entity as it is, so its item is written again.</summary>
     /// <param name="state">The state this is the write of.</param>
     /// <exception cref="InvalidOperationException">The write already has <c>IfVersion</c>, whose condition stands in the expressions.</exception>
@@ -114,6 +120,7 @@ internal struct WriteState
         if (readsAsZero && !mustNotExist)
         {
             state.Expressions.AppendVersionZero(state.Table.Writes!.VersionAttributeName!);
+            Conditions |= ConditionParts.Version;
         }
 
         if (UnsettledVersion is { } table)
@@ -138,14 +145,17 @@ internal struct WriteState
             if (held != 0)
             {
                 state.Expressions.AppendVersion(table.Writes.VersionAttributeName!, held);
+                Conditions |= ConditionParts.Version;
             }
             else if (!mustNotExist && allowsMissing)
             {
                 state.Expressions.AppendVersionZero(table.Writes.VersionAttributeName!);
+                Conditions |= ConditionParts.Version;
             }
             else if (!mustNotExist)
             {
                 state.Expressions.AppendItemExists(table.PartitionKeyName, exists: false);
+                Conditions |= ConditionParts.NewVersion;
             }
 
             UnsettledVersion = null;

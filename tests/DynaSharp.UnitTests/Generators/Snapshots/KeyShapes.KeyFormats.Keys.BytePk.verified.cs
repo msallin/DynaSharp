@@ -20,6 +20,10 @@
                     Encode(ref __key, @byte);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("I#{Byte}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -103,6 +107,10 @@
                 {
                     Encode(ref __key, @byte);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("I#{Byte}", "#");
                 }
                 finally
                 {

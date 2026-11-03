@@ -251,6 +251,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -334,6 +338,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -354,6 +362,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -382,6 +394,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                 {
                     Encode(ref __key, nick);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
                 }
                 finally
                 {
@@ -467,6 +483,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                     Encode(ref __key, nick);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -502,6 +522,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                 {
                     Encode(ref __key, age);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Age:d3}", "");
                 }
                 finally
                 {
@@ -584,6 +608,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                     Encode(ref __key, age);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Age:d3}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -618,6 +646,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                 {
                     Encode(ref __key, nick);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
                 }
                 finally
                 {
@@ -702,6 +734,10 @@ partial record NickName : __Map.IDynamoDbDiscriminated<global::KeyShapes.NickNam
                 {
                     Encode(ref __key, nick);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
                 }
                 finally
                 {

@@ -322,6 +322,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                     Encode(ref __key, at, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -343,6 +347,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -360,6 +368,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
                 }
                 finally
                 {
@@ -407,6 +419,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                     __key.WriteLiteral("#"u8);
                     __key.WriteString(id, "#"u8, "Id");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
                 }
                 finally
                 {
@@ -487,6 +503,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                     Encode(ref __key, at, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -509,6 +529,10 @@ partial record Hop : __Map.IDynamoDbDiscriminated<global::KeyShapes.Hop>
                 {
                     Encode(ref __key, at, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
                 }
                 finally
                 {

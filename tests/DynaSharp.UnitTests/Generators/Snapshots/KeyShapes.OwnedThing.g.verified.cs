@@ -229,6 +229,10 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("THING#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -313,6 +317,10 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("THING#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -334,6 +342,10 @@ partial record OwnedThing : __Map.IDynamoDbEntity<global::KeyShapes.OwnedThing>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("THING#{Id}", "#");
                 }
                 finally
                 {

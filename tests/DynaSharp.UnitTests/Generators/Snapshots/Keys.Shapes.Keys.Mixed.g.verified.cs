@@ -347,6 +347,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, user);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -431,6 +435,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, user);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -452,6 +460,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, user);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
                 }
                 finally
                 {
@@ -512,6 +524,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, status);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATUS#{Status}", "#");
                 }
                 finally
                 {
@@ -597,6 +613,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, status);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATUS#{Status}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -633,6 +653,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, code);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -652,6 +676,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     __key.WriteString(code, ""u8, "Code");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
                 }
                 finally
                 {
@@ -730,6 +758,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, code);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -764,6 +796,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, nick);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
                 }
                 finally
                 {
@@ -849,6 +885,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, nick);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -884,6 +924,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, parent);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Parent:d4}", "");
                 }
                 finally
                 {
@@ -966,6 +1010,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, parent);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Parent:d4}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1000,6 +1048,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, nick);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
                 }
                 finally
                 {
@@ -1085,6 +1137,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, nick);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NICK#{Nick}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1122,6 +1178,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     Encode(ref __key, status, created);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Status}#{Created}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1143,6 +1203,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Status}#{Created}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1160,6 +1224,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Status}#{Created}", "#");
                 }
                 finally
                 {
@@ -1227,6 +1295,10 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
                 {
                     Encode(ref __key, status, created);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Status}#{Created}", "#");
                 }
                 finally
                 {

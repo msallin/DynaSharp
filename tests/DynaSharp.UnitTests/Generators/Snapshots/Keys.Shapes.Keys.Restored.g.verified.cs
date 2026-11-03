@@ -270,6 +270,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     Encode(ref __key, user);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -354,6 +358,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     Encode(ref __key, user);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -375,6 +383,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 {
                     Encode(ref __key, user);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{User}", "#");
                 }
                 finally
                 {
@@ -405,6 +417,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     Encode(ref __key, at, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -426,6 +442,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -443,6 +463,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
                 }
                 finally
                 {
@@ -552,6 +576,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                     Encode(ref __key, at, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -574,6 +602,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 {
                     Encode(ref __key, at, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{At:ticks}#{Id}", "#");
                 }
                 finally
                 {
@@ -602,6 +634,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 {
                     Encode(ref __key, state);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATE#{State}", "#");
                 }
                 finally
                 {
@@ -686,6 +722,10 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
                 {
                     Encode(ref __key, state);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATE#{State}", "#");
                 }
                 finally
                 {

@@ -257,6 +257,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POST#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -341,6 +345,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POST#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -362,6 +370,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POST#{Id}", "#");
                 }
                 finally
                 {
@@ -665,6 +677,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                     Encode(ref __key, title);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Title}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -684,6 +700,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                 {
                     __key.WriteString(title, ""u8, "Title");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Title}", "");
                 }
                 finally
                 {
@@ -761,6 +781,10 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                 {
                     Encode(ref __key, title);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Title}", "");
                 }
                 finally
                 {

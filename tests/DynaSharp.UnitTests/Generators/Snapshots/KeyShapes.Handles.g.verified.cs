@@ -558,6 +558,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("HANDLES#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -642,6 +646,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("HANDLES#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -663,6 +671,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("HANDLES#{Id}", "#");
                 }
                 finally
                 {
@@ -691,6 +703,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                 {
                     Encode(ref __key, slot);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
                 }
                 finally
                 {
@@ -796,6 +812,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                     Encode(ref __key, slot);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -817,6 +837,10 @@ partial record Handles : __Map.IDynamoDbDiscriminated<global::KeyShapes.Handles>
                 {
                     Encode(ref __key, slot);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
                 }
                 finally
                 {

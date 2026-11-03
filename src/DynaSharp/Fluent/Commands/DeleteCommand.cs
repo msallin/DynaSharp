@@ -47,6 +47,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     {
         var state = Enter();
         state.Expressions.CommitPending(Clause.Condition);
+        WriteRules.NoteCondition(state);
         return new(state, state.Table);
     }
 
@@ -60,6 +61,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     {
         var state = Enter();
         state.Expressions.AppendCondition(Clause.Condition, condition);
+        WriteRules.NoteCondition(state);
         return new(state, state.Table);
     }
 

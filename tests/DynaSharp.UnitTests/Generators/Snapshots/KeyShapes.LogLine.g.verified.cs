@@ -397,6 +397,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, stream);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LOG#{Stream}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -481,6 +485,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, stream);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LOG#{Stream}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -502,6 +510,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, stream);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LOG#{Stream}", "#");
                 }
                 finally
                 {
@@ -532,6 +544,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, day, at, sequence);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -577,6 +593,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -595,6 +615,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -645,6 +669,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -665,6 +693,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -777,6 +809,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, day, at, sequence);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -802,6 +838,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, day, at, sequence);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{Day}#{At}#{Sequence:d4}", "#");
                 }
                 finally
                 {
@@ -830,6 +870,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, owner);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
                 }
                 finally
                 {
@@ -915,6 +959,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, owner);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -950,6 +998,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, tag);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
                 }
                 finally
                 {
@@ -993,6 +1045,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     __key.WriteLiteral("TAG#"u8);
                     __key.WriteString(tag, "#"u8, "Tag");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
                 }
                 finally
                 {
@@ -1072,6 +1128,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, tag);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TAG#{Tag}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1107,6 +1167,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, when);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("W#{When:ticks}", "#");
                 }
                 finally
                 {
@@ -1192,6 +1256,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                     Encode(ref __key, when);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("W#{When:ticks}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1227,6 +1295,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, when);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{When}", "");
                 }
                 finally
                 {
@@ -1308,6 +1380,10 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 {
                     Encode(ref __key, when);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{When}", "");
                 }
                 finally
                 {

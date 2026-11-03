@@ -211,6 +211,10 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AUDIT#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -295,6 +299,10 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AUDIT#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -316,6 +324,10 @@ partial class AuditEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.AuditE
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AUDIT#{Id}", "#");
                 }
                 finally
                 {

@@ -201,6 +201,10 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                     Encode(ref __key, key);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A#{Key:raw}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -285,6 +289,10 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                     Encode(ref __key, key);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A#{Key:raw}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -306,6 +314,10 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                 {
                     Encode(ref __key, key);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A#{Key:raw}", "#");
                 }
                 finally
                 {
@@ -334,6 +346,10 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                 {
                     Encode(ref __key, key);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A#{Key}", "#");
                 }
                 finally
                 {
@@ -418,6 +434,10 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                 {
                     Encode(ref __key, key);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A#{Key}", "#");
                 }
                 finally
                 {

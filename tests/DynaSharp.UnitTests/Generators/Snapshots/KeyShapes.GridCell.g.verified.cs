@@ -237,6 +237,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                     Encode(ref __key, name);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("GRID#{Name}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -321,6 +325,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                     Encode(ref __key, name);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("GRID#{Name}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -342,6 +350,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                 {
                     Encode(ref __key, name);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("GRID#{Name}", "#");
                 }
                 finally
                 {
@@ -371,6 +383,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                 {
                     Encode(ref __key, column, row);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("CELL#{Column}#{Row:d3}", "#");
                 }
                 finally
                 {
@@ -416,6 +432,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("CELL#{Column}#{Row:d3}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -434,6 +454,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("CELL#{Column}#{Row:d3}", "#");
                 }
                 finally
                 {
@@ -503,6 +527,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                     Encode(ref __key, column, row);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("CELL#{Column}#{Row:d3}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -526,6 +554,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
                 {
                     Encode(ref __key, column, row);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("CELL#{Column}#{Row:d3}", "#");
                 }
                 finally
                 {

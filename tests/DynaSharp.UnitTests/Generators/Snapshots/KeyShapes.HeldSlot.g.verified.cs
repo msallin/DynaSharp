@@ -283,6 +283,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                     Encode(ref __key, room);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -367,6 +371,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                     Encode(ref __key, room);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -388,6 +396,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 {
                     Encode(ref __key, room);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
                 }
                 finally
                 {
@@ -560,6 +572,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                     Encode(ref __key, owner, rank, room, start);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}#{Rank:d3}#{Room}#AT#{Start:ticks}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -649,6 +665,10 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
                 {
                     Encode(ref __key, owner, rank, room, start);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}#{Rank:d3}#{Room}#AT#{Start:ticks}", "#");
                 }
                 finally
                 {

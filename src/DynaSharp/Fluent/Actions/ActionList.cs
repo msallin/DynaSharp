@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
@@ -91,6 +92,20 @@ internal sealed class ActionList
     /// <param name="end">The index after the last action.</param>
     /// <returns>The number of bytes.</returns>
     public int LengthOf(int first, int end) => _offsets[end] - _offsets[first];
+
+    /// <summary>
+    /// Gets the verb of an action of a transaction, which is the name of the one member the action starts with in the body, for the message of a failure. It is read back rather
+    /// than kept, so a transaction that gets through pays nothing for it.
+    /// </summary>
+    /// <param name="index">The index of the action.</param>
+    /// <param name="body">The body.</param>
+    /// <returns>The verb.</returns>
+    public string VerbOf(int index, ReadOnlySpan<byte> body)
+    {
+        // {"Put":{"TableName":"Users",... gives Put.
+        var name = body[(_offsets[index] + "{\""u8.Length)..];
+        return Encoding.UTF8.GetString(name[..name.IndexOf((byte)'"')]);
+    }
 
     /// <summary>Gets a table.</summary>
     /// <param name="tableIndex">The index among the distinct tables.</param>

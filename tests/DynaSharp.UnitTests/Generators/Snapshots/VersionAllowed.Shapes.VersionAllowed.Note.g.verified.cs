@@ -248,6 +248,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.VersionAllowed
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -332,6 +336,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.VersionAllowed
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -353,6 +361,10 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.VersionAllowed
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTE#{Id}", "#");
                 }
                 finally
                 {

@@ -20,6 +20,10 @@
                     Encode(ref __key, text);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -103,6 +107,10 @@
                     Encode(ref __key, text);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -123,6 +131,10 @@
                 {
                     Encode(ref __key, text);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
                 }
                 finally
                 {

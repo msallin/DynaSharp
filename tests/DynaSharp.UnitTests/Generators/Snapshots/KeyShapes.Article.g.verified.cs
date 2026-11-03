@@ -186,6 +186,10 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
                     Encode(ref __key, slug);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLUG#{Slug}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -270,6 +274,10 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
                     Encode(ref __key, slug);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLUG#{Slug}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -291,6 +299,10 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
                 {
                     Encode(ref __key, slug);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLUG#{Slug}", "#");
                 }
                 finally
                 {

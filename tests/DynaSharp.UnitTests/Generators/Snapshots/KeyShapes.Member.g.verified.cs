@@ -273,6 +273,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     Encode(ref __key, tenant, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}#USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -359,6 +363,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     Encode(ref __key, tenant, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}#USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -382,6 +390,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                 {
                     Encode(ref __key, tenant, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}#USER#{Id}", "#");
                 }
                 finally
                 {
@@ -411,6 +423,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                 {
                     Encode(ref __key, region, city);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
                 }
                 finally
                 {
@@ -456,6 +472,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     __key.WriteLiteral("#CITY#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -474,6 +494,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     __key.WriteLiteral("#CITY#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
                 }
                 finally
                 {
@@ -497,6 +521,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     __key.WriteLiteral("#CITY#"u8);
                     __key.WriteString(city, "#"u8, "City");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
                 }
                 finally
                 {
@@ -562,6 +590,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                     Encode(ref __key, region, city);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -585,6 +617,10 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::KeyShapes.Member>
                 {
                     Encode(ref __key, region, city);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("REGION#{Region}#CITY#{City}", "#");
                 }
                 finally
                 {

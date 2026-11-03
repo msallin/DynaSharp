@@ -235,6 +235,10 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
                     Encode(ref __key, kind);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("I#{Kind}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -319,6 +323,10 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
                     Encode(ref __key, kind);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("I#{Kind}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -340,6 +348,10 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
                 {
                     Encode(ref __key, kind);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("I#{Kind}", "#");
                 }
                 finally
                 {

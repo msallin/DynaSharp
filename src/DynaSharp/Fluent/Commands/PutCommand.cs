@@ -48,6 +48,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     {
         var state = Enter();
         state.Expressions.CommitPending(Clause.Condition);
+        WriteRules.NoteCondition(state);
         return new(state, state.Table);
     }
 
@@ -61,6 +62,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     {
         var state = Enter();
         state.Expressions.AppendCondition(Clause.Condition, condition);
+        WriteRules.NoteCondition(state);
         return new(state, state.Table);
     }
 

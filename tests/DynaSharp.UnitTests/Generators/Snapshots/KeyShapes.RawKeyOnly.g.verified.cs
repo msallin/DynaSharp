@@ -226,6 +226,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                     Encode(ref __key, tenant);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -310,6 +314,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -331,6 +339,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                 {
                     Encode(ref __key, tenant);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("T#{Tenant}", "#");
                 }
                 finally
                 {
@@ -359,6 +371,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                 {
                     Encode(ref __key, path);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("P#{Path:raw}", "#");
                 }
                 finally
                 {
@@ -402,6 +418,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                     __key.WriteLiteral("P#"u8);
                     __key.WriteString(path, ""u8, "Path");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("P#{Path:raw}", "#");
                 }
                 finally
                 {
@@ -481,6 +501,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                     Encode(ref __key, path);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("P#{Path:raw}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -502,6 +526,10 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
                 {
                     Encode(ref __key, path);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("P#{Path:raw}", "#");
                 }
                 finally
                 {

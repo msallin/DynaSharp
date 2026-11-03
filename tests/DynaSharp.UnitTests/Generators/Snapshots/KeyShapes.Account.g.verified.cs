@@ -232,6 +232,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                     Encode(ref __key, id, version);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ACCOUNT#{Id}#V{Version:d3}", "#V");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -276,6 +280,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                     __key.WriteLiteral("#V"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ACCOUNT#{Id}#V{Version:d3}", "#V");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -294,6 +302,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                     __key.WriteLiteral("#V"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ACCOUNT#{Id}#V{Version:d3}", "#V");
                 }
                 finally
                 {
@@ -363,6 +375,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                     Encode(ref __key, id, version);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ACCOUNT#{Id}#V{Version:d3}", "#V");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -386,6 +402,10 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
                 {
                     Encode(ref __key, id, version);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ACCOUNT#{Id}#V{Version:d3}", "#V");
                 }
                 finally
                 {

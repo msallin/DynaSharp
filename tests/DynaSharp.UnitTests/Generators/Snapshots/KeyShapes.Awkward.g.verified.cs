@@ -202,6 +202,10 @@ partial class Awkward : __Map.IDynamoDbDiscriminated<global::KeyShapes.Awkward>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("Q\"\\<&{{{Id}}}", "{}");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -287,6 +291,10 @@ partial class Awkward : __Map.IDynamoDbDiscriminated<global::KeyShapes.Awkward>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("Q\"\\<&{{{Id}}}", "{}");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -309,6 +317,10 @@ partial class Awkward : __Map.IDynamoDbDiscriminated<global::KeyShapes.Awkward>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("Q\"\\<&{{{Id}}}", "{}");
                 }
                 finally
                 {

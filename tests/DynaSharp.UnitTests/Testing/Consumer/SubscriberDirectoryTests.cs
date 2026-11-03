@@ -101,7 +101,7 @@ public sealed class SubscriberDirectoryTests
         var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => directory.RegisterAsync(Ada));
 
         // Assert
-        await Assert.That((failure.Item, failure.Message)).IsEqualTo(((Item?)null, "The conditional request failed"));
+        await Assert.That((failure.Item, failure.Message)).IsEqualTo(((Item?)null, $"The conditional request failed{Environment.NewLine}The condition of this Put on Subscribers did not hold: the check that no item has this key."));
     }
 
     [Test]

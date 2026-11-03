@@ -190,6 +190,10 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
                     Encode(ref __key, plan);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("PLAN#{Plan}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -274,6 +278,10 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
                     Encode(ref __key, plan);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("PLAN#{Plan}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -295,6 +303,10 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
                 {
                     Encode(ref __key, plan);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("PLAN#{Plan}", "#");
                 }
                 finally
                 {

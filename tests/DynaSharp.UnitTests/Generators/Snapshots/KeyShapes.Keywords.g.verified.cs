@@ -226,6 +226,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                     Encode(ref __key, @class);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("C#{class}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -310,6 +314,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                     Encode(ref __key, @class);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("C#{class}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -331,6 +339,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                 {
                     Encode(ref __key, @class);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("C#{class}", "#");
                 }
                 finally
                 {
@@ -359,6 +371,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                 {
                     Encode(ref __key, @event);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("E#{event}", "#");
                 }
                 finally
                 {
@@ -402,6 +418,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                     __key.WriteLiteral("E#"u8);
                     __key.WriteString(@event, "#"u8, "event");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("E#{event}", "#");
                 }
                 finally
                 {
@@ -481,6 +501,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                     Encode(ref __key, @event);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("E#{event}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -502,6 +526,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                 {
                     Encode(ref __key, @event);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("E#{event}", "#");
                 }
                 finally
                 {

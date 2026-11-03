@@ -327,6 +327,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -410,6 +414,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -430,6 +438,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -458,6 +470,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, count);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("COUNT#{Count:plain}", "#");
                 }
                 finally
                 {
@@ -543,6 +559,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, count);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("COUNT#{Count:plain}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -564,6 +584,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, count);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("COUNT#{Count:plain}", "#");
                 }
                 finally
                 {
@@ -660,6 +684,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, money);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("MONEY#{Money:plain}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -743,6 +771,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, money);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("MONEY#{Money:plain}", "#");
                 }
                 finally
                 {
@@ -847,6 +879,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, plan);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("PLAN#{Plan}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -930,6 +966,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, plan);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("PLAN#{Plan}", "#");
                 }
                 finally
                 {
@@ -1034,6 +1074,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                     Encode(ref __key, address);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ADDRESS#{Address}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1117,6 +1161,10 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
                 {
                     Encode(ref __key, address);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ADDRESS#{Address}", "#");
                 }
                 finally
                 {

@@ -258,6 +258,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTICE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -342,6 +346,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTICE#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -363,6 +371,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("NOTICE#{Id}", "#");
                 }
                 finally
                 {
@@ -660,6 +672,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                     Encode(ref __key, text);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -679,6 +695,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                 {
                     __key.WriteString(text, ""u8, "Text");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
                 }
                 finally
                 {
@@ -756,6 +776,10 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                 {
                     Encode(ref __key, text);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Text}", "");
                 }
                 finally
                 {

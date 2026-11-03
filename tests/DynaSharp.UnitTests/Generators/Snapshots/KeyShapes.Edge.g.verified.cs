@@ -229,6 +229,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     Encode(ref __key, source);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -313,6 +317,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     Encode(ref __key, source);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -334,6 +342,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, source);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
                 }
                 finally
                 {
@@ -362,6 +374,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, target);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
                 }
                 finally
                 {
@@ -405,6 +421,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     __key.WriteLiteral("TO#"u8);
                     __key.WriteString(target, "#"u8, "Target");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
                 }
                 finally
                 {
@@ -484,6 +504,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     Encode(ref __key, target);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -505,6 +529,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, target);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
                 }
                 finally
                 {
@@ -533,6 +561,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, target);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
                 }
                 finally
                 {
@@ -618,6 +650,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     Encode(ref __key, target);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TO#{Target}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -653,6 +689,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, source);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
                 }
                 finally
                 {
@@ -696,6 +736,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                     __key.WriteLiteral("FROM#"u8);
                     __key.WriteString(source, "#"u8, "Source");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
                 }
                 finally
                 {
@@ -774,6 +818,10 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
                 {
                     Encode(ref __key, source);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("FROM#{Source}", "#");
                 }
                 finally
                 {

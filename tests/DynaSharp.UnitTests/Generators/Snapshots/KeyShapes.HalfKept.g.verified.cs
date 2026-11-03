@@ -219,6 +219,10 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
                     Encode(ref __key, name, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("KEPT#{Name}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -305,6 +309,10 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
                     Encode(ref __key, name, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("KEPT#{Name}#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -328,6 +336,10 @@ partial record HalfKept : __Map.IDynamoDbDiscriminated<global::KeyShapes.HalfKep
                 {
                     Encode(ref __key, name, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("KEPT#{Name}#{Id}", "#");
                 }
                 finally
                 {

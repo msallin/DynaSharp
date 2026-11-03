@@ -268,6 +268,10 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                     Encode(ref __key, room);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -352,6 +356,10 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                     Encode(ref __key, room);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -373,6 +381,10 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                 {
                     Encode(ref __key, room);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
                 }
                 finally
                 {
@@ -542,6 +554,10 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                     Encode(ref __key, owner);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -625,6 +641,10 @@ partial record SameSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.SameSlo
                 {
                     Encode(ref __key, owner);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("OWNER#{Owner}", "#");
                 }
                 finally
                 {

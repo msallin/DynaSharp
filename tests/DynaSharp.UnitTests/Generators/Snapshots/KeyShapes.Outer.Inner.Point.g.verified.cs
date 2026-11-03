@@ -203,6 +203,10 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
                     Encode(ref __key, x);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POINT#{X:plain}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -287,6 +291,10 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
                     Encode(ref __key, x);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POINT#{X:plain}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -308,6 +316,10 @@ partial record struct Point : __Map.IDynamoDbDiscriminated<global::KeyShapes.Out
                 {
                     Encode(ref __key, x);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("POINT#{X:plain}", "#");
                 }
                 finally
                 {

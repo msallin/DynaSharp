@@ -202,6 +202,10 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -286,6 +290,10 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -307,6 +315,10 @@ partial class UserProfile : __Map.IDynamoDbDiscriminated<global::KeyShapes.UserP
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
                 }
                 finally
                 {

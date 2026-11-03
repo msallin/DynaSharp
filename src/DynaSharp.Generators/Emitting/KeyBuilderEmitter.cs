@@ -410,7 +410,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
             OpenWriter(Buffer);
             code.Line(EncodeCall());
             code.Line($"__writer.WriteString({Local}.WrittenSpan);");
-            CloseWriter();
+            CloseWriter(throws: true);
         }
 
         code.Close();
@@ -444,7 +444,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         OpenWriter(Buffer, "__throwOnInvalid");
         code.Line(EncodeCall());
         code.Line($"return !{Local}.IsInvalid;");
-        CloseWriter();
+        CloseWriter(throws: true);
         code.Close();
     }
 
@@ -459,7 +459,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         }
 
         code.Line($"return {Local}.ToString();");
-        CloseWriter();
+        CloseWriter(throws: signature.Length > 0);
         code.Close();
     }
 
@@ -470,9 +470,19 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         code.Open();
     }
 
-    private void CloseWriter()
+    // A writer that throws names the placeholder, and the catch adds the template, which the writer does not know. A catch costs a key that is valid nothing, where an argument of every
+    // write would cost something.
+    private void CloseWriter(bool throws = false)
     {
         code.Close();
+        if (throws && template.CanReject)
+        {
+            code.Line($"catch ({FormatException} __failure)");
+            code.Open();
+            code.Line($"throw __failure.InTemplate({CodeText.Literal(template.Text)}, {CodeText.Literal(template.Delimiters)});");
+            code.Close();
+        }
+
         code.Line("finally");
         code.Open();
         code.Line($"{Local}.Dispose();");

@@ -310,6 +310,9 @@ DynaSharp.ScanCommand<T>.PageAsync(System.Threading.CancellationToken cancellati
 DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.ConditionalCheckFailedException.Key.get -> DynaSharp.Item?
+DynaSharp.KeyFormatException.InTemplate(string! template, string! delimiters) -> DynaSharp.KeyFormatException!
+override DynaSharp.ConditionalCheckFailedException.Message.get -> string!
+override DynaSharp.TransactionCanceledException.Message.get -> string!
 DynaSharp.Serialization.DynamoDbReader.TryReadAttribute<T, TConverter>(out T value) -> bool
 DynaSharp.Serialization.IDynamoDbConverter<T>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
 static DynaSharp.Serialization.NullableConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool

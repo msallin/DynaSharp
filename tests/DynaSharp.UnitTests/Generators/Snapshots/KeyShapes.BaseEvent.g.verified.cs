@@ -196,6 +196,10 @@ partial class BaseEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.BaseEve
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("EVENT#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -280,6 +284,10 @@ partial class BaseEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.BaseEve
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("EVENT#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -301,6 +309,10 @@ partial class BaseEvent : __Map.IDynamoDbDiscriminated<global::KeyShapes.BaseEve
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("EVENT#{Id}", "#");
                 }
                 finally
                 {

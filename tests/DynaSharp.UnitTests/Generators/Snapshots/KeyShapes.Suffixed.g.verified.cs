@@ -269,6 +269,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                     Encode(ref __key, name);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -313,6 +317,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -331,6 +339,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
                 }
                 finally
                 {
@@ -352,6 +364,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                     __key.WriteLiteral("A-"u8);
                     __key.WriteString(name, "-#"u8, "Name");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
                 }
                 finally
                 {
@@ -412,6 +428,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                     Encode(ref __key, name);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -434,6 +454,10 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
                 {
                     Encode(ref __key, name);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{Name}#B", "-#");
                 }
                 finally
                 {

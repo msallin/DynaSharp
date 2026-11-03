@@ -295,6 +295,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -378,6 +382,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -398,6 +406,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -428,6 +440,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     Encode(ref __key, name, seat);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Name} {Seat:d2}", " ");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -449,6 +465,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral(" "u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Name} {Seat:d2}", " ");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -466,6 +486,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral(" "u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Name} {Seat:d2}", " ");
                 }
                 finally
                 {
@@ -575,6 +599,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     Encode(ref __key, name, seat);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Name} {Seat:d2}", " ");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -597,6 +625,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 {
                     Encode(ref __key, name, seat);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Name} {Seat:d2}", " ");
                 }
                 finally
                 {
@@ -695,6 +727,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     Encode(ref __key, from, to, seat);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -716,6 +752,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -733,6 +773,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
                 }
                 finally
                 {
@@ -782,6 +826,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -801,6 +849,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
                 }
                 finally
                 {
@@ -911,6 +963,10 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
                 {
                     Encode(ref __key, from, to, seat);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{From:d2}#{To:d2}#{Seat:d2}", "#");
                 }
                 finally
                 {

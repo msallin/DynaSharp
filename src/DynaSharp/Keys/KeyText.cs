@@ -85,7 +85,7 @@ internal static class KeyText
         return text.IndexOf(HighestScalar) >= 0 ? SegmentProblem.HighestScalar : SegmentProblem.None;
     }
 
-    internal static KeyFormatException Fail(string placeholder, SegmentProblem problem) => new(placeholder, ProblemReasons[(int)problem]);
+    internal static KeyFormatException Fail(string placeholder, SegmentProblem problem) => new(placeholder, ProblemReasons[(int)problem]) { HoldsDelimiter = problem == SegmentProblem.Delimiter };
 
     internal static KeyFormatException Fail(string placeholder, string reason) => new(placeholder, reason);
 

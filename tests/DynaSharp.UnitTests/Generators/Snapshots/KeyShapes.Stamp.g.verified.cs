@@ -300,6 +300,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     Encode(ref __key, at, seq, room);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -344,6 +348,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -362,6 +370,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
                 }
                 finally
                 {
@@ -412,6 +424,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     __key.WriteLiteral("#"u8);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -432,6 +448,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     __key.WriteLiteral("#"u8);
                     __key.WriteUpperBound();
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
                 }
                 finally
                 {
@@ -482,6 +502,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     __key.WriteLiteral("#"u8);
                     __key.WriteString(room, "#"u8, "Room");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
                 }
                 finally
                 {
@@ -565,6 +589,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     Encode(ref __key, at, seq, room);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -590,6 +618,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                 {
                     Encode(ref __key, at, seq, room);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", "#");
                 }
                 finally
                 {
@@ -618,6 +650,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                 {
                     Encode(ref __key, room);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
                 }
                 finally
                 {
@@ -703,6 +739,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     Encode(ref __key, room);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("ROOM#{Room}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -739,6 +779,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                     Encode(ref __key, code);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -758,6 +802,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                 {
                     __key.WriteString(code, ""u8, "Code");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
                 }
                 finally
                 {
@@ -835,6 +883,10 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                 {
                     Encode(ref __key, code);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code}", "");
                 }
                 finally
                 {

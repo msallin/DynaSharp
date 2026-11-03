@@ -780,6 +780,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                     Encode(ref __key, status);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATUS#{Status}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -864,6 +868,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                     Encode(ref __key, status);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("STATUS#{Status}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -899,6 +907,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 {
                     Encode(ref __key, total);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Total:n10.2}", "");
                 }
                 finally
                 {
@@ -980,6 +992,10 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 {
                     Encode(ref __key, total);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Total:n10.2}", "");
                 }
                 finally
                 {

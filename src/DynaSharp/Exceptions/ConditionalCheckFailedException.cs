@@ -1,4 +1,5 @@
 using System.Net;
+using DynaSharp.Fluent;
 
 namespace DynaSharp;
 
@@ -7,8 +8,21 @@ namespace DynaSharp;
 /// and decides again can run in <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>, which repeats it for you.
 /// <see cref="Key"/> says which item it was about.
 /// </summary>
+/// <remarks>
+/// DynamoDB says no more than "The conditional request failed". After a <c>Put</c>, <c>Update</c> or <c>Delete</c> of a table, <see cref="Exception.Message"/> gains a line that says which condition the
+/// write sent: the version check, named by its attribute, the check that no item or that an item has the key, or the caller's own condition, all of them when there were several, because DynamoDB does not
+/// say which part failed. A version that marks a new item says so, with the two ways to write over the stored one. The line names attributes and the table and never a value, so the exception is as safe
+/// to log as any other.
+/// </remarks>
 public sealed class ConditionalCheckFailedException : DynamoDbException
 {
+    // What names the condition, kept as it is until the message is read: in a create-if-absent a failed condition is routine, and code that catches it never reads the text.
+    private ConditionParts _parts;
+    private string? _operation;
+    private string? _tableName;
+    private string? _versionAttributeName;
+    private string? _explanation;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ConditionalCheckFailedException"/> class.
     /// </summary>
@@ -21,6 +35,11 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     {
         Item = item;
     }
+
+    /// <summary>Gets the message of the service, followed for a command by a line that says which condition the write sent.</summary>
+    public override string Message => _parts == ConditionParts.None
+        ? base.Message
+        : $"{base.Message}{Environment.NewLine}{_explanation ??= FailedCondition.Line(_operation!, _tableName!, _versionAttributeName, _parts)}";
 
     /// <summary>
     /// Gets the item the condition was evaluated against, when the request set
@@ -66,4 +85,17 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// <summary>Attaches the key of the request that failed.</summary>
     /// <param name="key">The key attributes.</param>
     internal void Describe(Item key) => Key = key;
+
+    /// <summary>Attaches what the line that says which condition the write sent is made of, see <see cref="FailedCondition.Line"/>.</summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="tableName">The table.</param>
+    /// <param name="versionAttributeName">The version attribute of the table, if it has one.</param>
+    /// <param name="parts">The parts of the condition, not <see cref="ConditionParts.None"/>.</param>
+    internal void Explain(string operation, string tableName, string? versionAttributeName, ConditionParts parts)
+    {
+        _operation = operation;
+        _tableName = tableName;
+        _versionAttributeName = versionAttributeName;
+        _parts = parts;
+    }
 }

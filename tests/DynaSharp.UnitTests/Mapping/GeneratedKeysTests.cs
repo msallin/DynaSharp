@@ -935,6 +935,72 @@ public sealed class GeneratedKeysTests
     }
 
     [Test]
+    public async Task Of_DelimiterInAValue_NamesTheTemplateAndItsDelimiters()
+    {
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => UserProfile.Keys.Of("a#b"));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("The value contains a delimiter of the key template 'USER#{Id}' ('#'). (Parameter 'Id')");
+    }
+
+    [Test]
+    public async Task Format_DelimiterInAValue_NamesTheTemplateAndItsDelimiters()
+    {
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => Member.Keys.Pk.Format("t", "1#ORDER"));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("The value contains a delimiter of the key template 'TENANT#{Tenant}#USER#{Id}' ('#'). (Parameter 'Id')");
+    }
+
+    [Test]
+    public async Task Format_EmptyValue_NamesTheTemplate()
+    {
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => Member.Keys.Pk.Format(string.Empty, "1"));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("The value is empty. The key template is 'TENANT#{Tenant}#USER#{Id}'. (Parameter 'Tenant')");
+    }
+
+    [Test]
+    public async Task BeginsWith_DelimiterInAValue_NamesTheTemplate()
+    {
+        // Arrange, Act
+        var exception = Assert.Throws<KeyFormatException>(() => Member.Keys.Sk.BeginsWith("a#b"));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("The value contains a delimiter of the key template 'REGION#{Region}#CITY#{City}' ('#'). (Parameter 'Region')");
+    }
+
+    [Test]
+    public async Task WriteAttributes_UndefinedEnumInAKey_NamesTheTemplateOfThatKey()
+    {
+        // Arrange
+        var order = new KeyedOrder { UserId = User, CreatedAt = At, OrderId = OrderId, Status = (Plan)4242, Total = 1m };
+
+        // Act
+        var exception = Assert.Throws<KeyFormatException>(() => EntityJson.Write(order));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("The value is not a member of its enum, so it has no name in a key. The key template is 'STATUS#{Status}'. (Parameter 'Status')");
+    }
+
+    [Test]
+    public async Task Format_DelimiterInAValue_KeepsTheValueOutOfTheText()
+    {
+        // Arrange
+        const string Value = "secret#value";
+
+        // Act
+        var exception = Assert.Throws<KeyFormatException>(() => Member.Keys.Pk.Format(Value, "1"));
+
+        // Assert
+        await Assert.That((exception.Message.Contains("TENANT#{Tenant}", StringComparison.Ordinal), exception.ToString().Contains("secret", StringComparison.Ordinal))).IsEqualTo((true, false));
+    }
+
+    [Test]
     public async Task WriteKey_DefaultOfAKey_FailsWhenTheKeyIsWritten()
     {
         // Arrange (no Of has seen it)

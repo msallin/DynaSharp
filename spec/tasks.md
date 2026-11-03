@@ -407,6 +407,11 @@ Branch `m3/q1-create-result`, from item 3 of the second focus group.
 - Decision: `DYNA031` is for a property of an entity, as the item of an entity is what carries the copy of the keys. An entity inside a document is not reported.
 - Decision: `DYNA122` checks an empty value and a delimiter, what `KeyWriter` refuses of every string, and leaves control characters, lone surrogates and U+10FFFF to the run time.
 
+### Q5 - what a run-time failure says
+
+- [x] **Q5, messages.** A failed condition of `Put`, `Update` and `Delete` names the condition the write sent, from a byte of kinds in `WriteState.Conditions`: the version check by its attribute, the check that no item or that an item has the key, the caller's own, or all of them, since DynamoDB does not say which. A version that marks a new item, the plain `Put` of a fresh entity, points at the version last read and `IgnoreVersion()`. A cancelled transaction names each failed action as `Action 2 of 2, Put on Users: ConditionalCheckFailed`. A key value that does not fit names the template and its delimiters. No value in any of them.
+- Decision: the verb of a transaction action is read back from the body on the failure path, like the key of `FailedCondition`, instead of a byte per action, so a transaction that gets through keeps nothing. The template of a key reaches the message through a `catch` in the generated builder and `KeyFormatException.InTemplate`, because `KeyWriter` sees the delimiters of a call and not the template, and an argument on every write would cost the success path.
+
 ## M4 and later
 
 - [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's

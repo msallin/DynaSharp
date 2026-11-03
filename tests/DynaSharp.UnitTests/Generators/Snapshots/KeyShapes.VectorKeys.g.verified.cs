@@ -564,6 +564,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -648,6 +652,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -669,6 +677,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("USER#{Id}", "#");
                 }
                 finally
                 {
@@ -765,6 +777,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -848,6 +864,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -883,6 +903,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, tenant, id);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}#USER#{Id}", "#");
                 }
                 finally
                 {
@@ -970,6 +994,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, tenant, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}#USER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1008,6 +1036,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, country, canton);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("COUNTRY#{Country}#CANTON#{Canton}", "#");
                 }
                 finally
                 {
@@ -1094,6 +1126,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, country, canton);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("COUNTRY#{Country}#CANTON#{Canton}", "#");
                 }
                 finally
                 {
@@ -1236,6 +1272,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, total);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Total:n10.2}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1319,6 +1359,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, total);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Total:n10.2}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1353,6 +1397,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, total);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TOTAL#{Total:n10.2}", "#");
                 }
                 finally
                 {
@@ -1438,6 +1486,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, total);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TOTAL#{Total:n10.2}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1473,6 +1525,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, x);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{X}#B", "-#");
                 }
                 finally
                 {
@@ -1559,6 +1615,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, x);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("A-{X}#B", "-#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1595,6 +1655,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, x);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("v{X}", "v");
                 }
                 finally
                 {
@@ -1680,6 +1744,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, x);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("v{X}", "v");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1715,6 +1783,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, number);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("N#{Number}", "#");
                 }
                 finally
                 {
@@ -1800,6 +1872,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, number);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("N#{Number}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1835,6 +1911,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, number);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("N-{Number}", "-");
                 }
                 finally
                 {
@@ -1920,6 +2000,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, number);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("N-{Number}", "-");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -1956,6 +2040,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, sequence, name);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SEQ#{Sequence:d6}#{Name}", "#");
                 }
                 finally
                 {
@@ -2043,6 +2131,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, sequence, name);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SEQ#{Sequence:d6}#{Name}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -2081,6 +2173,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, sequence, name);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SEQ#{Sequence:d2}#{Name}", "#");
                 }
                 finally
                 {
@@ -2168,6 +2264,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, sequence, name);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SEQ#{Sequence:d2}#{Name}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -2207,6 +2307,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, a, b, c);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{A}#{B}#{C}", "#");
                 }
                 finally
                 {
@@ -2295,6 +2399,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, a, b, c);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{A}#{B}#{C}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -2334,6 +2442,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, a, b);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{A}#{B}", "#");
                 }
                 finally
                 {
@@ -2420,6 +2532,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     Encode(ref __key, a, b);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{A}#{B}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -2457,6 +2573,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, city, name);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("L#{City}#{Name}", "#");
                 }
                 finally
                 {
@@ -2543,6 +2663,10 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 {
                     Encode(ref __key, city, name);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("L#{City}#{Name}", "#");
                 }
                 finally
                 {

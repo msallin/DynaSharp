@@ -288,6 +288,10 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
                     Encode(ref __key, code, name);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code:d3}{Name}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -308,6 +312,10 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
                     __key.WriteDigits((long)code, 3, "Code");
                     __key.WriteString(name, ""u8, "Name");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code:d3}{Name}", "");
                 }
                 finally
                 {
@@ -387,6 +395,10 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
                     Encode(ref __key, code, name);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code:d3}{Name}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -408,6 +420,10 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
                 {
                     Encode(ref __key, code, name);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Code:d3}{Name}", "");
                 }
                 finally
                 {

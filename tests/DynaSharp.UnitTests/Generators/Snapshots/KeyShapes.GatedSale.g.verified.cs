@@ -278,6 +278,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -361,6 +365,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -381,6 +389,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("{Id}", "");
                 }
                 finally
                 {
@@ -409,6 +421,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, tenant);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
                 }
                 finally
                 {
@@ -494,6 +510,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -529,6 +549,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, seller);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SELLER#{Seller}", "#");
                 }
                 finally
                 {
@@ -572,6 +596,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     __key.WriteLiteral("SELLER#"u8);
                     __key.WriteString(seller, "#"u8, "Seller");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SELLER#{Seller}", "#");
                 }
                 finally
                 {
@@ -651,6 +679,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     Encode(ref __key, seller);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SELLER#{Seller}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -686,6 +718,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, tenant);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
                 }
                 finally
                 {
@@ -771,6 +807,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     Encode(ref __key, tenant);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("TENANT#{Tenant}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -806,6 +846,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, buyer);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("BUYER#{Buyer}", "#");
                 }
                 finally
                 {
@@ -849,6 +893,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                     __key.WriteLiteral("BUYER#"u8);
                     __key.WriteString(buyer, "#"u8, "Buyer");
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("BUYER#{Buyer}", "#");
                 }
                 finally
                 {
@@ -927,6 +975,10 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
                 {
                     Encode(ref __key, buyer);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("BUYER#{Buyer}", "#");
                 }
                 finally
                 {

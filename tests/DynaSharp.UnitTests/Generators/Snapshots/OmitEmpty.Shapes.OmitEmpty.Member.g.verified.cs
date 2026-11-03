@@ -277,6 +277,10 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
                     Encode(ref __key, id);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("MEMBER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -361,6 +365,10 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
                     Encode(ref __key, id);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("MEMBER#{Id}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -382,6 +390,10 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
                 {
                     Encode(ref __key, id);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("MEMBER#{Id}", "#");
                 }
                 finally
                 {
@@ -410,6 +422,10 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
                 {
                     Encode(ref __key, label);
                     return __key.ToString();
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LABEL#{Label}", "#");
                 }
                 finally
                 {
@@ -494,6 +510,10 @@ partial class Member : __Map.IDynamoDbDiscriminated<global::Shapes.OmitEmpty.Mem
                 {
                     Encode(ref __key, label);
                     __writer.WriteString(__key.WrittenSpan);
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("LABEL#{Label}", "#");
                 }
                 finally
                 {

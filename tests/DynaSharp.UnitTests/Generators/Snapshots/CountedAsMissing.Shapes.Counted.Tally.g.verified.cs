@@ -385,6 +385,10 @@ partial class Tally : __Map.IDynamoDbDiscriminated<global::Shapes.Counted.Tally>
                     Encode(ref __key, slot);
                     return __key.ToString();
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -489,6 +493,10 @@ partial class Tally : __Map.IDynamoDbDiscriminated<global::Shapes.Counted.Tally>
                     Encode(ref __key, slot);
                     __writer.WriteString(__key.WrittenSpan);
                 }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
+                }
                 finally
                 {
                     __key.Dispose();
@@ -510,6 +518,10 @@ partial class Tally : __Map.IDynamoDbDiscriminated<global::Shapes.Counted.Tally>
                 {
                     Encode(ref __key, slot);
                     return !__key.IsInvalid;
+                }
+                catch (global::DynaSharp.KeyFormatException __failure)
+                {
+                    throw __failure.InTemplate("SLOT#{Slot:d3}", "#");
                 }
                 finally
                 {
