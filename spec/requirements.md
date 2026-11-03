@@ -286,8 +286,8 @@ against the emulators, which check the ordering claim against something other th
 - Gates: 100 % line and branch coverage on `src/`; Stryker mutation score >= 90 % (MTP runner, preview).
 - Test layers: unit; in-memory integration (stub/recording handler, later the fake); container integration;
   scenario tests across backends. Integration and scenario tests are written once and parametrized by backend:
-  Dynoxide (default locally, starts in milliseconds), DynamoDB Local (additionally in the PR pipeline), the in-memory
-  fake (once it exists), real AWS (`DYNASHARP_BACKENDS=aws`, manual, through `.github/workflows/real-aws.yml`).
+  the in-memory fake (default locally, no Docker), Dynoxide and DynamoDB Local (in the PR pipeline, with the fake),
+  real AWS (`DYNASHARP_BACKENDS=aws`, manual, through `.github/workflows/real-aws.yml`).
 - External conformance material: the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance)
   (Apache-2.0) is used to measure the fake's functional conformance, and its recorded AWS responses (if usable) as
   real DynamoDB JSON for serialization tests, with attribution.

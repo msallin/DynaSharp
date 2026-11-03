@@ -186,7 +186,7 @@ public sealed class CreateTableCommandTests(Backend backend)
         await using var sandbox = await Sandbox.StartAsync(backend);
         var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
         await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
-        using var log = new OperationLog();
+        using var log = new OperationLog(sandbox.Emulator);
         using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
 
         // Act
@@ -201,7 +201,7 @@ public sealed class CreateTableCommandTests(Backend backend)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
-        using var log = new OperationLog();
+        using var log = new OperationLog(sandbox.Emulator);
         using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
         var shop = client.Table(Tables.UniqueName(), "pk", "sk");
 
@@ -367,7 +367,7 @@ public sealed class CreateTableCommandTests(Backend backend)
         await using var sandbox = await Sandbox.StartAsync(backend);
         var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
         await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
-        using var log = new OperationLog();
+        using var log = new OperationLog(sandbox.Emulator);
         using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
 
         // Act

@@ -582,6 +582,20 @@ public sealed class TableOperationsTests
     }
 
     [Test]
+    public async Task HandleCreateTable_DisabledStreamWithViewType_AnswersValidationAndCreatesNoTable()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","StreamSpecification":{"StreamEnabled":false,"StreamViewType":"NEW_IMAGE"}}""";
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That((answer, fake.TableNames.Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present."), 0));
+    }
+
+    [Test]
     public async Task HandleUpdateTable_EnableStream_DescribesTheNewStream()
     {
         // Arrange
@@ -625,7 +639,8 @@ public sealed class TableOperationsTests
 
     [Test]
     [Arguments(true, """{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}""", "Table already has an enabled stream: TableName: Users")]
-    [Arguments(false, """{"StreamEnabled":false}""", "Table does not have an enabled stream: TableName: Users")]
+    [Arguments(false, """{"StreamEnabled":false}""", "Table has no stream to disable")]
+    [Arguments(false, """{"StreamEnabled":false,"StreamViewType":"NEW_IMAGE"}""", "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.")]
     [Arguments(false, """{"StreamEnabled":true}""", Invalid + "StreamViewType must be specified when StreamEnabled is true")]
     public async Task HandleUpdateTable_StreamChangeDynamoDbRefuses_AnswersValidationAndChangesNothing(bool withStream, string specification, string message)
     {

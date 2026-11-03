@@ -7,7 +7,7 @@ namespace DynaSharp.IntegrationTests.Backends;
 
 /// <summary>
 /// Starts each selected emulator once per test run, on first use, and stops them when the run ends. Tests share an emulator and
-/// keep apart by using a table of their own (see <c>Sandbox</c>). Real AWS has no container, and goes through here for the same two moments of a run.
+/// keep apart by using a table of their own (see <c>Sandbox</c>). Real AWS and the fake have no container, and go through here for the same two moments of a run.
 /// </summary>
 internal static class Emulators
 {
@@ -71,7 +71,12 @@ internal static class Emulators
         _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown backend."),
     };
 
-    private static Task<Running> StartAsync(Backend backend) => backend == Backend.RealAws ? ConnectToRealAwsAsync() : StartContainerAsync(backend);
+    private static Task<Running> StartAsync(Backend backend) => backend switch
+    {
+        Backend.RealAws => ConnectToRealAwsAsync(),
+        Backend.Fake => Task.FromResult(new Running(FakeBackend.Create(), static () => Task.CompletedTask)),
+        _ => StartContainerAsync(backend),
+    };
 
     private static async Task<Running> ConnectToRealAwsAsync() => new Running(await RealAws.ConnectAsync(), RealAws.DeleteTablesOfThisRunAsync);
 
@@ -92,7 +97,12 @@ internal static class Emulators
         var http = new HttpClient();
         var raw = new RawDynamoDb(endpoint, http);
         await WaitUntilReadyAsync(raw, backend);
-        var emulator = new Emulator(backend, () => CreateOptions(endpoint), raw, new RawDynamoDb(endpoint, http, RawDynamoDb.StreamsTargetPrefix));
+        var emulator = new Emulator(
+            backend,
+            () => CreateOptions(endpoint),
+            raw,
+            new RawDynamoDb(endpoint, http, RawDynamoDb.StreamsTargetPrefix),
+            static () => new SocketsHttpHandler());
         return new Running(emulator, async () =>
         {
             http.Dispose();

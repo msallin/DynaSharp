@@ -41,7 +41,7 @@ internal static class StreamOperations
     private const int MinSequenceNumberLength = 21;
     private const int MaxSequenceNumberLength = 40;
 
-    /// <summary>Answers <c>ListStreams</c>: the streams in the order they were enabled, of one table or of all, after <c>ExclusiveStartStreamArn</c>, at most <c>Limit</c>, and the last one as <c>LastEvaluatedStreamArn</c> when more follow.</summary>
+    /// <summary>Answers <c>ListStreams</c>: the streams in the order they were enabled, of one table or of all, after <c>ExclusiveStartStreamArn</c>, at most <c>Limit</c>, and the last one as <c>LastEvaluatedStreamArn</c> when more follow. A table without a stream, a table that does not exist and an <c>ExclusiveStartStreamArn</c> not in the list give an empty list.</summary>
     /// <param name="db">The state.</param>
     /// <param name="request">The body of the request.</param>
     /// <param name="response">The writer, inside the object of the response.</param>
@@ -58,15 +58,10 @@ internal static class StreamOperations
         var start = RequestJson.Optional(request, "ExclusiveStartStreamArn") is { } startArn ? ReadArn(startArn, "ExclusiveStartStreamArn") : null;
         var now = db.Clock.GetUtcNow();
         var streams = db.Streams.Where(stream => !stream.IsGone(now) && (tableName is null || stream.TableName == tableName)).ToList();
-        if (tableName is not null && streams.Count == 0 && !db.Tables.ContainsKey(tableName))
-        {
-            throw FakeError.ResourceNotFound($"Requested resource not found: Table: {tableName} not found");
-        }
-
         if (start is not null)
         {
             var after = streams.FindIndex(stream => stream.Arn == start);
-            streams = after < 0 ? throw FakeError.ResourceNotFound($"Requested resource not found: Stream: {start} not found") : streams[(after + 1)..];
+            streams = after < 0 ? [] : streams[(after + 1)..];
         }
 
         var page = streams.Take(limit).ToList();
@@ -132,7 +127,7 @@ internal static class StreamOperations
 
     /// <summary>
     /// Answers <c>GetShardIterator</c>: <c>TRIM_HORIZON</c> at the oldest record kept, <c>LATEST</c> behind the newest, <c>AT_SEQUENCE_NUMBER</c> at the first record with that
-    /// sequence number or a larger one, and <c>AFTER_SEQUENCE_NUMBER</c> at the first with a larger one. A sequence number outside the range of the shard is a <c>ValidationException</c>,
+    /// sequence number or a larger one, and <c>AFTER_SEQUENCE_NUMBER</c> at the first with a larger one. A sequence number outside the range of the shard, and one given with <c>TRIM_HORIZON</c> or <c>LATEST</c>, is a <c>ValidationException</c>,
     /// and a position that has been trimmed is <c>TrimmedDataAccessException</c>.
     /// </summary>
     /// <param name="db">The state.</param>
@@ -144,14 +139,16 @@ internal static class StreamOperations
         var arn = ReadArn(RequestJson.Required(request, "StreamArn"), "StreamArn");
         var shardId = RequestJson.ReadString(RequestJson.Required(request, "ShardId"), "ShardId");
         var type = RequestJson.ReadEnum(RequestJson.Required(request, "ShardIteratorType"), "ShardIteratorType", WireNames.ShardIteratorTypes);
-        var sequenceNumber = RequestJson.Optional(request, "SequenceNumber") is { } given ? ReadSequenceNumber(given) : (BigInteger?)null;
+        var given = RequestJson.Optional(request, "SequenceNumber");
         var needsSequenceNumber = type is ShardIteratorType.AtSequenceNumber or ShardIteratorType.AfterSequenceNumber;
-        if (needsSequenceNumber != sequenceNumber.HasValue)
+        if (needsSequenceNumber != given.HasValue)
         {
             throw FakeError.Validation(needsSequenceNumber
                 ? "SequenceNumber is required for the ShardIteratorType AT_SEQUENCE_NUMBER and AFTER_SEQUENCE_NUMBER"
-                : "SequenceNumber is taken only by the ShardIteratorType AT_SEQUENCE_NUMBER and AFTER_SEQUENCE_NUMBER");
+                : "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type");
         }
+
+        var sequenceNumber = given is { } value ? ReadSequenceNumber(value) : (BigInteger?)null;
 
         var stream = db.FindStream(arn);
         if (shardId != stream.ShardId)

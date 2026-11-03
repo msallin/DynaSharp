@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.Mapping;
 using DynaSharp.Requests;
@@ -12,9 +13,9 @@ namespace DynaSharp.IntegrationTests.Support;
 internal sealed class Sandbox : IAsyncDisposable
 {
     private readonly List<string> _tables = [];
-    private readonly SettlingHandler? _handler;
+    private readonly HttpMessageHandler _handler;
 
-    private Sandbox(Emulator emulator, DynamoDbClient client, DynamoDbStreamsClient streams, SettlingHandler? handler)
+    private Sandbox(Emulator emulator, DynamoDbClient client, DynamoDbStreamsClient streams, HttpMessageHandler handler)
     {
         Emulator = emulator;
         Client = client;
@@ -34,10 +35,11 @@ internal sealed class Sandbox : IAsyncDisposable
     /// <summary>Starts the backend if needed and creates the clients for it.</summary>
     /// <param name="backend">The backend of the test.</param>
     /// <returns>The sandbox.</returns>
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Owned by the sandbox, disposed with it.")]
     public static async Task<Sandbox> StartAsync(Backend backend)
     {
         var emulator = await Emulators.GetAsync(backend);
-        var handler = backend == Backend.RealAws ? new SettlingHandler() : null;
+        var handler = backend == Backend.RealAws ? new SettlingHandler(emulator.CreateHandler()) : emulator.CreateHandler();
         var options = emulator.CreateOptions() with { HttpHandler = handler };
         return new Sandbox(emulator, new DynamoDbClient(options), new DynamoDbStreamsClient(options), handler);
     }
@@ -97,7 +99,7 @@ internal sealed class Sandbox : IAsyncDisposable
 
         Client.Dispose();
         Streams.Dispose();
-        _handler?.Dispose();
+        _handler.Dispose();
         if (failures.Count > 0)
         {
             CleanupFailures.Report(failures);

@@ -7,7 +7,7 @@ namespace DynaSharp.Testing.Fake;
 /// A <c>TransactWriteItems</c>: up to 100 condition checks, puts, deletes and updates over several tables, all or nothing. Every condition is checked against the items as they are
 /// before any write; if one fails, the transaction is cancelled with one reason per action in its order, <c>ConditionalCheckFailed</c> where a condition failed, with the item when
 /// the action asked for it with <c>ALL_OLD</c>, and <c>None</c> for the others. A write the table rejects, such as an update that makes an item over 400 KB, cancels it with
-/// <c>ValidationError</c> and takes back the writes before it. One item twice is a <c>ValidationException</c>.
+/// <c>ValidationError</c> and takes back the writes before it, and so does a key that does not match the schema of its table. One item twice is a <c>ValidationException</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -55,7 +55,11 @@ internal static class TransactWriteItems
         foreach (var element in elements)
         {
             var action = Read(db, element);
-            Batches.ThrowIfSeen(seen, action.Table, action.Key, TransactGetItems.SameItemTwice);
+            if (action.Rejected is null)
+            {
+                Batches.ThrowIfSeen(seen, action.Table, action.Key, TransactGetItems.SameItemTwice);
+            }
+
             actions.Add(action);
         }
 
@@ -131,16 +135,18 @@ internal static class TransactWriteItems
         };
         RequestJson.Members(body, where, members);
         var table = db.GetTable(TableOperations.ReadTableName(body));
-        Item? item = null;
-        ItemKey key;
-        if (kind == ActionKind.Put)
+        var item = kind == ActionKind.Put ? RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item") : null;
+        var keyMap = item is null ? RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key") : null;
+        ItemKey key = default;
+        FakeError? rejected = null;
+        try
         {
-            item = RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item");
-            key = table.KeySchema.KeyOf(item);
+            key = item is not null ? table.KeySchema.KeyOf(item) : table.KeySchema.ReadKey(keyMap!);
         }
-        else
+        catch (FakeError error) when (error.Code == "ValidationException")
         {
-            key = table.KeySchema.ReadKey(RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key"));
+            // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json.
+            rejected = error;
         }
 
         if (kind == ActionKind.ConditionCheck)
@@ -161,7 +167,7 @@ internal static class TransactWriteItems
         }
 
         var onFailure = SingleWrite.Enum(body, "ReturnValuesOnConditionCheckFailure", WireNames.ReturnValuesOnConditionCheckFailures);
-        return new Action(kind, table, key, item, condition, update, onFailure);
+        return new Action(kind, table, key, item, condition, update, onFailure, rejected);
     }
 
     private static void ThrowIfAnyConditionFails(List<Action> actions)
@@ -171,24 +177,22 @@ internal static class TransactWriteItems
         for (var i = 0; i < actions.Count; i++)
         {
             var action = actions[i];
-            var current = action.Table.Get(action.Key);
-            try
-            {
-                if (action.Condition is not null && !action.Condition.Evaluate(current))
-                {
-                    reasons[i] = new CancellationReason
-                    {
-                        Code = "ConditionalCheckFailed",
-                        Message = "The conditional request failed",
-                        Item = action.OnFailure == ReturnValuesOnConditionCheckFailure.AllOld ? current : null,
-                    };
-                    cancelled = true;
-                    continue;
-                }
-            }
-            catch (FakeError error) when (error.Code == "ValidationException")
+            if (action.Rejected is { } error)
             {
                 reasons[i] = ValidationError(error);
+                cancelled = true;
+                continue;
+            }
+
+            var current = action.Table.Get(action.Key);
+            if (action.Condition is not null && !action.Condition.Evaluate(current))
+            {
+                reasons[i] = new CancellationReason
+                {
+                    Code = "ConditionalCheckFailed",
+                    Message = "The conditional request failed",
+                    Item = action.OnFailure == ReturnValuesOnConditionCheckFailure.AllOld ? current : null,
+                };
                 cancelled = true;
                 continue;
             }
@@ -262,5 +266,6 @@ internal static class TransactWriteItems
         Item? Item,
         ParsedCondition? Condition,
         ParsedUpdate? Update,
-        ReturnValuesOnConditionCheckFailure OnFailure);
+        ReturnValuesOnConditionCheckFailure OnFailure,
+        FakeError? Rejected);
 }

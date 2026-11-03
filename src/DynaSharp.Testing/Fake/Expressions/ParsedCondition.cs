@@ -3,8 +3,7 @@ namespace DynaSharp.Testing.Fake;
 /// <summary>A parsed <c>ConditionExpression</c> or <c>FilterExpression</c>.</summary>
 /// <param name="text">The expression as the request has it.</param>
 /// <param name="root">The tree of the condition.</param>
-/// <param name="member">The member of the request it came from, which a message names.</param>
-internal sealed class ParsedCondition(string text, ConditionNode root, string member)
+internal sealed class ParsedCondition(string text, ConditionNode root)
 {
     /// <summary>Gets the expression as the request has it.</summary>
     public string Text { get; } = text;
@@ -21,8 +20,7 @@ internal sealed class ParsedCondition(string text, ConditionNode root, string me
     /// <summary>Evaluates the condition on an item, with the type rules of DynamoDB: a comparison of values of different types is false.</summary>
     /// <param name="item">The item, or <see langword="null"/> where there is none, which is what <c>attribute_not_exists</c> on a new item sees.</param>
     /// <returns><see langword="true"/> if the condition holds.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c> for what DynamoDB rejects only on an item, such as <c>size</c> of a number.</exception>
-    public bool Evaluate(Item? item) => ConditionEvaluator.Evaluate(Root, item, member);
+    public bool Evaluate(Item? item) => ConditionEvaluator.Evaluate(Root, item);
 
     private static HashSet<string> Collect(ConditionNode node, HashSet<string> names)
     {

@@ -50,16 +50,16 @@ public sealed class StreamOperationsTests
     }
 
     [Test]
-    public async Task HandleListStreams_NoSuchTable_AnswersResourceNotFound()
+    public async Task HandleListStreams_NoSuchTable_ListsNone()
     {
         // Arrange
         var fake = FakeCalls.With();
 
         // Act
-        var answer = FakeCalls.Error(fake, "ListStreams", """{"TableName":"Users"}""");
+        var body = FakeCalls.Ok(fake, "ListStreams", """{"TableName":"Users"}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found: Table: Users not found"));
+        await Assert.That(FakeCalls.SameJson("""{"Streams":[]}""", body)).IsTrue();
     }
 
     [Test]
@@ -74,10 +74,10 @@ public sealed class StreamOperationsTests
         // Act
         var before = FakeCalls.Ok(fake, "ListStreams", """{"TableName":"Users"}""").GetProperty("Streams").GetArrayLength();
         clock.Advance(TimeSpan.FromMilliseconds(1));
-        var after = FakeCalls.Error(fake, "ListStreams", """{"TableName":"Users"}""").Code;
+        var after = FakeCalls.Ok(fake, "ListStreams", """{"TableName":"Users"}""").GetProperty("Streams").GetArrayLength();
 
         // Assert
-        await Assert.That((before, after)).IsEqualTo((1, "ResourceNotFoundException"));
+        await Assert.That((before, after)).IsEqualTo((1, 0));
     }
 
     [Test]
@@ -99,17 +99,17 @@ public sealed class StreamOperationsTests
     }
 
     [Test]
-    public async Task HandleListStreams_UnknownExclusiveStartStreamArn_AnswersResourceNotFound()
+    public async Task HandleListStreams_UnknownExclusiveStartStreamArn_ListsNone()
     {
         // Arrange
         var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
         const string Unknown = "arn:aws:dynamodb:us-east-1:123456789012:table/Other/stream/" + FakeStreams.Label;
 
         // Act
-        var answer = FakeCalls.Error(fake, "ListStreams", $$"""{"ExclusiveStartStreamArn":"{{Unknown}}"}""");
+        var body = FakeCalls.Ok(fake, "ListStreams", $$"""{"ExclusiveStartStreamArn":"{{Unknown}}"}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", $"Requested resource not found: Stream: {Unknown} not found"));
+        await Assert.That(FakeCalls.SameJson("""{"Streams":[]}""", body)).IsTrue();
     }
 
     [Test]
@@ -603,7 +603,8 @@ public sealed class StreamOperationsTests
 
     [Test]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER"}""", "SequenceNumber is required for the ShardIteratorType AT_SEQUENCE_NUMBER and AFTER_SEQUENCE_NUMBER")]
-    [Arguments("""{"ShardIteratorType":"TRIM_HORIZON","SequenceNumber":"100000000000000000001"}""", "SequenceNumber is taken only by the ShardIteratorType AT_SEQUENCE_NUMBER and AFTER_SEQUENCE_NUMBER")]
+    [Arguments("""{"ShardIteratorType":"TRIM_HORIZON","SequenceNumber":"100000000000000000001"}""", "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type")]
+    [Arguments("""{"ShardIteratorType":"LATEST","SequenceNumber":"1"}""", "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"1"}""", "Invalid SequenceNumber 1: a sequence number is a decimal number of 21 to 40 digits")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"1000000000000000000000000000000000000000000"}""", "Invalid SequenceNumber 1000000000000000000000000000000000000000000: a sequence number is a decimal number of 21 to 40 digits")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"10000000000000000000x"}""", "Invalid SequenceNumber 10000000000000000000x: a sequence number is a decimal number of 21 to 40 digits")]

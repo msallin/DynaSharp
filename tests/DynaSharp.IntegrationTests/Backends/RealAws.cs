@@ -37,7 +37,7 @@ internal static class RealAws
     {
         var now = DateTimeOffset.UtcNow;
         await DeleteTablesAsync(name => Tables.StartedBefore(name, now - OrphanAge));
-        return new Emulator(Backend.RealAws, CreateOptions, CreateRaw(), CreateRawStreams());
+        return new Emulator(Backend.RealAws, CreateOptions, CreateRaw(), CreateRawStreams(), static () => new SocketsHttpHandler());
     }
 
     /// <summary>Deletes what the tests of this run left behind.</summary>

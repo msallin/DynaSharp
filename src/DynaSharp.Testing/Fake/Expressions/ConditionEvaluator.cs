@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace DynaSharp.Testing.Fake;
 
 /// <summary>
@@ -12,8 +10,8 @@ namespace DynaSharp.Testing.Fake;
 /// strings, numbers and binaries, and are false for any other type.</item>
 /// <item><c>begins_with</c> takes a string and a string, or a binary and a binary. <c>contains</c> finds a substring in a string, a subsequence in a binary, an element in a set of its type,
 /// and an element in a list.</item>
-/// <item><c>size</c> is the length of a string in UTF-8 bytes, of a binary in bytes, and the number of elements of a set, a list or a map. Of a number, a boolean or a null it is a
-/// <c>ValidationException</c>, which DynamoDB raises only on an item that has such a value.</item>
+/// <item><c>size</c> is the length of a string in UTF-16 code units, as DynamoDB Local counts it (a character outside the BMP is 2), of a binary in bytes, and the number of elements of a set,
+/// a list or a map. A number, a boolean or a null has no size, so a comparison with it is false, as a comparison with a missing attribute is.</item>
 /// </list>
 /// </remarks>
 internal static class ConditionEvaluator
@@ -21,28 +19,26 @@ internal static class ConditionEvaluator
     /// <summary>Evaluates a condition.</summary>
     /// <param name="node">The condition.</param>
     /// <param name="item">The item, or <see langword="null"/> where there is none.</param>
-    /// <param name="member">The member of the request the condition is in, which a message names.</param>
     /// <returns><see langword="true"/> if the condition holds.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c> for <c>size</c> of a value that has none.</exception>
-    public static bool Evaluate(ConditionNode node, Item? item, string member) => node switch
+    public static bool Evaluate(ConditionNode node, Item? item) => node switch
     {
-        ConditionNode.And and => Evaluate(and.Left, item, member) && Evaluate(and.Right, item, member),
-        ConditionNode.Or or => Evaluate(or.Left, item, member) || Evaluate(or.Right, item, member),
-        ConditionNode.Not not => !Evaluate(not.Inner, item, member),
-        ConditionNode.Compare compare => Compare(compare.Comparator, Value(compare.Left, item, member), Value(compare.Right, item, member)),
-        ConditionNode.Between between => Between(Value(between.Value, item, member), Value(between.Lower, item, member), Value(between.Upper, item, member)),
-        ConditionNode.In @in => In(Value(@in.Value, item, member), @in.Candidates.Select(candidate => Value(candidate, item, member))),
-        _ => Function((ConditionNode.Function)node, item, member),
+        ConditionNode.And and => Evaluate(and.Left, item) && Evaluate(and.Right, item),
+        ConditionNode.Or or => Evaluate(or.Left, item) || Evaluate(or.Right, item),
+        ConditionNode.Not not => !Evaluate(not.Inner, item),
+        ConditionNode.Compare compare => Compare(compare.Comparator, Value(compare.Left, item), Value(compare.Right, item)),
+        ConditionNode.Between between => Between(Value(between.Value, item), Value(between.Lower, item), Value(between.Upper, item)),
+        ConditionNode.In @in => In(Value(@in.Value, item), @in.Candidates.Select(candidate => Value(candidate, item))),
+        _ => Function((ConditionNode.Function)node, item),
     };
 
-    private static AttributeValue? Value(Operand operand, Item? item, string member) => operand switch
+    private static AttributeValue? Value(Operand operand, Item? item) => operand switch
     {
         Operand.Attribute attribute => attribute.Path.TryResolve(item, out var value) ? value : (AttributeValue?)null,
         Operand.Constant constant => constant.Value,
-        _ => Size(Value(((Operand.Size)operand).Inner, item, member), member),
+        _ => Size(Value(((Operand.Size)operand).Inner, item)),
     };
 
-    private static AttributeValue? Size(AttributeValue? value, string member)
+    private static AttributeValue? Size(AttributeValue? value)
     {
         if (value is not { } measured)
         {
@@ -52,7 +48,7 @@ internal static class ConditionEvaluator
         // A chain of tests rather than a switch, whose jump table would have a branch for the type of a default value, which no item holds.
         if (measured.Type == AttributeType.String)
         {
-            return Encoding.UTF8.GetByteCount(measured.AsString());
+            return measured.AsString().Length;
         }
 
         if (measured.Type == AttributeType.Binary)
@@ -65,10 +61,7 @@ internal static class ConditionEvaluator
             return measured.AsMap().Count;
         }
 
-        return IsCollection(measured.Type)
-            ? AttributeSets.Elements(measured).Count()
-            : throw FakeError.Validation(
-                $"Invalid {member}: Incorrect operand type for operator or function; operator or function: size, operand type: {AttributeRules.Descriptor(measured.Type)}");
+        return IsCollection(measured.Type) ? AttributeSets.Elements(measured).Count() : null;
     }
 
     private static bool IsCollection(AttributeType type) => type == AttributeType.List || AttributeSets.IsSet(type);
@@ -102,9 +95,9 @@ internal static class ConditionEvaluator
     private static bool In(AttributeValue? value, IEnumerable<AttributeValue?> candidates) =>
         value is { } x && candidates.Any(candidate => candidate is { } y && AttributeComparer.AreEqual(x, y));
 
-    private static bool Function(ConditionNode.Function function, Item? item, string member)
+    private static bool Function(ConditionNode.Function function, Item? item)
     {
-        var first = Value(function.Operands[0], item, member);
+        var first = Value(function.Operands[0], item);
         switch (function.Kind)
         {
             case ConditionFunction.AttributeExists:
@@ -113,7 +106,7 @@ internal static class ConditionEvaluator
                 return first is null;
         }
 
-        var second = Value(function.Operands[1], item, member);
+        var second = Value(function.Operands[1], item);
         if (first is not { } x || second is not { } y)
         {
             return false;

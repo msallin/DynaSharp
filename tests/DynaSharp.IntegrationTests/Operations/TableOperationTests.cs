@@ -31,6 +31,7 @@ public sealed class TableOperationTests(Backend backend)
     public async Task CreateTable_ProvisionedWithLocalAndGlobalIndexesAndTags_CreatesTheTableAndItsIndexes()
     {
         // Arrange
+        Gaps.SkipIfMissing(backend, Gap.Tags);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var name = Tables.UniqueName();
         var request = new CreateTableRequest

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.Expr;
 
 // Exercises the public API in a Native AOT binary: stubbed GetItem, PutItem, DescribeTable and an error, through the
-// DynamoDbClient with its telemetry. Exit code 0 means every check passed.
+// DynamoDbClient with its telemetry, and a round trip through FakeDynamoDb. Exit code 0 means every check passed.
 var failures = new List<string>();
 
 var activities = new List<Activity>();
@@ -550,6 +550,20 @@ catch (DynamoDbMappingException)
 }
 
 Check(lenientFailures == 3, "Select and Return of a value counted as missing throw, never a default");
+
+// The fake in the AOT binary: a table from an entity, then put, query, update and delete through a client of the fake.
+var fake = new FakeDynamoDb();
+fake.CreateTable<Visitor>("Visitors");
+using var fakeClient = fake.CreateClient();
+var fakeVisitors = fakeClient.Table<Visitor>("Visitors");
+await fakeVisitors.Put(new Visitor("v-1", 1)).SendAsync();
+
+var fakeQueried = await fakeVisitors.Query("v-1").ItemsAsync().ToListAsync();
+Check(fakeQueried is [{ Id: "v-1", Visits: 1 }], "the fake answers a Put and a Query");
+var fakeVisits = await fakeVisitors.Update(new Visitor.Key("v-1")).Add("visits", 1).Return(Attr<int>("visits")).SendAsync();
+Check(fakeVisits == 2, "the fake answers an Update");
+await fakeVisitors.Delete(new Visitor("v-1", 2)).IfExists().SendAsync();
+Check(fake.Items("Visitors").Count == 0, "the fake answers a Delete");
 
 foreach (var failure in failures)
 {

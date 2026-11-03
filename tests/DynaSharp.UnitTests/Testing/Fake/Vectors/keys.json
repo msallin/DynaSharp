@@ -1,0 +1,188 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "key-condition-sides-and-empty-values",
+      "decides": "Open 8: a key condition takes the value on either side, and rejects an empty partition value but not an empty sort value.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "1"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "2"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "3"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p AND :v < sk",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "1"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Items": [
+              {
+                "sk": {
+                  "S": "2"
+                },
+                "pk": {
+                  "S": "a"
+                }
+              },
+              {
+                "sk": {
+                  "S": "3"
+                },
+                "pk": {
+                  "S": "a"
+                }
+              }
+            ],
+            "Count": 2,
+            "ScannedCount": 2
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "sk > :v AND pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "2"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Items": [
+              {
+                "sk": {
+                  "S": "3"
+                },
+                "pk": {
+                  "S": "a"
+                }
+              }
+            ],
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": ""
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: pk"
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p AND sk = :s",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":s": {
+                "S": ""
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: sk"
+        }
+      ]
+    }
+  ]
+}

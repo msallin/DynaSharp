@@ -125,7 +125,7 @@ public sealed partial class FakeDynamoDb
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     /// <exception cref="ResourceInUseException">A table of that name exists.</exception>
     /// <exception cref="ValidationException">DynamoDB would reject the request.</exception>
-    /// <exception cref="DynamoDbException">The request asks for what the fake does not implement, such as tags or a stream: <see cref="DynamoDbException.ErrorCode"/> is <c>UnsupportedByFakeException</c>.</exception>
+    /// <exception cref="DynamoDbException">The request asks for what the fake does not implement, such as tags: <see cref="DynamoDbException.ErrorCode"/> is <c>UnsupportedByFakeException</c>.</exception>
     public TableDescription CreateTable(CreateTableRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

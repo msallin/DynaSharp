@@ -72,20 +72,19 @@ public sealed class TransactWriteItemsTests
     }
 
     [Test]
-    public async Task Handle_ConditionTheItemCannotSatisfy_CancelsWithValidationError()
+    [Arguments("""{"Put":{"TableName":"Users","Item":{"pk":{"N":"1"}}}}""")]
+    [Arguments("""{"Delete":{"TableName":"Users","Key":{"other":{"S":"a"}}}}""")]
+    public async Task Handle_KeyThatDoesNotMatchTheSchema_CancelsWithValidationErrorForThatAction(string action)
     {
-        // Arrange: size of a number is an error DynamoDB finds only on the item
+        // Arrange: DynamoDB Local cancels with a reason here, see Vectors/writes.json; the first action is fine and gets None
         var fake = FakeCalls.With(FakeCalls.Users);
-        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Users","Item":{"pk":{"S":"a"},"n":{"N":"5"}}}""");
 
         // Act
-        var (_, body) = FakeCalls.Send(
-            fake,
-            "TransactWriteItems",
-            """{"TransactItems":[{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":"a"}},"ConditionExpression":"size(n) > :z","ExpressionAttributeValues":{":z":{"N":"0"}}}}]}""");
+        var (_, body) = FakeCalls.Send(fake, "TransactWriteItems", """{"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}}},""" + action + "]}");
 
         // Assert
-        await Assert.That(body.GetProperty("CancellationReasons")[0].GetProperty("Code").GetString()).IsEqualTo("ValidationError");
+        var codes = body.GetProperty("CancellationReasons").EnumerateArray().Select(static reason => reason.GetProperty("Code").GetString());
+        await Assert.That(string.Join(",", codes)).IsEqualTo("None,ValidationError");
     }
 
     [Test]

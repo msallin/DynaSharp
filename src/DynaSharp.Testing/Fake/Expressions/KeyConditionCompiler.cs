@@ -8,8 +8,8 @@ namespace DynaSharp.Testing.Fake;
 /// </summary>
 /// <remarks>
 /// Anything else is a <c>ValidationException</c>: <c>OR</c>, <c>NOT</c>, <c>IN</c>, <c>&lt;&gt;</c> and every other function by name (<c>Invalid operator used in KeyConditionExpression: OR</c>),
-/// a condition on another attribute or the wrong operator on the partition key (<c>Query key condition not supported</c>), two on one key, a nested path, a value of another type than
-/// the key. A value may stand on either side: <c>:v &lt; sk</c> is <c>sk &gt; :v</c>.
+/// the wrong operator on the partition key (<c>Query key condition not supported</c>), a condition on another attribute or none on the partition key (<c>Query condition missed key schema
+/// element</c>), two on one key, a nested path, a value of another type than the key, and an empty string or binary as the value of either key. A value may stand on either side: <c>:v &lt; sk</c> is <c>sk &gt; :v</c>.
 /// </remarks>
 internal static class KeyConditionCompiler
 {
@@ -49,26 +49,21 @@ internal static class KeyConditionCompiler
             {
                 ThrowIfSecond(sort is not null);
                 ThrowIfOtherType(range, keySchema.SortKeyType!.Value);
+                ThrowIfEmpty(range.Value, keySchema.SortKeyName!);
                 sort = range;
             }
             else
             {
-                throw NotSupported();
+                throw MissedKey();
             }
         }
 
         if (partition is not { } partitionValue)
         {
-            throw FakeError.Validation($"Query condition missed key schema element: {keySchema.PartitionKeyName}");
+            throw MissedKey();
         }
 
-        if (partitionValue.Type == AttributeType.String ? partitionValue.AsString().Length == 0 : partitionValue.Type == AttributeType.Binary && partitionValue.AsBinary().IsEmpty)
-        {
-            throw FakeError.Validation(
-                "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty "
-                + $"{(partitionValue.Type == AttributeType.String ? "string" : "binary")} value. Key: {keySchema.PartitionKeyName}");
-        }
-
+        ThrowIfEmpty(partitionValue, keySchema.PartitionKeyName);
         return new KeyRange(partitionValue, sort);
     }
 
@@ -165,5 +160,18 @@ internal static class KeyConditionCompiler
     private static bool HasType(AttributeValue value, ScalarAttributeType type) => (value.Type, type) is
         (AttributeType.String, ScalarAttributeType.String) or (AttributeType.Number, ScalarAttributeType.Number) or (AttributeType.Binary, ScalarAttributeType.Binary);
 
+    // An empty string or binary as a key value, on either key, as DynamoDB Local rejects it (Vectors/keys.json).
+    private static void ThrowIfEmpty(AttributeValue value, string name)
+    {
+        if (value.Type == AttributeType.String ? value.AsString().Length == 0 : value.Type == AttributeType.Binary && value.AsBinary().IsEmpty)
+        {
+            throw FakeError.Validation(
+                $"One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty {(value.Type == AttributeType.String ? "string" : "binary")} value. Key: {name}");
+        }
+    }
+
     private static FakeError NotSupported() => FakeError.Validation("Query key condition not supported");
+
+    // DynamoDB Local names no attribute, also where the condition names one that is no key (Vectors/messages.json).
+    private static FakeError MissedKey() => FakeError.Validation("Query condition missed key schema element");
 }

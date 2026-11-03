@@ -6,25 +6,25 @@ namespace DynaSharp.IntegrationTests.Backends;
 public sealed class BackendSelectionTests
 {
     [Test]
-    public async Task Parse_NotSet_SelectsDynoxideOnly()
+    public async Task Parse_NotSet_SelectsTheFakeOnly()
     {
         // Act
         var selected = BackendSelection.Parse(null);
 
         // Assert
-        await Assert.That(selected).IsEquivalentTo([Backend.Dynoxide]);
+        await Assert.That(selected).IsEquivalentTo([Backend.Fake]);
     }
 
     [Test]
     [Arguments("")]
     [Arguments("  ")]
-    public async Task Parse_BlankValue_SelectsDynoxideOnly(string value)
+    public async Task Parse_BlankValue_SelectsTheFakeOnly(string value)
     {
         // Act
         var selected = BackendSelection.Parse(value);
 
         // Assert
-        await Assert.That(selected).IsEquivalentTo([Backend.Dynoxide]);
+        await Assert.That(selected).IsEquivalentTo([Backend.Fake]);
     }
 
     [Test]
@@ -38,7 +38,7 @@ public sealed class BackendSelectionTests
     }
 
     [Test]
-    public async Task Parse_All_SelectsEveryEmulatorOnceAndNotRealAws()
+    public async Task Parse_All_SelectsEveryEmulatorAndTheFakeOnceAndNotRealAws()
     {
         // Arrange (real AWS costs money, so it takes its name)
 
@@ -46,7 +46,7 @@ public sealed class BackendSelectionTests
         var selected = BackendSelection.Parse("all,dynoxide");
 
         // Assert
-        await Assert.That(selected).IsEquivalentTo([Backend.Dynoxide, Backend.DynamoDbLocal]);
+        await Assert.That(selected).IsEquivalentTo([Backend.Dynoxide, Backend.DynamoDbLocal, Backend.Fake]);
     }
 
     [Test]

@@ -48,11 +48,11 @@ public sealed class AttributeRulesTests
     }
 
     [Test]
+    [Arguments(31)]
     [Arguments(32)]
-    [Arguments(33)]
     public async Task Normalize_NestedMaps_AllowsThirtyTwoLevels(int levels)
     {
-        // Arrange
+        // Arrange: levels documents around a string; DynamoDB counts the string as a level too, so 31 documents are the 32 levels it allows.
         var value = AttributeValue.FromString("leaf");
         for (var i = 0; i < levels; i++)
         {
@@ -63,7 +63,7 @@ public sealed class AttributeRulesTests
         var act = () => AttributeRules.Normalize(value);
 
         // Assert
-        if (levels <= AttributeRules.MaxNesting)
+        if (levels < AttributeRules.MaxNesting)
         {
             await Assert.That(act).ThrowsNothing();
         }

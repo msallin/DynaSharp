@@ -32,6 +32,7 @@ public sealed class RawOperationTests(Backend backend)
     public async Task SendRawAsync_ExecuteStatement_ReadsAnItemWithPartiQl()
     {
         // Arrange (PartiQL has no request type in the library, and both emulators serve it)
+        Gaps.SkipIfMissing(backend, Gap.PartiQl);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("partiql-1", "found") });

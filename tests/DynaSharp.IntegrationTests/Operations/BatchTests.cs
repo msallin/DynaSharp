@@ -256,6 +256,7 @@ public sealed class BatchTests(Backend backend)
     {
         // Arrange: 45 items of 390 KB are 17.5 MB; a response holds at most 16 MB, so the rest comes back as unprocessed keys. Real DynamoDB also leaves
         // writes and keys unprocessed when a partition runs out of throughput, which items of 390 KB do on a new table, so both sides go on until nothing is left.
+        Gaps.SkipIfMissing(backend, Gap.BatchResponseLimit);
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         var big = new string('x', 390 * 1024);

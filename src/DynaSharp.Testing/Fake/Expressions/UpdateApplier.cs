@@ -13,8 +13,8 @@ namespace DynaSharp.Testing.Fake;
 /// <item>Several <c>REMOVE</c> of one list remove the elements of the indexes the list had before the update.</item>
 /// <item>The key attributes cannot be changed. An update that creates the item starts from the key.</item>
 /// </list>
-/// <c>UPDATED_OLD</c> and <c>UPDATED_NEW</c> are the paths of the actions, projected from the item before and after: <c>SET a.b = :v</c> returns <c>{"a":{"M":{"b":...}}}</c>, not the
-/// whole of <c>a</c>. A removed path has nothing after the update, and an appended element is returned at the index it got.
+/// <c>UPDATED_OLD</c> and <c>UPDATED_NEW</c> are the top-level attributes the actions touch, whole, from the item before and after: <c>SET a.b = :v</c> returns all of <c>a</c>, as DynamoDB Local
+/// does (<c>Vectors/updates.json</c>). An attribute only a <c>REMOVE</c> touched is not in <c>UPDATED_NEW</c>.
 /// </remarks>
 internal static class UpdateApplier
 {
@@ -59,8 +59,22 @@ internal static class UpdateApplier
             Modify(image, path, static _ => null);
         }
 
-        var before = current is null ? [] : Projection.Apply(current, [.. actions.Select(static action => action.Path)]);
-        return (image, before, Projection.Apply(image, updated));
+        var before = current is null ? [] : Attributes(current, actions.Select(static action => action.Path.Root));
+        return (image, before, Attributes(image, updated.Select(static path => path.Root)));
+    }
+
+    private static Item Attributes(Item item, IEnumerable<string> names)
+    {
+        var attributes = new Item();
+        foreach (var name in names)
+        {
+            if (item.TryGetValue(name, out var value))
+            {
+                attributes[name] = value;
+            }
+        }
+
+        return attributes;
     }
 
     private static Func<AttributeValue?, AttributeValue?> ChangeOf(UpdateAction action, Item original)

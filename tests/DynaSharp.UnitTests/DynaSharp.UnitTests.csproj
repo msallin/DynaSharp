@@ -18,6 +18,8 @@
     <EmbeddedResource Include="Operations/required_members.json" LogicalName="required_members.json" />
     <!-- Key encodings and rejections from an independent oracle in Python, see Keys/generate_key_vectors.py. -->
     <EmbeddedResource Include="Keys/key_vectors.json" LogicalName="key_vectors.json" />
+    <!-- Answers of DynamoDB Local that the fake replays, see build/generate_fake_vectors.py. -->
+    <EmbeddedResource Include="Testing/Fake/Vectors/*.json" LogicalName="fake-vectors/%(Filename)%(Extension)" />
     <!-- Expected results of botocore, written by Credentials/generate_shared_file_vectors.py. -->
     <EmbeddedResource Include="Credentials/SharedFileVectors.json" LogicalName="SharedFileVectors.json" />
     <EmbeddedResource Include="Credentials/sts_vectors.json" LogicalName="sts_vectors.json" />

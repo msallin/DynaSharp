@@ -36,5 +36,5 @@
 - `dotnet run build/ReadmeCheck.cs -- README.md src/DynaSharp.Testing/README.md docs/*.md` (compiles the C# blocks of the pages against the projects, in one compilation)
 - `dotnet build src/DynaSharp.Testing -c Release`, then `dotnet docfx docs/docfx.json --serve` (builds the site into `artifacts/site` and serves it)
 - `dotnet test --project tests/DynaSharp.UnitTests`, `dotnet stryker`
-- `dotnet test --project tests/DynaSharp.IntegrationTests` (needs Docker; `DYNASHARP_BACKENDS` selects `dynoxide` (default), `dynamodb-local` or both, comma separated. `aws` is real DynamoDB, costs money, needs no Docker and is not part of `all`; `.github/workflows/real-aws.yml` runs it)
+- `dotnet test --project tests/DynaSharp.IntegrationTests` (`DYNASHARP_BACKENDS` selects `fake` (default, the in-memory `FakeDynamoDb`, no Docker), `dynoxide`, `dynamodb-local`, comma separated, or `all` for the three; the emulators need Docker. `aws` is real DynamoDB, costs money, needs no Docker and is not part of `all`; `.github/workflows/real-aws.yml` runs it)
 - `dotnet publish tests/DynaSharp.AotSmoke -c Release -r linux-x64` (fails on any AOT/trim warning)

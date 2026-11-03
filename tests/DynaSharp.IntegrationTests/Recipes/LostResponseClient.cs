@@ -8,12 +8,13 @@ namespace DynaSharp.IntegrationTests.Recipes;
 /// </summary>
 internal sealed class LostResponseClient : IDisposable
 {
-    private readonly LosingHandler _handler = new();
+    private readonly LosingHandler _handler;
 
     /// <summary>Initializes a new instance of the <see cref="LostResponseClient"/> class.</summary>
     /// <param name="emulator">The backend.</param>
     public LostResponseClient(Emulator emulator)
     {
+        _handler = new LosingHandler(emulator.CreateHandler());
         Client = new DynamoDbClient(emulator.CreateOptions() with { MaxAttempts = 2, HttpHandler = _handler });
     }
 
@@ -31,10 +32,8 @@ internal sealed class LostResponseClient : IDisposable
     {
         private int _lost;
 
-#pragma warning disable CA2000 // The base class takes the handler and disposes it.
-        public LosingHandler()
-            : base(new SocketsHttpHandler())
-#pragma warning restore CA2000
+        public LosingHandler(HttpMessageHandler inner)
+            : base(inner)
         {
         }
 

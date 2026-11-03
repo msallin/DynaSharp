@@ -32,7 +32,7 @@ internal static class Expressions
     /// <returns>The condition.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
     public static ParsedCondition ParseCondition(string text, PlaceholderScope scope, string member = ConditionExpression) =>
-        new(text, ExpressionParser.ParseCondition(text, member, scope), member);
+        new(text, ExpressionParser.ParseCondition(text, member, scope));
 
     /// <summary>Parses an <c>UpdateExpression</c>.</summary>
     /// <param name="text">The expression.</param>

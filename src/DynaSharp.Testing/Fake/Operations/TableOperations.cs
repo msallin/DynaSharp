@@ -136,9 +136,9 @@ internal static class TableOperations
             throw FakeError.Unsupported("the member SSESpecification", CreateTableName);
         }
 
-        if (request.StreamSpecification is { StreamEnabled: true } stream)
+        if (request.StreamSpecification is { } stream)
         {
-            ThrowIfNoViewType(stream);
+            ThrowIfInvalidStreamSpecification(stream);
         }
 
         var types = Types(request.AttributeDefinitions);
@@ -332,30 +332,37 @@ internal static class TableOperations
         return name;
     }
 
-    private static void ThrowIfNoViewType(StreamSpecification stream)
+    private static void ThrowIfInvalidStreamSpecification(StreamSpecification stream)
     {
-        if (stream.StreamViewType == StreamViewType.Unspecified)
+        if (stream.StreamEnabled && stream.StreamViewType == StreamViewType.Unspecified)
         {
             throw FakeError.Validation(Invalid + "StreamViewType must be specified when StreamEnabled is true");
+        }
+
+        if (!stream.StreamEnabled && stream.StreamViewType != StreamViewType.Unspecified)
+        {
+            throw FakeError.Validation("Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.");
         }
     }
 
     // DynamoDB enables a stream only on a table without an enabled one, and disables only an enabled one: a new view type takes both, one request after the other.
     private static void ThrowIfInvalidStreamChange(FakeTable table, StreamSpecification? stream)
     {
-        var enabled = table.LatestStream is { IsEnabled: true };
-        if (stream is { StreamEnabled: true })
+        if (stream is null)
         {
-            if (enabled)
-            {
-                throw FakeError.Validation($"Table already has an enabled stream: TableName: {table.Name}");
-            }
-
-            ThrowIfNoViewType(stream);
+            return;
         }
-        else if (stream is not null && !enabled)
+
+        ThrowIfInvalidStreamSpecification(stream);
+        var enabled = table.LatestStream is { IsEnabled: true };
+        if (stream.StreamEnabled && enabled)
         {
-            throw FakeError.Validation($"Table does not have an enabled stream: TableName: {table.Name}");
+            throw FakeError.Validation($"Table already has an enabled stream: TableName: {table.Name}");
+        }
+
+        if (!stream.StreamEnabled && !enabled)
+        {
+            throw FakeError.Validation("Table has no stream to disable");
         }
     }
 

@@ -127,6 +127,8 @@ public sealed class ExpressionParserTests
     [Arguments("attribute_type(a, :v)", "Invalid attribute type name found; type: abc, valid types: { B,NULL,SS,BOOL,L,BS,N,NS,S,M }")]
     [Arguments("begins_with(a, :n)", "Incorrect operand type for operator or function; operator or function: begins_with, operand type: N")]
     [Arguments("begins_with(:l, a)", "Incorrect operand type for operator or function; operator or function: begins_with, operand type: L")]
+    [Arguments("a < :l", "Incorrect operand type for operator or function; operator or function: <, operand type: L")]
+    [Arguments(":l >= a", "Incorrect operand type for operator or function; operator or function: >=, operand type: L")]
     [Arguments("a BETWEEN :n AND :v", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {S:abc}")]
     [Arguments("a BETWEEN :b AND :l", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {B:AQI=}, upper bound operand: AttributeValue: {L}")]
     [Arguments("a BETWEEN :n AND :one", "The BETWEEN operator requires upper bound to be greater than or equal to lower bound; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {N:1}")]

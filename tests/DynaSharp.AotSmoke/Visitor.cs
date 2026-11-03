@@ -15,6 +15,8 @@ internal sealed record Visitor(string Id, int Visits) : IDynamoDbDiscriminated<V
     static void IDynamoDbDocument<Visitor>.WriteAttributes(DynamoDbWriter writer, Visitor entity)
     {
         new Key(entity.Id).WriteKey(writer);
+        writer.WriteAttributeName("_type"u8);
+        writer.WriteString("VISITOR"u8);
         writer.WriteAttributeName("visits"u8);
         writer.WriteNumber(entity.Visits);
     }
