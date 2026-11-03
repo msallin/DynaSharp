@@ -243,7 +243,8 @@ public sealed class DynamoDbClient : IDisposable
     /// caller asks for it, here or on a
     /// <see cref="Table{T}"/>, which needs no client at hand for it. A run has lost
     /// when it throws a <see cref="ConditionalCheckFailedException"/>, a <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> whose reasons include
-    /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>.
+    /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>. That is <see cref="ConflictKind.Any"/>, and an overload that takes a <see cref="ConflictKind"/> runs again on one of them only,
+    /// for a run whose failed condition is its answer, see <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, CancellationToken)"/>.
     /// </summary>
     /// <example>
     /// <code>
@@ -268,7 +269,8 @@ public sealed class DynamoDbClient : IDisposable
     /// <b>A condition can fail for a business reason too.</b> A failed condition does not say why, and it can just as well mean that the bucket is empty or the seat is taken. The delegate
     /// reads again, so it decides again: it sees what is there now and returns without writing. A rule the delegate cannot read, such as a check on an item that it does not load, it
     /// catches itself and turns into its result, because whatever leaves the delegate as one of the three exceptions counts as lost. A transaction runs again if any of its reasons is
-    /// one of the two, whatever the other actions report, and the limit on the runs is what ends it when another reason does not pass.
+    /// one of the two, whatever the other actions report, and the limit on the runs is what ends it when another reason does not pass. A run that reads nothing cannot decide again, so a failed condition there is
+    /// the answer, and <see cref="ConflictKind.TransactionConflict"/> lets it surface at once.
     /// </para>
     /// <para>
     /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged, so a
@@ -329,7 +331,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
     public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Core, operation, maxAttempts, cancellationToken);
+        ConflictRetry.StartAsync(Core, operation, ConflictKind.Any, maxAttempts, cancellationToken);
 
     /// <summary>
     /// Runs a read-modify-write that returns nothing, and runs it again when it loses to another writer. See
@@ -362,7 +364,109 @@ public sealed class DynamoDbClient : IDisposable
     /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
     public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, int maxAttempts, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Core, operation, maxAttempts, cancellationToken);
+        ConflictRetry.StartAsync(Core, operation, ConflictKind.Any, maxAttempts, cancellationToken);
+
+    /// <summary>
+    /// Runs a write, and runs it again only on the conflicts that <paramref name="retryOn"/> names: 5 runs in all, with a wait between them. See
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> for what a run is and how to write one, which is the same with <see cref="ConflictKind.Any"/>.
+    /// </summary>
+    /// <example>
+    /// A registration whose claims are a transaction: a taken value is the answer, and only a transaction in the way is asked again.
+    /// <code>
+    /// var outcome = await client.RetryOnConflictAsync(async ct =>
+    /// {
+    ///     TransactMarker taken = default;
+    ///     try
+    ///     {
+    ///         await client.TransactWrite().Unique(emails, claim, out taken).Put(users, user).IfNotExists().SendAsync(ct);
+    ///         return Registration.Done;
+    ///     }
+    ///     catch (TransactionCanceledException exception) when (exception.ReasonFor(taken) == TransactionFailure.ConditionalCheckFailed)
+    ///     {
+    ///         return Registration.EmailTaken;
+    ///     }
+    /// }, ConflictKind.TransactionConflict, ct);
+    /// </code>
+    /// </example>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ConflictKind.TransactionConflict"/> is for a run whose failed condition is an answer that asking again does not change, such as a value that is taken, or a record that exists. It surfaces at once,
+    /// with no wait and no second run, and so does anything else that is not named. A cancelled transaction runs again when any of its reasons is of a kind named here, whatever the others say, and the limit on the
+    /// runs ends it when another reason does not pass.
+    /// </para>
+    /// <para>
+    /// <see cref="ConflictKind.ConditionalCheckFailed"/> alone leaves a transaction in the way to the caller, which a run that never meets a transaction does not need either way.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">What a run returns.</typeparam>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="retryOn">The conflicts that run it again: <see cref="ConflictKind.ConditionalCheckFailed"/>, <see cref="ConflictKind.TransactionConflict"/> or <see cref="ConflictKind.Any"/>.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>What the run that got through returned.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, retryOn, ConflictRetry.DefaultMaxAttempts, cancellationToken);
+
+    /// <summary>
+    /// Runs a write up to <paramref name="maxAttempts"/> times, again only on the conflicts that <paramref name="retryOn"/> names. See
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, CancellationToken)"/> for which to name, and
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, int, CancellationToken)"/> for the number to pass.
+    /// </summary>
+    /// <typeparam name="T">What a run returns.</typeparam>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="retryOn">The conflicts that run it again: <see cref="ConflictKind.ConditionalCheckFailed"/>, <see cref="ConflictKind.TransactionConflict"/> or <see cref="ConflictKind.Any"/>.</param>
+    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>What the run that got through returned.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task<T> RetryOnConflictAsync<T>(Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, retryOn, maxAttempts, cancellationToken);
+
+    /// <summary>
+    /// Runs a write that returns nothing, and runs it again only on the conflicts that <paramref name="retryOn"/> names. See
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, CancellationToken)"/> for which to name.
+    /// </summary>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="retryOn">The conflicts that run it again: <see cref="ConflictKind.ConditionalCheckFailed"/>, <see cref="ConflictKind.TransactionConflict"/> or <see cref="ConflictKind.Any"/>.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, ConflictKind retryOn, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, retryOn, ConflictRetry.DefaultMaxAttempts, cancellationToken);
+
+    /// <summary>
+    /// Runs a write that returns nothing up to <paramref name="maxAttempts"/> times, again only on the conflicts that <paramref name="retryOn"/> names. See
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, CancellationToken)"/> for which to name, and
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, int, CancellationToken)"/> for the number to pass.
+    /// </summary>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="retryOn">The conflicts that run it again: <see cref="ConflictKind.ConditionalCheckFailed"/>, <see cref="ConflictKind.TransactionConflict"/> or <see cref="ConflictKind.Any"/>.</param>
+    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run.</param>
+    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken = default) =>
+        ConflictRetry.StartAsync(Core, operation, retryOn, maxAttempts, cancellationToken);
 
     /// <summary>
     /// Releases the HTTP connections. Requests still running may fail. Calling it again has no effect.

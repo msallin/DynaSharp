@@ -15,27 +15,34 @@ internal static class ConflictRetry
     /// <typeparam name="T">What the delegate returns.</typeparam>
     /// <param name="core">The client: its clock, its jitter and its telemetry.</param>
     /// <param name="operation">The delegate.</param>
+    /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>What the last run returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task<T> StartAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, int maxAttempts, CancellationToken cancellationToken)
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
+    public static Task<T> StartAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        if (retryOn is not (ConflictKind.ConditionalCheckFailed or ConflictKind.TransactionConflict or ConflictKind.Any))
+        {
+            throw new ArgumentOutOfRangeException(nameof(retryOn), retryOn, "Name the conflicts that run the delegate again: ConditionalCheckFailed, TransactionConflict or Any.");
+        }
+
         ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
-        return RunAsync(core, operation, maxAttempts, cancellationToken);
+        return RunAsync(core, operation, retryOn, maxAttempts, cancellationToken);
     }
 
     /// <summary>Runs a read-modify-write that returns nothing, as <see cref="StartAsync{T}"/> does.</summary>
     /// <param name="core">The client: its clock, its jitter and its telemetry.</param>
     /// <param name="operation">The delegate.</param>
+    /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task StartAsync(ClientCore core, Func<CancellationToken, ValueTask> operation, int maxAttempts, CancellationToken cancellationToken)
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
+    public static Task StartAsync(ClientCore core, Func<CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         return StartAsync(
@@ -45,11 +52,12 @@ internal static class ConflictRetry
                 await operation(token).ConfigureAwait(false);
                 return true;
             },
+            retryOn,
             maxAttempts,
             cancellationToken);
     }
 
-    private static async Task<T> RunAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, int maxAttempts, CancellationToken cancellationToken)
+    private static async Task<T> RunAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
     {
         var run = 1;
         while (true)
@@ -58,7 +66,7 @@ internal static class ConflictRetry
             {
                 return await operation(cancellationToken).ConfigureAwait(false);
             }
-            catch (DynamoDbException conflict) when (FailureClassifier.IsConflict(conflict))
+            catch (DynamoDbException conflict) when (FailureClassifier.IsConflict(conflict, retryOn))
             {
                 if (run == maxAttempts)
                 {

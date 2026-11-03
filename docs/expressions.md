@@ -6,7 +6,7 @@ Conditions, filters, updates and projections are DynamoDB expressions. DynaSharp
 
 ## Typed handles
 
-`Attrs` holds a handle per stored property of an entity, with the type of the property. A handle compares with `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge` and `Between`, asks for `Exists()` and `NotExists()`, and takes `BeginsWith` where the stored value is a string or a binary. Conditions compose with `And`, `Or` and `Negate`, and allocate nothing.
+`Attrs` holds a handle per stored property of an entity, with the type of the property. A handle compares with `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge` and `Between`, asks for `Exists()` and `NotExists()`, takes `BeginsWith` where the stored value is a string or a binary, and `Contains` on a set, a list or a string. Conditions compose with `And`, `Or` and `Negate`, and allocate nothing.
 
 ```csharp
 var open = orders.Query(Order.Keys.Pk.Of("alice"))
@@ -15,6 +15,8 @@ var open = orders.Query(Order.Keys.Pk.Of("alice"))
 ```
 
 A chain of one operator renders as one group, `(a OR b OR c)`, and conditions added one by one as `(a) AND (b) AND (c)`. `BeginsWith` on a number, a boolean or a timestamp stored as a number does not compile (`CS0619`), as DynamoDB finds nothing there. An enum, a `Guid` or a date is stored as a string and takes it.
+
+`Contains` takes an element of the type of a set or a list, as in `Post.Attrs.Tags.Contains("gift")` for a `HashSet<string> Tags`, and a substring on a string. It does not compile on a number, a boolean or anything else that holds no elements. An attribute that does not exist holds nothing, so `Post.Attrs.Tags.Contains("gift").Negate()` holds on an item without tags. `size` has no method: it stays in the [grammar](#the-grammar-as-text).
 
 `At` walks into a nested document, as in `Customer.Attrs.ShipTo.At(Address.Attrs.City)`, and the result is a handle of its own, for a condition or an update.
 

@@ -85,36 +85,31 @@ public partial record HandleClaim
 ```csharp
 var outcome = await RegisterAsync(new Registrant { Id = "bob", Email = "bob@example.ch", Handle = "bobby" });
 
-async Task<Registration> RegisterAsync(Registrant user)
+Task<Registration> RegisterAsync(Registrant user) => client.RetryOnConflictAsync(async token =>
 {
     TransactMarker emailTaken = default;
     TransactMarker handleTaken = default;
-    while (true)
+    try
     {
-        try
-        {
-            await client.TransactWrite()
-                .Unique(shop.Of<MailClaim>(), new MailClaim { Address = user.Email, Owner = user.Id }, out emailTaken)
-                .Unique(shop.Of<HandleClaim>(), new HandleClaim { Handle = user.Handle, Owner = user.Id }, out handleTaken)
-                .Put(shop.Of<Registrant>(), user).IfNotExists()
-                .SendAsync(ct);
-            return Registration.Done;
-        }
-        catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTaken) == TransactionFailure.ConditionalCheckFailed)
-        {
-            return Registration.EmailTaken;
-        }
-        catch (TransactionCanceledException exception) when (exception.ReasonFor(handleTaken) == TransactionFailure.ConditionalCheckFailed)
-        {
-            return Registration.HandleTaken;
-        }
-        catch (TransactionCanceledException exception) when (exception.Failures.Any(failure => failure.Reason == TransactionFailure.TransactionConflict))
-        {
-            // Another registration of the same value is in flight: only asking again tells who got it.
-        }
+        await client.TransactWrite()
+            .Unique(shop.Of<MailClaim>(), new MailClaim { Address = user.Email, Owner = user.Id }, out emailTaken)
+            .Unique(shop.Of<HandleClaim>(), new HandleClaim { Handle = user.Handle, Owner = user.Id }, out handleTaken)
+            .Put(shop.Of<Registrant>(), user).IfNotExists()
+            .SendAsync(token);
+        return Registration.Done;
     }
-}
+    catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTaken) == TransactionFailure.ConditionalCheckFailed)
+    {
+        return Registration.EmailTaken;
+    }
+    catch (TransactionCanceledException exception) when (exception.ReasonFor(handleTaken) == TransactionFailure.ConditionalCheckFailed)
+    {
+        return Registration.HandleTaken;
+    }
+}, ConflictKind.TransactionConflict, ct);
 ```
+
+`ConflictKind.TransactionConflict` runs the delegate again only when another registration of the same value is in flight, where only asking again tells who got it. A failed condition surfaces at once, here the `IfNotExists` of a record that exists, because nothing is read that could change the answer.
 
 A change of the value releases the old claim in the same transaction, under a condition that it is the user's:
 
@@ -130,7 +125,7 @@ await client.TransactWrite()
 Caveats:
 
 - `Unique` is a put with `attribute_not_exists` on the key, see [TransactWriteItems](transactions.md#transactwriteitems). A transaction costs twice the capacity of its writes.
-- The loop repeats only a `TransactionConflict`. `RetryOnConflictAsync` would also repeat a failed condition, such as the `IfNotExists` of the record, where asking again changes nothing.
+- Which retry: the plain `RetryOnConflictAsync` repeats a failed condition and a transaction in the way, which is right for a read-modify-write that reads again, as with [optimistic locking](#optimistic-locking). A run that reads nothing, or turns every failed condition it expects into its result, takes `ConflictKind.TransactionConflict`, so that a failed condition is its answer and is not asked 5 times.
 
 ## Idempotency keys
 
@@ -247,7 +242,7 @@ try
     await shop.Of<DailyTally>().Update(DailyTally.Keys.Of("signups", DateOnly.FromDateTime(DateTime.UtcNow)))
         .Add(DailyTally.Attrs.Count, 1L)
         .Add(DailyTally.Attrs.Seen, [requestId])
-        .If($"NOT contains({DailyTally.Attrs.Seen}, {requestId})")
+        .If(DailyTally.Attrs.Seen.Contains(requestId).Negate())
         .SendAsync(ct);
 }
 catch (ConditionalCheckFailedException)
@@ -255,6 +250,8 @@ catch (ConditionalCheckFailedException)
     // Counted before, so this was a retry.
 }
 ```
+
+`Contains` on a set takes an element of the set, and `Negate()` puts `NOT` in front of it. A set that does not exist holds nothing, so the first write of a window passes the condition.
 
 Caveats:
 

@@ -72,11 +72,15 @@ internal static class FailureClassifier
     /// <see cref="Classify"/>: to the pipeline all of these are permanent, because the same request meets the same condition.
     /// </summary>
     /// <param name="exception">The failure.</param>
-    /// <returns><see langword="true"/> for a failed condition, an ongoing transaction, and a cancelled transaction with one of those among its reasons.</returns>
-    public static bool IsConflict(DynamoDbException exception) => exception switch
+    /// <param name="kinds">The conflicts that count, at least one.</param>
+    /// <returns>
+    /// <see langword="true"/> for a failed condition and an ongoing transaction, each when <paramref name="kinds"/> holds it, and for a cancelled transaction with one of those among its reasons, whatever the others say.
+    /// </returns>
+    public static bool IsConflict(DynamoDbException exception, ConflictKind kinds) => exception switch
     {
-        ConditionalCheckFailedException or TransactionConflictException => true,
-        TransactionCanceledException canceled => HasConflictReason(canceled.Failures),
+        ConditionalCheckFailedException => kinds.HasFlag(ConflictKind.ConditionalCheckFailed),
+        TransactionConflictException => kinds.HasFlag(ConflictKind.TransactionConflict),
+        TransactionCanceledException canceled => HasConflictReason(canceled.Failures, kinds),
         _ => false,
     };
 
@@ -90,11 +94,18 @@ internal static class FailureClassifier
         return TransientCodes.Contains(errorCode) || TransientStatusCodes.Contains((int)statusCode) ? FailureKind.Transient : FailureKind.Permanent;
     }
 
-    private static bool HasConflictReason(IReadOnlyList<TransactionActionFailure> failures)
+    private static bool HasConflictReason(IReadOnlyList<TransactionActionFailure> failures, ConflictKind kinds)
     {
         foreach (var failure in failures)
         {
-            if (failure.Reason is TransactionFailure.ConditionalCheckFailed or TransactionFailure.TransactionConflict)
+            var kind = failure.Reason switch
+            {
+                TransactionFailure.ConditionalCheckFailed => ConflictKind.ConditionalCheckFailed,
+                TransactionFailure.TransactionConflict => ConflictKind.TransactionConflict,
+                _ => default,
+            };
+
+            if ((kind & kinds) != 0)
             {
                 return true;
             }

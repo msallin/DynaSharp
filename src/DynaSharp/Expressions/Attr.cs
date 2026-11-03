@@ -138,6 +138,21 @@ public readonly struct Attr
     /// <returns>The condition.</returns>
     public BeginsWith BeginsWith(string prefix) => new(Path, prefix);
 
+    /// <summary>
+    /// Checks with <c>contains</c>: a string that holds the value as a substring, a set that holds it as an element, which takes a value of the element type of the set, or a list that holds an element
+    /// equal to it. An attribute that does not exist holds nothing, so the condition fails there and its <c>Negate()</c> holds.
+    /// </summary>
+    /// <param name="operand">The substring or the element.</param>
+    /// <returns>The condition.</returns>
+    public Contains<AttributeValue, AttributeValueConverter> Contains(AttributeValue operand) => new(Path, operand);
+
+    /// <summary>Checks with <c>contains</c> whether a number set or a list holds a number, which goes through without the string a conversion would cost.</summary>
+    /// <typeparam name="TNumber">The type of the number.</typeparam>
+    /// <param name="operand">The number.</param>
+    /// <returns>The condition.</returns>
+    public Contains<TNumber, NumberConverter<TNumber>> Contains<TNumber>(TNumber operand)
+        where TNumber : INumberBase<TNumber> => new(Path, operand);
+
     /// <summary>Returns the path.</summary>
     /// <returns>The path.</returns>
     public override string ToString() => Path;

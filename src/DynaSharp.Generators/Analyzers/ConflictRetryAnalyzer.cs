@@ -15,7 +15,7 @@ namespace DynaSharp.Generators;
 /// <remarks>
 /// A warning fails the build of a consumer, so DYNA218 reports what it can tell apart from correct code. An item that is written with its version needs a read in the member to be seen, because a new item
 /// built outside the delegate is correct and looks the same, also in a parameter. A version on its own says that it was read somewhere, unless it is a constant or comes from an object made here. A retry with
-/// one run is no retry, whatever it holds. All of this costs nothing outside a delegate: every other invocation ends at the name, and the data flow runs when a delegate holds a write with a version.
+/// one run is no retry, whatever it holds, and one that leaves a failed condition to the caller runs nothing again with a stale version, so it has no DYNA218. All of this costs nothing outside a delegate: every other invocation ends at the name, and the data flow runs when a delegate holds a write with a version.
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
@@ -25,6 +25,12 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
 
     /// <summary>The parameter of the retry that takes the delegate.</summary>
     internal const string OperationParameter = "operation";
+
+    /// <summary>The parameter of the retry that says which conflicts run the delegate again.</summary>
+    internal const string RetryOnParameter = "retryOn";
+
+    /// <summary><c>ConflictKind.ConditionalCheckFailed</c>, which this assembly cannot take from the library, as the number it is.</summary>
+    internal const int ConditionalCheckFailed = 1;
 
     private const string MaxAttemptsParameter = "maxAttempts";
 
@@ -79,7 +85,10 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
             if (RunOf(invocation) is { } run)
             {
                 ReportNested(context, run, sightings);
-                ReportFixedVersions(context, invocation, run, models, sightings);
+                if (RepeatsFailedConditions(invocation))
+                {
+                    ReportFixedVersions(context, invocation, run, models, sightings);
+                }
             }
         }
     }
@@ -88,6 +97,11 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
     private static bool Repeats(IInvocationOperation invocation) =>
         IsRetry(invocation.TargetMethod)
         && !invocation.Arguments.Any(static argument => argument.Parameter!.Name == MaxAttemptsParameter && argument.Value.ConstantValue is { HasValue: true, Value: 1 });
+
+    // A retry that leaves a failed condition to the caller surfaces a stale version at once, which is what the version is there for, so it runs nothing again for the same old value. A value
+    // that is not a constant may name it.
+    private static bool RepeatsFailedConditions(IInvocationOperation retry) =>
+        !retry.Arguments.Any(static argument => argument.Parameter!.Name == RetryOnParameter && argument.Value.ConstantValue is { HasValue: true, Value: int kinds } && (kinds & ConditionalCheckFailed) == 0);
 
     // A delegate in a variable and a method of a class are not followed: only a lambda, an anonymous method and a local function are in sight of the call.
     private static IBlockOperation? RunOf(IInvocationOperation invocation) => invocation.Arguments.Single(static argument => argument.Parameter!.Name == OperationParameter).Value switch

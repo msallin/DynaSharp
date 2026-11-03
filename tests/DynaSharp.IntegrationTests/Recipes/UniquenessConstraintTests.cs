@@ -84,21 +84,20 @@ public sealed class UniquenessConstraintTests(Backend backend)
         await Assert.That(outcome).IsEqualTo(Registration.Done);
     }
 
-    private static async Task<Registration> RegisterAsync(CommandSandbox sandbox, Registrant user)
-    {
-        TransactMarker emailTaken = default;
-        TransactMarker handleTaken = default;
-
-        // By hand, because only a conflict may repeat this. RetryOnConflictAsync would also repeat a failed IfNotExists of the record, and nothing is read that could change the outcome.
-        while (true)
+    // Only a transaction in the way runs it again: another registration of the same value is in flight, and only asking again tells who got it. A failed IfNotExists of the record is the answer,
+    // because nothing is read that could change it. Ten runs rather than five, because eight contenders meet on one value in a test, and a transaction in the way can fail too.
+    private static Task<Registration> RegisterAsync(CommandSandbox sandbox, Registrant user) => sandbox.Client.RetryOnConflictAsync(
+        async ct =>
         {
+            TransactMarker emailTaken = default;
+            TransactMarker handleTaken = default;
             try
             {
                 await sandbox.Client.TransactWrite()
                     .Unique(sandbox.Shop.Of<EmailClaim>(), new EmailClaim { Address = user.Email, Owner = user.Id }, out emailTaken)
                     .Unique(sandbox.Shop.Of<HandleClaim>(), new HandleClaim { Handle = user.Handle, Owner = user.Id }, out handleTaken)
                     .Put(sandbox.Shop.Of<Registrant>(), user).IfNotExists()
-                    .SendAsync();
+                    .SendAsync(ct);
                 return Registration.Done;
             }
             catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTaken) == TransactionFailure.ConditionalCheckFailed)
@@ -109,12 +108,9 @@ public sealed class UniquenessConstraintTests(Backend backend)
             {
                 return Registration.HandleTaken;
             }
-            catch (TransactionCanceledException exception) when (exception.Failures.Any(static failure => failure.Reason == TransactionFailure.TransactionConflict))
-            {
-                // Another registration of the same value is in flight: only asking again tells who got it.
-            }
-        }
-    }
+        },
+        ConflictKind.TransactionConflict,
+        maxAttempts: 10);
 }
 
 [DynamoDbEntity]

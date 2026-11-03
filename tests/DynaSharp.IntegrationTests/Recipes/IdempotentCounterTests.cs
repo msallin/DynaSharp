@@ -96,7 +96,7 @@ public sealed class IdempotentCounterTests(Backend backend)
         await tallies.Update(DailyTally.Keys.Of(Signups, day))
             .Add(DailyTally.Attrs.Count, 1L)
             .Add(DailyTally.Attrs.Seen, [requestId])
-            .If($"NOT contains({DailyTally.Attrs.Seen}, {requestId})")
+            .If(DailyTally.Attrs.Seen.Contains(requestId).Negate())
             .ReturnCapacity()
             .SendAsync();
 

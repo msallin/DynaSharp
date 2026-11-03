@@ -156,6 +156,8 @@ await carts.RetryOnConflictAsync(async token =>
 }, ct);
 ```
 
+A run that reads nothing, and whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once. See [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
+
 ## See what goes over the wire
 
 `ToRequestJson` renders what a chain would send, without sending it. It ends the chain as `SendAsync` does, so a command is rendered or sent, not both.

@@ -148,6 +148,282 @@ public static class AttrExtensions
     [Obsolete(NoText, error: true)]
     public static BeginsWith BeginsWith(this Attr<bool, NullableHandleConverter<bool, BoolConverter>> attribute, string prefix) => new(attribute.Path, prefix);
 
+    /// <summary>Checks with <c>contains</c> whether a set holds an element, compared as the set stores it. An attribute that does not exist holds nothing, so the condition fails there and its <c>Negate()</c> holds, which makes <c>Attrs.Seen.Contains(id).Negate()</c> true for a new item.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<HashSet<T>, HashSetConverter<T, TElement>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is a <see cref="HashSet{T}"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<HashSet<T>, NullableReferenceHandleConverter<HashSet<T>, HashSetConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a property that is a <see cref="HashSet{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<HashSet<T>, OmitEmptySetConverter<HashSet<T>, T, HashSetConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is a <see cref="HashSet{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<HashSet<T>, NullableReferenceHandleConverter<HashSet<T>, OmitEmptySetConverter<HashSet<T>, T, HashSetConverter<T, TElement>>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a property that is an <see cref="IReadOnlySet{T}"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<IReadOnlySet<T>, ReadOnlySetConverter<T, TElement>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is an <see cref="IReadOnlySet{T}"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<IReadOnlySet<T>, NullableReferenceHandleConverter<IReadOnlySet<T>, ReadOnlySetConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a property that is an <see cref="IReadOnlySet{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<IReadOnlySet<T>, OmitEmptySetConverter<IReadOnlySet<T>, T, ReadOnlySetConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is an <see cref="IReadOnlySet{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<IReadOnlySet<T>, NullableReferenceHandleConverter<IReadOnlySet<T>, OmitEmptySetConverter<IReadOnlySet<T>, T, ReadOnlySetConverter<T, TElement>>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a property that is an array stored as a set holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<T[], SetArrayConverter<T, TElement>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is an array stored as a set holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<T[], NullableReferenceHandleConverter<T[], SetArrayConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a property that is an array stored as a set with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<T[], OmitEmptySetConverter<T[], T, SetArrayConverter<T, TElement>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the set of a nullable property that is an array stored as a set with <see cref="OmitEmptyAttribute"/> holds an element. See <see cref="Contains{T, TElement}(Attr{HashSet{T}, HashSetConverter{T, TElement}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TElement">The converter of the elements, which writes the operand as the set stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, SetElementValueConverter<T, TElement>> Contains<T, TElement>(this Attr<T[], NullableReferenceHandleConverter<T[], OmitEmptySetConverter<T[], T, SetArrayConverter<T, TElement>>>> attribute, T element)
+        where TElement : IDynamoDbSetElementConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether a list holds an element equal to the value, which DynamoDB compares by type and value. An attribute that does not exist holds nothing, so the condition fails there and its <c>Negate()</c> holds.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<List<T>, ListConverter<T, TConverter>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is a <see cref="List{T}"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<List<T>, NullableReferenceHandleConverter<List<T>, ListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is a <see cref="List{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<List<T>, OmitEmptyCollectionConverter<List<T>, T, ListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is a <see cref="List{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<List<T>, NullableReferenceHandleConverter<List<T>, OmitEmptyCollectionConverter<List<T>, T, ListConverter<T, TConverter>>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an <see cref="IReadOnlyList{T}"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IReadOnlyList<T>, ReadOnlyListConverter<T, TConverter>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an <see cref="IReadOnlyList{T}"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IReadOnlyList<T>, NullableReferenceHandleConverter<IReadOnlyList<T>, ReadOnlyListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an <see cref="IReadOnlyList{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IReadOnlyList<T>, OmitEmptyCollectionConverter<IReadOnlyList<T>, T, ReadOnlyListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an <see cref="IReadOnlyList{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IReadOnlyList<T>, NullableReferenceHandleConverter<IReadOnlyList<T>, OmitEmptyCollectionConverter<IReadOnlyList<T>, T, ReadOnlyListConverter<T, TConverter>>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an <see cref="IList{T}"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IList<T>, MutableListConverter<T, TConverter>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an <see cref="IList{T}"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IList<T>, NullableReferenceHandleConverter<IList<T>, MutableListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an <see cref="IList{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IList<T>, OmitEmptyCollectionConverter<IList<T>, T, MutableListConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an <see cref="IList{T}"/> with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<IList<T>, NullableReferenceHandleConverter<IList<T>, OmitEmptyCollectionConverter<IList<T>, T, MutableListConverter<T, TConverter>>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an array holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<T[], ArrayConverter<T, TConverter>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an array holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<T[], NullableReferenceHandleConverter<T[], ArrayConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a property that is an array with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<T[], OmitEmptyCollectionConverter<T[], T, ArrayConverter<T, TConverter>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether the list of a nullable property that is an array with <see cref="OmitEmptyAttribute"/> holds an element equal to the value. See <see cref="Contains{T, TConverter}(Attr{List{T}, ListConverter{T, TConverter}}, T)"/>.</summary>
+    /// <typeparam name="T">The element type.</typeparam>
+    /// <typeparam name="TConverter">The converter of the elements, which writes the operand as the list stores it.</typeparam>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="element">The element.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<T, TConverter> Contains<T, TConverter>(this Attr<T[], NullableReferenceHandleConverter<T[], OmitEmptyCollectionConverter<T[], T, ArrayConverter<T, TConverter>>>> attribute, T element)
+        where TConverter : IDynamoDbConverter<T> => new(attribute.Path, element);
+
+    /// <summary>Checks with <c>contains</c> whether a string holds a substring, compared by bytes, so case matters. An attribute that does not exist holds nothing, so the condition fails there and its <c>Negate()</c> holds.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="substring">The substring.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<string, StringConverter> Contains(this Attr<string, StringConverter> attribute, string substring) => new(attribute.Path, substring);
+
+    /// <summary>Checks with <c>contains</c> whether the string of a property with <see cref="OmitEmptyAttribute"/> holds a substring. See <see cref="Contains(Attr{string, StringConverter}, string)"/>.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="substring">The substring.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<string, StringConverter> Contains(this Attr<string, OmitEmptyConverter<StringConverter>> attribute, string substring) => new(attribute.Path, substring);
+
+    /// <summary>Checks with <c>contains</c> whether the string of a nullable property holds a substring. See <see cref="Contains(Attr{string, StringConverter}, string)"/>.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="substring">The substring.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<string, StringConverter> Contains(this Attr<string, NullableReferenceHandleConverter<string, StringConverter>> attribute, string substring) => new(attribute.Path, substring);
+
+    /// <summary>Checks with <c>contains</c> whether the string of a nullable property with <see cref="OmitEmptyAttribute"/> holds a substring. See <see cref="Contains(Attr{string, StringConverter}, string)"/>.</summary>
+    /// <param name="attribute">The attribute.</param>
+    /// <param name="substring">The substring.</param>
+    /// <returns>The condition.</returns>
+    public static Contains<string, StringConverter> Contains(this Attr<string, NullableReferenceHandleConverter<string, OmitEmptyConverter<StringConverter>>> attribute, string substring) => new(attribute.Path, substring);
+
     /// <summary>
     /// Gets an attribute inside a nested document, by the handle that its document type generates:
     /// <c>Order.Attrs.ShipTo.At(Address.Attrs.City)</c> has the path <c>ShipTo.City</c>, and it can go on from there. A handle that names a

@@ -200,6 +200,8 @@ public sealed class ConflictRetryAnalyzerTests
     [Arguments("""async ValueTask<int> Local(CancellationToken ct) => await [|client.RetryOnConflictAsync|](Done, ct); await client.RetryOnConflictAsync(Local);""")]
     [Arguments("""async ValueTask<int> Local(CancellationToken ct) { return await [|client.RetryOnConflictAsync|](Done, ct); } await client.RetryOnConflictAsync(Local);""")]
     [Arguments("""async ValueTask<int> Local(CancellationToken ct) => await [|client.RetryOnConflictAsync|](Done, ct); await client.RetryOnConflictAsync(ct => Local(ct));""")]
+    [Arguments("""await client.RetryOnConflictAsync(async ct => await [|client.RetryOnConflictAsync|](Done, ConflictKind.TransactionConflict, ct), ConflictKind.TransactionConflict);""")]
+    [Arguments("""await client.RetryOnConflictAsync(async ct => await [|client.RetryOnConflictAsync|](Done, ConflictKind.ConditionalCheckFailed, 3, ct));""")]
     public async Task RetryOnConflictAsync_RetryInsideTheDelegate_IsReported(string statements)
     {
         // Arrange
@@ -318,6 +320,8 @@ public sealed class ConflictRetryAnalyzerTests
     [Arguments("""await client.RetryOnConflictAsync(async ct => await new OwnRetry().RetryOnConflictAsync(_ => default));""")]
     [Arguments("""await client.RetryOnConflictAsync(async ct => await client.RetryOnConflictAsync(Done, maxAttempts: 1, cancellationToken: ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(async ct => await client.RetryOnConflictAsync(Done, ct), 1);""")]
+    [Arguments("""await client.RetryOnConflictAsync(async ct => await client.RetryOnConflictAsync(Done, ConflictKind.TransactionConflict, 1, ct));""")]
+    [Arguments("""await client.RetryOnConflictAsync(async ct => await client.RetryOnConflictAsync(Done, ct), ConflictKind.TransactionConflict, maxAttempts: 1);""")]
     public async Task RetryOnConflictAsync_NoRetryInsideARun_IsNotReported(string statements)
     {
         // Arrange
@@ -481,6 +485,57 @@ public sealed class ConflictRetryAnalyzerTests
     }
 
     [Test]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Put([|order|]!).SendAsync(ct), ConflictKind.ConditionalCheckFailed);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Put([|order|]!).SendAsync(ct), ConflictKind.Any, 3, token);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Put([|order|]!).SendAsync(ct), ConflictKind.TransactionConflict | ConflictKind.ConditionalCheckFailed);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); var kinds = ConflictKind.TransactionConflict; await client.RetryOnConflictAsync(async ct => await orders.Put([|order|]!).SendAsync(ct), kinds);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await orders.RetryOnConflictAsync(async ct => { await orders.Put([|order|]!).SendAsync(ct); }, retryOn: ConflictKind.ConditionalCheckFailed, cancellationToken: token);""")]
+    public async Task RetryOnConflictAsync_RetryThatRepeatsAFailedCondition_ReportsTheStaleVersion(string statements)
+    {
+        // Arrange (a value that is not a constant may name a failed condition)
+        var source = Source(statements);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("order")));
+    }
+
+    [Test]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Put(order!).SendAsync(ct), ConflictKind.TransactionConflict);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Update(key).Set(Order.Attrs.Total, 1).IfVersion(order!.Revision).SendAsync(ct), ConflictKind.TransactionConflict, 8, token);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await orders.RetryOnConflictAsync(async ct => { await orders.Delete(order!).SendAsync(ct); }, retryOn: ConflictKind.TransactionConflict, cancellationToken: token);""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await client.TransactWrite().Put(orders, order!).SendAsync(ct), (ConflictKind)2);""")]
+    public async Task RetryOnConflictAsync_RetryThatLeavesAFailedConditionToTheCaller_IsNotReported(string statements)
+    {
+        // Arrange (a stale version fails the first run, and that failure is the answer: nothing runs again with it)
+        var source = Source(statements);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryInARetryThatLeavesAFailedConditionToTheCaller_IsStillReported()
+    {
+        // Arrange (the inner retry multiplies the runs whatever the outer one repeats)
+        var source = Source("""
+            var order = await orders.Get(key).ItemAsync(token);
+            await client.RetryOnConflictAsync(async ct => await [|client.RetryOnConflictAsync|](async inner => await orders.Put([|order|]!).SendAsync(inner), ct), ConflictKind.TransactionConflict);
+            """);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert (the inner retry repeats a failed condition, so the stale version stands for that one)
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, NestedMessage, Message("order")));
+    }
+
+    [Test]
     [Arguments("""await client.RetryOnConflictAsync(async ct => { var order = await orders.Get(key).Consistent().ItemAsync(ct); await orders.Put(order! with { Total = 1 }).SendAsync(ct); });""")]
     [Arguments("""await client.RetryOnConflictAsync(async ct => { var order = await orders.Get(key).Consistent().ItemAsync(ct); await orders.Update(key).Set(Order.Attrs.Total, 1).IfVersion(order!.Revision).SendAsync(ct); });""")]
     [Arguments("""Order? order = null; await client.RetryOnConflictAsync(async ct => { order = await orders.Get(key).Consistent().ItemAsync(ct); await orders.Put(order!).SendAsync(ct); });""")]
@@ -632,6 +687,32 @@ public sealed class ConflictRetryAnalyzerTests
 
         // Assert
         await Assert.That(others).IsEmpty();
+    }
+
+    [Test]
+    public async Task RetryOnParameter_EveryRetryThatTakesAConflictKind_NamesItSo()
+    {
+        // Arrange
+        var retries = DeclaredRetries().Where(static method => method.GetParameters().Any(static parameter => parameter.ParameterType == typeof(ConflictKind))).ToList();
+
+        // Act
+        var others = retries.Where(static method => method.GetParameters().Single(static parameter => parameter.ParameterType == typeof(ConflictKind)).Name != ConflictRetryAnalyzer.RetryOnParameter);
+
+        // Assert
+        await Assert.That((retries.Count, others.Count())).IsEqualTo((8, 0));
+    }
+
+    [Test]
+    public async Task ConditionalCheckFailed_NumberThatTheAnalyzerLooksFor_IsTheOneOfTheLibrary()
+    {
+        // Arrange (the analyzer cannot reference the library, so it holds the value as a number)
+        var library = ConflictKind.ConditionalCheckFailed;
+
+        // Act
+        var analyzer = (ConflictKind)ConflictRetryAnalyzer.ConditionalCheckFailed;
+
+        // Assert
+        await Assert.That(analyzer).IsEqualTo(library);
     }
 
     [Test]

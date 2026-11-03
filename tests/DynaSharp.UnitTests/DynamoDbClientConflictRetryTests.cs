@@ -69,6 +69,30 @@ internal sealed class DynamoDbClientConflictRetryTests
         yield return new("InvalidOperationException", new InvalidOperationException("Something of the caller."));
     }
 
+    public static IEnumerable<KindCase> NamedConflicts()
+    {
+        yield return new("ConditionalCheckFailed, ConditionalCheckFailedException", ConflictKind.ConditionalCheckFailed, Lost());
+        yield return new("ConditionalCheckFailed, a cancelled transaction with ConditionalCheckFailed", ConflictKind.ConditionalCheckFailed, Canceled("ConditionalCheckFailed").Exception);
+        yield return new("ConditionalCheckFailed, a cancelled transaction with both", ConflictKind.ConditionalCheckFailed, Canceled("TransactionConflict", "ConditionalCheckFailed").Exception);
+        yield return new("TransactionConflict, TransactionConflictException", ConflictKind.TransactionConflict, new TransactionConflictException("Transaction is ongoing for the item."));
+        yield return new("TransactionConflict, a cancelled transaction with TransactionConflict", ConflictKind.TransactionConflict, Canceled("TransactionConflict").Exception);
+        yield return new("TransactionConflict, a cancelled transaction with both", ConflictKind.TransactionConflict, Canceled("ConditionalCheckFailed", "TransactionConflict").Exception);
+        yield return new("TransactionConflict, a cancelled transaction with another reason too", ConflictKind.TransactionConflict, Canceled("None", "ThrottlingError", "TransactionConflict").Exception);
+    }
+
+    public static IEnumerable<KindCase> UnnamedConflicts()
+    {
+        yield return new("TransactionConflict, ConditionalCheckFailedException", ConflictKind.TransactionConflict, Lost());
+        yield return new("TransactionConflict, a cancelled transaction with ConditionalCheckFailed", ConflictKind.TransactionConflict, Canceled("ConditionalCheckFailed").Exception);
+        yield return new("TransactionConflict, a cancelled transaction with ConditionalCheckFailed and None", ConflictKind.TransactionConflict, Canceled("None", "ConditionalCheckFailed").Exception);
+        yield return new("ConditionalCheckFailed, TransactionConflictException", ConflictKind.ConditionalCheckFailed, new TransactionConflictException("Transaction is ongoing for the item."));
+        yield return new("ConditionalCheckFailed, a cancelled transaction with TransactionConflict", ConflictKind.ConditionalCheckFailed, Canceled("TransactionConflict").Exception);
+        yield return new("ConditionalCheckFailed, a cancelled transaction with TransactionConflict and ThrottlingError", ConflictKind.ConditionalCheckFailed, Canceled("ThrottlingError", "TransactionConflict").Exception);
+        yield return new("TransactionConflict, a cancelled transaction without a conflict", ConflictKind.TransactionConflict, Canceled("None", "ValidationError").Exception);
+        yield return new("ConditionalCheckFailed, a cancelled transaction without reasons", ConflictKind.ConditionalCheckFailed, new TransactionCanceledException("Transaction cancelled."));
+        yield return new("ConditionalCheckFailed, another error", ConflictKind.ConditionalCheckFailed, new ValidationException("The expression does not parse."));
+    }
+
     [Test]
     [MethodDataSource(nameof(Conflicts))]
     public async Task RetryOnConflictAsync_Conflict_RunsAgainAndReturnsWhatThatRunReturns(FailureCase conflict)
@@ -110,7 +134,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var failure = await TestClient.CaptureAsync<DynamoDbException>(() => client.RetryOnConflictAsync<int>(_ => throw conflict.Exception));
 
         // Assert
-        await Assert.That(FailureClassifier.IsConflict(failure)).IsTrue();
+        await Assert.That(FailureClassifier.IsConflict(failure, ConflictKind.Any)).IsTrue();
     }
 
     [Test]
@@ -785,6 +809,251 @@ internal sealed class DynamoDbClientConflictRetryTests
         await Assert.That(context.Posts).IsEqualTo(0);
     }
 
+    [Test]
+    [MethodDataSource(nameof(NamedConflicts))]
+    public async Task RetryOnConflictAsync_ConflictThatRetryOnNames_RunsAgain(KindCase named)
+    {
+        // Arrange
+        var script = new Script(named.Exception);
+        using var client = NewClient();
+
+        // Act
+        var result = await client.RetryOnConflictAsync(script.RunAsync, named.RetryOn);
+
+        // Assert
+        await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(UnnamedConflicts))]
+    public async Task RetryOnConflictAsync_ConflictThatRetryOnDoesNotName_SurfacesAtOnce(KindCase unnamed)
+    {
+        // Arrange
+        var script = new Script(unnamed.Exception);
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => client.RetryOnConflictAsync(script.RunAsync, unnamed.RetryOn));
+
+        // Assert
+        await Assert.That((ReferenceEquals(failure, unnamed.Exception), script.Runs)).IsEqualTo((true, 1));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(Conflicts))]
+    public async Task RetryOnConflictAsync_Any_RunsAgainOnWhatTheOverloadWithoutItRunsAgainOn(FailureCase conflict)
+    {
+        // Arrange
+        var script = new Script(conflict.Exception);
+        using var client = NewClient();
+
+        // Act
+        var result = await client.RetryOnConflictAsync(script.RunAsync, ConflictKind.Any);
+
+        // Assert
+        await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(OtherFailures))]
+    public async Task RetryOnConflictAsync_AnyAndOtherFailure_SurfacesAtOnce(FailureCase other)
+    {
+        // Arrange
+        var script = new Script(other.Exception);
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<Exception>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.Any));
+
+        // Assert
+        await Assert.That((ReferenceEquals(failure, other.Exception), script.Runs)).IsEqualTo((true, 1));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(NamedConflicts))]
+    public async Task RetryOnConflictAsync_NamedConflictWithoutAResult_RunsAgain(KindCase named)
+    {
+        // Arrange
+        var script = new Script(named.Exception);
+        using var client = NewClient();
+
+        // Act
+        await client.RetryOnConflictAsync(script.RunWithoutResultAsync, named.RetryOn);
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_UnnamedConflictWithoutAResult_SurfacesAtOnce()
+    {
+        // Arrange
+        var script = new Script(Lost());
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.TransactionConflict));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(8)]
+    public async Task RetryOnConflictAsync_RetryOnAndMaxAttempts_CountsTheFirstRun(int maxAttempts)
+    {
+        // Arrange
+        var script = new Script([.. Enumerable.Range(0, 20).Select(static _ => new TransactionConflictException("Transaction is ongoing for the item."))]);
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<TransactionConflictException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, maxAttempts));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(maxAttempts);
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(8)]
+    public async Task RetryOnConflictAsync_RetryOnAndMaxAttemptsWithoutAResult_CountsTheFirstRun(int maxAttempts)
+    {
+        // Arrange
+        var script = new Script([.. Enumerable.Range(0, 20).Select(static _ => Lost())]);
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.ConditionalCheckFailed, maxAttempts));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(maxAttempts);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnEveryRunLoses_RunsFiveTimes()
+    {
+        // Arrange
+        var script = new Script([.. Enumerable.Range(0, 20).Select(static _ => Lost())]);
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.ConditionalCheckFailed));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(5);
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(4)]
+    [Arguments(7)]
+    [Arguments(-1)]
+    [Arguments(int.MinValue)]
+    [Arguments(int.MaxValue)]
+    public async Task RetryOnConflictAsync_RetryOnThatIsNoneOfTheThree_ThrowsAtTheCallAndRunsNothing(int value)
+    {
+        // Arrange (none, a bit that names nothing, and Any with such a bit)
+        var script = new Script();
+        using var client = NewClient();
+
+        // Act
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, (ConflictKind)value));
+
+        // Assert
+        await Assert.That((failure.ParamName, failure.ActualValue, script.Runs)).IsEqualTo(("retryOn", (object?)(ConflictKind)value, 0));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnThatIsNoneOfTheThreeWithoutAResult_ThrowsAtTheCallAndRunsNothing()
+    {
+        // Arrange
+        var script = new Script();
+        using var client = NewClient();
+
+        // Act
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, default(ConflictKind), 3));
+
+        // Assert
+        await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("retryOn", 0));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnAndMaxAttemptsBelowOne_ThrowsForMaxAttempts()
+    {
+        // Arrange
+        var script = new Script();
+        using var client = NewClient();
+
+        // Act
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, 0));
+
+        // Assert
+        await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_NullDelegateAndRetryOnOfNoKind_ThrowsForTheDelegate()
+    {
+        // Arrange
+        using var client = NewClient();
+        Func<CancellationToken, ValueTask>? operation = null;
+
+        // Act
+        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!, default(ConflictKind)));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("operation");
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_TransactionConflictOnTheWire_RunsTheRegistrationAgainUntilTheValueIsTaken()
+    {
+        // Arrange (the uniqueness recipe: a claim in flight elsewhere is asked again, and a taken claim is the answer, also when the record's own condition failed beside it)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.TransactionCanceled(TransactionFailure.TransactionConflict, TransactionFailure.None));
+        handler.Enqueue(StubResponse.TransactionCanceled(TransactionFailure.ConditionalCheckFailed, TransactionFailure.ConditionalCheckFailed));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table(TableName, "pk");
+
+        // Act
+        var registered = await client.RetryOnConflictAsync(
+            async ct =>
+            {
+                TransactMarker claim = default;
+                try
+                {
+                    await client.TransactWrite().Put(shop, new Item { ["pk"] = "EMAIL#a" }, out claim).IfNotExists().Put(shop, new Item { ["pk"] = "USER#a" }).IfNotExists().SendAsync(ct);
+                    return true;
+                }
+                catch (TransactionCanceledException exception) when (exception.ReasonFor(claim) == TransactionFailure.ConditionalCheckFailed)
+                {
+                    return false;
+                }
+            },
+            ConflictKind.TransactionConflict);
+
+        // Assert
+        await Assert.That((registered, handler.Requests.Count)).IsEqualTo((false, 2));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_FailedConditionOfTheRecordOnTheWire_SurfacesAtOnce()
+    {
+        // Arrange (what the loop by hand let through: the record exists, and asking again changes nothing)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.TransactionCanceled(TransactionFailure.None, TransactionFailure.ConditionalCheckFailed));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<TransactionCanceledException>(() => client.RetryOnConflictAsync(ct => SendTransactionAsync(client, ct), ConflictKind.TransactionConflict));
+
+        // Assert
+        await Assert.That((failure.Failures.Single().Reason, handler.Requests.Count)).IsEqualTo((TransactionFailure.ConditionalCheckFailed, 1));
+    }
+
     private static FailureCase Canceled(params string[] codes) =>
         new($"TransactionCanceledException with {string.Join(", ", codes)}", new TransactionCanceledException("Transaction cancelled.", [.. codes.Select(static code => new CancellationReason { Code = code })]));
 
@@ -824,6 +1093,15 @@ internal sealed class DynamoDbClientConflictRetryTests
     /// <param name="Name">The name shown in test output.</param>
     /// <param name="Exception">What the run fails with.</param>
     internal readonly record struct FailureCase(string Name, Exception Exception)
+    {
+        public override string ToString() => Name;
+    }
+
+    /// <summary>A failure of a run and the conflicts a retry names. The display name in test output is <paramref name="Name"/>.</summary>
+    /// <param name="Name">The name shown in test output.</param>
+    /// <param name="RetryOn">What the retry runs again on.</param>
+    /// <param name="Exception">What the run fails with.</param>
+    internal readonly record struct KindCase(string Name, ConflictKind RetryOn, Exception Exception)
     {
         public override string ToString() => Name;
     }

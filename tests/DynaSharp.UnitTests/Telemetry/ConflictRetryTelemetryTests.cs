@@ -155,6 +155,23 @@ public sealed class ConflictRetryTelemetryTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_ConflictThatRetryOnDoesNotName_CountsNothing()
+    {
+        // Arrange (it surfaces like any other failure, so nothing gave up)
+        var table = UniqueTable();
+        using var counters = Capture(table);
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+        using var client = Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table(table, "pk");
+
+        // Act
+        await CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey }).IfNotExists().SendAsync(ct), ConflictKind.TransactionConflict));
+
+        // Assert
+        await Assert.That(counters.All.Count).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_OneRunThatLoses_ReportsNothing()
     {
         // Arrange (one run asks for no retry, so nothing gave up, as with one attempt of a call)

@@ -194,4 +194,119 @@ internal sealed class TableRetryOnConflictTests
         // Assert
         await Assert.That(((ArgumentOutOfRangeException)failure).ParamName).IsEqualTo("maxAttempts");
     }
+
+    [Test]
+    public async Task RetryOnConflictAsync_TransactionConflictOnly_RunsAgainOnATransactionInTheWay()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("TransactionConflictException", "Transaction is ongoing for the item."));
+        handler.Enqueue(StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var result = await shop.RetryOnConflictAsync(
+            async ct =>
+            {
+                await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+                return 7;
+            },
+            ConflictKind.TransactionConflict);
+
+        // Assert
+        await Assert.That((result, handler.Requests.Count)).IsEqualTo((7, 2));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_TransactionConflictOnly_SurfacesAFailedConditionAtOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(
+            async ct =>
+            {
+                await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+                return 7;
+            },
+            ConflictKind.TransactionConflict));
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(3)]
+    public async Task RetryOnConflictAsync_RetryOnAndMaxAttempts_CountsTheFirstRun(int maxAttempts)
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(
+            async ct =>
+            {
+                await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+                return 7;
+            },
+            ConflictKind.ConditionalCheckFailed,
+            maxAttempts));
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(maxAttempts);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnWithoutAResult_RunsAgainOnWhatItNames()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ConditionalCheckFailed());
+        handler.Enqueue(StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.ConditionalCheckFailed);
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnAndMaxAttemptsWithoutAResult_CountsTheFirstRun()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.Any, maxAttempts: 2));
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_RetryOnOfNoKind_ThrowsAtTheCall()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => ValueTask.CompletedTask, default(ConflictKind)));
+
+        // Assert
+        await Assert.That(((ArgumentOutOfRangeException)failure).ParamName).IsEqualTo("retryOn");
+    }
 }
