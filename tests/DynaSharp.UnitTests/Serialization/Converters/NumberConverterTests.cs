@@ -150,7 +150,7 @@ public sealed class NumberConverterTests
         var act = () => ConverterRun.Write<double, NumberConverter<double>>(value);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+        await Assert.That(act).Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]

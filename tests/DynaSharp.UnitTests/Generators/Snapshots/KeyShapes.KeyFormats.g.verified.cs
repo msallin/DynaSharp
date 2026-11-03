@@ -237,7 +237,14 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
         writer.WriteAttributeName("At"u8);
         global::DynaSharp.Serialization.DateTimeOffsetConverter.Write(writer, entity.At);
         writer.WriteAttributeName("Utc"u8);
-        global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.Utc);
+        try
+        {
+            global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.Utc);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "KeyFormats", "Utc", "Utc");
+        }
         writer.WriteAttributeName("Date"u8);
         global::DynaSharp.Serialization.DateOnlyConverter.Write(writer, entity.Date);
     }

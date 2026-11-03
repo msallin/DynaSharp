@@ -30,7 +30,7 @@ its table that a build shows beside it goes away with it.
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context | Enable nullable reference types |
-| `DYNA020` | An entity has no discriminator | Add the `[Discriminator("ROOM")]` the message suggests, or `[Discriminator(OptOut = true)]` for a table written by other tools. `[assembly: DynamoDbDefaults(NoDiscriminator = true)]` does that for every entity of a project |
+| `DYNA020` | An entity has no discriminator | Add the `[Discriminator("ROOM")]` the message suggests, or `[Discriminator(OptOut = true)]` for a table written by other tools. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]` does that for every entity of a project |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, or both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |

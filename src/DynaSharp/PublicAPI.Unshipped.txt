@@ -18,8 +18,8 @@ DynaSharp.Mapping.DynamoDbDefaultsAttribute
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.DynamoDbDefaultsAttribute() -> void
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.get -> DynaSharp.Mapping.AttributeNaming
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.set -> void
-DynaSharp.Mapping.DynamoDbDefaultsAttribute.NoDiscriminator.get -> bool
-DynaSharp.Mapping.DynamoDbDefaultsAttribute.NoDiscriminator.set -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.DiscriminatorOptOut.get -> bool
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.DiscriminatorOptOut.set -> void
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.get -> bool
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.set -> void
 DynaSharp.Mapping.ComputedFromAttribute
@@ -41,16 +41,36 @@ DynaSharp.Mapping.OmitEmptyAttribute
 DynaSharp.Mapping.OmitEmptyAttribute.OmitEmptyAttribute() -> void
 DynaSharp.Mapping.OmitEmptyAttribute.OmitEmptyAttribute(bool enabled) -> void
 DynaSharp.Mapping.OmitEmptyAttribute.Enabled.get -> bool
+DynaSharp.Serialization.BoolAsNumberConverter
+DynaSharp.Serialization.BoolAsNumberConverter.BoolAsNumberConverter() -> void
+DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>
+DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>.EmptyStringAsMissingConverter() -> void
+DynaSharp.Serialization.OffsetTimestampConverter
+DynaSharp.Serialization.OffsetTimestampConverter.OffsetTimestampConverter() -> void
 DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>
 DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.OmitEmptyCollectionConverter() -> void
 DynaSharp.Serialization.OmitEmptyConverter<TConverter>
 DynaSharp.Serialization.OmitEmptyConverter<TConverter>.OmitEmptyConverter() -> void
 DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>
 DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.OmitEmptySetConverter() -> void
+DynaSharp.Serialization.SdkDateTimeConverter
+DynaSharp.Serialization.SdkDateTimeConverter.SdkDateTimeConverter() -> void
 static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.IsOmitted(T! value) -> bool
 static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
 static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.TryReadMissing(out T! value) -> bool
 static DynaSharp.Serialization.OmitEmptyCollectionConverter<T, TElement, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
+static DynaSharp.Serialization.ConverterChecks.IsRefusedValue(System.ArgumentException! exception) -> bool
+static DynaSharp.Serialization.ConverterChecks.RefusedValue(System.ArgumentException! exception, string! entityType, string! propertyName, string! attributeName) -> System.ArgumentException!
+static DynaSharp.Serialization.BoolAsNumberConverter.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.BoolAsNumberConverter.Write(DynaSharp.Serialization.DynamoDbWriter writer, bool value) -> void
+static DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>.CountsAsMissing(in DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> bool
+static DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>.IsOmitted(T value) -> bool
+static DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T
+static DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T value) -> void
+static DynaSharp.Serialization.OffsetTimestampConverter.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.DateTimeOffset
+static DynaSharp.Serialization.OffsetTimestampConverter.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.DateTimeOffset value) -> void
+static DynaSharp.Serialization.SdkDateTimeConverter.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.DateTime
+static DynaSharp.Serialization.SdkDateTimeConverter.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.DateTime value) -> void
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.IsOmitted(string! value) -> bool
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> string!
 static DynaSharp.Serialization.OmitEmptyConverter<TConverter>.TryReadMissing(out string! value) -> bool

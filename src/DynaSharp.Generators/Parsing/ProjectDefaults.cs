@@ -10,7 +10,7 @@ internal sealed class ProjectDefaults
 {
     private const string NamingArgument = "Naming";
 
-    private const string NoDiscriminatorArgument = "NoDiscriminator";
+    private const string DiscriminatorOptOutArgument = "DiscriminatorOptOut";
 
     private const string OmitEmptyArgument = "OmitEmpty";
 
@@ -25,7 +25,7 @@ internal sealed class ProjectDefaults
         if (AttributeReader.Find(assembly, WellKnownNames.DefaultsAttribute) is { } defaults)
         {
             _naming = (NamingPolicy)AttributeReader.Number(defaults, NamingArgument);
-            NoDiscriminator = AttributeReader.Flag(defaults, NoDiscriminatorArgument);
+            DiscriminatorOptOut = AttributeReader.Flag(defaults, DiscriminatorOptOutArgument);
             OmitEmpty = AttributeReader.Flag(defaults, OmitEmptyArgument);
         }
 
@@ -36,7 +36,7 @@ internal sealed class ProjectDefaults
     }
 
     /// <summary>Gets a value indicating whether an entity without <c>[Discriminator]</c> opts out.</summary>
-    public bool NoDiscriminator { get; }
+    public bool DiscriminatorOptOut { get; }
 
     /// <summary>Gets a value indicating whether a type without <c>[OmitEmpty]</c> behaves as if it had it.</summary>
     public bool OmitEmpty { get; }

@@ -67,13 +67,34 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         writer.WriteAttributeName("Big"u8);
         global::DynaSharp.Serialization.NumberConverter<long>.Write(writer, entity.Big);
         writer.WriteAttributeName("Single"u8);
-        global::DynaSharp.Serialization.NumberConverter<float>.Write(writer, entity.Single);
+        try
+        {
+            global::DynaSharp.Serialization.NumberConverter<float>.Write(writer, entity.Single);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Single", "Single");
+        }
         writer.WriteAttributeName("Double"u8);
-        global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, entity.Double);
+        try
+        {
+            global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, entity.Double);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Double", "Double");
+        }
         writer.WriteAttributeName("Huge"u8);
         global::DynaSharp.Serialization.NumberConverter<global::System.Int128>.Write(writer, entity.Huge);
         writer.WriteAttributeName("When"u8);
-        global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.When);
+        try
+        {
+            global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.When);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "When", "When");
+        }
         writer.WriteAttributeName("Clock"u8);
         global::DynaSharp.Serialization.TimeOnlyConverter.Write(writer, entity.Clock);
         writer.WriteAttributeName("Span"u8);

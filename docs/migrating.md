@@ -31,8 +31,10 @@ The tables compare with `DynamoDBContext` of `AWSSDK.DynamoDBv2` 4.0 in its defa
 | An upsert that names only part of an index key. | A typed update writes the index keys it can compute. On an index that is not sparse, `.Set(Order.Attrs.PlacedAt, at)` writes `bystatussk` and no `bystatuspk`, so an item it creates is not in the index, and nothing throws. With `Sparse = true` the same call throws. An update that can create an item sets every input of the index, ends in `.IfExists()`, or is a `Put`. A `[KeyOnly]` input has no handle to set, so such an index takes a plain attribute that holds the whole key: a stored property under `PartitionKey = "{GroupKey}"`, set by its handle. |
 | A null property. `SaveAsync` removes the attribute, and with `IgnoreNullValues = true` leaves it alone. | `Set(Attrs.X, null)` in an `Update` removes it, and `SetIfNotNull(Attrs.X, value)` adds nothing for null. A `Put` leaves a null out of the item it replaces. |
 | A `List<string>` or `string[]`, an `SS` in V1. `List<int>` is an `NS`, and an empty one is left out. | `HashSet<string>`, or `[DynamoDbConverter(typeof(SetArrayConverter<string, StringSetElement>))] public string[] Tags { get; init; } = [];`, with `NumberSetElement<int>` for numbers, or `[DynamoDbConverter(typeof(StringListAsSetConverter))] public List<string> Tags { get; init; } = [];`, below. An empty one is left out here too. An array or a list does not stop a duplicate, which writes `"SS":["x","x"]`, and DynamoDB rejects that. A plain list or array is an `L` here, and reading an `SS` into it throws `DynamoDbMappingException`. |
-| A `bool`, an `N` of `1` or `0` in V1. | `BoolAsNumberConverter`, below. Here a `bool` is a `BOOL`, and reading an `N` into it throws. |
-| A `DateTime`, text in UTC with three fraction digits: `2026-10-31T12:00:00.123Z`. | `SdkDateTimeConverter`, below. DynaSharp reads that text and writes seven digits, `2026-10-31T12:00:00.1230000Z`, so a condition no longer finds an old value, and old and new sort apart in a key. It also rejects `DateTimeKind.Unspecified`, which the SDK and the converter take for local time. A `TimeOnly` has three digits as well, and takes the same kind of converter. |
+| A `bool`, an `N` of `1` or `0` in V1. | `BoolAsNumberConverter`, below, which writes `1` and `0` and reads any number but zero as true, as the SDK does. Here a `bool` is a `BOOL`, and reading an `N` into it throws. |
+| A `DateTime`, text in UTC with three fraction digits: `2026-10-31T12:00:00.123Z`. | `SdkDateTimeConverter`, below, which writes that text, cuts off what is below the millisecond, takes `DateTimeKind.Unspecified` for local time and reads `DateTimeKind.Utc`, as SDK 4 does under its default `RetrieveDateTimeInUtc = true`. Without it DynaSharp reads that text and writes seven digits, `2026-10-31T12:00:00.1230000Z`, so a condition no longer finds an old value, and old and new sort apart in a key, and it rejects `Unspecified`. A `TimeOnly` has three digits as well, and takes a converter of your own. |
+| A `DateTimeOffset` that your own converter stored with its offset: `2026-11-20T11:00:00.0000000+01:00`. | `[DynamoDbConverter(typeof(OffsetTimestampConverter))]`, below, which keeps the offset. DynaSharp stores the instant in UTC, `2026-11-20T10:00:00.0000000Z`, and reads the old text as that instant, so items move to UTC as they are written. Text with offsets does not sort chronologically, so a range over it is wrong across offsets. |
+| `""` where a value belongs, which other code wrote for none: a timestamp or a JSON document that is a blank string. | `EmptyStringAsMissingConverter<T, TConverter>`, below, which reads `""` as if the attribute were not there, so the property keeps its initial value or reads null. Without it the read of the item throws `DynamoDbMappingException` for that attribute. |
 | `StoreAsEpoch = true` on a `DateTime`, an `N`. | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. |
 | An enum, an `N` in V1 and V2. | `StatusAsNumberConverter`, below. DynaSharp stores the name as text, and only a `[Flags]` enum as a number. |
 | `[DynamoDBVersion] public long? Revision`, whose first `SaveAsync` stores 0. | `[Version(Missing = VersionMissing.Allow)] public long Revision`, which is not nullable, see [Adopting an existing table](adopting.md). Under the default, `[Version]`, 0 means no item, so a write at 0 fails on such an item. |
@@ -41,10 +43,9 @@ The tables compare with `DynamoDBContext` of `AWSSDK.DynamoDBv2` 4.0 in its defa
 
 The rest stores what the SDK stores: numbers, strings, `Guid`, `DateOnly`, `byte[]`, a `HashSet` of strings or numbers, a `Dictionary<string, string>` and a nested document.
 
-The converters are said once for the project. `[DynamoDbConverter]` does the same for one property.
+The converters are said once for the project, and `[DynamoDbConverter]` does the same for one property. `BoolAsNumberConverter` and `SdkDateTimeConverter` ship in `DynaSharp.Serialization`; the two others here are your own.
 
 ```csharp
-using System.Globalization;
 using DynaSharp;
 using DynaSharp.Mapping;
 using DynaSharp.Serialization;
@@ -52,25 +53,6 @@ using DynaSharp.Serialization;
 [assembly: DynamoDbDefaultConverter(typeof(bool), typeof(BoolAsNumberConverter))]
 [assembly: DynamoDbDefaultConverter(typeof(DateTime), typeof(SdkDateTimeConverter))]
 [assembly: DynamoDbDefaultConverter(typeof(OrderStatus), typeof(StatusAsNumberConverter))]
-
-public readonly record struct BoolAsNumberConverter : IDynamoDbConverter<bool>
-{
-    public static void Write(DynamoDbWriter writer, bool value) => writer.WriteNumber(value ? 1 : 0);
-
-    public static bool Read(ref DynamoDbReader reader, AttributeType type)
-    {
-        ConverterChecks.Expect(type, AttributeType.Number);
-        return reader.GetNumber<int>() != 0;
-    }
-}
-
-public readonly record struct SdkDateTimeConverter : IDynamoDbConverter<DateTime>
-{
-    public static void Write(DynamoDbWriter writer, DateTime value) =>
-        writer.WriteString(value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture));
-
-    public static DateTime Read(ref DynamoDbReader reader, AttributeType type) => DateTimeConverter.Read(ref reader, type);
-}
 
 public readonly record struct StatusAsNumberConverter : IDynamoDbConverter<OrderStatus>
 {
@@ -101,6 +83,31 @@ public readonly record struct StringListAsSetConverter : IDynamoDbConverter<List
 
 `IsOmitted` is there because DynamoDB refuses an empty set, and `TryReadMissing` so that a `Select` reads a missing one as empty. Converters are static, because `IDynamoDbConverter<T>` is static abstract, so a public one that is generic over its value fails `CA1000` in a project that treats it as an error. Write one struct per type, over a helper. A `readonly record struct` also passes `CA1815`, which a plain `readonly struct` fails under a strict analysis mode.
 
+A converter of your own may call the converters of single values, such as `DateTimeConverter` and `StringConverter`, and `SetArrayConverter<T, TElement>`, as `StringListAsSetConverter` does: they are part of the API. The list, map, set and document converters and the wrappers of null, such as `ReadOnlyListConverter<T, TConverter>`, `HashSetConverter<T, TElement>` and `NullableConverter<T, TConverter>`, are public because generated code calls them, and they are infrastructure: a call compiles, and it follows the package, so build again with every new version of the package.
+
+The other two that ship go on a property. `OffsetTimestampConverter` keeps the offset that a converter of your own stored, and `EmptyStringAsMissingConverter<T, TConverter>` reads a stored `""` as a missing attribute and everything else through the converter it names, here the built-in one of `DateTimeOffset`:
+
+```csharp
+using DynaSharp.Mapping;
+using DynaSharp.Serialization;
+
+[DynamoDbEntity]
+[Discriminator("SHIPMENT")]
+[PartitionKey("SHIPMENT#{Id}")]
+public partial record Shipment
+{
+    public required string Id { get; init; }
+
+    [DynamoDbConverter(typeof(OffsetTimestampConverter))]
+    public DateTimeOffset PromisedFor { get; init; }
+
+    [DynamoDbConverter(typeof(EmptyStringAsMissingConverter<DateTimeOffset, DateTimeOffsetConverter>))]
+    public DateTimeOffset? DeliveredAt { get; init; }
+}
+```
+
+`PromisedFor` stores `2026-11-20T11:00:00.0000000+01:00` and reads that offset back. `DeliveredAt` reads `{"S":""}` as null, and a non-nullable property would keep its initial value. Only the property is asked: in a list each `""` still throws.
+
 ### The rest of the code
 
 | What you wrote | What to write |
@@ -108,7 +115,7 @@ public readonly record struct StringListAsSetConverter : IDynamoDbConverter<List
 | `[DynamoDBHashKey]`, `[DynamoDBRangeKey]` | `[PartitionKey]`, `[SortKey]` on the property. `[DynamoDBHashKey("id")]` is `[PartitionKey(AttributeName = "id")]`. |
 | `[DynamoDBProperty("total")]`, `[DynamoDBIgnore]` | `[DynamoDbAttribute("total")]`, `[DynamoDbIgnore]`. |
 | `[DynamoDBProperty(typeof(MyConverter))]` with an `IPropertyConverter` | `[DynamoDbConverter(typeof(MyConverter))]` with an `IDynamoDbConverter<T>`. |
-| A stored value that no longer fits the property, such as an enum name that is gone. | A converter that answers `CountsAsMissing`, see [Converters](entities.md#converters). |
+| A stored value that no longer fits the property, such as an enum name that is gone. | A converter that answers `CountsAsMissing`, see [Converters](entities.md#converters). For a blank string that is `EmptyStringAsMissingConverter<T, TConverter>`, above. |
 | A property computed from others that feeds an index. | `[ComputedFrom]`, see [Computed index keys](entities.md#computed-index-keys). |
 | A date bucket in a key: `$"DAY#{arrival:yyyy-MM-dd}"`. | `{Arrival:yyyy-MM-dd}` in a template takes the type of the property, so a `DateOnly day` goes in as `new DateTimeOffset(day, TimeOnly.MinValue, TimeSpan.Zero)`. A day that is a value of its own is a `DateOnly` property. |
 | A key put together by hand: `$"CUSTOMER#{id}"`. | `Order.Keys.Of(id, number)` and `Order.Keys.Pk.Of(id)` check the values at the call, and throw `KeyFormatException` for a value that holds a delimiter. `TryOf` is the tool for a value from outside: `Order.Keys.TryOf(id, number, out var key)` returns false instead. |

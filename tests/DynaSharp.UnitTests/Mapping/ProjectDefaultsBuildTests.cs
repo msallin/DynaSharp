@@ -24,7 +24,7 @@ public sealed class ProjectDefaultsBuildTests
         "guest_name":{"S":"Anna"}
         """)]
     [Arguments("""
-        "VIP":{"BOOL":false}
+        "VIP":{"N":"0"}
         """)]
     [Arguments("""
         "_type":{"S":"GUEST"}
@@ -308,7 +308,7 @@ public sealed class ProjectDefaultsBuildTests
         var attribute = typeof(Guest).Assembly.GetCustomAttribute<DynamoDbDefaultsAttribute>()!;
 
         // Assert
-        await Assert.That((attribute.Naming, attribute.NoDiscriminator, attribute.OmitEmpty)).IsEqualTo((AttributeNaming.SnakeCase, true, true));
+        await Assert.That((attribute.Naming, attribute.DiscriminatorOptOut, attribute.OmitEmpty)).IsEqualTo((AttributeNaming.SnakeCase, true, true));
     }
 
     private static DynamoDbEntityInfo InfoOf<T>()

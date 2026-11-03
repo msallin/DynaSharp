@@ -498,15 +498,15 @@ Check(helperRecords.Records.Single().EventName == OperationType.Remove, "StubRes
 
 // A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
 var lenients = users.Of<Lenient>();
-const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"After":{"N":"7"}}}""";
+const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"Shipped":{"S":""},"After":{"N":"7"}}}""";
 
 commandHandler.Enqueue(StubResponse.Json(LenientItem));
 var lenient = (await lenients.Get(Lenient.Keys.Of("l-1")).SendAsync()).Item;
-Check(lenient is { Plan: Plan.Enterprise, MaybePlan: null, Weight: null, Text: "initial", After: 7 }, "a value counted as missing reads as a missing attribute, and the next attribute reads");
+Check(lenient is { Plan: Plan.Enterprise, MaybePlan: null, Weight: null, Text: "initial", Shipped: null, After: 7 }, "a value counted as missing reads as a missing attribute, and the next attribute reads");
 
-commandHandler.Enqueue(StubResponse.Json("""{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"Pro"},"MaybePlan":{"S":"Free"},"Weight":{"S":"1500g"},"Text":{"S":"t"}}}"""));
+commandHandler.Enqueue(StubResponse.Json("""{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"Pro"},"MaybePlan":{"S":"Free"},"Weight":{"S":"1500g"},"Text":{"S":"t"},"Shipped":{"S":"2026-11-20T11:00:00.0000000+01:00"}}}"""));
 var keptLenient = (await lenients.Get(Lenient.Keys.Of("l-1")).SendAsync()).Item;
-Check(keptLenient is { Plan: Plan.Pro, MaybePlan: Plan.Free, Weight.Grams: 1500, Text: "t" }, "a value that does not count as missing reads through the same converters");
+Check(keptLenient is { Plan: Plan.Pro, MaybePlan: Plan.Free, Weight.Grams: 1500, Text: "t", Shipped.Offset.Hours: 1 }, "a value that does not count as missing reads through the same converters");
 
 commandHandler.Enqueue(StubResponse.Json(LenientItem));
 var selectedPlan = await lenients.Get(Lenient.Keys.Of("l-1")).Select(Lenient.Attrs.MaybePlan).SendAsync();

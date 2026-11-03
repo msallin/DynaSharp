@@ -105,7 +105,7 @@ One assembly `DynaSharp`; internal by default.
 
 Placement rules: a type is in `DynaSharp` iff a `Table<T>` user has to name it, and all exceptions are there so that a catch clause needs no extra import, whatever API raised it. A type that only the streams operations reach is in `DynaSharp.Streams`; a type that table administration also uses (`StreamSpecification`, `StreamViewType`) stays in `DynaSharp.Requests`, so `Streams` depends on `Requests` and never the reverse. `DynaSharp.Model` does not exist.
 
-Infrastructure: `DynaSharp.Keys` (except `KeyFormatException`, which callers catch), the metadata classes (`DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput`) and the converter wrappers (the list, map and set converters, `NullableConverter<,>`, `NullableReferenceConverter<,>`, `DocumentConverter<>`) are public because generated code reaches them. They are compatible only within a package version: the generator ships in the same package, so generated code follows them, and code written by hand against them has to. `SetArrayConverter<,>` is not part of this, because a property names it in `[DynamoDbConverter]`.
+Infrastructure: `DynaSharp.Keys` (except `KeyFormatException`, which callers catch), the metadata classes (`DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput`) and the converter wrappers (the list, map and set converters, `NullableConverter<,>`, `NullableReferenceConverter<,>`, `DocumentConverter<>`) are public because generated code reaches them. They are compatible only within a package version: the generator ships in the same package, so generated code follows them, and code written by hand against them has to. `SetArrayConverter<,>` and `EmptyStringAsMissingConverter<,>` are not part of this, because a property names them in `[DynamoDbConverter]`.
 
 The public API is defined in `api.md`, the code as it stands is described in `architecture.md`. The primary API is `Table<T>` over `Item` or a generated entity, on the pipeline directly; the request API is a sibling in `DynaSharp.Requests`, not a layer beneath it.
 
@@ -258,7 +258,7 @@ Interaction with indexes and discriminators:
   prefixes make a prefix ambiguous. `[Discriminator("ORDER")]` is required, because a default of the type name would turn
   renaming a class into a silent migration. The attribute name can be overridden, and a type can opt out for tables written
   by other tools, which also excludes it from mixed queries. A project whose tables other tools write says so once, in
-  `[assembly: DynamoDbDefaults(NoDiscriminator = true)]`, which opts out and never makes up a value.
+  `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, which opts out and never makes up a value.
 - JSON property order is not guaranteed, so a mixed query copies the reader (a struct, so a cheap checkpoint), finds the
   attribute, rewinds and dispatches. How a mixed result is declared is an M3 decision.
 - A typed read checks `_type` when present and throws `DynamoDbMappingException` naming the type it found, because a query

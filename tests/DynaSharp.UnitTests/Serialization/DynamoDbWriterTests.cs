@@ -185,7 +185,7 @@ public sealed class DynamoDbWriterTests
         var act = () => TestJson.Write(write);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>()
+        await Assert.That(act).Throws<ArgumentOutOfRangeException>()
             .WithMessageContaining("DynamoDB cannot store NaN or infinity.", StringComparison.Ordinal);
     }
 
@@ -199,7 +199,7 @@ public sealed class DynamoDbWriterTests
         var act = () => TestJson.Write(w => w.WriteNumber(value));
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("value");
+        await Assert.That(act).Throws<ArgumentOutOfRangeException>().WithParameterName("value");
     }
 
     [Test]

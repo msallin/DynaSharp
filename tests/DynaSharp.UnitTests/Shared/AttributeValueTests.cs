@@ -256,7 +256,7 @@ public sealed class AttributeValueTests
         };
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("value");
+        await Assert.That(act).Throws<ArgumentOutOfRangeException>().WithParameterName("value");
     }
 
     [Test]
@@ -486,7 +486,7 @@ public sealed class AttributeValueTests
         var act = () => AttributeValue.FromNumber(number);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("value");
+        await Assert.That(act).Throws<ArgumentOutOfRangeException>().WithParameterName("value");
     }
 
     [Test]

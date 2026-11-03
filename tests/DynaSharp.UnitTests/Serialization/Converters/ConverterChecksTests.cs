@@ -5,6 +5,27 @@ namespace DynaSharp.UnitTests.Serialization;
 
 public sealed class ConverterChecksTests
 {
+    public static IEnumerable<Func<(ArgumentException Exception, bool Refused)>> Failures() =>
+    [
+        () => (new UnspecifiedDateTimeException("value"), true),
+        () => (new NonFiniteNumberException("value", double.NaN), true),
+        () => (new ArgumentException("Another failure.", "value"), false),
+        () => (new ArgumentOutOfRangeException("value"), false),
+        () => (new ArgumentNullException("value"), false),
+    ];
+
+    [Test]
+    [MethodDataSource(nameof(Failures))]
+    public async Task IsRefusedValue_Exception_IsTrueForTheRefusalsOfTheBuiltInsAlone(ArgumentException exception, bool refused)
+    {
+        // Arrange
+        // Act
+        var found = ConverterChecks.IsRefusedValue(exception);
+
+        // Assert
+        await Assert.That(found).IsEqualTo(refused);
+    }
+
     [Test]
     public async Task ToAttributeValue_Number_KeepsItsType()
     {

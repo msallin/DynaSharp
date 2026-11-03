@@ -446,6 +446,25 @@ public sealed partial class KeysEmitterTests
     }
 
     [Test]
+    [Arguments("[DynamoDbConverter(typeof(SdkDateTimeConverter))] public required DateTime At { get; set; }", true)]
+    [Arguments("[DynamoDbConverter(typeof(BoolAsNumberConverter))] public required bool At { get; set; }", true)]
+    [Arguments("[DynamoDbConverter(typeof(OffsetTimestampConverter))] public required DateTimeOffset At { get; set; }", false)]
+    public async Task Emit_PlainSortKeyWithAnOptInConverter_HasTheConditionsOfItsOrder(string member, bool hasRanges)
+    {
+        // Arrange (text of a fixed width and a number order as the values do, and a time at its own offset does not)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E")]
+            public partial class E { [PartitionKey] public required string Id { get; set; } [SortKey] {{member}} }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That((body.Contains(" Eq(", StringComparison.Ordinal), body.Contains(" Between(", StringComparison.Ordinal))).IsEqualTo((true, hasRanges));
+    }
+
+    [Test]
     public async Task Emit_BetweenOnAKeyThatGoesOn_PointsAtRange()
     {
         // Arrange, Act

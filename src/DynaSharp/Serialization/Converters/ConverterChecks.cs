@@ -127,6 +127,35 @@ public static class ConverterChecks
         }
     }
 
+    /// <summary>
+    /// Finds out whether a write failed on a value that its type allows and DynamoDB or the built-in converter does not: a <see cref="DateTime"/> of <see cref="DateTimeKind.Unspecified"/>,
+    /// or NaN or an infinity. The code the source generator emits asks it in the filter of the catch around the write of a property that such a converter writes.
+    /// </summary>
+    /// <param name="exception">What the write threw.</param>
+    /// <returns><see langword="true"/> for one of those refusals, and <see langword="false"/> for any other exception, which goes on as it is.</returns>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static bool IsRefusedValue(ArgumentException exception) => exception is UnspecifiedDateTimeException or NonFiniteNumberException;
+
+    /// <summary>
+    /// Creates the exception for a value that <see cref="IsRefusedValue"/> found, naming the property, its attribute, what was wrong and the fix, and never the value. The exception of the
+    /// converter is its inner exception, and its type stays: an <see cref="ArgumentException"/> for a <see cref="DateTime"/>, an <see cref="ArgumentOutOfRangeException"/> for a number.
+    /// </summary>
+    /// <param name="exception">What the write threw.</param>
+    /// <param name="entityType">The type that holds the property.</param>
+    /// <param name="propertyName">The property.</param>
+    /// <param name="attributeName">Its attribute.</param>
+    /// <returns>The exception to throw.</returns>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static ArgumentException RefusedValue(ArgumentException exception, string entityType, string propertyName, string attributeName)
+    {
+        var where = $"The property {propertyName} of {entityType}, the attribute \"{attributeName}\", cannot be written";
+        return exception is UnspecifiedDateTimeException
+            ? new ArgumentException(
+                $"{where}: its DateTime has DateTimeKind.Unspecified, so it names no instant. Give it DateTimeKind.Utc, or store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the AWS SDK does.",
+                exception)
+            : new ArgumentOutOfRangeException($"{where}: it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.", exception);
+    }
+
     private static JsonException WrongType(AttributeType actual, AttributeType expected) =>
         new($"Expected a DynamoDB attribute value of type {expected} but found {actual}.");
 }

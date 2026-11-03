@@ -8,7 +8,7 @@ A `[Version]` property reads an item without the attribute as 0, as it reads one
 
 ## Items without a discriminator
 
-A `Query` or a `Scan` of an entity filters on `_type`, which nobody wrote into these items, so it finds none of them. `[Discriminator(OptOut = true)]` drops the filter. A `Get` has no filter, and an item without `_type` passes its check, so an adoption test with a `Get` passes where the `Query` finds nothing.
+A `Query` or a `Scan` of an entity filters on `_type`, which nobody wrote into these items, so it finds none of them. `[Discriminator(OptOut = true)]` drops the filter. When no table of the project has the attribute, `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]` says it once, for every entity of the assembly without `[Discriminator]`, and `[Discriminator("X")]` on a type still wins. A `Get` has no filter, and an item without `_type` passes its check, so an adoption test with a `Get` passes where the `Query` finds nothing.
 
 ## Names of your own
 

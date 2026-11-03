@@ -10,6 +10,18 @@ internal static class WriteEmitter
 {
     private const string VersionParameter = "__version";
 
+    // A DateTime of no kind, and NaN or an infinity, alone or in a list, a dictionary or a set. No name here is the start of the name of another built-in.
+    private static readonly string[] RefusingConverters =
+    [
+        "global::DynaSharp.Serialization.DateTimeConverter",
+        "global::DynaSharp.Serialization.NumberConverter<double>",
+        "global::DynaSharp.Serialization.NumberConverter<float>",
+        "global::DynaSharp.Serialization.NumberConverter<global::System.Half>",
+        "global::DynaSharp.Serialization.NumberSetElement<double>",
+        "global::DynaSharp.Serialization.NumberSetElement<float>",
+        "global::DynaSharp.Serialization.NumberSetElement<global::System.Half>",
+    ];
+
     public static void Emit(IndentedCode code, TypeModel type)
     {
         if (type.Entity is { } entity)
@@ -40,7 +52,7 @@ internal static class WriteEmitter
 
         foreach (var property in type.Properties)
         {
-            EmitProperty(code, property, variables, property == version ? VersionParameter : $"entity.{property.Identifier}");
+            EmitProperty(code, type, property, variables, property == version ? VersionParameter : $"entity.{property.Identifier}");
         }
 
         code.Close();
@@ -85,7 +97,7 @@ internal static class WriteEmitter
         if (key.PlainProperty is { } name)
         {
             var property = type.Property(name);
-            EmitConverterCall(code, property, $"entity.{property.Identifier}");
+            EmitConverterCall(code, type, property, $"entity.{property.Identifier}");
         }
         else
         {
@@ -183,7 +195,7 @@ internal static class WriteEmitter
 
     // A converter that answers for itself is asked after every other condition, so it never hears of a null. The value is a pattern variable, so that a computed property runs once:
     // if (entity.Tags is { } __v0 && !global::DynaSharp.Serialization.NullableReferenceHandleConverter<List<string>, TagsConverter>.IsOmitted(__v0))
-    private static void EmitProperty(IndentedCode code, PropertyModel property, VariableNames variables, string value)
+    private static void EmitProperty(IndentedCode code, TypeModel type, PropertyModel property, VariableNames variables, string value)
     {
         if (property.Write == WriteCondition.Never)
         {
@@ -193,7 +205,7 @@ internal static class WriteEmitter
         var omission = property.Converter!.OmissionForwarder;
         if (property.Write == WriteCondition.Always && omission is null)
         {
-            EmitConverterCall(code, property, value);
+            EmitConverterCall(code, type, property, value);
             return;
         }
 
@@ -208,15 +220,38 @@ internal static class WriteEmitter
         var kept = omission is null ? string.Empty : $" && !{omission}.IsOmitted({variable})";
         code.Line($"if ({value} is {pattern} {variable}{kept})");
         code.Open();
-        EmitConverterCall(code, property, variable);
+        EmitConverterCall(code, type, property, variable);
         code.Close();
     }
 
-    private static void EmitConverterCall(IndentedCode code, PropertyModel property, string value)
+    // A write through a built-in converter that refuses a value of its type gets a catch that names the property. The try costs the success path nothing, and the filter lets every
+    // other exception through as it is:
+    // try { global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.At); }
+    // catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e)) { throw __Ser.ConverterChecks.RefusedValue(__e, "Order", "At", "at"); }
+    private static void EmitConverterCall(IndentedCode code, TypeModel type, PropertyModel property, string value)
     {
         code.Line($"writer.WriteAttributeName({CodeText.Utf8(property.AttributeName)});");
-        code.Line($"{property.Converter!.WriteCall(value)};");
+        var call = $"{property.Converter!.WriteCall(value)};";
+        if (!CanRefuse(property.Converter.WriteConverter))
+        {
+            code.Line(call);
+            return;
+        }
+
+        code.Line("try");
+        code.Open();
+        code.Line(call);
+        code.Close();
+        code.Line("catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))");
+        code.Open();
+        code.Line($"throw __Ser.ConverterChecks.RefusedValue(__e, {CodeText.Literal(type.Name)}, {CodeText.Literal(property.Name)}, {CodeText.Literal(property.AttributeName)});");
+        code.Close();
     }
+
+    // Whether the converter, or one it holds for its elements, is a built-in that refuses a value of its type on write. A new built-in that does goes into RefusingConverters
+    // and into ConverterChecks.IsRefusedValue.
+    private static bool CanRefuse(string converter) =>
+        Array.Exists(RefusingConverters, refusing => converter.IndexOf(refusing, StringComparison.Ordinal) >= 0);
 
     /// <summary>Hands out the names of pattern variables within one method.</summary>
     private sealed class VariableNames

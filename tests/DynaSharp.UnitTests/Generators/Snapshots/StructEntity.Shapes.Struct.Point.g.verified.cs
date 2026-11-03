@@ -55,11 +55,25 @@ partial struct Point : __Map.IDynamoDbDiscriminated<global::Shapes.Struct.Point>
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
         writer.WriteAttributeName("X"u8);
-        global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, entity.X);
+        try
+        {
+            global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, entity.X);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Point", "X", "X");
+        }
         if (entity.Y is { } __v0)
         {
             writer.WriteAttributeName("Y"u8);
-            global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, __v0);
+            try
+            {
+                global::DynaSharp.Serialization.NumberConverter<double>.Write(writer, __v0);
+            }
+            catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+            {
+                throw __Ser.ConverterChecks.RefusedValue(__e, "Point", "Y", "Y");
+            }
         }
         writer.WriteAttributeName("Tag"u8);
         global::DynaSharp.Serialization.GuidConverter.Write(writer, entity.Tag);

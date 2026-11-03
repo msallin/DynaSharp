@@ -23,6 +23,7 @@ internal static class PlainKeyBuilderEmitter
         "global::DynaSharp.Serialization.GuidConverter",
         "global::DynaSharp.Serialization.DateTimeOffsetConverter",
         "global::DynaSharp.Serialization.DateTimeConverter",
+        "global::DynaSharp.Serialization.SdkDateTimeConverter",
         "global::DynaSharp.Serialization.DateOnlyConverter",
         "global::DynaSharp.Serialization.TimeOnlyConverter",
     ];

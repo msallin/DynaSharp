@@ -1,7 +1,7 @@
 namespace DynaSharp.Mapping;
 
 /// <summary>
-/// Says once what a project would otherwise repeat on every mapped type: <c>[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, NoDiscriminator = true, OmitEmpty = true)]</c>. It holds for the entities and
+/// Says once what a project would otherwise repeat on every mapped type: <c>[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, DiscriminatorOptOut = true, OmitEmpty = true)]</c>. It holds for the entities and
 /// documents that the assembly declares, nested ones too, and it does not reach a type of another assembly, which has the defaults it was built with.
 /// </summary>
 /// <remarks>
@@ -36,10 +36,10 @@ public sealed class DynamoDbDefaultsAttribute : Attribute
     public AttributeNaming Naming { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether an entity without <see cref="DiscriminatorAttribute"/> behaves as if it had <c>[Discriminator(OptOut = true)]</c>, for a service whose tables other tools write, and <c>DYNA020</c>
-    /// stays away. A <c>[Discriminator("X")]</c> on a type still wins.
+    /// Gets or sets a value indicating whether an entity without <see cref="DiscriminatorAttribute"/> behaves as if it had <c>[Discriminator(OptOut = true)]</c>, <see cref="DiscriminatorAttribute.OptOut"/>, for a service whose
+    /// tables other tools write, and <c>DYNA020</c> stays away. A <c>[Discriminator("X")]</c> on a type still wins.
     /// </summary>
-    public bool NoDiscriminator { get; set; }
+    public bool DiscriminatorOptOut { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether every string, list, set, dictionary and array behaves as if it had <see cref="OmitEmptyAttribute"/>. A property that feeds a key is always written, and so is one that a read

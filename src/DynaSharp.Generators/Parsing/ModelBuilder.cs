@@ -206,7 +206,7 @@ internal sealed class ModelBuilder
     {
         if (AttributeReader.Find(_type, WellKnownNames.DiscriminatorAttribute) is not { } attribute)
         {
-            if (!_defaults.NoDiscriminator)
+            if (!_defaults.DiscriminatorOptOut)
             {
                 _bag.Report(Descriptors.NoDiscriminator, _spot, _type.Name, _type.Name.ToUpperInvariant());
             }

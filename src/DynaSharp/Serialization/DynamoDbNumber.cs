@@ -36,7 +36,7 @@ internal static class DynamoDbNumber
     {
         if (!T.IsFinite(value))
         {
-            throw new ArgumentOutOfRangeException(paramName, value, "DynamoDB cannot store NaN or infinity.");
+            throw new NonFiniteNumberException(paramName, value);
         }
     }
 

@@ -24,7 +24,7 @@ public partial record Order
 }
 ```
 
-`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC and keeps milliseconds unless it says otherwise: `{PlacedAt:ms}` and a bare `{PlacedAt}` both store `2026-10-31T12:34:56.789Z`. `{PlacedAt:ticks}` keeps seven digits, and only that format keeps the whole value. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
+`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC and keeps milliseconds unless it says otherwise: `{PlacedAt:ms}` and a bare `{PlacedAt}` both store `2026-10-31T12:34:56.789Z`. `{PlacedAt:ticks}` keeps seven digits, and only that format keeps the whole value. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
 
 | `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
 |---|---|---|---|---|---|
@@ -49,7 +49,7 @@ What is the same on every type can be said once for the project. This stores `Cu
 using DynaSharp.Mapping;
 using DynaSharp.Serialization;
 
-[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, OmitEmpty = true, NoDiscriminator = true)]
+[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, OmitEmpty = true, DiscriminatorOptOut = true)]
 [assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(EpochSecondsConverter))]
 ```
 
@@ -98,3 +98,16 @@ public partial record Delivery
 ```
 
 `[assembly: DynamoDbDefaultConverter]` gives a type a converter for the whole project, as under [Project defaults](#project-defaults).
+
+Some converters ship in `DynaSharp.Serialization` and are opt-in, through either attribute, because each stores another form than the default:
+
+| Converter | Type | Stored as |
+|---|---|---|
+| `EpochSecondsConverter` | `DateTimeOffset` | A number of seconds since 1970, `{"N":"1793448000"}`, the form time to live needs |
+| `SetArrayConverter<T, TElement>` | `T[]` | A set, `{"SS":["a","b"]}`, where an array is a list by default |
+| `BoolAsNumberConverter` | `bool` | `{"N":"1"}` and `{"N":"0"}`, as the AWS SDK stores it in its conversion V1 |
+| `SdkDateTimeConverter` | `DateTime` | Three fraction digits in UTC, `{"S":"2026-10-31T12:00:00.123Z"}`, with the kinds as the AWS SDK takes them |
+| `OffsetTimestampConverter` | `DateTimeOffset` | The time with its offset, `{"S":"2026-11-20T11:00:00.0000000+01:00"}`, which does not sort chronologically across offsets |
+| `EmptyStringAsMissingConverter<T, TConverter>` | any | What `TConverter` stores, and a stored `{"S":""}` reads as a missing attribute |
+
+[The migration page](migrating.md#what-changes-stored-data) says when each fits, and which built-in converters a converter of your own may call.

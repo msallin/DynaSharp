@@ -26,6 +26,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
     private const string EpochSecondsConverter = Serialization + "EpochSecondsConverter";
 
+    private const string BoolAsNumberConverter = Serialization + "BoolAsNumberConverter";
+
     private static readonly HashSet<string> Numbers =
     [
         "sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "float", "double", "decimal",
@@ -104,8 +106,9 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
             return WireTypeOf(inner);
         }
 
+        // The opt-in built-ins that store a number where their type has none say so by name. An opt-in one that writes another type than its value would has to show here too.
         var name = Names.Of(converter);
-        if (name == EpochSecondsConverter || IsAddable(converter))
+        if (name is EpochSecondsConverter or BoolAsNumberConverter || IsAddable(converter))
         {
             return KeyWireType.Number;
         }

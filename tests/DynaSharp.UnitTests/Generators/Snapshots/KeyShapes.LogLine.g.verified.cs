@@ -105,7 +105,14 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
         writer.WriteAttributeName("Tag"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Tag);
         writer.WriteAttributeName("When"u8);
-        global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.When);
+        try
+        {
+            global::DynaSharp.Serialization.DateTimeConverter.Write(writer, entity.When);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "LogLine", "When", "When");
+        }
         if (entity.Text is { } __v2)
         {
             writer.WriteAttributeName("Text"u8);

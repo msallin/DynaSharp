@@ -45,8 +45,8 @@ public sealed class DateTimeConverterTests
         var act = () => ConverterRun.Write<DateTime, DateTimeConverter>(value);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>()
-            .WithMessage("The kind of the DateTime is Unspecified, so it names no instant. Use DateTimeKind.Utc or DateTimeKind.Local. (Parameter 'value')", StringComparison.Ordinal);
+        await Assert.That(act).Throws<ArgumentException>()
+            .WithMessage("The kind of the DateTime is Unspecified, so it names no instant. Use DateTimeKind.Utc or DateTimeKind.Local, or SdkDateTimeConverter, which takes it for local time as the AWS SDK does. (Parameter 'value')", StringComparison.Ordinal);
     }
 
     [Test]

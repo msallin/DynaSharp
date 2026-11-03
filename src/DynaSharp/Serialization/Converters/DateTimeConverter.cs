@@ -7,7 +7,8 @@ namespace DynaSharp.Serialization;
 /// <remarks>
 /// <para>
 /// A <see cref="DateTimeKind.Utc"/> value is written as it is and a <see cref="DateTimeKind.Local"/> value is converted to UTC.
-/// <see cref="DateTimeKind.Unspecified"/> is rejected because it names no instant, the same rule as in keys. A value read is always
+/// <see cref="DateTimeKind.Unspecified"/>, which <c>default(DateTime)</c> has, is rejected because it names no instant, the same rule as in keys; the write of an entity says which property held it,
+/// and <see cref="SdkDateTimeConverter"/> takes it for local time instead. A value read is always
 /// <see cref="DateTimeKind.Utc"/>, so a <see cref="DateTimeKind.Local"/> value comes back as the same instant in UTC, not as equal.
 /// </para>
 /// <para>Reading accepts the same forms as <see cref="DateTimeOffsetConverter"/>.</para>
@@ -20,7 +21,7 @@ public readonly struct DateTimeConverter : IDynamoDbConverter<DateTime>
     {
         if (value.Kind == DateTimeKind.Unspecified)
         {
-            throw new ArgumentException("The kind of the DateTime is Unspecified, so it names no instant. Use DateTimeKind.Utc or DateTimeKind.Local.", nameof(value));
+            throw new UnspecifiedDateTimeException(nameof(value));
         }
 
         TemporalText.WriteInstant(writer, value.ToUniversalTime());

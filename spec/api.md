@@ -164,7 +164,7 @@ warnings-as-errors build on a hierarchical key. Attributes:
 | `[PartitionKey]`, `[SortKey]` | type with a template, property for a plain key | `AttributeName` overrides the name. Defaults are `pk` and `sk`; a plain key is the attribute of its property, so `Naming` of `[assembly: DynamoDbDefaults]` converts it |
 | `[GlobalIndexKey(name)]` | type | `PartitionKey`, `SortKey`, `Sparse`, `PartitionKeyAttributeName`, `SortKeyAttributeName` |
 | `[LocalIndexKey(name, sortKey)]` | type | `Sparse`, `SortKeyAttributeName` |
-| `[Discriminator("X")]` | type | Required on an entity, unless `NoDiscriminator` of `[assembly: DynamoDbDefaults]` opts out for it. `AttributeName` overrides `_type`; `OptOut = true` is for tables written by other tools, and keeps the type out of mixed reads |
+| `[Discriminator("X")]` | type | Required on an entity, unless `DiscriminatorOptOut` of `[assembly: DynamoDbDefaults]` opts out for it. `AttributeName` overrides `_type`; `OptOut = true` is for tables written by other tools, and keeps the type out of mixed reads |
 | `[Version]` | property | Section 8 |
 | `[KeyOnly]` | property | Stored only in a key, restored by parsing it, so a key must hold it without loss |
 | `[DynamoDbAttribute(name)]` | property | Renames, whatever `Naming` says, and stores a computed property, which is then written and never read |
@@ -174,7 +174,7 @@ warnings-as-errors build on a hierarchical key. Attributes:
 | `[DynamoDbConverter(type)]` | property, type | First in converter selection, the property before the type |
 | `[DynamoDbConstructor]` | constructor | Chooses the constructor reads use |
 | `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]` | enum | The generated converter answers `CountsAsMissing` for a stored `S` that is no name of a member, an empty one included, so a property of the enum reads it as a missing attribute, as below. `UnknownEnumName.Throw` is the default. Writes and stored bytes do not change. An element of a list, set or map and a plain key still throw. A `[Flags]` enum, stored as a number, and an enum with its own `[DynamoDbConverter]` have nothing for it to do, which is `DYNA033` |
-| `[assembly: DynamoDbDefaults(...)]` | assembly | What a project says once: `Naming`, `NoDiscriminator`, `OmitEmpty`, below |
+| `[assembly: DynamoDbDefaults(...)]` | assembly | What a project says once: `Naming`, `DiscriminatorOptOut`, `OmitEmpty`, below |
 | `[assembly: DynamoDbDefaultConverter(type, converter)]` | assembly | Once per type. Third in converter selection, after `[DynamoDbConverter]` on the property and on the type, before the built-ins, below |
 
 The default names are frozen: `pk`, `sk`, `<index>pk` and `<index>sk`, with the name of the index in lower case, and `_type`. They are in the data of every table a default wrote, so a new default would leave those items behind with no error, and an `AttributeName` is the only way to another name.
@@ -182,14 +182,14 @@ The default names are frozen: `pk`, `sk`, `<index>pk` and `<index>sk`, with the 
 Real services repeat attributes that are the same on every type, so an assembly says them once. They hold for the types the assembly declares, nested ones too, and an analyzer that meets a type from metadata reads the defaults of the assembly of that type:
 
 ```csharp
-[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, NoDiscriminator = true, OmitEmpty = true)]
+[assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, DiscriminatorOptOut = true, OmitEmpty = true)]
 [assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(StoredTimestampConverter))]
 ```
 
 | Default | Meaning |
 |---|---|
 | `Naming` | `AttributeNaming.AsDeclared`, the default, `CamelCase` or `SnakeCase`, by the rules of `JsonNamingPolicy.CamelCase` and `JsonNamingPolicy.SnakeCaseLower`, for every attribute that derives from a property, on entities and on documents. `[DynamoDbAttribute]` and `AttributeName` win. Two properties that collide after the conversion are `DYNA004` |
-| `NoDiscriminator` | An entity without `[Discriminator]` behaves as `[Discriminator(OptOut = true)]`, and `DYNA020` does not fire. `[Discriminator("X")]` still wins |
+| `DiscriminatorOptOut` | An entity without `[Discriminator]` behaves as `[Discriminator(OptOut = true)]`, and `DYNA020` does not fire. `[Discriminator("X")]` still wins |
 | `OmitEmpty` | Every property `[OmitEmpty]` is valid on behaves as marked, except what feeds a key and what a read cannot do without, which stay written and report nothing. `[OmitEmpty(false)]` takes it back for a property or a type |
 
 The frozen names derive from no property, so `Naming` does not touch them. A plain key is not on that list: its attribute derives from its property, so `[PartitionKey] public string UserId` is `user_id` under `SnakeCase`, and a table that has another key takes `AttributeName`, because DynamoDB cannot rename a key. A template of one bare placeholder is the attribute of its property only if its `AttributeName` is the converted name. Changing `Naming` renames stored attributes: items written before keep the old names, and a read takes the new ones for missing, which is no error unless the property is `required`. Renaming a property does the same under every naming, `AsDeclared` too, because the attribute follows the name of the property, and a rename refactoring compiles. A property whose name may change takes `[DynamoDbAttribute]`.
@@ -197,6 +197,21 @@ The frozen names derive from no property, so `Naming` does not touch them. A pla
 A default converter is first found after what the property and the type of the value say, for the type itself, its nullable form and elements of lists, dictionaries and arrays. An element of a set needs an `IDynamoDbSetElementConverter<T>`, or the set is `DYNA003`. In a key it does what `[DynamoDbConverter]` on the property does: a plain key goes through it and takes any type, so `DYNA017` does not apply, and a placeholder of a template keeps its format, so a template of a type without one is `DYNA103`. A `[Version]` keeps the built-in converter, because an update adds to it. A converter that does not fit is `DYNA008`, and two defaults for one type, a nullable type and an open generic type are `DYNA029`.
 
 TTL is `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. There is no `[TimeToLive]`.
+
+The library ships opt-in converters beside the built-ins, for what other writers stored. None is a default, because defaults are frozen with the data they wrote; each goes into `[DynamoDbConverter]` or `[DynamoDbDefaultConverter]`:
+
+| Converter | Of | Stores | Reads |
+|---|---|---|---|
+| `EpochSecondsConverter` | `DateTimeOffset` | `{"N":"1793448000"}`, whole seconds in UTC | Whole seconds in the range of `DateTimeOffset`, with offset zero |
+| `SetArrayConverter<T, TElement>` | `T[]` | A set of the kind `TElement` says | That set, an empty one for none |
+| `BoolAsNumberConverter` | `bool` | `{"N":"1"}`, `{"N":"0"}`, the AWS SDK in conversion V1 | Zero as `false`, any other number as `true`, as the SDK does; a `BOOL` throws |
+| `SdkDateTimeConverter` | `DateTime` | `{"S":"2026-10-31T12:00:00.123Z"}`, UTC with three digits cut off, `Unspecified` taken as local, as SDK 4 in V1 and V2 | What `DateTimeConverter` reads, as `Utc`, which is SDK 4 under `RetrieveDateTimeInUtc = true` |
+| `OffsetTimestampConverter` | `DateTimeOffset` | `{"S":"2026-11-20T11:00:00.0000000+01:00"}`, `"O"` with the offset, `+00:00` for UTC | The forms `DateTimeOffsetConverter` reads, keeping the offset, and `Z` as offset zero |
+| `EmptyStringAsMissingConverter<T, TConverter>` | any | What `TConverter` writes | What `TConverter` reads, and answers `CountsAsMissing` for `{"S":""}` on top of what `TConverter` answers. Passes `IsOmitted` on, and not `TryReadMissing`, so that `DYNA209` still sees a `Select` that throws |
+
+The generator knows two of them by name, because a plain key depends on what they store: `BoolAsNumberConverter` as a plain key is a number key, and `SdkDateTimeConverter` as a plain sort key has the ranges.
+
+A built-in converter that refuses a value of its type on write, `DateTimeConverter` a `DateTime` of `DateTimeKind.Unspecified` and the number converters NaN or an infinity, throws `ArgumentException` and `ArgumentOutOfRangeException` as before. On the generated write of a property through one of them, alone or in a list, a dictionary or a set, a catch with a filter names the property, its type, its attribute, what was wrong and the fix, and no value: `The property LoggedAt of Logbook, the attribute "logged_at", cannot be written: its DateTime has DateTimeKind.Unspecified, so it names no instant. Give it DateTimeKind.Utc, or store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], ...`. The exception keeps its type and holds that of the converter inside; any other failure passes the filter as it is, and the success path pays nothing. A key template reports such a `DateTime` with `KeyFormatException`, which names the template. A write by handle, such as `Set(Attrs.At, value)`, throws what the converter throws.
 
 A read leaves `Item` out: the generated code goes from JSON to the type. A typed read checks `_type` when it is present and throws
 `DynamoDbMappingException` naming the type it found. An unknown attribute is skipped. A missing `required` member throws, except a nullable one,
@@ -338,7 +353,7 @@ What cannot be correct is not generated, so it does not compile.
 - No `Range` where nothing goes on behind the field, because a bound would be a key that `BETWEEN` takes. A key that ends in the placeholder has no prefix there, and in `{Day:d3}#` the prefix of a day is the whole key. `{Day:d3}#end` goes on, and has it. It is not generated where `Between` is not, so a plain key has none.
 - A string is in order at the end of the key and before a space. Before any other delimiter a value such as `a b` sorts below `a` (`DYNA115`), so no range ends on such a field and no open range passes one. `{Shelf}#{Row:d3}#{Id}` has `Between(shelf, from, to)` and no `Ge(shelf, row)`, and no range of shelves. A raw value always ends the key, so it is in order, delimiters and all, and `DYNA115` has nothing to say about it.
 
-A plain sort key is compared as it is stored, so each condition is `SortKeyCondition` over `Of`. A number, binary, `string`, `Guid`, `DateTimeOffset`, `DateTime`, `DateOnly` and `TimeOnly`, whose stored form is in the order of the value, have all of `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt`. A `TimeSpan`, an enum and a custom converter have `Eq` alone, and a `string` also has `BeginsWith(prefix)`.
+A plain sort key is compared as it is stored, so each condition is `SortKeyCondition` over `Of`. A number, binary, `string`, `Guid`, `DateTimeOffset`, `DateTime`, `DateOnly` and `TimeOnly`, whose stored form is in the order of the value, have all of `Eq`, `Between`, `Ge`, `Gt`, `Le` and `Lt`. So do `SdkDateTimeConverter`, whose text has a fixed width, and `BoolAsNumberConverter`, a number. A `TimeSpan`, an enum, `OffsetTimestampConverter`, whose text does not sort across offsets, and a custom converter have `Eq` alone, and a `string` also has `BeginsWith(prefix)`.
 
 A condition of constant text or of a plain string allocates nothing. One that formats a value costs its strings, as `BeginsWith(value)` does, because a key condition holds text.
 

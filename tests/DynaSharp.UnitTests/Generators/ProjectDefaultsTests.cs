@@ -11,7 +11,7 @@ public sealed class ProjectDefaultsTests
 
     private const string OmitEmpty = "[assembly: DynamoDbDefaults(OmitEmpty = true)]";
 
-    private const string NoDiscriminator = "[assembly: DynamoDbDefaults(NoDiscriminator = true)]";
+    private const string DiscriminatorOptOut = "[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]";
 
     private const string Keyed = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")]""";
 
@@ -173,7 +173,7 @@ public sealed class ProjectDefaultsTests
     public async Task Build_EntityWithoutADiscriminator_OptsOutUnderTheDefault()
     {
         // Arrange
-        var source = File(NoDiscriminator, """[DynamoDbEntity, PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
+        var source = File(DiscriminatorOptOut, """[DynamoDbEntity, PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
 
         // Act
         var discriminator = Analysis.ModelOfWholeFile(source, "global::Shop.E").Entity!.Discriminator;
@@ -186,7 +186,7 @@ public sealed class ProjectDefaultsTests
     public async Task Build_EntityWithoutADiscriminator_ReportsNothingUnderTheDefault()
     {
         // Arrange
-        var source = File(NoDiscriminator, """[DynamoDbEntity, PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
+        var source = File(DiscriminatorOptOut, """[DynamoDbEntity, PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
 
         // Act
         var report = Analysis.ReportOfWholeFile(source);
@@ -199,7 +199,7 @@ public sealed class ProjectDefaultsTests
     public async Task Build_EntityWithADiscriminator_KeepsItUnderTheDefault()
     {
         // Arrange
-        var source = File(NoDiscriminator, """[DynamoDbEntity, Discriminator("X"), PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
+        var source = File(DiscriminatorOptOut, """[DynamoDbEntity, Discriminator("X"), PartitionKey("E#{Id}")] public partial class E { public required string Id { get; set; } }""");
 
         // Act
         var discriminator = Analysis.ModelOfWholeFile(source, "global::Shop.E").Entity!.Discriminator;

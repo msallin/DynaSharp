@@ -127,6 +127,34 @@ public sealed class ConverterRoundTripTests(Backend backend)
     }
 
     [Test]
+    public async Task OptInConverters_StoreTheFormsOtherWritersUse()
+    {
+        // Arrange: the AWS SDK's booleans and times, a time with its offset, and the wrapper, which writes what it wraps
+        var cases = new[]
+        {
+            ConverterCase.Of<bool, BoolAsNumberConverter>("bool-as-number-true", true, """{"N":"1"}"""),
+            ConverterCase.Of<bool, BoolAsNumberConverter>("bool-as-number-false", false, """{"N":"0"}"""),
+            ConverterCase.Of<DateTime, SdkDateTimeConverter>(
+                "sdk-time",
+                new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc).AddTicks(1234567),
+                """{"S":"2026-10-31T12:00:00.123Z"}""",
+                static (stored, read) => read == stored.AddTicks(-4567) && read.Kind == DateTimeKind.Utc),
+            ConverterCase.Of<DateTimeOffset, OffsetTimestampConverter>(
+                "offset-time",
+                new DateTimeOffset(2026, 11, 20, 11, 0, 0, TimeSpan.FromHours(1)),
+                """{"S":"2026-11-20T11:00:00.0000000+01:00"}""",
+                static (stored, read) => stored.DateTime == read.DateTime && stored.Offset == read.Offset),
+            ConverterCase.Of<DateTimeOffset, EmptyStringAsMissingConverter<DateTimeOffset, DateTimeOffsetConverter>>("empty-as-missing", DateTimeOffset.UnixEpoch, """{"S":"1970-01-01T00:00:00.0000000Z"}"""),
+        };
+
+        // Act
+        var problems = await StoreAndCompareAsync(cases);
+
+        // Assert
+        await Assert.That(problems).IsEqualTo(string.Empty);
+    }
+
+    [Test]
     public async Task BinaryValues_StoreAsBinaryValues()
     {
         // Arrange
