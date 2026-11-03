@@ -9,7 +9,7 @@ namespace DynaSharp.UnitTests.Generators;
 /// <summary>The table of diagnostics as shipped, and the rule that every descriptor is registered.</summary>
 public sealed class DescriptorTests
 {
-    private const string DiagnosticsPage = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md";
+    private const string DiagnosticsPage = "https://msallin.github.io/DynaSharp/diagnostics.html";
 
     [Test]
     public void All_EveryDescriptor_MatchesTheSnapshot()
@@ -69,7 +69,7 @@ public sealed class DescriptorTests
     {
         // Arrange
         var directory = typeof(DescriptorTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().Single(a => a.Key == "ProjectDirectory").Value!;
-        var sections = SectionsOf(await File.ReadAllLinesAsync(Path.Combine(directory, "..", "..", "spec", "diagnostics.md")));
+        var sections = SectionsOf(await File.ReadAllLinesAsync(Path.Combine(directory, "..", "..", "docs", "diagnostics.md")));
 
         // Act
         var broken = Descriptors.All.Where(descriptor => !IsCoveredBy(sections, descriptor)).Select(static descriptor => descriptor.Id);

@@ -275,6 +275,6 @@ public sealed class CommandLifetimeAnalyzerTests
         var link = descriptor.HelpLinkUri;
 
         // Assert
-        await Assert.That(link).Contains("spec/diagnostics.md");
+        await Assert.That(link).Contains("diagnostics.html");
     }
 }

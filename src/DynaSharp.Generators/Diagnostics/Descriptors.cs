@@ -468,11 +468,11 @@ internal static class Descriptors
 
     private const string Expressions = "DynaSharp.Expressions";
 
-    private const string EntityHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#entities";
+    private const string EntityHelp = "https://msallin.github.io/DynaSharp/diagnostics.html#entities";
 
-    private const string KeyHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#key-templates";
+    private const string KeyHelp = "https://msallin.github.io/DynaSharp/diagnostics.html#key-templates";
 
-    private const string CommandHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#commands";
+    private const string CommandHelp = "https://msallin.github.io/DynaSharp/diagnostics.html#commands";
 
-    private const string ExpressionHelp = "https://github.com/msallin/DynaSharp/blob/main/spec/diagnostics.md#expressions";
+    private const string ExpressionHelp = "https://msallin.github.io/DynaSharp/diagnostics.html#expressions";
 }

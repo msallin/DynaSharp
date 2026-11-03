@@ -1,7 +1,7 @@
 # DynaSharp - architecture
 
 How the code is built today, for a maintainer taking it over. `requirements.md` says why and what, `api.md` states the public contract,
-`diagnostics.md` explains the compile-time rules to users, and `tasks.md` records decisions and findings. `history/` holds the design documents
+`../docs/diagnostics.md` explains the compile-time rules to users, and `tasks.md` records decisions and findings. `history/` holds the design documents
 as they were written; they are not updated and describe dropped designs next to live ones. Class remarks are the detail behind this document,
 and it points at them instead of repeating them.
 
@@ -303,7 +303,7 @@ The encoded form is an on-disk contract. `Parse` and `Format` must stay exact in
 
 ## 9. Analyzers and what they mirror
 
-Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp declares by namespace, so a new command needs no list. `spec/diagnostics.md` is the user-facing page, reached by the help link every rule has in `Descriptors`.
+Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp declares by namespace, so a new command needs no list. `docs/diagnostics.md` is the user-facing page, reached by the help link every rule has in `Descriptors`.
 
 | Rule | Analyzer | Mirrors | Kept in step by |
 |---|---|---|---|
@@ -414,7 +414,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 2. `AnalyzerReleases.Unshipped.md`, which is where every new rule starts. `DescriptorTests` compares severity, category and title.
 3. Report it from `TypeRules`, `EntityKeyBuilder`, `KeyTemplateBinder` or an analyzer's `SupportedDiagnostics`.
 4. A positive and a negative test in `Generators/Diagnostics` or `Generators/Analyzers`, and the `Descriptors` snapshot.
-5. A help link, to the section of its family in `spec/diagnostics.md`, which names the rule: `DescriptorTests` checks both. A rule that a consumer's build must show also goes into `PackageSmoke/Mistakes` and its project file.
+5. A help link, to the section of its family in `docs/diagnostics.md`, which names the rule: `DescriptorTests` checks both. A rule that a consumer's build must show also goes into `PackageSmoke/Mistakes` and its project file.
 
 ## 12. Glossary
 

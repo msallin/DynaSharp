@@ -1,7 +1,7 @@
 # DynaSharp - public API
 
 The public API as shipped, and the contract for changing it. A change to the public surface changes this file in the same commit, and a
-change of contract goes through the lead. The key grammar is in `requirements.md`, the compile-time rules in `diagnostics.md`, the internals
+change of contract goes through the lead. The key grammar is in `requirements.md`, the compile-time rules in `../docs/diagnostics.md`, the internals
 in `architecture.md`. The XML docs say what each member does in detail; this file says what the surface is and which rules hold across it.
 
 The surface itself is tracked by `Microsoft.CodeAnalysis.PublicApiAnalyzers`, build time only, on `DynaSharp` and `DynaSharp.Testing`: `PublicAPI.Shipped.txt`

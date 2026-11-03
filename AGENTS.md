@@ -3,7 +3,7 @@
 ## Specs and planning
 - `spec/requirements.md` is the source of truth for WHY, WHAT and HOW. Read it before starting work.
 - `spec/api.md` is the binding contract of the public API, and `spec/architecture.md` describes the code as it is today. A change that makes either wrong corrects it in the same commit.
-- `spec/diagnostics.md` is the page behind the help links of the analyzers, so its headings are stable. `spec/patterns.md` is the catalog of design patterns.
+- `docs/diagnostics.md` is the page behind the help links of the analyzers (published at https://msallin.github.io/DynaSharp/diagnostics.html), so its headings are stable. `docs/` holds user documentation, `spec/` holds specs. `spec/patterns.md` is the catalog of design patterns.
 - `spec/tasks.md` is the shared blackboard: claim a task before starting it, keep its status current, record decisions and findings there.
 - `spec/history/` holds the design documents as they were written. It is not updated, and it describes designs that were dropped.
 - Specs, plans, designs and decisions go into `spec/`. Nowhere else.
