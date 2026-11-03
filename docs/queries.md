@@ -33,6 +33,43 @@ var firstTen = orders.Query(Order.Keys.Pk.Of("alice"))
     .Take(10);
 ```
 
+## Sort key conditions
+
+The builder of a sort key writes the condition from values, as the template formats them, so nobody puts a prefix and an upper bound together by hand. `BeginsWith(leading...)` reads everything under the fields it is given, and `BeginsWith()` everything of the template. `Between(leading..., from, to)` varies one field, keeps the fields before it equal, and includes both ends, all keys at `to` among them. `Range` is the same without the keys at `to`, for `[from, to)`, and exists only where something follows the field in the template: a key that ends in the field takes `Between` with `to` one step lower. `Ge`, `Gt`, `Le` and `Lt` have one end, so they go on past the template, and a typed read drops what is not its type. A builder has only the conditions that are right for its template, see [Generated code](generated-code.md#a-sort-key-of-a-template), and `SortKeyCondition` takes text that is at hand already.
+
+### Time ranges
+
+A timestamp in a key has a fixed width, so its text sorts like its time:
+
+```csharp
+[DynamoDbEntity]
+[Discriminator("VISIT")]
+[PartitionKey("STORE#{StoreId}")]
+[SortKey("AT#{At}#{VisitId}")]
+public partial record StoreVisit
+{
+    public required string StoreId { get; init; }
+    public required DateTimeOffset At { get; init; }
+    public required Guid VisitId { get; init; }
+}
+```
+
+```csharp
+var visits = client.Table<StoreVisit>("Visits");
+var bern = StoreVisit.Keys.Pk.Of("bern");
+var today = new DateTimeOffset(2026, 11, 3, 0, 0, 0, TimeSpan.Zero);
+
+var yesterday = visits.Query(bern, StoreVisit.Keys.Sk.Range(today.AddDays(-1), today)).ItemsAsync(ct);     // [yesterday, today)
+var lastHour = visits.Query(bern, StoreVisit.Keys.Sk.Ge(DateTimeOffset.UtcNow.AddHours(-1))).ItemsAsync(ct);
+StoreVisit? latest = await visits.Query(bern, StoreVisit.Keys.Sk.Le(today)).Descending().Limit(1).ItemAsync(ct);
+
+var placedToday = byStatus.Query(
+    Order.Keys.ByStatusPk.Of(OrderStatus.Placed),
+    Order.Keys.ByStatusSk.Between(today, today.AddDays(1).AddMilliseconds(-1))).ItemsAsync(ct);             // {PlacedAt} ends the key
+```
+
+`{At}` keeps milliseconds, so one millisecond below midnight is the last key of the day. A coarser format makes buckets: under `{At:yyyy-MM-dd}`, `Between(from, to)` takes whole days and `Gt(day)` starts after that day.
+
 ## Indexes
 
 An index is read through its own type, which has no writes:

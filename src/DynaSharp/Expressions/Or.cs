@@ -1,8 +1,11 @@
+using System.ComponentModel;
+
 namespace DynaSharp.Expressions;
 
 /// <summary>Either condition, in parentheses, so it composes with anything. A chain of these is one group: <c>(a OR b OR c)</c>.</summary>
 /// <typeparam name="TLeft">The first condition.</typeparam>
 /// <typeparam name="TRight">The second condition.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct Or<TLeft, TRight> : ICondition
     where TLeft : ICondition
     where TRight : ICondition

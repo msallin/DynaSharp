@@ -178,7 +178,7 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 
 ## Benchmarks
 
-Allocations are exact. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Benchmarks](https://msallin.github.io/DynaSharp/benchmarks.html) explains why the rows differ and how to run them.
+Allocations are exact. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
 
 Bytes allocated per call, mapped APIs:
 

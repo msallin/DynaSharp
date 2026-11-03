@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace DynaSharp.Keys;
 
 /// <summary>
@@ -10,6 +12,7 @@ namespace DynaSharp.Keys;
 /// <see cref="DateTime"/> exactly; no format keeps the offset of a <see cref="DateTimeOffset"/>.
 /// Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package.
 /// </remarks>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public enum KeyTimeFormat
 {
     /// <summary><c>yyyy</c>, 4 bytes: <c>2026</c>.</summary>

@@ -1,7 +1,10 @@
+using System.ComponentModel;
+
 namespace DynaSharp.Expressions;
 
 /// <summary>The opposite of a condition.</summary>
 /// <typeparam name="TInner">The condition.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct Not<TInner> : ICondition
     where TInner : ICondition
 {

@@ -14,8 +14,12 @@
     href: ../expressions.md
   - name: Transactions and batches
     href: ../transactions.md
+  - name: Errors and retries
+    href: ../errors.md
   - name: Tables
     href: ../tables.md
+  - name: Without a model
+    href: ../without-a-model.md
   - name: Streams
     href: ../streams.md
   - name: Testing
@@ -38,11 +42,15 @@
     href: ../patterns-writes.md
 - name: Reference
   items:
+  - name: Generated code
+    href: ../generated-code.md
   - name: Diagnostics
     href: ../diagnostics.md
+  - name: Observability
+    href: ../observability.md
   - name: API levels
     href: ../api-levels.md
   - name: Design principles
     href: ../design-principles.md
-  - name: Benchmarks
-    href: ../benchmarks.md
+  - name: Performance
+    href: ../performance.md

@@ -1,8 +1,11 @@
+using System.ComponentModel;
+
 namespace DynaSharp.Expressions;
 
 /// <summary>Both conditions, in parentheses, so it composes with anything. A chain of these is one group: <c>(a AND b AND c)</c>.</summary>
 /// <typeparam name="TLeft">The first condition.</typeparam>
 /// <typeparam name="TRight">The second condition.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct And<TLeft, TRight> : ICondition
     where TLeft : ICondition
     where TRight : ICondition

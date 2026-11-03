@@ -51,7 +51,7 @@ public partial record Customer
 | Namespace | Holds |
 |---|---|
 | `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
-| `DynaSharp.Expressions` | The structs that conditions compose from, which are return types and not written by hand: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
+| `DynaSharp.Expressions` | The structs that conditions compose from, which are return types, not written by hand and hidden: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
 | `DynaSharp.Mapping` | Attributes, `IDynamoDbDocument<T>`, `IDynamoDbEntity<T>`, `IDynamoDbDiscriminated<T>`, `IKey`, `IKey<T>`, `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` |
@@ -64,8 +64,12 @@ A type is in `DynaSharp` if a user of `Table<T>` has to name it. A type only the
 type table administration also uses stays in `DynaSharp.Requests`, so `Streams` depends on `Requests` and never the reverse. `DescribeAsync`
 returns `TableDescription` from `DynaSharp.Requests`, and `BatchIncompleteException` holds `WriteRequest` from there.
 
-Members that exist because generated code lives in the consumer's assembly, such as `KeyWriter` and `ConverterChecks`, are public, hidden from
-IntelliSense and infrastructure: they serve the generator and converter authors, and they change with the package.
+Members that exist because generated code lives in the consumer's assembly are public, hidden from IntelliSense with `[EditorBrowsable(EditorBrowsableState.Never)]`,
+which also keeps them out of the API reference, and infrastructure: they serve the generator and converter authors, and they change with the package. They are
+`KeyWriter`, `KeyReader` and `KeyTimeFormat`, so `DynaSharp.Keys` has no visible type; the members of `ConverterChecks` that generated code calls; `DynamoDbEntityInfo`,
+`DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` and `IKey`; and the structs of `DynaSharp.Expressions` with `ExpressionSink`, `ExpressionHandler` and
+`CommandHandle`. What a call site meets stays visible: `IKey<T>`, `ICondition` and the `IDynamoDb...<T>` interfaces are constraints of the API, and `ConverterChecks.Expect`
+is for a converter of your own.
 
 There are three ways in, and the shape of a call tells them apart.
 

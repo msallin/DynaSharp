@@ -47,8 +47,9 @@ StrykerOutput/
 # Written beside the verified snapshot when a generator test fails
 *.received.*
 
-# API reference that DocFX writes from the assemblies
-docs/api/
+# API reference that DocFX writes from the assemblies, beside its landing page
+docs/api/*
+!docs/api/index.md
 
 # Benchmarks
 BenchmarkDotNet.Artifacts/

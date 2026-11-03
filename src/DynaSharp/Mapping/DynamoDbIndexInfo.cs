@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DynaSharp.Requests;
 
 namespace DynaSharp.Mapping;
@@ -11,6 +12,7 @@ namespace DynaSharp.Mapping;
 /// <param name="PartitionKeyType">How the partition key is stored. <see cref="ScalarAttributeType.Unknown"/> says nothing, see <see cref="DynamoDbEntityInfo.PartitionKeyType"/>.</param>
 /// <param name="SortKeyType">How the sort key is stored, with <see cref="ScalarAttributeType.Unknown"/> if there is none or it does not say.</param>
 /// <remarks>Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package. A type written by hand that makes one has to follow the package.</remarks>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public sealed record DynamoDbIndexInfo(
     string IndexName,
     string PartitionKeyName,

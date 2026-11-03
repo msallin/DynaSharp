@@ -1,6 +1,9 @@
+using System.ComponentModel;
+
 namespace DynaSharp.Expressions;
 
 /// <summary>The condition <c>attribute_exists</c> or <c>attribute_not_exists</c>.</summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct AttributeExists : ICondition
 {
     private readonly string _path;

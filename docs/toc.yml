@@ -3,4 +3,4 @@
   topicHref: getting-started.md
 - name: API reference
   href: api/
-  topicHref: api/DynaSharp.yml
+  topicHref: api/index.md

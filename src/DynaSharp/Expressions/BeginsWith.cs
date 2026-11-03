@@ -3,6 +3,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.Expressions;
 
 /// <summary>The condition <c>begins_with</c>.</summary>
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
 public readonly struct BeginsWith : ICondition
 {
     private readonly string _path;

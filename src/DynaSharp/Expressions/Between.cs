@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.Expressions;
@@ -5,6 +6,7 @@ namespace DynaSharp.Expressions;
 /// <summary>A range condition, both bounds included.</summary>
 /// <typeparam name="T">The type of the bounds.</typeparam>
 /// <typeparam name="TConverter">The converter of the bounds.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct Between<T, TConverter> : ICondition
     where TConverter : IDynamoDbConverter<T>
 {

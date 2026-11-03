@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.Expressions;
@@ -5,6 +6,7 @@ namespace DynaSharp.Expressions;
 /// <summary>A comparison of an attribute with a value, as <c>Attr("status").Eq("open")</c> makes it.</summary>
 /// <typeparam name="T">The type of the value.</typeparam>
 /// <typeparam name="TConverter">The converter of the value.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct Compare<T, TConverter> : ICondition
     where TConverter : IDynamoDbConverter<T>
 {

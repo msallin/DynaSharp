@@ -66,6 +66,34 @@ A delete takes the key, or the entity, which gives the key and, on a `[Version]`
 await orders.Delete(Order.Keys.Of("alice", 1)).IfExists().SendAsync(ct);
 ```
 
+## Results
+
+What a terminal returns depends on the operation, and a write has no `Found`: it finds nothing, unless it asks for the item that was there.
+
+| Call | Returns | Holds |
+|---|---|---|
+| `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
+| `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
+| `Get(...).Select(handle).SendAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found |
+| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored; `ConsumedCapacity` and `ItemCollectionMetrics` |
+| `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
+| `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
+| `BatchWrite()`, `BatchGet()` | `BatchWriteResult`, `BatchGetResult<T>` | `Written` or `Items`, `Requests` and `ConsumedCapacity` |
+| `TransactWrite()`, `TransactGet()` | `TransactWriteResult`, `TransactGetResult` | `ConsumedCapacity`, and `Read(slot)` of a get, which gives a `GetResult<T>` |
+| `CreateTable()` | `CreateTableResult` | `Table`, `Created` and `TimeToLiveEnabled` |
+
+`ConsumedCapacity` is null, or empty, unless `ReturnCapacity()` asked for it. Whether a delete removed anything is a question for `ReturnOld()`:
+
+```csharp
+var deleted = await orders.Delete(Order.Keys.Of("alice", 1)).ReturnOld().SendAsync(ct);
+if (!deleted.HasItem)
+{
+    Console.WriteLine("There was no such order.");
+}
+```
+
+`await command` is `SendAsync()` without a token, on the commands that have one. A read has no such default, so `await orders.Query(...)` does not compile.
+
 ## Conditions
 
 Each `.If` adds one condition, and they join with `AND`. In a transaction it belongs to the step before it. A condition can also return what stopped it, which saves the read:
