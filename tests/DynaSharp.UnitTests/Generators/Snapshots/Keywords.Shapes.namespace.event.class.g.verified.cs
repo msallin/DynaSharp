@@ -39,7 +39,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
     private @class(in __Fields fields)
         : this()
     {
-        if (fields.string__set) { this.@string = fields.@string; }
+        if (fields.string__set_) { this.@string = fields.@string; }
         if (fields.base__set) { this.@base = fields.@base; }
         if (fields.this__set) { this.@this = fields.@this; }
         if (fields.double__set) { this.@double = fields.@double; }
@@ -51,6 +51,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         if (fields.attribute__set) { this.attribute = fields.attribute; }
         if (fields.name__set) { this.name = fields.name; }
         if (fields.exception__set) { this.exception = fields.exception; }
+        if (fields.string__set__set) { this.string__set = fields.string__set; }
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -95,6 +96,8 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.name);
         writer.WriteAttributeName("exception"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.exception);
+        writer.WriteAttributeName("string__set"u8);
+        global::DynaSharp.Serialization.StringConverter.Write(writer, entity.string__set);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -192,7 +195,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
                         {
                             attribute = "the\tkey";
                             fields.@string = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
-                            fields.string__set = true;
+                            fields.string__set_ = true;
                             continue;
                         }
 
@@ -224,6 +227,16 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
                         }
 
                         break;
+                    case 11:
+                        if (global::System.MemoryExtensions.SequenceEqual(name, "string__set"u8))
+                        {
+                            attribute = "string__set";
+                            fields.string__set = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
+                            fields.string__set__set = true;
+                            continue;
+                        }
+
+                        break;
                 }
 
                 attribute = null;
@@ -241,7 +254,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
     private struct __Fields
     {
-        public string @string; public bool string__set;
+        public string @string; public bool string__set_;
         public global::Shapes.@namespace.@event.@enum @base; public bool base__set;
         public global::Shapes.@namespace.@event.@enum? @this; public bool this__set;
         public int @double; public bool double__set;
@@ -253,6 +266,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
         public string attribute; public bool attribute__set;
         public string name; public bool name__set;
         public string exception; public bool exception__set;
+        public string string__set; public bool string__set__set;
     }
 
     /// <summary>The attributes of <c>class</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
@@ -294,6 +308,9 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
 
         /// <summary>The attribute <c>exception</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> exception => new("exception");
+
+        /// <summary>The attribute <c>string__set</c>.</summary>
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> string__set => new("string__set");
 
         /// <summary>The converter of <c>global::Shapes.@namespace.@event.@enum</c>, in a form that a handle can name.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

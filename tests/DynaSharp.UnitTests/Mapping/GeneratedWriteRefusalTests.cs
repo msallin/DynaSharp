@@ -12,6 +12,8 @@ public sealed class GeneratedWriteRefusalTests
 
     private const string NotFinite = "it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.";
 
+    private const string EmptySet = "it holds an empty set in a list or a map, which DynamoDB cannot store. Leave the empty set out, or store its elements as a list.";
+
     private static readonly DateTime NoKind = new(2026, 10, 31, 12, 0, 0, DateTimeKind.Unspecified);
 
     private static readonly Logbook Clean = new() { Id = "l1" };
@@ -30,6 +32,12 @@ public sealed class GeneratedWriteRefusalTests
         () => (Clean with { Depth = double.NaN }, "The property Depth of Logbook, the attribute \"Depth\", cannot be written: " + NotFinite),
         () => (Clean with { Depth = double.NegativeInfinity }, "The property Depth of Logbook, the attribute \"Depth\", cannot be written: " + NotFinite),
         () => (Clean with { Soundings = [1.5, double.PositiveInfinity] }, "The property Soundings of Logbook, the attribute \"Soundings\", cannot be written: " + NotFinite),
+    ];
+
+    public static IEnumerable<Func<(Logbook Logbook, string Message)>> EmptySetsInsideCollections() =>
+    [
+        () => (Clean with { Crews = [["Ann"], []] }, "The property Crews of Logbook, the attribute \"Crews\", cannot be written: " + EmptySet),
+        () => (Clean with { Shifts = new() { ["day"] = [1], ["night"] = [] } }, "The property Shifts of Logbook, the attribute \"Shifts\", cannot be written: " + EmptySet),
     ];
 
     [Test]
@@ -54,6 +62,33 @@ public sealed class GeneratedWriteRefusalTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessage(message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(EmptySetsInsideCollections))]
+    public async Task ItemFrom_EmptySetInsideAListOrAMap_ThrowsArgumentExceptionNamingTheProperty(Logbook logbook, string message)
+    {
+        // Arrange (a set property that is empty is left out, which an element cannot be, and DynamoDB rejects an empty set)
+        // Act
+        var act = () => Item.From(logbook);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessage(message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutOfAnEmptySetInsideAList_KeepsTheConverterFailureInside()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var logbook = Clean with { Crews = [[]] };
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.Table<Logbook>("Shop").Put(logbook).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.InnerException?.GetType().Name).IsEqualTo("EmptySetException");
     }
 
     [Test]

@@ -41,6 +41,7 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
     {
         if (fields.At__set) { this.At = fields.At; }
         this.Author = fields.Author;
+        if (fields.Note__set) { this.Note = fields.Note; }
         if (fields.Id__set) { this.Id = fields.Id; }
     }
 
@@ -60,6 +61,11 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
         global::DynaSharp.Serialization.DateTimeOffsetConverter.Write(writer, entity.At);
         writer.WriteAttributeName("Author"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Author);
+        if (entity.Note is { Length: > 0 } __v0)
+        {
+            writer.WriteAttributeName("note"u8);
+            global::DynaSharp.Serialization.StringConverter.Write(writer, __v0);
+        }
         writer.WriteAttributeName("Id"u8);
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
     }
@@ -90,6 +96,16 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
                             attribute = "Id";
                             fields.Id = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
                             fields.Id__set = true;
+                            continue;
+                        }
+
+                        break;
+                    case 4:
+                        if (global::System.MemoryExtensions.SequenceEqual(name, "note"u8))
+                        {
+                            attribute = "note";
+                            fields.Note = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
+                            fields.Note__set = true;
                             continue;
                         }
 
@@ -133,6 +149,7 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
     {
         public global::System.DateTimeOffset At; public bool At__set;
         public string Author; public bool Author__set;
+        public string Note; public bool Note__set;
         public string Id; public bool Id__set;
     }
 
@@ -145,6 +162,9 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
 
         /// <summary>The attribute <c>Author</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Author => new("Author");
+
+        /// <summary>The attribute <c>note</c>.</summary>
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>> Note => new("note");
 
         /// <summary>The attribute <c>Id</c>.</summary>
         public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.StringConverter> Id => new("Id");

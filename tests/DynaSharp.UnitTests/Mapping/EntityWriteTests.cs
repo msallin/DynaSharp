@@ -226,6 +226,19 @@ public sealed class EntityWriteTests
     }
 
     [Test]
+    public async Task WriteAttributes_OverrideWithoutTheAttributesOfTheBase_IsWrittenAsTheBaseSays()
+    {
+        // Arrange (the attributes are not inherited, and an override used to store the secret under the name of the property)
+        var memo = new SealedMemo { Text = "x", Secret = "s" };
+
+        // Act
+        var json = EntityJson.Write(memo);
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"t":{"S":"x"}}""");
+    }
+
+    [Test]
     public async Task WriteAttributes_NothingMapped_WritesAnEmptyItem()
     {
         // Arrange

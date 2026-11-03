@@ -129,16 +129,16 @@ public static class ConverterChecks
 
     /// <summary>
     /// Finds out whether a write failed on a value that its type allows and DynamoDB or the built-in converter does not: a <see cref="DateTime"/> of <see cref="DateTimeKind.Unspecified"/>,
-    /// or NaN or an infinity. The code the source generator emits asks it in the filter of the catch around the write of a property that such a converter writes.
+    /// NaN or an infinity, or an empty set in a list or a map. The code the source generator emits asks it in the filter of the catch around the write of a property that such a converter writes.
     /// </summary>
     /// <param name="exception">What the write threw.</param>
     /// <returns><see langword="true"/> for one of those refusals, and <see langword="false"/> for any other exception, which goes on as it is.</returns>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static bool IsRefusedValue(ArgumentException exception) => exception is UnspecifiedDateTimeException or NonFiniteNumberException;
+    public static bool IsRefusedValue(ArgumentException exception) => exception is UnspecifiedDateTimeException or NonFiniteNumberException or EmptySetException;
 
     /// <summary>
     /// Creates the exception for a value that <see cref="IsRefusedValue"/> found, naming the property, its attribute, what was wrong and the fix, and never the value. The exception of the
-    /// converter is its inner exception, and its type stays: an <see cref="ArgumentException"/> for a <see cref="DateTime"/>, an <see cref="ArgumentOutOfRangeException"/> for a number.
+    /// converter is its inner exception, and its type stays: an <see cref="ArgumentException"/> for a <see cref="DateTime"/> and for an empty set, an <see cref="ArgumentOutOfRangeException"/> for a number.
     /// </summary>
     /// <param name="exception">What the write threw.</param>
     /// <param name="entityType">The type that holds the property.</param>
@@ -149,11 +149,14 @@ public static class ConverterChecks
     public static ArgumentException RefusedValue(ArgumentException exception, string entityType, string propertyName, string attributeName)
     {
         var where = $"The property {propertyName} of {entityType}, the attribute \"{attributeName}\", cannot be written";
-        return exception is UnspecifiedDateTimeException
-            ? new ArgumentException(
+        return exception switch
+        {
+            UnspecifiedDateTimeException => new ArgumentException(
                 $"{where}: its DateTime has DateTimeKind.Unspecified, so it names no instant. A DateTime that was never set, default(DateTime), has this kind: set it to a UTC time first. Only for times that the AWS SDK wrote, store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the SDK does.",
-                exception)
-            : new ArgumentOutOfRangeException($"{where}: it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.", exception);
+                exception),
+            EmptySetException => new ArgumentException($"{where}: it holds an empty set in a list or a map, which DynamoDB cannot store. Leave the empty set out, or store its elements as a list.", exception),
+            _ => new ArgumentOutOfRangeException($"{where}: it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.", exception),
+        };
     }
 
     private static JsonException WrongType(AttributeType actual, AttributeType expected) =>

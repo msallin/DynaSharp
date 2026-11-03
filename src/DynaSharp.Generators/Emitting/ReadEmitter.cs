@@ -70,7 +70,7 @@ internal static class ReadEmitter
 
             // The attribute is what an item created by an update never has, so what is wrong with such an item is the key.
             var key = property.FallbackKey is { } fallback ? $", {CodeText.Literal(fallback)}" : string.Empty;
-            code.Line($"if (!fields.{property.Name}__set) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}{key}); }}");
+            code.Line($"if (!fields.{property.SetFlag}) {{ throw global::DynaSharp.DynamoDbMappingException.Missing({CodeText.Literal(type.Name)}, {attribute}{key}); }}");
         }
 
         code.Line($"return {ConstructorEmitter.Creation(type)};");
@@ -109,7 +109,7 @@ internal static class ReadEmitter
     private static string[] ReadLines(PropertyModel property)
     {
         var (value, converter) = (property.ValueType, property.Converter!.ReadConverter);
-        var set = $"fields.{property.Name}__set = true;";
+        var set = $"fields.{property.SetFlag} = true;";
         return property.Converter.CountsAsMissing
             ? [$"if (reader.TryReadAttribute<{value}, {converter}>(out var __v)) {{ fields.{property.Identifier} = __v; {set} }}"]
             : [$"fields.{property.Identifier} = reader.ReadAttribute<{value}, {converter}>();", set];
@@ -128,7 +128,7 @@ internal static class ReadEmitter
         foreach (var property in properties)
         {
             lines.Add($"fields.{property.Identifier} = {parts}.{property.Identifier};");
-            lines.Add($"fields.{property.Name}__set = true;");
+            lines.Add($"fields.{property.SetFlag} = true;");
         }
 
         lines.Add("reader.ReadEndAttribute();");
@@ -139,13 +139,13 @@ internal static class ReadEmitter
     private static void EmitFallback(IndentedCode code, TypeModel type, IGrouping<string, PropertyModel> properties, string group)
     {
         var key = type.Entity!.Keys().First(candidate => candidate.AttributeName == properties.Key);
-        code.Line($"if (({string.Join(" || ", properties.Select(static property => $"!fields.{property.Name}__set"))})");
+        code.Line($"if (({string.Join(" || ", properties.Select(static property => $"!fields.{property.SetFlag}"))})");
         code.Line($"    && __Ser.ConverterChecks.TryFindString(__item, {CodeText.Utf8(properties.Key)}, out var __text{group})");
         code.Line($"    && Keys.{key.BuilderName}.TryParse(__text{group}, out var __restored{group}))");
         code.Open();
         foreach (var property in properties)
         {
-            code.Line($"if (!fields.{property.Name}__set) {{ fields.{property.Identifier} = __restored{group}.{property.Identifier}; fields.{property.Name}__set = true; }}");
+            code.Line($"if (!fields.{property.SetFlag}) {{ fields.{property.Identifier} = __restored{group}.{property.Identifier}; fields.{property.SetFlag} = true; }}");
         }
 
         code.Close();
@@ -202,7 +202,7 @@ internal static class ReadEmitter
         code.Open();
         foreach (var property in read)
         {
-            code.Line($"public {property.ValueType} {property.Identifier}; public bool {property.Name}__set;");
+            code.Line($"public {property.ValueType} {property.Identifier}; public bool {property.SetFlag};");
         }
 
         code.Close();

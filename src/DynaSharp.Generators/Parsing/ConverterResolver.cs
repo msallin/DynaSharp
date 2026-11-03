@@ -287,7 +287,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     private ITypeSymbol? DefaultOf(ITypeSymbol type, PropertyFacts property) =>
         property.Version is null && type.NullableAnnotation != NullableAnnotation.Annotated ? defaults.ConverterOf(type) : null;
 
-    private string? Inner(ITypeSymbol type, PropertyFacts property)
+    private string? Inner(ITypeSymbol type, PropertyFacts property, bool isElement = false)
     {
         if (AttributeReader.Find(type, WellKnownNames.ConverterAttribute) is { } attribute)
         {
@@ -318,12 +318,12 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         var (inner, isNullable) = Types.Unwrap(type);
         if (isNullable)
         {
-            return Inner(inner, property) is { } wrapped ? Wrapped(inner, wrapped) : null;
+            return Inner(inner, property, isElement) is { } wrapped ? Wrapped(inner, wrapped) : null;
         }
 
         if (!IsDocument(type))
         {
-            return Collection(type, property);
+            return Collection(type, property, isElement);
         }
 
         // The copy is written with its keys, its index keys and its discriminator, and a read of the outer item takes none of them.
@@ -335,7 +335,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         return $"{Serialization}DocumentConverter<{code}>";
     }
 
-    private string? Collection(ITypeSymbol type, PropertyFacts property)
+    // A set that is an element is refused empty before it is written, since only a set property can be left out; see NonEmptySetConverter.
+    private string? Collection(ITypeSymbol type, PropertyFacts property, bool isElement)
     {
         if (type is IArrayTypeSymbol { Rank: 1 } array)
         {
@@ -355,9 +356,13 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
         if (Sets.TryGetValue(definition, out var set))
         {
-            return SetElement(named.TypeArguments[0]) is { } element
-                ? $"{Serialization}{set}<{Names.Of(named.TypeArguments[0])}, {element}>"
-                : Unsupported(property, DefaultHint);
+            if (SetElement(named.TypeArguments[0]) is not { } element)
+            {
+                return Unsupported(property, DefaultHint);
+            }
+
+            var converter = $"{Serialization}{set}<{Names.Of(named.TypeArguments[0])}, {element}>";
+            return isElement ? $"{Serialization}NonEmptySetConverter<{Names.Of(named)}, {Names.Of(named.TypeArguments[0])}, {converter}>" : converter;
         }
 
         if (Dictionaries.TryGetValue(definition, out var dictionary) && named.TypeArguments[0].SpecialType == SpecialType.System_String)
@@ -369,7 +374,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     }
 
     private string? Element(string collection, ITypeSymbol element, PropertyFacts property) =>
-        Inner(element, property) is { } converter ? $"{Serialization}{collection}<{Names.Of(element)}, {converter}>" : null;
+        Inner(element, property, isElement: true) is { } converter ? $"{Serialization}{collection}<{Names.Of(element)}, {converter}>" : null;
 
     // A DynamoDB set holds strings, numbers or binary and never null, so a nullable element has no converter.
     private string? SetElement(ITypeSymbol element)

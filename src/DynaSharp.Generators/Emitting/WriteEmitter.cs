@@ -10,7 +10,7 @@ internal static class WriteEmitter
 {
     private const string VersionParameter = "__version";
 
-    // A DateTime of no kind, and NaN or an infinity, alone or in a list, a dictionary or a set. No name here is the start of the name of another built-in.
+    // A DateTime of no kind, and NaN or an infinity, alone or in a list, a dictionary or a set, and an empty set in a list or a dictionary. No name here is the start of the name of another built-in.
     private static readonly string[] RefusingConverters =
     [
         "global::DynaSharp.Serialization.DateTimeConverter",
@@ -20,6 +20,7 @@ internal static class WriteEmitter
         "global::DynaSharp.Serialization.NumberSetElement<double>",
         "global::DynaSharp.Serialization.NumberSetElement<float>",
         "global::DynaSharp.Serialization.NumberSetElement<global::System.Half>",
+        "global::DynaSharp.Serialization.NonEmptySetConverter<",
     ];
 
     public static void Emit(IndentedCode code, TypeModel type)

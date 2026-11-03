@@ -43,6 +43,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         this.Author = fields.Author;
         if (fields.Id__set) { this.Id = fields.Id; }
         if (fields.Extra__set) { this.Extra = fields.Extra; }
+        if (fields.Note__set) { this.Note = fields.Note; }
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -65,6 +66,11 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         global::DynaSharp.Serialization.StringConverter.Write(writer, entity.Id);
         writer.WriteAttributeName("Extra"u8);
         global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, entity.Extra);
+        if (entity.Note is { Length: > 0 } __v0)
+        {
+            writer.WriteAttributeName("note"u8);
+            global::DynaSharp.Serialization.StringConverter.Write(writer, __v0);
+        }
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -93,6 +99,16 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
                             attribute = "Id";
                             fields.Id = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
                             fields.Id__set = true;
+                            continue;
+                        }
+
+                        break;
+                    case 4:
+                        if (global::System.MemoryExtensions.SequenceEqual(name, "note"u8))
+                        {
+                            attribute = "note";
+                            fields.Note = reader.ReadAttribute<string, global::DynaSharp.Serialization.StringConverter>();
+                            fields.Note__set = true;
                             continue;
                         }
 
@@ -146,6 +162,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
         public string Author; public bool Author__set;
         public string Id; public bool Id__set;
         public int Extra; public bool Extra__set;
+        public string Note; public bool Note__set;
     }
 
     /// <summary>The attributes of <c>Derived</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
@@ -163,6 +180,9 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
 
         /// <summary>The attribute <c>Extra</c>.</summary>
         public static global::DynaSharp.Attr<int, global::DynaSharp.Serialization.NumberConverter<int>> Extra => new("Extra");
+
+        /// <summary>The attribute <c>note</c>.</summary>
+        public static global::DynaSharp.Attr<string, global::DynaSharp.Serialization.OmitEmptyConverter<global::DynaSharp.Serialization.StringConverter>> Note => new("note");
     }
 
     /// <summary>The key builders of <c>Derived</c>.</summary>

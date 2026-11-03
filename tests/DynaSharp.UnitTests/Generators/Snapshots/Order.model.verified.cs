@@ -35,6 +35,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: UserId__set
   - PropertyModel
     Name: CreatedAt
     Identifier: CreatedAt
@@ -59,6 +60,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: CreatedAt__set
   - PropertyModel
     Name: OrderId
     Identifier: OrderId
@@ -83,6 +85,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: OrderId__set
   - PropertyModel
     Name: Status
     Identifier: Status
@@ -107,6 +110,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Status__set
   - PropertyModel
     Name: Total
     Identifier: Total
@@ -131,6 +135,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Total__set
   - PropertyModel
     Name: TrackingId
     Identifier: TrackingId
@@ -155,6 +160,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: TrackingId__set
   - PropertyModel
     Name: ShippedAt
     Identifier: ShippedAt
@@ -179,6 +185,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: ShippedAt__set
   - PropertyModel
     Name: ShipTo
     Identifier: ShipTo
@@ -203,6 +210,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: ShipTo__set
   - PropertyModel
     Name: Lines
     Identifier: Lines
@@ -227,6 +235,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Lines__set
   - PropertyModel
     Name: Tags
     Identifier: Tags
@@ -251,6 +260,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Tags__set
   - PropertyModel
     Name: ExpiresAt
     Identifier: ExpiresAt
@@ -275,6 +285,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: ExpiresAt__set
   - PropertyModel
     Name: Revision
     Identifier: Revision
@@ -299,6 +310,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Revision__set
 Entity: EntityModel
   Discriminator: ORDER
   DiscriminatorAttribute: _type

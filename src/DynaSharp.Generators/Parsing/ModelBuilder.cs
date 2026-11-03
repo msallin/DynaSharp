@@ -151,7 +151,7 @@ internal sealed class ModelBuilder
         return $"{Serialization}{wrapper}<{Names.Of(inner)}, {ConverterResolver.ElementOf(inner)}, ";
     }
 
-    private static PropertyModel ToModel(PropertyFacts property)
+    private static PropertyModel ToModel(PropertyFacts property, string setFlag)
     {
         var write = property.OmitsEmpty ? EmptinessTest(property.Type) : property.Resolved?.Write ?? WriteCondition.Never;
         return new PropertyModel(
@@ -170,7 +170,8 @@ internal sealed class ModelBuilder
             property.ParameterName,
             property.Symbol.DeclaredAccessibility == Accessibility.Public && Types.Effective(property.Type) == Accessibility.Public && property.Resolved?.IsPublic == true,
             OmitEmptyConverter(property),
-            property.AllowsMissingVersion);
+            property.AllowsMissingVersion,
+            setFlag);
     }
 
     // Only where the throw is certain. A required input of a key that holds it without loss falls back on that key first, which may hold a name the enum knows.
@@ -191,6 +192,25 @@ internal sealed class ModelBuilder
             : $"the property '{property.Name}' is set by a constructor parameter without a default value, so an unknown name throws there, as a missing attribute does. Make the property nullable, or give the parameter a default value that is safe to keep.";
     }
 
+    // The flags sit beside the values in __Fields, so a flag must not take the name of a property, as that of X would for a property X__set.
+    private static Dictionary<string, string> SetFlags(List<PropertyFacts> mapped)
+    {
+        var taken = new HashSet<string>(mapped.Select(static property => property.Name));
+        var flags = new Dictionary<string, string>();
+        foreach (var property in mapped)
+        {
+            var flag = property.Name + "__set";
+            while (!taken.Add(flag))
+            {
+                flag += "_";
+            }
+
+            flags.Add(property.Name, flag);
+        }
+
+        return flags;
+    }
+
     private TypeModel? Analyze()
     {
         var properties = PropertyCollector.Collect(_type, _compilation, _spot);
@@ -200,6 +220,7 @@ internal sealed class ModelBuilder
             return null;
         }
 
+        ReportUnreachableSetters(properties);
         var discriminator = _kind == MappedKind.Entity ? ReadDiscriminator() : null;
         if (_kind == MappedKind.Document)
         {
@@ -219,6 +240,15 @@ internal sealed class ModelBuilder
         KeepWhatAReadNeeds(properties);
         ReportUnknownNamesThatThrow(properties, entity);
         return _bag.HasErrors ? null : Compose(properties, constructor, entity);
+    }
+
+    // DYNA034. A base type stores a property with a private setter, which the generated code of a derived type cannot assign, so the derived type would drop it without a word.
+    private void ReportUnreachableSetters(List<PropertyFacts> properties)
+    {
+        foreach (var property in properties.Where(property => property.Symbol.SetMethod is not null && property.IsComputed && !property.IsStored && !property.IsIgnored && property.KeyOnly is null))
+        {
+            _bag.Report(Descriptors.UnreachableSetter, _spot, property.Name, property.Symbol.ContainingType.Name, _type.Name);
+        }
     }
 
     private DiscriminatorInfo ReadDiscriminator()
@@ -380,6 +410,7 @@ internal sealed class ModelBuilder
         var needsFields = mapped.Exists(static property => property.Parameter is null && !property.IsComputed) || HasRequiredMember(_type);
         var declaresDefault = needsFields && !_type.IsValueType && constructor.IsImplicitlyDeclared;
 
+        var setFlags = SetFlags(mapped);
         var outer = new Stack<ContainingType>();
         var hintName = new Stack<string>([_type.Name]);
         for (var current = _type.ContainingType; current is not null; current = current.ContainingType)
@@ -404,7 +435,7 @@ internal sealed class ModelBuilder
             string.Join(".", hintName) + ".g.cs",
             new EquatableArray<ContainingType>([.. outer]),
             new ConstructorModel(new EquatableArray<ConstructorParameter>([.. parameters]), declaresDefault, needsFields),
-            new EquatableArray<PropertyModel>([.. mapped.Select(ToModel)]),
+            new EquatableArray<PropertyModel>([.. mapped.Select(property => ToModel(property, setFlags[property.Name]))]),
             entity,
             _enums.ToEquatableArray(),
             _kind == MappedKind.Entity && TypeRules.HidesKeys(_type),

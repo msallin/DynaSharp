@@ -184,7 +184,15 @@ internal static class EmitterShapes
 
                 public required string Author { get; init; }
 
+                [DynamoDbIgnore]
                 public string Hidden { get; private set; } = "kept";
+
+                [DynamoDbAttribute("note")]
+                [OmitEmpty]
+                public virtual string Note { get; set; } = "";
+
+                [DynamoDbIgnore]
+                public virtual string Secret { get; set; } = "";
             }
 
             [DynamoDbEntity]
@@ -200,6 +208,10 @@ internal static class EmitterShapes
             public partial class Derived : Base
             {
                 public int Extra { get; set; }
+
+                public override string Note { get; set; } = "";
+
+                public override string Secret { get; set; } = "";
             }
         }
         """;
@@ -276,6 +288,8 @@ internal static class EmitterShapes
                 public string name { get; set; } = "none";
 
                 public string exception { get; set; } = "none";
+
+                public string string__set { get; set; } = "none";
             }
         }
         """;
@@ -373,6 +387,8 @@ internal static class EmitterShapes
                 public Code Coded { get; set; }
                 public Code? MaybeCoded { get; set; }
                 public List<Code> Codes { get; set; } = new();
+                public List<HashSet<string>> Tagged { get; set; } = new();
+                public Dictionary<string, HashSet<int>> Grouped { get; set; } = new();
             }
 
             [DynamoDbDocument]

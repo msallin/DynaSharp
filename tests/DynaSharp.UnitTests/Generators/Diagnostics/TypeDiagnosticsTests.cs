@@ -1531,5 +1531,78 @@ public sealed class TypeDiagnosticsTests
         await Assert.That(report).IsEmpty();
     }
 
+    [Test]
+    [Arguments("public class Root { public string Locked { get; private set; } = \"\"; }")]
+    [Arguments("public class Root { public string Locked { get; private init; } = \"\"; }")]
+    [Arguments("""[DynamoDbEntity, Discriminator("ROOT"), PartitionKey("ROOT#{Id}")] public partial class Root { public required string Id { get; init; } public string Locked { get; private set; } = ""; }""")]
+    public async Task Build_PropertyOfABaseWithASetterTheTypeCannotReach_ReportsDyna034(string root)
+    {
+        // Arrange (the base stores it, and the generated code of the derived type cannot assign it, so the derived type left it out without a word)
+        var source = root + """
+
+            [DynamoDbEntity, Discriminator("T"), PartitionKey("T#{Id}")]
+            public partial class [|T|] : Root { public required string Id { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            source,
+            "DYNA034 Warning: 'Locked' of 'Root' has a setter that 'T' cannot reach, so 'T' does not store it. Make the setter protected, or mark the property [DynamoDbIgnore] if no type is to store it."));
+    }
+
+    [Test]
+    public async Task Build_InternalSetterInABaseOfAnotherProject_ReportsDyna034()
+    {
+        // Arrange (a compiled assembly shows no setter that is not public, so this is what a project reference gives)
+        var library = Analysis.ProjectReference("namespace Lib { public class Root { public string Locked { get; internal set; } = \"\"; } }");
+        const string Source = "[DynamoDbDocument] public partial class [|T|] : Lib.Root { }";
+
+        // Act
+        var report = Analysis.Report(Source, LanguageVersion.Latest, library);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            Source,
+            "DYNA034 Warning: 'Locked' of 'Root' has a setter that 'T' cannot reach, so 'T' does not store it. Make the setter protected, or mark the property [DynamoDbIgnore] if no type is to store it."));
+    }
+
+    [Test]
+    [Arguments("public string Locked { get; protected set; } = \"\";", "")]
+    [Arguments("public string Locked { get; internal set; } = \"\";", "")]
+    [Arguments("[DynamoDbIgnore] public string Locked { get; private set; } = \"\";", "")]
+    [Arguments("[DynamoDbAttribute(\"locked\")] public string Locked { get; private set; } = \"\";", "")]
+    [Arguments("public string Locked => \"\";", "")]
+    [Arguments("public string Locked { get; private set; } = \"\";", "public T(string locked) { }")]
+    public async Task Build_PropertyOfABaseThatTheTypeCanSetOrNeedNotStore_ReportsNothing(string member, string constructor)
+    {
+        // Arrange (a setter it reaches, a property ignored or written and never read, one without a setter, which is computed, and one a constructor parameter takes)
+        var source = $$"""
+            public class Root { {{member}} }
+            [DynamoDbDocument] public partial class T : Root { {{constructor}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_PrivateSetterOfTheTypeItself_ReportsNothing()
+    {
+        // Arrange (the generated code is a part of the type, so it reaches the setter)
+        const string Source = """[DynamoDbDocument] public partial class T { public string Locked { get; private set; } = ""; }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
     private static string EnumOnProperty(string reason) => $"DYNA033 Warning: Enum 'Wind' asks for an unknown name to count as missing, but {reason}";
 }

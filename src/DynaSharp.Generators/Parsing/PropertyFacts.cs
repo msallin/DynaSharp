@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace DynaSharp.Generators;
 
-/// <summary>What the analysis of one type knows about one of its properties. It lives only inside the transform.</summary>
+/// <summary>What the analysis of one type knows about one of its properties. It lives only inside the transform. An override maps like the property it overrides where it has no attribute of the kind itself.</summary>
 /// <param name="symbol">The property.</param>
 /// <param name="isSettable">Whether generated code inside the type can assign it.</param>
 /// <param name="spot">Where to report problems.</param>
@@ -16,26 +16,26 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
 
     public Spot Spot { get; } = spot;
 
-    public AttributeData? PartitionKey { get; } = AttributeReader.Find(symbol, WellKnownNames.PartitionKeyAttribute);
+    public AttributeData? PartitionKey { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.PartitionKeyAttribute);
 
-    public AttributeData? SortKey { get; } = AttributeReader.Find(symbol, WellKnownNames.SortKeyAttribute);
+    public AttributeData? SortKey { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.SortKeyAttribute);
 
-    public AttributeData? AttributeAttribute { get; } = AttributeReader.Find(symbol, WellKnownNames.AttributeAttribute);
+    public AttributeData? AttributeAttribute { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.AttributeAttribute);
 
-    public AttributeData? KeyOnly { get; } = AttributeReader.Find(symbol, WellKnownNames.KeyOnlyAttribute);
+    public AttributeData? KeyOnly { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.KeyOnlyAttribute);
 
-    public AttributeData? Version { get; } = AttributeReader.Find(symbol, WellKnownNames.VersionAttribute);
+    public AttributeData? Version { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.VersionAttribute);
 
     /// <summary>Gets a value indicating whether the property is a version that takes an item without one for version 0.</summary>
     public bool AllowsMissingVersion => Version is { } attribute && AttributeReader.Number(attribute, WellKnownNames.VersionMissingArgument) == WellKnownNames.VersionMissingAllow;
 
-    public AttributeData? OmitEmpty { get; } = AttributeReader.Find(symbol, WellKnownNames.OmitEmptyAttribute);
+    public AttributeData? OmitEmpty { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.OmitEmptyAttribute);
 
-    public AttributeData? Converter { get; } = AttributeReader.Find(symbol, WellKnownNames.ConverterAttribute);
+    public AttributeData? Converter { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.ConverterAttribute);
 
-    public AttributeData? ComputedFrom { get; } = AttributeReader.Find(symbol, WellKnownNames.ComputedFromAttribute);
+    public AttributeData? ComputedFrom { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.ComputedFromAttribute);
 
-    public bool IsIgnored { get; } = AttributeReader.Find(symbol, WellKnownNames.IgnoreAttribute) is not null;
+    public bool IsIgnored { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.IgnoreAttribute) is not null;
 
     /// <summary>Gets or sets the constructor parameter that supplies the value, or null.</summary>
     public IParameterSymbol? Parameter { get; set; }

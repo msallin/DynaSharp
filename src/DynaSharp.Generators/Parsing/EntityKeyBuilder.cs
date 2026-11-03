@@ -173,7 +173,7 @@ internal sealed class EntityKeyBuilder(
     private KeyModel? TableKey(KeySlot slot)
     {
         var onType = AttributeReader.Find(type, slot.Attribute);
-        var onProperties = properties.Select(property => (Property: property, Attribute: AttributeReader.Find(property.Symbol, slot.Attribute)))
+        var onProperties = properties.Select(property => (Property: property, Attribute: AttributeReader.FindOnProperty(property.Symbol, slot.Attribute)))
             .Where(static pair => pair.Attribute is not null)
             .ToList();
 

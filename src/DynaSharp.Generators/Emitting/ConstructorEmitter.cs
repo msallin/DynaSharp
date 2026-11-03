@@ -53,13 +53,13 @@ internal static class ConstructorEmitter
         // A field of a __Fields that started as default is maybe-null to the compiler, but the checks for missing attributes have passed.
         var value = $"fields.{property.Identifier}{(property.ValueType.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!")}";
         var fallback = property.Missing == MissingBehavior.EmptySet ? property.Converter!.EmptySet : parameter.DefaultLiteral;
-        return fallback is null ? value : $"fields.{property.Name}__set ? {value} : {fallback}";
+        return fallback is null ? value : $"fields.{property.SetFlag} ? {value} : {fallback}";
     }
 
     private static void Assign(IndentedCode code, PropertyModel property)
     {
         var (name, value) = (property.Identifier, $"fields.{property.Identifier}");
-        var isSet = $"fields.{property.Name}__set";
+        var isSet = $"fields.{property.SetFlag}";
         code.Line(property.Missing switch
         {
             MissingBehavior.Throw => $"this.{name} = {value};",

@@ -45,7 +45,7 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
 
         // A model is built only for a getter that names what it reads, which few do. [ComputedFrom] on a document is DYNA012, which leaves no model, so one that is there is an entity's.
         var property = (IPropertySymbol)getter.AssociatedSymbol!;
-        if (AttributeReader.Find(property, WellKnownNames.ComputedFromAttribute) is null
+        if (AttributeReader.FindOnProperty(property, WellKnownNames.ComputedFromAttribute) is null
             || models.ModelOf(property.ContainingType) is not { } model
             || model.Entity!.ComputedInputs.FirstOrDefault(candidate => candidate.Property == property.Name) is not { } input)
         {

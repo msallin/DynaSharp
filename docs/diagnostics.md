@@ -64,6 +64,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Remove the attribute, or answer `CountsAsMissing` in the converter. On a property, make it nullable, or not required with a safe initial value, or give the parameter such a default. A key that must hold names the enum does not know is a string.
 - **Not reported.** `UnknownEnumName.Throw`, the behaviour without the attribute. A nullable property, one that is not required, and a parameter with a default, which keep their value. A required input of a key template that holds it without loss, which a read restores from the key first. An element of a list, set or map, which throws for an unknown name, as the attribute says.
 
+`DYNA034` (warning): a property of a base type whose setter the derived entity or document cannot reach, such as `public string Status { get; private set; }` on the base. The base stores it, but the generated code of the derived type cannot assign it, so the derived type leaves it out of its items, and what the base type keeps is lost for the derived one.
+
+- **Fix.** Make the setter `protected`, or `internal` within one assembly, or set the property through a constructor parameter. Where no type is to store it, mark it `[DynamoDbIgnore]`.
+- **Not reported.** A property without a setter, which is computed, and one with `[DynamoDbAttribute]` or a key attribute, which is written and never read. A base type in a compiled assembly, which shows the compiler no setter that is not public, so the property looks computed.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.

@@ -1304,6 +1304,7 @@ public sealed class KeyDiagnosticsTests
         "decimal" => "plain, the default, or n<i>.<f>, such as n10.2",
         "DateTimeOffset" or "DateTime" => "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, us or ticks, the default",
         "Color" => "no format for the member name, or d<w>, such as d3, for its value",
+        "DateOnly" => "no format, because it is written as yyyy-MM-dd already; a DateTime or DateTimeOffset takes the shorter ones, such as yyyy-MM",
         _ => "no format",
     };
 }

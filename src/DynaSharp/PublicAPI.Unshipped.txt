@@ -497,3 +497,8 @@ override DynaSharp.Requests.SSEDescription.GetHashCode() -> int
 override DynaSharp.Requests.SSEDescription.ToString() -> string!
 static DynaSharp.Requests.SSEDescription.operator !=(DynaSharp.Requests.SSEDescription? left, DynaSharp.Requests.SSEDescription? right) -> bool
 static DynaSharp.Requests.SSEDescription.operator ==(DynaSharp.Requests.SSEDescription? left, DynaSharp.Requests.SSEDescription? right) -> bool
+DynaSharp.Serialization.NonEmptySetConverter<T, TElement, TConverter>
+DynaSharp.Serialization.NonEmptySetConverter<T, TElement, TConverter>.NonEmptySetConverter() -> void
+static DynaSharp.Serialization.NonEmptySetConverter<T, TElement, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T!
+static DynaSharp.Serialization.NonEmptySetConverter<T, TElement, TConverter>.TryReadMissing(out T! value) -> bool
+static DynaSharp.Serialization.NonEmptySetConverter<T, TElement, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void

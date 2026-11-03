@@ -217,6 +217,117 @@ public sealed class ModelBuilderTests
     }
 
     [Test]
+    [Arguments("[DynamoDbIgnore]", "Id")]
+    [Arguments("[DynamoDbAttribute(\"v\")]", "Id v")]
+    [Arguments("[DynamoDbAttribute(\"v\"), OmitEmpty]", "Id v:WhenNotEmptyLength")]
+    [Arguments("[DynamoDbConverter(typeof(Upper))]", "Id V:Always:global::Shop.Upper")]
+    public async Task Build_OverrideWithoutTheAttributesOfTheBase_MapsLikeTheBase(string attributes, string expected)
+    {
+        // Arrange (the mapping attributes are not inherited, so an override that leaves them out used to store a secret, or under another name)
+        var source = $$"""
+            public class Root { {{attributes}} public virtual string V { get; set; } = ""; }
+            public class Middle : Root { public override string V { get; set; } = ""; }
+            [DynamoDbEntity, Discriminator("T"), PartitionKey("T#{Id}")]
+            public partial class T : Middle { public string Id { get; set; } = ""; public override string V { get; set; } = ""; }
+
+            public readonly struct Upper : IDynamoDbConverter<string>
+            {
+                public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value.ToUpperInvariant());
+
+                public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+            }
+            """;
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.T");
+
+        // Assert
+        await Assert.That(string.Join(" ", model.Properties.Select(Describe))).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Build_OverrideOfAKeyOnlyProperty_IsRestoredFromTheKey()
+    {
+        // Arrange
+        const string Source = """
+            public class Root { [KeyOnly] public virtual string V { get; set; } = ""; }
+            [DynamoDbEntity, Discriminator("T"), PartitionKey("T#{V}")]
+            public partial class T : Root { public override string V { get; set; } = ""; }
+            """;
+
+        // Act
+        var model = Analysis.Model(Source, "global::Shop.T");
+
+        // Assert
+        await Assert.That(Describe(model.Properties.Single())).IsEqualTo("V<-pk");
+    }
+
+    [Test]
+    public async Task Build_OverrideWithAnAttributeOfItsOwn_WinsOverTheBase()
+    {
+        // Arrange
+        const string Source = """
+            public class Root { [DynamoDbAttribute("v"), OmitEmpty] public virtual string V { get; set; } = ""; }
+            [DynamoDbDocument] public partial class T : Root { [DynamoDbAttribute("w")] public override string V { get; set; } = ""; }
+            """;
+
+        // Act
+        var model = Analysis.Model(Source, "global::Shop.T");
+
+        // Assert
+        await Assert.That(Describe(model.Properties.Single())).IsEqualTo("w:WhenNotEmptyLength");
+    }
+
+    [Test]
+    [Arguments("[PartitionKey]", "V", null)]
+    [Arguments("[SortKey]", "Id", "V")]
+    public async Task Build_OverrideOfAPlainKey_StaysThePlainKey(string attribute, string partition, string? sort)
+    {
+        // Arrange
+        var source = $$"""
+            public class Root { {{attribute}} public virtual string V { get; set; } = ""; }
+            [DynamoDbEntity, Discriminator("T")]
+            public partial class T : Root { {{(sort is null ? string.Empty : "[PartitionKey] ")}}public string Id { get; set; } = ""; public override string V { get; set; } = ""; }
+            """;
+
+        // Act
+        var entity = Analysis.Model(source, "global::Shop.T").Entity!;
+
+        // Assert
+        await Assert.That((entity.PartitionKey.PlainProperty, entity.SortKey?.PlainProperty)).IsEqualTo((partition, sort));
+    }
+
+    [Test]
+    public async Task Build_OverrideOfAVersion_StaysTheVersion()
+    {
+        // Arrange
+        const string Source = """
+            public class Root { [Version] public virtual long Revision { get; set; } }
+            [DynamoDbEntity, Discriminator("T"), PartitionKey("T#{Id}")]
+            public partial class T : Root { public string Id { get; set; } = ""; public override long Revision { get; set; } }
+            """;
+
+        // Act
+        var entity = Analysis.Model(Source, "global::Shop.T").Entity!;
+
+        // Assert
+        await Assert.That(entity.VersionProperty).IsEqualTo("Revision");
+    }
+
+    [Test]
+    public async Task Build_PropertiesThatTheFlagOfAnotherWouldName_GetFlagsOfTheirOwn()
+    {
+        // Arrange (the flags sit beside the values in __Fields, so X__set must not be the flag of X)
+        const string Source = """[DynamoDbDocument] public partial class T { public string X { get; set; } = ""; public string X__set { get; set; } = ""; public string X__set_ { get; set; } = ""; }""";
+
+        // Act
+        var model = Analysis.Model(Source, "global::Shop.T");
+
+        // Assert
+        await Assert.That(string.Join(" ", model.Properties.Select(static property => $"{property.Name}:{property.SetFlag}"))).IsEqualTo("X:X__set__ X__set:X__set__set X__set_:X__set___set");
+    }
+
+    [Test]
     [Arguments("public required string A { get; set; }", "Throw")]
     [Arguments("public required string? A { get; set; }", "KeepCurrent")]
     [Arguments("public string A { get; set; } = \"\";", "KeepCurrent")]
@@ -740,4 +851,18 @@ public sealed class ModelBuilderTests
 
     // "int name = 5" gives "int".
     private static string TypeOf(string parameter) => parameter.Split(' ')[0];
+
+    // The attribute where it is not the name, the write where it is not Always or the converter where it is not the built-in, and the key it is restored from.
+    private static string Describe(PropertyModel property)
+    {
+        var name = property.AttributeName == property.Name ? property.Name : property.AttributeName;
+        if (property.RestoredFromKey is { } key)
+        {
+            return $"{name}<-{key}";
+        }
+
+        var converter = property.Converter!.WriteConverter.StartsWith("global::Shop.", StringComparison.Ordinal) ? ":" + property.Converter.WriteConverter : string.Empty;
+        var write = property.Write == WriteCondition.Always && converter.Length == 0 ? string.Empty : ":" + property.Write;
+        return name + write + converter;
+    }
 }

@@ -43,7 +43,7 @@ internal static class KeyInputCatalog
             "string" => new StringInput(typeName),
             "decimal" => new DecimalInput(typeName),
             "global::System.Guid" => new FixedInput(typeName, new GuidEncoding()),
-            "global::System.DateOnly" => new FixedInput(typeName, new DateOnlyEncoding()),
+            "global::System.DateOnly" => new FixedInput(typeName, new DateOnlyEncoding(), "no format, because it is written as yyyy-MM-dd already; a DateTime or DateTimeOffset takes the shorter ones, such as yyyy-MM"),
             "global::System.DateTimeOffset" => new TimestampInput(typeName, isOffset: true),
             "global::System.DateTime" => new TimestampInput(typeName, isOffset: false),
             _ => Others(type, typeName, code, enums),

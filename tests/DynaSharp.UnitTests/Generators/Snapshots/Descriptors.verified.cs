@@ -84,6 +84,7 @@ DYNA231 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA232 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA233 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA234 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA034 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -170,3 +171,4 @@ DYNA231 | Error | DynaSharp.Commands | Type is not an entity | '{0}' {1}. {2}.
 DYNA232 | Error | DynaSharp.Commands | Value of another type than its handle | The handle '{0}' holds '{1}', and this value is '{2}'. Pass a value of '{1}', or the handle of the attribute you meant.
 DYNA233 | Error | DynaSharp.Commands | Add on a handle that is no number or set | Add adds to a number or a set, and '{0}' holds '{1}'. Use Set to write the value.
 DYNA234 | Error | DynaSharp.Commands | Method of the items called on a read | '{0}' works on the items that a read streams, not on the read. Call {1}() first, as in {1}().{0}(...).
+DYNA034 | Warning | DynaSharp.Mapping | Property of a base type is not stored | '{0}' of '{1}' has a setter that '{2}' cannot reach, so '{2}' does not store it. Make the setter protected, or mark the property [DynamoDbIgnore] if no type is to store it.

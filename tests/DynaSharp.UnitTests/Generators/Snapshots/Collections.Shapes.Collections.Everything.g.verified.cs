@@ -53,6 +53,8 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         if (fields.Coded__set) { this.Coded = fields.Coded; }
         if (fields.MaybeCoded__set) { this.MaybeCoded = fields.MaybeCoded; }
         if (fields.Codes__set) { this.Codes = fields.Codes; }
+        if (fields.Tagged__set) { this.Tagged = fields.Tagged; }
+        if (fields.Grouped__set) { this.Grouped = fields.Grouped; }
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -172,6 +174,24 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         }
         writer.WriteAttributeName("Codes"u8);
         global::DynaSharp.Serialization.ListConverter<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter>.Write(writer, entity.Codes);
+        writer.WriteAttributeName("Tagged"u8);
+        try
+        {
+            global::DynaSharp.Serialization.ListConverter<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<string>, string, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>>>.Write(writer, entity.Tagged);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Tagged", "Tagged");
+        }
+        writer.WriteAttributeName("Grouped"u8);
+        try
+        {
+            global::DynaSharp.Serialization.DictionaryConverter<global::System.Collections.Generic.HashSet<int>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<int>, int, global::DynaSharp.Serialization.HashSetConverter<int, global::DynaSharp.Serialization.NumberSetElement<int>>>>.Write(writer, entity.Grouped);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Grouped", "Grouped");
+        }
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -377,8 +397,24 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
                             continue;
                         }
 
+                        if (global::System.MemoryExtensions.SequenceEqual(name, "Tagged"u8))
+                        {
+                            attribute = "Tagged";
+                            fields.Tagged = reader.ReadAttribute<global::System.Collections.Generic.List<global::System.Collections.Generic.HashSet<string>>, global::DynaSharp.Serialization.ListConverter<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<string>, string, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>>>>();
+                            fields.Tagged__set = true;
+                            continue;
+                        }
+
                         break;
                     case 7:
+                        if (global::System.MemoryExtensions.SequenceEqual(name, "Grouped"u8))
+                        {
+                            attribute = "Grouped";
+                            fields.Grouped = reader.ReadAttribute<global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.HashSet<int>>, global::DynaSharp.Serialization.DictionaryConverter<global::System.Collections.Generic.HashSet<int>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<int>, int, global::DynaSharp.Serialization.HashSetConverter<int, global::DynaSharp.Serialization.NumberSetElement<int>>>>>();
+                            fields.Grouped__set = true;
+                            continue;
+                        }
+
                         if (global::System.MemoryExtensions.SequenceEqual(name, "GuidSet"u8))
                         {
                             attribute = "GuidSet";
@@ -518,6 +554,8 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
         public global::Shapes.Collections.Code Coded; public bool Coded__set;
         public global::Shapes.Collections.Code? MaybeCoded; public bool MaybeCoded__set;
         public global::System.Collections.Generic.List<global::Shapes.Collections.Code> Codes; public bool Codes__set;
+        public global::System.Collections.Generic.List<global::System.Collections.Generic.HashSet<string>> Tagged; public bool Tagged__set;
+        public global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.HashSet<int>> Grouped; public bool Grouped__set;
     }
 
     /// <summary>The attributes of <c>Everything</c> as typed handles, for conditions, updates and projections. A raw path stays possible wherever a handle is.</summary>
@@ -622,5 +660,11 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
 
         /// <summary>The attribute <c>Codes</c>.</summary>
         public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::Shapes.Collections.Code>, global::DynaSharp.Serialization.ListConverter<global::Shapes.Collections.Code, global::Shapes.Collections.CodeConverter>> Codes => new("Codes");
+
+        /// <summary>The attribute <c>Tagged</c>.</summary>
+        public static global::DynaSharp.Attr<global::System.Collections.Generic.List<global::System.Collections.Generic.HashSet<string>>, global::DynaSharp.Serialization.ListConverter<global::System.Collections.Generic.HashSet<string>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<string>, string, global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>>>> Tagged => new("Tagged");
+
+        /// <summary>The attribute <c>Grouped</c>.</summary>
+        public static global::DynaSharp.Attr<global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.HashSet<int>>, global::DynaSharp.Serialization.DictionaryConverter<global::System.Collections.Generic.HashSet<int>, global::DynaSharp.Serialization.NonEmptySetConverter<global::System.Collections.Generic.HashSet<int>, int, global::DynaSharp.Serialization.HashSetConverter<int, global::DynaSharp.Serialization.NumberSetElement<int>>>>> Grouped => new("Grouped");
     }
 }

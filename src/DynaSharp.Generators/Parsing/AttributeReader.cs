@@ -13,6 +13,23 @@ internal static class AttributeReader
     public static AttributeData? Find(ISymbol symbol, string name) =>
         symbol.GetAttributes().FirstOrDefault(attribute => IsNamed(attribute.AttributeClass, name));
 
+    /// <summary>
+    /// The attribute on a property, or on the property it overrides when the override has none of that kind: the mapping attributes are not inherited, and an override that left them out would
+    /// otherwise map in another way than the property it overrides. The nearest one wins, so an override that has its own says more than its base.
+    /// </summary>
+    public static AttributeData? FindOnProperty(IPropertySymbol property, string name)
+    {
+        for (var current = property; current is not null; current = current.OverriddenProperty)
+        {
+            if (Find(current, name) is { } attribute)
+            {
+                return attribute;
+            }
+        }
+
+        return null;
+    }
+
     public static IEnumerable<AttributeData> FindAll(ISymbol symbol, string name) =>
         symbol.GetAttributes().Where(attribute => IsNamed(attribute.AttributeClass, name));
 

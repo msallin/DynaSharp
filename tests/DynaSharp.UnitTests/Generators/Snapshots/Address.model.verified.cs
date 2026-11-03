@@ -44,6 +44,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Street__set
   - PropertyModel
     Name: City
     Identifier: City
@@ -68,6 +69,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: City__set
   - PropertyModel
     Name: Zip
     Identifier: Zip
@@ -92,6 +94,7 @@ Properties:
     IsPublic: True
     OmitEmptyConverter: null
     ReadsMissingAsZero: False
+    SetFlag: Zip__set
 Entity: null
 Enums: []
 HidesInheritedKeys: False

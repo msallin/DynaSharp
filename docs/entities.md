@@ -96,7 +96,7 @@ The built-in converters store these types; anything else needs its own converter
 | An enum | `S`, the member name; `N` for a `[Flags]` enum |
 | `AttributeValue` | What it holds, of any type |
 | `List<T>`, `IReadOnlyList<T>`, `IList<T>`, `T[]` | `L`, each element in the form of `T` |
-| `HashSet<T>`, `IReadOnlySet<T>` of strings, numbers, `byte[]`, `Guid` or an enum | `SS`, `NS` or `BS`. An empty set is left out, as DynamoDB refuses one, and reads as empty |
+| `HashSet<T>`, `IReadOnlySet<T>` of strings, numbers, `byte[]`, `Guid` or an enum | `SS`, `NS` or `BS`. An empty set is left out, as DynamoDB refuses one, and reads as empty. One in a list or a dictionary cannot be left out, so a write throws an `ArgumentException` that names the property |
 | `Dictionary<string, T>`, `IReadOnlyDictionary<string, T>` | `M`, an attribute per key |
 | A `[DynamoDbDocument]` type | `M` |
 | `T?` of any of these | The form of `T`; a null property is left out of the item |

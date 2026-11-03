@@ -3,7 +3,10 @@ using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Mapping;
 
-/// <summary>Every place a built-in converter can refuse a value of its type on write: a <see cref="DateTime"/> of no kind and a number that is not finite, alone, nullable, in a list, in a set, in a key and in a nested document.</summary>
+/// <summary>
+/// Every place a built-in converter can refuse a value of its type on write: a <see cref="DateTime"/> of no kind and a number that is not finite, alone, nullable, in a list, in a set, in a key and in a nested document,
+/// and an empty set in a list and in a map.
+/// </summary>
 [DynamoDbEntity]
 [Discriminator("LOGBOOK")]
 public sealed partial record Logbook
@@ -32,4 +35,8 @@ public sealed partial record Logbook
     public HashSet<double> Soundings { get; init; } = [];
 
     public LogEntry? Last { get; init; }
+
+    public IReadOnlyList<HashSet<string>> Crews { get; init; } = [];
+
+    public Dictionary<string, HashSet<int>> Shifts { get; init; } = [];
 }

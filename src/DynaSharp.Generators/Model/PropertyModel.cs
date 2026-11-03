@@ -19,6 +19,7 @@ namespace DynaSharp.Generators;
 /// With <c>[OmitEmpty]</c>, the converter of the handle as code up to its last type argument, which is the converter of the property: an empty value counts as null for the property as for its handle. Null without it.
 /// </param>
 /// <param name="ReadsMissingAsZero">Whether this is a version that takes an item without one for version 0, for a read of the entity as for its handle.</param>
+/// <param name="SetFlag">The field of <c>__Fields</c> that says a read found the value, <c>{Name}__set</c> with an underscore more for each name of the type it would repeat.</param>
 internal sealed record PropertyModel(
     string Name,
     string Identifier,
@@ -35,7 +36,8 @@ internal sealed record PropertyModel(
     string ParameterName,
     bool IsPublic,
     string? OmitEmptyConverter,
-    bool ReadsMissingAsZero)
+    bool ReadsMissingAsZero,
+    string SetFlag)
 {
     /// <summary>Returns the type as code without its nullability, which is what a handle and a key take: a key has no null.</summary>
     /// <returns>The type.</returns>
