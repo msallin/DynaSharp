@@ -50,6 +50,46 @@ internal sealed class UpdatePathAnalyzer : DiagnosticAnalyzer
         });
     }
 
+    /// <summary>Whether the next call is on the same update: another action or option of the command, but not the verb of the next step of a transaction, which has the same type.</summary>
+    /// <param name="invocation">A call that returns an update.</param>
+    /// <returns>Whether the update goes on after it.</returns>
+    internal static bool GoesOn(IInvocationOperation invocation) => invocation.Parent switch
+    {
+        IInvocationOperation next when next.Instance == invocation => SymbolEqualityComparer.Default.Equals(next.Type, invocation.Type),
+        IArgumentOperation { Parent: IInvocationOperation next } argument when next.TargetMethod.IsExtensionMethod && next.Arguments[0] == argument
+            => SymbolEqualityComparer.Default.Equals(next.Type, invocation.Type) && !IsStepVerb(next),
+        _ => false,
+    };
+
+    /// <summary>Whether a call is a verb that starts a step of a transaction.</summary>
+    /// <param name="call">The call.</param>
+    /// <returns>Whether it is declared by <c>TransactWriteExtensions</c>.</returns>
+    internal static bool IsStepVerb(IInvocationOperation call) => call.TargetMethod.ContainingType.Name == StepVerbs;
+
+    /// <summary>The value a call is made on. A static method of the consumer under the namespace of the library counts as the library, and it has no receiver.</summary>
+    /// <param name="invocation">The call.</param>
+    /// <returns>The instance, the first argument of an extension method, or null.</returns>
+    internal static IOperation? ReceiverOf(IInvocationOperation invocation) => invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);
+
+    /// <summary>The argument of a parameter. Arguments come in the order of the source, which a named argument can change.</summary>
+    /// <param name="call">The call.</param>
+    /// <param name="ordinal">The position of the parameter.</param>
+    /// <returns>The value of the argument.</returns>
+    internal static IOperation ArgumentOf(IInvocationOperation call, int ordinal) => call.Arguments.First(argument => argument.Parameter!.Ordinal == ordinal).Value;
+
+    /// <summary>Whether a value counts as null for a handle: a <see langword="null"/>, and an empty string where <c>[OmitEmpty]</c> counts it as null.</summary>
+    /// <param name="value">The value of the action.</param>
+    /// <param name="attribute">The handle of the action.</param>
+    /// <param name="models">The models of the compilation.</param>
+    /// <returns>Whether a <c>SetIfNotNull</c> of it writes nothing, and a <c>Set</c> of it removes the attribute.</returns>
+    internal static bool AddsNothing(IOperation value, IOperation attribute, ModelCatalog models) => value switch
+    {
+        { ConstantValue: { HasValue: true, Value: null } } => true,
+        { ConstantValue: { HasValue: true, Value: "" } } or IFieldReferenceOperation { Field: { Name: nameof(string.Empty), ContainingType.SpecialType: SpecialType.System_String } } =>
+            PropertyOf(attribute, models)?.OmitEmptyConverter is not null,
+        _ => false,
+    };
+
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
@@ -85,20 +125,6 @@ internal sealed class UpdatePathAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    // Whether the next call is on the same update: another action or option of the command, but not the verb of the next step of a transaction, which has the same type.
-    private static bool GoesOn(IInvocationOperation invocation) => invocation.Parent switch
-    {
-        IInvocationOperation next when next.Instance == invocation => SymbolEqualityComparer.Default.Equals(next.Type, invocation.Type),
-        IArgumentOperation { Parent: IInvocationOperation next } argument when next.TargetMethod.IsExtensionMethod && next.Arguments[0] == argument
-            => SymbolEqualityComparer.Default.Equals(next.Type, invocation.Type) && !IsStepVerb(next),
-        _ => false,
-    };
-
-    private static bool IsStepVerb(IInvocationOperation call) => call.TargetMethod.ContainingType.Name == StepVerbs;
-
-    // A static method of the consumer under the namespace of the library counts as the library, and it has no receiver.
-    private static IOperation? ReceiverOf(IInvocationOperation invocation) => invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);
-
     // The path of an action, or null for a call that is no action, that adds nothing, or whose path is not known here.
     private static string? PathOf(IInvocationOperation call, ModelCatalog models)
     {
@@ -110,15 +136,6 @@ internal sealed class UpdatePathAnalyzer : DiagnosticAnalyzer
         var target = ArgumentOf(call, 0);
         return call.TargetMethod.Name == SetIfNotNull && AddsNothing(ArgumentOf(call, 1), target, models) ? null : PathOf(target, models);
     }
-
-    // SetIfNotNull of null writes nothing, and neither does one of an empty string where [OmitEmpty] counts it as null.
-    private static bool AddsNothing(IOperation value, IOperation attribute, ModelCatalog models) => value switch
-    {
-        { ConstantValue: { HasValue: true, Value: null } } => true,
-        { ConstantValue: { HasValue: true, Value: "" } } or IFieldReferenceOperation { Field: { Name: nameof(string.Empty), ContainingType.SpecialType: SpecialType.System_String } } =>
-            PropertyOf(attribute, models)?.OmitEmptyConverter is not null,
-        _ => false,
-    };
 
     private static PropertyModel? PropertyOf(IOperation handle, ModelCatalog models) =>
         handle is IPropertyReferenceOperation { Property: { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } property } && models.ModelOf(owner) is { } model ? model.Property(property.Name) : null;
@@ -134,9 +151,6 @@ internal sealed class UpdatePathAnalyzer : DiagnosticAnalyzer
         IObjectCreationOperation { Type.Name: AttrType, Arguments.Length: 1 } creation => PathOf(creation.Arguments[0].Value, models),
         _ => null,
     };
-
-    // Arguments come in the order of the source, which a named argument can change.
-    private static IOperation ArgumentOf(IInvocationOperation call, int ordinal) => call.Arguments.First(argument => argument.Parameter!.Ordinal == ordinal).Value;
 
     // a and a, a and a.b, a and a[1] overlap; a.b and a.c, a[0] and a[1], and ab and a do not.
     private static bool Overlap(string one, string other)

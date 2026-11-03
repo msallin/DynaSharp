@@ -7,7 +7,7 @@ DynaSharp was designed around a catalog of such patterns. Each one runs as a sce
 | Pattern | What it is for |
 |---|---|
 | [Composite sort keys](patterns-keys.md#composite-sort-keys) | A hierarchy in one partition, read at any depth with `begins_with` |
-| [Newest first with ULID sort keys](patterns-keys.md#newest-first-with-ulid-sort-keys) | Sort keys that are unique and in time order, read newest first |
+| [Newest first with version-7 GUID sort keys](patterns-keys.md#newest-first-with-version-7-guid-sort-keys) | Sort keys that are unique and in time order, read newest first |
 | [Write sharding](patterns-keys.md#write-sharding) | A key that takes more writes than one partition can, spread over several |
 | [Time-bucketed partitions](patterns-keys.md#time-bucketed-partitions) | A stream of events that must not grow one partition without end |
 | [Large objects](patterns-keys.md#large-objects) | A value over the item limit of 400 KB, in chunks |

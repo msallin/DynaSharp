@@ -1,3 +1,5 @@
+// The run-time check of a key left half done is under test here, so the updates do on purpose what DYNA226 reports.
+#pragma warning disable DYNA226
 using DynaSharp.Serialization;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping;
@@ -48,7 +50,9 @@ public sealed class KeyInputChangesTemplateTests
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Rank, 7).ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("{Rank:d3}-{Queue}").And.Contains("sets Rank, and not Queue,").And.Contains("Set all of them");
+        await Assert.That(failure.Message).IsEqualTo(
+            "This update of DynaSharp.UnitTests.Fluent.Ticket sets Rank, and not Queue, of the key template {Rank:d3}-{Queue}, so the attribute bystatesk cannot be written and the index would go stale. " +
+            "DynamoDB cannot build a key from what the item holds: add .Set(Ticket.Attrs.Queue, value) with the value the item holds, or use a raw path, which is not checked.");
     }
 
     [Test]

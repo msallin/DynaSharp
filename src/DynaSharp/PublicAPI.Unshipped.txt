@@ -404,3 +404,9 @@ static DynaSharp.AttrExtensions.Contains<T, TElement>(this DynaSharp.Attr<T[]!, 
 static DynaSharp.Expressions.Contains<T, TConverter>.implicit operator DynaSharp.Condition!(DynaSharp.Expressions.Contains<T, TConverter> condition) -> DynaSharp.Condition!
 static DynaSharp.Serialization.SetElementValueConverter<T, TElement>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> T
 static DynaSharp.Serialization.SetElementValueConverter<T, TElement>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T value) -> void
+DynaSharp.GuidExtensions
+DynaSharp.GuidExtensions.extension(System.Guid)
+static DynaSharp.GuidExtensions.extension(System.Guid).FirstVersion7(System.DateTimeOffset at) -> System.Guid
+static DynaSharp.GuidExtensions.extension(System.Guid).LastVersion7(System.DateTimeOffset at) -> System.Guid
+static DynaSharp.GuidExtensions.FirstVersion7(System.DateTimeOffset at) -> System.Guid
+static DynaSharp.GuidExtensions.LastVersion7(System.DateTimeOffset at) -> System.Guid

@@ -47,7 +47,7 @@ Sparse-attribute toggle needs no primitive of its own: it is `SET`/`REMOVE` of a
 | Table per period | - | Recipe | Couples code to table naming |
 | Sharded "latest across everything" | P3, P4, P5 | Recipe | |
 | Rollups via Streams | Streams | Out of scope (Lambda) | |
-| ULID / KSUID sort keys | P3 | Recipe | `ScanIndexForward=false` for newest first |
+| Time-ordered sort keys (version-7 GUID, ULID, KSUID) | P3 | Recipe | `ScanIndexForward=false` for newest first; `Guid.FirstVersion7` and `Guid.LastVersion7` bound a range of time |
 | Queue via sparse GSI | P1, P5 | Coordination | Shard the GSI key; GSI is eventually consistent, the conditional claim gives correctness; GSI throttling throttles base writes |
 | Priority queue | P3, P5 | Coordination (queue option) | |
 | Delayed / scheduled jobs | P3, P4 | Recipe | Never TTL as a timer |

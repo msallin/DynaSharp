@@ -96,6 +96,44 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
+    /// <summary>The handle a path starts at: <c>Order.Attrs.Message.At(Msg.Attrs.Arrival).At(...)</c> starts at <c>Order.Attrs.Message</c>, because <c>At</c> is an extension method, so its document comes first.</summary>
+    /// <param name="value">The argument that takes the handle.</param>
+    /// <returns>The property of the handle, or null for one in a variable or from a method.</returns>
+    internal static IPropertySymbol? HandleUnder(IOperation value)
+    {
+        while (value is IInvocationOperation { TargetMethod.Name: NestedPath } nested)
+        {
+            value = nested.Arguments[0].Value;
+        }
+
+        return (value as IPropertyReferenceOperation)?.Property;
+    }
+
+    /// <summary>The keys of indexes that a computed input feeds, for that input and for each property it is derived from.</summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="property">The property a handle writes.</param>
+    /// <returns>The computed input, the index and the key, for each key the property reaches through a getter.</returns>
+    internal static IEnumerable<(string Input, string Index, KeyModel Key)> IndexKeysDerivedFrom(EntityModel entity, string property) =>
+        from input in entity.ComputedInputs.Where(input => input.Property == property || input.Dependencies.Contains(property))
+        from index in entity.Indexes
+        from key in new[] { index.PartitionKey, index.SortKey }.OfType<KeyModel>()
+        where Holds(key, input.Property)
+        select (input.Property, index.IndexName, key);
+
+    /// <summary>Whether a property feeds a key of the table, itself or through a computed input.</summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="property">The property.</param>
+    /// <returns>Whether an update of it by handle throws, because DynamoDB cannot update a key.</returns>
+    internal static bool FeedsTableKey(EntityModel entity, string property) =>
+        new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));
+
+    /// <summary>Whether a key holds a property, as its plain key or as a placeholder of its template.</summary>
+    /// <param name="key">The key.</param>
+    /// <param name="property">The property.</param>
+    /// <returns>Whether the key is made of it.</returns>
+    internal static bool Holds(KeyModel key, string property) =>
+        key.PlainProperty == property || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
+
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
@@ -232,30 +270,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(Descriptors.WriteOfComputedInputSource, location, handle.Name, reason));
         }
     }
-
-    // Order.Attrs.Message.At(Msg.Attrs.Arrival).At(...): a path through a document starts at the handle of the entity, and At is an extension method, so its document comes first.
-    private static IPropertySymbol? HandleUnder(IOperation value)
-    {
-        while (value is IInvocationOperation { TargetMethod.Name: NestedPath } nested)
-        {
-            value = nested.Arguments[0].Value;
-        }
-
-        return (value as IPropertyReferenceOperation)?.Property;
-    }
-
-    private static IEnumerable<(string Input, string Index, KeyModel Key)> IndexKeysDerivedFrom(EntityModel entity, string property) =>
-        from input in entity.ComputedInputs.Where(input => input.Property == property || input.Dependencies.Contains(property))
-        from index in entity.Indexes
-        from key in new[] { index.PartitionKey, index.SortKey }.OfType<KeyModel>()
-        where Holds(key, input.Property)
-        select (input.Property, index.IndexName, key);
-
-    private static bool FeedsTableKey(EntityModel entity, string property) =>
-        new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));
-
-    private static bool Holds(KeyModel key, string property) =>
-        key.PlainProperty == property || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
 
     private static IOperation? ReceiverOf(IInvocationOperation invocation) =>
         invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);

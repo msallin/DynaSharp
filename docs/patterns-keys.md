@@ -37,16 +37,11 @@ Caveats:
 - A time in a key is stored in UTC in one format, so two offsets of one instant sort by the instant. The formats are under [Defining an entity](entities.md#defining-an-entity).
 - A value that holds a character below the delimiter, such as a space, sorts out of the order of the fields (`DYNA115`). `begins_with` on whole fields is not affected.
 
-## Newest first with ULID sort keys
+## Newest first with version-7 GUID sort keys
 
-A sort key that is unique and in time order at once. A ULID starts with the time in milliseconds and ends with random bits, so two writes in one millisecond do not collide, and newest first is a backward read of the partition.
-
-DynaSharp has no ULID type. This one is enough for a key:
+A sort key that is unique and in time order at once. A version-7 `Guid` starts with the time in milliseconds and ends with random bits, so two writes in one millisecond do not collide, and newest first is a backward read of the partition. DynaSharp stores a `Guid` as its lowercase text, `01a196fb-1600-7c3e-…`, in which the time comes first, so the text sorts by time. A `Guid.NewGuid()`, version 4, is random from its first bit and has no such order.
 
 ```csharp
-using System.Security.Cryptography;
-using DynaSharp.Mapping;
-
 [DynamoDbEntity]
 [Discriminator("CHAT")]
 [PartitionKey("ROOM#{Room}")]
@@ -54,54 +49,35 @@ using DynaSharp.Mapping;
 public partial record ChatMessage
 {
     public required string Room { get; init; }
-    public required string Id { get; init; }
+    public required Guid Id { get; init; }
     public required string Text { get; init; }
-}
-
-public static class Ulid
-{
-    private const string Crockford = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-
-    // 48 bits of milliseconds in 10 characters, then 80 random bits in 16, in an alphabet that sorts like its values.
-    public static string New(DateTimeOffset at) => string.Create(26, Timestamp(at), static (text, timestamp) =>
-    {
-        timestamp.CopyTo(text);
-        for (var i = 10; i < 26; i++)
-        {
-            text[i] = Crockford[RandomNumberGenerator.GetInt32(32)];
-        }
-    });
-
-    public static string Timestamp(DateTimeOffset at) => string.Create(10, at.ToUnixTimeMilliseconds(), static (text, milliseconds) =>
-    {
-        for (var i = 9; i >= 0; i--, milliseconds >>= 5)
-        {
-            text[i] = Crockford[(int)(milliseconds & 31)];
-        }
-    });
 }
 ```
 
 ```csharp
 var messages = shop.Of<ChatMessage>();
-await messages.Put(new ChatMessage { Room = "ann", Id = Ulid.New(DateTimeOffset.UtcNow), Text = "Hello" }).SendAsync(ct);
+await messages.Put(new ChatMessage { Room = "ann", Id = Guid.CreateVersion7(), Text = "Hello" }).SendAsync(ct);
 
 var newest = await messages.Query(ChatMessage.Keys.Pk.Of("ann")).Descending().Limit(20).PageAsync(ct);
 ```
 
-A range of time is a range of the leading characters. The upper bound is the timestamp of the millisecond after the range, which sorts above every id before it and below every id of its own:
+A range of time is a range of ids. `Guid.FirstVersion7(at)` and `Guid.LastVersion7(at)` are the lowest and the highest id of the millisecond of `at`, so `Between` of the two takes both milliseconds whole:
 
 ```csharp
 var messages = shop.Of<ChatMessage>();
 var to = DateTimeOffset.UtcNow;
-var lastHour = SortKeyCondition.Between(Ulid.Timestamp(to.AddHours(-1)), Ulid.Timestamp(to.AddMilliseconds(1)));
+var lastHour = ChatMessage.Keys.Sk.Between(Guid.FirstVersion7(to.AddHours(-1)), Guid.LastVersion7(to));
 var recent = messages.Query(ChatMessage.Keys.Pk.Of("ann"), lastHour).ItemsAsync(ct);
+
+var since = messages.Query(ChatMessage.Keys.Pk.Of("ann"), ChatMessage.Keys.Sk.Ge(Guid.FirstVersion7(to.AddDays(-1)))).ItemsAsync(ct);
 ```
 
 Caveats:
 
 - `Descending()` is `ScanIndexForward=false`. `Limit(n)` is per page, see [Queries and scans](queries.md#query).
-- Within one millisecond the random part decides the order, and across machines the order is as good as their clocks.
+- Within one millisecond the random part decides the order, also on one machine, and across machines the order is as good as their clocks.
+- `Guid.CreateVersion7()` takes the clock of the machine, and `Guid.CreateVersion7(at)` a time from the caller, which a test or an import of old items sets.
+- A service that already has ULIDs keeps them in a `string`: they sort the same way, and the bounds of a millisecond are its 10 characters of time followed by sixteen `0` or sixteen `Z`.
 
 ## Write sharding
 

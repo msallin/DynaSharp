@@ -194,7 +194,7 @@ Caveats:
 
 ## Status-keyed index
 
-"My open items, oldest first": a global index over the owner, with the status and the age behind it in the sort key, reads that with one query.
+"My open items, oldest first": a global index over the owner, with the status and the age behind it in the sort key, reads that with one query. The age is the id: a [version-7 `Guid`](patterns-keys.md#newest-first-with-version-7-guid-sort-keys) starts with the time it was made.
 
 ```csharp
 public enum WorkStatus
@@ -207,13 +207,12 @@ public enum WorkStatus
 [Discriminator("WORK_ITEM")]
 [PartitionKey("ITEM#{Id}")]
 [SortKey("DATA")]
-[GlobalIndexKey("GSI1", PartitionKey = "OWNER#{Owner}", SortKey = "{Status}#{CreatedAt}")]
+[GlobalIndexKey("GSI1", PartitionKey = "OWNER#{Owner}", SortKey = "{Status}#{Id}")]
 public partial record WorkItem
 {
-    public required string Id { get; init; }
+    public required Guid Id { get; init; }
     public required string Owner { get; init; }
     public required WorkStatus Status { get; init; }
-    public required DateTimeOffset CreatedAt { get; init; }
 }
 ```
 
@@ -222,48 +221,51 @@ var items = shop.Of<WorkItem>();
 var open = items.Index(WorkItem.Indexes.Gsi1)
     .Query(WorkItem.Keys.Gsi1Pk.Of("ann"), WorkItem.Keys.Gsi1Sk.BeginsWith(WorkStatus.Open))
     .ItemsAsync(ct);
+
+var openedThisWeek = items.Index(WorkItem.Indexes.Gsi1)
+    .Query(WorkItem.Keys.Gsi1Pk.Of("ann"), WorkItem.Keys.Gsi1Sk.Between(WorkStatus.Open, Guid.FirstVersion7(DateTimeOffset.UtcNow.AddDays(-7)), Guid.LastVersion7(DateTimeOffset.UtcNow)))
+    .ItemsAsync(ct);
 ```
 
-A change of the status rewrites the sort key of the index, so the update sets every input of that key, also the time that did not change:
+A change of the status rewrites the sort key of the index. The other input of that key is the id, which the update knows from the key it was given, so the status is all that closing an item sets:
 
 ```csharp
 var items = shop.Of<WorkItem>();
-var item = await items.Get(WorkItem.Keys.Of("i1")).ItemAsync(ct);
-await items.Update(WorkItem.Keys.Of("i1"))
-    .Set(WorkItem.Attrs.Status, WorkStatus.Closed)
-    .Set(WorkItem.Attrs.CreatedAt, item!.CreatedAt)
-    .SendAsync(ct);
+var id = Guid.CreateVersion7();
+await items.Put(new WorkItem { Id = id, Owner = "ann", Status = WorkStatus.Open }).SendAsync(ct);
+
+await items.Update(WorkItem.Keys.Of(id)).Set(WorkItem.Attrs.Status, WorkStatus.Closed).IfExists().SendAsync(ct);
 ```
 
 Caveats:
 
-- An update that sets `Status` alone throws `InvalidOperationException`, which names `CreatedAt`, before anything is sent, rather than leave the index behind. A `Put` of the changed item writes the whole key.
+- DynamoDB cannot build a key from what an item holds, so an update brings every input of a key it changes. An input of the key of the table comes with the key; any other comes from the caller. With a time of its own, `{Status}#{CreatedAt}`, closing an item sets `CreatedAt` as well, to the value the item holds, which is a read before the write. The build reports an update without it as [`DYNA226`](diagnostics.md#commands), and the update throws `InvalidOperationException`, naming the `Set` to add, before anything is sent, rather than leave the index behind. A `Put` of the changed item writes the whole key.
 - A change of status moves the item in the index: DynamoDB deletes the old entry and writes a new one.
 
 ## Soft delete
 
-A deleted item stays, with a mark, and leaves a sparse index that lists what is live. Undo stays possible, and the lists need no filter.
+A deleted item stays, with a mark, and leaves a sparse index that lists what is live. Undo stays possible, and the lists need no filter. The owner of a note is in the key of the table as well as in the key of the index, which is what lets a restore set the time alone.
 
 ```csharp
 [DynamoDbEntity]
 [Discriminator("NOTE")]
-[PartitionKey("NOTE#{Id}")]
-[SortKey("DATA")]
+[PartitionKey("OWNER#{Owner}")]
+[SortKey("NOTE#{Id}")]
 [GlobalIndexKey("GSI2", PartitionKey = "OWNER#{Owner}", SortKey = "LIVE#{LiveSince}", Sparse = true)]
 public partial record Note
 {
-    public required string Id { get; init; }
     public required string Owner { get; init; }
+    public required string Id { get; init; }
     public DateTimeOffset? LiveSince { get; init; }
     public DateTimeOffset? DeletedAt { get; init; }
 }
 ```
 
-The delete sets the mark and removes an input of the index key, under a condition that keeps the time of the first delete:
+The delete sets the mark and removes an input of the index key, which takes the item out of the index, under a condition that keeps the time of the first delete:
 
 ```csharp
 var notes = shop.Of<Note>();
-await notes.Update(Note.Keys.Of("n1"))
+await notes.Update(Note.Keys.Of("ann", "n1"))
     .Set(Note.Attrs.DeletedAt, DateTimeOffset.UtcNow)
     .Remove(Note.Attrs.LiveSince)
     .If(Note.Attrs.DeletedAt.NotExists())
@@ -272,13 +274,13 @@ await notes.Update(Note.Keys.Of("n1"))
 var live = notes.Index(Note.Indexes.Gsi2).Query(Note.Keys.Gsi2Pk.Of("ann")).ItemsAsync(ct);
 ```
 
-A restore writes the key of the index again, from both of its inputs, also the owner that never changed:
+A restore writes both keys of the index again. The owner is in the key of the table, so the update has it, and the time is all that a restore sets:
 
 ```csharp
-await shop.Of<Note>().Update(Note.Keys.Of("n1"))
+await shop.Of<Note>().Update(Note.Keys.Of("ann", "n1"))
     .Remove(Note.Attrs.DeletedAt)
-    .Set(Note.Attrs.Owner, "ann")
     .Set(Note.Attrs.LiveSince, DateTimeOffset.UtcNow)
+    .IfExists()
     .SendAsync(ct);
 ```
 
@@ -286,3 +288,5 @@ Caveats:
 
 - The table knows nothing of the mark. A `Get` or a query of the table still finds a deleted item, so each reader there looks at `DeletedAt`.
 - A second delete fails its condition with `ConditionalCheckFailedException`.
+- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds, because DynamoDB cannot build a key from what an item holds and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands).
+- The index has the partition key of the table, so a local index would do as well, and read consistently, but DynamoDB creates a local index with its table or never.

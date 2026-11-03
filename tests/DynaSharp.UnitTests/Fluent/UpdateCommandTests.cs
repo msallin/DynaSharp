@@ -157,7 +157,9 @@ public sealed class UpdateCommandTests
         var tickets = fixture.Client.Table<Ticket>("Shop");
 
         // Act
+#pragma warning disable DYNA226 // The key is left half done on purpose.
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().SetIfNotNull(Ticket.Attrs.Owner, "ann").ToRequestJson());
+#pragma warning restore DYNA226
 
         // Assert
         await Assert.That(failure.Message).Contains("byownersk");

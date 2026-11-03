@@ -137,6 +137,14 @@ internal sealed class KeyInputChanges
     private static bool CanSet(IEnumerable<DynamoDbKeyInput> inputs, EntityWrites writes) =>
         inputs.All(input => input is { AttributeName: not null, ComputedFromAttributes: null } && !writes.IsTableKeyInput(input));
 
+    // DynamoDB has no expression that builds a string from attributes it holds, so the value of an input that does not change still comes from the caller. The calls name the
+    // handles as code does: "DynamoDB cannot build a key from what the item holds: add .Set(WorkItem.Attrs.CreatedAt, value) with the value the item holds".
+    private static string SetsToAdd(List<DynamoDbKeyInput> missing, EntityWrites writes)
+    {
+        var calls = string.Join(" and ", missing.Select(input => $".Set({writes.TypeName}.Attrs.{input.PropertyName}, value)"));
+        return $"DynamoDB cannot build a key from what the item holds: add {calls} with {(missing.Count == 1 ? "the value" : "the values")} the item holds";
+    }
+
     private void Check(DynamoDbKeyTemplate template, EntityWrites writes)
     {
         if (!Touches(template))
@@ -246,7 +254,7 @@ internal sealed class KeyInputChanges
         if (TemplateOf(attributeName, writes) is { } template && Has(template, KeyInputChange.Set) && !Produces(siblingName, state, writes))
         {
             var missing = TemplateOf(siblingName, writes) is { } sibling ? Missing(sibling, state, writes) : null;
-            var remedy = missing is not null && CanSet(missing, writes) ? "Set what that key is made of in the same update." : PutOrRawPath;
+            var remedy = missing is not null && CanSet(missing, writes) ? $"{SetsToAdd(missing, writes)}, so that it writes {siblingName} too." : PutOrRawPath;
             throw new InvalidOperationException(
                 $"This update of {writes.EntityName} sets {ListOf(template, static kind => kind == KeyInputChange.Set)}, of the key template {template.Text} of the sparse index {index.IndexName}, and does not produce {siblingName}, the other key of that index, so the item would silently stay out of it. {remedy}");
         }
@@ -282,7 +290,7 @@ internal sealed class KeyInputChanges
     private InvalidOperationException Stale(DynamoDbKeyTemplate template, CommandState state, EntityWrites writes)
     {
         var missing = Missing(template, state, writes);
-        var remedy = CanSet(missing, writes) ? "Set all of them, or use a raw path, which is not checked." : PutOrRawPath;
+        var remedy = CanSet(missing, writes) ? $"{SetsToAdd(missing, writes)}, or use a raw path, which is not checked." : PutOrRawPath;
         return new InvalidOperationException(
             $"This update of {writes.EntityName} sets {ListOf(template, static kind => kind == KeyInputChange.Set)}, and not {string.Join(", ", missing.Select(static input => input.PropertyName))}, of the key template {template.Text}, so the attribute {template.AttributeName} cannot be written and the index would go stale. {remedy}");
     }

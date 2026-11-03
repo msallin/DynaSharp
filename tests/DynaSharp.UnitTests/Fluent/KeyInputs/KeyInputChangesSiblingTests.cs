@@ -1,3 +1,5 @@
+// The run-time check of a key left half done is under test here, so the updates do on purpose what DYNA226 reports.
+#pragma warning disable DYNA226
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
 using static DynaSharp.UnitTests.Fluent.KeyInputChangesFixture;
@@ -33,7 +35,24 @@ public sealed class KeyInputChangesSiblingTests
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk,").And.Contains("stay out").And.Contains("Set what that key is made of");
+        await Assert.That(failure.Message).IsEqualTo(
+            "This update of DynaSharp.UnitTests.Fluent.Ticket sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk, the other key of that index, so the item would silently stay out of it. " +
+            "DynamoDB cannot build a key from what the item holds: add .Set(Ticket.Attrs.Due, value) with the value the item holds, so that it writes byownersk too.");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetOfOneKeyOfASparseIndexWhoseOtherHasTwoInputs_ThrowsNamingBothSets()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var claims = client.Table<Claim>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Agent, "ann").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).EndsWith("add .Set(Claim.Attrs.Floor, value) and .Set(Claim.Attrs.Desk, value) with the values the item holds, so that it writes byagentsk too.");
     }
 
     [Test]

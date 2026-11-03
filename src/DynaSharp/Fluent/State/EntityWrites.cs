@@ -23,6 +23,9 @@ internal sealed class EntityWrites
         _partitionKeyName = info.PartitionKeyName;
         _sortKeyName = info.SortKeyName;
         EntityName = entityName;
+
+        // Shop.Orders+Order goes by Order.
+        TypeName = entityName[(entityName.LastIndexOfAny(['.', '+']) + 1)..];
         VersionAttributeName = info.VersionAttributeName;
         AllowsMissingVersion = info.VersionMissing == VersionMissing.Allow;
         Templates = [.. info.KeyTemplates];
@@ -37,6 +40,9 @@ internal sealed class EntityWrites
 
     /// <summary>Gets the name of the entity, for messages.</summary>
     public string EntityName { get; }
+
+    /// <summary>Gets the name of the type without its namespace, as code names its handles: <c>Order</c> of <c>Order.Attrs.Total</c>.</summary>
+    public string TypeName { get; }
 
     /// <summary>Gets the attribute of the version, or <see langword="null"/> if the entity has none.</summary>
     public string? VersionAttributeName { get; }

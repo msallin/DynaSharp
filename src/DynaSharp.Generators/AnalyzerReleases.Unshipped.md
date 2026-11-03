@@ -36,3 +36,4 @@ DYNA222 | DynaSharp.Commands | Info | Filter on what a key holds in part
 DYNA223 | DynaSharp.Commands | Warning | Two actions on one path
 DYNA224 | DynaSharp.Commands | Warning | Key of another attribute
 DYNA225 | DynaSharp.Commands | Warning | Included entity has another key
+DYNA226 | DynaSharp.Commands | Warning | Index key without all its inputs

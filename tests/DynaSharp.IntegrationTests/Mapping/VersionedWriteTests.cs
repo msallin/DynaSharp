@@ -528,7 +528,9 @@ public sealed class VersionedWriteTests(Backend backend)
         await shop.Tickets.Put(NewTicket).SendAsync();
 
         // Act
+#pragma warning disable DYNA226 // The key is left half done on purpose.
         var failure = await Items.FailureOfAsync<InvalidOperationException>(async () => await shop.Tickets.Update(Key).Set(Ticket.Attrs.Owner, "ann").IfVersion(1).SendAsync());
+#pragma warning restore DYNA226
         var stored = await ReadAsync(shop);
 
         // Assert
@@ -576,7 +578,9 @@ public sealed class VersionedWriteTests(Backend backend)
         await shop.Tickets.Put(NewTicket).SendAsync();
 
         // Act
+#pragma warning disable DYNA226 // The key is left half done on purpose.
         var failure = await Items.FailureOfAsync<InvalidOperationException>(async () => await shop.Client.TransactWrite().Update(shop.Tickets, Key).Set(Ticket.Attrs.Due, Day).IfVersion(1).SendAsync());
+#pragma warning restore DYNA226
 
         // Assert
         await Assert.That((failure.Message.Contains("gsi2pk", StringComparison.Ordinal), (await ReadAsync(shop)).Due)).IsEqualTo((true, (DateOnly?)null));

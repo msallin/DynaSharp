@@ -24,8 +24,9 @@ public interface IUpdatable<TSelf>
     /// <remarks>
     /// <para>
     /// <b>Key templates.</b> The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be known: then the
-    /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and what is missing, because the index
-    /// would go stale. An input of a key of the table is known from the key the update was given, and it cannot be set, because DynamoDB cannot update a key. A key given as strings is parsed
+    /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and the <c>Set</c> calls to add, because the index
+    /// would go stale. DynamoDB cannot build a key from what an item holds, so an input that does not change is set as well, to the value the item holds. An input of a key of the table is known from
+    /// the key the update was given, and it cannot be set, because DynamoDB cannot update a key, so an index key that repeats it needs nothing more: that is the place for an input that never changes. A key given as strings is parsed
     /// for that, so a value that its text does not hold, such as a timestamp a key cuts off at the day, comes from a generated key or not at all: then use a <c>Put</c> of the changed entity,
     /// or a raw path. A write by handle to a property that a computed input is derived from, see <see cref="Mapping.ComputedFromAttribute"/>, also to a path inside it, throws in the same way, because no update can run a getter, and so does a write by handle to such a computed input itself.
     /// </para>

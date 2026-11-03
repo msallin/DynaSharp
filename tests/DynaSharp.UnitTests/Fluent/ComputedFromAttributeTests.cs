@@ -1,3 +1,5 @@
+// The run-time check of a key left half done is under test here, so some updates do on purpose what DYNA226 reports.
+#pragma warning disable DYNA226
 using DynaSharp.Fluent;
 using DynaSharp.Testing;
 

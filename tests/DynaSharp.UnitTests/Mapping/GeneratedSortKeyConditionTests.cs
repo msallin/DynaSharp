@@ -298,6 +298,33 @@ public sealed partial class GeneratedSortKeyConditionTests
     }
 
     [Test]
+    public async Task Between_Version7BoundsOfTwoMilliseconds_TakesTheIdsOfThoseMillisecondsAlone()
+    {
+        // Arrange (ids of four milliseconds in a row, a few each, and the range of the middle two)
+        var ids = Enumerable.Range(-1, 4).SelectMany(static step => Enumerable.Range(0, 50).Select(_ => (Step: step, Id: Guid.CreateVersion7(Noon.AddMilliseconds(step))))).ToList();
+
+        // Act
+        var condition = Render(Ledger.Keys.Sk.Between(Noon, Guid.FirstVersion7(Noon), Guid.LastVersion7(Noon.AddMilliseconds(1))));
+
+        // Assert
+        await Assert.That(ids.Where(id => condition.Holds(Ledger.Keys.Sk.Format(Noon, id.Id))).Select(static id => id.Step).Distinct()).IsEquivalentTo([0, 1]);
+    }
+
+    [Test]
+    public async Task OpenRanges_Version7Bounds_SplitTheIdsAtTheMillisecond()
+    {
+        // Arrange (Ge from a millisecond on, and Lt before it, have the same bound and no id in common)
+        var ids = Enumerable.Range(-1, 3).SelectMany(static step => Enumerable.Range(0, 50).Select(_ => (Step: step, Id: Guid.CreateVersion7(Noon.AddMilliseconds(step))))).ToList();
+
+        // Act
+        var (from, before) = (Render(Ledger.Keys.Sk.Ge(Noon, Guid.FirstVersion7(Noon))), Render(Ledger.Keys.Sk.Lt(Noon, Guid.FirstVersion7(Noon))));
+
+        // Assert
+        string Steps(Rendered condition) => string.Join(",", ids.Where(id => condition.Holds(Ledger.Keys.Sk.Format(Noon, id.Id))).Select(static id => id.Step).Distinct().Order());
+        await Assert.That((Steps(from), Steps(before))).IsEqualTo(("0,1", "-1"));
+    }
+
+    [Test]
     public async Task Ranges_TruncatedTimestamp_FollowTheBuckets()
     {
         // Arrange (a bucket is one key, so what is in the same minute counts as equal)

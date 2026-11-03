@@ -77,6 +77,7 @@ DYNA222 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA223 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA224 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA225 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA226 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -156,3 +157,4 @@ DYNA222 | Info | DynaSharp.Commands | Filter on what a key holds in part | '{0}'
 DYNA223 | Warning | DynaSharp.Commands | Two actions on one path | This {0} changes '{1}', and an earlier action of this update changes '{2}', so DynamoDB rejects the request for paths that overlap. Keep one action per path.
 DYNA224 | Warning | DynaSharp.Commands | Key of another attribute | {0} builds a key of the attribute {1}, and this query of {2} reads {3}, so {4}
 DYNA225 | Warning | DynaSharp.Commands | Included entity has another key | '{0}' has the key {1}, and '{2}' has {3}, so they cannot share a table and Including throws ArgumentException
+DYNA226 | Warning | DynaSharp.Commands | Index key without all its inputs | This update of '{0}' sets {1} and not {2}, so it cannot write the key {3} of the index {4} and throws when it is sent, because DynamoDB cannot build a key from what the item holds. {5}.
