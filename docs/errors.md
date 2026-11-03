@@ -1,6 +1,23 @@
 # Errors and retries
 
-The client retries what can pass on a second try and throws the rest. This page says what throws and what it carries, which failures are retried and how, where a retry can apply a write twice, how a timeout differs from a cancellation, and which IAM permissions each call needs. Every exception is in the namespace `DynaSharp`, so a `catch` needs no other `using`.
+The client retries what can pass on a second try and throws the rest. Every exception is in the namespace `DynaSharp`, so a `catch` needs no other `using`.
+
+```csharp
+try
+{
+    await orders.Put(order).IfNotExists().SendAsync(ct);
+}
+catch (ConditionalCheckFailedException)
+{
+    Console.WriteLine("The order exists already.");
+}
+catch (DynamoDbException exception) when (exception.IsTransient)
+{
+    Console.WriteLine("DynamoDB is busy. Try again later.");
+}
+```
+
+A failed condition is the answer of DynamoDB, and [`IsTransient`](#what-throws) says whether trying later can help. A timeout and a failure of the network are a `TimeoutException` and an `HttpRequestException`, not a `DynamoDbException`.
 
 ## What throws
 
@@ -27,7 +44,10 @@ Every error that DynamoDB returns is a `DynamoDbException` with `ErrorCode`, the
 | `ItemCollectionSizeLimitExceededException` | A partition of a table with a local index would grow past 10 GB | No | |
 | `ExpiredIteratorException`, `TrimmedDataAccessException` | A shard iterator of DynamoDB Streams is older than 15 minutes, or its records are gone | No | |
 
-`IsTransient`, on every `DynamoDbException`, says whether the same call can succeed later without any change, as `DbException.IsTransient` does for a database. It is true for every row retried above, any HTTP 500, 502, 503 or 504 included, and for `TransactionConflictException` and a `TransactionCanceledException` whose failed actions are all `TransactionConflict` or `Throttled`. Everything else is false: a failed condition, because the same call cannot pass unless the item changes, a rejected request, a missing table, access and token errors, and a code the client does not know. The client already retried what it retries, so true means that its attempts ran out: try later, not at once in a loop. `BatchIncompleteException` and `BatchGetIncompleteException<T>` are true when they gave up on their rounds or on a transient failure.
+`IsTransient`, on every `DynamoDbException`, says whether the same call can succeed later without any change, as `DbException.IsTransient` does for a database. The client already retried what it retries, so true means that its attempts ran out: try later, not at once in a loop.
+
+- **True:** every row retried above, any HTTP 500, 502, 503 or 504 included, `TransactionConflictException`, and a `TransactionCanceledException` whose failed actions are all `TransactionConflict` or `Throttled`. `BatchIncompleteException` and `BatchGetIncompleteException<T>` are true when they gave up on their rounds or on a transient failure.
+- **False:** everything else. That is a failed condition, because the same call cannot pass unless the item changes, a rejected request, a missing table, access and token errors, and a code the client does not know.
 
 The client throws these itself:
 
@@ -36,22 +56,15 @@ The client throws these itself:
 | `TimeoutException` | An attempt ran past `AttemptTimeout`. It is retried, and surfaces after the last attempt | |
 | `HttpRequestException` | The network failed. It is retried, except a response above 64 MB, whose `HttpRequestError` is `ConfigurationLimitExceeded` | |
 | `OperationCanceledException` | The caller's `CancellationToken` was cancelled. Never retried | |
-| `CredentialsUnavailableException` | No source of credentials applies, or one that applies is broken. Never retried | |
-| `CredentialsUnavailableException` from the environment | `AWS_ACCESS_KEY_ID` is set without `AWS_SECRET_ACCESS_KEY`, `AWS_CREDENTIAL_EXPIRATION` is not an ISO 8601 time, or that time has passed and the variables were not renewed. The message names the variable | |
-| `CredentialsUnavailableException` from a `credential_process` | The program of the profile could not be started, ran past 20 seconds, wrote more than 64 KB, exited with another code than 0, or wrote no valid credentials. The message names the profile and the exit code and leaves out what the program wrote: run the command in a shell to see it | |
-| `CredentialsUnavailableException` from assuming a role | STS refused `AssumeRole` (the message says `STS did not let the source credentials assume the role ...` and names the code, such as `AccessDenied` for a trust policy that does not allow the source), the source has no credentials, or the profile of the role is configured wrongly: no `source_profile` or `credential_source`, both, a source profile that does not exist or has no credentials, a loop of profiles, an unknown `credential_source`, `mfa_serial`, or a `duration_seconds` outside 900 to 43200. The message names the profile and the setting | |
-| `CredentialsUnavailableException` from SSO | The cached token of `aws sso login` is missing, malformed or expired and could not be renewed, or the portal rejected it (`UnauthorizedException`), which says to run `aws sso login --profile ...`; the portal does not give the user the role (`ForbiddenException`, `ResourceNotFoundException`); or the profile is configured wrongly: an `sso_session` that does not exist, a setting that differs between the profile and its `sso-session`, a missing `sso_start_url`, `sso_region`, `sso_account_id` or `sso_role_name`. The message names the profile or the session | |
-| `CredentialsUnavailableException` from STS's `InvalidClientTokenId` | STS refused the `AssumeRoleWithWebIdentity` call of the web identity provider with that code, and the message says `STS rejected the web identity token with InvalidClientTokenId`. The provider tries again only on `IDPCommunicationError`, `Throttling`, HTTP 429 or 5xx and a failure of the network, so it gives up at once, and the client never retries the exception | |
+| `CredentialsUnavailableException` | No source of credentials applies, or one that applies is broken. Never retried. [When credentials fail](credentials.md#when-credentials-fail) says what each source reports | |
 | `BatchIncompleteException` | A batch write gave up, after its own resends, see [Batches](#batches) | `UnprocessedItems` and `Written`, and the failure as `InnerException`. Its `ErrorCode` is `BatchIncomplete` |
 | `BatchGetIncompleteException<T>` | A batch get gave up | `UnprocessedKeys` and the `Items` read so far |
 | `TableNotActiveException` | A wait for a table ran out, or `CreateTable()` found a table without an index it declares. It is a `TimeoutException` | `TableName`, `LastStatus` and `PendingIndex` |
-| `DynamoDbMappingException` | An item does not fit its type: a `required` attribute is missing, a value cannot be read, or the item is of another type. DynamoDB did its part, so it is never retried, and an update that throws it has been applied. A query or scan with `OnMappingFailure` skips such an item and hands this to a callback, see [Queries](queries.md#items-that-do-not-fit) | `EntityType`, `AttributeName` and `Key` |
+| `DynamoDbMappingException` | An item does not fit its type: a `required` attribute is missing, a value cannot be read, or the item is of another type. DynamoDB did its part, so it is never retried, and an update that throws it has been applied. A query or scan with `OnMappingFailure` skips such an item and hands this to a callback, see [Queries](queries.md#skip-items-that-fail-to-map) | `EntityType`, `AttributeName` and `Key` |
 | `KeyFormatException` | A value cannot be part of a key, see [Generated code](generated-code.md#keysof-and-keystryof). It is an `ArgumentException` | `ParamName`, the placeholder |
 | `ArgumentException` | A key of `Table<Item>` is empty, an index is not declared by the entity, a fan-out repeats a partition key | |
 | `InvalidOperationException` | The chain itself is wrong: a command used twice, a `[Version]` rule, `Value` of a `SelectResult` without an item | |
 | `FormatException` | `ContinuationToken.Parse` got text that is no token of this version, or `PageAsync` got a token that does not fit `TokenSigner`: a signature that does not hold for this query or key, a plain token on a client that signs, a signed one on a client that does not, see [Queries](queries.md#paging-for-web-apis). The message quotes nothing of the token | |
-
-No retry fixes `AccessDeniedException`, `UnrecognizedClientException`, `InvalidSignatureException` beyond the correction of the clock, `MissingAuthenticationTokenException`, `ValidationException` and `CredentialsUnavailableException`: the same request with the same credentials fails the same way until the credentials, the policy, the configuration or the code change.
 
 No message names a key or a value. `Key`, `Item`, `UnprocessedItems`, `UnprocessedKeys` and `Items` hold your data, so what code does with them is its own decision, and the client logs none of it.
 
@@ -118,7 +131,7 @@ catch (OperationCanceledException) when (!ct.IsCancellationRequested)
 }
 ```
 
-Neither tells whether a write was applied, see [above](#where-a-retry-applies-a-write-twice). A wait for a table has a timeout of its own, `WaitUntilActive(timeout)`, which surfaces as `TableNotActiveException` with what the table was doing. A token on the same time races it and gives a bare `OperationCanceledException`, which names no table, so give the wait less time than the token.
+Neither tells whether a write was applied, see [above](#where-a-retry-applies-a-write-twice). A wait for a table has a timeout of its own, see [A table that exists](tables.md#a-table-that-exists).
 
 ## What a call needs
 
@@ -172,4 +185,4 @@ An index has an ARN of its own, so a policy on the table alone lets no query rea
 
 A program that never calls `CreateTable()` leaves out `dynamodb:CreateTable`, `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`. It keeps `dynamodb:DescribeTable` only if it waits for the table or describes it, with `WaitUntilActiveAsync` or `DescribeAsync`.
 
-**IRSA on EKS.** The web identity provider exchanges the token of the pod for credentials with `AssumeRoleWithWebIdentity`, a call that is not signed. So no policy of the pod grants it: the trust policy of the role does, by allowing `sts:AssumeRoleWithWebIdentity` to the OIDC provider of the cluster, with a condition on the service account in `sub` and on `sts.amazonaws.com` in `aud`. EKS Pod Identity goes through the container endpoint instead, and its role trusts `pods.eks.amazonaws.com` with `sts:AssumeRole` and `sts:TagSession`. [Getting started](getting-started.md#credentials) says how the client finds the token.
+**IRSA on EKS.** The web identity provider exchanges the token of the pod for credentials with `AssumeRoleWithWebIdentity`, a call that is not signed. So no policy of the pod grants it: the trust policy of the role does, by allowing `sts:AssumeRoleWithWebIdentity` to the OIDC provider of the cluster, with a condition on the service account in `sub` and on `sts.amazonaws.com` in `aud`. EKS Pod Identity goes through the container endpoint instead, and its role trusts `pods.eks.amazonaws.com` with `sts:AssumeRole` and `sts:TagSession`. [Use IRSA on EKS](credentials.md#use-irsa-on-eks) says how the client finds the token.

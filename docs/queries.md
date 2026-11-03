@@ -22,8 +22,6 @@ await foreach (var order in bigOrders)
 
 `BeginsWith(value)` fills the leading fields as the template formats them, so a day under `{At:yyyy-MM}` is the month.
 
-A file that works on one entity can shorten this with `using Attrs = Shop.Order.Attrs;` at the top, and write `Attrs.Total.Gt(100m)`.
-
 A filter can also be text, as in `.Filter($"{Order.Attrs.Total} > {100}")`, where a handle in a hole stands for the name. Text takes a bare name as it is, so DynamoDB rejects a reserved word such as `Total` or `Value` (`DYNA220`), where `Attrs` needs no care, and a bare name the entity does not have is `DYNA213`.
 
 `Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is, and it stops reading once it has them:
@@ -37,7 +35,17 @@ var firstTen = orders.Query(Order.Keys.Pk.Of("alice"))
 
 ## Sort key conditions
 
-The builder of a sort key writes the condition from values, as the template formats them, so nobody puts a prefix and an upper bound together by hand. `BeginsWith(leading...)` reads everything under the fields it is given, and `BeginsWith()` everything of the template. `Between(leading..., from, to)` varies one field, keeps the fields before it equal, and includes both ends, all keys at `to` among them. `Range` is the same without the keys at `to`, for `[from, to)`. It exists only where something follows the field in the template. Where the field is the last part of the key, use `Between` and pass the value one step before `to`, as in [Time ranges](#time-ranges). `Ge`, `Gt`, `Le` and `Lt` have one end, so they can reach keys of other templates; a typed read drops the items that are not its type. A builder has only the conditions that are right for its template, see [Generated code](generated-code.md#a-sort-key-of-a-template), and `SortKeyCondition` takes text that is at hand already.
+The builder of a sort key writes the condition from values, as the template formats them, so nobody puts a prefix and an upper bound together by hand.
+
+| Condition | Reads |
+|---|---|
+| `BeginsWith()` | Every key of the template |
+| `BeginsWith(leading...)` | Every key under the leading fields it is given |
+| `Between(leading..., from, to)` | One field from `from` to `to`, both ends included, all keys at `to` among them, with the fields before it equal |
+| `Range(leading..., from, to)` | The same without the keys at `to`, for `[from, to)`. It exists only where something follows the field in the template. Where the field is the last part of the key, use `Between` and pass the value one step before `to`, as in [Time ranges](#time-ranges) |
+| `Ge`, `Gt`, `Le`, `Lt` | One end only, so they can reach keys of other templates. A typed read drops the items that are not its type |
+
+A builder has only the conditions that are right for its template, see [Generated code](generated-code.md#a-sort-key-of-a-template). `SortKeyCondition` takes text that is at hand already.
 
 ### Time ranges
 
@@ -116,7 +124,7 @@ await foreach (var order in byStatus.Query(open).Descending().ItemsAsync(ct))
 }
 ```
 
-## Items that do not fit
+## Skip items that fail to map
 
 An item that its type cannot read, such as one with an enum value a newer deployment wrote, ends the read with `DynamoDbMappingException`, which names the attribute and holds the key of the item in `Key`. That is the default, because such an item is a bug of the model or of a writer. `OnMappingFailure` skips it instead and hands the exception to a callback, which decides what to do with the key:
 
@@ -168,6 +176,14 @@ using var signing = new DynamoDbClient(new DynamoDbClientOptions
 });
 ```
 
-Each `Next` of that client is then signed with HMAC-SHA256 over the token and over the table, the index and the key condition of the query, and for a fan-out the list of partitions. `PageAsync` checks the signature before a request goes out, and throws `FormatException` for a token that was edited or made up, one of another query, or one without a signature. The message quotes nothing of the token, so a web handler can return it as a bad request. The filter, the projection, `Limit` and the direction are not part of the signature, so a client can change its page size between pages. Signing does not hide the key values.
+- **Signed:** each `Next` of that client, with HMAC-SHA256 over the token and over the table, the index and the key condition of the query, and for a fan-out the list of partitions. The filter, the projection, `Limit` and the direction are not part of the signature, so a client can change its page size between pages.
+- **Checked:** by `PageAsync`, before a request goes out. A token that was edited or made up, one of another query, or one without a signature throws `FormatException`. The message quotes nothing of the token, so a web handler can return it as a bad request.
+- **Not hidden:** signing does not hide the key values.
 
-A key is 32 random bytes or more, for example `RandomNumberGenerator.GetBytes(32)`, and every instance of the service holds the same keys. To rotate, pass the new key after the current one on every instance, then move it to the front, and drop the old one once its tokens are no longer in use: the first key signs, and every key is tried to check. A client without a signer rejects a signed token, and one with a signer rejects a plain token that came as text, so clients start their read again once when signing is switched on. A token from `ContinuationToken.FromKey` is built by the service itself and goes through either way.
+A key is 32 random bytes or more, for example `RandomNumberGenerator.GetBytes(32)`, and every instance of the service holds the same keys. The first key signs, and every key is tried to check. To rotate:
+
+1. Pass the new key after the current one, on every instance.
+2. Move it to the front.
+3. Drop the old one once its tokens are no longer in use.
+
+A client without a signer rejects a signed token, and one with a signer rejects a plain token that came as text, so clients start their read again once when signing is switched on. A token from `ContinuationToken.FromKey` is built by the service itself and goes through either way.

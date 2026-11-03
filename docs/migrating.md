@@ -1,6 +1,6 @@
 # Migrating
 
-DynaSharp has no context that loads and saves objects. A table takes commands named after DynamoDB's operations, and each is sent where its chain ends. This page maps the verbs first, then what changes for code and for stored data coming from the AWS SDK's `DynamoDBContext` or from EfficientDynamoDb. A table that other code wrote keeps working under the rules of [Adopting an existing table](adopting.md).
+DynaSharp has no context that loads and saves objects. A table takes commands named after DynamoDB's operations, and each is sent where its chain ends. A table that other code wrote keeps working under the rules of [Adopting an existing table](adopting.md).
 
 `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
 
@@ -143,8 +143,8 @@ public partial record Shipment
 | A region found in EC2 instance metadata. | `AWS_REGION`, or `Region` in the options. DynaSharp does not ask the metadata service, see [Region](getting-started.md#region). |
 | A mock of `IDynamoDBContext` or `IAmazonDynamoDB`. | `StubClient.Create(stub)` over a `StubHandler`, which fakes the wire, and `StubSts` for the way through STS. See [Testing](testing.md). |
 
-- **Key ranges.** `Between` and `Range` take values and not strings. `Range` exists only when something follows the field in the template. Where the field is the last part of the key, use `Between` and pass the value one step before `to`, such as `to.AddMilliseconds(-1)` under `{At:ms}`.
-- **Creating the table.** `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. For a table that lacks an index, see [Adding an index](tables.md#adding-an-index).
+- **Key ranges.** `Between` and `Range` take values and not strings, see [Sort key conditions](queries.md#sort-key-conditions). Under `{At:ms}`, the value one step before `to` is `to.AddMilliseconds(-1)`.
+- **Creating the table.** See [Creating a table](tables.md#creating-a-table), and [Adding an index](tables.md#adding-an-index) for a table that lacks an index.
 
 ## From EfficientDynamoDb
 
@@ -161,6 +161,6 @@ DynaSharp is an alternative to EfficientDynamoDb, and shares its aim: UTF-8 on t
 | `UpdateItem<Order>().WithPrimaryKey(pk, sk).On(x => x.Total).Assign(10m).ExecuteAsync()` | `orders.Update(Order.Keys.Of(id, number)).Set(Order.Attrs.Total, 10m).SendAsync(ct)`. |
 | `TransactWrite().WithItems(Transact.PutItem(order), ...)` | `client.TransactWrite().Put(orders, order)`, with one step per action, see [Transactions and batches](transactions.md). |
 | `context.LowLevel` with a `Document` | The request API of `DynaSharp.Requests`, or a `Table<Item>`, see [API levels](api-levels.md). |
-| `DynamoDbContextConfig` with a `RegionEndpoint` and `AwsCredentials` | `DynamoDbClientOptions` with `Region` and `Credentials`, or nothing, and the environment, see [Getting started](getting-started.md#creating-the-client). |
+| `DynamoDbContextConfig` with a `RegionEndpoint` and `AwsCredentials` | `DynamoDbClientOptions` with `Region` and `Credentials`, or nothing, and the environment, see [Getting started](getting-started.md#configure-the-client). |
 
 The stored formats of the two clients differ in places. Capture items that EfficientDynamoDb wrote and compare them, attribute by attribute, with what `ToRequestJson()` of DynaSharp sends, as for the AWS SDK above. A converter covers each difference, and the [rules for a table that exists](adopting.md) cover items without `_type` or a version.

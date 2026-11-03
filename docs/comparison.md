@@ -27,7 +27,7 @@ The versions compared are AWSSDK.DynamoDBv2 4.0.109 with AWSSDK.Core 4.0.102.12,
 | Creating a table from the model | `CreateTable()`, with the indexes the entities declare | No, the low-level client only | No |
 | DynamoDB Streams | `DynamoDbStreamsClient`, in the package | A client in another package | No |
 | Time to live in seconds | `EpochSecondsConverter` | `StoreAsEpochLong` | No built-in converter |
-| Credentials | Environment, web identity (IRSA), profiles with keys, ECS and EKS Pod Identity, EC2 | All of those, plus SSO, assume role and `credential_process`; SSO and assume role need further AWS packages at run time | Keys you pass, or a provider of your own; the chain of the AWS SDK through the package EfficientDynamoDb.Credentials.AWSSDK, from its docs |
+| Credentials | Environment, web identity (IRSA), profiles with keys, assume role, SSO and `credential_process`, ECS and EKS Pod Identity, EC2 | The same; SSO and assume role need further AWS packages at run time | Keys you pass, or a provider of your own; the chain of the AWS SDK through the package EfficientDynamoDb.Credentials.AWSSDK, from its docs |
 | Retries | Attempts and a timeout per attempt for the client, attempts per command | Standard and adaptive retry modes, number of retries | A strategy per kind of error |
 | Telemetry | `ActivitySource` and `Meter` named `DynaSharp`, logs through `ILoggerFactory` | An SDK telemetry provider, no-op unless one is set | None |
 | Compile-time checks | Analyzers for entities, keys, commands and expressions | Analyzers for values of the low-level request types | None |
@@ -44,7 +44,7 @@ What the other two have, or what you may look for, and DynaSharp does not do:
 - **Older .NET.** It targets .NET 11 only.
 - **A class hierarchy in one table.** Several types are separate entities with a discriminator each, read together through `Of<A, B>()`, not derived classes of one base.
 - **Interfaces to mock.** The client and the tables are sealed classes. A test fakes the wire with `DynaSharp.Testing` instead, see [Testing](testing.md).
-- **SSO, assume role and `credential_process`.** Neither is web identity through the profile keys `web_identity_token_file` and `role_arn`. See [Credentials](getting-started.md#credentials).
+- **MFA in a profile.** A profile with `mfa_serial` fails, because the code of the device would be needed at every refresh. See [Assume a role](credentials.md#assume-a-role).
 - **PartiQL, DAX and vector search.** The AWS SDK has PartiQL on its low-level client and `SearchVectorsAsync` on the context.
 - **Every control-plane operation as a type.** The request API covers 17 operations, the item operations and table administration such as `CreateTable`, `UpdateTable` and time to live. Backups, exports, tags and global tables go through `SendRawAsync` with the JSON of the operation, see [API levels](api-levels.md).
 - **A non-throwing mode.** A failure is an exception; EfficientDynamoDb can return a result with the error instead.

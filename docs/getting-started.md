@@ -1,6 +1,6 @@
 # Getting started
 
-DynaSharp is a DynamoDB client for .NET: items are mapped by a source generator, requests go straight to the wire as UTF-8, and the API speaks DynamoDB. This page installs it, runs a first program against a local emulator, introduces the shop that the rest of the guide uses, and says where region and credentials come from. New to DynamoDB? [DynamoDB in short](glossary.md) explains the terms.
+Install DynaSharp, run a first program against a local emulator, and meet the shop that the rest of the guide uses. New to DynamoDB? [DynamoDB in short](glossary.md) explains the terms.
 
 ## Installation
 
@@ -11,34 +11,7 @@ dotnet add package DynaSharp
 dotnet add package DynaSharp.Testing   # in a test project
 ```
 
-## Creating the client
-
-All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them.
-
-```csharp
-using DynaSharp;
-
-using var client = new DynamoDbClient();
-```
-
-Every setting can be given explicitly:
-
-```csharp
-using DynaSharp;
-using DynaSharp.Credentials;
-
-using var client = new DynamoDbClient(new DynamoDbClientOptions
-{
-    Region = AwsRegion.FromName("eu-central-1"),
-    Credentials = new ProfileCredentialsProvider("shop"),
-    MaxAttempts = 4,
-    AttemptTimeout = TimeSpan.FromSeconds(30),
-});
-```
-
-`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging. A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
-
-## Running locally
+## Run a local emulator
 
 The repository has two emulators ready in [`samples/compose.yaml`](https://github.com/msallin/DynaSharp/blob/main/samples/compose.yaml): Dynoxide, a native emulator that starts in milliseconds, and DynamoDB Local, the emulator of AWS, in memory and with one database for all credentials and regions.
 
@@ -62,7 +35,8 @@ The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http
 
 An http endpoint on another host, such as `http://dynamodb-local:8000` in a compose network, works the same. The requests and the session token then travel unencrypted, and the client logs a warning once (event 9, see [Observability](observability.md#logs)).
 
-DynamoDB Local runs [time to live](glossary.md#time-to-live-ttl): its sweeper deletes items whose expiry attribute holds a past date, which looks like a read that finds nothing. Give test data dates in the future, or turn time to live off for such a test.
+> [!TIP]
+> DynamoDB Local runs [time to live](glossary.md#time-to-live-ttl): its sweeper deletes items whose expiry attribute holds a past date, which looks like a read that finds nothing. Give test data dates in the future, or turn time to live off for such a test.
 
 ## A first program
 
@@ -122,6 +96,33 @@ What happens:
 - **The table.** Opening a table makes no request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
 - **The commands.** Every chain ends in the terminal that sends it. A `Put` replaces the whole item, `ItemAsync` gives null when there is none, and `ItemsAsync` follows the pages of the `Query` for you. The terminals take a `CancellationToken`. [Reading and writing](commands.md) and [Queries and scans](queries.md) go on from here.
 
+## Configure the client
+
+All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them, see [Region](#region) and [Credentials](#credentials).
+
+```csharp
+using DynaSharp;
+
+using var client = new DynamoDbClient();
+```
+
+Every setting can be given explicitly:
+
+```csharp
+using DynaSharp;
+using DynaSharp.Credentials;
+
+using var client = new DynamoDbClient(new DynamoDbClientOptions
+{
+    Region = AwsRegion.FromName("eu-central-1"),
+    Credentials = new ProfileCredentialsProvider("shop"),
+    MaxAttempts = 4,
+    AttemptTimeout = TimeSpan.FromSeconds(30),
+});
+```
+
+`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging. A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
+
 ## The shop
 
 The rest of the guide uses a small online shop, all of it in one table named `Shop`. Its types are in [`ShopModel.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/ShopModel.cs) of the sample: `Product`, `Customer`, `Order`, `Cart` and `EmailClaim`, with `Address` and `OrderLine` as documents inside them. Where a page uses `orders`, `customers` or `shop`, they are these:
@@ -161,7 +162,11 @@ The [sample](https://github.com/msallin/DynaSharp/tree/main/samples) runs all of
 
 ## In a service
 
-In ASP.NET Core or any other host, register the client as a singleton, so that its pooled connections and cached credentials live as long as the process. The tables go into a singleton of their own, since a table is a small immutable object and opening one makes no request. `LoggerFactory` from the container lets the client log what happens outside a single request, such as where the credentials came from and a refresh that failed. The container disposes the client it created when the host stops. A table that the service creates at the start fits an `IHostedService`, whose `StartAsync` the host runs before the server takes requests, and whose failure stops the host:
+In ASP.NET Core or any other host, register the client as a singleton, so that its pooled connections and cached credentials live as long as the process. The container disposes it when the host stops.
+
+- Put the tables in a singleton of their own. A table is small and immutable, and opening one makes no request.
+- Pass `LoggerFactory` from the container, so the client can log what happens outside a single request, such as where the credentials came from and a refresh that failed.
+- Create the table in an `IHostedService`. The host runs its `StartAsync` before the server takes requests, and a failure stops the host:
 
 ```csharp
 using DynaSharp;
@@ -196,15 +201,20 @@ public static class ShopServices
 }
 ```
 
-`builder.Services.AddShop()` in `Program.cs` registers it, and an endpoint or a class takes `ShopTables` like any other service. A second client with other settings starts from the options of the first, as `new DynamoDbClient(client.Options with { MaxAttempts = 1 })` for writes that must not be retried, and shares its credentials provider and with it the cached credentials. Register it as a keyed singleton, with `AddKeyedSingleton`, so that both can be injected.
+Call `builder.Services.AddShop()` in `Program.cs`, and inject `ShopTables` like any other service.
+
+For a second client with other settings, such as one for writes that must not be retried, start from the options of the first: `new DynamoDbClient(client.Options with { MaxAttempts = 1 })`. It shares the credentials provider and with it the cached credentials. Register it with `AddKeyedSingleton`, so that both can be injected.
 
 ## Native AOT
 
-DynaSharp uses no reflection and no code generation at run time: the mapping comes from the source generator, so an application with `<PublishAot>true</PublishAot>` publishes as usual, `dotnet publish -c Release -r linux-x64`, and needs nothing else for DynaSharp. Native AOT compiles for the operating system it runs on, and on Windows it needs the C++ workload of Visual Studio (Desktop development with C++), which brings the native linker. [`tests/DynaSharp.AotSmoke`](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.AotSmoke) is the proof: CI publishes it with Native AOT, where any trim or AOT warning fails the publish, and runs it, through reads, writes, errors, converters and telemetry.
+An application with `<PublishAot>true</PublishAot>` publishes as usual, `dotnet publish -c Release -r linux-x64`. DynaSharp needs nothing extra, because the mapping comes from the source generator and nothing is reflected or generated at run time.
+
+- Native AOT compiles for the operating system it runs on. On Windows it needs the Visual Studio workload "Desktop development with C++", which brings the native linker.
+- CI publishes [`tests/DynaSharp.AotSmoke`](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.AotSmoke) with Native AOT, where any trim or AOT warning fails the publish, and runs it through reads, writes, errors, converters and telemetry.
 
 ## Region
 
-Without `Region`, the client reads `AWS_REGION`, then `AWS_DEFAULT_REGION`, then the `region` setting of the profile in the shared AWS files. The region is required even for an emulator, because it is part of the request signature. For the endpoint of an emulator, see [Running locally](#running-locally).
+Without `Region`, the client reads `AWS_REGION`, then `AWS_DEFAULT_REGION`, then the `region` setting of the profile in the shared AWS files. The region is required even for an emulator, because it is part of the request signature. For the endpoint of an emulator, see [Run a local emulator](#run-a-local-emulator).
 
 ## Credentials
 
@@ -216,76 +226,9 @@ Without `Credentials`, the client uses the default chain of the AWS SDKs and tak
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 
-A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `AssumeRoleCredentialsProvider`, `SsoCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`. To test the way through STS without AWS, `StubSts` of `DynaSharp.Testing` stands in for it on a port of the machine.
+A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `AssumeRoleCredentialsProvider`, `SsoCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`.
 
-[IRSA](glossary.md#irsa) on EKS is the second source:
-
-- **Setup:** IRSA sets `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN` in the pod, so `new DynamoDbClient()` needs only a [region](#region) on top.
-- **Exchange:** the client trades the token for credentials at STS with `AssumeRoleWithWebIdentity`, and renews them before they expire.
-- **Rotation:** it reads the token file again for each exchange, because the kubelet replaces it.
-- **Other issuers:** any other OpenID Connect issuer that the account trusts takes the same request.
-A profile with `credential_process` gets its credentials from a program, as the AWS CLI does:
-
-```ini
-[profile vault]
-credential_process = /usr/local/bin/vault-creds --account prod
-```
-
-- **Start:** the setting is split into the program and its arguments, on Windows by the rules of the C runtime and elsewhere like a POSIX shell, and the program starts without a shell, so a pipe or a redirection needs `sh -c '...'` or `cmd /c ...` in the setting.
-- **Output:** the program writes `{"Version": 1, "AccessKeyId": ..., "SecretAccessKey": ..., "SessionToken": ..., "Expiration": ...}` and exits with code 0. `SessionToken` and `Expiration` are optional.
-- **Refresh:** credentials with an `Expiration` are fetched again before it, by running the program again.
-- **Limits:** the program gets no input and 20 seconds, and is stopped with what it started after that.
-- **Secrets:** what the program writes, to standard output and to standard error, appears in no message and no log. A failure names the profile and the exit code.
-
-A profile with `role_arn` assumes that role at STS, with the credentials of its `source_profile` or of its `credential_source` (`Environment`, `Ec2InstanceMetadata` or `EcsContainer`), as the AWS CLI does:
-
-```ini
-[profile prod]
-role_arn = arn:aws:iam::123456789012:role/orders
-source_profile = dev
-role_session_name = alice
-duration_seconds = 3600
-
-[profile dev]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
-```
-
-- **Chains:** a source profile that has a `role_arn` and no keys assumes its own role first, so roles chain. A profile that comes back fails as a loop, unless a profile names itself and has static keys.
-- **Region:** STS is asked in the region of the client, otherwise in `AWS_REGION`, `AWS_DEFAULT_REGION` or the `region` of the profile. `AWS_ENDPOINT_URL_STS` and `AWS_STS_REGIONAL_ENDPOINTS` work as for IRSA.
-- **Refresh:** the session is renewed before it expires, by assuming the role again.
-- **MFA:** a profile with `mfa_serial` fails, because the code of the device would be needed at every refresh.
-- **Web identity:** `web_identity_token_file` with `role_arn` in a profile federates like IRSA, with the token of that file.
-
-`AssumeRoleCredentialsProvider` does the same in code, over any other provider:
-
-```csharp
-var credentials = new AssumeRoleCredentialsProvider(
-    new ProfileCredentialsProvider("dev"),
-    "arn:aws:iam::123456789012:role/orders",
-    "alice",
-    new AssumeRoleOptions { Region = AwsRegion.FromName("eu-central-2"), Duration = TimeSpan.FromHours(1) });
-using var orders = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("eu-central-2"), Credentials = credentials });
-```
-
-A profile of AWS IAM Identity Center (SSO), as `aws configure sso` writes it, gets the credentials of its permission set from the portal, with the token that `aws sso login` cached:
-
-```ini
-[profile dev]
-sso_session = corp
-sso_account_id = 123456789012
-sso_role_name = ReadOnly
-
-[sso-session corp]
-sso_start_url = https://corp.awsapps.com/start
-sso_region = eu-west-1
-```
-
-- **Token:** read from `~/.aws/sso/cache/`, at every refresh of the credentials, so a new `aws sso login` takes effect without a restart.
-- **Refresh:** a token of an `sso-session` is renewed with its refresh token in its last 15 minutes and written back to the cache, as the AWS CLI does. The older form with `sso_start_url` and `sso_region` in the profile works too, without the renewal.
-- **Sign-in:** when the token is missing or has expired, the error says to run `aws sso login --profile dev`.
-
-`SsoCredentialsProvider` does the same in code: `new SsoCredentialsProvider("https://corp.awsapps.com/start", AwsRegion.FromName("eu-west-1"), "123456789012", "ReadOnly", "corp")`.
+[Credentials](credentials.md) covers IRSA, a `credential_process`, an assumed role and IAM Identity Center (SSO), and what fails when a source is broken.
 
 ## Next steps
 

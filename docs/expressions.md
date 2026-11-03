@@ -46,6 +46,16 @@ await shop.Update("CUSTOMER#alice", "PROFILE")
 
 A value in a hole is an `AttributeValue`, a number or `handle.Value(x)`, which writes `x` through the converter of the handle. A string in a hole is a value too, so a name needs `Attr`. Every name becomes a placeholder and equal values share one, so reserved words need no care in a hole. A name written into the text itself, as in `.Filter($"Total > {100}")`, is taken as it is, so DynamoDB rejects a reserved word such as `Value` there, and no name in the text is checked against the attributes of the entity.
 
+## Projections
+
+`Project(...)` reads only the attributes it names, as handles or as paths, and a second call adds to the first. It saves bandwidth, not capacity: DynamoDB charges for the whole item. A typed read needs the keys and the discriminator, which join the projection on their own, and every other attribute the entity requires, so a projection suits a `Table<Item>` most:
+
+```csharp
+Item? contact = await shop.Get("CUSTOMER#alice", "PROFILE").Project("Name", "Email").ItemAsync(ct);
+```
+
+`Select(handle)` reads a single attribute of an entity as its value, see [What a call returns](commands.md#what-a-call-returns).
+
 ## What the build checks
 
 The analyzers read a constant expression as DynamoDB would: a string where the grammar wants a name, placeholders of your own, a broken grammar, a path that names nothing on the type or is no path, a handle of another type, and `begins_with` or `contains` on a number. [Expressions](diagnostics.md#expressions) on the diagnostics page lists the rules, `DYNA210` to `DYNA216`, and what to write instead.

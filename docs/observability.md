@@ -62,7 +62,7 @@ Each request to DynamoDB is one span of kind `Client`, named after the service a
 | `dynasharp.client.operation.throttles` | Counter | `{throttle}` | Each throttling error, whether or not the attempt was repeated |
 | `dynasharp.client.conflict.retries` | Counter | `{retry}` | Each time `RetryOnConflictAsync` runs its delegate again after a conflict |
 | `dynasharp.client.conflict.exhausted` | Counter | `{conflict}` | Each conflict that `RetryOnConflictAsync` passed on, because the delegate used up its runs |
-| `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item a read with `OnMappingFailure` skipped because its type could not read it, see [Queries](queries.md#items-that-do-not-fit) |
+| `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item a read with `OnMappingFailure` skipped because its type could not read it, see [Queries](queries.md#skip-items-that-fail-to-map) |
 | `dynasharp.client.consumed_capacity` | Counter | `{capacity_unit}` | The capacity units DynamoDB reported, per table and including its indexes. Only a request that asks for them, with `.ReturnCapacity()` or `ReturnConsumedCapacity`, has any |
 
 | Tag | On |
@@ -78,7 +78,11 @@ The two conflict counters carry the operation that met the conflict, such as `Pu
 
 ## Logs
 
-The client logs only what no caller of one call can see: how it was configured, retries that ran out, a corrected clock, credentials that failed to refresh, an endpoint over plain http. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as a retry quota that is empty. The categories are the types: `DynaSharp.DynamoDbClient`, `DynaSharp.Streams.DynamoDbStreamsClient`, and `DynaSharp.Credentials.DefaultCredentialsProvider` with the providers it uses, `WebIdentityCredentialsProvider`, `ContainerCredentialsProvider` and `InstanceMetadataCredentialsProvider`. The event ids are stable.
+The client logs only what no caller of one call can see: how it was configured, retries that ran out, a corrected clock, credentials that failed to refresh, an endpoint over plain http. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as a retry quota that is empty. The event ids are stable, and the categories are the types:
+
+- `DynaSharp.DynamoDbClient`
+- `DynaSharp.Streams.DynamoDbStreamsClient`
+- `DynaSharp.Credentials.DefaultCredentialsProvider`, with the providers it uses: `WebIdentityCredentialsProvider`, `ContainerCredentialsProvider` and `InstanceMetadataCredentialsProvider`
 
 | Id | Level | Event | Message |
 |---|---|---|---|
@@ -106,7 +110,12 @@ The client logs only what no caller of one call can see: how it was configured, 
 
 ## A handler of your own
 
-`HttpHandler` in the options takes any `HttpMessageHandler`, such as a `DelegatingHandler` that records the wire for inspection. The content of a request is a view of a pooled buffer, valid until the handler's `SendAsync` returns. After that the buffer belongs to another call, so a handler reads the content before it returns and never later, and a body read late fails the signature check of DynamoDB. A handler sends a request once and never twice in parallel, which rules out a hedging handler. A retry handler is not needed: the client retries by itself, see [Errors and retries](errors.md).
+`HttpHandler` in the options takes any `HttpMessageHandler`, such as a `DelegatingHandler` that records the wire for inspection.
+
+> [!WARNING]
+> The content of a request is a view of a pooled buffer, valid until the handler's `SendAsync` returns. After that the buffer belongs to another call, so a handler reads the content before it returns and never later, and a body read late fails the signature check of DynamoDB.
+
+A handler sends a request once and never twice in parallel, which rules out a hedging handler. A retry handler is not needed: the client retries by itself, see [Errors and retries](errors.md).
 
 ## What stays out
 

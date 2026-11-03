@@ -4,6 +4,8 @@
   items:
   - name: Getting started
     href: ../getting-started.md
+  - name: Credentials
+    href: ../credentials.md
   - name: DynamoDB in short
     href: ../glossary.md
   - name: Entities and keys

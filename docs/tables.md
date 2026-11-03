@@ -1,10 +1,10 @@
 # Tables
 
-A table is opened once and kept. `CreateTable()` creates it from what its entities declare, and over a table that exists it can stay out of the way, which is what a program wants that creates its table at the start.
+Open a table once and keep it. `CreateTable()` creates it from what its entities declare, and leaves a table that exists alone, so a program can create its table at every start.
 
 ## Opening a table
 
-Open a table once and keep it. Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys. These are the tables of [the shop](getting-started.md#the-shop).
+Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys. These are the tables of [the shop](getting-started.md#the-shop).
 
 ```csharp
 var orders = client.Table<Order>("Shop");
@@ -14,7 +14,10 @@ var carts = shop.Of<Cart>();
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
 
-`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes. `DYNA221` and `DYNA224`, which check a query against the keys of what it reads, know the index only from an `Index(...)` in the chain of the query, so they pass over a query of an index kept in a field or a variable, such as `byStatus`: see [Commands](diagnostics.md#commands) on the diagnostics page.
+`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
+
+> [!NOTE]
+> `DYNA221` and `DYNA224` check a query against the keys of what it reads only when `Index(...)` is in the chain of the query. They pass over a query of an index kept in a field or a variable, such as `byStatus`. See [Commands](diagnostics.md#commands) on the diagnostics page.
 
 ## Creating a table
 
@@ -85,6 +88,6 @@ await orders.CreateTable()
 
 `UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait, which fails if the index is not there. A backfill finds the items that hold the attributes of the index. An older item enters it when a `Put` of the entity writes them.
 
-## Everything else
+## Other table operations
 
 Table administration beyond `CreateTable()`, such as `UpdateTable` above, lives in the request API, `DynaSharp.Requests`, which mirrors the service. [API levels](api-levels.md) says how the levels share a client.

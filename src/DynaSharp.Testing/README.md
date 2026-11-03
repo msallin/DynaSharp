@@ -2,6 +2,12 @@
 
 Test support for [DynaSharp](https://github.com/msallin/DynaSharp). It fakes the wire, so a test needs neither DynamoDB nor a mock of the client, and it runs the real signing, mapping and expressions.
 
+| You want to | Use |
+|---|---|
+| Answer with canned responses and check what was sent | [`StubHandler`](#a-client-for-a-test) |
+| Run code against state that it writes and reads back | [`FakeDynamoDb`](#a-fake-dynamodb) |
+| Test credentials that go through STS | [`StubSts`](#sts) |
+
 ## A client for a test
 
 `StubHandler` answers requests and records them. `StubClient.Create` makes a client over it, in the region `us-east-1`, with static fake credentials, one attempt per call and no attempt timeout. It reads nothing from the environment or the shared AWS files, so a test behaves the same on every machine. `StubClient.CreateStreams` does the same for DynamoDB Streams.
@@ -14,7 +20,7 @@ stub.Enqueue(StubResponse.Item(customer));
 var found = await client.Table<Customer>("Shop").Get(Customer.Keys.Of("alice")).ItemAsync(ct);
 ```
 
-A request takes the next response in the queue, then the answer of a responder given to the constructor, then `DefaultResponse`, and without any of them it fails. A response of a `StubResponse` factory is the answer to the operations it is written for, and a request of another operation that takes it throws, naming both operations and the position of the response in the queue. Without that check the answer of an `UpdateTimeToLive` would read as no item to a `Get`, and a test of a miss would pass for the wrong reason. A response left in the queue is no error, since a test may queue more than one path needs: `stub.ThrowIfResponsesLeft()` at the end of a test checks that every one was taken. The second argument of `Create` changes the options:
+A request takes the next response in the queue, then the answer of a responder given to the constructor, then `DefaultResponse`, and without any of them it fails. A response of a `StubResponse` factory is the answer to the operations it is written for, and a request of another operation that takes it throws, naming both operations and the position of the response in the queue. A response left in the queue is no error, since a test may queue more than one path needs: `stub.ThrowIfResponsesLeft()` at the end of a test checks that every one was taken. The second argument of `Create` changes the options:
 
 ```csharp
 using var retrying = StubClient.Create(stub, options => options with { MaxAttempts = 4, TimeProvider = clock });

@@ -28,7 +28,7 @@ A second key on other attributes, so the same items can be found another way, su
 
 ## Local secondary index (LSI)
 
-Another sort key for the same partition key, such as the orders of a customer by total. It can only be created with the table, and it allows strongly consistent reads. `[LocalIndexKey]` declares one, see [Local indexes](entities.md#local-indexes). It is read like a global index, through `Index(...)` with the partition key of the table, and `Consistent()` works on it, see [Indexes](queries.md#indexes).
+Another sort key for the same partition key, such as the orders of a customer by total. It can only be created with the table, and it allows strongly consistent reads. `[LocalIndexKey]` declares one, see [Local indexes](entities.md#local-indexes).
 
 ## Sparse index
 
@@ -36,7 +36,7 @@ An index holds only the items that have its key attributes, so an item without t
 
 ## Projection
 
-Two things with one name. The projection of an index says which attributes it copies, and `CreateTable()` copies all of them, see [Creating a table](tables.md#creating-a-table). The projection of a read says which attributes come back, which is what `Project(...)` asks for, see [Expressions](expressions.md).
+Two things with one name. The projection of an index says which attributes it copies, and `CreateTable()` copies all of them, see [Creating a table](tables.md#creating-a-table). The projection of a read says which attributes come back, which is what `Project(...)` asks for, see [Projections](expressions.md#projections).
 
 ## Fan-out
 
@@ -64,4 +64,4 @@ The change log of a table: each write to an item becomes a record, kept for 24 h
 
 ## IRSA
 
-IAM roles for service accounts: a pod on EKS gets a role through a token file, which the client trades for credentials at STS. See [Credentials](getting-started.md#credentials).
+IAM roles for service accounts: a pod on EKS gets a role through a token file, which the client trades for credentials at STS. See [Use IRSA on EKS](credentials.md#use-irsa-on-eks).

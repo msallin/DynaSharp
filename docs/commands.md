@@ -1,6 +1,6 @@
 # Reading and writing
 
-Every operation on a table is a command: a chain that starts with the operation, takes its clauses, and ends in a terminal such as `SendAsync` or `ItemAsync`, which sends it. A chain is built and sent in one expression, which [API levels](api-levels.md) explains, and the [diagnostics](diagnostics.md#commands) say what the compiler and the analyzers report when it is not. `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
+A command is a chain: the operation, its clauses, and a terminal such as `SendAsync` or `ItemAsync` that sends it. Build and send it in one expression. [Commands](diagnostics.md#commands) on the diagnostics page says what the compiler and the analyzers report when it is not. `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
 
 ## GetItem
 
@@ -31,8 +31,6 @@ Which write to take:
 | Patch what is there | `Update(key).Set(...).IfExists()` | Changes what it names | `ConditionalCheckFailedException` |
 
 An `Update` that creates an item leaves out the inputs of the key, and `.StoreKeyInputs()` writes them, as a `Put` does. A `[Version]` adds a condition of its own, see [Optimistic locking](#optimistic-locking).
-
-`SendAsync` of a write is a `ValueTask<WriteResult<T>>`. `Item` and `HasItem` hold what `ReturnOld` or `ReturnNew` asked for, and `Version` what a `[Version]` entity stored. `Found` is on a read only.
 
 ## UpdateItem
 
@@ -66,9 +64,9 @@ A delete takes the key, or the entity, which gives the key and, on a `[Version]`
 await orders.Delete(Order.Keys.Of("alice", 1)).IfExists().SendAsync(ct);
 ```
 
-## Results
+## What a call returns
 
-What a terminal returns depends on the operation, and a write has no `Found`: it finds nothing, unless it asks for the item that was there.
+A write has no `Found`: it finds nothing, unless it asks for the item that was there with `ReturnOld()`.
 
 | Call | Returns | Holds |
 |---|---|---|
@@ -98,6 +96,7 @@ if (!deleted.HasItem)
 var total = await orders.Get(Order.Keys.Of("alice", 1)).Select(Order.Attrs.Total).SendAsync(ct);
 decimal amount = total.GetValueOrDefault(0m);    // total.Found ? total.Value : 0m
 ```
+
 `await command` is `SendAsync()` without a token, on the commands that have one. A read has no such default, so `await orders.Query(...)` does not compile.
 
 ## Conditions
@@ -120,7 +119,7 @@ catch (ConditionalCheckFailedException exception)
 }
 ```
 
-`ConditionalCheckFailedException.Key` says which item it was, as it is stored. A caller that holds the key gains nothing from it. It is for code that does not, such as a wrapper around a write it was handed. It is in no message and no log of the client.
+`ConditionalCheckFailedException.Key` says which item it was, as it is stored. It is for code that does not hold the key, such as a wrapper around a write it was handed. No message and no log of the client contains it.
 
 ```csharp
 async Task SaveAsync(Func<CancellationToken, Task> save, CancellationToken token)

@@ -4,7 +4,7 @@ An entity is a C# type that maps to an item. The source generator reads its attr
 
 ## Defining an entity
 
-Declare a `partial` type and say how it maps. The generator writes the code that reads and writes the item, plus `Keys` and `Attrs`.
+Declare a `partial` type and say how it maps.
 
 ```csharp
 using DynaSharp.Mapping;
@@ -24,7 +24,7 @@ public partial record Order
 }
 ```
 
-`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC, and a bare `{PlacedAt}` is `ticks`: the seven fraction digits of the attribute, so a key built from a value that was read back finds its item, and a read can restore the property from the key. Every other format cuts the value off, and only `ticks` keeps all of it. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
+`{Number:d6}` pads to six digits, so that keys sort by number. A timestamp in a template is in UTC. A bare `{PlacedAt}` means `ticks`, the seven fraction digits of the attribute. It is the only format that keeps the whole value, so a key built from a value that was read back finds its item, and a read can restore the property from the key. Every other format cuts the value off. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
 
 | Where | Text |
 |---|---|
@@ -35,14 +35,22 @@ public partial record Order
 | A key with `{PlacedAt:s}` | `2026-10-31T12:34:56Z` |
 | A key with `{PlacedAt:yyyy-MM-ddTHH:mm}`, `yyyy-MM-ddTHH`, `yyyy-MM-dd`, `yyyy-MM` or `yyyy` | `2026-10-31T12:34` to `2026` |
 
-No format keeps the offset, and the attribute does not either. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. An unset `DateTime` is the likely cause, so set it to a UTC time first. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does, which fits only times that the SDK wrote. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
+No format keeps the offset, and the attribute does not either. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`.
+
+> [!WARNING]
+> A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`. One of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws an `ArgumentException` on a write, in a key and in any other attribute, and the message names the property and its attribute. An unset `DateTime` is the likely cause, so set it to a UTC time first. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does, which fits only times that the SDK wrote.
+
+Such an order and a customer of the same shop share a table and a partition:
 
 | `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
 |---|---|---|---|---|---|
 | `CUSTOMER#alice` | `PROFILE` | | | `CUSTOMER` | `Id`, `Name`, `Email` |
 | `CUSTOMER#alice` | `ORDER#000001` | `STATUS#Placed` | `2026-10-31T12:34:56.7890123Z` | `ORDER` | `CustomerId`, `Number`, `Status`, `PlacedAt`, `Total` |
 
-Those are the default names. A `Put` stores the inputs of a key as attributes of their own too, unless `[KeyOnly]` says that the key is enough: no attribute holds such a property, so it has no handle in `Attrs`. An `Update` writes no input of the key of the table unless `StoreKeyInputs()` asks, so an item it created holds the key and not those attributes, and a read of the entity restores them from the key.
+Those are the default names. The inputs of a key are stored as follows:
+
+- **Put** stores them as attributes of their own too, unless `[KeyOnly]` says that the key is enough. No attribute holds such a property, so it has no handle in `Attrs`.
+- **Update** writes no input of the key of the table unless `StoreKeyInputs()` asks. An item it created holds the key and not those attributes, and a read of the entity restores them from the key.
 
 The rules a template follows, and what the generator reports when one breaks them, are under [Key templates](diagnostics.md#key-templates) on the diagnostics page.
 
@@ -172,7 +180,12 @@ var urgent = client.Table<Ticket>("Tickets").Index(Ticket.Indexes.ByPriority)
 
 `[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property, and [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` says that a stored value counts as if the attribute were not there, so the rest of the item reads.
 
-An enum needs no converter for that. With `[DynamoDbEnum]`, a name it does not have, such as one that a newer version of a service stores during a rollout, keeps the initial value of the property, which is null for a nullable property without an initializer. Writes store the same names as without the attribute, so the next `Put` of the entity stores that initial value over the name it did not know. That suits only an enum whose initial value is a safe "unknown": with `Scheduled` as the initial value, an item that a newer version cancelled under a name this one lacks reads as `Scheduled`, and the next `Put` reopens it. A `required` property still throws, and so does an element of a list, a set or a map, which would otherwise drop out of the collection and be gone after the next `Put`. The attribute goes on the enum type, so an enum of another assembly that does not carry it needs a converter of its own, one that answers `CountsAsMissing`.
+An enum needs no converter for that. With `[DynamoDbEnum]`, a name it does not have, such as one that a newer version of a service stores during a rollout, keeps the initial value of the property, which is null for a nullable property without an initializer. Writes store the same names as without the attribute, so the next `Put` of the entity stores that initial value over the name it did not know.
+
+> [!WARNING]
+> That suits only an enum whose initial value is a safe "unknown". With `Scheduled` as the initial value, an item that a newer version cancelled under a name this one lacks reads as `Scheduled`, and the next `Put` reopens it.
+
+A `required` property still throws, and so does an element of a list, a set or a map, which would otherwise drop out of the collection and be gone after the next `Put`. The attribute goes on the enum type, so an enum of another assembly that does not carry it needs a converter of its own, one that answers `CountsAsMissing`.
 
 ```csharp
 [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]
