@@ -33,6 +33,13 @@ namespace DynaSharp.Testing;
 /// A response holds what DynamoDB sends by default. <c>ConsumedCapacity</c> and <c>ItemCollectionMetrics</c> come only when a request asks for them, so a test that reads them
 /// writes the body with <see cref="Json"/>, as it does for <c>TransactGetItems</c> and anything unusual. <see cref="DynamoDbError"/> makes every other error.
 /// </para>
+/// <para>
+/// <b>An answer is for its operations.</b> A response of a factory is the answer to the operations its body is written for, as each factory says, and a <see cref="StubHandler"/> that hands it to a request
+/// of another operation throws. The client would read most such bodies without complaint: the answer of an <c>UpdateTimeToLive</c> taken by a <c>GetItem</c> reads as no item, and a test that expects none
+/// passes for the wrong reason. The errors go by what they are for: <see cref="ConditionalCheckFailed()"/> answers a <c>PutItem</c>, an <c>UpdateItem</c> or a <c>DeleteItem</c>, and
+/// <see cref="TransactionCanceled(ReadOnlySpan{TransactionFailure})"/> a <c>TransactWriteItems</c> or a <c>TransactGetItems</c>. <see cref="ResourceNotFound"/> and <see cref="ResourceInUse"/> have the
+/// shape of an error that many operations return, and fit any, as do <see cref="Json"/>, <see cref="DynamoDbError"/> and <c>new StubResponse()</c>, whose body the test writes or which has none.
+/// </para>
 /// </remarks>
 public sealed partial class StubResponse
 {
@@ -52,6 +59,9 @@ public sealed partial class StubResponse
     /// <c>Content-Type</c>, replace the defaults.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
+
+    /// <summary>Gets the operations this response answers, as <see cref="RecordedRequest.Operation"/> names them, or <see langword="null"/> if it fits any.</summary>
+    internal IReadOnlyList<string>? Operations { get; private init; }
 
     /// <summary>Creates a response with a JSON body.</summary>
     /// <param name="json">The body, for example <c>{"Item":{"pk":{"S":"a"}}}</c>.</param>
@@ -93,7 +103,7 @@ public sealed partial class StubResponse
     /// <param name="item">The item, or <see langword="null"/> for a miss. A struct cannot be null: the miss of a struct entity is <c>new StubResponse()</c>.</param>
     /// <returns>The response.</returns>
     public static StubResponse Item<T>(T? item)
-        where T : IDynamoDbDocument<T> => Single("Item", item);
+        where T : IDynamoDbDocument<T> => Single("Item", item, For.GetItem);
 
     /// <summary>
     /// Creates a page of a <c>Query</c> or <c>Scan</c> that ends the read, with <c>Count</c> filled in. <c>ScannedCount</c> is the same unless a test says that a filter dropped items.
@@ -181,7 +191,7 @@ public sealed partial class StubResponse
     /// <param name="attributes">The attributes, or <see langword="null"/> for none.</param>
     /// <returns>The response.</returns>
     public static StubResponse Attributes<T>(T? attributes)
-        where T : IDynamoDbDocument<T> => Single("Attributes", attributes);
+        where T : IDynamoDbDocument<T> => Single("Attributes", attributes, For.Write);
 
     /// <summary>Creates the error of a write whose condition did not hold, without the item: what DynamoDB sends unless the request set <c>ReturnOldOnFailure()</c>.</summary>
     /// <returns>The response: HTTP 400 with <c>ConditionalCheckFailedException</c>.</returns>
@@ -195,6 +205,7 @@ public sealed partial class StubResponse
         where T : IDynamoDbDocument<T> => new()
         {
             StatusCode = HttpStatusCode.BadRequest,
+            Operations = For.Write,
             Body = Render(json =>
             {
                 json.WriteString("__type", ErrorTypePrefix + "ConditionalCheckFailedException");
@@ -237,6 +248,7 @@ public sealed partial class StubResponse
         return new StubResponse
         {
             StatusCode = HttpStatusCode.BadRequest,
+            Operations = For.Transaction,
             Body = Render(json =>
             {
                 json.WriteString("__type", ErrorTypePrefix + "TransactionCanceledException");
@@ -301,7 +313,7 @@ public sealed partial class StubResponse
     {
         ArgumentNullException.ThrowIfNull(tableName);
         var all = writes.ToArray();
-        return Json(Render(json =>
+        return Answer(For.BatchWrite, Render(json =>
         {
             json.WriteStartObject("UnprocessedItems");
             if (all.Length > 0)
@@ -437,6 +449,31 @@ public sealed partial class StubResponse
         return ReadAttributes(RenderBytes(json => T.WriteKey(new DynamoDbWriter(json), entity)));
     }
 
+    /// <summary>Tells whether this response, which has <see cref="Operations"/>, answers a request of the operation.</summary>
+    /// <param name="operation">The operation of the request, or <see langword="null"/> for a request without <c>X-Amz-Target</c>.</param>
+    /// <returns><see langword="true"/> if the response names this operation.</returns>
+    internal bool Answers(string? operation)
+    {
+        foreach (var name in Operations!)
+        {
+            if (name == operation)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Names what this response answers, as a message says it: <c>GetItem</c>, <c>PutItem, UpdateItem or DeleteItem</c>, or <c>any operation</c>.</summary>
+    /// <returns>The text.</returns>
+    internal string DescribeOperations() => Operations switch
+    {
+        null => "any operation",
+        [var only] => only,
+        _ => string.Join(", ", Operations.Take(Operations.Count - 1)) + " or " + Operations[^1],
+    };
+
     internal HttpResponseMessage CreateMessage()
     {
         // Encoded once: a response that answers many requests (DefaultResponse) is not re-encoded each time.
@@ -459,9 +496,12 @@ public sealed partial class StubResponse
         return message;
     }
 
-    private static StubResponse Single<T>(string member, T? document)
+    // A miss is {}, which fits any operation as a body, and still the answer of the operation the factory is for.
+    private static StubResponse Single<T>(string member, T? document, string[] operations)
         where T : IDynamoDbDocument<T> =>
-        document is null ? new StubResponse() : Json(Render(json => WriteDocument(json, member, document)));
+        Answer(operations, document is null ? "{}" : Render(json => WriteDocument(json, member, document)));
+
+    private static StubResponse Answer(string[] operations, string body) => new() { Body = body, Operations = operations };
 
     // {"Items":[{...},{...}],"Count":2,"ScannedCount":2,"LastEvaluatedKey":{...}}, the members in the order of the recorded responses of real DynamoDB.
     private static StubResponse Page<T>(IEnumerable<T> items, Item? lastEvaluatedKey, int? scannedCount)
@@ -471,7 +511,7 @@ public sealed partial class StubResponse
         T[] all = [.. items];
         var scanned = scannedCount ?? all.Length;
         ArgumentOutOfRangeException.ThrowIfLessThan(scanned, all.Length, nameof(scannedCount));
-        return Json(Render(json =>
+        return Answer(For.Page, Render(json =>
         {
             WriteDocuments(json, "Items", all);
             json.WriteNumber("Count", all.Length);
@@ -489,7 +529,7 @@ public sealed partial class StubResponse
         ArgumentOutOfRangeException.ThrowIfNegative(count);
         var scanned = scannedCount ?? count;
         ArgumentOutOfRangeException.ThrowIfLessThan(scanned, count, nameof(scannedCount));
-        return Json(Render(json =>
+        return Answer(For.Page, Render(json =>
         {
             json.WriteNumber("Count", count);
             json.WriteNumber("ScannedCount", scanned);
@@ -505,7 +545,7 @@ public sealed partial class StubResponse
         where T : IDynamoDbDocument<T>
     {
         T[] all = [.. found];
-        return Json(Render(json =>
+        return Answer(For.BatchGet, Render(json =>
         {
             json.WriteStartObject("Responses");
             WriteDocuments(json, tableName, all);
@@ -573,5 +613,25 @@ public sealed partial class StubResponse
         var reader = new DynamoDbReader(utf8Json);
         reader.ReadStartItem();
         return AttributeValueConverter.ReadAttributes(ref reader);
+    }
+
+    // The operations whose answer a factory writes, which StubHandler compares with the X-Amz-Target of the request.
+    // When adding a factory: give it the operations its body is written for here, or leave it without any if it fits every operation, and say so in its docs.
+    private static class For
+    {
+        public static readonly string[] GetItem = [GetItemOperation.Name];
+        public static readonly string[] Page = [QueryOperation.Name, ScanOperation.Name];
+        public static readonly string[] Write = [PutItemOperation.Name, UpdateItemOperation.Name, DeleteItemOperation.Name];
+        public static readonly string[] Transaction = [TransactWriteItemsOperation.Name, TransactGetItemsOperation.Name];
+        public static readonly string[] BatchWrite = [BatchWriteItemOperation.Name];
+        public static readonly string[] BatchGet = [BatchGetItemOperation.Name];
+        public static readonly string[] DescribeTable = [DescribeTableOperation.Name];
+        public static readonly string[] CreateTable = [CreateTableOperation.Name];
+        public static readonly string[] DeleteTable = [DeleteTableOperation.Name];
+        public static readonly string[] DescribeTimeToLive = [DescribeTimeToLiveOperation.Name];
+        public static readonly string[] UpdateTimeToLive = [UpdateTimeToLiveOperation.Name];
+        public static readonly string[] DescribeStream = [DescribeStreamOperation.Name];
+        public static readonly string[] GetShardIterator = [GetShardIteratorOperation.Name];
+        public static readonly string[] GetRecords = [GetRecordsOperation.Name];
     }
 }

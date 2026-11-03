@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using DynaSharp.Requests;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Serialization;
 using static DynaSharp.UnitTests.Testing.HandlerRequest;
@@ -613,5 +614,280 @@ public sealed class StubHandlerTests
 
         // Assert
         await Assert.That(handler.DefaultResponse).IsNull();
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseOfTheOperation_ReturnsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Item(new Item { ["pk"] = "a" }));
+
+        // Act
+        using var response = await PostAsync(handler, target: "DynamoDB_20120810.GetItem");
+
+        // Assert
+        await Assert.That(await response.Content.ReadAsStringAsync()).IsEqualTo("""{"Item":{"pk":{"S":"a"}}}""");
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseOfTheSecondOfItsOperations_ReturnsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Count(2));
+
+        // Act
+        using var response = await PostAsync(handler, target: "DynamoDB_20120810.Scan");
+
+        // Assert
+        await Assert.That(await response.Content.ReadAsStringAsync()).IsEqualTo("""{"Count":2,"ScannedCount":2}""");
+    }
+
+    [Test]
+    public async Task SendAsync_ErrorThatFitsAnyOperation_ReturnsIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ResourceNotFound());
+
+        // Act
+        using var response = await PostAsync(handler, target: "DynamoDB_20120810.UpdateTimeToLive");
+
+        // Assert
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
+    // The trap of a service: an answer of UpdateTimeToLive reads as no item, so a test of a miss passed on it.
+    [Test]
+    public async Task SendAsync_QueuedResponseOfAnotherOperation_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.TimeToLiveUpdated(true, "expires"));
+
+        // Act
+        var act = async () => await PostAsync(handler, target: "DynamoDB_20120810.GetItem");
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task SendAsync_QueuedResponseOfAnotherOperation_MessageNamesBothOperations()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Items(Array.Empty<Item>()));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.GetItem"));
+
+        // Assert
+        await Assert.That(exception.Message).Contains("for a request to GetItem, but that response is the answer to Query or Scan.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_SecondQueuedResponseOfAnotherOperation_MessageGivesItsPositionInTheQueue()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Item<Item>(null));
+        handler.Enqueue(StubResponse.ConditionalCheckFailed());
+        using var first = await PostAsync(handler, target: "DynamoDB_20120810.GetItem");
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.Query"));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took queued response 2 for a request to Query", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_QueuedResponseOfAnotherOperation_MessageSaysHowToFixIt()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Item<Item>(null));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.PutItem"));
+
+        // Assert
+        await Assert.That(exception.Message).EndsWith(
+            "A test that went on with it would pass for the wrong reason. Give the request the answer of its own operation, or StubResponse.Json for a body that fits any.",
+            StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_QueuedResponseOfAnotherOperation_StillRecordsTheRequest()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ShardIterator("iterator"));
+
+        // Act
+        await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDBStreams_20120810.GetRecords"));
+
+        // Assert
+        await Assert.That(handler.Requests.Single().Operation).IsEqualTo("GetRecords");
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseOfAnOperationForARequestWithoutTarget_MessageSaysTheRequestHasNone()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.TableDeleted("Orders"));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: null));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took queued response 1 for a request without X-Amz-Target, but that response is the answer to DeleteTable.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_ResponderAnswersWithAnotherOperation_MessageNamesTheResponder()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.TableCreated("Orders"));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.DescribeTable"));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took the response of its responder for a request to DescribeTable, but that response is the answer to CreateTable.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_DefaultResponseOfAnotherOperation_MessageNamesTheDefaultResponse()
+    {
+        // Arrange
+        using var handler = new StubHandler { DefaultResponse = StubResponse.TimeToLive(TimeToLiveStatus.Disabled) };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.UpdateTimeToLive"));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took DefaultResponse for a request to UpdateTimeToLive, but that response is the answer to DescribeTimeToLive.", StringComparison.Ordinal);
+    }
+
+    // A responder that has no answer leaves the request to DefaultResponse, and the message names where the response came from.
+    [Test]
+    public async Task SendAsync_ResponderAnswersNullAndDefaultResponseOfAnotherOperation_MessageNamesTheDefaultResponse()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => null!) { DefaultResponse = StubResponse.Records(null) };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDBStreams_20120810.DescribeStream"));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took DefaultResponse for a request to DescribeStream, but that response is the answer to GetRecords.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_RecordRequestsOffAndResponseOfAnotherOperation_MessageNamesTheOperationOfTheRequest()
+    {
+        // Arrange
+        using var handler = new StubHandler { RecordRequests = false };
+        handler.Enqueue(StubResponse.Unprocessed("Orders"));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() => PostAsync(handler, target: "DynamoDB_20120810.BatchGetItem"));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith("StubHandler took queued response 1 for a request to BatchGetItem, but that response is the answer to BatchWriteItem.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ThrowIfResponsesLeft_EveryResponseTaken_DoesNotThrow()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(new StubResponse());
+        using var response = await PostAsync(handler);
+
+        // Act
+        var act = handler.ThrowIfResponsesLeft;
+
+        // Assert
+        await Assert.That(act).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task ThrowIfResponsesLeft_ResponseLeft_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(new StubResponse());
+
+        // Act
+        var act = handler.ThrowIfResponsesLeft;
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ThrowIfResponsesLeft_OneResponseLeft_MessageGivesItsPositionAndOperation()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("{}"));
+        handler.Enqueue(StubResponse.Item<Item>(null));
+        using var response = await PostAsync(handler);
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() =>
+        {
+            handler.ThrowIfResponsesLeft();
+            return Task.CompletedTask;
+        });
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo(
+            "StubHandler has 1 queued response that no request took: response 2, the answer to GetItem. The code under test sent fewer requests than the test queued answers for.");
+    }
+
+    [Test]
+    public async Task ThrowIfResponsesLeft_TwoResponsesLeft_MessageListsBoth()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded"));
+        handler.Enqueue(StubResponse.Attributes<Item>(null));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<InvalidOperationException>(() =>
+        {
+            handler.ThrowIfResponsesLeft();
+            return Task.CompletedTask;
+        });
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith(
+            "StubHandler has 2 queued responses that no request took: response 1, the answer to any operation; response 2, the answer to PutItem, UpdateItem or DeleteItem.",
+            StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ThrowIfResponsesLeft_ResponseLeft_LeavesItInTheQueue()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json("""{"n":1}"""));
+        await TestClient.CaptureAsync<InvalidOperationException>(() =>
+        {
+            handler.ThrowIfResponsesLeft();
+            return Task.CompletedTask;
+        });
+
+        // Act
+        using var response = await PostAsync(handler);
+
+        // Assert
+        await Assert.That(await response.Content.ReadAsStringAsync()).IsEqualTo("""{"n":1}""");
     }
 }

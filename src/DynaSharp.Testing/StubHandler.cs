@@ -18,6 +18,13 @@ namespace DynaSharp.Testing;
 /// <see cref="InvalidOperationException"/> that says which request had no response.
 /// </para>
 /// <para>
+/// <b>A response of the wrong operation throws.</b> A <see cref="StubResponse"/> from a factory is the answer to the operations it is written for, and a request of another operation that takes it
+/// fails with an <see cref="InvalidOperationException"/> that names both operations and the position of the response in the queue, from wherever the response came. So a test that queued the
+/// answers in the wrong order, or one too few, fails at the request instead of passing on a body the client read without complaint. <see cref="StubResponse.Json"/>,
+/// <see cref="StubResponse.DynamoDbError"/> and <c>new StubResponse()</c> fit any operation. A response left in the queue is no error, because a test may queue more than one path needs:
+/// <see cref="ThrowIfResponsesLeft"/> at the end of a test checks that every one was taken.
+/// </para>
+/// <para>
 /// The client signs and serializes requests as it would for DynamoDB, so the recorded requests show exactly what would go over the
 /// wire. The handler does not validate signatures or requests. Responses are returned as they are given, which also lets tests
 /// produce errors and broken responses.
@@ -74,6 +81,9 @@ public sealed class StubHandler : HttpMessageHandler
     private readonly Queue<StubResponse> _queued = new();
     private readonly List<RecordedRequest> _requests = [];
     private readonly Func<RecordedRequest, CancellationToken, Task<StubResponse>>? _responder;
+
+    // How many queued responses requests have taken, so that a message gives a response its position in the order queued.
+    private int _taken;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StubHandler"/> class that answers with the responses queued by <see cref="Enqueue"/>.
@@ -132,7 +142,10 @@ public sealed class StubHandler : HttpMessageHandler
         }
     }
 
-    /// <summary>Queues a response for a future request. Each queued response answers exactly one request, in the order queued.</summary>
+    /// <summary>
+    /// Queues a response for a future request. Each queued response answers exactly one request, in the order queued, whatever its operation: a response of a <see cref="StubResponse"/> factory that is
+    /// the answer to another operation makes the request throw.
+    /// </summary>
     /// <param name="response">The response.</param>
     /// <exception cref="ArgumentNullException"><paramref name="response"/> is <see langword="null"/>.</exception>
     public void Enqueue(StubResponse response)
@@ -141,6 +154,36 @@ public sealed class StubHandler : HttpMessageHandler
         lock (_gate)
         {
             _queued.Enqueue(response);
+        }
+    }
+
+    /// <summary>
+    /// Throws if responses queued with <see cref="Enqueue"/> are still waiting for a request, which means that the code under test sent fewer requests than the test expected. Call it at the end of a test
+    /// that wants to know; a leftover is no error otherwise, and <see cref="HttpMessageHandler.Dispose()"/> does not check.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A queued response is left. The message gives the position of each in the order queued, and the operations it answers.</exception>
+    public void ThrowIfResponsesLeft()
+    {
+        string? message = null;
+        lock (_gate)
+        {
+            if (_queued.Count > 0)
+            {
+                var left = new List<string>(_queued.Count);
+                var position = _taken;
+                foreach (var response in _queued)
+                {
+                    left.Add($"response {++position}, the answer to {response.DescribeOperations()}");
+                }
+
+                message = $"StubHandler has {(left.Count == 1 ? "1 queued response" : $"{left.Count} queued responses")} that no request took: {string.Join("; ", left)}. " +
+                    "The code under test sent fewer requests than the test queued answers for.";
+            }
+        }
+
+        if (message is not null)
+        {
+            throw new InvalidOperationException(message);
         }
     }
 
@@ -155,6 +198,7 @@ public sealed class StubHandler : HttpMessageHandler
         }
 
         StubResponse? response;
+        var position = 0;
         lock (_gate)
         {
             if (RecordRequests)
@@ -162,12 +206,17 @@ public sealed class StubHandler : HttpMessageHandler
                 _requests.Add(recorded!);
             }
 
-            _queued.TryDequeue(out response);
+            if (_queued.TryDequeue(out response))
+            {
+                position = ++_taken;
+            }
         }
 
+        var fromResponder = false;
         if (response is null && _responder is not null)
         {
             response = await _responder(recorded!, cancellationToken).ConfigureAwait(false);
+            fromResponder = response is not null;
         }
 
         response ??= DefaultResponse;
@@ -176,6 +225,20 @@ public sealed class StubHandler : HttpMessageHandler
             throw new InvalidOperationException(
                 $"StubHandler received {request.Method} {request.RequestUri} (operation {RecordedRequest.GetOperation(request) ?? "unknown"}) " +
                 "but has no response for it. Queue one with Enqueue before the request, give the handler a responder function, or set DefaultResponse.");
+        }
+
+        // A response that fits any operation is not compared, so that a benchmark over Json answers reads no header.
+        if (response.Operations is not null)
+        {
+            var operation = recorded is null ? RecordedRequest.GetOperation(request) : recorded.Operation;
+            if (!response.Answers(operation))
+            {
+                var source = position > 0 ? $"queued response {position}" : fromResponder ? "the response of its responder" : nameof(DefaultResponse);
+                var target = operation is null ? "a request without X-Amz-Target" : $"a request to {operation}";
+                throw new InvalidOperationException(
+                    $"StubHandler took {source} for {target}, but that response is the answer to {response.DescribeOperations()}. " +
+                    "A test that went on with it would pass for the wrong reason. Give the request the answer of its own operation, or StubResponse.Json for a body that fits any.");
+            }
         }
 
         return response.CreateMessage();

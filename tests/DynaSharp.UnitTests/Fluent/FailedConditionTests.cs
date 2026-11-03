@@ -240,8 +240,9 @@ public sealed class FailedConditionTests
     [Test]
     public async Task SendAsync_ConditionFailedInATransaction_HasNoKey()
     {
-        // Arrange (a transaction names several items, and TransactionCanceledException.ItemFor says which)
-        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        // Arrange (a transaction names several items, and TransactionCanceledException.ItemFor says which. DynamoDB cancels a transaction instead of sending this error, which is no
+        // answer of a transaction: the test sends it as a bare error, to show that a transaction attaches no key whatever comes back)
+        using var handler = new StubHandler(static _ => StubResponse.DynamoDbError("ConditionalCheckFailedException", "The conditional request failed"));
         using var client = TestClient.Create(handler);
         var shop = client.Table("Shop", "pk", "sk");
 

@@ -22,6 +22,9 @@ public sealed class StubStsResponse
     private const string SampleAccount = "123456789012";
     private const string DefaultErrorMessage = "The message of the service.";
 
+    // For credentials without an expiration: far beyond any clock a test runs on, so that no refresh window opens, and fixed, so that a body does not depend on the clock.
+    private static readonly DateTimeOffset DefaultExpiration = new(2100, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     // The source file may have CRLF, and the body has LF on every platform.
     private static readonly CompositeFormat CredentialsBody = CompositeFormat.Parse("""
         <AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
@@ -84,19 +87,25 @@ public sealed class StubStsResponse
 
     /// <summary>Creates the answer that hands out credentials: HTTP 200, and the given values in the sample body of the AWS documentation.</summary>
     /// <remarks>
-    /// <c>Arn</c> and <c>AssumedRoleId</c> of <c>AssumedRoleUser</c> are derived from the role and the session name of each request. <c>Expiration</c> goes out in UTC, to the second, as <c>yyyy-MM-ddTHH:mm:ssZ</c>. A provider on the system
-    /// clock rejects a time in the past, and one that lies within 15 minutes starts a refresh, so a test without a fake clock uses a time far ahead. Values are XML-escaped.
+    /// <para>
+    /// <c>Arn</c> and <c>AssumedRoleId</c> of <c>AssumedRoleUser</c> are derived from the role and the session name of each request. <c>Expiration</c> goes out in UTC, to the second, as <c>yyyy-MM-ddTHH:mm:ssZ</c>. Values are XML-escaped.
+    /// </para>
+    /// <para>
+    /// STS always sends an expiration, so credentials without one go out with <c>2100-01-01T00:00:00Z</c>. A provider rejects credentials that have expired, refreshes in the background from 15 minutes before
+    /// the expiration and makes every caller wait from 10 minutes before it, all on its clock, which can be the fake clock of a test. A fixed date that far ahead keeps all three out of a test that does
+    /// not ask for them, on any clock, and it is the same in every run. A test of a refresh gives the expiration it needs, relative to its clock: <c>clock.GetUtcNow().AddMinutes(14)</c> starts one.
+    /// </para>
     /// </remarks>
-    /// <param name="credentials">The credentials, with <see cref="AwsCredentials.SessionToken"/> and <see cref="AwsCredentials.Expiration"/>, which STS always sends.</param>
+    /// <param name="credentials">The credentials, with <see cref="AwsCredentials.SessionToken"/>, which STS always sends. <see cref="AwsCredentials.Expiration"/> may be <see langword="null"/>.</param>
     /// <returns>The response.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="credentials"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="credentials"/> has no session token or no expiration.</exception>
+    /// <exception cref="ArgumentException"><paramref name="credentials"/> has no session token.</exception>
     public static StubStsResponse Credentials(AwsCredentials credentials)
     {
         ArgumentNullException.ThrowIfNull(credentials);
-        if (credentials.SessionToken is null || credentials.Expiration is null)
+        if (credentials.SessionToken is null)
         {
-            throw new ArgumentException("STS always sends a session token and an expiration, so the credentials must have both.", nameof(credentials));
+            throw new ArgumentException("STS always sends a session token, so the credentials must have one.", nameof(credentials));
         }
 
         return new StubStsResponse(credentials);
@@ -133,7 +142,7 @@ public sealed class StubStsResponse
         Escape(sessionName),
         Escape(credentials.SessionToken!),
         Escape(credentials.SecretAccessKey),
-        credentials.Expiration!.Value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+        (credentials.Expiration ?? DefaultExpiration).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
         Escape(credentials.AccessKeyId));
 
     // The session ARN has the name of the role and not its path. A role that is no ARN at all gets the partition and the account of the sample: a stub does not judge the request.

@@ -35,7 +35,7 @@ public sealed partial class StubResponse
     public static StubResponse Table(string name, TableStatus status = TableStatus.Active, params ReadOnlySpan<GlobalSecondaryIndexDescription> globalIndexes)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return TableAnswer("Table", MadeUpTable(name, status, globalIndexes));
+        return TableAnswer(For.DescribeTable, "Table", MadeUpTable(name, status, globalIndexes));
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public sealed partial class StubResponse
         var schema = new TableSchema(Entity, T.Info.PartitionKeyName, T.Info.SortKeyName);
         schema.Add(Entity, T.Info);
         var request = schema.ToRequest(name, null, null);
-        return TableAnswer("Table", new TableDescription
+        return TableAnswer(For.DescribeTable, "Table", new TableDescription
         {
             TableName = name,
             TableStatus = status,
@@ -114,7 +114,7 @@ public sealed partial class StubResponse
     public static StubResponse TableCreated(string name, TableStatus status = TableStatus.Creating, params ReadOnlySpan<GlobalSecondaryIndexDescription> globalIndexes)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return TableAnswer("TableDescription", MadeUpTable(name, status, globalIndexes));
+        return TableAnswer(For.CreateTable, "TableDescription", MadeUpTable(name, status, globalIndexes));
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public sealed partial class StubResponse
     public static StubResponse TableDeleted(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return Json(Render(json =>
+        return Answer(For.DeleteTable, Render(json =>
         {
             json.WriteStartObject("TableDescription");
             json.WriteString("TableName", name);
@@ -141,7 +141,7 @@ public sealed partial class StubResponse
     /// <param name="attributeName">The attribute that holds the expiry, or <see langword="null"/> for none, which is what DynamoDB sends for a disabled table.</param>
     /// <returns>The response.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="status"/> is <see cref="TimeToLiveStatus.Unknown"/>, which has no name on the wire, or not a member of the enum.</exception>
-    public static StubResponse TimeToLive(TimeToLiveStatus status, string? attributeName = null) => Json(Render(json =>
+    public static StubResponse TimeToLive(TimeToLiveStatus status, string? attributeName = null) => Answer(For.DescribeTimeToLive, Render(json =>
     {
         json.WriteStartObject("TimeToLiveDescription");
         WireNames.TimeToLiveStatuses.Write(json, "TimeToLiveStatus"u8, status);
@@ -157,7 +157,7 @@ public sealed partial class StubResponse
     public static StubResponse TimeToLiveUpdated(bool enabled, string attributeName)
     {
         ArgumentNullException.ThrowIfNull(attributeName);
-        return Json(Render(json =>
+        return Answer(For.UpdateTimeToLive, Render(json =>
         {
             json.WriteStartObject("TimeToLiveSpecification");
             json.WriteString("AttributeName", attributeName);
@@ -191,7 +191,7 @@ public sealed partial class StubResponse
     }
 
     // The members in the order of the service model. What the description does not carry is the same for every table here, and the lists that are empty stay out, as they do on the wire.
-    private static StubResponse TableAnswer(string member, TableDescription table) => Json(Render(json =>
+    private static StubResponse TableAnswer(string[] operations, string member, TableDescription table) => Answer(operations, Render(json =>
     {
         var name = table.TableName!;
         json.WriteStartObject(member);

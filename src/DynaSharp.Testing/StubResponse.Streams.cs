@@ -53,7 +53,7 @@ public sealed partial class StubResponse
     public static StubResponse StreamDescription(StreamDescription description)
     {
         ArgumentNullException.ThrowIfNull(description);
-        return Json(Render(json =>
+        return Answer(For.DescribeStream, Render(json =>
         {
             json.WriteStartObject("StreamDescription");
             OperationJson.WriteStringIfSet(json, "StreamArn"u8, description.StreamArn);
@@ -99,7 +99,7 @@ public sealed partial class StubResponse
     public static StubResponse ShardIterator(string iterator)
     {
         ArgumentNullException.ThrowIfNull(iterator);
-        return Json(Render(json => json.WriteString("ShardIterator", iterator)));
+        return Answer(For.GetShardIterator, Render(json => json.WriteString("ShardIterator", iterator)));
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public sealed partial class StubResponse
     public static StubResponse Records(string? nextShardIterator, params ReadOnlySpan<ChangeRecord> records)
     {
         var all = records.ToArray();
-        return Json(Render(json =>
+        return Answer(For.GetRecords, Render(json =>
         {
             json.WriteStartArray("Records");
             for (var i = 0; i < all.Length; i++)

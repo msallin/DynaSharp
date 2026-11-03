@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using DynaSharp.Requests;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Testing.Consumer;
 
@@ -183,6 +184,200 @@ public sealed class RecordedRequestTests
 
         // Assert
         await Assert.That(act).Throws<DynamoDbMappingException>();
+    }
+
+    [Test]
+    public async Task TableName_RequestOnATable_IsTheTable()
+    {
+        // Arrange
+        var request = await RecordAsync(GetBody);
+
+        // Act
+        var table = request.TableName;
+
+        // Assert
+        await Assert.That(table).IsEqualTo("Subscribers");
+    }
+
+    [Test]
+    public async Task TableName_Batch_IsNull()
+    {
+        // Arrange (a batch names its tables in RequestItems)
+        var request = await RecordAsync("""{"RequestItems":{"Subscribers":[{"DeleteRequest":{"Key":{"pk":{"S":"ada"}}}}]}}""", "DynamoDB_20120810.BatchWriteItem");
+
+        // Act
+        var table = request.TableName;
+
+        // Assert
+        await Assert.That(table).IsNull();
+    }
+
+    [Test]
+    public async Task IndexName_QueryOfAnIndex_IsTheIndex()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Orders","IndexName":"ByCustomer","KeyConditionExpression":"#n0 = :v0"}""", "DynamoDB_20120810.Query");
+
+        // Act
+        var index = request.IndexName;
+
+        // Assert
+        await Assert.That(index).IsEqualTo("ByCustomer");
+    }
+
+    [Test]
+    public async Task IndexName_ReadOfTheTable_IsNull()
+    {
+        // Arrange
+        var request = await RecordAsync(GetBody);
+
+        // Act
+        var index = request.IndexName;
+
+        // Assert
+        await Assert.That(index).IsNull();
+    }
+
+    [Test]
+    public async Task ConsistentRead_StronglyConsistentRead_IsTrue()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Subscribers","Key":{"pk":{"S":"ada"}},"ConsistentRead":true}""");
+
+        // Act
+        var consistent = request.ConsistentRead;
+
+        // Assert
+        await Assert.That(consistent).IsTrue();
+    }
+
+    [Test]
+    public async Task ConsistentRead_FalseSent_IsFalse()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Subscribers","Key":{"pk":{"S":"ada"}},"ConsistentRead":false}""");
+
+        // Act
+        var consistent = request.ConsistentRead;
+
+        // Assert
+        await Assert.That(consistent).IsFalse();
+    }
+
+    [Test]
+    public async Task ConsistentRead_NotSent_IsNull()
+    {
+        // Arrange
+        var request = await RecordAsync(GetBody);
+
+        // Act
+        var consistent = request.ConsistentRead;
+
+        // Assert
+        await Assert.That(consistent).IsNull();
+    }
+
+    [Test]
+    public async Task ConsistentRead_NotABoolean_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Subscribers","Key":{"pk":{"S":"ada"}},"ConsistentRead":"yes"}""");
+
+        // Act
+        var act = () => request.ConsistentRead;
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ScanIndexForward_Descending_IsFalse()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Orders","KeyConditionExpression":"#n0 = :v0","ScanIndexForward":false}""", "DynamoDB_20120810.Query");
+
+        // Act
+        var forward = request.ScanIndexForward;
+
+        // Assert
+        await Assert.That(forward).IsFalse();
+    }
+
+    [Test]
+    public async Task ScanIndexForward_NotSent_IsNull()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Orders","KeyConditionExpression":"#n0 = :v0"}""", "DynamoDB_20120810.Query");
+
+        // Act
+        var forward = request.ScanIndexForward;
+
+        // Assert
+        await Assert.That(forward).IsNull();
+    }
+
+    [Test]
+    public async Task Limit_Set_IsTheLimit()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Orders","Limit":25}""", "DynamoDB_20120810.Scan");
+
+        // Act
+        var limit = request.Limit;
+
+        // Assert
+        await Assert.That(limit).IsEqualTo(25);
+    }
+
+    [Test]
+    public async Task Limit_NotSent_IsNull()
+    {
+        // Arrange
+        var request = await RecordAsync("""{"TableName":"Orders"}""", "DynamoDB_20120810.Scan");
+
+        // Act
+        var limit = request.Limit;
+
+        // Assert
+        await Assert.That(limit).IsNull();
+    }
+
+    [Test]
+    public async Task TableName_NoBody_ThrowsJsonException()
+    {
+        // Arrange
+        var request = await RecordAsync(string.Empty);
+
+        // Act
+        var act = () => request.TableName;
+
+        // Assert
+        await Assert.That(act).ThrowsException().And.IsAssignableTo<JsonException>();
+    }
+
+    // What a test of a repository asks of the query it sent, without walking BodyJson: the table, the index, and how the page was read.
+    [Test]
+    public async Task Members_QueryOfAnIndexThroughAClient_ReadWhatTheClientSent()
+    {
+        // Arrange
+        using var stub = new StubHandler(_ => StubResponse.Items(Array.Empty<Item>()));
+        using var client = StubClient.Create(stub);
+        await client.QueryAsync(new QueryRequest
+        {
+            TableName = "Orders",
+            IndexName = "ByCustomer",
+            KeyConditionExpression = "customer = :c",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":c"] = "alice" },
+            ConsistentRead = true,
+            ScanIndexForward = false,
+            Limit = 10,
+        });
+
+        // Act
+        var sent = stub.Requests.Single();
+
+        // Assert
+        await Assert.That((sent.TableName, sent.IndexName, sent.ConsistentRead, sent.ScanIndexForward, sent.Limit)).IsEqualTo(("Orders", "ByCustomer", true, false, 10));
     }
 
     private static async Task<RecordedRequest> RecordAsync(string body, string? target = "DynamoDB_20120810.GetItem")

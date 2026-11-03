@@ -1,8 +1,13 @@
 #nullable enable
 DynaSharp.Testing.RecordedRequest.ConditionText.get -> string?
+DynaSharp.Testing.RecordedRequest.ConsistentRead.get -> bool?
 DynaSharp.Testing.RecordedRequest.FilterText.get -> string?
+DynaSharp.Testing.RecordedRequest.IndexName.get -> string?
 DynaSharp.Testing.RecordedRequest.KeyConditionText.get -> string?
+DynaSharp.Testing.RecordedRequest.Limit.get -> int?
 DynaSharp.Testing.RecordedRequest.ProjectionText.get -> string?
+DynaSharp.Testing.RecordedRequest.ScanIndexForward.get -> bool?
+DynaSharp.Testing.RecordedRequest.TableName.get -> string?
 DynaSharp.Testing.RecordedRequest.TransactItems.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedTransactStep!>!
 DynaSharp.Testing.RecordedRequest.UpdateText.get -> string?
 DynaSharp.Testing.RecordedStsRequest
@@ -33,6 +38,7 @@ DynaSharp.Testing.RecordedTransactStep.ReadKey<T>() -> T
 DynaSharp.Testing.RecordedTransactStep.TableName.get -> string?
 DynaSharp.Testing.RecordedTransactStep.UpdateText.get -> string?
 DynaSharp.Testing.StubClient
+DynaSharp.Testing.StubHandler.ThrowIfResponsesLeft() -> void
 DynaSharp.Testing.StubSts
 DynaSharp.Testing.StubSts.DefaultResponse.get -> DynaSharp.Testing.StubStsResponse?
 DynaSharp.Testing.StubSts.DefaultResponse.set -> void

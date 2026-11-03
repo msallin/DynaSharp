@@ -14,7 +14,8 @@ namespace DynaSharp.Testing;
 /// <para>
 /// A test says what was sent instead of comparing JSON text: <see cref="ReadItem{T}()"/> reads the item of a put back through the code of the entity and <see cref="ReadKey()"/> the key of a get, an update or a
 /// delete, <see cref="TransactItems"/> reads a transaction step by step, and <see cref="ConditionText"/>, <see cref="UpdateText"/>, <see cref="KeyConditionText"/>, <see cref="FilterText"/> and
-/// <see cref="ProjectionText"/> read an expression. <see cref="BodyJson"/> reaches everything else, such as the writes of a <c>BatchWriteItem</c>.
+/// <see cref="ProjectionText"/> read an expression, and <see cref="TableName"/>, <see cref="IndexName"/>, <see cref="ConsistentRead"/>, <see cref="ScanIndexForward"/> and <see cref="Limit"/> read a
+/// member of the top of the body as it was sent, <see langword="null"/> where the request has none. <see cref="BodyJson"/> reaches everything else, such as the writes of a <c>BatchWriteItem</c>.
 /// </para>
 /// <para>
 /// <b>The notation of the texts.</b> An expression reads as DynamoDB gets it, keywords, functions and spacing included, with each placeholder replaced by what it stands for, so a test does not depend on how
@@ -77,6 +78,46 @@ public sealed class RecordedRequest
     /// <value>The root of the body.</value>
     /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
     public JsonElement BodyJson => JsonElement.Parse(Body.Span, new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
+
+    /// <summary>
+    /// Gets the <c>TableName</c> of the body, which a request on one table carries, such as a <c>GetItem</c>, a <c>Query</c> or a <c>DescribeTable</c>; <see langword="null"/> if it has none. A batch and a
+    /// transaction name a table per entry and have none at the top: <see cref="TransactItems"/> gives the table of each step, and <see cref="BodyJson"/> the tables of a batch.
+    /// </summary>
+    /// <value>The table name, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? TableName => BodyJson.TryGetProperty("TableName"u8, out var name) ? name.GetString() : null;
+
+    /// <summary>Gets the <c>IndexName</c> of a <c>Query</c> or a <c>Scan</c> of an index; <see langword="null"/> for a read of the table and for every other operation.</summary>
+    /// <value>The index name, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    public string? IndexName => BodyJson.TryGetProperty("IndexName"u8, out var name) ? name.GetString() : null;
+
+    /// <summary>
+    /// Gets <c>ConsistentRead</c> of a <c>GetItem</c>, a <c>Query</c> or a <c>Scan</c> as the request sent it; <see langword="null"/> if it sent none, which DynamoDB reads as an eventually consistent read. The client
+    /// sends it only for a strongly consistent read, so a test asserts <see langword="true"/> or <see langword="null"/>. A <c>BatchGetItem</c> has it per table, in <see cref="BodyJson"/>.
+    /// </summary>
+    /// <value>The flag, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    /// <exception cref="InvalidOperationException">The member is not a JSON boolean.</exception>
+    public bool? ConsistentRead => BodyJson.TryGetProperty("ConsistentRead"u8, out var flag) ? flag.GetBoolean() : null;
+
+    /// <summary>
+    /// Gets <c>ScanIndexForward</c> of a <c>Query</c> as the request sent it; <see langword="null"/> if it sent none, which DynamoDB reads as ascending order of the sort key. A query command sends it only for
+    /// <c>Descending()</c>, so a test of one asserts <see langword="false"/> or <see langword="null"/>; a <c>QueryRequest</c> sends what it holds.
+    /// </summary>
+    /// <value>The flag, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    /// <exception cref="InvalidOperationException">The member is not a JSON boolean.</exception>
+    public bool? ScanIndexForward => BodyJson.TryGetProperty("ScanIndexForward"u8, out var flag) ? flag.GetBoolean() : null;
+
+    /// <summary>
+    /// Gets the <c>Limit</c> of the body: how many items a <c>Query</c> or a <c>Scan</c> reads at most for this page, before the filter, or how many tables, streams, shards or records a page of
+    /// <c>ListTables</c>, <c>ListStreams</c>, <c>DescribeStream</c> or <c>GetRecords</c> holds at most; <see langword="null"/> if the request set none.
+    /// </summary>
+    /// <value>The limit, or <see langword="null"/>.</value>
+    /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
+    /// <exception cref="FormatException">The member is not a JSON number that fits an <see cref="int"/>.</exception>
+    public int? Limit => BodyJson.TryGetProperty("Limit"u8, out var limit) ? limit.GetInt32() : null;
 
     /// <summary>Gets the <c>ConditionExpression</c> with its placeholders resolved, in the notation of the remarks of this class: <c>version = 3</c>; <see langword="null"/> if the request has none.</summary>
     /// <value>The text, or <see langword="null"/>.</value>

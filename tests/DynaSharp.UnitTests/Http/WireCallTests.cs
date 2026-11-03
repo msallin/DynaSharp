@@ -398,7 +398,8 @@ public sealed class WireCallTests
     public async Task SendAsync_FailedCondition_LetsTheCallDescribeIt()
     {
         // Arrange
-        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+        // A call of its own is no write, so the error comes in the shape that fits any operation.
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ConditionalCheckFailedException", "The conditional request failed"));
         using var client = TestClient.Create(handler);
         var state = new SegmentState("{}");
 

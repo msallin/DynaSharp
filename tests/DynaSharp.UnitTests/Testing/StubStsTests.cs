@@ -191,13 +191,48 @@ public sealed class StubStsTests
     }
 
     [Test]
-    public async Task Credentials_NoExpiration_ThrowsArgumentException()
+    public async Task Credentials_NoExpiration_GoesOutWithAFixedDateFarAhead()
     {
         // Act
-        var act = () => StubStsResponse.Credentials(new AwsCredentials("a", "b", "c"));
+        var response = StubStsResponse.Credentials(new AwsCredentials("a", "b", "c"));
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("credentials");
+        await Assert.That(ElementsOf(response.Body, "Expiration", "Expiration").First).IsEqualTo("2100-01-01T00:00:00Z");
+    }
+
+    // The sample of the README of the package: credentials as a test writes them, without an expiration, which STS always sends.
+    [Test]
+    public async Task GetCredentialsAsync_CredentialsWithoutExpiration_GetsThemWithTheDefaultExpiration()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        using var directory = TokenDirectory();
+        sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token")));
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+
+        // Act
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.Expiration).IsEqualTo(new DateTimeOffset(2100, 1, 1, 0, 0, 0, TimeSpan.Zero));
+    }
+
+    // The default must not open a refresh window: a second call keeps the credentials, so a test that queued one answer needs no second.
+    [Test]
+    public async Task GetCredentialsAsync_TwiceWithCredentialsWithoutExpiration_FetchesOnce()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        using var directory = TokenDirectory();
+        sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token")));
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(sts.Requests).Count().IsEqualTo(1);
     }
 
     [Test]
