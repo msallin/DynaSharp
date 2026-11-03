@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using DotNet.Testcontainers.Builders;
 using DynaSharp.Credentials;
 
@@ -80,7 +79,6 @@ internal static class Emulators
 
     private static async Task<Running> ConnectToRealAwsAsync() => new Running(await RealAws.ConnectAsync(), RealAws.DeleteTablesOfThisRunAsync);
 
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Owned by the Running record, disposed with the container.")]
     private static async Task<Running> StartContainerAsync(Backend backend)
     {
         var builder = new ContainerBuilder(ReadImage(backend)).WithPortBinding(ContainerPort, assignRandomHostPort: true);

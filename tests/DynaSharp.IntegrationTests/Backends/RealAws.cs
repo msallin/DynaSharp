@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
 using DynaSharp.Credentials;
@@ -82,7 +81,6 @@ internal static class RealAws
     }
 
     // The client signs and sends, the handler keeps what came back: the tests want the response as it was on the wire.
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Lives as long as the run.")]
     private static RawDynamoDb CreateRaw()
     {
         var wire = new WireHandler();
@@ -90,7 +88,6 @@ internal static class RealAws
         return new RawDynamoDb((operation, json, cancellationToken) => wire.CaptureAsync(() => client.SendRawAsync(operation, Encoding.UTF8.GetBytes(json), cancellationToken)));
     }
 
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Lives as long as the run.")]
     private static RawDynamoDb CreateRawStreams()
     {
         var wire = new WireHandler();
@@ -103,10 +100,8 @@ internal static class RealAws
     {
         private readonly AsyncLocal<StrongBox<RawResponse>> _current = new();
 
-#pragma warning disable CA2000 // The base class takes the handler and disposes it.
         public WireHandler()
             : base(new SocketsHttpHandler())
-#pragma warning restore CA2000
         {
         }
 

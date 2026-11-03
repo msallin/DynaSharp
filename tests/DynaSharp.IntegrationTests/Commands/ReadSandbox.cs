@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Support;
@@ -33,7 +32,6 @@ internal sealed class ReadSandbox : IAsyncDisposable
 
     public Table<Item> Shop { get; }
 
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The object that is returned owns the sandbox.")]
     public static async Task<ReadSandbox> StartAsync(Backend backend)
     {
         var sandbox = await Sandbox.StartAsync(backend);

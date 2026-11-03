@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.Mapping;
 using DynaSharp.Requests;
@@ -35,7 +34,6 @@ internal sealed class Sandbox : IAsyncDisposable
     /// <summary>Starts the backend if needed and creates the clients for it.</summary>
     /// <param name="backend">The backend of the test.</param>
     /// <returns>The sandbox.</returns>
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Owned by the sandbox, disposed with it.")]
     public static async Task<Sandbox> StartAsync(Backend backend)
     {
         var emulator = await Emulators.GetAsync(backend);

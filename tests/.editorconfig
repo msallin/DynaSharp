@@ -15,6 +15,8 @@ dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1822.severity = none
 # CA2025: tests start a call, drive the handler or the clock, and await the call afterwards, still inside the using scope.
 dotnet_diagnostic.CA2025.severity = none
+# CA2000: tests hand stub handlers, clients and sandboxes to the code under test, which owns them. The library keeps the rule.
+dotnet_diagnostic.CA2000.severity = none
 # CA1812: generated code creates mapped types, and dotnet format analyzes without it.
 dotnet_diagnostic.CA1812.severity = none
 
