@@ -25,16 +25,19 @@ public interface IUpdatable<TSelf>
     /// <para>
     /// <b>Key templates.</b> The handle of a property that feeds a key template keeps that key consistent, which a raw path does not. When the command ends, all inputs of the template must be known: then the
     /// derived attribute is written in the same <c>SET</c>, and otherwise sending throws <see cref="InvalidOperationException"/> naming the template and the <c>Set</c> calls to add, because the index
-    /// would go stale. DynamoDB cannot build a key from what an item holds, so an input that does not change is set as well, to the value the item holds. An input of a key of the table is known from
+    /// would go stale. An update expression can copy an attribute and cannot format one, so an input of a key of several values or with literals that does not change is set as well, to the value the item holds. An input of a key of the table is known from
     /// the key the update was given, and it cannot be set, because DynamoDB cannot update a key, so an index key that repeats it needs nothing more: that is the place for an input that never changes. A key given as strings is parsed
     /// for that, so a value that its text does not hold, such as a timestamp a key cuts off at the day, comes from a generated key or not at all: then use a <c>Put</c> of the changed entity,
     /// or a raw path. A write by handle to a property that a computed input is derived from, see <see cref="Mapping.ComputedFromAttribute"/>, also to a path inside it, throws in the same way, because no update can run a getter, and so does a write by handle to such a computed input itself.
     /// </para>
     /// <para>
     /// <b>Sparse indexes.</b> An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
-    /// naming it: an update does not read the item, so it cannot tell whether the item holds the other key, also one of a single bare placeholder, and an item without it would stay out of the
+    /// naming it: an update does not read the item, so it cannot tell whether the item holds the other key, and an item without it would stay out of the
     /// index without an error. A key of literals, of any index, and a key made only of inputs of the table key are no such keys: they are
-    /// written in the same <c>SET</c>, and removed with the other key.
+    /// written in the same <c>SET</c>, and removed with the other key. A key that is the stored text of an attribute, one bare placeholder such as <c>{Owner}</c> over a <see cref="string"/>, also with
+    /// <c>:raw</c>, a <see cref="Guid"/>, a <see cref="DateOnly"/>, a timestamp in <c>ticks</c> or an enum by name, each with its built-in converter, is copied in the same <c>SET</c>, <c>gsi1pk = Owner</c>,
+    /// so the update needs no value for it. DynamoDB evaluates the copy on the item: an item without the attribute, also one that the update would create, fails the whole update with
+    /// <see cref="ValidationException"/>, "The provided expression refers to an attribute that does not exist in the item", and is left as it was.
     /// </para>
     /// <para>
     /// <b>Add and SetIfNotExists.</b> By the handle of such a property they throw too: the value they leave is not known here, so the key cannot follow. In a transaction the check runs

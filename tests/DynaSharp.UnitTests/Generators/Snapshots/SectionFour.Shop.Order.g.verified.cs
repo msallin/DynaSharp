@@ -33,7 +33,7 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
                 new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::Shop.OrderStatus)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("gsi2sk", "{ShippedAt}", false, new[] { new __Map.DynamoDbKeyInput("ShippedAt", "ShippedAt") }, static __values => Keys.Gsi2Sk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("gsi2sk", "{ShippedAt}", false, new[] { new __Map.DynamoDbKeyInput("ShippedAt", "ShippedAt") }, static __values => Keys.Gsi2Sk.Format((global::System.DateTimeOffset)__values[0]!)) { CopyOf = "ShippedAt" },
             });
     }
 

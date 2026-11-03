@@ -29,7 +29,7 @@ partial class Letter : __Map.IDynamoDbDiscriminated<global::KeyShapes.Letter>
             {
                 new __Map.DynamoDbKeyTemplate("pk", "LETTER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("bydaypk", "DAY#{Day}", false, new[] { new __Map.DynamoDbKeyInput("Day", null, ComputedFromAttributes: new[] { "at" }) }, static __values => Keys.ByDayPk.Format((global::System.DateOnly)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("bydaysk", "{Received:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Received", "at") }, static __values => Keys.ByDaySk.Format((global::System.DateTimeOffset)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bydaysk", "{Received:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Received", "at") }, static __values => Keys.ByDaySk.Format((global::System.DateTimeOffset)__values[0]!)) { CopyOf = "at" },
             });
     }
 

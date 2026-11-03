@@ -5,6 +5,9 @@ namespace DynaSharp.Generators;
 /// <param name="EnumType">The enum as code.</param>
 internal sealed record EnumNameEncoding(string ConverterName, string EnumType) : KeyEncoding(0)
 {
+    // The key asks the generated converter for the name that the attribute holds.
+    public override bool HasTextOf(string converter) => converter == ConverterName;
+
     public override string WriteCall(string key, string value, string delimiters, string placeholder) =>
         $"{key}.WriteEnumName({ConverterName}.FindName({value}), {delimiters}, {placeholder})";
 

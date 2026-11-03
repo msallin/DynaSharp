@@ -7,6 +7,9 @@ namespace DynaSharp.Generators;
 /// <param name="FixedWidth">The width in bytes, or 0 for a variable width. Only variable-width values are checked against delimiters.</param>
 internal abstract record KeyEncoding(int FixedWidth)
 {
+    /// <summary>The namespace of the built-in converters, as code.</summary>
+    protected const string Serialization = "global::DynaSharp.Serialization.";
+
     /// <summary>Gets a value indicating whether parsing returns the value that was formatted, which <c>[KeyOnly]</c> depends on.</summary>
     public virtual bool IsLossless => true;
 
@@ -15,6 +18,14 @@ internal abstract record KeyEncoding(int FixedWidth)
     /// and so does <c>d3</c> over a <c>byte</c>, although nothing is too wide for it.
     /// </summary>
     public virtual bool CanReject => true;
+
+    /// <summary>
+    /// Finds out whether a converter stores a value as a string with the same text, byte for byte, as this encoding writes for it alone in a key, so that an update can copy the attribute into
+    /// such a key. Only built-in and generated converters are known to: a number is no string, and a converter of one's own, or the default of an assembly, writes what it likes.
+    /// </summary>
+    /// <param name="converter">The write converter of the property, as code.</param>
+    /// <returns><see langword="true"/> for the same text.</returns>
+    public virtual bool HasTextOf(string converter) => false;
 
     /// <summary>Returns the statement body that appends a value.</summary>
     /// <param name="key">The <c>KeyWriter</c> variable.</param>

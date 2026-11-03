@@ -9,6 +9,9 @@ internal sealed record StringEncoding(bool IsRaw = false) : KeyEncoding(0)
 {
     private const string NoDelimiters = "\"\"u8";
 
+    // Raw or not, a value alone in a key is the string as it is.
+    public override bool HasTextOf(string converter) => converter == Serialization + "StringConverter";
+
     public override string WriteCall(string key, string value, string delimiters, string placeholder) =>
         $"{key}.WriteString({value}, {Own(delimiters)}, {placeholder})";
 

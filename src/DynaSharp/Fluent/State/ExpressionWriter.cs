@@ -337,6 +337,23 @@ internal sealed class ExpressionWriter
     }
 
     /// <summary>
+    /// Adds <c>name = source</c> to the <c>SET</c> clause, which copies an attribute of the item, for names that come from an entity and are taken as they are. An action of the update on the attribute takes
+    /// precedence, as in <see cref="SetMissingAttribute"/>, which also keeps two indexes that share the attribute from copying it twice.
+    /// </summary>
+    /// <param name="attributeName">The attribute that is written.</param>
+    /// <param name="sourceName">The attribute of the item whose value it takes.</param>
+    public void CopyAttribute(string attributeName, string sourceName)
+    {
+        if (!HasActionOnAttribute(attributeName))
+        {
+            var text = StartAction(Clause.Set, "SET "u8);
+            AppendAttributeName(text, attributeName);
+            text.Append(" = "u8);
+            AppendAttributeName(text, sourceName);
+        }
+    }
+
+    /// <summary>
     /// Adds <c>name = if_not_exists(name, value)</c> to the <c>SET</c> clause, unless an action of the update already changes the attribute, because DynamoDB rejects two actions on one path.
     /// A name that only a condition or the right side of an action mentions is no such action. It runs last, so that it sees them all.
     /// </summary>
@@ -347,26 +364,7 @@ internal sealed class ExpressionWriter
     public void SetMissingAttribute<T, TConverter>(string attributeName, T value)
         where TConverter : IDynamoDbConverter<T>
     {
-        // The candidate is written to the end of the map and taken back, as in AppendName.
-        var names = _names;
-        var mark = names.WrittenCount;
-        WireJson.AppendEncoded(names, attributeName);
-        var placeholder = StartPending();
-        var index = Find(_nameSlices, _nameCount, names, mark);
-        if (index >= 0)
-        {
-            placeholder.Append("#n"u8);
-            placeholder.AppendNumber(index);
-        }
-
-        var isChanged = false;
-        for (var clause = Clause.Set; clause <= Clause.Delete; clause++)
-        {
-            isChanged |= HasActionOn(this[clause].WrittenSpan, placeholder.WrittenSpan, names.WrittenSpan[mark..]);
-        }
-
-        names.Truncate(mark);
-        if (!isChanged)
+        if (!HasActionOnAttribute(attributeName))
         {
             var text = StartAction(Clause.Set, "SET "u8);
             AppendAttributeName(text, attributeName);
@@ -837,6 +835,30 @@ internal sealed class ExpressionWriter
         var text = this[clause];
         text.Append(text.WrittenCount == 0 ? keyword : ", "u8);
         return text;
+    }
+
+    private bool HasActionOnAttribute(string attributeName)
+    {
+        // The candidate is written to the end of the map and taken back, as in AppendName.
+        var names = _names;
+        var mark = names.WrittenCount;
+        WireJson.AppendEncoded(names, attributeName);
+        var placeholder = StartPending();
+        var index = Find(_nameSlices, _nameCount, names, mark);
+        if (index >= 0)
+        {
+            placeholder.Append("#n"u8);
+            placeholder.AppendNumber(index);
+        }
+
+        var isChanged = false;
+        for (var clause = Clause.Set; clause <= Clause.Delete; clause++)
+        {
+            isChanged |= HasActionOn(this[clause].WrittenSpan, placeholder.WrittenSpan, names.WrittenSpan[mark..]);
+        }
+
+        names.Truncate(mark);
+        return isChanged;
     }
 
     private void AppendName(PooledByteBuffer text, ReadOnlySpan<char> name)

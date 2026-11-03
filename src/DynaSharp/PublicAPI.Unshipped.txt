@@ -80,6 +80,8 @@ static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.Re
 static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.TryReadMissing(out T! value) -> bool
 static DynaSharp.Serialization.OmitEmptySetConverter<T, TElement, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, T! value) -> void
 DynaSharp.Serialization.IDynamoDbConverter<T>.IsOmitted(T value) -> bool
+DynaSharp.Mapping.DynamoDbKeyTemplate.CopyOf.get -> string?
+DynaSharp.Mapping.DynamoDbKeyTemplate.CopyOf.init -> void
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.get -> bool
 DynaSharp.Mapping.DynamoDbKeyTemplate.LosesValues.init -> void
 DynaSharp.Mapping.DynamoDbKeyTemplate.Parse.get -> System.Func<DynaSharp.AttributeValue, object?[]?>?

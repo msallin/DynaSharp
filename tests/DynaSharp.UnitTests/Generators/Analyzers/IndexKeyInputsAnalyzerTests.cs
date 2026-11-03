@@ -120,6 +120,24 @@ public sealed class IndexKeyInputsAnalyzerTests
             public string? Mark { get; init; }
         }
 
+        [DynamoDbEntity]
+        [Discriminator("COPIED")]
+        [PartitionKey("{Id}")]
+        [GlobalIndexKey("Live", PartitionKey = "{Owner}", SortKey = "LIVE#{LiveSince}", Sparse = true)]
+        [GlobalIndexKey("Counted", PartitionKey = "{Count:d6}", SortKey = "C#{Mark}", Sparse = true)]
+        public partial class Copied
+        {
+            public required string Id { get; init; }
+
+            public string? Owner { get; init; }
+
+            public DateTimeOffset? LiveSince { get; init; }
+
+            public int? Count { get; init; }
+
+            public string? Mark { get; init; }
+        }
+
         public sealed class Hand
         {
             public static class Attrs
@@ -149,6 +167,7 @@ public sealed class IndexKeyInputsAnalyzerTests
         private static readonly Tally.Keys.PrimaryKey tallyKey = default;
         private static readonly Table<Badge> badges = null!;
         private static readonly Table<Half> halves = null!;
+        private static readonly Table<Copied> copies = null!;
         private static readonly DynamoDbClient client = null!;
         private static readonly WorkItem item = null!;
         private static readonly string? text = null;
@@ -352,6 +371,34 @@ public sealed class IndexKeyInputsAnalyzerTests
         // Assert
         await Assert.That(Shared.CompilerErrors(source)).IsEmpty();
         await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_SparseIndexWhoseOtherKeyIsTheTextOfAnAttribute_ReportsNothing()
+    {
+        // Arrange (the update copies Owner into the partition key of the index)
+        var source = AnalyzerRun.Member(Fields + """public static void Run() { _ = copies.Update("c").Set(Copied.Attrs.LiveSince, now).ToRequestJson(); }""");
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new IndexKeyInputsAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""copies.Update("c").Set([|Copied.Attrs.Owner|], "ann").ToRequestJson()""", "Owner", "LiveSince", "LIVE#{LiveSince}", "Live")]
+    [Arguments("""copies.Update("c").Set([|Copied.Attrs.Mark|], "m").ToRequestJson()""", "Mark", "Count", "{Count:d6}", "Counted")]
+    public async Task Analyze_SparseIndexWhoseOtherKeyIsNoTextOfAnAttribute_ReportsTheOtherKey(string chain, string set, string missing, string key, string index)
+    {
+        // Arrange (a literal before the time, and a number padded to six digits, are other text than the attribute holds)
+        var source = AnalyzerRun.Member(Fields + "public static void Run() { _ = " + chain + "; }");
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new IndexKeyInputsAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Copied", set, missing, key, index, $"Set {missing} as well, with the value the item holds")));
     }
 
     [Test]

@@ -32,7 +32,7 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
                 new __Map.DynamoDbKeyTemplate("featuredpk", "FEATURED", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.FeaturedPk.Format()),
                 new __Map.DynamoDbKeyTemplate("featuredsk", "ON#{FeaturedOn}", false, new[] { new __Map.DynamoDbKeyInput("FeaturedOn", "FeaturedOn") }, static __values => Keys.FeaturedSk.Format((global::System.DateOnly)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("everythingpk", "ALL", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EverythingPk.Format()),
-                new __Map.DynamoDbKeyTemplate("everythingsk", "{Title}", false, new[] { new __Map.DynamoDbKeyInput("Title", "Title") }, static __values => Keys.EverythingSk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("everythingsk", "{Title}", false, new[] { new __Map.DynamoDbKeyInput("Title", "Title") }, static __values => Keys.EverythingSk.Format((string)__values[0]!)) { CopyOf = "Title" },
             });
     }
 

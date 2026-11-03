@@ -45,4 +45,12 @@ public sealed class DynamoDbKeyTemplate(string attributeName, string text, bool 
     /// generated key then holds that key, see <see cref="IKey.ValueOf"/>.
     /// </summary>
     public bool LosesValues { get; init; }
+
+    /// <summary>
+    /// Gets the attribute whose stored text this key of an index is, byte for byte, or <see langword="null"/> for any other key. That is a template of one bare placeholder over a property with an attribute of its
+    /// own, whose converter writes a string of the same text as the key: a <see cref="string"/>, also with <c>:raw</c>, a <see cref="Guid"/>, a <see cref="DateOnly"/>, a timestamp in <c>ticks</c> and an enum by name,
+    /// each with its built-in or generated converter. An update that has to produce such a key without its input copies it from the attribute, <c>SET key = attribute</c>, which DynamoDB evaluates on the item
+    /// and rejects with a <see cref="ValidationException"/> when the item lacks the attribute.
+    /// </summary>
+    public string? CopyOf { get; init; }
 }

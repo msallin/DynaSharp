@@ -30,7 +30,7 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
                 new __Map.DynamoDbKeyTemplate("Room", "{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room") }) { Parse = static __key => new object?[] { __Ser.ConverterChecks.ReadValue<string, global::DynaSharp.Serialization.StringConverter>(__key) } },
                 new __Map.DynamoDbKeyTemplate("sk", "AT#{At:yyyy-MM-dd}#{Seq:d4}#{Room}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("Seq", null), new __Map.DynamoDbKeyInput("Room", "Room") }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null, __parts.Seq, __parts.Room } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byroompk", "ROOM#{Room}", false, new[] { new __Map.DynamoDbKeyInput("Room", "Room") }, static __values => Keys.ByRoomPk.Format((string)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("byroomsk", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }, static __values => Keys.ByRoomSk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("byroomsk", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }, static __values => Keys.ByRoomSk.Format((string)__values[0]!)) { CopyOf = "Code" },
             });
     }
 

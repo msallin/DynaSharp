@@ -134,6 +134,8 @@ An index can leave items out. With `Sparse = true`, an item with a null input wr
 public partial record Parcel(string Id, string? TrackingNumber);
 ```
 
+An update that sets one key of a sparse index writes the other one too, because the index takes an item only with both. It builds that key from the values it has, or throws naming the `Set` to add. A key that is one bare placeholder over a string, a `Guid`, a `DateOnly`, a timestamp in `ticks` or an enum by name, such as `PartitionKey = "{Owner}"`, is the text of its attribute, so the update copies it from the item instead, `SET byownerpk = Owner`, and needs no value. An item without the attribute fails that update with `ValidationException`.
+
 ## Local indexes
 
 A local index sorts the items of a partition another way: it has the partition key of the table and a sort key of its own. `[LocalIndexKey]` takes the name of the index and the template of that sort key, and needs an entity with a sort key.

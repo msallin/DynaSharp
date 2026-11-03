@@ -239,7 +239,7 @@ await items.Update(WorkItem.Keys.Of(id)).Set(WorkItem.Attrs.Status, WorkStatus.C
 
 Caveats:
 
-- DynamoDB cannot build a key from what an item holds, so an update brings every input of a key it changes. An input of the key of the table comes with the key; any other comes from the caller. With a time of its own, `{Status}#{CreatedAt}`, closing an item sets `CreatedAt` as well, to the value the item holds, which is a read before the write. The build reports an update without it as [`DYNA226`](diagnostics.md#commands), and the update throws `InvalidOperationException`, naming the `Set` to add, before anything is sent, rather than leave the index behind. A `Put` of the changed item writes the whole key.
+- DynamoDB cannot build a key of several values from what an item holds, so an update brings every input of a key it changes. An input of the key of the table comes with the key; any other comes from the caller. With a time of its own, `{Status}#{CreatedAt}`, closing an item sets `CreatedAt` as well, to the value the item holds, which is a read before the write. The build reports an update without it as [`DYNA226`](diagnostics.md#commands), and the update throws `InvalidOperationException`, naming the `Set` to add, before anything is sent, rather than leave the index behind. A `Put` of the changed item writes the whole key.
 - A change of status moves the item in the index: DynamoDB deletes the old entry and writes a new one.
 
 ## Soft delete
@@ -288,5 +288,5 @@ Caveats:
 
 - The table knows nothing of the mark. A `Get` or a query of the table still finds a deleted item, so each reader there looks at `DeletedAt`.
 - A second delete fails its condition with `ConditionalCheckFailedException`.
-- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds: the delete took both keys of the index away, an update does not read the item to build `OWNER#{Owner}` again, and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands).
+- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds: the delete took both keys of the index away, an update does not read the item to build `OWNER#{Owner}` again, and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands). An index whose partition key is the owner alone, `PartitionKey = "{Owner}"`, needs no such `Set`: that key is the text of the `Owner` attribute, so the restore copies it, `SET gsi2pk = Owner`, and a note without an owner fails the restore with `ValidationException` instead of staying out of the list.
 - The index has the partition key of the table, so a local index would do as well, and read consistently, but DynamoDB creates a local index with its table or never.

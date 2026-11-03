@@ -30,11 +30,11 @@ internal static class KeyTemplateEmitter
             var parse = Parse(type, key, readers, stored);
             if (Placeholders(key).Any() || parse is not null)
             {
-                lines.Add(Line(type, entity, key, isTableKey: true, stored, format: null, parse, Placeholders(key).Any(placeholder => lost.Contains(placeholder.Property))));
+                lines.Add(Line(type, entity, key, isTableKey: true, stored, format: null, parse, Placeholders(key).Any(placeholder => lost.Contains(placeholder.Property)), copyOf: null));
             }
         }
 
-        lines.AddRange(indexKeys.Select(key => Line(type, entity, key, isTableKey: false, stored, Format(key), parse: null, losesValues: false)));
+        lines.AddRange(indexKeys.Select(key => Line(type, entity, key, isTableKey: false, stored, Format(key), parse: null, losesValues: false, CopySource(type, key))));
         return lines;
     }
 
@@ -50,6 +50,24 @@ internal static class KeyTemplateEmitter
         return LostInputs(tableKeys, readers, stored).Count == 0
             ? []
             : [.. tableKeys.SelectMany(Inputs).Where(input => stored.Contains(input) || readers.Exists(reader => reader.Property == input)).Distinct()];
+    }
+
+    /// <summary>
+    /// Finds the attribute an update can copy into a key of an index, <c>SET key = attribute</c>, because the key is its stored text byte for byte: a template of one bare placeholder over a property with an
+    /// attribute of its own, whose converter writes the string the encoding writes. A literal, a second placeholder or a format that pads, cuts or turns a number into text makes another text.
+    /// </summary>
+    /// <param name="type">The type of the entity.</param>
+    /// <param name="key">The key of an index.</param>
+    /// <returns>The attribute, or <see langword="null"/> for a key that only its inputs can build.</returns>
+    public static string? CopySource(TypeModel type, KeyModel key)
+    {
+        if (key.Template is not { Segments: { Count: 1 } segments } || segments[0] is not PlaceholderSegment placeholder)
+        {
+            return null;
+        }
+
+        var property = type.Properties.FirstOrDefault(candidate => candidate.Name == placeholder.Property && candidate.Converter is not null);
+        return property is not null && placeholder.Encoding.HasTextOf(property.Converter!.WriteConverter) ? property.AttributeName : null;
     }
 
     private static List<KeyModel> TableKeys(EntityModel entity) => [.. new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>()];
@@ -92,7 +110,7 @@ internal static class KeyTemplateEmitter
         return lost;
     }
 
-    private static string Line(TypeModel type, EntityModel entity, KeyModel key, bool isTableKey, HashSet<string> stored, string? format, string? parse, bool losesValues)
+    private static string Line(TypeModel type, EntityModel entity, KeyModel key, bool isTableKey, HashSet<string> stored, string? format, string? parse, bool losesValues, string? copyOf)
     {
         var text = key.Template?.Text ?? "{" + key.PlainProperty + "}";
         var inputs = key.Template is null
@@ -110,13 +128,24 @@ internal static class KeyTemplateEmitter
             arguments.Add(format);
         }
 
-        var line = $"new __Map.DynamoDbKeyTemplate({string.Join(", ", arguments)})";
-        if (parse is null)
+        var members = new List<string>();
+        if (parse is not null)
         {
-            return line;
+            members.Add($"Parse = {parse}");
         }
 
-        return $"{line} {{ Parse = {parse}{(losesValues ? ", LosesValues = true" : string.Empty)} }}";
+        if (losesValues)
+        {
+            members.Add("LosesValues = true");
+        }
+
+        if (copyOf is not null)
+        {
+            members.Add($"CopyOf = {CodeText.Literal(copyOf)}");
+        }
+
+        var line = $"new __Map.DynamoDbKeyTemplate({string.Join(", ", arguments)})";
+        return members.Count == 0 ? line : $"{line} {{ {string.Join(", ", members)} }}";
     }
 
     // A [KeyOnly] property and a computed one that is not stored have no attribute, so no handle can set them. The value of a stored input goes through the type parameter, which reaches a Write that a converter implements explicitly.

@@ -29,7 +29,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
             {
                 new __Map.DynamoDbKeyTemplate("pk", "NOTE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
-                new __Map.DynamoDbKeyTemplate("byownersk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("byownersk", "{Id}", false, new[] { new __Map.DynamoDbKeyInput("Id", "Id") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)) { CopyOf = "Id" },
             });
     }
 

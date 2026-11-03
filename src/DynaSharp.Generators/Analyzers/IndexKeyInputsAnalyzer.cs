@@ -8,8 +8,9 @@ namespace DynaSharp.Generators;
 /// <summary>
 /// DYNA226: an update that sets by handle some inputs of a key of an index and not the others, <c>Set(WorkItem.Attrs.Status, closed)</c> under <c>{Status}#{CreatedAt}</c>, or one key of a
 /// sparse index and not what its other key is made of. <c>KeyInputChanges</c> throws for both when the update is sent, because an update does not read the item: DynamoDB cannot build a key of
-/// several values from what an item holds, and for the other key of a sparse index, a bare <c>{Owner}</c> too, the update cannot tell whether the item holds it. So the update brings every input,
-/// also one that does not change. An input of the key of the table is known from the key the update was given, and a key of literals needs nothing.
+/// several values from what an item holds, and for the other key of a sparse index the update cannot tell whether the item holds it. So the update brings every input, also one that does not change.
+/// An input of the key of the table is known from the key the update was given, a key of literals needs nothing, and the other key of a sparse index that is the stored text of an attribute, such as a
+/// bare <c>{Owner}</c> over a string, is copied from it in the update, see <see cref="KeyTemplateEmitter.CopySource"/>.
 /// </summary>
 /// <remarks>
 /// A chain is read at its last call, and only when all of it is there: from the verb <c>Update</c>, on a table or as a step of a transaction, to a terminal, an <c>await</c> or the next step, with no
@@ -186,7 +187,8 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
             var (partition, sort) = (update.Owner(index.PartitionKey), update.Owner(sortKey));
             foreach (var (key, other) in new[] { (partition, sort), (sort, partition) })
             {
-                if (SetOf(update, key) is { Count: > 0 } set && !update.IsTableKey(other.AttributeName) && Missing(update, other) is { Count: > 0 } missing)
+                if (SetOf(update, key) is { Count: > 0 } set && !update.IsTableKey(other.AttributeName) && KeyTemplateEmitter.CopySource(update.Type, other) is null
+                    && Missing(update, other) is { Count: > 0 } missing)
                 {
                     return (other, set, missing, update.LatestOf(set));
                 }

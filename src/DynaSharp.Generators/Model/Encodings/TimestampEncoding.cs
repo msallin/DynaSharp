@@ -20,6 +20,9 @@ internal sealed record TimestampEncoding(string Format, int Width, bool IsOffset
 
     private string FormatCode => $"global::DynaSharp.Keys.KeyTimeFormat.{Format}";
 
+    // The attribute is the round-trip form in UTC, which is ticks, and every other format cuts it off.
+    public override bool HasTextOf(string converter) => IsLossless && converter == Serialization + (IsOffset ? "DateTimeOffsetConverter" : "DateTimeConverter");
+
     public override string WriteCall(string key, string value, string delimiters, string placeholder) =>
         IsOffset ? $"{key}.WriteTimestamp({value}, {FormatCode})" : $"{key}.WriteTimestamp({value}, {FormatCode}, {placeholder})";
 

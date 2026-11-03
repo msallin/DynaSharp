@@ -34,7 +34,7 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
                 new __Map.DynamoDbKeyTemplate("boardsk", "ANY", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardSk.Format()),
                 new __Map.DynamoDbKeyTemplate("everyonepk", "EVERYONE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EveryonePk.Format()),
                 new __Map.DynamoDbKeyTemplate("bytextpk", "TEXT", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByTextPk.Format()),
-                new __Map.DynamoDbKeyTemplate("bytextsk", "{Text}", false, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }, static __values => Keys.ByTextSk.Format((string)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("bytextsk", "{Text}", false, new[] { new __Map.DynamoDbKeyInput("Text", "Text") }, static __values => Keys.ByTextSk.Format((string)__values[0]!)) { CopyOf = "Text" },
             });
     }
 

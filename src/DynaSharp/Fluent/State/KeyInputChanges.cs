@@ -43,7 +43,8 @@ internal sealed class KeyInputChanges
 
     /// <summary>
     /// Leaves the keys of the changed inputs consistent, in the expressions of the update: writes the derived attribute of a template that has all its inputs, and
-    /// removes the attributes of a sparse index that lost one. An update that writes one key of a sparse index has to produce the other one as well, and a key of literals, of any index, comes and
+    /// removes the attributes of a sparse index that lost one. An update that writes one key of a sparse index has to produce the other one as well, or copy it from the attribute of the item whose text it is, see
+    /// <see cref="DynamoDbKeyTemplate.CopyOf"/>, and a key of literals, of any index, comes and
     /// goes with the key beside it, as does one made only of inputs of the table key. An index with nothing but literals has no such key, and <see cref="WriteRules"/> writes it. It runs once, at the
     /// terminal of the update.
     /// </summary>
@@ -253,7 +254,16 @@ internal sealed class KeyInputChanges
     {
         if (TemplateOf(attributeName, writes) is { } template && Has(template, KeyInputChange.Set) && !Produces(siblingName, state, writes))
         {
-            var missing = TemplateOf(siblingName, writes) is { } sibling ? Missing(sibling, state, writes) : null;
+            var sibling = TemplateOf(siblingName, writes);
+
+            // Its input is untouched here: a Set produces it, a Remove takes the item out of the index, and anything else has thrown in Check.
+            if (sibling?.CopyOf is { } source)
+            {
+                state.Expressions.CopyAttribute(siblingName, source);
+                return;
+            }
+
+            var missing = sibling is not null ? Missing(sibling, state, writes) : null;
             var remedy = missing is not null && CanSet(missing, writes) ? $"Add {SetsToAdd(missing, writes)}, so that it writes {siblingName} too." : PutOrRawPath;
             throw new InvalidOperationException(
                 $"This update of {writes.EntityName} sets {ListOf(template, static kind => kind == KeyInputChange.Set)}, of the key template {template.Text} of the sparse index {index.IndexName}, and does not produce {siblingName}, the other key of that index. An update does not read the item, so it cannot tell whether the item holds {siblingName}, and an item without it would stay out of the index without an error. {remedy}");

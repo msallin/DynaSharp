@@ -88,6 +88,40 @@ public sealed class SoftDeleteTests(Backend backend)
         await Assert.That(failure.Message).Contains(".Set(LooseNote.Attrs.Owner, value) with the value the item holds, so that it writes gsi2pk too.", StringComparison.Ordinal);
     }
 
+    [Test]
+    public async Task Update_RestoreWithTheOwnerAloneInThePartitionKeyOfTheIndex_CopiesTheOwner()
+    {
+        // Arrange (the partition key of the index is the text of the owner attribute, so the update copies it, SET gsi2pk = Owner, and needs no read)
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var notes = sandbox.Shop.Of<OwnedNote>();
+        await notes.Put(new OwnedNote { Id = Id, Owner = Ann, LiveSince = Noon.AddDays(-1) }).SendAsync();
+        await notes.Update(OwnedNote.Keys.Of(Id)).Set(OwnedNote.Attrs.DeletedAt, Noon).Remove(OwnedNote.Attrs.LiveSince).SendAsync();
+
+        // Act
+        await notes.Update(OwnedNote.Keys.Of(Id)).Remove(OwnedNote.Attrs.DeletedAt).Set(OwnedNote.Attrs.LiveSince, Noon).IfExists().SendAsync();
+        var live = await notes.Index(OwnedNote.Indexes.Gsi2).Query(OwnedNote.Keys.Gsi2Pk.Of(Ann)).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That((live.Single().Owner, live.Single().LiveSince)).IsEqualTo((Ann, (DateTimeOffset?)Noon));
+    }
+
+    [Test]
+    public async Task Update_RestoreOfANoteWithoutAnOwner_FailsWithValidationException()
+    {
+        // Arrange (an item without the attribute has nothing to copy, and DynamoDB rejects the whole update rather than leave the item out of the index)
+        await using var sandbox = await ShopSandbox.StartAsync(backend);
+        var notes = sandbox.Shop.Of<OwnedNote>();
+        await notes.Put(new OwnedNote { Id = Id }).SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<ValidationException>(async () => await notes.Update(OwnedNote.Keys.Of(Id)).Set(OwnedNote.Attrs.LiveSince, Noon).SendAsync());
+        var stored = await notes.Get(OwnedNote.Keys.Of(Id)).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((failure.Message.StartsWith("The provided expression refers to an attribute that does not exist in the item", StringComparison.Ordinal), failure.Message.Contains("#n2 = #n3", StringComparison.Ordinal),
+            failure.Message.Contains("#n3 = Owner", StringComparison.Ordinal), stored!.LiveSince)).IsEqualTo((true, true, true, (DateTimeOffset?)null));
+    }
+
     private static StoredNote NewNote() => new() { Id = Id, Owner = Ann, LiveSince = Noon.AddDays(-1) };
 
     private static async Task SoftDeleteAsync(Table<StoredNote> notes, TimeProvider clock) =>
@@ -123,6 +157,22 @@ internal sealed partial record LooseNote
     public required string Id { get; init; }
 
     public required string Owner { get; init; }
+
+    public DateTimeOffset? LiveSince { get; init; }
+
+    public DateTimeOffset? DeletedAt { get; init; }
+}
+
+[DynamoDbEntity]
+[Discriminator("OWNED_NOTE")]
+[PartitionKey("NOTE#{Id}")]
+[SortKey("OWNED")]
+[GlobalIndexKey("GSI2", PartitionKey = "{Owner}", SortKey = "LIVE#{LiveSince}", Sparse = true)]
+internal sealed partial record OwnedNote
+{
+    public required string Id { get; init; }
+
+    public string? Owner { get; init; }
 
     public DateTimeOffset? LiveSince { get; init; }
 
