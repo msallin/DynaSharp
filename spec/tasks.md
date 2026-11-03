@@ -10,14 +10,12 @@ Legend: `[ ]` open, `[~]` in progress (owner), `[x]` done, `[-]` dropped (reason
 Repository: https://github.com/msallin/DynaSharp (private). Docs site: https://msallin.github.io/DynaSharp/ (public, deployed by `docs.yml` from `main`). Commits are authored as `Marc Sallin <7792779+msallin@users.noreply.github.com>`; the `gh` account is `msallin` (`GH_TOKEN="$(gh auth token --user msallin)"` when several accounts are signed in).
 
 Where the code is:
-- `main`: everything up to M5 and the fake's P1 to P6, green in CI. History is linear, one commit per package.
+- `main`: M0 to M5 and the fake (M4, P1 to P7), the fixes of the correctness reviews of 2026-11-03, the analyzers and remarks from the field study (DYNA034 to DYNA035, DYNA235 to DYNA237), green in CI. History is linear, one commit per package. Parity after P7: tier1 494 of 497, tier2 101 passed, 0 failed, 351 skipped; the three failures are members the fake refuses by the owner's decision.
 
 Next steps, in order:
-1. Trigger `parity.yml` once (`workflow_dispatch`) and record the score table under M4 (the open P5 line).
-2. Close M4: what the P5 vectors did not settle stays listed as Open under M4 (the P4 replay, the stream items, the `_` name); the rest of M4 is done.
-3. Stryker on GitHub: `ci.yml` via `workflow_dispatch`, sharded (fluent, core, generators, testing), break at 90 %. Fix survivors.
-4. Release prep for 0.1.0 (M6): move `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` and `AnalyzerReleases.Unshipped.md` into `Shipped.md` (both are labelled 0.1.0 already, see D6 leftovers), release notes, benchmarks rerun (`benchmarks/`, numbers into the README), enable `PUBLISH_TO_NUGET` and trusted publishing. The first green CI on `main` with a tag releases.
-5. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
+1. Stryker: the sharded run 41671331841 (`ci.yml` via `workflow_dispatch`, on `cbc1c4b`) measures the tree before the reviews; check its survivors against `main`, fix them, and run it again before 0.1.0. Break at 90 %.
+2. Release prep for 0.1.0 (M6): move `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` and `AnalyzerReleases.Unshipped.md` into `Shipped.md` (both labelled 0.1.0 already, see D6 leftovers), release notes, the package icon, enable `PUBLISH_TO_NUGET` and trusted publishing. The first green CI on `main` with a tag releases.
+3. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user; whether the README makes a speed claim (timings under D6 leftovers).
 
 How to work:
 - Local: SDK exactly `11.0.100-rc.3.26522.148` (`global.json`, no roll-forward), `dotnet tool restore` (docfx, Stryker). Run the unit tests with `-c Release`: the allocation tests (`CommandAllocationTests` and others) fail in Debug, where the JIT does not optimize. Docker only for the emulator backends; the default backend `fake` needs none. Python with `botocore` for the vector scripts.
@@ -32,7 +30,8 @@ How to work:
 - [x] Repository skeleton, analyzers, editorconfig, gitattributes, gitignore, global.json, central packages, lock files
 - [x] TUnit + coverage gate (100 %), Stryker (break 90, MTP runner), Native AOT smoke test, BenchmarkDotNet
 - [x] CI, release workflow (version from Conventional Commits), Dependabot
-- [ ] Merge M0 to `main`; set repository to squash merges only; verify CI and release workflow on GitHub
+- [x] Merge M0 to `main`; verify CI on GitHub
+- [ ] Repository allows squash merges only (rebase merges are still on, an owner setting); the release workflow runs for the first time with the 0.1.0 tag, see M6
 
 ## M1a - thin vertical slice (static/env credentials, GetItem, PutItem, DescribeTable)
 
@@ -273,20 +272,20 @@ Work packages G0 to G9 in `history/generator-design.md` section 10, with its ame
 - [x] **Spike before M2: key grammar design** (done, see "Key grammar" in `requirements.md`). Template syntax, padding and number encoding, escaping, parse and
       prefix builders, interaction with GSIs and discriminators. Result: a design section in `requirements.md`.
       It shapes the generator API, so M2 starts after it.
-- [ ] `DynaSharp.Generators` project (netstandard2.0, packed into `DynaSharp`); `[DynamoDbEntity]`, `[PartitionKey]`,
+- [x] `DynaSharp.Generators` project (netstandard2.0, packed into `DynaSharp`); `[DynamoDbEntity]`, `[PartitionKey]`,
       `[SortKey]`, `[DynamoDbAttribute("name")]`, `[DynamoDbIgnore]`, `[DynamoDbConverter(typeof(X))]`
-- [ ] Generated `IDynamoDbEntity<T>` read/write/key extraction against `DynamoDbReader`/`DynamoDbWriter`; UTF-8 name
+- [x] Generated `IDynamoDbEntity<T>` read/write/key extraction against `DynamoDbReader`/`DynamoDbWriter`; UTF-8 name
       matching: the reader exposes the unescaped name bytes so generated code can switch on length and content
       instead of calling `AttributeNameEquals` per property
-- [ ] Built-in converters (primitives, string, Guid, DateTime/DateTimeOffset ISO 8601, TimeSpan, enums, binary,
+- [x] Built-in converters (primitives, string, Guid, DateTime/DateTimeOffset ISO 8601, TimeSpan, enums, binary,
       nullable, list/array, sets, dictionary, nested entities)
-- [ ] Key templates on keys and GSI keys; generated format / parse / prefix builders; public helper for the encodings,
+- [x] Key templates on keys and GSI keys; generated format / parse / prefix builders; public helper for the encodings,
       with golden vectors because the encoded form is an on-disk contract
-- [ ] Single-table: multiple entity types per table, discriminator, multiple GSIs, sparse GSI attributes
-- [ ] `[Version]` attribute (optimistic locking metadata); TTL epoch-seconds converter
-- [ ] Diagnostics `DYNA001`.. (unsupported type, missing partition key, non-partial, name collisions, invalid key
+- [x] Single-table: multiple entity types per table, discriminator, multiple GSIs, sparse GSI attributes
+- [x] `[Version]` attribute (optimistic locking metadata); TTL epoch-seconds converter
+- [x] Diagnostics `DYNA001`.. (unsupported type, missing partition key, non-partial, name collisions, invalid key
       template)
-- [ ] Snapshot tests (Verify.SourceGenerators) and compile-and-run round trips
+- [x] Snapshot tests (Verify.SourceGenerators) and compile-and-run round trips
 - [~] M2 independent review (together with M3)
 
 ## M3 - fluent API
@@ -595,7 +594,7 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
 - Decision: only the other key of a sparse index, the one case that threw. An index that is not sparse keeps writing the key it can compute and nothing else: a copy there would make an update that creates the item fail where it succeeds today. A key of several inputs or with literals stays as it was, a `Set` of each input, because an update expression cannot format.
 - Finding, both emulators (dynoxide 1.5.0 and DynamoDB Local 3.3.2, `AttributeCopyTests` and `SoftDeleteTests`): `SET gsi2pk = owner` copies a string, and the item enters the index. A copy from an attribute the item lacks, and on a key no item has, fails with `ValidationException` "The provided expression refers to an attribute that does not exist in the item" on both, and the item keeps no key. A copy of a number into a string key of an index fails with "One or more parameter values were invalid: Type mismatch for Index Key", which dynoxide follows with ` gsi2pk Expected: S Actual: N IndexName: GSI2`.
 
-- [~] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
+- [x] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
       fine print). Plug it into the backend-parametrized scenario tests. Host it behind a small HTTP listener
       (test tool, `HttpListener`) so the Parity Suite tiers 1 and 2 can run against it; track its score.
       In packages P1 to P6, on branches `m4/p<n>-...`.
@@ -651,7 +650,6 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
   6. `REMOVE a.b` without `a` is "The document path provided in the update expression is invalid for update", and with `a` but no `b` does nothing; `SET l[10]` on a list of two appends, `REMOVE l[10]` there does nothing (`Vectors/updates.json`, `remove-and-set-paths`).
   7. On DynamoDB Local, `UPDATED_OLD` and `UPDATED_NEW` of a nested path hold the whole top-level attribute: `SET m.x` returns all of `m`, `REMOVE m.x` returns `m` as it was. Real DynamoDB returns the named path alone, as a fragment (Parity `updateItem/basic` on AWS), and so does the fake since P7; the vector selects `m.M.x`, which both answer alike. A removed path is not in `UPDATED_NEW`: `REMOVE m.y SET t = :s` returns `t` alone (`Vectors/updates.json`, `updated-old-and-new`). Open: the index of an appended element.
   8. A key condition takes the value on either side, `:v < sk` as `sk > :v`. Not so: an empty sort value is rejected as an empty partition value is, "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: sk" (`Vectors/keys.json`, `key-condition-sides-and-empty-values`).
-- [ ] M5: SSO, `credential_process`, assume role
 
 - [~] M5: SSO, `credential_process`, assume role, see the M5 section above
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
