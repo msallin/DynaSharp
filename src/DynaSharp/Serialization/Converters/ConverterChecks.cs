@@ -151,7 +151,7 @@ public static class ConverterChecks
         var where = $"The property {propertyName} of {entityType}, the attribute \"{attributeName}\", cannot be written";
         return exception is UnspecifiedDateTimeException
             ? new ArgumentException(
-                $"{where}: its DateTime has DateTimeKind.Unspecified, so it names no instant. Give it DateTimeKind.Utc, or store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the AWS SDK does.",
+                $"{where}: its DateTime has DateTimeKind.Unspecified, so it names no instant. A DateTime that was never set, default(DateTime), has this kind: set it to a UTC time first. Only for times that the AWS SDK wrote, store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the SDK does.",
                 exception)
             : new ArgumentOutOfRangeException($"{where}: it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.", exception);
     }

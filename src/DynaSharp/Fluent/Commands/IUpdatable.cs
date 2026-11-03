@@ -32,7 +32,8 @@ public interface IUpdatable<TSelf>
     /// </para>
     /// <para>
     /// <b>Sparse indexes.</b> An index takes an item only with all its keys, so setting one key of a sparse index needs the other one in the same update, or sending throws <see cref="InvalidOperationException"/>
-    /// naming it, because the item would silently stay out of the index. A key of literals, of any index, and a key made only of inputs of the table key are no such keys: they are
+    /// naming it: an update does not read the item, so it cannot tell whether the item holds the other key, also one of a single bare placeholder, and an item without it would stay out of the
+    /// index without an error. A key of literals, of any index, and a key made only of inputs of the table key are no such keys: they are
     /// written in the same <c>SET</c>, and removed with the other key.
     /// </para>
     /// <para>

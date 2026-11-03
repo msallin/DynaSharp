@@ -288,5 +288,5 @@ Caveats:
 
 - The table knows nothing of the mark. A `Get` or a query of the table still finds a deleted item, so each reader there looks at `DeletedAt`.
 - A second delete fails its condition with `ConditionalCheckFailedException`.
-- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds, because DynamoDB cannot build a key from what an item holds and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands).
+- A key of the table cannot change, so a note that changes hands is deleted and put again. With the owner outside the key, `NOTE#{Id}`, a restore sets `Owner` as well, to the value the item holds: the delete took both keys of the index away, an update does not read the item to build `OWNER#{Owner}` again, and a sparse index takes an item only with both keys. The build reports a restore without it as [`DYNA226`](diagnostics.md#commands).
 - The index has the partition key of the table, so a local index would do as well, and read consistently, but DynamoDB creates a local index with its table or never.

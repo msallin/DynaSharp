@@ -36,8 +36,9 @@ public sealed class KeyInputChangesSiblingTests
 
         // Assert
         await Assert.That(failure.Message).IsEqualTo(
-            "This update of DynaSharp.UnitTests.Fluent.Ticket sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk, the other key of that index, so the item would silently stay out of it. " +
-            "DynamoDB cannot build a key from what the item holds: add .Set(Ticket.Attrs.Due, value) with the value the item holds, so that it writes byownersk too.");
+            "This update of DynaSharp.UnitTests.Fluent.Ticket sets Owner, of the key template OWNER#{Owner} of the sparse index ByOwner, and does not produce byownersk, the other key of that index. " +
+            "An update does not read the item, so it cannot tell whether the item holds byownersk, and an item without it would stay out of the index without an error. " +
+            "Add .Set(Ticket.Attrs.Due, value) with the value the item holds, so that it writes byownersk too.");
     }
 
     [Test]
@@ -52,7 +53,7 @@ public sealed class KeyInputChangesSiblingTests
         var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Agent, "ann").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).EndsWith("add .Set(Claim.Attrs.Floor, value) and .Set(Claim.Attrs.Desk, value) with the values the item holds, so that it writes byagentsk too.");
+        await Assert.That(failure.Message).EndsWith("Add .Set(Claim.Attrs.Floor, value) and .Set(Claim.Attrs.Desk, value) with the values the item holds, so that it writes byagentsk too.");
     }
 
     [Test]

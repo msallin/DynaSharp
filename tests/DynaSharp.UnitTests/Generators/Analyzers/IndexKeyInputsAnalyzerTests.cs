@@ -370,5 +370,5 @@ public sealed class IndexKeyInputsAnalyzerTests
     }
 
     private static string Message(string entity, string set, string missing, string key, string index, string remedy) =>
-        $"DYNA226 Warning: This update of '{entity}' sets {set} and not {missing}, so it cannot write the key {key} of the index {index} and throws when it is sent, because DynamoDB cannot build a key from what the item holds. {remedy}.";
+        $"DYNA226 Warning: This update of '{entity}' sets {set} and not {missing}, so it cannot write the key {key} of the index {index} and throws when it is sent, because an update does not read the item and cannot tell what it holds for {missing}. {remedy}.";
 }

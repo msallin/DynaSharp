@@ -8,7 +8,7 @@ namespace DynaSharp.UnitTests.Mapping;
 /// </summary>
 public sealed class GeneratedWriteRefusalTests
 {
-    private const string Fix = "its DateTime has DateTimeKind.Unspecified, so it names no instant. Give it DateTimeKind.Utc, or store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the AWS SDK does.";
+    private const string Fix = "its DateTime has DateTimeKind.Unspecified, so it names no instant. A DateTime that was never set, default(DateTime), has this kind: set it to a UTC time first. Only for times that the AWS SDK wrote, store it with [DynamoDbConverter(typeof(SdkDateTimeConverter))], which takes it for local time as the SDK does.";
 
     private const string NotFinite = "it is NaN or an infinity, which DynamoDB cannot store. Give it a finite number.";
 

@@ -35,7 +35,7 @@ public partial record Order
 | A key with `{PlacedAt:s}` | `2026-10-31T12:34:56Z` |
 | A key with `{PlacedAt:yyyy-MM-ddTHH:mm}`, `yyyy-MM-ddTHH`, `yyyy-MM-dd`, `yyyy-MM` or `yyyy` | `2026-10-31T12:34` to `2026` |
 
-No format keeps the offset, and the attribute does not either. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
+No format keeps the offset, and the attribute does not either. A date format needs a `DateTimeOffset` or a `DateTime`. A `DateTime` names an instant only with `DateTimeKind.Utc` or `Local`, so one of `DateTimeKind.Unspecified`, which is what `default(DateTime)` has, throws on a write, in a key and in any other attribute: an `ArgumentException` that names the property and its attribute. An unset `DateTime` is the likely cause, so set it to a UTC time first. `SdkDateTimeConverter` takes such a time for local time instead, as the AWS SDK does, which fits only times that the SDK wrote. A `DateOnly` takes none, and a bare `{Day}` stores `2026-10-31`. Such an order and a customer of the same shop share a table and a partition:
 
 | `pk` | `sk` | `bystatuspk` | `bystatussk` | `_type` | Other attributes |
 |---|---|---|---|---|---|

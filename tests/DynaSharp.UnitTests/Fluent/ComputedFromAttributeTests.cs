@@ -312,7 +312,7 @@ public sealed class ComputedFromAttributeTests
         var failure = Assert.Throws<InvalidOperationException>(() => reminders.Update(Reminder.Keys.Of("r1")).Set(Reminder.Attrs.Queue, "q").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).IsEqualTo("This update of DynaSharp.UnitTests.Fluent.Reminder sets Queue, of the key template QUEUE#{Queue} of the sparse index ByDue, and does not produce byduesk, the other key of that index, so the item would silently stay out of it. Use a Put of the changed entity, or a raw path, which is not checked.");
+        await Assert.That(failure.Message).IsEqualTo("This update of DynaSharp.UnitTests.Fluent.Reminder sets Queue, of the key template QUEUE#{Queue} of the sparse index ByDue, and does not produce byduesk, the other key of that index. An update does not read the item, so it cannot tell whether the item holds byduesk, and an item without it would stay out of the index without an error. Use a Put of the changed entity, or a raw path, which is not checked.");
     }
 
     [Test]

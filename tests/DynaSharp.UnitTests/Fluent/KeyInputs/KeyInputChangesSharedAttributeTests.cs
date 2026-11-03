@@ -106,7 +106,7 @@ public sealed class KeyInputChangesSharedAttributeTests
     [Test]
     public async Task ToRequestJson_SetOfATemplateBesideAPlainKeyAlone_ThrowsNamingThePlainKey()
     {
-        // Arrange
+        // Arrange (a key of one bare placeholder is the attribute of its property, which an item that had it holds, and one that did not lacks: the update cannot tell which)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var halves = client.Table<HalfPlain>("Shop");
@@ -115,7 +115,10 @@ public sealed class KeyInputChangesSharedAttributeTests
         var failure = Assert.Throws<InvalidOperationException>(() => halves.Update("x").Set(HalfPlain.Attrs.Tag, "t").ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("does not produce Mark,");
+        await Assert.That(failure.Message).IsEqualTo(
+            "This update of DynaSharp.UnitTests.Fluent.HalfPlain sets Tag, of the key template H#{Tag} of the sparse index Half, and does not produce Mark, the other key of that index. " +
+            "An update does not read the item, so it cannot tell whether the item holds Mark, and an item without it would stay out of the index without an error. " +
+            "Add .Set(HalfPlain.Attrs.Mark, value) with the value the item holds, so that it writes Mark too.");
     }
 
     [Test]

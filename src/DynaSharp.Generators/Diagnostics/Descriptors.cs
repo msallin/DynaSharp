@@ -549,7 +549,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor IndexKeyWithoutAllInputs = new(
         "DYNA226",
         "Index key without all its inputs",
-        "This update of '{0}' sets {1} and not {2}, so it cannot write the key {3} of the index {4} and throws when it is sent, because DynamoDB cannot build a key from what the item holds. {5}.",
+        "This update of '{0}' sets {1} and not {2}, so it cannot write the key {3} of the index {4} and throws when it is sent, because an update does not read the item and cannot tell what it holds for {2}. {5}.",
         Commands,
         DiagnosticSeverity.Warning,
         true,

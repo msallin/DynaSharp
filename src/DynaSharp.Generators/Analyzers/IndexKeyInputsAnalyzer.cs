@@ -7,8 +7,9 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// DYNA226: an update that sets by handle some inputs of a key of an index and not the others, <c>Set(WorkItem.Attrs.Status, closed)</c> under <c>{Status}#{CreatedAt}</c>, or one key of a
-/// sparse index and not what its other key is made of. <c>KeyInputChanges</c> throws for both when the update is sent, because DynamoDB cannot build a key from what an item holds, so the
-/// update brings every input, also one that does not change. An input of the key of the table is known from the key the update was given, and a key of literals needs nothing.
+/// sparse index and not what its other key is made of. <c>KeyInputChanges</c> throws for both when the update is sent, because an update does not read the item: DynamoDB cannot build a key of
+/// several values from what an item holds, and for the other key of a sparse index, a bare <c>{Owner}</c> too, the update cannot tell whether the item holds it. So the update brings every input,
+/// also one that does not change. An input of the key of the table is known from the key the update was given, and a key of literals needs nothing.
 /// </summary>
 /// <remarks>
 /// A chain is read at its last call, and only when all of it is there: from the verb <c>Update</c>, on a table or as a step of a transaction, to a terminal, an <c>await</c> or the next step, with no

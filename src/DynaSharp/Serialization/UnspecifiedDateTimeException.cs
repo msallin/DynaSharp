@@ -6,4 +6,4 @@ namespace DynaSharp.Serialization;
 /// </summary>
 /// <param name="paramName">The parameter that held the value.</param>
 internal sealed class UnspecifiedDateTimeException(string paramName)
-    : ArgumentException("The kind of the DateTime is Unspecified, so it names no instant. Use DateTimeKind.Utc or DateTimeKind.Local, or SdkDateTimeConverter, which takes it for local time as the AWS SDK does.", paramName);
+    : ArgumentException("The kind of the DateTime is Unspecified, so it names no instant. A DateTime that was never set, default(DateTime), has this kind: set it to a UTC time first. Only for times that the AWS SDK wrote, use SdkDateTimeConverter, which takes it for local time as the SDK does.", paramName);
