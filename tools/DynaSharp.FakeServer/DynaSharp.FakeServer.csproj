@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- FakeDynamoDb on an HTTP port, for clients that are not .NET, such as the Parity Suite: build/parity.sh and build/parity.ps1 run it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

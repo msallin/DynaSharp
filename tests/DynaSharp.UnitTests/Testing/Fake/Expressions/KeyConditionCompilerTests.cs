@@ -102,9 +102,9 @@ public sealed class KeyConditionCompilerTests
     [Arguments("pk > :p", "Query key condition not supported")]
     [Arguments("pk = :p AND begins_with(pk, :p)", "KeyConditionExpressions must only contain one condition per key")]
     [Arguments("pk BETWEEN :p AND :p", "Query key condition not supported")]
-    [Arguments("extra = :p", "Query key condition not supported")]
-    [Arguments("pk = :p AND extra = :n", "Query key condition not supported")]
-    [Arguments("sk = :n", "Query condition missed key schema element: pk")]
+    [Arguments("extra = :p", "Query condition missed key schema element")]
+    [Arguments("pk = :p AND extra = :n", "Query condition missed key schema element")]
+    [Arguments("sk = :n", "Query condition missed key schema element")]
     [Arguments("pk = :n", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
     [Arguments("pk = :p AND sk = :s", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
     [Arguments("pk = :bin", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
@@ -123,6 +123,20 @@ public sealed class KeyConditionCompilerTests
 
         // Assert
         await Assert.That(Act).Throws<FakeError>().WithMessage(message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ParseKeyCondition_EmptySortValue_ThrowsValidation()
+    {
+        // Arrange: DynamoDB Local rejects an empty sort key value as it rejects an empty partition key value (Vectors/keys.json)
+        var scope = Scope(Values);
+
+        // Act
+        void Act() => FakeExpressions.ParseKeyCondition("gpk = :p AND gsk = :empty", scope, Index);
+
+        // Assert
+        await Assert.That(Act).Throws<FakeError>()
+            .WithMessage("One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: gsk", StringComparison.Ordinal);
     }
 
     [Test]
@@ -149,7 +163,7 @@ public sealed class KeyConditionCompilerTests
         void Act() => FakeExpressions.ParseKeyCondition("pk = :p AND sk = :n", Scope(Values), schema);
 
         // Assert
-        await Assert.That(Act).Throws<FakeError>().WithMessage("Query key condition not supported", StringComparison.Ordinal);
+        await Assert.That(Act).Throws<FakeError>().WithMessage("Query condition missed key schema element", StringComparison.Ordinal);
     }
 
     [Test]

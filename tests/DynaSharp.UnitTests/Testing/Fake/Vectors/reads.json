@@ -1,0 +1,382 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "select-rules",
+      "decides": "P3 open: the messages of Select: SPECIFIC_ATTRIBUTES without a projection, COUNT with one, ALL_ATTRIBUTES on a KEYS_ONLY index, ALL_PROJECTED_ATTRIBUTES on the table.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "g",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "GlobalSecondaryIndexes": [
+              {
+                "IndexName": "gsi",
+                "KeySchema": [
+                  {
+                    "AttributeName": "g",
+                    "KeyType": "HASH"
+                  }
+                ],
+                "Projection": {
+                  "ProjectionType": "KEYS_ONLY"
+                }
+              }
+            ]
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "Select": "SPECIFIC_ATTRIBUTES"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES",
+          "compareMessage": true
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "Select": "COUNT",
+            "ProjectionExpression": "pk"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Cannot specify the ProjectionExpression when choosing to get only the Count",
+          "compareMessage": true
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "g = :g",
+            "ExpressionAttributeValues": {
+              ":g": {
+                "S": "a"
+              }
+            },
+            "IndexName": "gsi",
+            "Select": "ALL_ATTRIBUTES"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "One or more parameter values were invalid: Select type ALL_ATTRIBUTES is not supported for global secondary index gsi because its projection type is not ALL",
+          "compareMessage": true
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "Select": "ALL_PROJECTED_ATTRIBUTES"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "ALL_PROJECTED_ATTRIBUTES can be used only when Querying using an IndexName",
+          "compareMessage": true
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "Select": "ALL_ATTRIBUTES",
+            "ProjectionExpression": "pk"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Cannot specify the ProjectionExpression when choosing to get ALL_ATTRIBUTES",
+          "compareMessage": true
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "g = :g",
+            "ExpressionAttributeValues": {
+              ":g": {
+                "S": "a"
+              }
+            },
+            "IndexName": "gsi",
+            "Select": "ALL_PROJECTED_ATTRIBUTES",
+            "ProjectionExpression": "pk"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Cannot specify the ProjectionExpression when choosing to get ALL_PROJECTED_ATTRIBUTES",
+          "compareMessage": true
+        },
+        {
+          "operation": "Scan",
+          "request": {
+            "TableName": "fake-vectors",
+            "Select": "ALL_PROJECTED_ATTRIBUTES"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "ALL_PROJECTED_ATTRIBUTES can be used only when Querying using an IndexName",
+          "compareMessage": true
+        },
+        {
+          "operation": "Scan",
+          "request": {
+            "TableName": "fake-vectors",
+            "Select": "COUNT",
+            "ProjectionExpression": "pk"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Cannot specify the ProjectionExpression when choosing to get only the Count",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "page-of-one-megabyte",
+      "decides": "P3 open: the item that brings a page to 1 MB ends it. Five items of 300 KB, one partition: the fourth passes 1 MB, and the page ends with it.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "1"
+              },
+              "v": {
+                "S": "${x*307200}"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "2"
+              },
+              "v": {
+                "S": "${x*307200}"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "3"
+              },
+              "v": {
+                "S": "${x*307200}"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "4"
+              },
+              "v": {
+                "S": "${x*307200}"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "sk": {
+                "S": "5"
+              },
+              "v": {
+                "S": "${x*307200}"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "ProjectionExpression": "sk"
+          },
+          "status": 200,
+          "response": {
+            "Items": [
+              {
+                "sk": {
+                  "S": "1"
+                }
+              },
+              {
+                "sk": {
+                  "S": "2"
+                }
+              },
+              {
+                "sk": {
+                  "S": "3"
+                }
+              },
+              {
+                "sk": {
+                  "S": "4"
+                }
+              }
+            ],
+            "Count": 4,
+            "ScannedCount": 4,
+            "LastEvaluatedKey": {
+              "sk": {
+                "S": "4"
+              },
+              "pk": {
+                "S": "a"
+              }
+            }
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            },
+            "Select": "COUNT"
+          },
+          "status": 200,
+          "response": {
+            "Count": 4,
+            "ScannedCount": 4,
+            "LastEvaluatedKey": {
+              "sk": {
+                "S": "4"
+              },
+              "pk": {
+                "S": "a"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

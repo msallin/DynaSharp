@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DynaSharp.IntegrationTests.Backends;
 
 namespace DynaSharp.IntegrationTests.Support;
 
@@ -9,11 +10,10 @@ internal sealed class OperationLog : DelegatingHandler
 
     private readonly ConcurrentQueue<string> _operations = new();
 
-#pragma warning disable CA2000 // The base class takes the handler and disposes it.
-    /// <summary>Initializes a new instance of the <see cref="OperationLog"/> class that sends over the network.</summary>
-    public OperationLog()
-        : base(new SocketsHttpHandler())
-#pragma warning restore CA2000
+    /// <summary>Initializes a new instance of the <see cref="OperationLog"/> class.</summary>
+    /// <param name="emulator">The backend, whose handler sends. This handler disposes it.</param>
+    public OperationLog(Emulator emulator)
+        : base(emulator.CreateHandler())
     {
     }
 

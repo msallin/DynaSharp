@@ -15,7 +15,7 @@ namespace DynaSharp.Testing.Fake;
 /// </remarks>
 internal static class AttributeRules
 {
-    /// <summary>How deep documents nest in DynamoDB: an item is level 0, a map or a list in it level 1.</summary>
+    /// <summary>How many levels a value of an item may have in DynamoDB, counting the value at the bottom: an attribute is level 1, a value in a map or a list of it level 2, so 31 maps around a string are the deepest.</summary>
     public const int MaxNesting = 32;
 
     /// <summary>Checks every value of an item and gives a copy in the stored form.</summary>
@@ -58,17 +58,21 @@ internal static class AttributeRules
         _ => "NONE",
     };
 
+    // depth is 0 for an attribute of the item, so it is the level less one.
     private static AttributeValue Normalize(AttributeValue value, int depth)
     {
+        if (depth >= MaxNesting)
+        {
+            throw FakeError.Validation("Nesting Levels have exceeded supported limits");
+        }
+
         switch (value.Type)
         {
             case AttributeType.Number:
                 return AttributeValue.WrapNumber(DecimalNumber.Parse(value.AsNumber()).ToString());
             case AttributeType.List:
-                ThrowIfTooDeep(depth);
                 return AttributeValue.WrapList([.. value.AsList().Select(element => Normalize(element, depth + 1))]);
             case AttributeType.Map:
-                ThrowIfTooDeep(depth);
                 var map = new Item(value.AsMap().Count);
                 foreach (var (name, element) in value.AsMap())
                 {
@@ -89,15 +93,6 @@ internal static class AttributeRules
                 return value;
             default:
                 return value;
-        }
-    }
-
-    // A map or a list at level 32 can hold scalars only; one more document below it is level 33.
-    private static void ThrowIfTooDeep(int depth)
-    {
-        if (depth >= MaxNesting)
-        {
-            throw FakeError.Validation("Nesting Levels have exceeded supported limits");
         }
     }
 

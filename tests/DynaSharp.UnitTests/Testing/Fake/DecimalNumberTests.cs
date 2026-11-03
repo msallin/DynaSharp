@@ -27,16 +27,31 @@ public sealed class DecimalNumberTests
     [Arguments("1E2", "100")]
     [Arguments("1e-3", "0.001")]
     [Arguments("1E+39", "1000000000000000000000000000000000000000")]
-    [Arguments("1E+40", "1E+40")]
     [Arguments("0.0000000000000000000000000000000000001", "0.0000000000000000000000000000000000001")]
-    [Arguments("-1.5E-40", "-1.5E-40")]
-    [Arguments("1E-130", "1E-130")]
-    [Arguments("9.9999999999999999999999999999999999999E+125", "9.9999999999999999999999999999999999999E+125")]
     [Arguments("12345678901234567890123456789012345678", "12345678901234567890123456789012345678")]
-    [Arguments("1000000000000000000000000000000000000000000000000", "1E+48")]
     public async Task Parse_ValidText_PrintsTheCanonicalForm(string text, string expected)
     {
         // Arrange
+        // Act
+        var number = DecimalNumber.Parse(text);
+
+        // Assert
+        await Assert.That(number.ToString()).IsEqualTo(expected);
+    }
+
+    // The integration suite pins these ends of the range against DynamoDB Local, Dynoxide and DynamoDB: the answer is plain digits, never an exponent.
+    [Test]
+    [Arguments("1E+40", "1", 40, "")]
+    [Arguments("1000000000000000000000000000000000000000000000000", "1", 48, "")]
+    [Arguments("9.9999999999999999999999999999999999999E+125", "99999999999999999999999999999999999999", 88, "")]
+    [Arguments("-9.9999999999999999999999999999999999999E+125", "-99999999999999999999999999999999999999", 88, "")]
+    [Arguments("1E-130", "0.", 129, "1")]
+    [Arguments("-1.5E-40", "-0.", 39, "15")]
+    public async Task Parse_EndOfTheRange_PrintsPlainDigits(string text, string head, int zeros, string tail)
+    {
+        // Arrange
+        var expected = head + new string('0', zeros) + tail;
+
         // Act
         var number = DecimalNumber.Parse(text);
 

@@ -1,0 +1,4 @@
+[*.cs]
+# CA2007: console tools have no synchronization context.
+dotnet_diagnostic.CA2007.severity = none
+

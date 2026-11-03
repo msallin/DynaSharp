@@ -40,6 +40,8 @@ internal sealed class ExpressionParser
     private static readonly Func<AttributeType, bool> IsNumber = static type => type == AttributeType.Number;
     private static readonly Func<AttributeType, bool> IsString = static type => type == AttributeType.String;
     private static readonly Func<AttributeType, bool> IsStringOrBinary = static type => type is AttributeType.String or AttributeType.Binary;
+
+    private static readonly Func<AttributeType, bool> IsScalarKey = static type => type is AttributeType.String or AttributeType.Number or AttributeType.Binary;
     private static readonly Func<AttributeType, bool> IsNumberOrSet = static type => type == AttributeType.Number || AttributeSets.IsSet(type);
     private static readonly Func<AttributeType, bool> IsSet = AttributeSets.IsSet;
 
@@ -247,7 +249,16 @@ internal sealed class ExpressionParser
         Advance();
         if (isComparator)
         {
-            return Term.Of(new ConditionNode.Compare(ComparatorOf(keyword), operand, ParseOperandInParentheses()));
+            var comparator = ComparatorOf(keyword);
+            var right = ParseOperandInParentheses();
+            if (comparator is not (Comparator.Equal or Comparator.NotEqual))
+            {
+                // An order holds between strings, numbers and binaries only; DynamoDB Local rejects s < :l with a list before the item (Vectors/conditions.json).
+                RequireType(operand, keyword, IsScalarKey);
+                RequireType(right, keyword, IsScalarKey);
+            }
+
+            return Term.Of(new ConditionNode.Compare(comparator, operand, right));
         }
 
         return Term.Of(keyword.Equals("BETWEEN", StringComparison.OrdinalIgnoreCase) ? ParseBetween(operand) : ParseIn(operand));

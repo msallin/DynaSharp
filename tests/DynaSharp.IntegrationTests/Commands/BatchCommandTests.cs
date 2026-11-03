@@ -210,6 +210,7 @@ public sealed class BatchCommandTests(Backend backend)
     {
         // Arrange (45 items of 390 KB are 17.5 MB, and a response holds 16 MB, so DynamoDB leaves keys unprocessed. Real DynamoDB leaves more when a partition
         // runs out of throughput, so there are at least two rounds, and on a new table more)
+        Gaps.SkipIfMissing(backend, Gap.BatchResponseLimit);
         const int Count = 45;
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var big = new string('x', 390 * 1024);

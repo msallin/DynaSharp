@@ -11,8 +11,7 @@ namespace DynaSharp.Testing.Fake;
 /// <remarks>
 /// Nothing expires by itself. DynamoDB deletes expired items in the background, within days, and its reads may return them until then, so a test that depends on the deletion calls
 /// the sweep, which deletes every item whose attribute of time to live is a number of epoch seconds at or before the clock of the fake and not more than five years before it,
-/// because DynamoDB does not delete an item whose expiry is older than that. Each delete is a <c>REMOVE</c> record on the stream of its table, with the service as its
-/// <c>userIdentity</c>, as DynamoDB writes it.
+/// because DynamoDB does not delete an item whose expiry is older than that.
 /// </remarks>
 internal static class TimeToLive
 {
@@ -109,7 +108,6 @@ internal static class TimeToLive
             expired += keys.Count;
         }
 
-        db.CommitChanges(byTimeToLive: true);
         return expired;
     }
 

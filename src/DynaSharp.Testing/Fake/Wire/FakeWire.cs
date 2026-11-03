@@ -14,7 +14,7 @@ namespace DynaSharp.Testing.Fake;
 /// <para>
 /// The target is <c>DynamoDB_20120810.GetItem</c>, <c>DynamoDBStreams_20120810.GetRecords</c> or the bare name, which is looked up in DynamoDB first. An operation that is not
 /// in the registry is <c>UnknownOperationException</c>, whatever the body. A <see cref="FakeError"/> becomes the error body; any other exception is a bug of the fake and goes
-/// through, so that the test fails where it happened instead of reading an HTTP 500. The stream records a request staged are committed when it went through and dropped when it failed.
+/// through, so that the test fails where it happened instead of reading an HTTP 500.
 /// </para>
 /// <para>
 /// When adding an operation: a static class in <c>Fake/Operations</c> with <c>Name</c> and <c>Handle</c>, its line in <see cref="Handlers"/> (or <see cref="StreamsHandlers"/>) and out of
@@ -23,8 +23,8 @@ namespace DynaSharp.Testing.Fake;
 /// </remarks>
 internal static class FakeWire
 {
-    /// <summary>The operations the client can send and the fake does not answer: none, every operation of the client has a handler.</summary>
-    public static readonly FrozenSet<string> NotImplemented = [];
+    /// <summary>The operations of DynamoDB the client can send and the fake does not answer: DynamoDB Streams.</summary>
+    public static readonly FrozenSet<string> NotImplemented = FrozenSet.Create(StringComparer.Ordinal, "ListStreams", "DescribeStream", "GetShardIterator", "GetRecords");
 
     private static readonly FrozenDictionary<string, OperationHandler> Handlers = new Dictionary<string, OperationHandler>(StringComparer.Ordinal)
     {
@@ -48,13 +48,7 @@ internal static class FakeWire
         [DescribeLimits.Name] = DescribeLimits.Handle,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, OperationHandler> StreamsHandlers = new Dictionary<string, OperationHandler>(StringComparer.Ordinal)
-    {
-        [StreamOperations.ListStreamsName] = StreamOperations.HandleListStreams,
-        [StreamOperations.DescribeStreamName] = StreamOperations.HandleDescribeStream,
-        [StreamOperations.GetShardIteratorName] = StreamOperations.HandleGetShardIterator,
-        [StreamOperations.GetRecordsName] = StreamOperations.HandleGetRecords,
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly FrozenDictionary<string, OperationHandler> StreamsHandlers = [];
 
     /// <summary>Tells whether the fake answers an operation of DynamoDB.</summary>
     /// <param name="operation">The bare name, <c>GetItem</c>.</param>
@@ -80,15 +74,7 @@ internal static class FakeWire
                 json.WriteStartObject();
                 lock (db.Gate)
                 {
-                    try
-                    {
-                        handler(db, document.RootElement, json);
-                        db.CommitChanges();
-                    }
-                    finally
-                    {
-                        db.DiscardChanges();
-                    }
+                    handler(db, document.RootElement, json);
                 }
 
                 json.WriteEndObject();

@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      DYNASHARP_BACKENDS: dynoxide,dynamodb-local
+      DYNASHARP_BACKENDS: dynoxide,dynamodb-local,fake
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -99,7 +99,7 @@ jobs:
       - run: dotnet restore benchmarks/DynaSharp.Benchmarks --locked-mode
       - run: dotnet build benchmarks/DynaSharp.Benchmarks -c Release --no-restore
 
-      # The same tests run against both emulators; the images are pinned in tests/DynaSharp.IntegrationTests/Backends/*/Dockerfile.
+      # The same tests run against both emulators and the in-memory fake; the images are pinned in tests/DynaSharp.IntegrationTests/Backends/*/Dockerfile.
       - name: Integration tests
         run: dotnet test --project tests/DynaSharp.IntegrationTests -c Release --no-build
 

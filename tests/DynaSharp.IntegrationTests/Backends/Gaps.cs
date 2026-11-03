@@ -48,6 +48,18 @@ public enum Gap
     /// <summary>A transaction reports the capacity of every item it writes: two write units per item of up to 1 KB, also for several items of one table.</summary>
     TransactionCapacityPerItem,
 
+    /// <summary>A table has a stream, and the streams API (ListStreams, DescribeStream, GetShardIterator, GetRecords) reads it.</summary>
+    Streams,
+
+    /// <summary>PartiQL: ExecuteStatement, BatchExecuteStatement and ExecuteTransaction.</summary>
+    PartiQl,
+
+    /// <summary>A table takes tags when it is created.</summary>
+    Tags,
+
+    /// <summary>A BatchGetItem whose response would pass 16 MB returns the rest as UnprocessedKeys.</summary>
+    BatchResponseLimit,
+
     /// <summary>A stream has one shard, so a test knows where its records are. What only the emulators do: a table of real DynamoDB has several partitions.</summary>
     OneShardPerStream,
 
@@ -97,6 +109,12 @@ public static class Gaps
         [(Backend.Dynoxide, Gap.DescribeLimits)] = "Dynoxide answers DescribeLimits with UnknownOperationException.",
         [(Backend.DynamoDbLocal, Gap.UpdateTableClass)] = "DynamoDB Local rejects an UpdateTable that only changes the table class with 'Nothing to update'.",
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
+
+        // The fake's rows name only what docs/testing.md lists as outside the fake, see Backend.Fake.
+        [(Backend.Fake, Gap.Streams)] = "The fake has no streams: a stream specification is UnsupportedByFakeException, and the streams API UnknownOperationException.",
+        [(Backend.Fake, Gap.PartiQl)] = "The fake does not answer PartiQL: ExecuteStatement is UnknownOperationException.",
+        [(Backend.Fake, Gap.Tags)] = "The fake does not keep tags: Tags in CreateTable is UnsupportedByFakeException.",
+        [(Backend.Fake, Gap.BatchResponseLimit)] = "The fake leaves no key unprocessed: it does not cut a BatchGetItem response at 16 MB.",
         [(Backend.RealAws, Gap.OneShardPerStream)] = "A stream of real DynamoDB can have several shards, and the records of the test may be in any of them.",
         [(Backend.RealAws, Gap.TimeToLiveChangesAgainAtOnce)] = "Real DynamoDB refuses a second change of the time to live of a table within an hour.",
         [(Backend.RealAws, Gap.TableGoneAtOnce)] = "Real DynamoDB keeps a table in DELETING for a while, and its name stays taken until it is gone.",

@@ -6,7 +6,8 @@ namespace DynaSharp.UnitTests.Testing.Fake.Expressions;
 
 // The verdicts follow the Developer Guide, "Comparison operator and function reference" and "Condition expressions": a comparison with an attribute that does not exist is false,
 // as is one of different types (so <> is true for both), < and BETWEEN order strings by UTF-8 bytes, numbers by value and binaries by bytes, begins_with takes S or B, contains finds
-// a substring, a subsequence of bytes, an element of a set or of a list, and size is the length of a string or a binary or the number of elements.
+// a substring, a subsequence of bytes, an element of a set or of a list, and size is the length of a string or a binary or the number of elements. A string counts UTF-16 code
+// units, and a number, a boolean or a null has no size, as DynamoDB Local answers (Vectors/conditions.json).
 public sealed class ConditionEvaluatorTests
 {
     private const string ItemJson = """
@@ -58,8 +59,6 @@ public sealed class ConditionEvaluatorTests
     [Arguments("b > :b12", true)]
     [Arguments("n < :abc", false)]
     [Arguments("n > :abc", false)]
-    [Arguments("l < :l", false)]
-    [Arguments("l >= :l", false)]
     [Arguments("absent < :ten", false)]
     [Arguments("m.k = :vee", true)]
     [Arguments("m.deep[0] = :five", true)]
@@ -216,7 +215,7 @@ public sealed class ConditionEvaluatorTests
 
     [Test]
     [Arguments("size(s) = :three", true)]
-    [Arguments("size(u) = :two", true)]
+    [Arguments("size(u) = :one", true)]
     [Arguments("size(b) = :three", true)]
     [Arguments("size(l) = :two", true)]
     [Arguments("size(m) = :two", true)]
@@ -243,21 +242,20 @@ public sealed class ConditionEvaluatorTests
     }
 
     [Test]
-    [Arguments("size(n) > :one", "N")]
-    [Arguments("size(t) > :one", "BOOL")]
-    [Arguments("size(z) > :one", "NULL")]
-    public async Task Evaluate_SizeOfAValueWithoutOne_ThrowsValidation(string expression, string type)
+    [Arguments("size(n) > :one", false)]
+    [Arguments("size(t) >= :zero", false)]
+    [Arguments("size(z) = :zero", false)]
+    [Arguments("size(n) <> :one", true)]
+    public async Task Evaluate_SizeOfAValueWithoutOne_IsNoValue(string expression, bool expected)
     {
         // Arrange
-        var condition = FakeExpressions.ParseCondition(expression, Scope(Values), FakeExpressions.FilterExpression);
-        var item = ExpressionFixture.Item(ItemJson);
+        var (condition, item) = Arrange(expression);
 
         // Act
-        void Act() => condition.Evaluate(item);
+        var holds = condition.Evaluate(item);
 
         // Assert
-        await Assert.That(Act).Throws<FakeError>()
-            .WithMessage($"Invalid FilterExpression: Incorrect operand type for operator or function; operator or function: size, operand type: {type}", StringComparison.Ordinal);
+        await Assert.That(holds).IsEqualTo(expected);
     }
 
     [Test]

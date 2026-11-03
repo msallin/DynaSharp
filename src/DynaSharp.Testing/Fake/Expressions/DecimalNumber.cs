@@ -15,7 +15,7 @@ namespace DynaSharp.Testing.Fake;
 /// </para>
 /// <para>
 /// <see cref="ToString"/> is the canonical text the fake stores and answers with: no leading zeros, no trailing zeros after the point, no <c>+</c>, and <c>0</c> for every zero.
-/// A number whose plain digits would be more than 40 goes in exponent form, one digit before the point: <c>1E+125</c>, <c>1.5E-40</c>.
+/// The text is always plain digits, never an exponent, also at the ends of the range: <c>1E-130</c> prints as <c>0.</c>, 129 zeros and <c>1</c>, as DynamoDB answers it.
 /// </para>
 /// </remarks>
 internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<DecimalNumber>
@@ -26,9 +26,6 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
     // The exponent of the leading digit: 9.99...E+125 is the largest magnitude, 1E-130 the smallest.
     private const int MaxLeadingExponent = 125;
     private const int MinLeadingExponent = -130;
-
-    // Plain text up to this many digits, exponent form beyond.
-    private const int MaxPlainDigits = 40;
 
     // An exponent beyond this cannot be brought back into range by any coefficient DynamoDB accepts, so parsing stops counting there.
     private const long ExponentCap = 100_000;
@@ -133,7 +130,7 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
     public override int GetHashCode() => HashCode.Combine(Coefficient, Exponent);
 
     /// <summary>Gets the canonical text, see the remarks of the type.</summary>
-    /// <returns>The text: <c>0</c>, <c>-12.5</c>, <c>12500</c>, <c>0.001</c>, <c>1E+125</c>.</returns>
+    /// <returns>The text: <c>0</c>, <c>-12.5</c>, <c>12500</c>, <c>0.001</c>.</returns>
     public override string ToString()
     {
         if (Coefficient.IsZero)
@@ -144,14 +141,6 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
         var digits = BigInteger.Abs(Coefficient).ToString(CultureInfo.InvariantCulture);
         var sign = Coefficient.Sign < 0 ? "-" : string.Empty;
         var count = digits.Length;
-        var leading = Exponent + count - 1;
-        var plainDigits = Exponent >= 0 ? count + Exponent : Math.Max(count, 1 - Exponent);
-        if (plainDigits > MaxPlainDigits)
-        {
-            var mantissa = count == 1 ? digits : digits[..1] + "." + digits[1..];
-            return string.Create(CultureInfo.InvariantCulture, $"{sign}{mantissa}E{(leading >= 0 ? "+" : "-")}{Math.Abs(leading)}");
-        }
-
         if (Exponent >= 0)
         {
             return sign + digits + new string('0', Exponent);

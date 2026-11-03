@@ -352,11 +352,11 @@ public sealed class PageBuilderTests
         var act = () => PageBuilder.Build(Read(table), Options(table) with { Select = SelectKind.SpecificAttributes });
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("One or more parameter values were invalid: Select type SPECIFIC_ATTRIBUTES needs a ProjectionExpression", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES", StringComparison.Ordinal);
     }
 
     [Test]
-    [Arguments(SelectKind.Count, "COUNT")]
+    [Arguments(SelectKind.Count, "only the Count")]
     [Arguments(SelectKind.AllAttributes, "ALL_ATTRIBUTES")]
     [Arguments(SelectKind.AllProjectedAttributes, "ALL_PROJECTED_ATTRIBUTES")]
     public async Task Build_ProjectionWithAnotherSelect_AnswersValidation(SelectKind select, string spelling)
@@ -368,7 +368,7 @@ public sealed class PageBuilderTests
         var act = () => PageBuilder.Build(Read(table), Options(table) with { Select = select, Projection = Only("v") });
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage($"One or more parameter values were invalid: Cannot specify a ProjectionExpression with Select type {spelling}", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage($"Cannot specify the ProjectionExpression when choosing to get {spelling}", StringComparison.Ordinal);
     }
 
     [Test]
@@ -381,7 +381,7 @@ public sealed class PageBuilderTests
         var act = () => PageBuilder.Build(Read(table), Options(table) with { Select = SelectKind.AllProjectedAttributes });
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("One or more parameter values were invalid: ALL_PROJECTED_ATTRIBUTES can be used only when reading an index with IndexName", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("ALL_PROJECTED_ATTRIBUTES can be used only when Querying using an IndexName", StringComparison.Ordinal);
     }
 
     [Test]

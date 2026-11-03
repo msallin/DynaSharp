@@ -1,0 +1,755 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "syntax-error",
+      "decides": "Open 5: the message of a syntax error, with its token and near.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "pk = = :v",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "a"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid FilterExpression: Syntax error; token: \"=\", near: \"= = :v\"",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "function-not-allowed-in-a-condition",
+      "decides": "Open 5: a function of updates in a condition.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "DeleteItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "ConditionExpression": "if_not_exists(a, :v) = :v",
+            "ExpressionAttributeValues": {
+              ":v": {
+                "S": "x"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid ConditionExpression: The function is not allowed in a condition expression; function: if_not_exists",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "in-with-101-operands",
+      "decides": "Open 5: IN takes at most 100 operands.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "n IN (:v0, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9, :v10, :v11, :v12, :v13, :v14, :v15, :v16, :v17, :v18, :v19, :v20, :v21, :v22, :v23, :v24, :v25, :v26, :v27, :v28, :v29, :v30, :v31, :v32, :v33, :v34, :v35, :v36, :v37, :v38, :v39, :v40, :v41, :v42, :v43, :v44, :v45, :v46, :v47, :v48, :v49, :v50, :v51, :v52, :v53, :v54, :v55, :v56, :v57, :v58, :v59, :v60, :v61, :v62, :v63, :v64, :v65, :v66, :v67, :v68, :v69, :v70, :v71, :v72, :v73, :v74, :v75, :v76, :v77, :v78, :v79, :v80, :v81, :v82, :v83, :v84, :v85, :v86, :v87, :v88, :v89, :v90, :v91, :v92, :v93, :v94, :v95, :v96, :v97, :v98, :v99, :v100)",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v0": {
+                "N": "0"
+              },
+              ":v1": {
+                "N": "1"
+              },
+              ":v2": {
+                "N": "2"
+              },
+              ":v3": {
+                "N": "3"
+              },
+              ":v4": {
+                "N": "4"
+              },
+              ":v5": {
+                "N": "5"
+              },
+              ":v6": {
+                "N": "6"
+              },
+              ":v7": {
+                "N": "7"
+              },
+              ":v8": {
+                "N": "8"
+              },
+              ":v9": {
+                "N": "9"
+              },
+              ":v10": {
+                "N": "10"
+              },
+              ":v11": {
+                "N": "11"
+              },
+              ":v12": {
+                "N": "12"
+              },
+              ":v13": {
+                "N": "13"
+              },
+              ":v14": {
+                "N": "14"
+              },
+              ":v15": {
+                "N": "15"
+              },
+              ":v16": {
+                "N": "16"
+              },
+              ":v17": {
+                "N": "17"
+              },
+              ":v18": {
+                "N": "18"
+              },
+              ":v19": {
+                "N": "19"
+              },
+              ":v20": {
+                "N": "20"
+              },
+              ":v21": {
+                "N": "21"
+              },
+              ":v22": {
+                "N": "22"
+              },
+              ":v23": {
+                "N": "23"
+              },
+              ":v24": {
+                "N": "24"
+              },
+              ":v25": {
+                "N": "25"
+              },
+              ":v26": {
+                "N": "26"
+              },
+              ":v27": {
+                "N": "27"
+              },
+              ":v28": {
+                "N": "28"
+              },
+              ":v29": {
+                "N": "29"
+              },
+              ":v30": {
+                "N": "30"
+              },
+              ":v31": {
+                "N": "31"
+              },
+              ":v32": {
+                "N": "32"
+              },
+              ":v33": {
+                "N": "33"
+              },
+              ":v34": {
+                "N": "34"
+              },
+              ":v35": {
+                "N": "35"
+              },
+              ":v36": {
+                "N": "36"
+              },
+              ":v37": {
+                "N": "37"
+              },
+              ":v38": {
+                "N": "38"
+              },
+              ":v39": {
+                "N": "39"
+              },
+              ":v40": {
+                "N": "40"
+              },
+              ":v41": {
+                "N": "41"
+              },
+              ":v42": {
+                "N": "42"
+              },
+              ":v43": {
+                "N": "43"
+              },
+              ":v44": {
+                "N": "44"
+              },
+              ":v45": {
+                "N": "45"
+              },
+              ":v46": {
+                "N": "46"
+              },
+              ":v47": {
+                "N": "47"
+              },
+              ":v48": {
+                "N": "48"
+              },
+              ":v49": {
+                "N": "49"
+              },
+              ":v50": {
+                "N": "50"
+              },
+              ":v51": {
+                "N": "51"
+              },
+              ":v52": {
+                "N": "52"
+              },
+              ":v53": {
+                "N": "53"
+              },
+              ":v54": {
+                "N": "54"
+              },
+              ":v55": {
+                "N": "55"
+              },
+              ":v56": {
+                "N": "56"
+              },
+              ":v57": {
+                "N": "57"
+              },
+              ":v58": {
+                "N": "58"
+              },
+              ":v59": {
+                "N": "59"
+              },
+              ":v60": {
+                "N": "60"
+              },
+              ":v61": {
+                "N": "61"
+              },
+              ":v62": {
+                "N": "62"
+              },
+              ":v63": {
+                "N": "63"
+              },
+              ":v64": {
+                "N": "64"
+              },
+              ":v65": {
+                "N": "65"
+              },
+              ":v66": {
+                "N": "66"
+              },
+              ":v67": {
+                "N": "67"
+              },
+              ":v68": {
+                "N": "68"
+              },
+              ":v69": {
+                "N": "69"
+              },
+              ":v70": {
+                "N": "70"
+              },
+              ":v71": {
+                "N": "71"
+              },
+              ":v72": {
+                "N": "72"
+              },
+              ":v73": {
+                "N": "73"
+              },
+              ":v74": {
+                "N": "74"
+              },
+              ":v75": {
+                "N": "75"
+              },
+              ":v76": {
+                "N": "76"
+              },
+              ":v77": {
+                "N": "77"
+              },
+              ":v78": {
+                "N": "78"
+              },
+              ":v79": {
+                "N": "79"
+              },
+              ":v80": {
+                "N": "80"
+              },
+              ":v81": {
+                "N": "81"
+              },
+              ":v82": {
+                "N": "82"
+              },
+              ":v83": {
+                "N": "83"
+              },
+              ":v84": {
+                "N": "84"
+              },
+              ":v85": {
+                "N": "85"
+              },
+              ":v86": {
+                "N": "86"
+              },
+              ":v87": {
+                "N": "87"
+              },
+              ":v88": {
+                "N": "88"
+              },
+              ":v89": {
+                "N": "89"
+              },
+              ":v90": {
+                "N": "90"
+              },
+              ":v91": {
+                "N": "91"
+              },
+              ":v92": {
+                "N": "92"
+              },
+              ":v93": {
+                "N": "93"
+              },
+              ":v94": {
+                "N": "94"
+              },
+              ":v95": {
+                "N": "95"
+              },
+              ":v96": {
+                "N": "96"
+              },
+              ":v97": {
+                "N": "97"
+              },
+              ":v98": {
+                "N": "98"
+              },
+              ":v99": {
+                "N": "99"
+              },
+              ":v100": {
+                "N": "100"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid FilterExpression: The IN operator is provided with too many operands; number of operands: 101",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "key-condition-operator",
+      "decides": "Open 5: an operator a key condition does not take.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p AND sk <> :s",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":s": {
+                "S": "1"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid operator used in KeyConditionExpression: <>",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "key-condition-two-names",
+      "decides": "Open 5: two attribute names in one condition of a key condition.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p AND sk = pk",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid condition in KeyConditionExpression: Multiple attribute names used in one condition",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "key-condition-without-a-key",
+      "decides": "Open 5: a key condition that compares two values.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": ":p = :q",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":q": {
+                "S": "a"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid condition in KeyConditionExpression: No key attribute specified",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "key-condition-on-a-non-key-attribute",
+      "decides": "Open 5: a key condition on an attribute that is no key.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :p AND #o = :o",
+            "ExpressionAttributeValues": {
+              ":p": {
+                "S": "a"
+              },
+              ":o": {
+                "S": "1"
+              }
+            },
+            "ExpressionAttributeNames": {
+              "#o": "other"
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Query condition missed key schema element",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "key-condition-without-the-partition-key",
+      "decides": "Open 5: a key condition on the sort key only.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "sk = :s",
+            "ExpressionAttributeValues": {
+              ":s": {
+                "S": "1"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Query condition missed key schema element",
+          "compareMessage": true
+        }
+      ]
+    },
+    {
+      "name": "name-starting-with-an-underscore",
+      "decides": "Finding of P2: a bare name that starts with _ is a syntax error.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "_a = :v",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "x"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid FilterExpression: Syntax error; token: \"_\", near: \"_a\"",
+          "compareMessage": true
+        }
+      ]
+    }
+  ]
+}

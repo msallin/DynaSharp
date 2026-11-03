@@ -22,11 +22,10 @@ internal sealed class SettlingHandler : DelegatingHandler
 
     private long _lastWrite;
 
-#pragma warning disable CA2000 // The base class takes the handler and disposes it.
-    /// <summary>Initializes a new instance of the <see cref="SettlingHandler"/> class that sends over the network.</summary>
-    public SettlingHandler()
-        : base(new SocketsHttpHandler())
-#pragma warning restore CA2000
+    /// <summary>Initializes a new instance of the <see cref="SettlingHandler"/> class.</summary>
+    /// <param name="inner">The handler that sends, see <see cref="Emulator.CreateHandler"/>. This handler disposes it.</param>
+    public SettlingHandler(HttpMessageHandler inner)
+        : base(inner)
     {
     }
 

@@ -134,17 +134,18 @@ internal static class PageBuilder
 
         if (select == SelectKind.SpecificAttributes)
         {
-            return hasProjection ? select : throw FakeError.Validation(Invalid + "Select type SPECIFIC_ATTRIBUTES needs a ProjectionExpression");
+            return hasProjection ? select : throw FakeError.Validation("Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES");
         }
 
         if (hasProjection)
         {
-            throw FakeError.Validation(Invalid + $"Cannot specify a ProjectionExpression with Select type {WireNames.Selects.GetNameIfSet(select)}");
+            throw FakeError.Validation($"Cannot specify the ProjectionExpression when choosing to get {(select == SelectKind.Count ? "only the Count" : WireNames.Selects.GetNameIfSet(select))}");
         }
 
         if (select == SelectKind.AllProjectedAttributes && options.Index is null)
         {
-            throw FakeError.Validation(Invalid + "ALL_PROJECTED_ATTRIBUTES can be used only when reading an index with IndexName");
+            // DynamoDB Local says "Querying" for a Scan too (Vectors/reads.json).
+            throw FakeError.Validation("ALL_PROJECTED_ATTRIBUTES can be used only when Querying using an IndexName");
         }
 
         if (select == SelectKind.AllAttributes && options.Index is { IsGlobal: true } index && index.Projection.ProjectionType != ProjectionType.All)

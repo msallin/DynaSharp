@@ -110,13 +110,6 @@ internal static class ResponseJson
         json.WriteEndObject();
         WriteIndexes(json, "LocalSecondaryIndexes", table, table.LocalIndexes);
         WriteIndexes(json, "GlobalSecondaryIndexes", table, table.GlobalIndexes);
-        if (table.LatestStream is { } stream)
-        {
-            TableJson.WriteStreamSpecification(json, stream.IsEnabled ? new StreamSpecification { StreamEnabled = true, StreamViewType = stream.ViewType } : null);
-            json.WriteString("LatestStreamLabel"u8, stream.Label);
-            json.WriteString("LatestStreamArn"u8, stream.Arn);
-        }
-
         if (table.TableClass != TableClass.Unspecified)
         {
             json.WriteStartObject("TableClassSummary"u8);

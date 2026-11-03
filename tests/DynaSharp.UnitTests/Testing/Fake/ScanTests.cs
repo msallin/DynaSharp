@@ -112,7 +112,7 @@ public sealed class ScanTests
     [Arguments(""","IndexName":"ByCustomer","ConsistentRead":true""", "Consistent reads are not supported on global secondary indexes")]
     [Arguments(""","ExpressionAttributeNames":{"#a":"a"}""", "ExpressionAttributeNames can only be specified when using expressions")]
     [Arguments(""","ExpressionAttributeValues":{":a":{"S":"a"}}""", "ExpressionAttributeValues can only be specified when using expressions")]
-    [Arguments(""","Select":"SPECIFIC_ATTRIBUTES" """, "One or more parameter values were invalid: Select type SPECIFIC_ATTRIBUTES needs a ProjectionExpression")]
+    [Arguments(""","Select":"SPECIFIC_ATTRIBUTES" """, "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES")]
     [Arguments(""","ExclusiveStartKey":{}""", "The provided starting key is invalid: The provided key element does not match the schema")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string options, string message)
     {

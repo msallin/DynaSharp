@@ -13,6 +13,9 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/DynaSharp.Benchmarks/DynaSharp.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/DynaSharp.FakeServer/DynaSharp.FakeServer.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/DynaSharp.Sample/DynaSharp.Sample.csproj" />
   </Folder>

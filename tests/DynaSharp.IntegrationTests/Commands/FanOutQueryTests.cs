@@ -484,11 +484,12 @@ public sealed class FanOutQueryTests(Backend backend)
     // A client of the same backend that counts what goes over the wire. Its reads are consistent: real DynamoDB may still be replicating the writes of the sandbox, which this client knows nothing of.
     private sealed class CountedClient : IDisposable
     {
-        private readonly CountingHandler _handler = new();
+        private readonly CountingHandler _handler;
         private readonly DynamoDbClient _client;
 
         public CountedClient(Emulator emulator)
         {
+            _handler = new CountingHandler(emulator.CreateHandler());
             _client = new DynamoDbClient(emulator.CreateOptions() with { MaxAttempts = 1, HttpHandler = _handler });
         }
 
@@ -506,10 +507,8 @@ public sealed class FanOutQueryTests(Backend backend)
         {
             private int _requests;
 
-#pragma warning disable CA2000 // The base class takes the handler and disposes it.
-            public CountingHandler()
-                : base(new SocketsHttpHandler())
-#pragma warning restore CA2000
+            public CountingHandler(HttpMessageHandler inner)
+                : base(inner)
             {
             }
 

@@ -40,7 +40,7 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 
 ## Running locally
 
-The repository has two emulators ready in [`samples/compose.yaml`](https://github.com/msallin/DynaSharp/blob/main/samples/compose.yaml): Dynoxide, which the tests use by default, and DynamoDB Local, the emulator of AWS, in memory and with one database for all credentials and regions.
+The repository has two emulators ready in [`samples/compose.yaml`](https://github.com/msallin/DynaSharp/blob/main/samples/compose.yaml): Dynoxide, a native emulator that starts in milliseconds, and DynamoDB Local, the emulator of AWS, in memory and with one database for all credentials and regions.
 
 ```shell
 docker compose -f samples/compose.yaml up -d                           # Dynoxide on http://localhost:8000

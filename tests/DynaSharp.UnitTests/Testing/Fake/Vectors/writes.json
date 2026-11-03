@@ -1,0 +1,275 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "transaction-data-error",
+      "decides": "P4 open: a data error inside a transaction, a key of the wrong type or a number of 39 digits.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "TransactWriteItems",
+          "request": {
+            "TransactItems": [
+              {
+                "Put": {
+                  "TableName": "fake-vectors",
+                  "Item": {
+                    "pk": {
+                      "S": "a"
+                    }
+                  }
+                }
+              },
+              {
+                "Put": {
+                  "TableName": "fake-vectors",
+                  "Item": {
+                    "pk": {
+                      "N": "1"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "status": 400,
+          "code": "TransactionCanceledException",
+          "message": "Transaction cancelled, please refer cancellation reasons for specific reasons [None, ValidationError]",
+          "cancellationReasons": [
+            {
+              "Code": "None"
+            },
+            {
+              "Code": "ValidationError",
+              "Message": "One or more parameter values were invalid: Type mismatch for key"
+            }
+          ]
+        },
+        {
+          "operation": "TransactWriteItems",
+          "request": {
+            "TransactItems": [
+              {
+                "Put": {
+                  "TableName": "fake-vectors",
+                  "Item": {
+                    "pk": {
+                      "S": "a"
+                    }
+                  }
+                }
+              },
+              {
+                "Put": {
+                  "TableName": "fake-vectors",
+                  "Item": {
+                    "pk": {
+                      "S": "b"
+                    },
+                    "n": {
+                      "N": "111111111111111111111111111111111111111"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "DynamoDB only supports precision up to 38 digits"
+        }
+      ]
+    },
+    {
+      "name": "transaction-capacity",
+      "decides": "P4 open: what a condition check costs, and what a transaction with a token costs the first time.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "TransactWriteItems",
+          "request": {
+            "TransactItems": [
+              {
+                "ConditionCheck": {
+                  "TableName": "fake-vectors",
+                  "Key": {
+                    "pk": {
+                      "S": "a"
+                    }
+                  },
+                  "ConditionExpression": "attribute_exists(pk)"
+                }
+              }
+            ],
+            "ReturnConsumedCapacity": "TOTAL"
+          },
+          "status": 200,
+          "response": {
+            "ConsumedCapacity": [
+              {
+                "TableName": "fake-vectors",
+                "CapacityUnits": 2.0
+              }
+            ]
+          }
+        },
+        {
+          "operation": "TransactWriteItems",
+          "request": {
+            "TransactItems": [
+              {
+                "Put": {
+                  "TableName": "fake-vectors",
+                  "Item": {
+                    "pk": {
+                      "S": "b"
+                    }
+                  }
+                }
+              }
+            ],
+            "ClientRequestToken": "token-1",
+            "ReturnConsumedCapacity": "TOTAL"
+          },
+          "status": 200,
+          "response": {
+            "ConsumedCapacity": [
+              {
+                "TableName": "fake-vectors",
+                "CapacityUnits": 2.0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "index-entry-size",
+      "decides": "P4 open: an index entry is sized without the 100 bytes of overhead. The item is 1000 bytes, so with 100 bytes more its index write would cost 2 units.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "g",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "GlobalSecondaryIndexes": [
+              {
+                "IndexName": "gsi",
+                "KeySchema": [
+                  {
+                    "AttributeName": "g",
+                    "KeyType": "HASH"
+                  }
+                ],
+                "Projection": {
+                  "ProjectionType": "ALL"
+                }
+              }
+            ]
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "g": {
+                "S": "g"
+              },
+              "v": {
+                "S": "${x*994}"
+              }
+            },
+            "ReturnConsumedCapacity": "INDEXES"
+          },
+          "status": 200,
+          "response": {
+            "ConsumedCapacity": {
+              "TableName": "fake-vectors",
+              "CapacityUnits": 2.0,
+              "Table": {
+                "CapacityUnits": 1.0
+              },
+              "GlobalSecondaryIndexes": {
+                "gsi": {
+                  "CapacityUnits": 1.0
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

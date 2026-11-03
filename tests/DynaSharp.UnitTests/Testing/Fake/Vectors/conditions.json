@@ -1,0 +1,651 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "size-of-a-string-counts-utf8-bytes",
+      "decides": "Open 1: size of a string counts UTF-8 bytes. The string is e-acute and a grin: 2 characters, 3 UTF-16 units, 6 bytes.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "s": {
+                "S": "\u00e9\ud83d\ude00"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(s) = :n",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":n": {
+                "N": "2"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(s) = :n",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":n": {
+                "N": "3"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(s) = :n",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":n": {
+                "N": "6"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "size-of-a-scalar",
+      "decides": "Open 2: size of a number, a boolean or a null, in a filter and in a condition.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "n": {
+                "N": "5"
+              },
+              "b": {
+                "BOOL": true
+              },
+              "z": {
+                "NULL": true
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(n) > :zero",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":zero": {
+                "N": "0"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(b) > :zero",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":zero": {
+                "N": "0"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(z) > :zero",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":zero": {
+                "N": "0"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "SET t = :t",
+            "ExpressionAttributeValues": {
+              ":t": {
+                "S": "x"
+              },
+              ":zero": {
+                "N": "0"
+              }
+            },
+            "ConditionExpression": "size(n) > :zero"
+          },
+          "status": 400,
+          "code": "ConditionalCheckFailedException",
+          "message": "The conditional request failed"
+        }
+      ]
+    },
+    {
+      "name": "not-equal-on-missing-or-other-type",
+      "decides": "Open 3: a <> :v holds where a is missing or of another type.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "n": {
+                "N": "5"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "#m <> :v",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "N": "5"
+              }
+            },
+            "ExpressionAttributeNames": {
+              "#m": "missing"
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "n <> :v",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "5"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "n <> :v",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "N": "5"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 0,
+            "ScannedCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "constant-operands",
+      "decides": "Open 4: size(:v), begins_with(:v, a), contains(:v, a) and :v = :w are evaluated.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "s": {
+                "S": "abc"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "size(:v) = :three",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "abc"
+              },
+              ":three": {
+                "N": "3"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "begins_with(:v, s)",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "abcdef"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": "contains(:v, s)",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "xabcx"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        },
+        {
+          "operation": "Query",
+          "request": {
+            "TableName": "fake-vectors",
+            "KeyConditionExpression": "pk = :pk",
+            "FilterExpression": ":v = :w",
+            "Select": "COUNT",
+            "ExpressionAttributeValues": {
+              ":pk": {
+                "S": "a"
+              },
+              ":v": {
+                "S": "x"
+              },
+              ":w": {
+                "S": "x"
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "Count": 1,
+            "ScannedCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "constant-of-the-wrong-type",
+      "decides": "Open 4: a constant of the wrong type is rejected before the item is read for begins_with, ADD, DELETE, + and list_append, not for <. Every request names an item that does not exist.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "DeleteItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "ConditionExpression": "begins_with(s, :n)",
+            "ExpressionAttributeValues": {
+              ":n": {
+                "N": "1"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid ConditionExpression: Incorrect operand type for operator or function; operator or function: begins_with, operand type: N"
+        },
+        {
+          "operation": "DeleteItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "ConditionExpression": "s < :l",
+            "ExpressionAttributeValues": {
+              ":l": {
+                "L": [
+                  {
+                    "S": "x"
+                  }
+                ]
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid ConditionExpression: Incorrect operand type for operator or function; operator or function: <, operand type: L"
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "UpdateExpression": "ADD n :s",
+            "ExpressionAttributeValues": {
+              ":s": {
+                "S": "x"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid UpdateExpression: Incorrect operand type for operator or function; operator: ADD, operand type: STRING, typeSet: ALLOWED_FOR_ADD_OPERAND"
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "UpdateExpression": "DELETE ss :n",
+            "ExpressionAttributeValues": {
+              ":n": {
+                "N": "1"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid UpdateExpression: Incorrect operand type for operator or function; operator: DELETE, operand type: NUMBER, typeSet: ALLOWED_FOR_DELETE_OPERAND"
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "UpdateExpression": "SET x = :s + :n",
+            "ExpressionAttributeValues": {
+              ":s": {
+                "S": "x"
+              },
+              ":n": {
+                "N": "1"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid UpdateExpression: Incorrect operand type for operator or function; operator or function: +, operand type: S"
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "none"
+              }
+            },
+            "UpdateExpression": "SET x = list_append(:s, l)",
+            "ExpressionAttributeValues": {
+              ":s": {
+                "S": "x"
+              }
+            }
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "Invalid UpdateExpression: Incorrect operand type for operator or function; operator or function: list_append, operand type: S"
+        }
+      ]
+    }
+  ]
+}

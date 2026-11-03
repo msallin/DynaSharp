@@ -1,0 +1,381 @@
+{
+  "source": "DynamoDB Local, amazon/dynamodb-local:3.3.2, recorded by build/generate_fake_vectors.py",
+  "cases": [
+    {
+      "name": "remove-and-set-paths",
+      "decides": "Open 6: REMOVE a.b without a, with a but without b, SET past the end of a list, REMOVE past the end of a list.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "1"
+                  }
+                }
+              },
+              "l": {
+                "L": [
+                  {
+                    "N": "1"
+                  },
+                  {
+                    "N": "2"
+                  }
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "REMOVE nomap.b",
+            "ReturnValues": "ALL_NEW"
+          },
+          "status": 400,
+          "code": "ValidationException",
+          "message": "The document path provided in the update expression is invalid for update"
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "REMOVE m.b",
+            "ReturnValues": "ALL_NEW"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "l": {
+                "L": [
+                  {
+                    "N": "1"
+                  },
+                  {
+                    "N": "2"
+                  }
+                ]
+              },
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "1"
+                  }
+                }
+              },
+              "pk": {
+                "S": "a"
+              }
+            }
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "SET l[10] = :v",
+            "ExpressionAttributeValues": {
+              ":v": {
+                "N": "3"
+              }
+            },
+            "ReturnValues": "ALL_NEW"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "l": {
+                "L": [
+                  {
+                    "N": "1"
+                  },
+                  {
+                    "N": "2"
+                  },
+                  {
+                    "N": "3"
+                  }
+                ]
+              },
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "1"
+                  }
+                }
+              },
+              "pk": {
+                "S": "a"
+              }
+            }
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "REMOVE l[10]",
+            "ReturnValues": "ALL_NEW"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "l": {
+                "L": [
+                  {
+                    "N": "1"
+                  },
+                  {
+                    "N": "2"
+                  },
+                  {
+                    "N": "3"
+                  }
+                ]
+              },
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "1"
+                  }
+                }
+              },
+              "pk": {
+                "S": "a"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "updated-old-and-new",
+      "decides": "Open 7: what UPDATED_OLD and UPDATED_NEW hold for an update of a nested path, and that a removed path is not in UPDATED_NEW.",
+      "steps": [
+        {
+          "operation": "CreateTable",
+          "request": {
+            "TableName": "fake-vectors",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              }
+            ],
+            "BillingMode": "PAY_PER_REQUEST"
+          },
+          "status": 200
+        },
+        {
+          "operation": "PutItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Item": {
+              "pk": {
+                "S": "a"
+              },
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "1"
+                  },
+                  "y": {
+                    "N": "2"
+                  }
+                }
+              },
+              "l": {
+                "L": [
+                  {
+                    "N": "1"
+                  },
+                  {
+                    "N": "2"
+                  }
+                ]
+              },
+              "t": {
+                "S": "top"
+              }
+            }
+          },
+          "status": 200,
+          "response": {}
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "SET m.x = :n",
+            "ExpressionAttributeValues": {
+              ":n": {
+                "N": "10"
+              }
+            },
+            "ReturnValues": "UPDATED_NEW"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "10"
+                  },
+                  "y": {
+                    "N": "2"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "SET m.x = :n",
+            "ExpressionAttributeValues": {
+              ":n": {
+                "N": "11"
+              }
+            },
+            "ReturnValues": "UPDATED_OLD"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "10"
+                  },
+                  "y": {
+                    "N": "2"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "REMOVE m.y SET t = :s",
+            "ExpressionAttributeValues": {
+              ":s": {
+                "S": "changed"
+              }
+            },
+            "ReturnValues": "UPDATED_NEW"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "t": {
+                "S": "changed"
+              }
+            }
+          }
+        },
+        {
+          "operation": "UpdateItem",
+          "request": {
+            "TableName": "fake-vectors",
+            "Key": {
+              "pk": {
+                "S": "a"
+              }
+            },
+            "UpdateExpression": "REMOVE m.x",
+            "ReturnValues": "UPDATED_OLD"
+          },
+          "status": 200,
+          "response": {
+            "Attributes": {
+              "m": {
+                "M": {
+                  "x": {
+                    "N": "11"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

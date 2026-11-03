@@ -1,6 +1,5 @@
 using System.Net;
 using DynaSharp.Requests;
-using DynaSharp.Streams;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Fluent;
 using DynaSharp.UnitTests.Testing.Consumer;
@@ -403,91 +402,6 @@ public sealed class FakeDynamoDbTests
 
         // Assert
         await Assert.That((before, after, fake.Items("Users").Count)).IsEqualTo((0, 1, 0));
-    }
-
-    [Test]
-    public async Task CreateStreamsClient_ReadShardOfADisabledStream_ReturnsEveryChangeAndEnds()
-    {
-        // Arrange: a table with a stream, three writes through a client, and the stream switched off, so the shard is closed and the read ends.
-        var fake = new FakeDynamoDb();
-        using var client = fake.CreateClient();
-        using var streams = fake.CreateStreamsClient(options => options with { MaxAttempts = 2 });
-        await client.CreateTableAsync(Users with { StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.NewAndOldImages } });
-        await client.PutItemAsync(new PutItemRequest { TableName = "Users", Item = new Item { ["pk"] = "alice", ["age"] = 41 } });
-        await client.UpdateItemAsync(new UpdateItemRequest { TableName = "Users", Key = AliceKey, UpdateExpression = "SET age = :age", ExpressionAttributeValues = new Item { [":age"] = 42 } });
-        await client.DeleteItemAsync(new DeleteItemRequest { TableName = "Users", Key = AliceKey });
-        var arn = (await client.UpdateTableAsync(new UpdateTableRequest { TableName = "Users", StreamSpecification = new StreamSpecification { StreamEnabled = false } })).TableDescription!.LatestStreamArn!;
-        var shard = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards.Single();
-
-        // Act
-        var records = await streams.ReadShardAsync(new ReadShardRequest { StreamArn = arn, ShardId = shard.ShardId!, ShardIteratorType = ShardIteratorType.TrimHorizon }).ToListAsync();
-
-        // Assert
-        await Assert.That(records.Select(static record => (record.EventName, record.DynamoDb!.NewImage?["age"].AsNumber(), record.DynamoDb.OldImage?["age"].AsNumber())))
-            .IsEquivalentTo([(OperationType.Insert, "41", null), (OperationType.Modify, "42", "41"), (OperationType.Remove, null, "42")]);
-    }
-
-    [Test]
-    public async Task CreateStreamsClient_ReadShardAfterASequenceNumber_ResumesBehindIt()
-    {
-        // Arrange: a reader that stored the sequence number of the first record starts again after it, on an open shard; the direct API records its writes too.
-        var fake = new FakeDynamoDb();
-        fake.CreateTable(Users with { StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.KeysOnly } });
-        fake.Put("Users", new Item { ["pk"] = "a" });
-        fake.Put("Users", new Item { ["pk"] = "b" });
-        using var streams = fake.CreateStreamsClient();
-        var arn = fake.DescribeTable("Users").LatestStreamArn!;
-        var shard = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards.Single().ShardId!;
-        var first = await streams.ReadShardAsync(new ReadShardRequest { StreamArn = arn, ShardId = shard, ShardIteratorType = ShardIteratorType.TrimHorizon }).FirstAsync();
-
-        // Act
-        var next = await streams.ReadShardAsync(new ReadShardRequest
-        {
-            StreamArn = arn,
-            ShardId = shard,
-            ShardIteratorType = ShardIteratorType.AfterSequenceNumber,
-            SequenceNumber = first.DynamoDb!.SequenceNumber,
-        }).FirstAsync();
-
-        // Assert
-        await Assert.That(next.DynamoDb!.Keys!["pk"].AsString()).IsEqualTo("b");
-    }
-
-    [Test]
-    public async Task ExpireItems_TableWithStream_RecordsTheDeleteAsOneOfTheService()
-    {
-        // Arrange
-        var clock = new ManualTimeProvider();
-        var fake = new FakeDynamoDb(clock);
-        fake.CreateTable(Users with { StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.OldImage } });
-        using var client = fake.CreateClient();
-        await client.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest { TableName = "Users", TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = "expires" } });
-        fake.Put("Users", new Item { ["pk"] = "alice", ["expires"] = clock.GetUtcNow().ToUnixTimeSeconds() });
-        fake.ExpireItems();
-        using var streams = fake.CreateStreamsClient();
-        var arn = fake.DescribeTable("Users").LatestStreamArn!;
-        var shard = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards.Single().ShardId!;
-
-        // Act
-        var records = await streams.ReadShardAsync(new ReadShardRequest { StreamArn = arn, ShardId = shard, ShardIteratorType = ShardIteratorType.TrimHorizon }).Take(2).ToListAsync();
-
-        // Assert
-        await Assert.That((records[1].EventName, records[1].UserIdentity?.PrincipalId, records[1].UserIdentity?.Type, records[0].UserIdentity))
-            .IsEqualTo((OperationType.Remove, "dynamodb.amazonaws.com", "Service", (RecordIdentity?)null));
-    }
-
-    [Test]
-    public async Task Put_ItemTheTableRejects_RecordsNothing()
-    {
-        // Arrange: a direct call that fails drops what it staged, as a request does.
-        var fake = FakeStreams.UsersOn(new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)), "KEYS_ONLY");
-        fake.Put("Users", new Item { ["pk"] = "a" });
-
-        // Act
-        var rejected = Throws<ValidationException>(() => fake.Put("Users", new Item { ["pk"] = "b", ["text"] = FakeWrites.Text(410_000) }));
-
-        // Assert
-        await Assert.That((rejected, FakeStreams.Records(fake).Count)).IsEqualTo((true, 1));
     }
 
     [Test]
