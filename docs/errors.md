@@ -139,7 +139,7 @@ A role needs the IAM action of each operation a call sends, on the ARN of the ta
 | `client.DeleteTableAsync` | `dynamodb:DeleteTable` | The table |
 | `ToRequest()` of `CreateTable()` with `Tags`, sent by `client.CreateTableAsync` | Also `dynamodb:TagResource` | The table |
 | `ListStreamsAsync` of `DynamoDbStreamsClient` | `dynamodb:ListStreams` | `*` |
-| `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync` | `dynamodb:DescribeStream`, `dynamodb:GetShardIterator`, `dynamodb:GetRecords` | `table/Shop/stream/*` |
+| `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync` | `dynamodb:DescribeStream`, `dynamodb:GetShardIterator`, `dynamodb:GetRecords` | `table/Shop/stream/*` |
 | Any other method of the request API, `SendRawAsync` | `dynamodb:` and the name of the operation | What it names |
 
 An index has an ARN of its own, so a policy on the table alone lets no query read an index. A role of the shop that reads and writes items and its indexes, and creates the table at start:
