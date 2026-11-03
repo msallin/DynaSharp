@@ -118,9 +118,36 @@ await foreach (var order in byStatus.Query(open).Descending().ItemsAsync(ct))
 
 ## Paging for web APIs
 
-A token holds the position, and comes back with the next request. It is not signed, so a client can choose its position in the partition.
+A token holds the position, and comes back with the next request. It is safe in a URL, and it shows the key values of the last item, as `LastEvaluatedKey` does. What the client sends back is input like any other: `TryParse` turns text that is no token into `false`, and `PageAsync` throws `FormatException` for a token that does not fit the query or the signing of the client. Both are a 400 for the client, which starts its read again. A missing or empty `after` is the first page.
 
 ```csharp
-var page = await orders.Query(Order.Keys.Pk.Of("alice")).Limit(25).PageAsync(ContinuationToken.Parse(after), ct);
+if (!ContinuationToken.TryParse(after, out var position))
+{
+    return; // 400 Bad Request: not a token, or one of another release
+}
+
+Page<Order> page;
+try
+{
+    page = await orders.Query(Order.Keys.Pk.Of("alice")).Limit(25).PageAsync(position, ct);
+}
+catch (FormatException)
+{
+    return; // 400 Bad Request: a token of another query, or one whose signature does not hold
+}
+
 string? next = page.HasMore ? page.Next.ToString() : null;
 ```
+
+A plain token can be edited, so a client can choose its position in the partition. Within the key condition that is only a place among the items the query reads anyway: DynamoDB rejects a start key outside it, and a filter applies from any position. Where the key condition is not what keeps clients apart, sign the tokens with a key the service holds:
+
+```csharp
+using var signing = new DynamoDbClient(new DynamoDbClientOptions
+{
+    TokenSigner = new ContinuationTokenSigner(Convert.FromBase64String(Environment.GetEnvironmentVariable("PAGE_TOKEN_KEY")!)),
+});
+```
+
+Each `Next` of that client is then signed with HMAC-SHA256 over the token and over the table, the index and the key condition of the query, and for a fan-out the list of partitions. `PageAsync` checks the signature before a request goes out, and throws `FormatException` for a token that was edited or made up, one of another query, or one without a signature. The message quotes nothing of the token, so a web handler can return it as a bad request. The filter, the projection, `Limit` and the direction are not part of the signature, so a client can change its page size between pages. Signing does not hide the key values.
+
+A key is 32 random bytes or more, for example `RandomNumberGenerator.GetBytes(32)`, and every instance of the service holds the same keys. To rotate, pass the new key after the current one on every instance, then move it to the front, and drop the old one once its tokens are no longer in use: the first key signs, and every key is tried to check. A client without a signer rejects a signed token, and one with a signer rejects a plain token that came as text, so clients start their read again once when signing is switched on. A token from `ContinuationToken.FromKey` is built by the service itself and goes through either way.

@@ -45,7 +45,7 @@ The client throws these itself:
 | `KeyFormatException` | A value cannot be part of a key, see [Generated code](generated-code.md#keysof-and-keystryof). It is an `ArgumentException` | `ParamName`, the placeholder |
 | `ArgumentException` | A key of `Table<Item>` is empty, an index is not declared by the entity, a fan-out repeats a partition key | |
 | `InvalidOperationException` | The chain itself is wrong: a command used twice, a `[Version]` rule, `Value` of a `SelectResult` without an item | |
-| `FormatException` | `ContinuationToken.Parse` got text that is no token of this version | |
+| `FormatException` | `ContinuationToken.Parse` got text that is no token of this version, or `PageAsync` got a token that does not fit `TokenSigner`: a signature that does not hold for this query or key, a plain token on a client that signs, a signed one on a client that does not, see [Queries](queries.md#paging-for-web-apis). The message quotes nothing of the token | |
 
 No retry fixes `AccessDeniedException`, `UnrecognizedClientException`, `InvalidSignatureException` beyond the correction of the clock, `MissingAuthenticationTokenException`, `ValidationException` and `CredentialsUnavailableException`: the same request with the same credentials fails the same way until the credentials, the policy, the configuration or the code change.
 

@@ -20,3 +20,11 @@ The analyzers of the package may report more in a later release, in a patch rele
 ## Data on disk
 
 What an entity writes to a table does not change between releases: its attribute names, the key a template builds, the format of a number, a date or an enum, and the discriminator `_type`. Items written by one release are read by every later one, and a key built by one release finds the items of another. A change to the declaration of an entity does change what it writes, and [What changes stored data](migrating.md#what-changes-stored-data) lists which ones.
+
+## Continuation tokens
+
+A `ContinuationToken` that a web client holds is data too, only shorter-lived: it starts with the version of its format, and a release reads exactly the versions it knows. A plain token is version 1 and a signed one version 2. A patch release keeps both. A release that changes what a token holds gives it a new version and says so in its notes, and a token of a version it does not read fails in `ContinuationToken.Parse` with a `FormatException`, and `TryParse` is `false`, instead of reading a key the wrong way.
+
+So in a rolling deployment across such a release, a client whose next request reaches an instance of the other release gets a 400 from a handler like the one in [Paging for web APIs](queries.md#paging-for-web-apis), and starts its read again from the first page. Nothing else breaks: a token holds no state on the server, and does not expire.
+
+Signing follows the same rule within one release. Instances with the same `TokenSigner` keys take each other's tokens; an instance without a signer rejects a signed token, and one with a signer rejects a plain token from a client. Switching signing on or off, or dropping a key that still signs tokens in use, makes clients start their read again once. To rotate without that, add the new key behind the old one, then move it to the front, then drop the old one, see [Queries](queries.md#paging-for-web-apis).

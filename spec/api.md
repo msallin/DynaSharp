@@ -50,7 +50,7 @@ public partial record Customer
 
 | Namespace | Holds |
 |---|---|
-| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `GuidExtensions`, which adds `Guid.FirstVersion7` and `Guid.LastVersion7`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `ConflictKind`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
+| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `GuidExtensions`, which adds `Guid.FirstVersion7` and `Guid.LastVersion7`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `ContinuationTokenSigner`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `ConflictKind`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types, not written by hand and hidden: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Contains<,>`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
@@ -112,6 +112,7 @@ There is no interface: the test seam is the `HttpMessageHandler`.
 | `MaxAttempts` | 4 | Including the first; 1 means no retries. The waits are random, up to 100, 200 and 400 ms for a transient failure, so a cold dependency has 700 ms at most and 350 ms on average, and up to 50, 100 and 200 ms for throttling. The remarks of this property are the public description of the retry rules |
 | `LoggerFactory` | None | |
 | `TimeProvider` | `TimeProvider.System` | Timeouts, retry delays, batch backoff, signing time, `WaitUntilActiveAsync` |
+| `TokenSigner` | None: plain tokens | A `ContinuationTokenSigner` that signs and checks the continuation tokens of paged reads, see section 6. `ToString()` names its type only |
 
 `DynamoDbClientOptions` is a sealed record, so a test writes `options with { HttpHandler = stub, MaxAttempts = 1 }`.
 
@@ -407,6 +408,20 @@ input from the key, `Select` does not, and throws, which `DYNA209` reports. An u
 default, so the first request of a client needs no check, and a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
 values of the last item, as `LastEvaluatedKey` does. It starts with the version of its format, on a page and a fan-out alike, so `Parse` tells a token of another format, older or newer, from one it can read: that is a `FormatException` that says so, quotes nothing, and asks to start the read again. `TryParse` is false for it. There is no limit on the length: a token of a page is as long as a key, and one of a fan-out grows with its partitions. `ToKey()` and `FromKey(key)` convert to and from a key of the request API.
 
+Signed tokens are opt-in, for a web API whose clients must not choose their position: `new DynamoDbClientOptions { TokenSigner = new ContinuationTokenSigner(current, previous) }`. A key has at least `ContinuationTokenSigner.MinKeyLength` (32) bytes and is copied; the first key signs, every key is tried in order to check, with `CryptographicOperations.FixedTimeEquals`, which is how a key rotates. The signer lives in the options, not in a call or a table, so all reads of a client sign, every instance of a service with the same keys checks what another one handed out, and a client without one keeps plain tokens as they were.
+
+| | |
+|---|---|
+| Format | Version 2: `Base64Url([2][key JSON][HMAC-SHA256, 32 bytes])`. Version 1 stays `[1][key JSON]` |
+| Signed message | `[2][key JSON][length of the key, 4 bytes big-endian]DynaSharp.ContinuationToken\0{"TableName":"…"[,"IndexName":"…"]\0<key condition>[\0<partitions>]` |
+| Bound | Table, index, the key condition with names and values in place of the placeholders (`#"pk" = :{"S":"a"} AND begins_with(#"sk", :{"S":"x"})`), so another partition or sort key condition does not take the token, and for a fan-out the list of partition keys. A scan binds table and index |
+| Not bound | Filter, projection, `Limit`, direction and consistency: a token goes on with another of these on the same query, as a plain one does. A fan-out still checks its direction itself. No expiry |
+| Checked | In `PageAsync` of `Query`, `Scan`, their `Select` and mixed forms, and the fan-out, before a request goes out. `Parse` checks only the shape of version 2, because it has no keys |
+| Rejected | With a signer: a signature that does not hold (altered, made up, another query, a key no longer held), and a plain token that came through `Parse`/`TryParse`. Without a signer: a signed token. All are `FormatException`, quote nothing of the token, and ask to start the read again |
+| Accepted unsigned | A plain token this process made, from `FromKey` or kept from a client without a signer, because it is no input of a client: the bridge from the request API works on a client that signs |
+
+A patch release reads and writes the token formats of the release before it; a release that changes one gives it a new version and says so in its notes, and `docs/compatibility.md` says what that means for a rolling deployment. A signed token shows its key values as a plain one does: it is signed, not encrypted. Inside the key condition a chosen position is only a place among items the caller may read anyway, DynamoDB rejects a start key outside it, and a filter applies from any position, so signing matters where the key condition is not what keeps callers apart. `ContinuationToken` stays a value: two tokens are equal if their text is, wherever they came from.
+
 ## 7. Writes
 
 ```csharp
@@ -674,7 +689,7 @@ partition key throws `ArgumentException`. An empty list reads nothing.
 `PageAsync(pageSize, after, ct)` returns a `Page<T>` whose `Next` is a composite token with one entry per partition: its start key and the key of its next
 item as a hint, or done, and the direction of the read. The hint spares a read of a partition the merge does not need yet, and never reaches a request. Tokens parse like plain ones.
 A token of a different partition list fails a count check, one of the other direction is rejected, and all that is wrong with its shape throws `FormatException`, as `Parse` does, before a request goes out, so a web handler has one
-thing to catch locally. `ValidationException` remains for a start key only DynamoDB can judge, and nothing is signed. If the table changes between pages, an item written before a hinted key
+thing to catch locally. `ValidationException` remains for a start key only DynamoDB can judge. A client with `TokenSigner` signs a fan-out token over its partition keys too, see section 6. If the table changes between pages, an item written before a hinted key
 can come later than its place. `Page.ConsumedCapacity` adds every response of that `PageAsync`.
 
 It is not a snapshot, and there is no `PagesAsync` and no `Parallel`.

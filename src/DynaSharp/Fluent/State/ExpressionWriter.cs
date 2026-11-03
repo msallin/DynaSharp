@@ -556,6 +556,52 @@ internal sealed class ExpressionWriter
         }
     }
 
+    /// <summary>
+    /// Writes the key condition with each name and value in place of its placeholder, for the signature of a continuation token, which must hold for this condition and no other, whatever
+    /// the numbering. A name keeps its quotes and a value is JSON, so neither runs into what follows. <c>:pk</c>, the partition of a fan-out, has no value here and stays as it is.
+    /// </summary>
+    /// <param name="destination">The buffer.</param>
+    public void WriteResolvedKeyCondition(PooledByteBuffer destination)
+    {
+        // Text:     #n0 = :v0 AND begins_with(#n1, :v1)
+        // Written:  #"pk" = :{"S":"a"} AND begins_with(#"sk", :{"S":"b"})
+        var rest = this[Clause.KeyCondition].WrittenSpan;
+        while (true)
+        {
+            var marker = rest.IndexOfAny((byte)'#', (byte)':');
+            if (marker < 0)
+            {
+                destination.Append(rest);
+                return;
+            }
+
+            var isName = rest[marker] == (byte)'#';
+            destination.Append(rest[..(marker + 1)]);
+            rest = rest[(marker + 1)..];
+            if (rest[0] == (byte)'p')
+            {
+                continue;
+            }
+
+            rest = rest[1..];
+            var digits = rest.IndexOfAnyExceptInRange((byte)'0', (byte)'9');
+            digits = digits < 0 ? rest.Length : digits;
+            var index = int.Parse(rest[..digits], CultureInfo.InvariantCulture);
+            if (isName)
+            {
+                var slice = _nameSlices[index];
+                destination.Append(_names.WrittenSpan.Slice(slice.Offset - 1, slice.Length + 2));
+            }
+            else
+            {
+                var slice = _valueSlices[index];
+                destination.Append(_values.WrittenSpan.Slice(slice.Offset, slice.Length));
+            }
+
+            rest = rest[digits..];
+        }
+    }
+
     /// <summary>Empties all segments for the next set of expressions. The arrays stay, unless they grew beyond what an idle object should hold.</summary>
     /// <param name="maxRetainedLength">The longest array a segment keeps.</param>
     public void Clear(int maxRetainedLength)

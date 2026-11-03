@@ -123,7 +123,7 @@ internal sealed class FanOutMerge<T> : IDisposable
 
     /// <summary>Writes the token of what is left.</summary>
     /// <returns>The token, or the default value if nothing is left.</returns>
-    public ContinuationToken Next() => _live == 0 ? default : FanOutToken.Write(_cursors, _descending);
+    public ContinuationToken Next() => _live == 0 ? default : FanOutToken.Write(_cursors, _descending, _template, _plan);
 
     /// <summary>Gives back what the partitions own. No request is in flight when a read ends.</summary>
     public void Dispose()

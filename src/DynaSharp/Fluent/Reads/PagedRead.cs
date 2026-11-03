@@ -43,6 +43,7 @@ internal static class PagedRead<TOperation, T>
         var version = state.Version;
         try
         {
+            after.ThrowIfNotFor(state, plan: null);
             after.CopyKeyTo(state.PageKey);
             return ToPage(await SendAsync(state, cancellationToken).ConfigureAwait(false), state);
         }
@@ -172,5 +173,5 @@ internal static class PagedRead<TOperation, T>
         page.Count,
         page.ScannedCount,
         state.ResponseCapacity,
-        page.HasMore ? ContinuationToken.FromRawKey(state.PageKey.WrittenSpan) : default);
+        page.HasMore ? ContinuationToken.FromRawKey(state.PageKey.WrittenSpan, state, plan: null) : default);
 }

@@ -206,7 +206,7 @@ public sealed class ContinuationTokenTests
 
     [Test]
     [Arguments((byte)0)]
-    [Arguments((byte)2)]
+    [Arguments((byte)3)]
     [Arguments((byte)255)]
     public async Task Parse_UnknownVersion_SaysThatItIsOfAnotherFormat(byte version)
     {
@@ -224,7 +224,7 @@ public sealed class ContinuationTokenTests
     public async Task Parse_UnknownVersion_DoesNotQuoteTheText()
     {
         // Arrange
-        var text = Base64Url.EncodeToString([2, .. """{"pk":{"S":"key-secret"}}"""u8]);
+        var text = Base64Url.EncodeToString([3, .. """{"pk":{"S":"key-secret"}}"""u8]);
 
         // Act
         var failure = await TestClient.CaptureAsync<FormatException>(() => Task.FromResult(ContinuationToken.Parse(text)));

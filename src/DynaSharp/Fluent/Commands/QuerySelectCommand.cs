@@ -71,6 +71,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="FormatException"><paramref name="after"/> does not fit what <see cref="DynamoDbClientOptions.TokenSigner"/> says: a client that signs gets a plain token that came as text, or one whose signature does not hold for this read; a client that does not sign gets a signed one. The message quotes nothing of the token, and no request goes out.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example a position of another query; the exception shows the expressions.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item has no such attribute and the handle cannot be null, or its value cannot be read as <typeparamref name="TValue"/>.</exception>

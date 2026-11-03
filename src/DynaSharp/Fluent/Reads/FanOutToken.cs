@@ -35,8 +35,10 @@ internal static class FanOutToken
     /// <typeparam name="T">How the items are read.</typeparam>
     /// <param name="cursors">The partitions, with <see langword="null"/> for one that was done when the read started.</param>
     /// <param name="descending">Whether the read goes down the sort key.</param>
-    /// <returns>The token.</returns>
-    public static ContinuationToken Write<T>(FanOutCursor<T>?[] cursors, bool descending)
+    /// <param name="template">The request every partition is a copy of, for the signature.</param>
+    /// <param name="plan">The plan of the read, for the signature.</param>
+    /// <returns>The token, signed if the client signs.</returns>
+    public static ContinuationToken Write<T>(FanOutCursor<T>?[] cursors, bool descending, CommandState template, FanOutPlan plan)
         where T : IDynamoDbDocument<T>
     {
         using var buffer = new PooledByteBuffer();
@@ -63,7 +65,7 @@ internal static class FanOutToken
         }
 
         buffer.Append(descending ? "]},\"descending\":{\"BOOL\":true}}"u8 : "]}}"u8);
-        return ContinuationToken.FromRawKey(buffer.WrittenSpan);
+        return ContinuationToken.FromRawKey(buffer.WrittenSpan, template, plan);
     }
 
     /// <summary>Reads the entries of a token.</summary>

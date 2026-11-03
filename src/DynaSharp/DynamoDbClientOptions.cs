@@ -159,6 +159,24 @@ public sealed record DynamoDbClientOptions
     /// <summary>Gets the logger factory. When <see langword="null"/>, nothing is logged.</summary>
     public ILoggerFactory? LoggerFactory { get; init; }
 
+    /// <summary>
+    /// Gets the keys that sign the <see cref="ContinuationToken"/> of the paged reads of the client, for a web API whose clients must not choose their position. When <see langword="null"/>,
+    /// tokens are plain, as <see cref="ContinuationToken"/> describes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With a signer, <see cref="Page{T}.Next"/> of every <c>Query</c>, <c>Scan</c> and fan-out query carries a signature over the token and over the table, the index and the key condition of the
+    /// read, with the partitions of a fan-out. <c>PageAsync</c> checks it before a request goes out, and a token that does not hold fails with a <see cref="FormatException"/> that quotes nothing of it:
+    /// one a client made up or altered, one of another query, one signed with a key the signer no longer holds, and one without a signature that came through <see cref="ContinuationToken.Parse"/>.
+    /// A token of <see cref="ContinuationToken.FromKey"/> is code of the service, not input of a client, and goes through unsigned.
+    /// </para>
+    /// <para>
+    /// Without a signer, a signed token fails in the same way, because nothing can check it. So switching signing on or off makes the clients start their reads again, once.
+    /// Every instance of a service that hands out tokens and takes them back needs the same keys; <see cref="ContinuationTokenSigner"/> says how to rotate them. A <see cref="Streams.DynamoDbStreamsClient"/> has no paged reads and ignores this.
+    /// </para>
+    /// </remarks>
+    public ContinuationTokenSigner? TokenSigner { get; init; }
+
     // A record prints what its members print, and a provider of the application can be a record itself, which prints its keys. An endpoint can carry user info until a client rejects it.
     private bool PrintMembers(StringBuilder builder)
     {
@@ -169,7 +187,8 @@ public sealed record DynamoDbClientOptions
             .Append(", AttemptTimeout = ").Append(AttemptTimeout)
             .Append(", MaxAttempts = ").Append(MaxAttempts)
             .Append(", TimeProvider = ").Append(TimeProvider?.GetType())
-            .Append(", LoggerFactory = ").Append(LoggerFactory?.GetType());
+            .Append(", LoggerFactory = ").Append(LoggerFactory?.GetType())
+            .Append(", TokenSigner = ").Append(TokenSigner?.GetType());
         return true;
     }
 }

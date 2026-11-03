@@ -433,3 +433,8 @@ override DynaSharp.Streams.ReadShardRequest.GetHashCode() -> int
 override DynaSharp.Streams.ReadShardRequest.ToString() -> string!
 static DynaSharp.Streams.ReadShardRequest.operator !=(DynaSharp.Streams.ReadShardRequest? left, DynaSharp.Streams.ReadShardRequest? right) -> bool
 static DynaSharp.Streams.ReadShardRequest.operator ==(DynaSharp.Streams.ReadShardRequest? left, DynaSharp.Streams.ReadShardRequest? right) -> bool
+DynaSharp.ContinuationTokenSigner
+DynaSharp.ContinuationTokenSigner.ContinuationTokenSigner(params System.ReadOnlySpan<byte[]!> keys) -> void
+const DynaSharp.ContinuationTokenSigner.MinKeyLength = 32 -> int
+DynaSharp.DynamoDbClientOptions.TokenSigner.get -> DynaSharp.ContinuationTokenSigner?
+DynaSharp.DynamoDbClientOptions.TokenSigner.init -> void

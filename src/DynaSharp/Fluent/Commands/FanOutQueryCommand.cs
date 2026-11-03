@@ -201,7 +201,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <see cref="Page{T}.Next"/> holds one entry per partition: the key of the last item the caller got from it and the key of the item that comes next, or the fact that it is done.
     /// What a partition had read beyond the page is read again when its turn comes, so no item is lost or repeated. Until then the second key lets the merge pass it by, so a
     /// partition that sorts later, a time bucket for example, costs no read for the pages before it, while a partition that sorts in between is read on the page that reaches it. Its text
-    /// grows with the number of partitions, by two keys each, and like every token it shows the key values and is not signed, see <see cref="ContinuationToken"/>. If the table changes
+    /// grows with the number of partitions, by two keys each, and like every token it shows the key values. A client with <see cref="DynamoDbClientOptions.TokenSigner"/> signs it over the partition keys of the query as well, see <see cref="ContinuationToken"/>. If the table changes
     /// between pages, the merge goes by the keys of the token, so an item written before the next key can come later than its place.
     /// </para>
     /// <para>
@@ -214,7 +214,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageSize"/> is below 1.</exception>
-    /// <exception cref="FormatException"><paramref name="after"/> is not a position of a fan-out, or of one with this number of partitions and this direction, the same as <see cref="ContinuationToken.Parse"/> for text that is no token. It comes from a client, so this is what bad input from there looks like, when the awaited task ends.</exception>
+    /// <exception cref="FormatException"><paramref name="after"/> is not a position of a fan-out, or of one with this number of partitions and this direction, the same as <see cref="ContinuationToken.Parse"/> for text that is no token, or it does not fit what <see cref="DynamoDbClientOptions.TokenSigner"/> says, as for a plain query. It comes from a client, so this is what bad input from there looks like, when the awaited task ends.</exception>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects a request, for example a position of another query; the exception shows the expressions.</exception>

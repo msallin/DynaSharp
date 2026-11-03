@@ -30,6 +30,7 @@ internal static class FanOutRead<T>
         var version = template.Version;
         try
         {
+            after.ThrowIfNotFor(template, plan);
             using var merge = new FanOutMerge<T>(template, plan);
             merge.Open(after);
 
