@@ -28,6 +28,7 @@ DYNA029 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA030 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA031 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA032 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA033 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA100 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA101 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA102 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
@@ -106,6 +107,7 @@ DYNA029 | Error | DynaSharp.Mapping | [DynamoDbDefaultConverter] is not valid | 
 DYNA030 | Error | DynaSharp.Mapping | [OmitEmpty] is not valid here | [OmitEmpty] on '{0}' is not valid: {1}
 DYNA031 | Warning | DynaSharp.Mapping | Entity stored inside an entity | Property '{0}' stores the entity '{1}' as a map, with key and index attributes that nothing reads. Use a [DynamoDbDocument] type for it.
 DYNA032 | Warning | DynaSharp.Mapping | Getter reads a property that [ComputedFrom] does not name | The getter of '{0}' reads '{1}', which [ComputedFrom] does not name, so an update of '{1}' leaves a key built from '{0}' behind. Name it in [ComputedFrom].
+DYNA033 | Warning | DynaSharp.Mapping | [DynamoDbEnum] has no effect | Enum '{0}' asks for an unknown name to count as missing, but {1}
 DYNA100 | Error | DynaSharp.Keys | Key template syntax error | Key template '{0}' has a syntax error at position {1}: {2}
 DYNA101 | Error | DynaSharp.Keys | Key template literal is not ASCII | Key template literal must be printable ASCII
 DYNA102 | Error | DynaSharp.Keys | Unknown property in a key template | Key template references unknown property '{0}'

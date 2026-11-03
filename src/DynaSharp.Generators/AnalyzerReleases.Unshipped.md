@@ -10,6 +10,7 @@ DYNA029 | DynaSharp.Mapping | Error | [DynamoDbDefaultConverter] is not valid
 DYNA030 | DynaSharp.Mapping | Error | [OmitEmpty] is not valid here
 DYNA031 | DynaSharp.Mapping | Warning | Entity stored inside an entity
 DYNA032 | DynaSharp.Mapping | Warning | Getter reads a property that [ComputedFrom] does not name
+DYNA033 | DynaSharp.Mapping | Warning | [DynamoDbEnum] has no effect
 DYNA116 | DynaSharp.Keys | Warning | Truncated timestamp at the end of a table key
 DYNA117 | DynaSharp.Keys | Warning | Key property starts empty
 DYNA118 | DynaSharp.Keys | Error | Raw value does not end the template

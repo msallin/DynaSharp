@@ -880,6 +880,38 @@ internal static class EmitterShapes
         }
         """;
 
+    // A lenient enum beside one that says the default: only the first one's converter answers, and only for a property, a nullable one included, that is no plain key.
+    public const string LenientEnums = Usings + """
+        namespace Shapes.Lenient
+        {
+            [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]
+            public enum Wind { Calm, Gale }
+
+            [DynamoDbEnum(UnknownName = UnknownEnumName.Throw)]
+            public enum Mode { On, Off }
+
+            [DynamoDbEntity]
+            [Discriminator("LOG")]
+            public partial class Log
+            {
+                [PartitionKey]
+                public Wind Id { get; set; }
+
+                public Wind Wind { get; set; } = Wind.Gale;
+
+                public Wind? MaybeWind { get; set; }
+
+                public required Wind Kept { get; set; }
+
+                public Mode Mode { get; set; }
+
+                public List<Wind> Winds { get; set; } = new();
+
+                public HashSet<Wind> Seen { get; set; } = new();
+            }
+        }
+        """;
+
     /// <summary>Gets the shapes by name, which is also how the names of their snapshots start.</summary>
     public static IReadOnlyDictionary<string, string> All { get; } = new Dictionary<string, string>
     {
@@ -905,6 +937,7 @@ internal static class EmitterShapes
         ["OmitEmptyCollections"] = OmitEmptyCollections,
         ["OmittedByConverter"] = OmittedByConverter,
         ["CountedAsMissing"] = CountedAsMissing,
+        ["LenientEnums"] = LenientEnums,
     };
 
     public static IEnumerable<string> Names() => All.Keys;

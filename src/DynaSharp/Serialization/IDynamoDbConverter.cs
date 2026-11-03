@@ -118,6 +118,7 @@ public interface IDynamoDbConverter<T>
     /// <remarks>
     /// <para>
     /// A lenient enum: a name the type does not have keeps the initial value. <see cref="Read"/> stays strict, because a list has positions and asks nothing. The value is parsed twice, here and in <see cref="Read"/>, and only on a property whose converter answers.
+    /// An enum that the generated converter stores by name needs none of this: <see cref="Mapping.DynamoDbEnumAttribute"/> on the enum gives that converter the same answer. This one is for an enum stored otherwise.
     /// </para>
     /// <code>
     /// public readonly record struct LenientPositionConverter : IDynamoDbConverter&lt;Position&gt;
@@ -160,8 +161,8 @@ public interface IDynamoDbConverter<T>
     /// an initializer, and otherwise a throw that <c>DYNA209</c> reports. <c>Return</c> throws, as it does for a missing attribute. A value that is <c>{"NULL":true}</c> is passed here as <see cref="AttributeType.Null"/>, except on a nullable property, which reads it as null without asking.
     /// </para>
     /// <para>
-    /// The default answers <see langword="false"/>. The source generator emits the question only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
-    /// handle compiles the question away. It is the property that a converter answers for: an element of a list, a map or a set is not asked, because a list has positions, and neither is a plain key, because a read that took it for missing would give an entity with another
+    /// The default answers <see langword="false"/>. The source generator emits the question only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, and for the converter it writes for an enum with
+    /// <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c>, so every other property pays nothing, and a handle compiles the question away. It is the property that a converter answers for: an element of a list, a map or a set is not asked, because a list has positions, and neither is a plain key, because a read that took it for missing would give an entity with another
     /// key. <c>Keys.X.Parse</c> and <see cref="Item"/> do not ask either.
     /// </para>
     /// <para>

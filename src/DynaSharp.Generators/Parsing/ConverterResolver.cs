@@ -188,7 +188,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
         var forwarder = WritesExplicitly(property, inner) ? Wrapped(inner, converter) : null;
         var omission = Answers(property, inner, "IsOmitted") ? NullableHandle(inner, converter) : null;
-        var model = new ConverterModel(converter, read, null, forwarder, omission, Answers(property, inner, "CountsAsMissing"), Answers(property, inner, "TryReadMissing"));
+        var model = new ConverterModel(converter, read, null, forwarder, omission, CountsAsMissing(property, inner), Answers(property, inner, "TryReadMissing"));
         return new ResolvedConverter(model, write, _isPublic, IsAddable(property, inner));
     }
 
@@ -220,6 +220,11 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     // A converter that leaves the default of the interface alone has no answer of its own, so that its properties stay as they are.
     private static bool Answers(PropertyFacts property, ITypeSymbol value, string member) =>
         ImplementationOf(property, value, member) is { ContainingType: var owner } && owner.OriginalDefinition.ToDisplayString() != WellKnownNames.ConverterInterface;
+
+    // The converter that the generator writes for an enum is no symbol that could be asked, so its answer is what the attribute on the enum says.
+    private static bool CountsAsMissing(PropertyFacts property, ITypeSymbol value) =>
+        Answers(property, value, "CountsAsMissing")
+        || (OwnConverterOf(property, value) is null && value.TypeKind == TypeKind.Enum && EnumRegistry.CountsUnknownAsMissing(value));
 
     private static ISymbol? ImplementationOf(PropertyFacts property, ITypeSymbol value, string member)
     {

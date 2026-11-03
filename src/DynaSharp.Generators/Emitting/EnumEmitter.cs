@@ -3,7 +3,8 @@ namespace DynaSharp.Generators;
 /// <summary>
 /// Writes the <c>file</c> struct that converts an enum, by name, or by value for <c>[Flags]</c>, whose combinations have no name. It is also the
 /// element converter of a set of the enum. A name that is unknown is a <see cref="FormatException"/>, which the code around the read wraps with the
-/// attribute it was reading.
+/// attribute it was reading. An enum with <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c> also answers <c>CountsAsMissing</c> for such a name, which only the read of a
+/// property asks: <c>Read</c> and <c>ReadElement</c> stay strict, so an element of a collection still throws.
 /// </summary>
 internal static class EnumEmitter
 {
@@ -62,6 +63,13 @@ internal static class EnumEmitter
         EmitTryParseName(code, model);
         EmitWrite(code, model, "writer.WriteString(GetName(value))");
         EmitRead(code, model, "String");
+        if (model.CountsUnknownAsMissing)
+        {
+            code.Blank();
+            code.Line($"public static bool CountsAsMissing(in __Ser.DynamoDbReader reader, {AttributeType} type) =>");
+            code.Line($"    type == {AttributeType}.String && !TryParseName(reader.GetStringUtf8(), out _);");
+        }
+
         EmitWriteElement(code, model, "writer.WriteStringSetElement(GetName(value))");
         code.Blank();
         code.Line($"public static {model.FullName} ReadElement(ref __Ser.DynamoDbReader reader) =>");

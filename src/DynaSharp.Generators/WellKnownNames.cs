@@ -37,6 +37,8 @@ internal static class WellKnownNames
 
     public const string ComputedFromAttribute = "DynaSharp.Mapping.ComputedFromAttribute";
 
+    public const string EnumAttribute = "DynaSharp.Mapping.DynamoDbEnumAttribute";
+
     public const string DocumentInterface = "DynaSharp.Mapping.IDynamoDbDocument<TSelf>";
 
     public const string ConverterInterface = "DynaSharp.Serialization.IDynamoDbConverter<T>";
@@ -51,6 +53,11 @@ internal static class WellKnownNames
 
     /// <summary>The number of <c>VersionMissing.Allow</c>, which is all a generator sees of an enum on an attribute.</summary>
     public const int VersionMissingAllow = 1;
+
+    public const string UnknownNameArgument = "UnknownName";
+
+    /// <summary>The number of <c>UnknownEnumName.CountsAsMissing</c>.</summary>
+    public const int UnknownNameCountsAsMissing = 1;
 
     public const string ExpressionHandler = "DynaSharp.Expressions.ExpressionHandler";
 

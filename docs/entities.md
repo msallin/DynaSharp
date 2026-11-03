@@ -82,21 +82,18 @@ public partial record Parcel(string Id, string? TrackingNumber);
 
 ## Converters
 
-`[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property, and [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` says that a stored value counts as if the attribute were not there, so a name an enum no longer has keeps the initial value and the rest of the item reads.
+`[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property, and [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` says that a stored value counts as if the attribute were not there, so the rest of the item reads.
+
+An enum needs no converter for that. With `[DynamoDbEnum]`, a name it does not have, such as one that a newer version of a service stores during a rollout, keeps the initial value of the property, which is null for a nullable property without an initializer. Writes store the same names as without the attribute. A `required` property still throws, and so does an element of a list, a set or a map, which would otherwise drop out of the collection and be gone after the next `Put`.
 
 ```csharp
-public readonly record struct LenientStatusConverter : IDynamoDbConverter<OrderStatus>
+[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]
+public enum Carrier { Unknown, Post, Courier }
+
+[DynamoDbDocument]
+public partial record Delivery
 {
-    public static void Write(DynamoDbWriter writer, OrderStatus value) => writer.WriteString(value.ToString());
-
-    public static OrderStatus Read(ref DynamoDbReader reader, AttributeType type)
-    {
-        ConverterChecks.Expect(type, AttributeType.String);
-        return Enum.TryParse<OrderStatus>(reader.GetString(), out var value) ? value : throw new FormatException("Not a status.");
-    }
-
-    public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type) =>
-        type == AttributeType.String && !Enum.TryParse<OrderStatus>(reader.GetString(), out _);
+    public Carrier Carrier { get; init; } = Carrier.Unknown;
 }
 ```
 

@@ -6,7 +6,7 @@ link on a heading that exists and names the rule.
 
 ## Entities
 
-The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types, and `DYNA026` and `DYNA032` come from analyzers. Each comes with what to change, and a type with an error generates no code, so the `CS0311` on
+The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types, and `DYNA026`, `DYNA032` and `DYNA033` come from analyzers. Each comes with what to change, and a type with an error generates no code, so the `CS0311` on
 its table that a build shows beside it goes away with it.
 
 | Rule | What is wrong | What to do |
@@ -49,6 +49,8 @@ properties by itself, and they stay written. `[OmitEmpty]` on a type never repor
 `DYNA031` (warning): a property of an entity whose type is an entity too, or a list, set, dictionary or array of one, such as `public Customer Buyer { get; init; }` on an `Order`. It is stored as a map, and the copy carries the keys, the index keys and the discriminator of a customer, which no read of an order takes and no index sees. Give the property a `[DynamoDbDocument]` type that holds what the order needs. A snapshot of an entity that is meant to be one is fine: suppress the warning there. A property that is `[DynamoDbIgnore]`, computed, or has a converter of its own is not stored as a map and is not reported, and neither is an entity inside a document.
 
 `DYNA032` (warning): the getter of a property with `[ComputedFrom]` reads a stored property of the same instance that the attribute does not name, such as `[ComputedFrom(nameof(First))] public string Full => First + Last;` beside `[GlobalIndexKey("ByName", PartitionKey = "NAME#{Full}")]`. An update knows what a key is computed from only by the attribute, so `people.Update(key).Set(Person.Attrs.Last, "Doe")` goes through, and the index keeps the key with the old last name. Name every stored property the getter reads. It is reported once for each such property, where the getter reads it first. The getter is read as it is written: what a method or a property of the type that it calls reads, such as `Format()`, is not followed, and neither is a property of another instance. The version, a `[KeyOnly]` property and a computed one cannot be named, so they are not reported. A getter that reads a property that does not change its result is reported as well: suppress the warning there.
+
+`DYNA033` (warning): `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]` on an enum whose generated converter does not read it by name, so the attribute changes nothing. A `[Flags]` enum is stored as a number, which has no name to miss, and an enum with a `[DynamoDbConverter]` of its own is read by that converter: take the attribute off, or answer `CountsAsMissing` in the converter. It is reported once, on the attribute, whether a type uses the enum or not. `UnknownEnumName.Throw` is what happens without the attribute, so it is never reported.
 
 ## Key templates
 

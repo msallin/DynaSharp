@@ -282,6 +282,13 @@ DynaSharp.Mapping.VersionAttribute.Missing.set -> void
 DynaSharp.Mapping.VersionMissing
 DynaSharp.Mapping.VersionMissing.Allow = 1 -> DynaSharp.Mapping.VersionMissing
 DynaSharp.Mapping.VersionMissing.Reject = 0 -> DynaSharp.Mapping.VersionMissing
+DynaSharp.Mapping.DynamoDbEnumAttribute
+DynaSharp.Mapping.DynamoDbEnumAttribute.DynamoDbEnumAttribute() -> void
+DynaSharp.Mapping.DynamoDbEnumAttribute.UnknownName.get -> DynaSharp.Mapping.UnknownEnumName
+DynaSharp.Mapping.DynamoDbEnumAttribute.UnknownName.set -> void
+DynaSharp.Mapping.UnknownEnumName
+DynaSharp.Mapping.UnknownEnumName.CountsAsMissing = 1 -> DynaSharp.Mapping.UnknownEnumName
+DynaSharp.Mapping.UnknownEnumName.Throw = 0 -> DynaSharp.Mapping.UnknownEnumName
 *REMOVED*DynaSharp.Requests.QueryRequest.Select.get -> DynaSharp.Select
 *REMOVED*DynaSharp.Requests.ScanRequest.Select.get -> DynaSharp.Select
 *REMOVED*DynaSharp.Select

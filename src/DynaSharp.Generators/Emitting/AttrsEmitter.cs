@@ -117,6 +117,15 @@ internal static class AttrsEmitter
         code.Blank();
         code.Line("/// <inheritdoc/>");
         code.Line($"public static {model.FullName} Read(ref {Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.Read(ref reader, type);");
+
+        // Select asks the converter of the handle, so a name the enum lacks gives there what it gives a read of the entity.
+        if (model.CountsUnknownAsMissing)
+        {
+            code.Blank();
+            code.Line("/// <inheritdoc/>");
+            code.Line($"public static bool CountsAsMissing(in {Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.CountsAsMissing(in reader, type);");
+        }
+
         if (isElement)
         {
             code.Blank();

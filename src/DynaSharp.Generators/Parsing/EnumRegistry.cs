@@ -34,6 +34,18 @@ internal sealed class EnumRegistry
     /// <returns>True for a number, false for a name.</returns>
     public static bool IsStoredAsNumber(ITypeSymbol type) => AttributeReader.Find(type, FlagsAttribute) is not null;
 
+    /// <summary>Whether an enum says <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c>, whatever stores it. A value that is no member of <c>UnknownEnumName</c> throws, as the default does.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>True if it asks for a stored name it does not have to count as missing.</returns>
+    public static bool AsksToCountUnknownAsMissing(ITypeSymbol type) =>
+        AttributeReader.Find(type, WellKnownNames.EnumAttribute) is { } attribute
+        && AttributeReader.Number(attribute, WellKnownNames.UnknownNameArgument) == WellKnownNames.UnknownNameCountsAsMissing;
+
+    /// <summary>Whether the generated converter of an enum counts a stored name it does not have as missing. A number has no name, so a <c>[Flags]</c> enum never does.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>True if the converter answers <c>CountsAsMissing</c>.</returns>
+    public static bool CountsUnknownAsMissing(ITypeSymbol type) => !IsStoredAsNumber(type) && AsksToCountUnknownAsMissing(type);
+
     public EquatableArray<EnumModel> ToEquatableArray() => new([.. _enums.Values]);
 
     public string ConverterOf(INamedTypeSymbol type)
@@ -49,7 +61,8 @@ internal sealed class EnumRegistry
             UniqueConverterName(type),
             IsStoredAsNumber(type),
             Names.Of(type.EnumUnderlyingType!),
-            Members(type));
+            Members(type),
+            CountsUnknownAsMissing(type));
         _enums.Add(fullName, model);
         return model.ConverterName;
     }

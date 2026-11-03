@@ -503,6 +503,7 @@ Enums:
         Identifier: Shipped
         Utf8Length: 7
         IsCanonical: True
+    CountsUnknownAsMissing: False
 HidesInheritedKeys: False
 HidesInheritedAttrs: False
 HidesInheritedIndexes: False

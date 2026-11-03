@@ -244,7 +244,14 @@ public sealed class ProjectionAnalyzerTests
             [OmitEmpty]
             [DynamoDbConverter(typeof(Counting))]
             public string Both { get; init; } = "none";
+
+            public Mood Mood { get; init; }
+
+            public Mood? MaybeMood { get; init; }
         }
+
+        [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]
+        public enum Mood { Calm, Loud }
 
         [DynamoDbEntity]
         [Discriminator("COUNTEDKEY")]
@@ -599,6 +606,19 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
+    public async Task Select_PropertyOfAnEnumThatCountsAnUnknownNameAsMissing_Reports()
+    {
+        // Arrange (the generated converter answers for itself, with no [DynamoDbConverter] to find)
+        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Mood|]).SendAsync();""");
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA209 Warning: 'Mood' of 'Counted' has a converter that can count a stored value as missing: a read of the entity keeps the initial value, Select does not and throws. Read the entity, make the property nullable, or have the converter answer TryReadMissing."));
+    }
+
+    [Test]
     public async Task Select_OmitEmptyWhoseConverterCountsAValueAsMissing_ReportsTheOmission()
     {
         // Arrange (one report, and the first reason is what a write of the entity does every day)
@@ -615,6 +635,7 @@ public sealed class ProjectionAnalyzerTests
 
     // Null is what a missing attribute reads as.
     [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Note).SendAsync();""")]
+    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.MaybeMood).SendAsync();""")]
 
     // A read of the entity throws for a required member as well.
     [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Kept).SendAsync();""")]

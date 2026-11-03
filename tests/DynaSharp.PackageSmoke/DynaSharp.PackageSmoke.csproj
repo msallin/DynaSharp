@@ -79,6 +79,7 @@
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA026'))" Text="DYNA026 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA031'))" Text="DYNA031 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA032'))" Text="DYNA032 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA033'))" Text="DYNA033 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="$(_MistakesOutput.Contains('CS8032')) or $(_MistakesOutput.Contains('AD0001')) or $(_MistakesOutput.Contains('CS8784'))" Text="An analyzer or generator failed to load or run. The compiler printed: $(_MistakesOutput)" />
   </Target>
 

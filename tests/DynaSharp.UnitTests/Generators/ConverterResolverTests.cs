@@ -9,6 +9,8 @@ public sealed class ConverterResolverTests
 
     private const string Types = """
         public enum Color { Red }
+        [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Mood { Calm }
+        [System.Flags, DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Perm { None = 0 }
         [DynamoDbDocument] public partial record Doc(string Name);
         [DynamoDbEntity, Discriminator("O"), PartitionKey("O#{Id}")] public partial record Other(string Id);
         [DynamoDbConverter(typeof(MoneyConverter))] public readonly struct Money { }
@@ -273,6 +275,81 @@ public sealed class ConverterResolverTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA003 Error: Property 'X' has unsupported type 'System.Collections.Generic.HashSet<Shop.Code>'. Add a [DynamoDbConverter] or use a supported type."));
+    }
+
+    [Test]
+    [Arguments("Mood", true)]
+    [Arguments("Mood?", true)]
+    [Arguments("Color", false)]
+    [Arguments("Perm", false)]
+    [Arguments("List<Mood>", false)]
+    [Arguments("HashSet<Mood>", false)]
+    [Arguments("Dictionary<string, Mood>", false)]
+    [Arguments("Mood[]", false)]
+    [Arguments("string", false)]
+    public async Task Resolve_EnumThatCountsAnUnknownNameAsMissing_IsAskedOnAReadOfThePropertyAlone(string type, bool asked)
+    {
+        // Arrange, Act (a number has no name to miss, and an element is not asked)
+        var model = Property(type);
+
+        // Assert
+        await Assert.That(model.Converter!.CountsAsMissing).IsEqualTo(asked);
+    }
+
+    [Test]
+    public async Task Resolve_EnumThatCountsAnUnknownNameAsMissingWithAConverterOnTheProperty_AsksThatConverter()
+    {
+        // Arrange (the generated converter is not used, and this one has no answer)
+        var source = $$"""
+            {{Types}}
+            public readonly struct MoodConverter : IDynamoDbConverter<Mood>
+            {
+                public static void Write(DynamoDbWriter writer, Mood value) { }
+                public static Mood Read(ref DynamoDbReader reader, AttributeType type) => default;
+            }
+            [DynamoDbDocument] public partial class A { [DynamoDbConverter(typeof(MoodConverter))] public Mood X { get; set; } }
+            """;
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.A").Properties[0];
+
+        // Assert
+        await Assert.That(model.Converter!.CountsAsMissing).IsFalse();
+    }
+
+    [Test]
+    public async Task Resolve_EnumThatCountsAnUnknownNameAsMissingOnAPlainKey_IsNotAsked()
+    {
+        // Arrange (a read that took the key for missing would give an entity with another key)
+        var source = $$"""
+            {{Types}}
+            [DynamoDbEntity, Discriminator("K")] public partial class K { [PartitionKey] public Mood Id { get; set; } }
+            """;
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.K");
+
+        // Assert
+        await Assert.That((model.Properties[0].Converter!.CountsAsMissing, model.Enums.Single().CountsUnknownAsMissing)).IsEqualTo((false, true));
+    }
+
+    [Test]
+    [Arguments("Mood", true)]
+    [Arguments("Color", false)]
+    [Arguments("Perm", false)]
+    public async Task Resolve_Enum_ModelSaysWhetherItsConverterCountsAnUnknownNameAsMissing(string type, bool counts)
+    {
+        // Arrange
+        var source = $$"""
+            {{Types}}
+            [DynamoDbDocument] public partial class A { public {{type}} X { get; set; } }
+            """;
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.A");
+
+        // Assert
+        await Assert.That(model.Enums.Single().CountsUnknownAsMissing).IsEqualTo(counts);
     }
 
     private static PropertyModel Property(string type)
