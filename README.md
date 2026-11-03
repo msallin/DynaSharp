@@ -133,12 +133,24 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 
 **Optimistic locking, and a retry on a conflict**, for a read-modify-write that loses to another writer. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking)
 
+`Cart` has a `[Version] public long Revision`. A `Put` checks that the stored cart holds the version it was read with and stores the next one, so the losing writer gets a `ConditionalCheckFailedException` and `RetryOnConflictAsync` runs the lambda again with a fresh read.
+
 ```csharp
 await carts.RetryOnConflictAsync(async token =>
 {
     var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(token);
     await carts.Put(cart! with { Lines = lines }).SendAsync(token);
 }, ct);
+```
+
+**Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, the index that `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
+
+```csharp
+var page = await byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed)).Limit(25).PageAsync(ContinuationToken.Parse(after), ct);
+string? next = page.HasMore ? page.Next.ToString() : null;
+
+await products.BatchWrite().PutAll(catalog).SendAsync(ct);
+var found = await products.BatchGet().Keys(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
 **Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` for [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
@@ -155,7 +167,7 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 | Level | You write | Use it for |
 |---|---|---|
 | **`Table<T>`** with generated entities | `orders.Get(Order.Keys.Of("alice", 1))` | Application code. Start here. |
-| **`Table<Item>`** | `shop.Get("CUSTOMER#alice", "PROFILE")` | The same commands without a model: tools, migrations, attributes you do not map. |
+| **`Table<Item>`** | `client.Table("Shop", "pk", "sk")`, then `shop.Get("CUSTOMER#alice", "PROFILE")` | The same commands without a model: tools, migrations, attributes you do not map. |
 | **Requests** (`using DynaSharp.Requests`) | `client.GetItemAsync(new GetItemRequest { ... })` | Every DynamoDB operation as a request and a response that mirror the service. |
 | **Raw** | `client.SendRawAsync("ListTables", """{}"""u8.ToArray())` | UTF-8 JSON in, UTF-8 JSON out, through the same signing and retries. |
 

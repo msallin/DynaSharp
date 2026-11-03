@@ -101,7 +101,18 @@ Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `f
 
 `Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
-`fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, a `StubHandler` whose responder is the fake. `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB. For a write whose response is lost, let the fake answer and return an error instead:
+`fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, a `StubHandler` whose responder is the fake. `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB.
+
+A client of the fake makes one attempt per call. A test of the retries queues the failure on the handler and asks for more attempts:
+
+```csharp
+var fake = new FakeDynamoDb();
+using var handler = fake.CreateHandler();
+handler.Enqueue(StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded."));
+using var retrying = StubClient.Create(handler, options => options with { MaxAttempts = 3 });
+```
+
+For a write whose response is lost, let the fake answer and return an error instead:
 
 ```csharp
 var fake = new FakeDynamoDb();
