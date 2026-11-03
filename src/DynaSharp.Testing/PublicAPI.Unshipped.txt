@@ -1,4 +1,24 @@
 #nullable enable
+DynaSharp.Testing.FakeDynamoDb
+DynaSharp.Testing.FakeDynamoDb.Answer(DynaSharp.Testing.RecordedRequest! request) -> DynaSharp.Testing.StubResponse!
+DynaSharp.Testing.FakeDynamoDb.Answer(string! operation, string! requestJson) -> DynaSharp.Testing.StubResponse!
+DynaSharp.Testing.FakeDynamoDb.CreateClient(System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.DynamoDbClient!
+DynaSharp.Testing.FakeDynamoDb.CreateHandler() -> DynaSharp.Testing.StubHandler!
+DynaSharp.Testing.FakeDynamoDb.CreateTable(DynaSharp.Requests.CreateTableRequest! request) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.CreateTable<T>(string! tableName) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.Delete(string! tableName, DynaSharp.Item! key) -> bool
+DynaSharp.Testing.FakeDynamoDb.DeleteTable(string! tableName) -> void
+DynaSharp.Testing.FakeDynamoDb.DescribeTable(string! tableName) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.ExpireItems() -> int
+DynaSharp.Testing.FakeDynamoDb.FakeDynamoDb(System.TimeProvider? timeProvider = null) -> void
+DynaSharp.Testing.FakeDynamoDb.Get(string! tableName, DynaSharp.Item! key) -> DynaSharp.Item?
+DynaSharp.Testing.FakeDynamoDb.Get<T>(string! tableName, DynaSharp.Item! key) -> T?
+DynaSharp.Testing.FakeDynamoDb.Items(string! tableName) -> System.Collections.Generic.IReadOnlyList<DynaSharp.Item!>!
+DynaSharp.Testing.FakeDynamoDb.Items<T>(string! tableName) -> System.Collections.Generic.IReadOnlyList<T>!
+DynaSharp.Testing.FakeDynamoDb.Put(string! tableName, DynaSharp.Item! item) -> void
+DynaSharp.Testing.FakeDynamoDb.Put<T>(string! tableName, T entity) -> void
+DynaSharp.Testing.FakeDynamoDb.Reset() -> void
+DynaSharp.Testing.FakeDynamoDb.TableNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 DynaSharp.Testing.RecordedRequest.ConditionText.get -> string?
 DynaSharp.Testing.RecordedRequest.ConsistentRead.get -> bool?
 DynaSharp.Testing.RecordedRequest.FilterText.get -> string?

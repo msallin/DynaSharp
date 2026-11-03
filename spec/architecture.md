@@ -11,7 +11,7 @@ and it points at them instead of repeating them.
 |---|---|---|---|
 | `src/DynaSharp` | `net11.0` | The library, one assembly, internal by default | Nothing at run time; the generator as a build order only |
 | `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and one code fix in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0 (a floor, see `Directory.Packages.props`), no project |
-| `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `StubClient`, `RecordingHandler`, `RecordedRequest` and `RecordedTransactStep`, and `StubSts` on a socket of its own, because the HTTP of a credentials provider is not behind `HttpHandler` | `DynaSharp`, and its internals: `WireNames` and `TableJson` for the answers, `TableSchema` for what an entity declares, the internal constructors of the clients for a client that reads no environment. It packs a `README.md` of its own, and `DynaSharp` packs the one of the repository |
+| `src/DynaSharp.Testing` | `net11.0` | `StubHandler`, `StubResponse`, `StubClient`, `RecordingHandler`, `RecordedRequest` and `RecordedTransactStep`, `StubSts` on a socket of its own, because the HTTP of a credentials provider is not behind `HttpHandler`, and the in-memory `FakeDynamoDb` with its internals in `Fake/`, see section 14 | `DynaSharp`, and its internals: `WireNames` and `TableJson` for the answers, `TableSchema` for what an entity declares, the internal constructors of the clients for a client that reads no environment, `AttributeValueConverter`, `DynamoDbReader`/`DynamoDbWriter` and `ErrorMapper` for the fake. It packs a `README.md` of its own, and `DynaSharp` packs the one of the repository. It grants `InternalsVisibleTo` to the unit tests |
 | `tests/DynaSharp.UnitTests` | `net11.0` | Unit, generator and analyzer tests, the only coverage source | All three, the generator as analyzer and as assembly |
 | `tests/DynaSharp.IntegrationTests` | `net11.0` | The same tests on each emulator, on demand on real AWS, and the recipes of `patterns.md` | Docker, Testcontainers |
 | `tests/DynaSharp.AotSmoke` | `net11.0` | Publishes with Native AOT and runs | `DynaSharp`, `DynaSharp.Testing` |
@@ -357,6 +357,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | `required` on response records | `Operations/ResponseRecordsTests` | `generate_required_members.py`, the `required` lists of botocore's service models, both ways, from each `XResponse` down through its properties |
 | Shared config and credentials files | `Credentials` | `generate_shared_file_vectors.py`, botocore |
 | Web identity wire format | `Credentials/StsVectorTests`, `Credentials/WebIdentityEndToEndTests` over a socket on loopback | `generate_sts_vectors.py`: a botocore STS client with the `query` protocol sends, parses and classifies, over a hook that answers |
+| `FakeDynamoDb` | `Testing/Fake/*Tests`, through `Answer`, through a client and through the direct API | Request and response bodies written by hand from the API reference, and limits, sizes and orders from the Developer Guide; `FakeWireTests` holds the registry to every `IOperation` of the library |
 | `StubSts` | `Testing/StubStsTests`, over a socket on loopback | The same vectors: its bodies equal those botocore parsed, byte for byte, and it reads back the forms botocore sent |
 | Retry classification | `Retries` | botocore's `retries/standard.py`, by reading. Clock skew and expired tokens have no such source: botocore neither corrects nor refreshes on a response, so the oracle is the AWS SDKs |
 | DynamoDB JSON | `Serialization` | `real_aws_responses.json`, recorded from real DynamoDB by the Parity Suite, with attribution in `NOTICE` |
@@ -411,6 +412,12 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 2. A built-in: register it in `KeyScalars`, `OtherScalars` or the collection tables of `Parsing/ConverterResolver.cs`. `KeyScalars` holds what can be a DynamoDB key, and one that does not write a string goes into `WireTypeOf` as well. One that writes text in the order of its values goes into `OrderedText` of `PlainKeyBuilderEmitter`. An opt-in one, named in `[DynamoDbConverter]` and registered nowhere, is a built-in to `WireTypeOf(PropertyFacts)` by its namespace, so one that writes a number where its type has none is named there, as `EpochSecondsConverter` and `BoolAsNumberConverter` are, and one in order goes into `OrderedText`, as `SdkDateTimeConverter` does.
 3. `tests/DynaSharp.UnitTests/Serialization/Converters/XConverterTests.cs`, every wrong-type path and a counting pool for rented arrays. A built-in that refuses a value of its type on write throws an exception of its own that `ConverterChecks.IsRefusedValue` knows, and goes into `RefusingConverters` of `WriteEmitter`, so that the generated write names the property.
 4. An integration case in `Support/ConverterCase.cs`, a snapshot if the emitted call differs, and the AOT smoke if it brings a new generic shape.
+
+**An operation of the fake.**
+1. `src/DynaSharp.Testing/Fake/Operations/X.cs`, a static class with `Name` and `Handle(FakeDatabase, JsonElement, Utf8JsonWriter)`. It names every member it takes in `RequestJson.Members`, reads each, and answers anything with an effect it does not implement as `FakeError.Unsupported` before it changes state.
+2. Its line in `FakeWire`, out of `FakeWire.NotImplemented`; `FakeWireTests` checks every `IOperation` of the library against the two.
+3. Tests in `tests/DynaSharp.UnitTests/Testing/Fake/XTests.cs` with bodies written by hand from the API reference.
+4. The operation in the tables of `docs/testing.md` and the README of the package.
 
 **A project default.** A new member of `DynamoDbDefaultsAttribute` needs a reading in `ProjectDefaults` and a place where the attribute on the type or the property still wins. It holds for a whole project, so a test of what it does at run time needs an entity in `tests/DynaSharp.DefaultsFixture`, the one project that sets the defaults.
 
@@ -495,3 +502,23 @@ Each entry names where the reasons are. "Decisions" and "Findings" are sections 
 18. **Pooled buffers are returned uncleared.** All of them: request and response bodies, the SigV4 buffer with the session token, and the arrays of `KeyWriter`. The threat model is in-process. The same keys, items and credentials live as immutable strings on the GC heap, where nothing can clear them, and anything that can rent from the shared pool already runs inside the process and can read that heap. The runtime does not promise that zeroing managed memory removes the data either, since the GC copies objects as it compacts. Clearing would cost on every call and protect nothing. Decisions 2026-10-31.
 19. **A skew resend counts against `MaxAttempts`.** 1 must mean one request. M1b review findings, L2.
 20. **`Query` by `PartitionKey<T>` is an extension method.** An extension applies only when no member does, so no call that compiled before can change what it binds to, which `CompileGuardTests` pins. The cost is a worse error on a receiver that has no `Query` at all. `api.md` section 6.
+
+## 14. The fake
+
+`FakeDynamoDb` runs the client's path in reverse: it reads request JSON and writes response JSON, which the library never does, so it shares the codec and nothing of the operations. Everything but the facade is internal, in `src/DynaSharp.Testing/Fake/`, namespace `DynaSharp.Testing.Fake`. It is not a hot path: `JsonDocument` for envelopes, LINQ, copies.
+
+| Folder | Holds |
+|---|---|
+| `Wire` | `FakeWire`, the registry of `OperationHandler`s and the one entry: target to handler, body parsed, the handler under `FakeDatabase.Gate`, a `FakeError` rendered as the body of DynamoDB, any other exception passed through as a bug. `FakeAnswer`, `FakeError` (`ValidationException`, `SerializationException`, `ResourceNotFound`, `ResourceInUse`, `LimitExceeded`, `ConditionalCheckFailed`, `TransactionCanceled`, `IdempotentParameterMismatch`, `UnknownOperation`, `Unsupported`), `RequestJson`, `ResponseJson` |
+| `Storage` | `FakeDatabase` (tables, clock, gate), `FakeTable`, `FakeIndex`, `ItemStore` (partition, then `SlotKey`), `KeySchema`, `ItemKey`, `KeyComparer`, `KeyRange`, `SortKeyRange`, `ItemSize`, `AttributeRules`, `Segments` |
+| `Expressions` | `DecimalNumber`, `AttributeComparer`, and the entry points of the engine: `Expressions`, `PlaceholderScope`, `ParsedCondition`, `ParsedUpdate`, `ParsedProjection`, which answer `UnsupportedByFakeException` |
+| `Operations` | One static class per operation: `GetItem`, `PutItem`, `DeleteItem` with `ItemRequests` and `SingleWrite`, `TableOperations`, `TimeToLive`, `DescribeLimits`. `UpdateItem`, `Query`, `Scan`, the batches and the transactions answer `UnknownOperationException`, and `PageBuilder`, `Capacity` and `WriteReturns` are entry points that answer `UnsupportedByFakeException` |
+
+Rules that are easy to break:
+
+- No member is ignored. `RequestJson.Members` names every member an object may have, nested objects too, and an option with an effect the fake does not implement is `Unsupported` before the request changes anything.
+- One storage path. The wire and the direct API both go through `FakeTable.Put`, `Get` and `Remove`, which normalize with `AttributeRules`, check keys with `KeySchema`, the size with `ItemSize`, the keys of every index, and reindex. The table records go the same way: the wire reads `CreateTableRequest` and `UpdateTableRequest` and `TableOperations.Create` and `Update` check them.
+- Numbers are stored in the canonical text of `DecimalNumber`, so equal numbers are equal as text, and `ItemKey` and the stores compare them by value through `AttributeComparer` anyway. Strings order by UTF-8 bytes, which `AttributeComparer.CompareStrings` gets from UTF-16 without encoding.
+- The table description has one writer, `ResponseJson.WriteTableDescription`; the direct API reads it back with `TableJson.ReadTable`, so it returns what a client reads.
+- The direct API throws `FakeError.ToDynamoDbException`, which renders the body and maps it through `ErrorMapper`, the mapper of the client.
+- Independent of the client on purpose: the request readers, the response writers, numbers, ordering and sizes. Reused: `AttributeValue`, `Item`, `AttributeValueConverter`, `WireNames`, `TableJson` writers, `ErrorMapper`, `TableSchema`, the handler seam.

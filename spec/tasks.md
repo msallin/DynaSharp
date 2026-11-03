@@ -555,9 +555,24 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
 - Decision: only the other key of a sparse index, the one case that threw. An index that is not sparse keeps writing the key it can compute and nothing else: a copy there would make an update that creates the item fail where it succeeds today. A key of several inputs or with literals stays as it was, a `Set` of each input, because an update expression cannot format.
 - Finding, both emulators (dynoxide 1.5.0 and DynamoDB Local 3.3.2, `AttributeCopyTests` and `SoftDeleteTests`): `SET gsi2pk = owner` copies a string, and the item enters the index. A copy from an attribute the item lacks, and on a key no item has, fails with `ValidationException` "The provided expression refers to an attribute that does not exist in the item" on both, and the item keeps no key. A copy of a number into a string key of an index fails with "One or more parameter values were invalid: Type mismatch for Index Key", which dynoxide follows with ` gsi2pk Expected: S Actual: N IndexName: GSI2`.
 
-- [ ] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
+- [~] M4: in-memory fake in `DynaSharp.Testing` for functional tests (scope: see requirements; not DynamoDB's
       fine print). Plug it into the backend-parametrized scenario tests. Host it behind a small HTTP listener
       (test tool, `HttpListener`) so the Parity Suite tiers 1 and 2 can run against it; track its score.
+      In packages P1 to P6, on branches `m4/p<n>-...`.
+  - [x] P1 seam: every internal type and entry point the other packages code against, `DecimalNumber` and `AttributeComparer` complete.
+  - [x] P1 foundation: `FakeDynamoDb` (facade, direct API, `CreateTable<T>`, `ExpireItems`), wire layer and registry, storage with indexes and sizes, `GetItem`/`PutItem`/`DeleteItem` without conditions, `CreateTable`/`DescribeTable`/`UpdateTable`/`DeleteTable`/`ListTables`, `DescribeTimeToLive`/`UpdateTimeToLive`, `DescribeLimits`, docs in the Testing README and `docs/testing.md`.
+  - [ ] P2 expression engine: `Fake/Expressions/*` behind `Expressions`, `PlaceholderScope`, `ParsedCondition`, `ParsedUpdate`, `ParsedProjection`; key conditions into `KeyRange`/`SortKeyRange` of `Storage`.
+  - [ ] P3 reads: `Query`, `Scan`, `PageBuilder`, the read half of `Capacity`; `ProjectionExpression` and `ReturnConsumedCapacity` of `GetItem`.
+  - [ ] P4 writes: `UpdateItem`, conditions and `ReturnValues` of `PutItem`/`DeleteItem` (in `SingleWrite`), `WriteReturns`, the write half of `Capacity`, batches, transactions, `IdempotencyCache`; `Reset` drops the tokens too.
+  - [ ] P5 backend `fake` in the integration suite, the HTTP tool, the Parity run and its score table here.
+  - [ ] P6 streams.
+- Decision: the type is `FakeDynamoDb`, the role the specs call "the fake", like `Stub*` and `Recording*`; one public type, internals in `DynaSharp.Testing.Fake`.
+- Decision: what the fake does not implement inside an operation it answers is HTTP 400 with `__type` `DynaSharp.Testing#UnsupportedByFakeException`, so `ErrorCode` is `UnsupportedByFakeException` and no test takes it for an answer of DynamoDB; a value DynamoDB rejects, such as an enum value it does not have, is the `ValidationException` of DynamoDB; an operation it does not answer is `UnknownOperationException`, what DynamoDB Local sends and the Parity Suite skips. No request member is ignored, nested members included.
+- Decision: a table and its indexes are `ACTIVE` in the answer that creates them, a new index is backfilled at once, and `DeleteTable` frees the name at once.
+- Decision: time to live never fires by itself; `ExpireItems()` deletes what is due on the clock of the fake, items whose attribute is a number at or before it and not more than five years before it, which DynamoDB leaves.
+- Decision: numbers are stored in the canonical text of `DecimalNumber`, `1.50` as `1.5`, which is what DynamoDB answers with; above 40 plain digits the text is in exponent form, `1E+125`. Open: the exact text DynamoDB returns for huge or tiny numbers is unverified; the vectors of P5 check it.
+- Decision: the size of a list or a map counts 1 byte per element, as the Developer Guide says. `InternalsVisibleTo` to `DynaSharp.UnitTests`, so the internals of the fake are tested directly.
+- Finding: `KeyRange` and `SortKeyRange` live in `Fake/Storage`, not with the expression engine, because `FakeTable.Range` consumes them; P2 produces them. The entry point of the engine is the class `Expressions` in namespace `DynaSharp.Testing.Fake`; a test in `DynaSharp.UnitTests` names it with `global::`, because `DynaSharp.UnitTests.Expressions` is a namespace.
 - [ ] M5: SSO, `credential_process`, assume role
 - [ ] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
 

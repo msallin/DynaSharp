@@ -7,8 +7,8 @@
     <IsAotCompatible>true</IsAotCompatible>
 
     <PackageId>DynaSharp.Testing</PackageId>
-    <Description>Test support for DynaSharp: a stub HTTP handler that records requests and returns canned DynamoDB responses, and a recording handler that shows the traffic of a real client.</Description>
-    <PackageTags>dynamodb;aws;testing;stub;aot</PackageTags>
+    <Description>Test support for DynaSharp: an in-memory fake DynamoDB behind an HTTP handler, a stub HTTP handler that records requests and returns canned DynamoDB responses, and a recording handler that shows the traffic of a real client.</Description>
+    <PackageTags>dynamodb;aws;testing;fake;stub;aot</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -27,6 +27,7 @@
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <InternalsVisibleTo Include="DynaSharp.UnitTests" />
   </ItemGroup>
 
   <ItemGroup>

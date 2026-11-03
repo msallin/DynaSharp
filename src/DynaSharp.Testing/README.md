@@ -71,6 +71,41 @@ Keywords, functions and spacing stay as sent, and a placeholder the maps lack st
 
 `ToRequestJson()` of a command is the other way to look, without a client at all.
 
+## A fake DynamoDB
+
+`FakeDynamoDb` is an in-memory DynamoDB behind the same seam. A test sets up tables and items, runs the code under test through a real client, and reads the state back, with no queued answers.
+
+```csharp
+var fake = new FakeDynamoDb();
+fake.CreateTable<Customer>("Shop");
+using var client = fake.CreateClient();
+
+await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+
+var stored = fake.Get<Customer>("Shop", StubResponse.KeyOf(Customer.Keys.Of("alice")));
+```
+
+A table exists only once something creates it: a `CreateTable` over the wire, `CreateTable().SendAsync` of a table, `fake.CreateTable(request)`, or `fake.CreateTable<T>(name)`, which declares the keys and indexes of the entity as its `CreateTable()` would. A request on any other table answers `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, so a wait for them ends at once, and `DeleteTable` frees the name at once.
+
+`Put`, `Get`, `Delete`, `Items` and their forms for entities set up and read items without a client. They go through the checks of a request, so a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe and holds no static state: one per test, made with `new`, with nothing to dispose.
+
+`fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, and the handler is a `StubHandler` whose responder is the fake. So `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request in place of the fake, which never sees it: a queued throttle changes no state, as a throttle of DynamoDB does not. A write whose response is lost is a responder that lets the fake answer and returns an error in its place:
+
+```csharp
+var fake = new FakeDynamoDb();
+using var lost = new StubHandler(request =>
+{
+    var answer = fake.Answer(request);
+    return request.Operation == "PutItem"
+        ? StubResponse.DynamoDbError("InternalServerError", "The response was lost.", System.Net.HttpStatusCode.InternalServerError)
+        : answer;
+});
+```
+
+The clock given to the constructor dates the tables. Time to live is stored and reported, and nothing expires by itself: `fake.ExpireItems()` is the background sweep of DynamoDB, run when the test says, and deletes every item whose attribute of time to live is a number of epoch seconds at or before that clock. As on DynamoDB, an expiry more than five years before the clock is left alone.
+
+What the fake answers, and how it answers what it does not do, is listed on [the page of this package](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does). It never ignores a member of a request: what it does not implement fails with the code `UnsupportedByFakeException`, and an operation it does not answer with `UnknownOperationException`.
+
 ## STS
 
 The requests of a credentials provider do not go through `HttpHandler`, so `StubSts` is a server: HTTP on `127.0.0.1` and a free port, from the constructor to `Dispose`. It answers `AssumeRoleWithWebIdentity` with the next queued `StubStsResponse`, then `DefaultResponse`, and records `Requests`.
