@@ -1,4 +1,5 @@
 using System.Net;
+using DynaSharp.Retries;
 
 namespace DynaSharp;
 
@@ -46,6 +47,41 @@ public class DynamoDbException : Exception
     /// <c>ListStreams</c> without a table. Never a key or a value.
     /// </summary>
     public string? TableName { get; internal init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the same call can succeed later without any change, as <see cref="System.Data.Common.DbException.IsTransient"/> says it for a database.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="true"/> for throttling and capacity errors (<see cref="ProvisionedThroughputExceededException"/>, <see cref="ThrottlingException"/>,
+    /// <see cref="RequestLimitExceededException"/>, <see cref="LimitExceededException"/>, <see cref="TransactionInProgressException"/>), for a server error, which is
+    /// <see cref="InternalServerErrorException"/> and any code with HTTP 500, 502, 503 or 504, a body that is no DynamoDB response included, for the code
+    /// <c>RequestTimeoutException</c>, for <see cref="ReplicatedWriteConflictException"/>, for <see cref="TransactionConflictException"/>, and for a
+    /// <see cref="TransactionCanceledException"/> whose every failed action is <see cref="TransactionFailure.TransactionConflict"/> or <see cref="TransactionFailure.Throttled"/>.
+    /// A <see cref="BatchIncompleteException"/> or <see cref="BatchGetIncompleteException{T}"/> is transient when its rounds ran out on what DynamoDB left unprocessed, and when the
+    /// failure in its <see cref="Exception.InnerException"/> is: what is left may pass later.
+    /// </para>
+    /// <para>
+    /// The client already retried every transient failure that its retry policy repeats before the exception reaches the caller, so <see langword="true"/> means that its attempts
+    /// ran out, or its retry quota, or that <see cref="DynamoDbClientOptions.MaxAttempts"/> is 1: try later, after a wait, and not at once in a loop. The policy repeats everything
+    /// above but the conflicts of a transaction, which <c>RetryOnConflictAsync</c> with <see cref="ConflictKind.TransactionConflict"/> runs again.
+    /// </para>
+    /// <para>
+    /// <see langword="false"/> for everything else: a rejected request (<see cref="ValidationException"/>), a missing or wrong table or index (<see cref="ResourceNotFoundException"/>,
+    /// <see cref="ResourceInUseException"/>), access, signature and token errors (<see cref="AccessDeniedException"/>, <see cref="UnrecognizedClientException"/>, and the codes
+    /// <c>InvalidSignatureException</c>, <c>MissingAuthenticationTokenException</c> and <c>ExpiredTokenException</c>), an item or item collection over its size limit, an expired
+    /// stream iterator, a reused transaction token, and a code this library does not know, unless its status is one of a server error. A failed condition is
+    /// <see langword="false"/>, a <see cref="ConditionalCheckFailedException"/> and a cancelled transaction with a <see cref="TransactionFailure.ConditionalCheckFailed"/> reason,
+    /// because the same call cannot succeed unless the item changes: read it and decide anew, which <c>RetryOnConflictAsync</c> does.
+    /// </para>
+    /// <para>
+    /// A failure that does not come from DynamoDB is no <see cref="DynamoDbException"/>, so it has no such property: the <see cref="TimeoutException"/> of an attempt and an
+    /// <see cref="HttpRequestException"/> of the network are transient and were retried as well, except one whose <see cref="HttpRequestException.HttpRequestError"/> is
+    /// <see cref="HttpRequestError.ConfigurationLimitExceeded"/>, and an <see cref="OperationCanceledException"/> and a <see cref="CredentialsUnavailableException"/>, which is also
+    /// what a rejection by STS surfaces as, are not.
+    /// </para>
+    /// </remarks>
+    public bool IsTransient => FailureClassifier.IsTransient(this);
 
     /// <inheritdoc/>
     /// <remarks>

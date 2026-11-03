@@ -8,7 +8,7 @@ A rule says what is wrong, then what to do, then what it does not report. The ex
 
 ## Entities
 
-The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types, and `DYNA026`, `DYNA032` and `DYNA033` come from analyzers. Each comes with what to change, and a type with an error generates no code, so the `CS0311` on
+The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types, and `DYNA026`, `DYNA032` and `DYNA033` on an enum come from analyzers. Each comes with what to change, and a type with an error generates no code, so the `CS0311` on
 its table that a build shows beside it goes away with it. `DYNA020` is the one exception: the type is generated as if it opted out, so its uses compile and the build fails on that error alone.
 
 | Rule | What is wrong | What to do |
@@ -64,10 +64,10 @@ its table that a build shows beside it goes away with it. `DYNA020` is the one e
 - **Fix.** Name every stored property the getter reads. A getter that reads a property that does not change its result is reported as well: suppress the warning there.
 - **Not reported.** The getter is read as it is written: what a method or a property of the type that it calls reads, such as `Format()`, is not followed, and neither is a property of another instance. The version, a `[KeyOnly]` property and a computed one cannot be named, so they are not reported.
 
-`DYNA033` (warning): `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]` on an enum whose generated converter does not read it by name, so the attribute changes nothing. A `[Flags]` enum is stored as a number, which has no name to miss, and an enum with a `[DynamoDbConverter]` of its own is read by that converter. It is reported once, on the attribute, whether a type uses the enum or not.
+`DYNA033` (warning): `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]` on an enum whose generated converter does not read it by name, so the attribute changes nothing. A `[Flags]` enum is stored as a number, which has no name to miss, and an enum with a `[DynamoDbConverter]` of its own is read by that converter. It is reported once, on the attribute, whether a type uses the enum or not. It is also reported on a property of such an enum where an unknown name still throws: a `required` property that is not nullable, a property set by a constructor parameter without a default value, and a plain key of the table or of an index, which a read takes as it is stored.
 
-- **Fix.** Take the attribute off, or answer `CountsAsMissing` in the converter.
-- **Not reported.** `UnknownEnumName.Throw`, which is what happens without the attribute.
+- **Fix.** Take the attribute off, or answer `CountsAsMissing` in the converter. On a property, make it nullable, or not required with an initial value that is safe to keep, or give the parameter such a default value. A key that has to hold names the enum does not know is a string.
+- **Not reported.** `UnknownEnumName.Throw`, which is what happens without the attribute. A nullable property, one that is not required, and a parameter with a default, which keep their value. A required input of a key template that holds it without loss, which a read restores from the key first. An element of a list, a set or a map, which throws for an unknown name, as the attribute says.
 
 ## Key templates
 

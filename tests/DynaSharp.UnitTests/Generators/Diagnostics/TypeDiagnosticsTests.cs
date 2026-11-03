@@ -8,6 +8,19 @@ namespace DynaSharp.UnitTests.Generators.Diagnostics;
 /// </summary>
 public sealed class TypeDiagnosticsTests
 {
+    private const string LenientWind = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n";
+
+    private const string WindAsNumber = """
+
+        public readonly struct WindAsNumber : IDynamoDbConverter<Wind>
+        {
+            public static void Write(DynamoDbWriter writer, Wind value) => writer.WriteNumber((int)value);
+
+            public static Wind Read(ref DynamoDbReader reader, AttributeType type) => (Wind)reader.GetNumber<int>();
+        }
+
+        """;
+
     [Test]
     [Arguments("DYNA001", "[DynamoDbDocument] public partial class A { }")]
     [Arguments("DYNA002", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { }""")]
@@ -1419,4 +1432,104 @@ public sealed class TypeDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    [Test]
+    [Arguments("[DynamoDbDocument] public partial class Log { public required Wind [|Direction|] { get; init; } }")]
+    [Arguments("""[DynamoDbEntity, Discriminator("LOG"), PartitionKey("LOG#{Id}")] public partial class Log { public required string Id { get; init; } public required Wind [|Direction|] { get; init; } }""")]
+    [Arguments("[DynamoDbDocument] public partial class Log { public required Wind [|Direction|] { get; set; } = Wind.Calm; }")]
+    public async Task Build_RequiredPropertyOfALenientEnum_ReportsDyna033(string type)
+    {
+        // Arrange (a newer writer stores a name this version does not know: the read throws as if the attribute were missing, which a required member does)
+        var source = LenientWind + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, EnumOnProperty("the property 'Direction' is required, so an unknown name throws there, as a missing attribute does. Make the property nullable, or not required with an initial value that is safe to keep.")));
+    }
+
+    [Test]
+    [Arguments("[DynamoDbDocument] public partial record Log(Wind [|Direction|]);")]
+    [Arguments("[DynamoDbDocument] public partial class Log { public Log(Wind direction) { Direction = direction; } public Wind [|Direction|] { get; } }")]
+    public async Task Build_ConstructorParameterOfALenientEnumWithoutADefault_ReportsDyna033(string type)
+    {
+        // Arrange
+        var source = LenientWind + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            source,
+            EnumOnProperty("the property 'Direction' is set by a constructor parameter without a default value, so an unknown name throws there, as a missing attribute does. Make the property nullable, or give the parameter a default value that is safe to keep.")));
+    }
+
+    [Test]
+    [Arguments("""[DynamoDbEntity, Discriminator("LOG")] public partial class Log { [PartitionKey] public Wind [|Direction|] { get; set; } }""")]
+    [Arguments("""[DynamoDbEntity, Discriminator("LOG")] public partial class Log { [PartitionKey] public required Wind [|Direction|] { get; init; } }""")]
+    [Arguments("""[DynamoDbEntity, Discriminator("LOG"), PartitionKey("LOG")] public partial class Log { [SortKey] public Wind [|Direction|] { get; set; } }""")]
+    [Arguments("""[DynamoDbEntity, Discriminator("LOG"), PartitionKey("LOG#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "{Direction}", PartitionKeyAttributeName = "Direction")] public partial class Log { public required string Id { get; init; } public Wind [|Direction|] { get; set; } }""")]
+    public async Task Build_PlainKeyOfALenientEnum_ReportsDyna033(string type)
+    {
+        // Arrange (a key is read as stored, required or not: an item read with another key is written back to another place)
+        var source = LenientWind + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            source,
+            EnumOnProperty("the property 'Direction' is a key, which a read takes as it is stored, so an unknown name throws there. A key that has to hold names the enum does not know is a string.")));
+    }
+
+    [Test]
+    [Arguments(LenientWind, "public Wind Direction { get; set; } = Wind.Calm;")]
+    [Arguments(LenientWind, "public Wind Direction { get; set; }")]
+    [Arguments(LenientWind, "public required Wind? Direction { get; init; }")]
+    [Arguments(LenientWind, "public Wind? Direction { get; init; }")]
+    [Arguments(LenientWind, "public Log(Wind direction = Wind.Calm) { Direction = direction; } public Wind Direction { get; }")]
+    [Arguments(LenientWind, "public required List<Wind> Winds { get; init; }")]
+    [Arguments(LenientWind, "[DynamoDbIgnore] public required Wind Direction { get; init; }")]
+    [Arguments(LenientWind, "[DynamoDbConverter(typeof(WindAsNumber))] public required Wind Direction { get; init; }")]
+    [Arguments("[DynamoDbEnum(UnknownName = UnknownEnumName.Throw)] public enum Wind { Calm, Gale }\n", "public required Wind Direction { get; init; }")]
+    [Arguments("[DynamoDbEnum] public enum Wind { Calm, Gale }\n", "public required Wind Direction { get; init; }")]
+    [Arguments("public enum Wind { Calm, Gale }\n", "public required Wind Direction { get; init; }")]
+    [Arguments("[Flags, DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { None = 0, Calm = 1, Gale = 2 }\n", "public required Wind Direction { get; init; }")]
+    [Arguments("[DynamoDbConverter(typeof(WindAsNumber)), DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n", "public required Wind Direction { get; init; }")]
+    public async Task Build_PropertyWhereALenientEnumTakesEffectOrIsNotAsked_ReportsNothing(string declaration, string member)
+    {
+        // Arrange (an unknown name keeps the initial value or null; Throw and no attribute ask nothing; a converter of the property or the enum,
+        // and the number of a [Flags] enum, read without the generated converter, which EnumAttributeAnalyzer reports once on the enum)
+        var source = declaration + WindAsNumber + $$"""
+            [DynamoDbDocument]
+            public partial class Log { {{member}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_RequiredInputOfALosslessKeyOfALenientEnum_ReportsNothing()
+    {
+        // Arrange (the read falls back on the key, which may hold a name the enum knows, so the throw is not certain)
+        const string Source = LenientWind + """
+            [DynamoDbEntity, Discriminator("LOG"), PartitionKey("LOG#{Direction}")]
+            public partial class Log { public required Wind Direction { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    private static string EnumOnProperty(string reason) => $"DYNA033 Warning: Enum 'Wind' asks for an unknown name to count as missing, but {reason}";
 }

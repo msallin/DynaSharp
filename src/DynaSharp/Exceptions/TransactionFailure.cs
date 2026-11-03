@@ -4,7 +4,7 @@ namespace DynaSharp;
 /// Why one action of a cancelled transaction did not take effect, as a value: <see cref="TransactionCanceledException.ReasonFor"/>. Each member says whether
 /// repeating the same transaction can pass, because some causes go away by themselves and others never do.
 /// </summary>
-/// <remarks>When adding a member: map its code in <see cref="TransactionCanceledException"/>, and add it to <c>StubResponse.Reason</c> in <c>DynaSharp.Testing</c>. A code this library does not know reads as <see cref="Unknown"/>.</remarks>
+/// <remarks>When adding a member: map its code in <see cref="TransactionCanceledException"/>, say whether it passes later for <see cref="DynamoDbException.IsTransient"/>, and add it to <c>StubResponse.Reason</c> in <c>DynaSharp.Testing</c>. A code this library does not know reads as <see cref="Unknown"/>.</remarks>
 public enum TransactionFailure
 {
     /// <summary>A code this library does not know, which <see cref="CancellationReason.Code"/> shows, or no reason at all for the action. Whether a retry can pass is not known.</summary>

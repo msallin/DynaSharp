@@ -881,6 +881,7 @@ internal static class EmitterShapes
         """;
 
     // A lenient enum beside one that says the default: only the first one's converter answers, and only for a property, a nullable one included, that is no plain key.
+    // The plain key and the required member read an unknown name strictly, which DYNA033 reports for each of them.
     public const string LenientEnums = Usings + """
         namespace Shapes.Lenient
         {
@@ -938,6 +939,16 @@ internal static class EmitterShapes
         ["OmittedByConverter"] = OmittedByConverter,
         ["CountedAsMissing"] = CountedAsMissing,
         ["LenientEnums"] = LenientEnums,
+    };
+
+    /// <summary>Gets the warnings a shape reports on purpose, as the compiler prints them, which a consumer's build shows as well.</summary>
+    public static IReadOnlyDictionary<string, string[]> Warnings { get; } = new Dictionary<string, string[]>
+    {
+        ["LenientEnums"] =
+        [
+            "(20,21): warning DYNA033: Enum 'Wind' asks for an unknown name to count as missing, but the property 'Id' is a key, which a read takes as it is stored, so an unknown name throws there. A key that has to hold names the enum does not know is a string.",
+            "(26,30): warning DYNA033: Enum 'Wind' asks for an unknown name to count as missing, but the property 'Kept' is required, so an unknown name throws there, as a missing attribute does. Make the property nullable, or not required with an initial value that is safe to keep.",
+        ],
     };
 
     public static IEnumerable<string> Names() => All.Keys;

@@ -173,6 +173,24 @@ internal sealed class ModelBuilder
             property.AllowsMissingVersion);
     }
 
+    // Only where the throw is certain. A required input of a key that holds it without loss falls back on that key first, which may hold a name the enum knows.
+    private static string? WhyAnUnknownNameThrows(PropertyFacts property, EntityModel? entity)
+    {
+        if (entity is not null && entity.Keys().Any(key => key.PlainProperty == property.Name))
+        {
+            return $"the property '{property.Name}' is a key, which a read takes as it is stored, so an unknown name throws there. A key that has to hold names the enum does not know is a string.";
+        }
+
+        if (MissingOf(property) != MissingBehavior.Throw || property.FallbackKey is not null)
+        {
+            return null;
+        }
+
+        return property.Symbol.IsRequired
+            ? $"the property '{property.Name}' is required, so an unknown name throws there, as a missing attribute does. Make the property nullable, or not required with an initial value that is safe to keep."
+            : $"the property '{property.Name}' is set by a constructor parameter without a default value, so an unknown name throws there, as a missing attribute does. Make the property nullable, or give the parameter a default value that is safe to keep.";
+    }
+
     private TypeModel? Analyze()
     {
         var properties = PropertyCollector.Collect(_type, _compilation, _spot);
@@ -199,6 +217,7 @@ internal sealed class ModelBuilder
         ReadOmitEmpty(properties);
         var entity = discriminator is null ? null : new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator);
         KeepWhatAReadNeeds(properties);
+        ReportUnknownNamesThatThrow(properties, entity);
         return _bag.HasErrors ? null : Compose(properties, constructor, entity);
     }
 
@@ -279,6 +298,19 @@ internal sealed class ModelBuilder
             if (property.OmitEmpty is { } attribute)
             {
                 _bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "a read throws without it, so an empty value could not be read back");
+            }
+        }
+    }
+
+    // DYNA033 on a property. The attribute on the enum makes a name that is no member read as a missing attribute, which changes nothing where a missing attribute throws as well, or where a key
+    // is read as it is stored. The enum itself is fine, so this is reported for each property, beside what EnumAttributeAnalyzer reports once on the attribute.
+    private void ReportUnknownNamesThatThrow(List<PropertyFacts> properties, EntityModel? entity)
+    {
+        foreach (var property in properties.Where(static property => property.Resolved is not null && ConverterResolver.CountsUnknownNameAsMissing(property)))
+        {
+            if (WhyAnUnknownNameThrows(property, entity) is { } reason)
+            {
+                _bag.Report(Descriptors.IneffectiveEnumAttribute, property.Spot, Types.Unwrap(property.Type).Inner.Name, reason);
             }
         }
     }

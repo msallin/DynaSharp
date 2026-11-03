@@ -98,6 +98,7 @@ DynaSharp.DynamoDbClient.Options.get -> DynaSharp.DynamoDbClientOptions!
 DynaSharp.Streams.DynamoDbStreamsClient.Options.get -> DynaSharp.DynamoDbClientOptions!
 DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
 DynaSharp.DynamoDbMappingException.Key.get -> DynaSharp.Item?
+DynaSharp.DynamoDbException.IsTransient.get -> bool
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!

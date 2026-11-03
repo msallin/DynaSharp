@@ -32,7 +32,7 @@ public sealed class EntityEmitterTests
         var output = GeneratorRun.Run(EmitterShapes.All[shape], new DynaSharpGenerator(), language);
 
         // Assert
-        await Assert.That(output.Problems).IsEmpty();
+        await Assert.That(string.Join("\n", output.Problems)).IsEqualTo(string.Join("\n", EmitterShapes.Warnings.GetValueOrDefault(shape, [])));
     }
 
     [Test]

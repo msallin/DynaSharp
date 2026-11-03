@@ -114,6 +114,14 @@ internal sealed class FailureClassifierTests
         yield return new("IOException", new IOException("Disk gone."), FailureKind.Permanent);
     }
 
+    // Every response the retry policy repeats, so that IsTransient cannot say false where the client retried.
+    public static IEnumerable<FailureCase> RepeatedResponses() =>
+        Failures().Where(static failure => failure is { Exception: DynamoDbException, Expected: not FailureKind.Permanent });
+
+    // Every response it does not repeat, but for the conflicts of a transaction, which IsTransient counts as passing on their own.
+    public static IEnumerable<FailureCase> SurfacedResponses() =>
+        Failures().Where(static failure => failure is { Exception: DynamoDbException { ErrorCode: not ("TransactionConflictException" or "TransactionCanceledException") }, Expected: FailureKind.Permanent });
+
     [Test]
     [Arguments("ExpiredTokenException")]
     [Arguments("ExpiredToken")]
@@ -158,6 +166,32 @@ internal sealed class FailureClassifierTests
 
         // Assert
         await Assert.That(kind).IsEqualTo(failure.Expected);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(RepeatedResponses))]
+    public async Task IsTransient_ResponseThatTheRetryPolicyRepeats_IsTrue(FailureCase failure)
+    {
+        // Arrange (the case)
+
+        // Act
+        var transient = FailureClassifier.IsTransient((DynamoDbException)failure.Exception);
+
+        // Assert
+        await Assert.That(transient).IsTrue();
+    }
+
+    [Test]
+    [MethodDataSource(nameof(SurfacedResponses))]
+    public async Task IsTransient_ResponseThatTheRetryPolicySurfaces_IsFalse(FailureCase failure)
+    {
+        // Arrange (the case)
+
+        // Act
+        var transient = FailureClassifier.IsTransient((DynamoDbException)failure.Exception);
+
+        // Assert
+        await Assert.That(transient).IsFalse();
     }
 
     [Test]

@@ -23,8 +23,9 @@ internal static class ErrorMapper
     public const string UnrecognizedResponseCode = "UnrecognizedResponse";
 
     // Error codes as DynamoDB sends them, which is also what ErrorCode reports. InternalServerError and RequestLimitExceeded have no "Exception" suffix on the wire.
-    // When adding an exception type: add its factory here, with the names of the call, its wire code to Retries/FailureClassifier.cs if it is retried, a row to the tests of both, and
-    // the type to the list in the remarks of DynamoDbClientOptions.MaxAttempts.
+    // When adding an exception type: add its factory here, with the names of the call, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there
+    // if it passes later without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
+    // DynamoDbClientOptions.MaxAttempts.
     private static readonly Dictionary<string, Func<ErrorBody, DynamoDbException>> Factories = new(StringComparer.Ordinal)
     {
         ["AccessDeniedException"] = static body => new AccessDeniedException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },

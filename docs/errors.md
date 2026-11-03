@@ -27,6 +27,8 @@ Every error that DynamoDB returns is a `DynamoDbException` with `ErrorCode`, the
 | `ItemCollectionSizeLimitExceededException` | A partition of a table with a local index would grow past 10 GB | No | |
 | `ExpiredIteratorException`, `TrimmedDataAccessException` | A shard iterator of DynamoDB Streams is older than 15 minutes, or its records are gone | No | |
 
+`IsTransient`, on every `DynamoDbException`, says whether the same call can succeed later without any change, as `DbException.IsTransient` does for a database. It is true for every row retried above, any HTTP 500, 502, 503 or 504 included, and for `TransactionConflictException` and a `TransactionCanceledException` whose failed actions are all `TransactionConflict` or `Throttled`. Everything else is false: a failed condition, because the same call cannot pass unless the item changes, a rejected request, a missing table, access and token errors, and a code the client does not know. The client already retried what it retries, so true means that its attempts ran out: try later, not at once in a loop. `BatchIncompleteException` and `BatchGetIncompleteException<T>` are true when they gave up on their rounds or on a transient failure.
+
 The client throws these itself:
 
 | Exception | When | Carries |

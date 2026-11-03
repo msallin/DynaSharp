@@ -93,6 +93,14 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     }
 
     /// <summary>
+    /// Whether the generated converter of an enum reads a resolved property and counts a name that is no member as missing, which
+    /// <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c> asks for, before a key takes that back.
+    /// </summary>
+    /// <param name="property">The property, nullable or not.</param>
+    /// <returns>True if the attribute on the enum decides how the property reads an unknown name.</returns>
+    public static bool CountsUnknownNameAsMissing(PropertyFacts property) => CountsUnknownNameAsMissing(property, Types.Unwrap(property.Type).Inner);
+
+    /// <summary>
     /// Finds how a plain key is stored. A built-in says so by what it is. A custom converter can only say so by <c>IAddableConverter</c>, which marks a number or a set, and a set
     /// is no key. Nothing tells what any other custom converter writes.
     /// </summary>
@@ -225,9 +233,10 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         ImplementationOf(property, value, member) is { ContainingType: var owner } && owner.OriginalDefinition.ToDisplayString() != WellKnownNames.ConverterInterface;
 
     // The converter that the generator writes for an enum is no symbol that could be asked, so its answer is what the attribute on the enum says.
-    private static bool CountsAsMissing(PropertyFacts property, ITypeSymbol value) =>
-        Answers(property, value, "CountsAsMissing")
-        || (OwnConverterOf(property, value) is null && value.TypeKind == TypeKind.Enum && EnumRegistry.CountsUnknownAsMissing(value));
+    private static bool CountsAsMissing(PropertyFacts property, ITypeSymbol value) => Answers(property, value, "CountsAsMissing") || CountsUnknownNameAsMissing(property, value);
+
+    private static bool CountsUnknownNameAsMissing(PropertyFacts property, ITypeSymbol value) =>
+        OwnConverterOf(property, value) is null && value.TypeKind == TypeKind.Enum && EnumRegistry.CountsUnknownAsMissing(value);
 
     private static ISymbol? ImplementationOf(PropertyFacts property, ITypeSymbol value, string member)
     {
