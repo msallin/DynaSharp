@@ -87,7 +87,7 @@ There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where
 
 ## Examples
 
-A few things DynaSharp does, on the shop of the sample. The guide has each of them in full: [Reading and writing](https://msallin.github.io/DynaSharp/commands.html), [Queries and scans](https://msallin.github.io/DynaSharp/queries.html), [Expressions](https://msallin.github.io/DynaSharp/expressions.html), [Transactions and batches](https://msallin.github.io/DynaSharp/transactions.html), [Tables](https://msallin.github.io/DynaSharp/tables.html) and [Testing](https://msallin.github.io/DynaSharp/testing.html).
+A few things DynaSharp does, on the shop of the sample. The guide has each of them in full: [Reading and writing](https://msallin.github.io/DynaSharp/commands.html), [Queries and scans](https://msallin.github.io/DynaSharp/queries.html), [Expressions](https://msallin.github.io/DynaSharp/expressions.html), [Transactions and batches](https://msallin.github.io/DynaSharp/transactions.html), [Tables](https://msallin.github.io/DynaSharp/tables.html) and [Testing](https://msallin.github.io/DynaSharp/testing.html). [Design patterns](https://msallin.github.io/DynaSharp/patterns.html) shows the common DynamoDB designs, such as single-table, sharding, idempotency and the outbox, each with its code.
 
 **Typed queries.** `ItemsAsync` follows pages for you, including pages a filter left empty. `Keys` builds the key, and `Attrs` makes the filter typed, so comparing a total with a string does not compile.
 

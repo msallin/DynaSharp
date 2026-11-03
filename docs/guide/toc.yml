@@ -26,6 +26,16 @@
     href: ../migrating.md
   - name: Adopting an existing table
     href: ../adopting.md
+- name: Design patterns
+  items:
+  - name: Overview
+    href: ../patterns.md
+  - name: Keys and partitions
+    href: ../patterns-keys.md
+  - name: Single table and indexes
+    href: ../patterns-indexes.md
+  - name: Safe writes
+    href: ../patterns-writes.md
 - name: Reference
   items:
   - name: Diagnostics
