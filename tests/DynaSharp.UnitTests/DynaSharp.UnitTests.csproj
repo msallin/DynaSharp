@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <!-- Entities of tests never share a table, and two of a name in different test areas are not one mistake. -->
     <NoWarn>$(NoWarn);DYNA026</NoWarn>
+    <!-- Many tests at once that allocate heavily, the Roslyn ones most: a heap per core takes about a third off the wall time of a run. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

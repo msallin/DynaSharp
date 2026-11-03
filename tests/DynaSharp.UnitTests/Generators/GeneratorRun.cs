@@ -10,15 +10,19 @@ internal static class GeneratorRun
     // The platform assemblies of the test host, which include DynaSharp.dll. Roslyn here is the generator floor, so "latest" is C# 14.
     private static readonly Lazy<ImmutableArray<MetadataReference>> References = new(LoadReferences);
 
+    // A compilation without trees, from which every one here is made: one made from another with the same references and name keeps its reference manager, so the
+    // several hundred references are bound to symbols once, not once per compilation. A compilation is immutable, so the tests share no state.
+    private static readonly Lazy<CSharpCompilation> Empty = new(static () => CSharpCompilation.Create(
+        "GeneratorInput",
+        [],
+        References.Value,
+        new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)));
+
     // Diagnose makes the compiler report CS1591 for public members without docs, as a consumer with GenerateDocumentationFile does.
     public static CSharpParseOptions ParseOptions(LanguageVersion language) => new(language, DocumentationMode.Diagnose);
 
     public static CSharpCompilation CreateCompilation(string source, LanguageVersion language) =>
-        CSharpCompilation.Create(
-            "GeneratorInput",
-            [CSharpSyntaxTree.ParseText(source, ParseOptions(language))],
-            References.Value,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+        Empty.Value.AddSyntaxTrees(CSharpSyntaxTree.ParseText(source, ParseOptions(language)));
 
     public static GeneratorDriver CreateDriver(IIncrementalGenerator generator, LanguageVersion language, bool trackSteps = false) =>
         CSharpGeneratorDriver.Create(
