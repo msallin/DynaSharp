@@ -10,6 +10,9 @@ public sealed class ProfileCredentialsProviderTests
     private const string ConfigPath = "/aws/config";
     private const string Keys = $"aws_access_key_id = {AccessKeyId}\naws_secret_access_key = {SecretAccessKey}\n";
 
+    private static readonly DateTimeOffset Now = new(2026, 10, 31, 12, 34, 56, TimeSpan.Zero);
+    private static readonly DateTimeOffset Expiration = Now.AddHours(1);
+
     private static readonly Func<string, string?> Defaults = Env(("AWS_SHARED_CREDENTIALS_FILE", CredentialsPath), ("AWS_CONFIG_FILE", ConfigPath));
 
     [Test]
@@ -365,17 +368,7 @@ public sealed class ProfileCredentialsProviderTests
     }
 
     [Test]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev\nsource_profile = base", "role_arn")]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev\ncredential_source = Ec2InstanceMetadata", "role_arn")]
-    [Arguments("web_identity_token_file = /var/run/token", "web_identity_token_file")]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev\nweb_identity_token_file = /var/run/token", "web_identity_token_file")]
-    [Arguments("sso_session = corp\nsso_account_id = 123456789012\nsso_role_name = Admin", "sso_session")]
-    [Arguments("sso_start_url = https://corp.awsapps.com/start\nsso_region = us-east-1", "sso_start_url")]
-    [Arguments("sso_account_id = 123456789012", "sso_account_id")]
-    [Arguments("sso_role_name = Admin", "sso_role_name")]
-    [Arguments("sso_anything_else = x", "sso_anything_else")]
     [Arguments("login_session = arn:aws:iam::123456789012:user/dev", "login_session")]
-    [Arguments("credential_process = /usr/bin/creds --profile dev", "credential_process")]
     public async Task GetCredentialsAsync_UnsupportedSetting_FailsLoudlyNamingTheSettingAndTheProfile(string settings, string setting)
     {
         // Arrange (the profile exists in the config file only, so nothing can fall through to static keys)
@@ -389,11 +382,7 @@ public sealed class ProfileCredentialsProviderTests
     }
 
     [Test]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev", "'role_arn' (assuming a role)")]
-    [Arguments("web_identity_token_file = /var/run/token", "'web_identity_token_file' (web identity federation)")]
-    [Arguments("sso_session = corp", "'sso_session' (AWS IAM Identity Center (SSO))")]
     [Arguments("login_session = arn:aws:iam::123456789012:user/dev", "'login_session' (the AWS login flow)")]
-    [Arguments("credential_process = /usr/bin/creds --profile dev", "'credential_process' (an external credential process)")]
     public async Task GetCredentialsAsync_UnsupportedSetting_MessageNamesTheFeature(string settings, string description)
     {
         // Arrange
@@ -407,45 +396,169 @@ public sealed class ProfileCredentialsProviderTests
     }
 
     [Test]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev", "role_arn")]
-    [Arguments("web_identity_token_file = /var/run/token", "web_identity_token_file")]
-    [Arguments("sso_session = corp", "sso_session")]
-    public async Task GetCredentialsAsync_UnsupportedSettingAndStaticKeys_FailsBecauseBotocoreWouldNotUseTheKeys(string settings, string setting)
+    public async Task GetCredentialsAsync_ProcessAndStaticKeysBothInConfigFile_RunsTheProcessAsBotocoreDoes()
     {
-        // Arrange (botocore tries assume role, web identity and SSO before the files of keys)
-        var provider = Create(Defaults, (CredentialsPath, $"[dev]\n{Keys}{settings}\n"), "dev");
+        // Arrange
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(ProcessCredentialsProviderTests.Json(Expiration, "FROMPROCESS"));
+        var provider = Create(runner, (ConfigPath, $"[default]\n{Keys}credential_process = /usr/bin/creds\n"));
 
         // Act
-        var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining($"uses the setting '{setting}'", StringComparison.Ordinal);
+        await Assert.That(credentials.AccessKeyId).IsEqualTo("FROMPROCESS");
     }
 
     [Test]
-    public async Task GetCredentialsAsync_ProcessAndStaticKeysBothInConfigFile_FailsBecauseBotocoreRunsTheProcessFirst()
+    public async Task GetCredentialsAsync_Process_RunsTheCommandLineOfTheProfile()
     {
         // Arrange
-        var provider = Create(Defaults, (ConfigPath, $"[default]\n{Keys}credential_process = /usr/bin/creds\n"));
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(ProcessCredentialsProviderTests.Json(Expiration));
+        var provider = Create(runner, (ConfigPath, "[profile dev]\ncredential_process = creds --profile dev\n"), "dev");
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(string.Join(' ', [runner.Runs[0].FileName, .. runner.Runs[0].Arguments])).IsEqualTo("creds --profile dev");
+    }
+
+    [Test]
+    [Arguments("credential_process =")]
+    [Arguments("credential_process =\n  a = b")]
+    public async Task GetCredentialsAsync_ProcessEmptyOrBlock_FailsNamingTheProfile(string setting)
+    {
+        // Arrange
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(ProcessCredentialsProviderTests.Json(Expiration));
+        var provider = Create(runner, (ConfigPath, $"[profile dev]\n{setting}\n"), "dev");
 
         // Act
         var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("'credential_process'", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessage("The credential_process of the profile 'dev' names no program.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ProcessFails_FailsAgainAndRunsAgainOnTheNextCall()
+    {
+        // Arrange (the source is chosen, and a fetch that fails is not cached)
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(new ProcessResult(ProcessEnd.Exited, 1, []));
+        var provider = Create(runner, (ConfigPath, "[default]\ncredential_process = creds\n"));
+        await Assert.That(async () => await provider.GetCredentialsAsync(CancellationToken.None)).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Act
+        var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("exited with code 1", StringComparison.Ordinal);
+        await Assert.That(runner.Runs.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RealProgram_ReturnsWhatItWrites()
+    {
+        // Arrange (the way of a profile, end to end, through a program that the operating system starts)
+        using var program = FakeProgram.Create(ProcessCredentialsProviderTests.Json(DateTimeOffset.UtcNow.AddHours(1)), exitCode: 0);
+        var provider = new ProfileCredentialsProvider(Defaults, Files((ConfigPath, $"[default]\ncredential_process = {program.CommandLine}\n")), null);
+
+        // Act
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.SecretAccessKey).IsEqualTo(SecretAccessKey);
+    }
+
+    [Test]
+    public async Task TryInvalidate_Process_RunsItAgainOnTheNextCall()
+    {
+        // Arrange
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(ProcessCredentialsProviderTests.Json(Expiration, "FIRST"), ProcessCredentialsProviderTests.Json(Expiration, "SECOND"));
+        var provider = Create(runner, (ConfigPath, "[default]\ncredential_process = creds\n"));
+        var rejected = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        var invalidated = provider.TryInvalidate(rejected);
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((invalidated, credentials.AccessKeyId)).IsEqualTo((true, "SECOND"));
+    }
+
+    [Test]
+    public async Task TryInvalidate_StaticKeys_ReturnsFalse()
+    {
+        // Arrange (the files hold the keys once and for all)
+        var provider = Create(Defaults, (CredentialsPath, $"[default]\n{Keys}"));
+        var rejected = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        var invalidated = provider.TryInvalidate(rejected);
+
+        // Assert
+        await Assert.That(invalidated).IsFalse();
+    }
+
+    [Test]
+    public async Task TryInvalidate_BeforeTheFirstCall_ReturnsFalse()
+    {
+        // Arrange
+        var provider = Create(Defaults, (CredentialsPath, $"[default]\n{Keys}"));
+
+        // Act
+        var invalidated = provider.TryInvalidate(new AwsCredentials(AccessKeyId, SecretAccessKey));
+
+        // Assert
+        await Assert.That(invalidated).IsFalse();
+    }
+
+    [Test]
+    public async Task TryInvalidate_Null_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var provider = Create(Defaults);
+
+        // Act
+        var act = () => provider.TryInvalidate(null!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("rejected");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_SourceChosen_LogsTheProfileAndTheSourceOnceAtDebugLevel()
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory();
+        var runner = new ProcessCredentialsProviderTests.FakeRunner(ProcessCredentialsProviderTests.Json(Expiration));
+        var dependencies = ProcessCredentialsProviderTests.Dependencies(runner, new ManualTimeProvider(Now)) with
+        {
+            GetEnvironmentVariable = Defaults,
+            ReadFile = Files((ConfigPath, "[profile dev]\ncredential_process = creds\n")),
+            LoggerFactory = logs,
+        };
+        var provider = new ProfileCredentialsProvider(dependencies, "dev");
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(string.Join('\n', logs.Entries.Select(entry => $"{entry.Level} {entry.EventId.Id} {entry.Message}")))
+            .IsEqualTo("Debug 26 The profile 'dev' gets its credentials from its credential_process.");
     }
 
     [Test]
     public async Task GetCredentialsAsync_UnsupportedSetting_MessageSaysWhatToDoInstead()
     {
         // Arrange
-        var provider = Create(Defaults, (ConfigPath, "[default]\nsso_session = corp\n"));
+        var provider = Create(Defaults, (ConfigPath, "[default]\nlogin_session = arn:aws:iam::123456789012:user/dev\n"));
 
         // Act
         var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("(AWS IAM Identity Center (SSO)), which DynaSharp does not support yet. Use a profile with aws_access_key_id and aws_secret_access_key", StringComparison.Ordinal);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("(the AWS login flow), which DynaSharp does not support. Use a profile with aws_access_key_id and aws_secret_access_key", StringComparison.Ordinal);
     }
 
     [Test]
@@ -531,7 +644,7 @@ public sealed class ProfileCredentialsProviderTests
     public async Task TryGetCredentialsAsync_UnsupportedSetting_Throws()
     {
         // Arrange (a broken source is an error, not a reason to try the next one)
-        var provider = Create(Defaults, (ConfigPath, "[default]\ncredential_process = x\n"));
+        var provider = Create(Defaults, (ConfigPath, "[default]\nlogin_session = x\n"));
 
         // Act
         var act = async () => await provider.TryGetCredentialsAsync(CancellationToken.None);
@@ -539,6 +652,9 @@ public sealed class ProfileCredentialsProviderTests
         // Assert
         await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
     }
+
+    private static ProfileCredentialsProvider Create(ProcessCredentialsProviderTests.FakeRunner runner, (string Path, string Content) file, string? profileName = null) =>
+        new(ProcessCredentialsProviderTests.Dependencies(runner, new ManualTimeProvider(Now)) with { GetEnvironmentVariable = Defaults, ReadFile = Files(file) }, profileName);
 
     private static ProfileCredentialsProvider Create(Func<string, string?> environment, string? profileName = null) =>
         new(environment, NoFiles, profileName);

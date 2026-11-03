@@ -70,6 +70,33 @@ public sealed class SharedConfigFilesTests
     }
 
     [Test]
+    public async Task Load_SsoSessionSections_AreReadAsBotocoreReadsThem()
+    {
+        // Arrange (the header is split like a shell and must give two words; [sso-session] and an unclosed quote are no session)
+        var files = Files((DefaultConfigPath, "[sso-session corp]\nsso_region = eu-west-1\n[sso-session \"my corp\"]\nsso_region = us-east-1\n[sso-session]\na = b\n[sso-session \"open]\na = b\n"));
+
+        // Act
+        var loaded = SharedConfigFiles.Load(Env(("HOME", Home)), files);
+
+        // Assert
+        await Assert.That(string.Join(',', loaded.SsoSessions.OrderBy(session => session.Key, StringComparer.Ordinal).Select(session => $"{session.Key}={session.Value["sso_region"].Text}")))
+            .IsEqualTo("corp=eu-west-1,my corp=us-east-1");
+    }
+
+    [Test]
+    public async Task Load_SsoSessionSections_AreNeitherProfilesNorReadFromTheCredentialsFile()
+    {
+        // Arrange
+        var files = Files((DefaultCredentialsPath, "[sso-session creds]\na = b\n"), (DefaultConfigPath, "[sso-session corp]\nsso_region = eu-west-1\n"));
+
+        // Act
+        var loaded = SharedConfigFiles.Load(Env(("HOME", Home)), files);
+
+        // Assert
+        await Assert.That((string.Join(',', loaded.SsoSessions.Keys), string.Join(',', loaded.Profiles.Keys))).IsEqualTo(("corp", "sso-session creds"));
+    }
+
+    [Test]
     public async Task Load_HomeFolderFromUserProfile_WinsOverHome()
     {
         // Arrange

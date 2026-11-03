@@ -10,8 +10,14 @@ namespace DynaSharp.Credentials;
 /// </summary>
 internal static class CredentialsHttp
 {
+    /// <summary>The attempts of <see cref="SendWithRetriesAsync"/>, as in the standard retry mode of botocore.</summary>
+    public const int MaxAttempts = 3;
+
     // Credentials documents are about 1.5 KB; anything near this size is not one.
     private const int MaxResponseBytes = 64 * 1024;
+
+    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
     // One client for all providers, as HttpClient is meant to be used. The endpoints are link-local or loopback addresses,
     // so connections are cheap to recycle and a stale one is never a problem for long.
@@ -63,6 +69,40 @@ internal static class CredentialsHttp
     /// <param name="handler">The handler to send through, or <see langword="null"/> for a shared client.</param>
     /// <returns>The client. Do not dispose it.</returns>
     public static HttpClient GetClientFor(Uri endpoint, HttpMessageHandler? handler) => endpoint.IsLoopback ? GetClient(handler) : GetProxiedClient(handler);
+
+    /// <summary>
+    /// Sends a request until the answer is not transient, at most <see cref="MaxAttempts"/> times, one second apart. Each attempt gets 5 seconds, so a
+    /// failing exchange stays within the default <see cref="DynamoDbClientOptions.AttemptTimeout"/> of a client.
+    /// </summary>
+    /// <param name="client">The client.</param>
+    /// <param name="createRequest">Creates the request of an attempt: a request can be sent once only, and a signed one carries the time of its signature.</param>
+    /// <param name="isTransient">Tells whether a result is worth another attempt.</param>
+    /// <param name="timeProvider">The clock of the timeouts and the pauses.</param>
+    /// <returns>The first result that is not transient, or the last one.</returns>
+    public static async Task<Result> SendWithRetriesAsync(HttpClient client, Func<HttpRequestMessage> createRequest, Func<Result, bool> isTransient, TimeProvider timeProvider)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            Result result;
+            using (var request = createRequest())
+            {
+                result = await SendAsync(client, request, AttemptTimeout, timeProvider).ConfigureAwait(false);
+            }
+
+            if (attempt == MaxAttempts || !isTransient(result))
+            {
+                return result;
+            }
+
+            await Task.Delay(RetryDelay, timeProvider).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Tells whether a result is transient for any credentials endpoint: no answer in time, a failure of the network, HTTP 429 or 5xx.</summary>
+    /// <param name="result">The result.</param>
+    /// <returns><see langword="true"/> if another attempt may succeed.</returns>
+    public static bool IsTransientFailure(Result result) =>
+        result.Kind != ResultKind.Response || (int)result.StatusCode >= 500 || result.StatusCode == HttpStatusCode.TooManyRequests;
 
     /// <summary>Sends a request and reads the whole response, in at most <paramref name="timeout"/>.</summary>
     /// <param name="client">The client.</param>

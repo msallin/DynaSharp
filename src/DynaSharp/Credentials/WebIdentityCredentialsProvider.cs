@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
@@ -21,8 +20,8 @@ namespace DynaSharp.Credentials;
 /// on). <c>AWS_ROLE_ARN</c> must then be set as well: a token file without a role is broken and throws, which also stops the default
 /// chain. <c>AWS_ROLE_SESSION_NAME</c> is optional, must be 2 to 64 letters, digits or characters of <c>_+=,.@-</c>, and defaults to
 /// <c>dynasharp-</c> and the Unix time in seconds. The variables are read at every fetch. Passing the settings to a constructor replaces
-/// them all. The profile keys <c>web_identity_token_file</c> and <c>role_arn</c> are not read: a profile that has them fails in
-/// <see cref="ProfileCredentialsProvider"/>.
+/// them all. A profile with the keys <c>web_identity_token_file</c>, <c>role_arn</c> and <c>role_session_name</c> gets this provider from
+/// <see cref="ProfileCredentialsProvider"/>, with the settings of the profile and the region of its client.
 /// </para>
 /// <para>
 /// A fetch is a <c>POST</c> of a form to <c>https://sts.{region}.amazonaws.com/</c>, or <c>amazonaws.com.cn</c> for a region whose name starts
@@ -76,13 +75,8 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private const string TokenFileVariable = "AWS_WEB_IDENTITY_TOKEN_FILE";
     private const string RoleArnVariable = "AWS_ROLE_ARN";
     private const string SessionNameVariable = "AWS_ROLE_SESSION_NAME";
-    private const string RegionalEndpointsVariable = "AWS_STS_REGIONAL_ENDPOINTS";
-    private const string EndpointVariable = "AWS_ENDPOINT_URL_STS";
     private const string SourceName = "web identity token file";
     private const string FormContentType = "application/x-www-form-urlencoded";
-    private const string SessionNameRule = "must be 2 to 64 letters, digits or characters of _+=,.@-";
-    private const int MinSessionNameLength = 2;
-    private const int MaxSessionNameLength = 64;
     private const int MaxAttempts = 3;
 
     // The codes are those of botocore's sts/2011-06-15/service-2.json, which has ExpiredTokenException with that suffix on the wire. Throttling
@@ -95,18 +89,6 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     // the 30 seconds that a client gives an attempt by default, so that a client reports why the fetch failed and not a timeout of its own.
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
-    private static readonly Uri GlobalEndpoint = new("https://sts.amazonaws.com/");
-
-    // botocore's LEGACY_GLOBAL_STS_REGIONS, in args.py.
-    private static readonly string[] LegacyGlobalRegions =
-    [
-        "ap-northeast-1", "ap-south-1", "ap-southeast-1", "ap-southeast-2", "ca-central-1", "eu-central-1", "eu-north-1", "eu-west-1",
-        "eu-west-2", "eu-west-3", "sa-east-1", "us-east-1", "us-east-2", "us-west-1", "us-west-2",
-    ];
-
-    // The pattern of roleSessionNameType is [\w+=,.@-]*, where \w means ASCII; a .NET \w would let other letters through.
-    private static readonly SearchValues<char> SessionNameCharacters =
-        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+=,.@-");
 
     private readonly Func<string, string?> _getEnvironmentVariable;
     private readonly ReadTextFile _readFile;
@@ -261,20 +243,13 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     {
         ArgumentException.ThrowIfNullOrEmpty(tokenFile);
         ArgumentException.ThrowIfNullOrEmpty(roleArn);
-        if (roleSessionName is not null && !IsValidSessionName(roleSessionName))
+        if (roleSessionName is not null && !Sts.IsValidSessionName(roleSessionName))
         {
-            throw new ArgumentException($"The session name {SessionNameRule}.", nameof(roleSessionName));
+            throw new ArgumentException($"The session name {Sts.SessionNameRule}.", nameof(roleSessionName));
         }
 
         return new Settings(tokenFile, roleArn, null, roleSessionName);
     }
-
-    private static bool IsValidSessionName(string name) =>
-        name.Length is >= MinSessionNameLength and <= MaxSessionNameLength && !name.AsSpan().ContainsAnyExcept(SessionNameCharacters);
-
-    // What botocore's urlencode does, so the body is the same byte for byte: RFC 3986 percent encoding, and a space as '+'.
-    // Input: "arn:aws:iam::1:role/a b"   Result: "arn%3Aaws%3Aiam%3A%3A1%3Arole%2Fa+b"
-    private static string Encode(string value) => Uri.EscapeDataString(value).Replace("%20", "+", StringComparison.Ordinal);
 
     private static HttpRequestMessage CreateRequest(Uri endpoint, string body) => new(HttpMethod.Post, endpoint)
     {
@@ -288,11 +263,6 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
         || result.StatusCode == HttpStatusCode.TooManyRequests
         || code is CommunicationErrorCode or ThrottlingCode
         || (result.IsOk && !parsed);
-
-    private static AwsCredentials CreateCredentials(StsDocument document) =>
-        document.Credentials.TryCreateCredentials(out var credentials, StsDocument.SessionTokenElement) is { } problem
-            ? throw new CredentialsUnavailableException($"STS returned an unusable response: {problem}.")
-            : credentials!;
 
     // The Message of the error stays out, see StsDocument.
     private static string DescribeRejection(string? code, HttpStatusCode status) => code switch
@@ -325,53 +295,18 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
         {
             sessionName = null;
         }
-        else if (!IsValidSessionName(sessionName))
+        else if (!Sts.IsValidSessionName(sessionName))
         {
-            throw new CredentialsUnavailableException($"{SessionNameVariable} {SessionNameRule}.");
+            throw new CredentialsUnavailableException($"{SessionNameVariable} {Sts.SessionNameRule}.");
         }
 
         return new Settings(tokenFile, roleArn, _region, sessionName);
     }
 
-    // Only a provider that no client made gets here, without an endpoint of its own. Without a region there is no regional endpoint, and no reason to pick another one silently.
-    private AwsRegion ResolveRegion()
-    {
-        try
-        {
-            return ClientConfiguration.ResolveRegion(new DynamoDbClientOptions(), _getEnvironmentVariable, _readFile).Region;
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new CredentialsUnavailableException($"The STS endpoint depends on the region, and it is not known: {exception.Message}", exception);
-        }
-    }
-
     // What botocore does: a configured endpoint goes ahead of the region and of the legacy mode, and with one the region does not matter, because the request is not signed.
-    // An endpoint passed in code is botocore's endpoint_url, which goes ahead of the configured ones.
-    private Uri ResolveEndpoint(Settings settings)
-    {
-        if ((settings.Endpoint ?? ReadConfiguredEndpoint()) is { } configured)
-        {
-            return configured;
-        }
-
-        var region = settings.Region ?? ResolveRegion();
-        return string.Equals(_getEnvironmentVariable(RegionalEndpointsVariable), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, region.Name) >= 0
-            ? GlobalEndpoint
-            : region.StsEndpoint;
-    }
-
-    private Uri? ReadConfiguredEndpoint()
-    {
-        try
-        {
-            return ClientConfiguration.FindEndpointInEnvironment(_getEnvironmentVariable, EndpointVariable).Endpoint;
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new CredentialsUnavailableException(exception.Message, exception);
-        }
-    }
+    // An endpoint passed in code is botocore's endpoint_url, which goes ahead of the configured ones. Only a provider that no client made looks for the region itself.
+    private Uri ResolveEndpoint(Settings settings) =>
+        Sts.ResolveEndpoint(_getEnvironmentVariable, settings.Endpoint, () => settings.Region ?? Sts.ResolveRegion(_getEnvironmentVariable, _readFile)).Endpoint;
 
     private string ReadToken(string path)
     {
@@ -392,8 +327,8 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
     private string CreateBody(Settings settings)
     {
-        var sessionName = settings.SessionName ?? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"dynasharp-{_timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
-        return $"Action=AssumeRoleWithWebIdentity&Version=2011-06-15&RoleArn={Encode(settings.RoleArn)}&RoleSessionName={Encode(sessionName)}&WebIdentityToken={Encode(ReadToken(settings.TokenFile))}";
+        var sessionName = settings.SessionName ?? Sts.DefaultSessionName(_timeProvider);
+        return $"Action=AssumeRoleWithWebIdentity&Version=2011-06-15&RoleArn={Sts.Encode(settings.RoleArn)}&RoleSessionName={Sts.Encode(sessionName)}&WebIdentityToken={Sts.Encode(ReadToken(settings.TokenFile))}";
     }
 
     private async ValueTask<CredentialsOutcome> FetchOutcomeAsync() => CredentialsOutcome.Found(await FetchAsync().ConfigureAwait(false));
@@ -423,7 +358,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
             var code = document.ErrorCode;
             if (result.IsOk && parsed && code is null)
             {
-                return CreateCredentials(document);
+                return document.CreateCredentials();
             }
 
             if (code == ExpiredTokenCode && !expiredTokenSeen)

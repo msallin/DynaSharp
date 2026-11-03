@@ -17,7 +17,8 @@ namespace DynaSharp.Credentials;
 /// <para>
 /// With less than 15 minutes left (advisory period) a fetch starts in the background and every caller keeps using the current
 /// credentials, so a slow or failing source never delays a request. If the fetch fails, a warning is logged and the next one
-/// starts after <see cref="AdvisoryRetryInterval"/>. botocore makes one caller wait and tries again on every call, which costs
+/// starts after <see cref="AdvisoryRetryInterval"/>; the same pause follows a fetch that succeeds, for credentials that are in the advisory period
+/// as they arrive. botocore makes one caller wait and tries again on every call, which costs
 /// seconds per request during an outage of the source. With less than 10 minutes left (mandatory period) every caller waits for
 /// the fetch, and a failure is thrown.
 /// </para>
@@ -190,8 +191,11 @@ internal sealed class RefreshingCredentialsCache
                 mandatory = current is null || ExpiresWithin(current, now, MandatoryWindow);
                 if (fresh is not null)
                 {
+                    // Credentials that are in the advisory period as they arrive, such as a session of the 15 minutes that AssumeRole allows at
+                    // least, would otherwise start the next fetch with the next call, and keep a fetch running for as long as there are calls.
                     _current = fresh;
                     _everFetched = true;
+                    _nextAdvisoryFetch = now + AdvisoryRetryInterval;
                 }
                 else if (!mandatory)
                 {

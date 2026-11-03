@@ -97,6 +97,10 @@ The client logs only what no caller of one call can see: how it was configured, 
 | 23 | Warning | DynamoDB rejected the credentials as expired, and they were dropped | `DynamoDB rejected the credentials from the {Source} as expired. ...` |
 | 24 | Warning | STS rejected the web identity token as expired, and the file is read again | `STS rejected the token of the {Source} as expired. ...` |
 | 25 | Warning | The STS endpoint is http on a host that is not loopback, once per provider | `STS is reached at {Host} over plain http. The web identity token in the request and the session token in the response travel unencrypted.` |
+| 26 | Debug | The source a profile gets its credentials from | `The profile '{Profile}' gets its credentials from {Source}.` |
+| 27 | Warning | Renewing the cached SSO token failed; the cached token is used while it lasts | `Refreshing the cached SSO token of {Token} failed: {Reason}. The cached token is used while it lasts.` |
+| 28 | Warning | The renewed SSO token could not be written back to the token cache | `The refreshed SSO token of {Token} could not be written to the token cache: {Reason}. ...` |
+| 29 | Debug | The cached SSO token was renewed | `The cached SSO token of {Token} was refreshed.` |
 
 `{Table}` is the table of the call, and `{ErrorType}` the error code. A message names no key, no token and no file content, and of a URL at most its host.
 

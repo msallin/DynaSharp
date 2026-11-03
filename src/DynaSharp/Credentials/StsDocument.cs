@@ -3,7 +3,7 @@ using System.Xml;
 namespace DynaSharp.Credentials;
 
 /// <summary>
-/// The XML document that STS returns for <c>AssumeRoleWithWebIdentity</c>, reduced to the fields that matter. Parsed with
+/// The XML document that STS returns for <c>AssumeRoleWithWebIdentity</c> and <c>AssumeRole</c>, reduced to the fields that matter. Parsed with
 /// <see cref="XmlReader"/>, without reflection and without a serializer, so it works under Native AOT.
 /// </summary>
 /// <remarks>
@@ -21,6 +21,7 @@ namespace DynaSharp.Credentials;
 ///   &lt;/AssumeRoleWithWebIdentityResult&gt;
 /// &lt;/AssumeRoleWithWebIdentityResponse&gt;
 /// </code>
+/// <c>AssumeRole</c> answers the same with <c>AssumeRoleResponse</c> and <c>AssumeRoleResult</c>.
 /// A failure, of which only <c>Code</c> is read. <c>Message</c> is left alone on purpose: it is free text of the service, and an error
 /// about the parameters may quote them, which here includes the token:
 /// <code>
@@ -39,6 +40,7 @@ internal readonly record struct StsDocument(CredentialsDocument Credentials, str
     public const string SessionTokenElement = "SessionToken";
 
     private const string ResultElement = "AssumeRoleWithWebIdentityResult";
+    private const string AssumeRoleResultElement = "AssumeRoleResult";
     private const string CredentialsElement = "Credentials";
     private const string ErrorElement = "Error";
 
@@ -93,7 +95,7 @@ internal readonly record struct StsDocument(CredentialsDocument Credentials, str
                 {
                     code = reader.ReadElementContentAsString();
                 }
-                else if (depth == 3 && path[1] == ResultElement && path[2] == CredentialsElement && IsField(name))
+                else if (depth == 3 && (path[1] is ResultElement or AssumeRoleResultElement) && path[2] == CredentialsElement && IsField(name))
                 {
                     var value = reader.ReadElementContentAsString();
                     switch (name)
@@ -128,6 +130,14 @@ internal readonly record struct StsDocument(CredentialsDocument Credentials, str
         document = new StsDocument(new CredentialsDocument(accessKeyId, secretAccessKey, sessionToken, expiration, null), code);
         return true;
     }
+
+    /// <summary>Builds the credentials of a success.</summary>
+    /// <returns>The credentials.</returns>
+    /// <exception cref="CredentialsUnavailableException">A field is missing or the expiration is not a timestamp. The message names the fields, never a value.</exception>
+    public AwsCredentials CreateCredentials() =>
+        Credentials.TryCreateCredentials(out var credentials, SessionTokenElement) is { } problem
+            ? throw new CredentialsUnavailableException($"STS returned an unusable response: {problem}.")
+            : credentials!;
 
     private static bool IsField(string name) => name is "AccessKeyId" or "SecretAccessKey" or SessionTokenElement or "Expiration";
 }

@@ -199,6 +199,40 @@ public sealed class RefreshingCredentialsCacheTests
     }
 
     [Test]
+    public async Task GetAsync_FreshCredentialsAlreadyInTheAdvisoryPeriod_WaitTheRetryIntervalBeforeTheNextFetch()
+    {
+        // Arrange (a session of 15 minutes, the least AssumeRole grants, arrives inside the advisory period)
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => Fetched(ref calls, Credentials($"key{calls}", time.GetUtcNow().AddMinutes(15) - Tick)));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(RefreshingCredentialsCache.AdvisoryRetryInterval - Tick);
+
+        // Act
+        await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(calls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsAlreadyInTheAdvisoryPeriodAfterTheRetryInterval_FetchesAgain()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => Fetched(ref calls, Credentials($"key{calls}", time.GetUtcNow().AddMinutes(15) - Tick)));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(RefreshingCredentialsCache.AdvisoryRetryInterval);
+
+        // Act
+        await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(calls).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task GetAsync_AfterTheRetryInterval_FetchesAgain()
     {
         // Arrange

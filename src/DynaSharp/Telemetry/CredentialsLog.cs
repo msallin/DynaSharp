@@ -3,8 +3,8 @@ using Microsoft.Extensions.Logging;
 namespace DynaSharp.Telemetry;
 
 /// <summary>
-/// Log messages of the credential providers. Only events outside a single request are logged: which source the default chain
-/// chose, refreshes that failed, credentials that the service rejected as expired, and an STS endpoint over plain http. Event ids are stable. Messages never contain keys, tokens or file content. Of a URL they
+/// Log messages of the credential providers. Only events outside a single request are logged: which source the default chain and a profile
+/// chose, refreshes that failed, credentials that the service rejected as expired, refreshes of the cached SSO token, and an STS endpoint over plain http. Event ids are stable. Messages never contain keys, tokens or file content. Of a URL they
 /// show at most the host, which the reason of a failed refresh names for the container endpoint: the host is no secret, and the rest of that URI holds a credential identifier.
 /// </summary>
 internal static partial class CredentialsLog
@@ -41,4 +41,22 @@ internal static partial class CredentialsLog
         Level = LogLevel.Warning,
         Message = "STS is reached at {Host} over plain http. The web identity token in the request and the session token in the response travel unencrypted.")]
     public static partial void UnencryptedStsEndpoint(ILogger logger, string host);
+
+    [LoggerMessage(EventId = 26, Level = LogLevel.Debug, Message = "The profile '{Profile}' gets its credentials from {Source}.")]
+    public static partial void ProfileSourceChosen(ILogger logger, string profile, string source);
+
+    [LoggerMessage(
+        EventId = 27,
+        Level = LogLevel.Warning,
+        Message = "Refreshing the cached SSO token of {Token} failed: {Reason}. The cached token is used while it lasts.")]
+    public static partial void SsoTokenRefreshFailed(ILogger logger, string token, string reason);
+
+    [LoggerMessage(
+        EventId = 28,
+        Level = LogLevel.Warning,
+        Message = "The refreshed SSO token of {Token} could not be written to the token cache: {Reason}. It is used all the same, and refreshed again at the next fetch.")]
+    public static partial void SsoTokenNotSaved(ILogger logger, Exception exception, string token, string reason);
+
+    [LoggerMessage(EventId = 29, Level = LogLevel.Debug, Message = "The cached SSO token of {Token} was refreshed.")]
+    public static partial void SsoTokenRefreshed(ILogger logger, string token);
 }

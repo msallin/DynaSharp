@@ -260,10 +260,7 @@ public sealed class DefaultCredentialsProviderTests
     }
 
     [Test]
-    [Arguments("role_arn = arn:aws:iam::123456789012:role/dev\nsource_profile = base", "role_arn")]
-    [Arguments("sso_session = corp", "sso_session")]
-    [Arguments("web_identity_token_file = /token\nrole_arn = arn:aws:iam::123456789012:role/dev", "web_identity_token_file")]
-    [Arguments("credential_process = /usr/bin/creds", "credential_process")]
+    [Arguments("login_session = arn:aws:iam::123456789012:user/dev", "login_session")]
     public async Task GetCredentialsAsync_ProfileNeedsAnUnsupportedFeature_FailsInsteadOfUsingTheMetadataService(string settings, string setting)
     {
         // Arrange (the instance would hand out the credentials of its own role: the wrong principal)
@@ -274,6 +271,36 @@ public sealed class DefaultCredentialsProviderTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining($"The profile 'default' uses the setting '{setting}'", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_SsoProfileWithoutLogin_SaysToSignInInsteadOfUsingTheMetadataService()
+    {
+        // Arrange (a developer whose session has not been started)
+        var world = new World(
+            variables: [.. SharedFiles, ("USERPROFILE", "/home/dev")],
+            files: [(ConfigPath, "[default]\nsso_session = corp\nsso_account_id = 123456789012\nsso_role_name = ReadOnly\n[sso-session corp]\nsso_start_url = https://corp.awsapps.com/start\nsso_region = eu-west-1\n")]);
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>()
+            .WithMessageContaining("The cached SSO token of the sso-session 'corp' does not exist. Run `aws sso login --profile default` to sign in again.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_CredentialProcessFails_FailsInsteadOfUsingTheMetadataService()
+    {
+        // Arrange (a program that does not exist: the profile applies, so the chain stops there)
+        var program = Path.Combine(Path.GetTempPath(), "dynasharp-" + Guid.NewGuid().ToString("N"), "creds");
+        var world = new World(variables: SharedFiles, files: [(ConfigPath, $"[default]\ncredential_process = {program}\n")]);
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("The credential_process of the profile 'default' could not be started", StringComparison.Ordinal);
     }
 
     [Test]
@@ -360,6 +387,22 @@ public sealed class DefaultCredentialsProviderTests
 
         // Assert
         await Assert.That((exception.Message.Contains("timed out", StringComparison.Ordinal), world.MetadataRequests)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ProfileAssumesARole_AsksStsInTheRegionOfTheClient()
+    {
+        // Arrange (a developer's profile that assumes a role of another account)
+        var world = new World(
+            variables: SharedFiles,
+            files: [(ConfigPath, $"[default]\nrole_arn = {RoleArn}\nsource_profile = base\nregion = ap-south-1\n[profile base]\naws_access_key_id = AKIABASE\naws_secret_access_key = s\n")],
+            stsAnswer: now => new StubResponse { Body = AssumeRoleCredentialsProviderTests.StsSuccess("ASIAROLE", now.AddHours(1)) });
+
+        // Act
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((credentials.AccessKeyId, world.Handler.Requests.Single().RequestUri!.Host)).IsEqualTo(("ASIAROLE", "sts.eu-west-1.amazonaws.com"));
     }
 
     [Test]

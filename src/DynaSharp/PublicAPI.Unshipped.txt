@@ -451,3 +451,23 @@ DynaSharp.QueryCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappi
 DynaSharp.ScanCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.ScanCommand<T>
 DynaSharp.SelectResult<TValue>.GetValueOrDefault() -> TValue?
 DynaSharp.SelectResult<TValue>.GetValueOrDefault(TValue defaultValue) -> TValue
+DynaSharp.Credentials.ProfileCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.AssumeRoleCredentialsProvider
+DynaSharp.Credentials.AssumeRoleCredentialsProvider.AssumeRoleCredentialsProvider(DynaSharp.Credentials.ICredentialsProvider! sourceCredentials, string! roleArn, string? roleSessionName = null, DynaSharp.Credentials.AssumeRoleOptions? options = null) -> void
+DynaSharp.Credentials.AssumeRoleCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
+DynaSharp.Credentials.AssumeRoleCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.AssumeRoleOptions
+DynaSharp.Credentials.AssumeRoleOptions.AssumeRoleOptions() -> void
+DynaSharp.Credentials.AssumeRoleOptions.Duration.get -> System.TimeSpan?
+DynaSharp.Credentials.AssumeRoleOptions.Duration.init -> void
+DynaSharp.Credentials.AssumeRoleOptions.ExternalId.get -> string?
+DynaSharp.Credentials.AssumeRoleOptions.ExternalId.init -> void
+DynaSharp.Credentials.AssumeRoleOptions.Region.get -> DynaSharp.AwsRegion?
+DynaSharp.Credentials.AssumeRoleOptions.Region.init -> void
+DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.get -> System.Uri?
+DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.init -> void
+DynaSharp.Credentials.SsoCredentialsProvider
+DynaSharp.Credentials.SsoCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
+DynaSharp.Credentials.SsoCredentialsProvider.SsoCredentialsProvider(string! startUrl, DynaSharp.AwsRegion! ssoRegion, string! accountId, string! roleName, string? sessionName = null) -> void
+DynaSharp.Credentials.SsoCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
+DynaSharp.Credentials.EnvironmentCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool

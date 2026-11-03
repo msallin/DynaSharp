@@ -21,12 +21,14 @@ public sealed record AwsRegion
     private static readonly SearchValues<char> AllowedCharacters =
         SearchValues.Create("abcdefghijklmnopqrstuvwxyz0123456789-");
 
-    private AwsRegion(string name, Uri dynamoDbEndpoint, Uri dynamoDbStreamsEndpoint, Uri stsEndpoint)
+    private AwsRegion(string name, string domain)
     {
         Name = name;
-        DynamoDbEndpoint = dynamoDbEndpoint;
-        DynamoDbStreamsEndpoint = dynamoDbStreamsEndpoint;
-        StsEndpoint = stsEndpoint;
+        DynamoDbEndpoint = new Uri($"https://dynamodb.{name}.{domain}/");
+        DynamoDbStreamsEndpoint = new Uri($"https://streams.dynamodb.{name}.{domain}/");
+        StsEndpoint = new Uri($"https://sts.{name}.{domain}/");
+        SsoPortalEndpoint = new Uri($"https://portal.sso.{name}.{domain}/");
+        SsoOidcEndpoint = new Uri($"https://oidc.{name}.{domain}/");
     }
 
     /// <summary>
@@ -49,6 +51,12 @@ public sealed record AwsRegion
     /// <summary>Gets the regional HTTPS endpoint of AWS STS, for example <c>https://sts.us-east-1.amazonaws.com/</c>.</summary>
     internal Uri StsEndpoint { get; }
 
+    /// <summary>Gets the endpoint of the portal of AWS IAM Identity Center, for example <c>https://portal.sso.us-east-1.amazonaws.com/</c>.</summary>
+    internal Uri SsoPortalEndpoint { get; }
+
+    /// <summary>Gets the endpoint of the OIDC service of AWS IAM Identity Center, for example <c>https://oidc.us-east-1.amazonaws.com/</c>.</summary>
+    internal Uri SsoOidcEndpoint { get; }
+
     /// <summary>
     /// Creates a region from its name.
     /// </summary>
@@ -70,8 +78,7 @@ public sealed record AwsRegion
                 nameof(name));
         }
 
-        var domain = name.StartsWith(ChinaPrefix, StringComparison.Ordinal) ? "amazonaws.com.cn" : "amazonaws.com";
-        return new AwsRegion(name, new Uri($"https://dynamodb.{name}.{domain}/"), new Uri($"https://streams.dynamodb.{name}.{domain}/"), new Uri($"https://sts.{name}.{domain}/"));
+        return new AwsRegion(name, name.StartsWith(ChinaPrefix, StringComparison.Ordinal) ? "amazonaws.com.cn" : "amazonaws.com");
     }
 
     /// <summary>

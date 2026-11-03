@@ -210,13 +210,13 @@ Without `Region`, the client reads `AWS_REGION`, then `AWS_DEFAULT_REGION`, then
 
 Without `Credentials`, the client uses the default chain of the AWS SDKs and takes the first source that has credentials:
 
-1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
+1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`, with `AWS_CREDENTIAL_EXPIRATION` for temporary credentials, which are then read again before that time
 2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`
-3. the profile selected by `AWS_PROFILE`, or `default` when it is unset or empty, in the shared credentials and config files
+3. the profile selected by `AWS_PROFILE`, or `default` when it is unset or empty, in the shared credentials and config files, which may assume a role, use SSO, run a `credential_process` or hold keys, in the order of the AWS CLI
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 
-A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`. To test the way through STS without AWS, `StubSts` of `DynaSharp.Testing` stands in for it on a port of the machine.
+A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `AssumeRoleCredentialsProvider`, `SsoCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`. To test the way through STS without AWS, `StubSts` of `DynaSharp.Testing` stands in for it on a port of the machine.
 
 [IRSA](glossary.md#irsa) on EKS is the second source:
 
@@ -224,8 +224,68 @@ A source that applies but is broken fails the request and does not fall through 
 - **Exchange:** the client trades the token for credentials at STS with `AssumeRoleWithWebIdentity`, and renews them before they expire.
 - **Rotation:** it reads the token file again for each exchange, because the kubelet replaces it.
 - **Other issuers:** any other OpenID Connect issuer that the account trusts takes the same request.
+A profile with `credential_process` gets its credentials from a program, as the AWS CLI does:
 
-Assume role, SSO, `credential_process` and web identity through the profile keys `web_identity_token_file` and `role_arn` are not supported.
+```ini
+[profile vault]
+credential_process = /usr/local/bin/vault-creds --account prod
+```
+
+- **Start:** the setting is split into the program and its arguments, on Windows by the rules of the C runtime and elsewhere like a POSIX shell, and the program starts without a shell, so a pipe or a redirection needs `sh -c '...'` or `cmd /c ...` in the setting.
+- **Output:** the program writes `{"Version": 1, "AccessKeyId": ..., "SecretAccessKey": ..., "SessionToken": ..., "Expiration": ...}` and exits with code 0. `SessionToken` and `Expiration` are optional.
+- **Refresh:** credentials with an `Expiration` are fetched again before it, by running the program again.
+- **Limits:** the program gets no input and 20 seconds, and is stopped with what it started after that.
+- **Secrets:** what the program writes, to standard output and to standard error, appears in no message and no log. A failure names the profile and the exit code.
+
+A profile with `role_arn` assumes that role at STS, with the credentials of its `source_profile` or of its `credential_source` (`Environment`, `Ec2InstanceMetadata` or `EcsContainer`), as the AWS CLI does:
+
+```ini
+[profile prod]
+role_arn = arn:aws:iam::123456789012:role/orders
+source_profile = dev
+role_session_name = alice
+duration_seconds = 3600
+
+[profile dev]
+aws_access_key_id = AKIA...
+aws_secret_access_key = ...
+```
+
+- **Chains:** a source profile that has a `role_arn` and no keys assumes its own role first, so roles chain. A profile that comes back fails as a loop, unless a profile names itself and has static keys.
+- **Region:** STS is asked in the region of the client, otherwise in `AWS_REGION`, `AWS_DEFAULT_REGION` or the `region` of the profile. `AWS_ENDPOINT_URL_STS` and `AWS_STS_REGIONAL_ENDPOINTS` work as for IRSA.
+- **Refresh:** the session is renewed before it expires, by assuming the role again.
+- **MFA:** a profile with `mfa_serial` fails, because the code of the device would be needed at every refresh.
+- **Web identity:** `web_identity_token_file` with `role_arn` in a profile federates like IRSA, with the token of that file.
+
+`AssumeRoleCredentialsProvider` does the same in code, over any other provider:
+
+```csharp
+var credentials = new AssumeRoleCredentialsProvider(
+    new ProfileCredentialsProvider("dev"),
+    "arn:aws:iam::123456789012:role/orders",
+    "alice",
+    new AssumeRoleOptions { Region = AwsRegion.FromName("eu-central-2"), Duration = TimeSpan.FromHours(1) });
+using var orders = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("eu-central-2"), Credentials = credentials });
+```
+
+A profile of AWS IAM Identity Center (SSO), as `aws configure sso` writes it, gets the credentials of its permission set from the portal, with the token that `aws sso login` cached:
+
+```ini
+[profile dev]
+sso_session = corp
+sso_account_id = 123456789012
+sso_role_name = ReadOnly
+
+[sso-session corp]
+sso_start_url = https://corp.awsapps.com/start
+sso_region = eu-west-1
+```
+
+- **Token:** read from `~/.aws/sso/cache/`, at every refresh of the credentials, so a new `aws sso login` takes effect without a restart.
+- **Refresh:** a token of an `sso-session` is renewed with its refresh token in its last 15 minutes and written back to the cache, as the AWS CLI does. The older form with `sso_start_url` and `sso_region` in the profile works too, without the renewal.
+- **Sign-in:** when the token is missing or has expired, the error says to run `aws sso login --profile dev`.
+
+`SsoCredentialsProvider` does the same in code: `new SsoCredentialsProvider("https://corp.awsapps.com/start", AwsRegion.FromName("eu-west-1"), "123456789012", "ReadOnly", "corp")`.
 
 ## Next steps
 

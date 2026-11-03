@@ -23,6 +23,32 @@ public sealed class StsDocumentTests
     }
 
     [Test]
+    public async Task TryParse_AssumeRoleResponse_ReadsTheCredentials()
+    {
+        // Arrange (the sample of the API reference of AssumeRole)
+        var body = AssumeRoleCredentialsProviderTests.StsSuccess("ASIAIOSFODNN7EXAMPLE", new DateTimeOffset(2019, 11, 9, 13, 34, 41, TimeSpan.Zero));
+
+        // Act
+        var parsed = StsDocument.TryParse(Encoding.UTF8.GetBytes(body), out var document);
+
+        // Assert
+        await Assert.That($"{parsed} {document.Credentials.AccessKeyId} {document.Credentials.Expiration} {document.ErrorCode}").IsEqualTo("True ASIAIOSFODNN7EXAMPLE 2019-11-09T13:34:41Z ");
+    }
+
+    [Test]
+    public async Task TryParse_CredentialsUnderAnotherResult_AreNotRead()
+    {
+        // Arrange (only the results of the two calls hold credentials)
+        var body = "<GetSessionTokenResponse><GetSessionTokenResult><Credentials><AccessKeyId>a</AccessKeyId></Credentials></GetSessionTokenResult></GetSessionTokenResponse>";
+
+        // Act
+        var parsed = StsDocument.TryParse(Encoding.UTF8.GetBytes(body), out var document);
+
+        // Assert
+        await Assert.That((parsed, document.Credentials.AccessKeyId)).IsEqualTo((true, null));
+    }
+
+    [Test]
     public async Task TryParse_InvalidUtf8_ReturnsFalse()
     {
         // Arrange

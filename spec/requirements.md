@@ -15,7 +15,7 @@ Keep:
 Fix:
 - Reflection-based mapping, which rules out Native AOT and costs startup time. DynaSharp uses a source generator.
 - No credential chain in the core: anything beyond static keys needs the AWS SDK package. DynaSharp resolves
-  credentials itself (environment, web identity, profiles, ECS/EKS, IMDS, later SSO).
+  credentials itself (environment, web identity, profiles with assume role, SSO and `credential_process`, ECS/EKS, IMDS).
 - Weak testability for consumers. DynaSharp makes the HTTP wire the test seam: stub it, record it, or run against an
   in-memory fake.
 - No observability. DynaSharp emits OpenTelemetry-compatible traces, metrics and logs from day one.
@@ -58,8 +58,9 @@ Fix:
 - **Configuration**: region and endpoint from options or environment (`AWS_REGION`, `AWS_DEFAULT_REGION`,
   `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL`); endpoint override for DynamoDB Local.
 - **Credentials**: static; environment; web identity from a token file through STS (IRSA on EKS); shared config/credentials files;
-  ECS and EKS Pod Identity container endpoint; IMDSv2. Later: web identity through the profile keys `web_identity_token_file` and
-  `role_arn`, SSO, `credential_process`, assume role.
+  ECS and EKS Pod Identity container endpoint; IMDSv2; in profiles also `role_arn` with `source_profile` or `credential_source` (assume role,
+  also as `AssumeRoleCredentialsProvider`), web identity through `web_identity_token_file` and `role_arn`, SSO (`sso_session` and the older
+  `sso_start_url`, also as `SsoCredentialsProvider`), and `credential_process`.
 - **Resilience**: per-attempt timeout (surfaces as `TimeoutException`, distinct from cancellation); AWS standard
   retry semantics tuned for DynamoDB; clock-skew correction; typed exceptions per DynamoDB error code.
 - **Testing support** (`DynaSharp.Testing` package): `StubHandler` (canned responses, captured requests, fault

@@ -29,7 +29,7 @@ namespace DynaSharp.Credentials;
 /// moving on would sign requests as a different principal than the one the configuration asks for. This covers a partial
 /// environment (an access key without a secret), a token file without a role or one that STS does not accept, a profile named by
 /// <c>AWS_PROFILE</c> that does not exist, a malformed shared file, a
-/// profile that needs a feature DynaSharp does not support yet (assume role, SSO, the profile keys of web identity, <c>credential_process</c>), and a
+/// profile that needs a feature DynaSharp does not support (<c>login_session</c>, <c>mfa_serial</c>), a profile whose <c>credential_process</c>, role, web identity or SSO fails, and a
 /// container endpoint that is configured and fails in any way:
 /// an error status, a malformed response, missing fields, a timeout, or credentials that are already expired. Setting
 /// <c>AWS_PROFILE</c> does not turn the environment variables off, as in the AWS SDKs: the variables are tried first.
@@ -42,10 +42,11 @@ namespace DynaSharp.Credentials;
 /// <para>
 /// A web identity token file comes before the shared files, the container endpoint and the metadata service, as in botocore, and it asks STS in the
 /// region of the <see cref="DynamoDbClient"/> that made this provider. A provider that the application creates finds the region as a client would, from
-/// <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the profile, and fails at the token file if there is none.
+/// <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the profile, and fails at the token file if there is none. A profile that assumes a role or federates a
+/// web identity asks STS in that region too.
 /// </para>
 /// <para>
-/// The provider is thread-safe. The temporary credentials of web identity, the container endpoint and the metadata service are refreshed before
+/// The provider is thread-safe. The temporary credentials of web identity, a role, SSO or a <c>credential_process</c> of a profile, the container endpoint and the metadata service are refreshed before
 /// they expire, see those providers, and are fetched again if DynamoDB rejects them as expired (<see cref="TryInvalidate"/>). Failed
 /// refreshes are logged as warnings by the logger factory that the <see cref="DynamoDbClient"/> was given.
 /// </para>
@@ -76,16 +77,17 @@ public sealed class DefaultCredentialsProvider : IRefreshableCredentialsProvider
     {
         _logger = loggerFactory.CreateLogger<DefaultCredentialsProvider>();
 
-        var environment = new EnvironmentCredentialsProvider(getEnvironmentVariable);
+        var environment = new EnvironmentCredentialsProvider(getEnvironmentVariable, timeProvider, loggerFactory.CreateLogger<EnvironmentCredentialsProvider>());
         var webIdentity = new WebIdentityCredentialsProvider(
             getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<WebIdentityCredentialsProvider>(), region);
-        var profile = new ProfileCredentialsProvider(getEnvironmentVariable, readFile, null);
+        var profile = new ProfileCredentialsProvider(
+            new CredentialsDependencies(getEnvironmentVariable, readFile, TextFiles.DiskWriter, CredentialProcess.Runner, handler, timeProvider, loggerFactory), null, region);
         var container = new ContainerCredentialsProvider(
             getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<ContainerCredentialsProvider>());
         var instanceMetadata = new InstanceMetadataCredentialsProvider(
             getEnvironmentVariable, handler, timeProvider, loggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), random);
 
-        // The order is botocore's. To add a source (SSO is planned): implement TryGetCredentialsAsync like the
+        // The order is botocore's. To add a source: implement TryGetCredentialsAsync like the
         // providers here, and put it where botocore has it.
         _sources =
         [
@@ -117,8 +119,8 @@ public sealed class DefaultCredentialsProvider : IRefreshableCredentialsProvider
     /// </summary>
     /// <param name="rejected">The instance that was rejected. Any other than the current one has been replaced already, and is ignored.</param>
     /// <returns>
-    /// <see langword="true"/> if the chosen source is one that can be asked again: web identity, the container endpoint or the metadata service.
-    /// <see langword="false"/> if it holds keys that were read once, the environment or a profile, or if no source was chosen yet. The
+    /// <see langword="true"/> if the chosen source is one that can be asked again: the environment with <c>AWS_CREDENTIAL_EXPIRATION</c>, web identity, a profile with a role, web identity, SSO or a <c>credential_process</c>, the container endpoint or the metadata service.
+    /// <see langword="false"/> if it holds keys that were read once, from the environment or a profile, or if no source was chosen yet. The
     /// chain never moves on to another source for this.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="rejected"/> is <see langword="null"/>.</exception>

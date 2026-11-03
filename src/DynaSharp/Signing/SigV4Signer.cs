@@ -8,7 +8,8 @@ using DynaSharp.Http;
 namespace DynaSharp.Signing;
 
 /// <summary>
-/// Signs DynamoDB requests with AWS Signature Version 4.
+/// Signs DynamoDB requests with AWS Signature Version 4, and the forms of the Query protocol that <c>AssumeRole</c> of AWS STS sends
+/// (<see cref="SignForm"/>).
 /// </summary>
 /// <remarks>
 /// DynamoDB requests are always <c>POST /</c> with a fixed header set, so the canonical request is written
@@ -77,6 +78,14 @@ internal sealed class SigV4Signer
 
     private static ReadOnlySpan<byte> SignedHeadersWithToken => "content-type;host;x-amz-date;x-amz-security-token;x-amz-target"u8;
 
+    // The same for a form of the Query protocol of AWS STS, which has no X-Amz-Target. The content type is what StringContent renders for
+    // "application/x-www-form-urlencoded" in UTF-8.
+    private static ReadOnlySpan<byte> FormCanonicalRequestStart => "POST\n/\n\ncontent-type:application/x-www-form-urlencoded; charset=utf-8\nhost:"u8;
+
+    private static ReadOnlySpan<byte> FormSignedHeaders => "content-type;host;x-amz-date"u8;
+
+    private static ReadOnlySpan<byte> FormSignedHeadersWithToken => "content-type;host;x-amz-date;x-amz-security-token"u8;
+
     /// <summary>
     /// Adds the <c>X-Amz-Date</c>, <c>X-Amz-Security-Token</c> (temporary credentials only) and <c>Authorization</c> headers to a
     /// DynamoDB request. The request is not checked: the pipeline builds it, and it is exactly what the canonical request below
@@ -96,7 +105,56 @@ internal sealed class SigV4Signer
     /// <param name="credentials">The credentials to sign with.</param>
     /// <param name="utcNow">The signing time. Any offset is converted to UTC.</param>
     /// <exception cref="ArgumentException"><paramref name="payloadSha256"/> is not 32 bytes long.</exception>
-    internal void Sign(HttpRequestMessage request, string authority, string target, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials, DateTimeOffset utcNow)
+    internal void Sign(HttpRequestMessage request, string authority, string target, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials, DateTimeOffset utcNow) =>
+        SignCore(request, authority, target, payloadSha256, credentials, utcNow);
+
+    /// <summary>
+    /// Adds the same headers as <see cref="Sign"/> to a request of the Query protocol: <c>POST /</c> without query, with the form in the body and the
+    /// content type <c>application/x-www-form-urlencoded; charset=utf-8</c>, which is what AWS STS takes. The signed headers are
+    /// <c>content-type;host;x-amz-date</c>, plus <c>x-amz-security-token</c> for temporary credentials.
+    /// </summary>
+    /// <param name="request">A request that has not been signed.</param>
+    /// <param name="authority">The host plus the port when it is not the default one, see <see cref="Sign"/>.</param>
+    /// <param name="payloadSha256">The SHA-256 hash of the form.</param>
+    /// <param name="credentials">The credentials to sign with.</param>
+    /// <param name="utcNow">The signing time.</param>
+    /// <exception cref="ArgumentException"><paramref name="payloadSha256"/> is not 32 bytes long.</exception>
+    internal void SignForm(HttpRequestMessage request, string authority, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials, DateTimeOffset utcNow) =>
+        SignCore(request, authority, null, payloadSha256, credentials, utcNow);
+
+    private static void WriteCanonicalRequest(
+        ref Utf8Writer writer,
+        string host,
+        ReadOnlySpan<byte> amzDate,
+        string? token,
+        string? target,
+        ReadOnlySpan<byte> signedHeaders,
+        ReadOnlySpan<byte> payloadSha256)
+    {
+        writer.Write(target is null ? FormCanonicalRequestStart : CanonicalRequestStart);
+        writer.Write(host);
+        writer.Write("\nx-amz-date:"u8);
+        writer.Write(amzDate);
+        if (token is not null)
+        {
+            writer.Write("\nx-amz-security-token:"u8);
+            writer.Write(token);
+        }
+
+        if (target is not null)
+        {
+            writer.Write("\nx-amz-target:"u8);
+            writer.Write(target);
+        }
+
+        writer.Write("\n\n"u8);
+        writer.Write(signedHeaders);
+        writer.Write("\n"u8);
+        writer.WriteHex(payloadSha256);
+    }
+
+    // A request without a target is a form of the Query protocol.
+    private void SignCore(HttpRequestMessage request, string authority, string? target, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials, DateTimeOffset utcNow)
     {
         // The one check that stays: a hash of another length would be written past the size the buffer was computed for.
         if (payloadSha256.Length != Sha256Length)
@@ -119,33 +177,6 @@ internal sealed class SigV4Signer
         headers.TryAddWithoutValidation(AuthorizationHeaderName, authorization);
     }
 
-    private static void WriteCanonicalRequest(
-        ref Utf8Writer writer,
-        string host,
-        ReadOnlySpan<byte> amzDate,
-        string? token,
-        string target,
-        ReadOnlySpan<byte> signedHeaders,
-        ReadOnlySpan<byte> payloadSha256)
-    {
-        writer.Write(CanonicalRequestStart);
-        writer.Write(host);
-        writer.Write("\nx-amz-date:"u8);
-        writer.Write(amzDate);
-        if (token is not null)
-        {
-            writer.Write("\nx-amz-security-token:"u8);
-            writer.Write(token);
-        }
-
-        writer.Write("\nx-amz-target:"u8);
-        writer.Write(target);
-        writer.Write("\n\n"u8);
-        writer.Write(signedHeaders);
-        writer.Write("\n"u8);
-        writer.WriteHex(payloadSha256);
-    }
-
     private CachedSigningTime GetSigningTime(DateTimeOffset utcNow)
     {
         var second = utcNow.UtcTicks / TimeSpan.TicksPerSecond;
@@ -160,22 +191,27 @@ internal sealed class SigV4Signer
         return _cachedTime = new CachedSigningTime(second, amzDate.ToArray());
     }
 
-    private string CreateAuthorization(string host, string target, ReadOnlySpan<byte> amzDate, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials)
+    private string CreateAuthorization(string host, string? target, ReadOnlySpan<byte> amzDate, ReadOnlySpan<byte> payloadSha256, AwsCredentials credentials)
     {
         var token = credentials.SessionToken;
         var dateStamp = amzDate[..DateStampLength];
         var signingKey = GetSigningKey(credentials, dateStamp);
-        var signedHeaders = token is null ? SignedHeaders : SignedHeadersWithToken;
+        var signedHeaders = (target, token) switch
+        {
+            (null, null) => FormSignedHeaders,
+            (null, _) => FormSignedHeadersWithToken,
+            (_, null) => SignedHeaders,
+            _ => SignedHeadersWithToken,
+        };
 
         // The canonical request, the string to sign and the Authorization value are written one after the other
         // into a single buffer, which is sized exactly.
-        var canonicalRequestLength = CanonicalRequestStart.Length
+        var canonicalRequestLength = (target is null ? FormCanonicalRequestStart.Length : CanonicalRequestStart.Length)
             + Encoding.UTF8.GetByteCount(host)
             + "\nx-amz-date:"u8.Length
             + AmzDateLength
             + (token is null ? 0 : "\nx-amz-security-token:"u8.Length + Encoding.UTF8.GetByteCount(token))
-            + "\nx-amz-target:"u8.Length
-            + Encoding.UTF8.GetByteCount(target)
+            + (target is null ? 0 : "\nx-amz-target:"u8.Length + Encoding.UTF8.GetByteCount(target))
             + "\n\n"u8.Length
             + signedHeaders.Length
             + "\n"u8.Length

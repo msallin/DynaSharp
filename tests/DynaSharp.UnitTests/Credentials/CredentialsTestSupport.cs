@@ -21,6 +21,9 @@ internal static class CredentialsTestSupport
     /// <summary>A file system without files.</summary>
     public static string? NoFiles(string path) => null;
 
+    /// <summary>A file system that no test writes to.</summary>
+    public static void NoWrites(string path, string content) => throw new InvalidOperationException($"The test did not expect a write to {path}.");
+
     /// <summary>A fake file system with these files only.</summary>
     public static ReadTextFile Files(params (string Path, string Content)[] files)
     {

@@ -34,11 +34,14 @@ internal sealed class SharedConfigFiles
     private const string ConfigFileVariable = "AWS_CONFIG_FILE";
     private const string ProfileSectionPrefix = "profile";
 
+    private const string SsoSessionSectionPrefix = "sso-session";
+
     private readonly Dictionary<string, SharedProfile> _profiles;
 
-    private SharedConfigFiles(Dictionary<string, SharedProfile> profiles, string description)
+    private SharedConfigFiles(Dictionary<string, SharedProfile> profiles, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IniValue>> ssoSessions, string description)
     {
         _profiles = profiles;
+        SsoSessions = ssoSessions;
         Description = description;
     }
 
@@ -50,6 +53,9 @@ internal sealed class SharedConfigFiles
 
     /// <summary>Gets all profiles by name.</summary>
     public IReadOnlyDictionary<string, SharedProfile> Profiles => _profiles;
+
+    /// <summary>Gets the <c>[sso-session name]</c> sections of the config file by name, which the <c>sso_session</c> setting of a profile names.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IniValue>> SsoSessions { get; }
 
     /// <summary>Gets the profile selected by <c>AWS_PROFILE</c>, or <c>default</c> if the variable is unset or empty.</summary>
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
@@ -154,14 +160,14 @@ internal sealed class SharedConfigFiles
             credentialsProfiles[section.Name] = section.Values;
         }
 
-        var configProfiles = BuildConfigProfiles(config.Sections ?? []);
+        var (configProfiles, ssoSessions) = BuildConfigProfiles(config.Sections ?? []);
         var profiles = new Dictionary<string, SharedProfile>(StringComparer.Ordinal);
         foreach (var name in credentialsProfiles.Keys.Concat(configProfiles.Keys))
         {
             profiles[name] = new SharedProfile(name, credentialsProfiles.GetValueOrDefault(name), configProfiles.GetValueOrDefault(name));
         }
 
-        return new SharedConfigFiles(profiles, $"{credentials.Describe()}, {config.Describe()}");
+        return new SharedConfigFiles(profiles, ssoSessions, $"{credentials.Describe()}, {config.Describe()}");
     }
 
     // The home folder of the user: USERPROFILE (Windows, and not the msys-style HOME of Git Bash), then HOME, then what .NET knows.
@@ -199,17 +205,29 @@ internal sealed class SharedConfigFiles
 
     // In the config file only [default] and [profile name] sections are profiles. botocore splits the header like a shell, so
     // [profile "my profile"] is the profile "my profile", and a header that does not split into exactly two words is no profile.
-    // It tests for the prefix "profile" and not for the word, so even [profiles x] defines the profile "x".
-    private static Dictionary<string, IReadOnlyDictionary<string, IniValue>> BuildConfigProfiles(IReadOnlyList<IniSection> sections)
+    // It tests for the prefix "profile" and not for the word, so even [profiles x] defines the profile "x". [sso-session name] sections follow
+    // the same rules in botocore's build_profile_map, after the profiles.
+    private static (Dictionary<string, IReadOnlyDictionary<string, IniValue>> Profiles, Dictionary<string, IReadOnlyDictionary<string, IniValue>> SsoSessions) BuildConfigProfiles(IReadOnlyList<IniSection> sections)
     {
         var profiles = new Dictionary<string, IReadOnlyDictionary<string, IniValue>>(StringComparer.Ordinal);
+        var ssoSessions = new Dictionary<string, IReadOnlyDictionary<string, IniValue>>(StringComparer.Ordinal);
         foreach (var section in sections)
         {
+            Dictionary<string, IReadOnlyDictionary<string, IniValue>>? target = null;
             if (section.Name.StartsWith(ProfileSectionPrefix, StringComparison.Ordinal))
+            {
+                target = profiles;
+            }
+            else if (section.Name.StartsWith(SsoSessionSectionPrefix, StringComparison.Ordinal))
+            {
+                target = ssoSessions;
+            }
+
+            if (target is not null)
             {
                 if (ShellWords.Split(section.Name) is [_, var name])
                 {
-                    profiles[name] = section.Values;
+                    target[name] = section.Values;
                 }
             }
             else if (section.Name == DefaultProfileName)
@@ -218,7 +236,7 @@ internal sealed class SharedConfigFiles
             }
         }
 
-        return profiles;
+        return (profiles, ssoSessions);
     }
 
     private static LoadedFile ReadAndParse(string kind, string? path, ReadTextFile readFile)
