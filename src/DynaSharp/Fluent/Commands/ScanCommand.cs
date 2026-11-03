@@ -193,6 +193,15 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
         return new(state, state.Table);
     }
 
+    /// <inheritdoc cref="QueryCommand{T}.OnMappingFailure"/>
+    public ScanCommand<T> OnMappingFailure(Action<DynamoDbMappingException> onFailure)
+    {
+        ArgumentNullException.ThrowIfNull(onFailure);
+        var state = Enter();
+        state.Read.OnMappingFailure = onFailure;
+        return new(state, state.Table);
+    }
+
     /// <inheritdoc/>
     public ScanCommand<T> MaxAttempts(int attempts)
     {

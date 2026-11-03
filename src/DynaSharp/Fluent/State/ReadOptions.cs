@@ -33,6 +33,9 @@ internal struct ReadOptions
     /// <summary>Gets or sets a value indicating whether a read of one attribute has to look at the discriminator of each item, because no filter did.</summary>
     public bool ChecksDiscriminator { get; set; }
 
+    /// <summary>Gets or sets what a read does with an item that its type cannot read: <see langword="null"/> ends the read with the exception, anything else skips the item and gets the exception.</summary>
+    public Action<DynamoDbMappingException>? OnMappingFailure { get; set; }
+
     /// <summary>Writes the members of the request that come from these options.</summary>
     /// <param name="body">The request, with at least one member before this.</param>
     /// <exception cref="ArgumentOutOfRangeException"><see cref="Select"/> holds a value that is not a member of its enum.</exception>

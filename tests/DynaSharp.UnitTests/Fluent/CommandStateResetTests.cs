@@ -44,6 +44,7 @@ public sealed class CommandStateResetTests
         [typeof(ArraySegment<byte>)] = new ArraySegment<byte>([1]),
         [typeof(Action<DynamoDbWriter, object>)] = new Action<DynamoDbWriter, object>(static (_, _) => { }),
         [typeof(HeldKey)] = new TypedHeldKey<MeterDay.Keys.PrimaryKey>(),
+        [typeof(Action<DynamoDbMappingException>)] = new Action<DynamoDbMappingException>(static _ => { }),
     };
 
     [Test]

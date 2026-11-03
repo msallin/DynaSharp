@@ -155,6 +155,11 @@ internal sealed class ClientCore : IDisposable
     /// <param name="conflict">The failure of the run.</param>
     public void CountConflictRetry(DynamoDbException conflict) => _pipeline.CountConflictRetry(conflict);
 
+    /// <summary>Counts an item that a read skipped because its type could not read it, see <see cref="DynamoDbPipeline.CountSkippedItem"/>.</summary>
+    /// <param name="operationName">The operation of the read.</param>
+    /// <param name="tableName">The table of the read.</param>
+    public void CountSkippedItem(string operationName, string tableName) => _pipeline.CountSkippedItem(operationName, tableName);
+
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

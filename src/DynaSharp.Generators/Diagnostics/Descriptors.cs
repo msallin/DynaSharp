@@ -555,6 +555,15 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor ValueWithoutFound = new(
+        "DYNA227",
+        "Value without Found",
+        "Value of this SelectResult throws InvalidOperationException when the read found no item, and this member never looks at Found. Test Found first, or use GetValueOrDefault().",
+        Commands,
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -564,7 +573,7 @@ internal static class Descriptors
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
         MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
-        ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs,
+        ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

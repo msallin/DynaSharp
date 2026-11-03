@@ -583,6 +583,22 @@ Branch `m4/r2-signed-tokens`. Approved by the owner. The threat, from the focus 
 - [ ] `AnalyzerReleases.Shipped.md` and `PublicAPI.Shipped.txt` are labelled 0.1.0 before the release: release prep moves Unshipped into Shipped, so that "a rule that is new after 0.1.0 starts at Info" holds from the tag.
 - [ ] Benchmark timings (mean and error per call) to back a speed claim; the README compares allocations only.
 
+### R1 - read features before 0.1.0
+
+Branch `m4/r1-read-failures`. Two additive read features, approved by the owner.
+
+- [x] **`OnMappingFailure(Action<DynamoDbMappingException>)`** on `QueryCommand<T>`, `ScanCommand<T>`, `FanOutQueryCommand<T>` and the six mixed commands. Ending the read stays the default.
+  - Decision: a callback with the exception, not a result type and not an enum. The exception already holds `EntityType`, `AttributeName` and `Key` (the key as stored, the path `ConditionalCheckFailedException.Key` showed), a result type would change the element type of every terminal, and `static _ => { }` is the plain skip. Nothing logs the key.
+  - Decision: the callback runs after the call of the page, in `PagedRead.SendAsync`, not while the page is parsed: inside the call `Parse` would turn an `InvalidOperationException` of the callback into an unrecognized response, and the retry policy could repeat a transient-looking one. A parallel scan and a fan-out call it from several threads; documented, not serialized.
+  - Decision: `Page.Count` stays the count of DynamoDB, so `Count - Items.Count` is what a page skipped; a fan-out page counts what it gives. `Limit` counts a skipped item, `Take(n)` does not, `ItemAsync` gives the first readable item, `CountAsync` counts it. `Next` is `LastEvaluatedKey`, past the item; a fan-out token can lead to the item again, and it is reported again.
+  - Decision: it covers every terminal that reads items, also those of a `Select` after it (`Key` null there), and on a fan-out an item without the keys the merge orders by. `BatchGet`, `Get` and `TransactGet` are not enumerating reads and keep throwing.
+  - Success path: the read loop is unchanged; the catch resumes from the reader copy the key lookup kept already. Without the clause, one null check per page.
+  - Telemetry: counter `dynasharp.client.operation.skipped_items` (`{item}`), tags operation, table, server, counted once the callback returned.
+- [x] **`SelectResult<TValue>.GetValueOrDefault()` and `GetValueOrDefault(TValue defaultValue)`**, and `DYNA227` (Info) for `Value` in a member that never reads `Found`.
+  - Decision: the names of `Nullable<T>`, not a `ValueOrDefault` property: the pattern is known, and the overload with a fallback says what no item gives in the call. An item whose nullable attribute is null gives that null, not the fallback.
+  - Decision: `DYNA227` goes by member, not by flow: any `Found` of any `SelectResult` in the member, a property pattern or a lambda included, keeps it quiet. That is cheap, a walk of the member on a `Value` of this type only, and it reports no code that checks somewhere. It stays Info: code that knows the item exists, as right after a write, is correct and looks the same.
+  - The id is the next free command rule at the time of writing; a package that adds rules in parallel may need to renumber on merge.
+
 ## M7 - DynaSharp.Coordination (after M3)
 
 - [ ] Lease / lock: Lock Client semantics (relative lease duration, record version number, heartbeat at most half the

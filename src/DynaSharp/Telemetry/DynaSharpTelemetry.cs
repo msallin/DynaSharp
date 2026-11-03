@@ -40,6 +40,11 @@ internal static class DynaSharpTelemetry
         unit: "{conflict}",
         description: "Number of conflicts RetryOnConflictAsync passed on to the caller because the delegate had used up its runs.");
 
+    internal static readonly Counter<long> SkippedItems = Meter.CreateCounter<long>(
+        TelemetryNames.SkippedItemsMetric,
+        unit: "{item}",
+        description: "Number of items a read with OnMappingFailure skipped because their type could not read them.");
+
     internal static readonly Counter<double> ConsumedCapacity = Meter.CreateCounter<double>(
         TelemetryNames.ConsumedCapacityMetric,
         unit: "{capacity_unit}",

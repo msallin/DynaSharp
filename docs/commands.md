@@ -74,7 +74,7 @@ What a terminal returns depends on the operation, and a write has no `Found`: it
 |---|---|---|
 | `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
 | `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
-| `Get(...).Select(handle).SendAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found |
+| `Get(...).Select(handle).SendAsync(ct)`, `Query(...).Select(handle).ValueAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found; `GetValueOrDefault()` and `GetValueOrDefault(fallback)`, which do not |
 | `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored; `ConsumedCapacity` and `ItemCollectionMetrics` |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
@@ -92,6 +92,12 @@ if (!deleted.HasItem)
 }
 ```
 
+`Value` of a `SelectResult` throws when the read found no item, because a 0 would read like a stored 0. Where no item means a fallback, say so, as `Nullable<T>` does; `DYNA227` reports a `Value` in a member that never looks at `Found`:
+
+```csharp
+var total = await orders.Get(Order.Keys.Of("alice", 1)).Select(Order.Attrs.Total).SendAsync(ct);
+decimal amount = total.GetValueOrDefault(0m);    // total.Found ? total.Value : 0m
+```
 `await command` is `SendAsync()` without a token, on the commands that have one. A read has no such default, so `await orders.Query(...)` does not compile.
 
 ## Conditions

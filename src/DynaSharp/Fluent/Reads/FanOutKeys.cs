@@ -104,6 +104,16 @@ internal sealed class FanOutKeys
         return null;
     }
 
+    /// <summary>Drops the entries from a position on, and what an entry that failed wrote of itself, for an item that a read skips.</summary>
+    /// <param name="count">The entries to keep, at least the start of the page.</param>
+    public void Truncate(int count)
+    {
+        var last = _entries[count - 1];
+        _keys.Truncate(last.KeyEnd);
+        _sorts.Truncate(last.SortEnd);
+        Count = count;
+    }
+
     /// <summary>Gets the key of an entry as JSON.</summary>
     /// <param name="index">The entry.</param>
     /// <returns>The key, which is empty for a page that starts at the start of the partition.</returns>

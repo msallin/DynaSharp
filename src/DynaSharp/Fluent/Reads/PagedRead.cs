@@ -15,8 +15,11 @@ internal static class PagedRead<TOperation, T>
     /// <param name="state">The state of the read.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page, a task that the caller awaits exactly once.</returns>
-    public static ValueTask<PageData<T>> SendAsync(CommandState state, CancellationToken cancellationToken) =>
-        state.Table.Core.SendAsync<PageCall<TOperation, T>, PageData<T>>(new PageCall<TOperation, T>(state), cancellationToken);
+    public static ValueTask<PageData<T>> SendAsync(CommandState state, CancellationToken cancellationToken)
+    {
+        var sending = state.Table.Core.SendAsync<PageCall<TOperation, T>, PageData<T>>(new PageCall<TOperation, T>(state), cancellationToken);
+        return state.Read.OnMappingFailure is { } report ? ReportAsync(sending, state, report) : sending;
+    }
 
     /// <summary>Reads all items of all pages, on enumeration.</summary>
     /// <param name="state">The state of the read.</param>
@@ -141,6 +144,24 @@ internal static class PagedRead<TOperation, T>
         {
             state.Release(version);
         }
+    }
+
+    // After the call and not in it: the callback is the caller's code, so what it throws must neither look like a response that did not parse nor be retried.
+    // An item counts as skipped once the callback has had it.
+    [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+    private static async ValueTask<PageData<T>> ReportAsync(ValueTask<PageData<T>> sending, CommandState state, Action<DynamoDbMappingException> report)
+    {
+        var page = await sending.ConfigureAwait(false);
+        if (page.Skipped is { } skipped)
+        {
+            foreach (var failure in skipped)
+            {
+                report(failure);
+                state.Table.Core.CountSkippedItem(TOperation.Name, state.Table.Name);
+            }
+        }
+
+        return page;
     }
 
     private static async IAsyncEnumerable<T> ReadItemsAsync(CommandState state, [EnumeratorCancellation] CancellationToken cancellationToken)

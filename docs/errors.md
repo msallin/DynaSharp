@@ -41,7 +41,7 @@ The client throws these itself:
 | `BatchIncompleteException` | A batch write gave up, after its own resends, see [Batches](#batches) | `UnprocessedItems` and `Written`, and the failure as `InnerException`. Its `ErrorCode` is `BatchIncomplete` |
 | `BatchGetIncompleteException<T>` | A batch get gave up | `UnprocessedKeys` and the `Items` read so far |
 | `TableNotActiveException` | A wait for a table ran out, or `CreateTable()` found a table without an index it declares. It is a `TimeoutException` | `TableName`, `LastStatus` and `PendingIndex` |
-| `DynamoDbMappingException` | An item does not fit its type: a `required` attribute is missing, a value cannot be read, or the item is of another type. DynamoDB did its part, so it is never retried, and an update that throws it has been applied | `EntityType`, `AttributeName` and `Key` |
+| `DynamoDbMappingException` | An item does not fit its type: a `required` attribute is missing, a value cannot be read, or the item is of another type. DynamoDB did its part, so it is never retried, and an update that throws it has been applied. A query or scan with `OnMappingFailure` skips such an item and hands this to a callback, see [Queries](queries.md#items-that-do-not-fit) | `EntityType`, `AttributeName` and `Key` |
 | `KeyFormatException` | A value cannot be part of a key, see [Generated code](generated-code.md#keysof-and-keystryof). It is an `ArgumentException` | `ParamName`, the placeholder |
 | `ArgumentException` | A key of `Table<Item>` is empty, an index is not declared by the entity, a fan-out repeats a partition key | |
 | `InvalidOperationException` | The chain itself is wrong: a command used twice, a `[Version]` rule, `Value` of a `SelectResult` without an item | |

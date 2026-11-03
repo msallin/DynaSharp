@@ -244,6 +244,12 @@ internal sealed class DynamoDbPipeline : IDisposable
     public void CountConflictRetry(DynamoDbException conflict) =>
         _telemetry.CountConflictRetry(conflict.OperationName ?? UnknownOperation, conflict.TableName, conflict);
 
+    /// <summary>Counts an item that a read skipped because its type could not read it.</summary>
+    /// <param name="operationName">The operation of the read.</param>
+    /// <param name="tableName">The table of the read.</param>
+    public void CountSkippedItem(string operationName, string tableName) =>
+        _telemetry.CountSkippedItem(operationName, tableName);
+
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

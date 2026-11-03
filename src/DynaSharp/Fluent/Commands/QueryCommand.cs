@@ -202,6 +202,42 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         return new(state, state.Table);
     }
 
+    /// <summary>
+    /// Skips an item that cannot be read as <typeparamref name="T"/> and hands its <see cref="DynamoDbMappingException"/> to <paramref name="onFailure"/>, where the read would otherwise end with it:
+    /// <c>.OnMappingFailure(failure =&gt; bad.Add(failure.Key))</c>, or <c>.OnMappingFailure(static _ =&gt; { })</c> to skip and count only. Ending the read stays the default, because an item that does not fit
+    /// is a bug of the model or of a writer, which a read that drops items would hide.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The exception says which item it was and why: <see cref="DynamoDbMappingException.EntityType"/>, <see cref="DynamoDbMappingException.AttributeName"/>, the message, and
+    /// <see cref="DynamoDbMappingException.Key"/>, the key attributes of the table as they are stored, such as <c>USER#alice</c>, also on an index. The key holds values, so nothing logs it: the callback decides where it goes,
+    /// and the message holds none. After a <c>Select</c> the response holds no key, so <see cref="DynamoDbMappingException.Key"/> is null there.
+    /// </para>
+    /// <para>
+    /// It runs once per skipped item, when the page that holds it has arrived and before its items are given out, outside the call: it is no part of a retry, and an exception it throws ends the read as it is.
+    /// The pages of a parallel scan and of a fan-out arrive on several threads at once, so there it can run concurrently. Each item it returns from counts in the metric <c>dynasharp.client.operation.skipped_items</c>.
+    /// </para>
+    /// <para>
+    /// What a skipped item does to the rest of the read: it is not in <see cref="Page{T}.Items"/>, and <see cref="Page{T}.Count"/> still counts it, as DynamoDB does, so <c>Count - Items.Count</c> is what a page skipped.
+    /// <see cref="Limit"/> counts it, because DynamoDB read it, so a page can hold fewer items. <c>ItemsAsync(ct).Take(n)</c> counts what it gets, so it reads on past a skipped item, and
+    /// <see cref="ItemAsync"/> gives the first item that can be read. <see cref="Page{T}.Next"/> continues after the page, so a skipped item is not read again. <see cref="CountAsync"/> reads no item and counts it.
+    /// </para>
+    /// <para>
+    /// Only a <see cref="DynamoDbMappingException"/> is skipped: an item of another type in a read keyed by the discriminator, a value a converter cannot read, a missing <c>required</c> attribute,
+    /// a stored key that does not fit its template. It covers every terminal that reads items, also those of a <c>Select</c> after it. A second call replaces the first.
+    /// </para>
+    /// </remarks>
+    /// <param name="onFailure">What to do with the failure of a skipped item.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="onFailure"/> is <see langword="null"/>.</exception>
+    public QueryCommand<T> OnMappingFailure(Action<DynamoDbMappingException> onFailure)
+    {
+        ArgumentNullException.ThrowIfNull(onFailure);
+        var state = Enter();
+        state.Read.OnMappingFailure = onFailure;
+        return new(state, state.Table);
+    }
+
     /// <inheritdoc/>
     public QueryCommand<T> MaxAttempts(int attempts)
     {

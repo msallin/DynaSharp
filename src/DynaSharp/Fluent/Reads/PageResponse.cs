@@ -31,6 +31,7 @@ internal static class PageResponse
         where TItem : IItemReader<T>
     {
         T[] items = [];
+        List<DynamoDbMappingException>? skipped = null;
         var count = 0;
         var scannedCount = 0;
         var keyOffset = 0;
@@ -41,7 +42,7 @@ internal static class PageResponse
         {
             if (reader.AttributeNameEquals("Items"u8))
             {
-                items = ReadItems<T, TItem>(ref reader, keys, state);
+                items = ReadItems<T, TItem>(ref reader, keys, state, ref skipped);
             }
             else if (reader.AttributeNameEquals("Count"u8))
             {
@@ -66,7 +67,7 @@ internal static class PageResponse
         }
 
         state.ResponseCapacity = capacity;
-        return new PageData<T>(items, count, scannedCount, keyOffset, keyLength);
+        return new PageData<T>(items, count, scannedCount, keyOffset, keyLength, skipped);
     }
 
     /// <summary>Sets the tags that the pages of <c>Query</c> and <c>Scan</c> share, the same as the request API has for the same request.</summary>
@@ -100,7 +101,9 @@ internal static class PageResponse
         }
     }
 
-    private static T[] ReadItems<T, TItem>(ref DynamoDbReader reader, FanOutKeys? keys, CommandState state)
+    // A read that skips what it cannot map goes on from a copy of the reader: the one that failed stands somewhere inside the item. The loop that reads is the same
+    // with and without skipping, and the copy is the one the key of a failure needs anyway, so a page without a failure pays nothing for it.
+    private static T[] ReadItems<T, TItem>(ref DynamoDbReader reader, FanOutKeys? keys, CommandState state, ref List<DynamoDbMappingException>? skipped)
         where TItem : IItemReader<T>
     {
         // The items of a page tend to have the same attributes, and only this path knows the shape of the item before.
@@ -110,27 +113,47 @@ internal static class PageResponse
         }
 
         OperationJson.ReadStartArray(ref reader);
-        var first = reader;
+        var from = reader;
+        var fromPosition = 0;
+        var skippedCount = 0;
         var items = new ArrayBuilder<T>(ArrayPool<T>.Shared);
         try
         {
-            while (reader.TryReadStartItem())
+            while (true)
             {
-                // The reader goes to the keys by value, so the copy finds them wherever they stand in the item and this one reads the item from its start.
-                if (keys?.Add(reader) is { } attribute)
+                try
                 {
-                    throw new DynamoDbMappingException(typeof(T).ToString(), attribute);
+                    while (reader.TryReadStartItem())
+                    {
+                        // The reader goes to the keys by value, so the copy finds them wherever they stand in the item and this one reads the item from its start.
+                        if (keys?.Add(reader) is { } attribute)
+                        {
+                            throw new DynamoDbMappingException(typeof(T).ToString(), attribute);
+                        }
+
+                        items.Add(TItem.Read(ref reader, state));
+                    }
+
+                    return items.ToArray();
                 }
+                catch (DynamoDbMappingException failure)
+                {
+                    var position = items.Count + skippedCount - fromPosition;
+                    failure.Key = FailedItem.KeyOf(from, position, state.Table);
+                    if (state.Read.OnMappingFailure is null)
+                    {
+                        throw;
+                    }
 
-                items.Add(TItem.Read(ref reader, state));
+                    // The keys of a fan-out go with the items, so the entry of this one goes, and so does what a key that failed wrote of itself.
+                    keys?.Truncate(items.Count + 1);
+                    (skipped ??= []).Add(failure);
+                    skippedCount++;
+                    FailedItem.Skip(ref from, position + 1);
+                    fromPosition = items.Count + skippedCount;
+                    reader = from;
+                }
             }
-
-            return items.ToArray();
-        }
-        catch (DynamoDbMappingException failure)
-        {
-            failure.Key = FailedItem.KeyOf(first, items.Count, state.Table);
-            throw;
         }
         finally
         {

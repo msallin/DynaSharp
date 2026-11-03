@@ -236,6 +236,11 @@ Not reported:
 - **Fix.** Set the input that does not change as well, to the value the item holds, or put the changed entity. An input of the key of the table needs nothing, because the update has the key, so a design that keeps what does not change in the key of the table, or a [version-7 id](patterns-keys.md#newest-first-with-version-7-guid-sort-keys) that holds the time, needs no read before the write. An input that only a key holds, or that a getter computes, has no handle, and only a `Put` or a raw path writes such a key.
 - **Not reported.** It looks at a chain from `Update` to `SendAsync`, `ToRequestJson`, `Return`, an `await` or the next step of a transaction, and an input of the table key counts as known. An update in a variable or that a helper returns, a method of your own in the chain, a handle in a variable or of another type, and a raw path are not looked at. Neither is an index with an input that the update removes, or changes by `Add`, `SetIfNotExists` or `Delete`, or sets to a value that may be null, because those take the item out of a sparse index or throw something else, nor a write that `DYNA205` or `DYNA219` reports.
 
+`DYNA227` (info) reports `Value` of a `SelectResult` in a member that never looks at `Found`: `(await orders.Get(key).Select(Order.Attrs.Total)).Value`. `Value` throws `InvalidOperationException` when the read found no item, which DynamoDB answers without an error, so code that never asks reads like code that forgot to. It is info, because code that knows the item exists, as right after writing it, is correct and looks the same.
+
+- **Fix.** Test `Found` first, `result.Found ? result.Value : 0m`, or say the same with `result.GetValueOrDefault(0m)`, or `GetValueOrDefault()` for the default of the type.
+- **Not reported.** A member that reads `Found` of any `SelectResult` anywhere, in a condition, a guard clause, a property pattern such as `{ Found: true, Value: var total }` or a lambda: the rule goes by member and not by flow, so a check of another result or on another path keeps it quiet too. `nameof(result.Value)`.
+
 ## Expressions
 
 In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text is DynamoDB's grammar, an attribute in a hole stands for

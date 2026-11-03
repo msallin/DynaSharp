@@ -438,3 +438,14 @@ DynaSharp.ContinuationTokenSigner.ContinuationTokenSigner(params System.ReadOnly
 const DynaSharp.ContinuationTokenSigner.MinKeyLength = 32 -> int
 DynaSharp.DynamoDbClientOptions.TokenSigner.get -> DynaSharp.ContinuationTokenSigner?
 DynaSharp.DynamoDbClientOptions.TokenSigner.init -> void
+DynaSharp.FanOutQueryCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+DynaSharp.MixedQueryCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+DynaSharp.MixedQueryCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2>
+DynaSharp.MixedScanCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+DynaSharp.MixedScanCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+DynaSharp.MixedScanCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2>
+DynaSharp.QueryCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.QueryCommand<T>
+DynaSharp.ScanCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.ScanCommand<T>
+DynaSharp.SelectResult<TValue>.GetValueOrDefault() -> TValue?
+DynaSharp.SelectResult<TValue>.GetValueOrDefault(TValue defaultValue) -> TValue

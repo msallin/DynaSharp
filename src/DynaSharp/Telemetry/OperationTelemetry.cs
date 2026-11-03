@@ -230,9 +230,15 @@ internal sealed class OperationTelemetry
     public void CountConflictExhausted(string operationName, string? tableName, Exception conflict) =>
         Count(DynaSharpTelemetry.ConflictsExhausted, operationName, tableName, conflict);
 
+    /// <summary>Counts an item that a read with <c>OnMappingFailure</c> skipped. The reason is always the same, so it has no <c>error.type</c>.</summary>
+    /// <param name="operationName">The operation of the read.</param>
+    /// <param name="tableName">The table of the read.</param>
+    public void CountSkippedItem(string operationName, string tableName) =>
+        Count(DynaSharpTelemetry.SkippedItems, operationName, tableName, null);
+
     // A call that spans several tables has no table tag. The server is what tells the counters of two clients apart, as it does for
     // the duration.
-    private void Count(Counter<long> counter, string operationName, string? tableName, Exception exception)
+    private void Count(Counter<long> counter, string operationName, string? tableName, Exception? exception)
     {
         if (!counter.Enabled)
         {
@@ -246,7 +252,11 @@ internal sealed class OperationTelemetry
         }
 
         AddServer(ref tags);
-        tags.Add(TelemetryNames.ErrorType, GetErrorType(exception));
+        if (exception is not null)
+        {
+            tags.Add(TelemetryNames.ErrorType, GetErrorType(exception));
+        }
+
         counter.Add(1, tags);
     }
 

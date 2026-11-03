@@ -5,6 +5,8 @@ internal static class WellKnownNames
 {
     public const string EntityAttribute = "DynaSharp.Mapping.DynamoDbEntityAttribute";
 
+    public const string SelectResult = "DynaSharp.SelectResult`1";
+
     public const string DocumentAttribute = "DynaSharp.Mapping.DynamoDbDocumentAttribute";
 
     public const string PartitionKeyAttribute = "DynaSharp.Mapping.PartitionKeyAttribute";

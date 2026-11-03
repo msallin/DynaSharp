@@ -19,7 +19,10 @@ public readonly struct SelectResult<TValue>
         ConsumedCapacity = consumedCapacity;
     }
 
-    /// <summary>Gets the value of the attribute. A read that found no item has none, which is not the same as an item without the attribute, so look at <see cref="Found"/> first: <c>result.Found ? result.Value : fallback</c>.</summary>
+    /// <summary>
+    /// Gets the value of the attribute. A read that found no item has none, which is not the same as an item without the attribute, so look at <see cref="Found"/> first: <c>result.Found ? result.Value : fallback</c>,
+    /// which <see cref="GetValueOrDefault(TValue)"/> says in one call. <c>DYNA227</c> reports a read of this in a method that never looks at <see cref="Found"/>.
+    /// </summary>
     /// <exception cref="InvalidOperationException">There is no item, so there is no value. A default would read like one, so test <see cref="Found"/> first.</exception>
     public TValue Value => Found ? field : throw new InvalidOperationException("The read found no item, so it has no value. Look at Found first.");
 
@@ -28,4 +31,17 @@ public readonly struct SelectResult<TValue>
 
     /// <summary>Gets the capacity the read consumed, if <c>ReturnCapacity</c> asked for it. For a query it is that of the last page: the pages before it reach the metric and no other place.</summary>
     public ConsumedCapacity? ConsumedCapacity { get; }
+
+    /// <summary>
+    /// Gets the value of the attribute, or the default value of <typeparamref name="TValue"/> when the read found no item, as <see cref="Nullable{T}.GetValueOrDefault()"/> does: <c>0</c> for an <c>int</c>,
+    /// <see langword="null"/> for a <c>string?</c>. It does not throw, so it is for code that treats no item as that value. A nullable handle gives <see langword="null"/> also for an item without the
+    /// attribute, so there it cannot tell the two apart; <see cref="Found"/> can.
+    /// </summary>
+    /// <returns>The value, or the default value of the type.</returns>
+    public TValue? GetValueOrDefault() => Found ? Value : default;
+
+    /// <summary>Gets the value of the attribute, or <paramref name="defaultValue"/> when the read found no item: <c>(await totals).GetValueOrDefault(-1m)</c>. An item whose attribute is null gives that null, not the fallback.</summary>
+    /// <param name="defaultValue">What no item gives.</param>
+    /// <returns>The value, or <paramref name="defaultValue"/>.</returns>
+    public TValue GetValueOrDefault(TValue defaultValue) => Found ? Value : defaultValue;
 }

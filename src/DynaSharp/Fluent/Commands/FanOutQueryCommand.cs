@@ -168,6 +168,27 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
         return new(state, state.Table, _plan!);
     }
 
+    /// <summary>
+    /// Skips an item that cannot be read as <typeparamref name="T"/> and hands its <see cref="DynamoDbMappingException"/> to <paramref name="onFailure"/>, where the read would otherwise end with it.
+    /// Ending the read stays the default. See <see cref="QueryCommand{T}.OnMappingFailure"/> for what the exception holds and when the callback runs.
+    /// </summary>
+    /// <remarks>
+    /// The pages of several partitions arrive at once, so the callback can run on several threads at once. A skipped item has no place in the merge and is in neither
+    /// <see cref="Page{T}.Items"/> nor <see cref="Page{T}.Count"/>, which counts what the page gives. <see cref="Page{T}.Next"/> continues after the last item the caller got from each partition,
+    /// so a skipped item behind that item can be read again by the next page, and the callback has it again. <see cref="Limit"/> counts it, <c>Take(n)</c> does not, and <see cref="CountAsync"/> counts it.
+    /// An item without the keys the merge orders by is skipped the same way.
+    /// </remarks>
+    /// <param name="onFailure">What to do with the failure of a skipped item.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="onFailure"/> is <see langword="null"/>.</exception>
+    public FanOutQueryCommand<T> OnMappingFailure(Action<DynamoDbMappingException> onFailure)
+    {
+        ArgumentNullException.ThrowIfNull(onFailure);
+        var state = Enter();
+        state.Read.OnMappingFailure = onFailure;
+        return new(state, state.Table, _plan!);
+    }
+
     /// <inheritdoc/>
     public FanOutQueryCommand<T> MaxAttempts(int attempts)
     {

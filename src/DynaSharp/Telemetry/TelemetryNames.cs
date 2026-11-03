@@ -13,6 +13,7 @@ internal static class TelemetryNames
     public const string ConflictRetriesMetric = "dynasharp.client.conflict.retries";
     public const string ConflictsExhaustedMetric = "dynasharp.client.conflict.exhausted";
     public const string ConsumedCapacityMetric = "dynasharp.client.consumed_capacity";
+    public const string SkippedItemsMetric = "dynasharp.client.operation.skipped_items";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";

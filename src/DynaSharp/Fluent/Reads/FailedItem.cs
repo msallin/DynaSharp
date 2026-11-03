@@ -16,12 +16,7 @@ internal static class FailedItem
     /// <returns>The key attributes, or <see langword="null"/> if the item has none of them.</returns>
     public static Item? KeyOf(DynamoDbReader items, int position, TableModel table)
     {
-        for (var i = 0; i < position; i++)
-        {
-            items.TryReadStartItem();
-            items.Json.Skip();
-        }
-
+        Skip(ref items, position);
         items.TryReadStartItem();
         var key = new Item(table.ItemKeyNames.Length);
         while (items.TryReadAttributeName())
@@ -38,5 +33,17 @@ internal static class FailedItem
         }
 
         return key.Count > 0 ? key : null;
+    }
+
+    /// <summary>Moves a reader over items of an array, which is how a read that skips an item finds the next one.</summary>
+    /// <param name="items">The reader, positioned after the opening bracket of the array or after an item.</param>
+    /// <param name="count">The number of items to move over.</param>
+    public static void Skip(ref DynamoDbReader items, int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            items.TryReadStartItem();
+            items.Json.Skip();
+        }
     }
 }

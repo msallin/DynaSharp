@@ -62,6 +62,7 @@ Each request to DynamoDB is one span of kind `Client`, named after the service a
 | `dynasharp.client.operation.throttles` | Counter | `{throttle}` | Each throttling error, whether or not the attempt was repeated |
 | `dynasharp.client.conflict.retries` | Counter | `{retry}` | Each time `RetryOnConflictAsync` runs its delegate again after a conflict |
 | `dynasharp.client.conflict.exhausted` | Counter | `{conflict}` | Each conflict that `RetryOnConflictAsync` passed on, because the delegate used up its runs |
+| `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item a read with `OnMappingFailure` skipped because its type could not read it, see [Queries](queries.md#items-that-do-not-fit) |
 | `dynasharp.client.consumed_capacity` | Counter | `{capacity_unit}` | The capacity units DynamoDB reported, per table and including its indexes. Only a request that asks for them, with `.ReturnCapacity()` or `ReturnConsumedCapacity`, has any |
 
 | Tag | On |

@@ -54,6 +54,12 @@ public readonly ref struct MixedScanCommand<T1, T2> : IFilterable<MixedScanComma
     /// <inheritdoc cref="ScanCommand{T}.ReturnCapacity"/>
     public MixedScanCommand<T1, T2> ReturnCapacity(ReturnConsumedCapacity detail = ReturnConsumedCapacity.Total) => new(_command.ReturnCapacity(detail));
 
+    /// <summary>Skips an item that none of the types can read, or that its type cannot read, and hands its <see cref="DynamoDbMappingException"/> to <paramref name="onFailure"/>, where the read would otherwise end with it. See <see cref="ScanCommand{T}.OnMappingFailure"/>.</summary>
+    /// <param name="onFailure">What to do with the failure of a skipped item.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="onFailure"/> is <see langword="null"/>.</exception>
+    public MixedScanCommand<T1, T2> OnMappingFailure(Action<DynamoDbMappingException> onFailure) => new(_command.OnMappingFailure(onFailure));
+
     /// <inheritdoc/>
     public MixedScanCommand<T1, T2> MaxAttempts(int attempts) => new(_command.MaxAttempts(attempts));
 

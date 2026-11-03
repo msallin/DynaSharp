@@ -116,6 +116,26 @@ await foreach (var order in byStatus.Query(open).Descending().ItemsAsync(ct))
 }
 ```
 
+## Items that do not fit
+
+An item that its type cannot read, such as one with an enum value a newer deployment wrote, ends the read with `DynamoDbMappingException`, which names the attribute and holds the key of the item in `Key`. That is the default, because such an item is a bug of the model or of a writer. `OnMappingFailure` skips it instead and hands the exception to a callback, which decides what to do with the key:
+
+```csharp
+var unreadable = new List<Item?>();
+await foreach (var order in orders.Query(Order.Keys.Pk.Of("alice")).OnMappingFailure(failure => unreadable.Add(failure.Key)).ItemsAsync(ct))
+{
+    Console.WriteLine(order.Number);
+}
+```
+
+`OnMappingFailure(static _ => { })` skips without a callback of its own. Query, scan, fan-out and mixed reads have it, and it covers every terminal that reads items, including a `Select` after it, whose response has no key, so `Key` is null there.
+
+- The callback runs once per skipped item, after its page arrived and before the items of that page are given out. An exception it throws ends the read as it is, and no retry repeats it. A parallel scan and a fan-out read pages on several threads at once, so there it can run concurrently.
+- `Page.Items` leaves the item out. `Page.Count` is still the count DynamoDB sent, so `Count - Items.Count` is what the page skipped, except on a fan-out, whose page counts what it gives.
+- `Limit(n)` counts the item, because DynamoDB read it. `Take(n)` does not, so it reads on until it has `n` items, and `ItemAsync` gives the first item that can be read. `CountAsync` reads no item and counts it.
+- `Page.Next` continues after the page, so the item is not read again. A fan-out continues after the last item it gave from each partition, so a skipped item behind that one comes up again on the next page.
+- Each skipped item counts in the metric `dynasharp.client.operation.skipped_items`, see [Observability](observability.md#metrics). Nothing logs the key.
+
 ## Paging for web APIs
 
 A token holds the position, and comes back with the next request. It is safe in a URL, and it shows the key values of the last item, as `LastEvaluatedKey` does. What the client sends back is input like any other: `TryParse` turns text that is no token into `false`, and `PageAsync` throws `FormatException` for a token that does not fit the query or the signing of the client. Both are a 400 for the client, which starts its read again. A missing or empty `after` is the first page.
