@@ -4,6 +4,7 @@ DynaSharp.Testing.FakeDynamoDb.Answer(DynaSharp.Testing.RecordedRequest! request
 DynaSharp.Testing.FakeDynamoDb.Answer(string! operation, string! requestJson) -> DynaSharp.Testing.StubResponse!
 DynaSharp.Testing.FakeDynamoDb.CreateClient(System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.DynamoDbClient!
 DynaSharp.Testing.FakeDynamoDb.CreateHandler() -> DynaSharp.Testing.StubHandler!
+DynaSharp.Testing.FakeDynamoDb.CreateStreamsClient(System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.Streams.DynamoDbStreamsClient!
 DynaSharp.Testing.FakeDynamoDb.CreateTable(DynaSharp.Requests.CreateTableRequest! request) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.CreateTable<T>(string! tableName) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.Delete(string! tableName, DynaSharp.Item! key) -> bool

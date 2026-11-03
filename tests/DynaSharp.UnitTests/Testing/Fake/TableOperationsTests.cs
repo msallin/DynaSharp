@@ -148,7 +148,6 @@ public sealed class TableOperationsTests
     [Test]
     [Arguments(""","Tags":[{"Key":"team","Value":"shop"}]""", "the member Tags in CreateTable")]
     [Arguments(""","SSESpecification":{"Enabled":true}""", "the member SSESpecification in CreateTable")]
-    [Arguments(""","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}""", "a stream in CreateTable")]
     [Arguments(""","OnDemandThroughput":{"MaxReadRequestUnits":10}""", "the member OnDemandThroughput in CreateTable")]
 
     [Arguments(""","StreamSpecification":{"StreamEnabled":false,"Shards":1}""", "the member Shards in StreamSpecification of CreateTable")]
@@ -411,7 +410,6 @@ public sealed class TableOperationsTests
     }
 
     [Test]
-    [Arguments("""{"TableName":"Thread","StreamSpecification":{"StreamEnabled":false}}""", "the member StreamSpecification in UpdateTable")]
     [Arguments("""{"TableName":"Thread","SSESpecification":{"Enabled":true}}""", "the member SSESpecification in UpdateTable")]
     [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","OnDemandThroughput":{}}}]}""", "the member OnDemandThroughput in Update of UpdateTable")]
     public async Task HandleUpdateTable_MemberTheFakeDoesNotImplement_AnswersUnsupported(string request, string named)
@@ -553,6 +551,120 @@ public sealed class TableOperationsTests
 
         // Assert
         await Assert.That(table.GetProperty("GlobalSecondaryIndexes").EnumerateArray().Sum(index => index.GetProperty("ProvisionedThroughput").GetProperty("ReadCapacityUnits").GetInt64())).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task HandleCreateTable_WithStream_DescribesTheStreamAndItsArn()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+
+        // Act
+        var table = FakeCalls.Ok(fake, "CreateTable", FakeStreams.Users("NEW_AND_OLD_IMAGES")).GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((FakeCalls.SameJson("""{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"}""", table.GetProperty("StreamSpecification")),
+            table.GetProperty("LatestStreamLabel").GetString(), table.GetProperty("LatestStreamArn").GetString())).IsEqualTo((true, FakeStreams.Label, FakeStreams.UsersArn));
+    }
+
+    [Test]
+    public async Task HandleCreateTable_StreamWithoutViewType_AnswersValidationAndCreatesNoTable()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","StreamSpecification":{"StreamEnabled":true}}""";
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That((answer, fake.TableNames.Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", Invalid + "StreamViewType must be specified when StreamEnabled is true"), 0));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_EnableStream_DescribesTheNewStream()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"KEYS_ONLY"}}""").GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((table.GetProperty("StreamSpecification").GetProperty("StreamViewType").GetString(), table.GetProperty("LatestStreamArn").GetString()))
+            .IsEqualTo(("KEYS_ONLY", FakeStreams.UsersArn));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_DisableStream_KeepsTheArnAndDropsTheSpecification()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","StreamSpecification":{"StreamEnabled":false}}""").GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((table.TryGetProperty("StreamSpecification", out _), table.GetProperty("LatestStreamArn").GetString())).IsEqualTo((false, FakeStreams.UsersArn));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_EnableAgainAfterDisabling_GivesANewStreamWithANewLabel()
+    {
+        // Arrange: a new view type takes a stream of its own; the clock has not moved, so the label is a millisecond later.
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+        FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","StreamSpecification":{"StreamEnabled":false}}""");
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}}""").GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((table.GetProperty("LatestStreamLabel").GetString(), table.GetProperty("LatestStreamArn").GetString()))
+            .IsEqualTo(("2026-01-01T00:00:00.001", "arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/2026-01-01T00:00:00.001"));
+    }
+
+    [Test]
+    [Arguments(true, """{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}""", "Table already has an enabled stream: TableName: Users")]
+    [Arguments(false, """{"StreamEnabled":false}""", "Table does not have an enabled stream: TableName: Users")]
+    [Arguments(false, """{"StreamEnabled":true}""", Invalid + "StreamViewType must be specified when StreamEnabled is true")]
+    public async Task HandleUpdateTable_StreamChangeDynamoDbRefuses_AnswersValidationAndChangesNothing(bool withStream, string specification, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(withStream ? FakeStreams.Users("KEYS_ONLY") : FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateTable", $$"""{"TableName":"Users","BillingMode":"PROVISIONED","ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1},"StreamSpecification":{{specification}}}""");
+
+        // Assert
+        await Assert.That((answer, fake.DescribeTable("Users").BillingModeSummary!.BillingMode)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", message), BillingMode.PayPerRequest));
+    }
+
+    [Test]
+    public async Task HandleDeleteTable_TableWithStream_DisablesTheStream()
+    {
+        // Arrange: the API reference of DeleteTable: the stream goes into the DISABLED state.
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+
+        // Act
+        FakeCalls.Ok(fake, "DeleteTable", """{"TableName":"Users"}""");
+
+        // Assert
+        var description = FakeCalls.Ok(fake, "DescribeStream", $$"""{"StreamArn":"{{FakeStreams.UsersArn}}"}""").GetProperty("StreamDescription");
+        await Assert.That(description.GetProperty("StreamStatus").GetString()).IsEqualTo("DISABLED");
+    }
+
+    [Test]
+    public async Task HandleCreateTable_StreamOfATableOfTheSameNameBefore_GivesANewLabel()
+    {
+        // Arrange: the stream of a deleted table stays for 24 hours, and a new table of its name gets a stream of its own.
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+        FakeCalls.Ok(fake, "DeleteTable", """{"TableName":"Users"}""");
+
+        // Act
+        var table = FakeCalls.Ok(fake, "CreateTable", FakeStreams.Users("KEYS_ONLY")).GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That(table.GetProperty("LatestStreamLabel").GetString()).IsEqualTo("2026-01-01T00:00:00.001");
     }
 
     private static CreateTableRequest UsersRequest() => new()
