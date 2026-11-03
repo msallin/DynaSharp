@@ -13,9 +13,8 @@ Where the code is:
 - `main`: M0 to M5 and the fake (M4, P1 to P7), the fixes of the correctness reviews of 2026-11-03, the analyzers and remarks from the field study (DYNA034 to DYNA035, DYNA235 to DYNA237), green in CI. History is linear, one commit per package. Parity after P7: tier1 494 of 497, tier2 101 passed, 0 failed, 351 skipped; the three failures are members the fake refuses by the owner's decision.
 
 Next steps, in order:
-1. Stryker: the sharded run 41671331841 (`ci.yml` via `workflow_dispatch`, on `cbc1c4b`) measures the tree before the reviews; check its survivors against `main`, fix them, and run it again before 0.1.0. Break at 90 %.
-2. Release 0.1.0 (M6): the prep is done (shipped API files, icon, version check in `release.yml`), and so is the GitHub side. Left: the trusted publishing policy on nuget.org, then land the commit that arms `release.yml`; the first green CI on `main` after it tags and releases.
-3. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
+1. Stryker on `main`: the sharded run 41671331841 (on `cbc1c4b`) hit the 6-hour limit of a job; fluent passed, core, generators and testing were cancelled without a score. Split those three into smaller shards so each fits, run them on `main`, fix the survivors in 0.1.1. Break at 90 %.
+2. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
 
 How to work:
 - Local: SDK exactly `11.0.100-rc.3.26522.148` (`global.json`, no roll-forward), `dotnet tool restore` (docfx, Stryker). Run the unit tests with `-c Release`: the allocation tests (`CommandAllocationTests` and others) fail in Debug, where the JIT does not optimize. Docker only for the emulator backends; the default backend `fake` needs none. Python with `botocore` for the vector scripts.
@@ -31,7 +30,7 @@ How to work:
 - [x] TUnit + coverage gate (100 %), Stryker (break 90, MTP runner), Native AOT smoke test, BenchmarkDotNet
 - [x] CI, release workflow (version from Conventional Commits), Dependabot
 - [x] Merge M0 to `main`; verify CI on GitHub
-- [ ] Repository allows squash merges only (rebase merges are still on, an owner setting); the release workflow runs for the first time with the 0.1.0 tag, see M6
+- [ ] Repository allows squash merges only (rebase merges are still on, an owner setting); the release workflow ran for 0.1.0, see M6
 
 ## M1a - thin vertical slice (static/env credentials, GetItem, PutItem, DescribeTable)
 
@@ -652,15 +651,15 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
   8. A key condition takes the value on either side, `:v < sk` as `sk > :v`. Not so: an empty sort value is rejected as an empty partition value is, "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: sk" (`Vectors/keys.json`, `key-condition-sides-and-empty-values`).
 
 - [~] M5: SSO, `credential_process`, assume role, see the M5 section above
-- [~] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing)
+- [x] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing). Released 2026-11-03: tag `v0.1.0` on `9a3a0ba`, `DynaSharp` and `DynaSharp.Testing` 0.1.0 on nuget.org (release run 41729314289; the first try of the publish job failed with no matching trust policy, the re-run after the owner fixed it on nuget.org pushed)
   - [x] Shipped API files: `PublicAPI.Unshipped.txt` and `AnalyzerReleases.Unshipped.md` moved into Shipped (see D6 leftovers); the Unshipped files keep their header.
   - [x] Package icon: `docs/images/icon.png`, 128 px with a transparent background, rendered from `docs/images/logo.svg`, `PackageIcon` of both packages (NuGet takes no SVG). Svg.Skia draws no stroke whose `objectBoundingBox` gradient sits on an arc between two points of the same height (it takes the height as 0), so the PNG was rendered from a copy with the gradient of the sharp in user space; browsers show the SVG as it is.
   - [x] Version: MinVer takes it from the `v*` tag, which `release.yml` sets on the checked-out commit before `dotnet pack`, so no `-p:Version` is needed. A pack without a tag gives `0.0.0-alpha.0.<height>`, which `PackageSmoke` (`*-*`) and `ci.yml` take. The workflow pushes the tag only after a step checks that both packages carry the version, so a failed pack leaves no tag behind. The generator references MinVer too, so its file and informational version name the release (assembly version `0.0.0.0` while the major is 0).
   - [x] `build/next-version.sh` gives `0.1.0` for the history without tags (`feat:` bumps the minor, a breaking change stays a minor while the major is 0).
   - [x] Release notes: `gh release create --generate-notes` is enough. A `PackageReleaseNotes` that says "first release" would be wrong from 0.2.0 on, and nuget.org shows the README with its links to the site.
   - [x] GitHub (owner, 2026-11-03): repository variables `PUBLISH_TO_NUGET=true` and `NUGET_USER=msallin`, environment `nuget` limited to deployments from `main`. A `workflow_run` job runs on the default branch, so the policy admits it.
-  - [ ] nuget.org (owner): a trusted publishing policy with repository owner `msallin`, repository `DynaSharp`, workflow file `release.yml`, environment `nuget`, under the account `NUGET_USER` names. A first push creates `DynaSharp` and `DynaSharp.Testing` under that account.
-  - [ ] Land the commit that arms `release.yml` (`workflow_run` on `ci`, branches `main`, types `completed`). `ci.yml` runs on every push to `main`, docs-only ones included (it has no path filter), and the job's `if` takes only a successful run of a `push` event, so neither a `ci/**` branch (the `branches` filter) nor a pull request nor a manual run releases.
+  - [x] nuget.org (owner): a trusted publishing policy with repository owner `msallin`, repository `DynaSharp`, workflow file `release.yml`, environment `nuget`, under the account `NUGET_USER` names. A first push creates `DynaSharp` and `DynaSharp.Testing` under that account.
+  - [x] Land the commit that arms `release.yml` (`workflow_run` on `ci`, branches `main`, types `completed`). `ci.yml` runs on every push to `main`, docs-only ones included (it has no path filter), and the job's `if` takes only a successful run of a `push` event, so neither a `ci/**` branch (the `branches` filter) nor a pull request nor a manual run releases.
 
 ### R4 - one-shard stream reader (before 0.1.0, approved by the owner)
 
