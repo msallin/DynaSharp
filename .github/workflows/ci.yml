@@ -140,11 +140,29 @@ jobs:
       - run: ./artifacts/aot/DynaSharp.AotSmoke
 
   # On demand only, out of the path of a pull request or a push, so no job may need this one.
-  # Stryker still runs once by hand before the first push.
+  # One run over everything takes longer than a job may, so each shard mutates one part on its own
+  # runner and breaks below 90 % on its own. The fixture of DynaSharp.UnitTests is not mutated.
   mutation:
-    name: Mutation testing
+    name: Mutation testing (${{ matrix.shard }})
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: fluent
+            project: DynaSharp.csproj
+            mutate: '**/Fluent/**/*.cs'
+          - shard: core
+            project: DynaSharp.csproj
+            mutate: '!**/Fluent/**/*.cs'
+          - shard: generators
+            project: DynaSharp.Generators.csproj
+            mutate: '**/*.cs'
+          - shard: testing
+            project: DynaSharp.Testing.csproj
+            mutate: '**/*.cs'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -154,12 +172,12 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - run: dotnet tool restore
       - name: Stryker (break below 90 %)
-        run: dotnet stryker --reporter markdown --reporter html
+        run: dotnet stryker --project "${{ matrix.project }}" --mutate "${{ matrix.mutate }}" --reporter markdown --reporter html --reporter progress
       - name: Publish summary
         if: always()
         run: cat StrykerOutput/*/reports/*.md >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: mutation-report
+          name: mutation-report-${{ matrix.shard }}
           path: StrykerOutput/*/reports/
