@@ -74,9 +74,11 @@ internal sealed class Sandbox : IAsyncDisposable
         return await Tables.SendAsync(command);
     }
 
-    /// <inheritdoc/>
+    /// <summary>Deletes the tables of the test and disposes the clients. A table that cannot be deleted goes to <see cref="CleanupFailures"/>, which keeps the failure of the test primary.</summary>
+    /// <returns>A task that completes when the tables are deleted or reported.</returns>
     public async ValueTask DisposeAsync()
     {
+        var failures = new List<Exception>();
         foreach (var table in _tables)
         {
             try
@@ -87,11 +89,19 @@ internal sealed class Sandbox : IAsyncDisposable
             {
                 // The test deleted the table itself.
             }
+            catch (Exception exception) when (exception is DynamoDbException or OperationCanceledException or TimeoutException or HttpRequestException)
+            {
+                failures.Add(new InvalidOperationException($"The table {table} could not be deleted.", exception));
+            }
         }
 
         Client.Dispose();
         Streams.Dispose();
         _handler?.Dispose();
+        if (failures.Count > 0)
+        {
+            CleanupFailures.Report(failures);
+        }
     }
 
     // A test may send a create for a table it has, which then is deleted once.
