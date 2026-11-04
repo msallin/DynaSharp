@@ -82,7 +82,7 @@ sso_region = eu-west-1
 
 ## Test without STS
 
-`StubSts` of `DynaSharp.Testing` stands in for STS on a port of the machine, so a test of a web identity runs without AWS, see [STS](testing.md#sts).
+`StubSts` of `DynaSharp.Testing` stands in for STS on a port of the machine, so a test of a web identity or an assumed role runs without AWS, see [STS](testing.md#sts).
 
 ## When credentials fail
 

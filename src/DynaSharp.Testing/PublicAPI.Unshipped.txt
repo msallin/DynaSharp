@@ -1,1 +1,3 @@
 #nullable enable
+DynaSharp.Testing.RecordedStsRequest.DurationSeconds.get -> string!
+DynaSharp.Testing.RecordedStsRequest.ExternalId.get -> string!

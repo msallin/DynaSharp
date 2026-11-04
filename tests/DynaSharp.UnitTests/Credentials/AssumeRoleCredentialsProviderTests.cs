@@ -569,6 +569,37 @@ public sealed class AssumeRoleCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_OptionsOnTheStub_SendsTheRoleTheSessionTheDurationAndTheExternalId()
+    {
+        // Arrange (the public constructor, whose options become the form; the stub answers every attempt, as a busy machine may time one out)
+        using var sts = new StubSts { DefaultResponse = StubStsResponse.Credentials(new AwsCredentials(AccessKeyId, SecretAccessKey, SessionToken)) };
+        var options = new AssumeRoleOptions { ExternalId = "partner-7", Duration = TimeSpan.FromHours(2), Region = Region, StsEndpoint = sts.Endpoint };
+        var provider = new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, "dev-session", options);
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        var request = sts.Requests[0];
+        await Assert.That((request.Action, request.RoleArn, request.RoleSessionName, request.DurationSeconds, request.ExternalId)).IsEqualTo(("AssumeRole", RoleArn, "dev-session", "7200", "partner-7"));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_AnswerOfTheStub_ReturnsTheCredentialsItWasGiven()
+    {
+        // Arrange
+        var expiration = new DateTimeOffset(2100, 1, 2, 3, 4, 5, TimeSpan.Zero);
+        using var sts = new StubSts { DefaultResponse = StubStsResponse.Credentials(new AwsCredentials(AccessKeyId, SecretAccessKey, SessionToken, expiration)) };
+        var provider = new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, options: new AssumeRoleOptions { Region = Region, StsEndpoint = sts.Endpoint });
+
+        // Act
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((credentials.AccessKeyId, credentials.SecretAccessKey, credentials.SessionToken, credentials.Expiration)).IsEqualTo((AccessKeyId, SecretAccessKey, SessionToken, expiration));
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_InternationalizedEndpoint_SignsTheHostThatIsSent()
     {
         // Arrange (the name does not resolve, so the connection goes to the loopback server)

@@ -1,8 +1,8 @@
 namespace DynaSharp.Testing;
 
 /// <summary>
-/// A stand-in for AWS STS on a port of this machine, for a test of code that gets its credentials from a web identity token, as a pod with IAM roles for service accounts does. It answers
-/// <c>AssumeRoleWithWebIdentity</c> with canned responses and records every request.
+/// A stand-in for AWS STS on a port of this machine, for a test of code that gets its credentials from a web identity token, as a pod with IAM roles for service accounts does, or by assuming a role with other credentials.
+/// It answers <c>AssumeRoleWithWebIdentity</c> and <c>AssumeRole</c> with canned responses and records every request.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -12,14 +12,16 @@ namespace DynaSharp.Testing;
 /// <para>
 /// <b>Two ways to reach it.</b> Hand the provider the endpoint, which reads no variable, so the test can run in parallel with any other:
 /// <c>new WebIdentityCredentialsProvider(tokenFile, roleArn, sts.Endpoint)</c>. Or set <c>AWS_ENDPOINT_URL_STS</c> to <see cref="Endpoint"/> yourself, with <c>AWS_WEB_IDENTITY_TOKEN_FILE</c> and <c>AWS_ROLE_ARN</c>, to go through the
-/// default chain as a pod does. The stub never touches the process environment, because that would make every test that uses it unsafe to run beside the others; a test that changes the variables runs on its own, by the rule of its test framework.
+/// default chain as a pod does. <c>new AssumeRoleCredentialsProvider(source, roleArn, options: new AssumeRoleOptions { StsEndpoint = sts.Endpoint, Region = region })</c> reads no variable either; without
+/// <see cref="DynaSharp.Credentials.AssumeRoleOptions.Region"/> it looks for the region to sign for in the environment. The stub never touches the process environment, because that would make every test that uses it unsafe to run beside the others; a test that changes the variables runs on its own, by the rule of its test framework.
 /// </para>
 /// <para>
-/// <b>The token file is yours.</b> The provider reads a file that the test writes, and the stub does not touch the disk. It takes any token, and validates nothing.
+/// <b>The token file is yours.</b> The provider reads a file that the test writes, and the stub does not touch the disk. It takes any token and any signature of <c>AssumeRole</c>, and validates nothing; the
+/// <c>Authorization</c> line is in <see cref="RecordedStsRequest.Headers"/>.
 /// </para>
 /// <para>
 /// The stub picks the response for a request in this order: the next response queued with <see cref="Enqueue"/>; <see cref="DefaultResponse"/>. If there is neither, it answers 400 with the code <c>StubStsNoResponse</c>, so a
-/// test that forgot to queue reads <c>STS rejected the web identity token with StubStsNoResponse.</c> in the <see cref="CredentialsUnavailableException"/> of the provider. A provider retries some answers by itself: each attempt is a
+/// test that forgot to queue reads <c>STS rejected the web identity token with StubStsNoResponse.</c>, or <c>... assume the role ...: StubStsNoResponse.</c>, in the <see cref="CredentialsUnavailableException"/> of the provider. A provider retries some answers by itself: each attempt is a
 /// request here, as for a <see cref="StubHandler"/>, and it waits a second between attempts on its own clock. That includes an attempt it gave up on: a provider on the system clock gives an attempt 5 seconds, so on a busy machine a queued
 /// response can go to an attempt nobody waits for any more. A test that does not count fetches sets <see cref="DefaultResponse"/>, which answers them all.
 /// </para>

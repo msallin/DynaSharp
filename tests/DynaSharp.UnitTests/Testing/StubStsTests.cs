@@ -21,6 +21,9 @@ public sealed class StubStsTests
     // The default maximum of Linux is 4 MB to send and 6 MB to receive, and Windows starts at far less.
     private const int MoreThanTheSocketsHold = 16 * 1024 * 1024;
 
+    // The form botocore's sts client sends for assume_role with these arguments.
+    private const string AssumeRoleForm = "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Forders&RoleSessionName=dev-session&DurationSeconds=3600&ExternalId=partner%2F7";
+
     // Earlier than every expiration of the vectors, so that the credentials are good when they arrive.
     private static readonly DateTimeOffset Now = new(2026, 10, 31, 12, 0, 0, TimeSpan.Zero);
 
@@ -88,6 +91,53 @@ public sealed class StubStsTests
 
         // Assert
         await Assert.That((response.StatusCode, await response.Content.ReadAsStringAsync())).IsEqualTo((HttpStatusCode.OK, Sample.Text("body")));
+    }
+
+    [Test]
+    public async Task Enqueue_AssumeRole_SendsTheSampleOfTheDocumentationForAssumeRole()
+    {
+        // Arrange (botocore's sts client parses this body into the values given; SourceIdentity and PackedPolicySize answer parameters no provider here sends)
+        using var sts = new StubSts();
+        sts.Enqueue(StubStsResponse.Credentials(CredentialsOf(Sample)));
+
+        // Act
+        var body = await PostAndReadAsync(sts, AssumeRoleForm);
+
+        // Assert
+        await Assert.That(body).IsEqualTo("""
+            <AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+              <AssumeRoleResult>
+                <AssumedRoleUser>
+                  <Arn>arn:aws:sts::123456789012:assumed-role/orders/dev-session</Arn>
+                  <AssumedRoleId>ARO123EXAMPLE123:dev-session</AssumedRoleId>
+                </AssumedRoleUser>
+                <Credentials>
+                  <AccessKeyId>ASIAIOSFODNN7EXAMPLE</AccessKeyId>
+                  <SecretAccessKey>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</SecretAccessKey>
+                  <SessionToken>IQoJb3JpZ2luX2VjEEM/Example+Token==</SessionToken>
+                  <Expiration>2026-10-31T18:34:56Z</Expiration>
+                </Credentials>
+              </AssumeRoleResult>
+              <ResponseMetadata>
+                <RequestId>c6104cbe-af31-11e0-8154-cbc7ccf896c7</RequestId>
+              </ResponseMetadata>
+            </AssumeRoleResponse>
+
+            """.ReplaceLineEndings("\n"));
+    }
+
+    [Test]
+    public async Task Enqueue_AssumeRoleWithMarkup_EscapesTheRoleAndTheSession()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        sts.Enqueue(StubStsResponse.Credentials(CredentialsOf(Sample)));
+
+        // Act
+        var body = await PostAndReadAsync(sts, "Action=AssumeRole&RoleArn=a%26b&RoleSessionName=%3Cs%3E");
+
+        // Assert
+        await Assert.That(ElementsOf(body, "Arn", "AssumedRoleId")).IsEqualTo(("arn:aws:sts::123456789012:assumed-role/a&amp;b/&lt;s&gt;", "ARO123EXAMPLE123:&lt;s&gt;"));
     }
 
     [Test]
@@ -318,7 +368,24 @@ public sealed class StubStsTests
 
         // Assert
         var request = sts.Requests.Single();
-        await Assert.That((request.Action, request.RoleArn, request.RoleSessionName, request.WebIdentityToken, request.Form.Count)).IsEqualTo((string.Empty, string.Empty, string.Empty, string.Empty, 0));
+        await Assert.That((request.Action, request.RoleArn, request.RoleSessionName, request.WebIdentityToken, request.ExternalId, request.DurationSeconds, request.Form.Count))
+            .IsEqualTo((string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, 0));
+    }
+
+    [Test]
+    public async Task Requests_FormOfAssumeRole_ReadsTheRoleTheSessionTheDurationAndTheExternalId()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        sts.DefaultResponse = StubStsResponse.Credentials(CredentialsOf(Sample));
+
+        // Act
+        using var _ = await PostAsync(sts, AssumeRoleForm);
+
+        // Assert
+        var request = sts.Requests.Single();
+        await Assert.That((request.Action, request.RoleArn, request.RoleSessionName, request.DurationSeconds, request.ExternalId, request.WebIdentityToken))
+            .IsEqualTo(("AssumeRole", "arn:aws:iam::123456789012:role/orders", "dev-session", "3600", "partner/7", string.Empty));
     }
 
     [Test]
@@ -364,7 +431,20 @@ public sealed class StubStsTests
 
     [Test]
     [Arguments("AccessDenied")]
+    [Arguments("InvalidClientTokenId")]
+    [Arguments("SignatureDoesNotMatch")]
+    public async Task Error_CodeOutsideTheModelThatStsSendsAs403_Is403(string code)
+    {
+        // Act
+        var response = StubStsResponse.Error(code);
+
+        // Assert
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
     [Arguments("Throttling")]
+    [Arguments("ExpiredToken")]
     [Arguments("SomethingNew")]
     public async Task Error_CodeOutsideTheModel_Is400(string code)
     {
@@ -441,6 +521,39 @@ public sealed class StubStsTests
 
         // Assert
         await Assert.That(exception.Message).Contains("IDPRejectedClaim");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_AssumeRoleErrorOfTheStub_NamesTheRoleAndTheCode()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        sts.DefaultResponse = StubStsResponse.Error("AccessDenied", "User is not authorized to perform: sts:AssumeRole");
+        var provider = new AssumeRoleCredentialsProvider(new StaticCredentialsProvider("AKIAIOSFODNN7EXAMPLE", "secret"), Irsa.Text("role_arn"), options: new AssumeRoleOptions { Region = NoSuchRegion, StsEndpoint = sts.Endpoint });
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith($"STS did not let the source credentials assume the role {Irsa.Text("role_arn")}: AccessDenied: ", StringComparison.Ordinal);
+    }
+
+    // The sample of the README of the package.
+    [Test]
+    public async Task GetCredentialsAsync_AssumeRoleOfTheReadme_SendsTheExternalId()
+    {
+        // Arrange
+        using var sts = new StubSts();
+        sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token"));
+        var source = new StaticCredentialsProvider("AKIAIOSFODNN7EXAMPLE", "source-secret");
+        var options = new AssumeRoleOptions { ExternalId = "partner-7", Region = AwsRegion.FromName("eu-west-1"), StsEndpoint = sts.Endpoint };
+        var provider = new AssumeRoleCredentialsProvider(source, Irsa.Text("role_arn"), options: options);
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(sts.Requests[0].ExternalId).IsEqualTo("partner-7");
     }
 
     [Test]

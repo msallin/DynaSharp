@@ -159,7 +159,7 @@ The shard of a disabled stream is closed, so a read of it ends.
 
 ## STS
 
-A credentials provider does not go through `HttpHandler`, so `StubSts` is a server: HTTP on `127.0.0.1` and a free port, from the constructor to `Dispose`. It answers `AssumeRoleWithWebIdentity` with the next queued `StubStsResponse`, else `DefaultResponse`, and records `Requests`.
+A credentials provider does not go through `HttpHandler`, so `StubSts` is a server: HTTP on `127.0.0.1` and a free port, from the constructor to `Dispose`. It answers `AssumeRoleWithWebIdentity` and `AssumeRole` with the next queued `StubStsResponse`, else `DefaultResponse`, and records `Requests`.
 
 ```csharp
 using var sts = new StubSts();
@@ -171,5 +171,18 @@ Console.WriteLine(sts.Requests[0].RoleArn);
 ```
 
 That constructor reads no variable, so the test can run in parallel. To go through the default chain as a pod does, set `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and do not run that test in parallel. Without `AWS_ENDPOINT_URL_STS` the token goes to the real STS in the test's region, or the fetch fails without a region. The stub never touches the environment or the disk: the test writes the token file.
+
+`AssumeRoleCredentialsProvider` goes to the stub through `StsEndpoint`, and reads no variable when `Region` is set too. The stub takes any signature; the form is in `Requests`, with `ExternalId` and `DurationSeconds`.
+
+```csharp
+using var sts = new StubSts();
+sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token"));
+
+var source = new StaticCredentialsProvider("AKIAIOSFODNN7EXAMPLE", "source-secret");
+var options = new AssumeRoleOptions { ExternalId = "partner-7", Region = AwsRegion.FromName("eu-west-1"), StsEndpoint = sts.Endpoint };
+var provider = new AssumeRoleCredentialsProvider(source, roleArn, options: options);
+await provider.GetCredentialsAsync(ct);
+Console.WriteLine(sts.Requests[0].ExternalId);
+```
 
 Credentials without an expiration go out with `2100-01-01T00:00:00Z`, as STS always sends one, so the provider never refreshes them. It refreshes in the background from 15 minutes before the expiration and blocks callers from 10 minutes before. A test of a refresh sets the expiration it needs, relative to its clock.
