@@ -418,6 +418,7 @@ public sealed class CompileGuardTests
     [Arguments("""await orders.CreateTable().Provisioned(read: 5, write: 5).WaitUntilActive().IfNotExists().SendAsync();""")]
     [Arguments("""await orders.CreateTable().WaitUntilActive(System.TimeSpan.FromSeconds(1));""")]
     [Arguments("""DynaSharp.Requests.CreateTableRequest request = orders.CreateTable().ToRequest();""")]
+    [Arguments("""CreateTableCommand create = orders.CreateTable().Including<Invoice>(); string json = create.ToRequestJson(); await create.SendAsync();""")]
     [Arguments("""await shop.CreateTable().Including<Order>().SendAsync();""")]
     [Arguments("""CreateTableCommand kept = orders.CreateTable(); await orders.DescribeAsync(); await kept.Including<Invoice>().SendAsync();""")]
     [Arguments("""DynaSharp.Requests.TableDescription description = await orders.DeleteTableAsync();""")]

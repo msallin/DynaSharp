@@ -273,6 +273,45 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task ToRequestJson_ProvisionedWithAStream_RendersTheBodySendAsyncSends()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Created));
+        using var client = TestClient.Create(handler);
+        var create = client.Table<SchemaOrder>("Shop").CreateTable().Including<SchemaCustomer>().Provisioned(read: 5, write: 3).Stream(StreamViewType.NewImage);
+
+        // Act (rendering leaves the command usable)
+        var json = create.ToRequestJson();
+        await create.SendAsync();
+
+        // Assert
+        await Assert.That(handler.Requests.Single().BodyText).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task ToRequestJson_IfNotExistsAndTimeToLive_RendersTheCreateAloneAndSendsNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var create = client.Table("Shop", "pk", "sk").CreateTable().IfNotExists().TimeToLive("expires").WaitUntilActive();
+
+        // Act
+        var json = create.ToRequestJson();
+
+        // Assert
+        const string Expected = """
+            {
+              "AttributeDefinitions": [{"AttributeName": "pk", "AttributeType": "S"}, {"AttributeName": "sk", "AttributeType": "S"}],
+              "TableName": "Shop",
+              "KeySchema": [{"AttributeName": "pk", "KeyType": "HASH"}, {"AttributeName": "sk", "KeyType": "RANGE"}],
+              "BillingMode": "PAY_PER_REQUEST"
+            }
+            """;
+        await Assert.That((JsonComparer.Differences(Expected, json), handler.Requests.Count)).IsEqualTo((string.Empty, 0));
+    }
+
+    [Test]
     public async Task Including_TheSameEntityAgain_ChangesNothing()
     {
         // Arrange

@@ -172,3 +172,13 @@ A run that reads nothing, and whose failed condition is its answer, such as a cl
 ```csharp
 string json = products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price, 79.00m).ToRequestJson();
 ```
+
+Every command has it but a parallel scan, which sends one request per segment. A batch renders its first request, and `CreateTable()` the body of its `CreateTable`, without the calls that `IfNotExists()`, `WaitUntilActive()` and `TimeToLive(...)` make around it. `CreateTable()` is an ordinary class, so it stays usable after rendering:
+
+```csharp
+CreateTableCommand create = products.CreateTable().IfNotExists();
+string body = create.ToRequestJson();
+await create.SendAsync(ct);
+```
+
+On a type without `ToRequestJson`, the compiler answers `CS0311` and names `TransactWriteExtensions.ToRequestJson<TChain>`: that is the method of a transaction, which C# offers on every type and rejects only then.

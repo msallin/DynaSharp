@@ -1,10 +1,13 @@
+using System.Buffers;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Text;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
+using DynaSharp.Serialization;
 
 namespace DynaSharp;
 
@@ -226,6 +229,23 @@ public sealed class CreateTableCommand
     /// </summary>
     /// <returns>The request.</returns>
     public CreateTableRequest ToRequest() => _schema.ToRequest(_table.Name, _capacity, _stream);
+
+    /// <summary>
+    /// Renders the body of the <c>CreateTable</c> request that <see cref="SendAsync"/> would send, as DynamoDB JSON, and sends nothing: the JSON of <see cref="ToRequest"/>. It is meant for tests and debugging.
+    /// <see cref="IfNotExists"/>, <see cref="WaitUntilActive()"/> and <see cref="TimeToLive(string)"/> make calls of their own around the request, which are not in it.
+    /// </summary>
+    /// <remarks>Unlike <c>ToRequestJson</c> of the commands of items, it does not end the command, which stays this ordinary class: it can be rendered and then sent.</remarks>
+    /// <returns>The request body.</returns>
+    public string ToRequestJson()
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            CreateTableOperation.WriteRequest(new DynamoDbWriter(json), ToRequest());
+        }
+
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
 
     /// <summary>
     /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, which implies it, the table is normally <c>CREATING</c> when this returns.
