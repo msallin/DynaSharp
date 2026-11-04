@@ -448,6 +448,45 @@ public sealed class DescribeTableOperationTests
     }
 
     [Test]
+    public async Task ReadResponse_OnDemandThroughput_ReturnsBothMaximums()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","OnDemandThroughput":{"MaxReadRequestUnits":10,"FutureMember":[1],"MaxWriteRequestUnits":-1}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 10, MaxWriteRequestUnits = -1 });
+    }
+
+    [Test]
+    public async Task ReadResponse_OnDemandThroughputWithOneMaximum_LeavesTheOtherNull()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","OnDemandThroughput":{"MaxWriteRequestUnits":5}}}""";
+
+        // Act
+        var table = Read(json).Table!;
+
+        // Assert
+        await Assert.That(table.OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxWriteRequestUnits = 5 });
+    }
+
+    [Test]
+    public async Task ReadResponse_OnDemandThroughputOfAGlobalIndex_ReturnsItOnTheIndex()
+    {
+        // Arrange
+        const string json = """{"Table":{"TableName":"Music","GlobalSecondaryIndexes":[{"IndexName":"ByArtist","OnDemandThroughput":{"MaxReadRequestUnits":4,"MaxWriteRequestUnits":3}}]}}""";
+
+        // Act
+        var index = Read(json).Table!.GlobalSecondaryIndexes[0];
+
+        // Assert
+        await Assert.That(index.OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 4, MaxWriteRequestUnits = 3 });
+    }
+
+    [Test]
     public async Task ReadResponse_SSEDescription_ReturnsEveryMember()
     {
         // Arrange

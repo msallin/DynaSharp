@@ -6281,6 +6281,95 @@
     {
       "service": "dynamodb",
       "operation": "CreateTable",
+      "name": "OnDemandThroughputOnTableAndIndex",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "status",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "createdAt",
+            "AttributeType": "N"
+          }
+        ],
+        "TableName": "Orders",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "ByStatus",
+            "KeySchema": [
+              {
+                "AttributeName": "status",
+                "KeyType": "HASH"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "KEYS_ONLY"
+            },
+            "OnDemandThroughput": {
+              "MaxReadRequestUnits": 4,
+              "MaxWriteRequestUnits": 3
+            }
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "OnDemandThroughput": {
+          "MaxReadRequestUnits": 10,
+          "MaxWriteRequestUnits": 5
+        }
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"pk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"sk\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"status\", \"AttributeType\": \"S\"}, {\"AttributeName\": \"createdAt\", \"AttributeType\": \"N\"}], \"TableName\": \"Orders\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}, {\"AttributeName\": \"sk\", \"KeyType\": \"RANGE\"}], \"GlobalSecondaryIndexes\": [{\"IndexName\": \"ByStatus\", \"KeySchema\": [{\"AttributeName\": \"status\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"KEYS_ONLY\"}, \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 4, \"MaxWriteRequestUnits\": 3}}], \"BillingMode\": \"PAY_PER_REQUEST\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 10, \"MaxWriteRequestUnits\": 5}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
+      "name": "OnDemandThroughputReadOnly",
+      "source": null,
+      "target": "DynamoDB_20120810.CreateTable",
+      "params": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          }
+        ],
+        "TableName": "Users",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "OnDemandThroughput": {
+          "MaxReadRequestUnits": 7
+        }
+      },
+      "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"pk\", \"AttributeType\": \"S\"}], \"TableName\": \"Users\", \"KeySchema\": [{\"AttributeName\": \"pk\", \"KeyType\": \"HASH\"}], \"BillingMode\": \"PAY_PER_REQUEST\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 7}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "CreateTable",
       "name": "TableClassStandard",
       "source": null,
       "target": "DynamoDB_20120810.CreateTable",
@@ -7085,6 +7174,168 @@
         ]
       },
       "body": "{\"TableName\": \"Orders\", \"AttributeDefinitions\": [{\"AttributeName\": \"customer\", \"AttributeType\": \"S\"}], \"GlobalSecondaryIndexUpdates\": [{\"Delete\": {\"IndexName\": \"ByStatus\"}}, {\"Update\": {\"IndexName\": \"ByCreatedAt\", \"ProvisionedThroughput\": {\"ReadCapacityUnits\": 4, \"WriteCapacityUnits\": 4}}}, {\"Create\": {\"IndexName\": \"ByCustomer\", \"KeySchema\": [{\"AttributeName\": \"customer\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}}}]}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "OnDemandThroughput",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "OnDemandThroughput": {
+          "MaxReadRequestUnits": 20,
+          "MaxWriteRequestUnits": 15
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 20, \"MaxWriteRequestUnits\": 15}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "OnDemandThroughputRemoved",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "OnDemandThroughput": {
+          "MaxReadRequestUnits": -1,
+          "MaxWriteRequestUnits": -1
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": -1, \"MaxWriteRequestUnits\": -1}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "OnDemandThroughputWriteOnly",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "OnDemandThroughput": {
+          "MaxWriteRequestUnits": 3
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"OnDemandThroughput\": {\"MaxWriteRequestUnits\": 3}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "BillingModePayPerRequestWithOnDemandThroughput",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "BillingMode": "PAY_PER_REQUEST",
+        "OnDemandThroughput": {
+          "MaxReadRequestUnits": 9223372036854775807,
+          "MaxWriteRequestUnits": 1
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"BillingMode\": \"PAY_PER_REQUEST\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 9223372036854775807, \"MaxWriteRequestUnits\": 1}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "GlobalSecondaryIndexCreateWithOnDemandThroughput",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "status",
+            "AttributeType": "S"
+          }
+        ],
+        "GlobalSecondaryIndexUpdates": [
+          {
+            "Create": {
+              "IndexName": "ByStatus",
+              "KeySchema": [
+                {
+                  "AttributeName": "status",
+                  "KeyType": "HASH"
+                }
+              ],
+              "Projection": {
+                "ProjectionType": "ALL"
+              },
+              "OnDemandThroughput": {
+                "MaxReadRequestUnits": 4,
+                "MaxWriteRequestUnits": 3
+              }
+            }
+          }
+        ]
+      },
+      "body": "{\"TableName\": \"Orders\", \"AttributeDefinitions\": [{\"AttributeName\": \"status\", \"AttributeType\": \"S\"}], \"GlobalSecondaryIndexUpdates\": [{\"Create\": {\"IndexName\": \"ByStatus\", \"KeySchema\": [{\"AttributeName\": \"status\", \"KeyType\": \"HASH\"}], \"Projection\": {\"ProjectionType\": \"ALL\"}, \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 4, \"MaxWriteRequestUnits\": 3}}}]}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "GlobalSecondaryIndexUpdateOnDemandThroughput",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "GlobalSecondaryIndexUpdates": [
+          {
+            "Update": {
+              "IndexName": "ByStatus",
+              "OnDemandThroughput": {
+                "MaxReadRequestUnits": 6
+              }
+            }
+          }
+        ]
+      },
+      "body": "{\"TableName\": \"Orders\", \"GlobalSecondaryIndexUpdates\": [{\"Update\": {\"IndexName\": \"ByStatus\", \"OnDemandThroughput\": {\"MaxReadRequestUnits\": 6}}}]}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "SseAwsManagedKey",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "SSESpecification": {
+          "Enabled": true
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"SSESpecification\": {\"Enabled\": true}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "SseCustomerManagedKey",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "SSESpecification": {
+          "Enabled": true,
+          "SSEType": "KMS",
+          "KMSMasterKeyId": "alias/orders"
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"SSESpecification\": {\"Enabled\": true, \"SSEType\": \"KMS\", \"KMSMasterKeyId\": \"alias/orders\"}}"
+    },
+    {
+      "service": "dynamodb",
+      "operation": "UpdateTable",
+      "name": "SseOwnedKey",
+      "source": null,
+      "target": "DynamoDB_20120810.UpdateTable",
+      "params": {
+        "TableName": "Orders",
+        "SSESpecification": {
+          "Enabled": false
+        }
+      },
+      "body": "{\"TableName\": \"Orders\", \"SSESpecification\": {\"Enabled\": false}}"
     },
     {
       "service": "dynamodb",
@@ -10588,7 +10839,7 @@
       "operation": "CreateTable",
       "name": "AllMembersAndUnknownProperties",
       "source": null,
-      "wire": "{\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false},\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"UPDATING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Trailing\":[1,2,3]}",
+      "wire": "{\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false},\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"UPDATING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"},\"OnDemandThroughput\":{\"MaxReadRequestUnits\":4,\"MaxWriteRequestUnits\":3}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false,\"OnDemandThroughput\":{\"MaxWriteRequestUnits\":5}},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"OnDemandThroughput\":{\"MaxReadRequestUnits\":9223372036854775807,\"MaxWriteRequestUnits\":-1,\"FutureMember\":1},\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Trailing\":[1,2,3]}",
       "parsed": {
         "TableDescription": {
           "AttributeDefinitions": [
@@ -10682,6 +10933,10 @@
                 "ReadCapacityUnits": 3,
                 "WriteCapacityUnits": 2
               },
+              "OnDemandThroughput": {
+                "MaxReadRequestUnits": 4,
+                "MaxWriteRequestUnits": 3
+              },
               "WarmThroughput": {
                 "ReadUnitsPerSecond": 12000,
                 "WriteUnitsPerSecond": 4000,
@@ -10700,7 +10955,10 @@
                 "ProjectionType": "KEYS_ONLY"
               },
               "IndexStatus": "ACTIVE",
-              "Backfilling": false
+              "Backfilling": false,
+              "OnDemandThroughput": {
+                "MaxWriteRequestUnits": 5
+              }
             },
             {
               "IndexName": "Minimal"
@@ -10720,7 +10978,11 @@
           "TableClassSummary": {
             "TableClass": "STANDARD_INFREQUENT_ACCESS"
           },
-          "DeletionProtectionEnabled": true
+          "DeletionProtectionEnabled": true,
+          "OnDemandThroughput": {
+            "MaxReadRequestUnits": 9223372036854775807,
+            "MaxWriteRequestUnits": -1
+          }
         }
       }
     },
@@ -10781,7 +11043,7 @@
       "operation": "DeleteTable",
       "name": "AllMembersAndUnknownProperties",
       "source": null,
-      "wire": "{\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"DELETING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}}",
+      "wire": "{\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"DELETING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"},\"OnDemandThroughput\":{\"MaxReadRequestUnits\":4,\"MaxWriteRequestUnits\":3}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false,\"OnDemandThroughput\":{\"MaxWriteRequestUnits\":5}},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"OnDemandThroughput\":{\"MaxReadRequestUnits\":9223372036854775807,\"MaxWriteRequestUnits\":-1,\"FutureMember\":1},\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}}",
       "parsed": {
         "TableDescription": {
           "AttributeDefinitions": [
@@ -10875,6 +11137,10 @@
                 "ReadCapacityUnits": 3,
                 "WriteCapacityUnits": 2
               },
+              "OnDemandThroughput": {
+                "MaxReadRequestUnits": 4,
+                "MaxWriteRequestUnits": 3
+              },
               "WarmThroughput": {
                 "ReadUnitsPerSecond": 12000,
                 "WriteUnitsPerSecond": 4000,
@@ -10893,7 +11159,10 @@
                 "ProjectionType": "KEYS_ONLY"
               },
               "IndexStatus": "ACTIVE",
-              "Backfilling": false
+              "Backfilling": false,
+              "OnDemandThroughput": {
+                "MaxWriteRequestUnits": 5
+              }
             },
             {
               "IndexName": "Minimal"
@@ -10913,7 +11182,11 @@
           "TableClassSummary": {
             "TableClass": "STANDARD_INFREQUENT_ACCESS"
           },
-          "DeletionProtectionEnabled": true
+          "DeletionProtectionEnabled": true,
+          "OnDemandThroughput": {
+            "MaxReadRequestUnits": 9223372036854775807,
+            "MaxWriteRequestUnits": -1
+          }
         }
       }
     },
@@ -13347,7 +13620,7 @@
       "operation": "UpdateTable",
       "name": "AllMembersAndUnknownProperties",
       "source": null,
-      "wire": "{\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false},\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"UPDATING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Trailing\":[1,2,3]}",
+      "wire": "{\"Unknown\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false},\"TableDescription\":{\"TableName\":\"Orders\",\"TableArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders\",\"TableId\":\"d4a0fa45-7c8e-4c5e-b3f4-2e9a8d8b3b3c\",\"TableStatus\":\"UPDATING\",\"CreationDateTime\":1761901254.813,\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"sk\",\"AttributeType\":\"S\"},{\"AttributeName\":\"status\",\"AttributeType\":\"S\"},{\"AttributeName\":\"createdAt\",\"AttributeType\":\"N\"}],\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"sk\",\"KeyType\":\"RANGE\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableSizeBytes\":1234567890123,\"ItemCount\":987654321098,\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1761901300.5},\"LocalSecondaryIndexes\":[{\"IndexName\":\"ByCreatedAt\",\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"INCLUDE\",\"NonKeyAttributes\":[\"total\",\"customer\"]},\"IndexSizeBytes\":10,\"ItemCount\":2,\"IndexArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/index/ByCreatedAt\",\"FutureMember\":[1,2]}],\"GlobalSecondaryIndexes\":[{\"IndexName\":\"ByStatus\",\"KeySchema\":[{\"AttributeName\":\"status\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"createdAt\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"IndexStatus\":\"CREATING\",\"Backfilling\":true,\"ProvisionedThroughput\":{\"ReadCapacityUnits\":3,\"WriteCapacityUnits\":2},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"WriteUnitsPerSecond\":4000,\"Status\":\"ACTIVE\"},\"OnDemandThroughput\":{\"MaxReadRequestUnits\":4,\"MaxWriteRequestUnits\":3}},{\"IndexName\":\"ByCustomer\",\"KeySchema\":[{\"AttributeName\":\"customer\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"KEYS_ONLY\"},\"IndexStatus\":\"ACTIVE\",\"Backfilling\":false,\"OnDemandThroughput\":{\"MaxWriteRequestUnits\":5}},{\"IndexName\":\"Minimal\"}],\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"LatestStreamLabel\":\"2026-10-31T12:00:00.000\",\"LatestStreamArn\":\"arn:aws:dynamodb:eu-central-2:123456789012:table/Orders/stream/2026-10-31T12:00:00.000\",\"SSEDescription\":{\"Status\":\"ENABLED\",\"SSEType\":\"KMS\",\"KMSMasterKeyArn\":\"arn:aws:kms:eu-central-2:123456789012:key/1\"},\"TableClassSummary\":{\"TableClass\":\"STANDARD_INFREQUENT_ACCESS\"},\"DeletionProtectionEnabled\":true,\"OnDemandThroughput\":{\"MaxReadRequestUnits\":9223372036854775807,\"MaxWriteRequestUnits\":-1,\"FutureMember\":1},\"FutureMember\":{\"Nested\":{\"Deeper\":[1,{\"x\":null},\"text\",true,1.5]},\"Flag\":false}},\"Trailing\":[1,2,3]}",
       "parsed": {
         "TableDescription": {
           "AttributeDefinitions": [
@@ -13441,6 +13714,10 @@
                 "ReadCapacityUnits": 3,
                 "WriteCapacityUnits": 2
               },
+              "OnDemandThroughput": {
+                "MaxReadRequestUnits": 4,
+                "MaxWriteRequestUnits": 3
+              },
               "WarmThroughput": {
                 "ReadUnitsPerSecond": 12000,
                 "WriteUnitsPerSecond": 4000,
@@ -13459,7 +13736,10 @@
                 "ProjectionType": "KEYS_ONLY"
               },
               "IndexStatus": "ACTIVE",
-              "Backfilling": false
+              "Backfilling": false,
+              "OnDemandThroughput": {
+                "MaxWriteRequestUnits": 5
+              }
             },
             {
               "IndexName": "Minimal"
@@ -13479,7 +13759,11 @@
           "TableClassSummary": {
             "TableClass": "STANDARD_INFREQUENT_ACCESS"
           },
-          "DeletionProtectionEnabled": true
+          "DeletionProtectionEnabled": true,
+          "OnDemandThroughput": {
+            "MaxReadRequestUnits": 9223372036854775807,
+            "MaxWriteRequestUnits": -1
+          }
         }
       }
     },

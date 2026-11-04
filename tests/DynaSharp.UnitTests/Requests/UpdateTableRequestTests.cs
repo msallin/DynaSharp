@@ -29,6 +29,18 @@ public sealed class UpdateTableRequestTests
     }
 
     [Test]
+    public async Task Constructor_OnlyRequiredMembers_EncryptionAndOnDemandThroughputAreNull()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var value = new UpdateTableRequest { TableName = "Orders" };
+
+        // Assert
+        await Assert.That((value.SSESpecification, value.OnDemandThroughput)).IsEqualTo(((SSESpecification?)null, (OnDemandThroughput?)null));
+    }
+
+    [Test]
     public async Task Constructor_OnlyRequiredMembers_DeletionProtectionIsNull()
     {
         // Arrange (nothing to arrange)

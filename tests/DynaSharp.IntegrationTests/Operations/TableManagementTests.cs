@@ -186,6 +186,108 @@ public sealed class TableManagementTests(Backend backend)
     }
 
     [Test]
+    public async Task UpdateTable_OnDemandThroughput_ReportsTheNewMaximums()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await CreateWithMaximumsAsync(sandbox);
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest
+        {
+            TableName = table,
+            OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 20, MaxWriteRequestUnits = 15 },
+        });
+        var description = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
+
+        // Assert
+        await Assert.That(description.OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 20, MaxWriteRequestUnits = 15 });
+    }
+
+    [Test]
+    public async Task UpdateTable_OnDemandThroughputOfMinusOne_RemovesTheMaximums()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await CreateWithMaximumsAsync(sandbox);
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest
+        {
+            TableName = table,
+            OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = -1, MaxWriteRequestUnits = -1 },
+        });
+        var description = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
+
+        // Assert: DynamoDB may report no maximum as -1 or leave it out.
+        await Assert.That(description.OnDemandThroughput is null or { MaxReadRequestUnits: null or -1, MaxWriteRequestUnits: null or -1 }).IsTrue();
+    }
+
+    [Test]
+    public async Task UpdateTable_GlobalIndexOnDemandThroughput_ReportsTheNewMaximums()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.GlobalIndexOnDemandThroughput);
+        Gaps.SkipIfMissing(backend, Gap.UpdateGlobalIndexOnDemandThroughput);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(new TableSpec(WithGlobalIndex: true));
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest
+        {
+            TableName = table,
+            GlobalSecondaryIndexUpdates =
+            [
+                new GlobalSecondaryIndexUpdate
+                {
+                    Update = new UpdateGlobalSecondaryIndexAction
+                    {
+                        IndexName = Tables.GlobalIndexName,
+                        OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 6, MaxWriteRequestUnits = 7 },
+                    },
+                },
+            ],
+        });
+        var description = await Tables.WaitUntilAsync(sandbox.Client, table, Tables.IsSettled);
+
+        // Assert
+        await Assert.That(description.GlobalSecondaryIndexes.Single().OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 6, MaxWriteRequestUnits = 7 });
+    }
+
+    [Test]
+    public async Task UpdateTable_SseEnabled_EncryptsTheTableWithAKmsKey()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.UpdateServerSideEncryption);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync();
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = table, SSESpecification = new SSESpecification { Enabled = true } });
+        var description = await Tables.WaitUntilAsync(sandbox.Client, table, static description => Tables.IsSettled(description) && description.SSEDescription?.Status == SSEStatus.Enabled);
+
+        // Assert
+        await Assert.That((description.SSEDescription!.SSEType, description.SSEDescription.KMSMasterKeyArn!.StartsWith("arn:aws:kms:", StringComparison.Ordinal))).IsEqualTo((SSEType.Kms, true));
+    }
+
+    [Test]
+    public async Task UpdateTable_SseDisabled_GoesBackToTheKeyThatDynamoDbOwns()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.UpdateServerSideEncryption);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = Tables.UniqueName();
+        await sandbox.CreateTableAsync(Tables.Request(table, TableSpec.PartitionOnly) with { SSESpecification = new SSESpecification { Enabled = true } });
+
+        // Act
+        await Tables.UpdateAsync(sandbox.Client, new UpdateTableRequest { TableName = table, SSESpecification = new SSESpecification { Enabled = false } });
+        var description = await Tables.WaitUntilAsync(sandbox.Client, table, static description => Tables.IsSettled(description) && description.SSEDescription?.Status is not (SSEStatus.Enabled or SSEStatus.Updating or SSEStatus.Disabling));
+
+        // Assert: DynamoDB reports no SSEDescription for the key that it owns, or one that is DISABLED.
+        await Assert.That(description.SSEDescription is null or { Status: SSEStatus.Disabled }).IsTrue();
+    }
+
+    [Test]
     public async Task UpdateTable_EnableStream_TableHasAStream()
     {
         // Arrange
@@ -482,6 +584,13 @@ public sealed class TableManagementTests(Backend backend)
         {
             return true;
         }
+    }
+
+    private static async Task<string> CreateWithMaximumsAsync(Sandbox sandbox)
+    {
+        var name = Tables.UniqueName();
+        await sandbox.CreateTableAsync(Tables.Request(name, TableSpec.PartitionOnly) with { OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 10, MaxWriteRequestUnits = 5 } });
+        return name;
     }
 
     private static async Task<string> CreateProvisionedAsync(Sandbox sandbox, bool withIndex = false)

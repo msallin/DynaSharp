@@ -103,6 +103,25 @@ public sealed class CreateTableOperationTests
         ["StreamDisabled"] = OnDemand() with { StreamSpecification = new() { StreamEnabled = false } },
         ["SseEnabledWithoutKey"] = OnDemand() with { SSESpecification = new() { Enabled = true } },
         ["SseAes256"] = OnDemand() with { SSESpecification = new() { SSEType = SSEType.Aes256 } },
+        ["OnDemandThroughputOnTableAndIndex"] = new()
+        {
+            TableName = "Orders",
+            AttributeDefinitions = OrdersAttributes,
+            KeySchema = OrdersKey,
+            GlobalSecondaryIndexes =
+            [
+                new()
+                {
+                    IndexName = "ByStatus",
+                    KeySchema = [new("status", KeyType.Hash)],
+                    Projection = new() { ProjectionType = ProjectionType.KeysOnly },
+                    OnDemandThroughput = new() { MaxReadRequestUnits = 4, MaxWriteRequestUnits = 3 },
+                },
+            ],
+            BillingMode = BillingMode.PayPerRequest,
+            OnDemandThroughput = new() { MaxReadRequestUnits = 10, MaxWriteRequestUnits = 5 },
+        },
+        ["OnDemandThroughputReadOnly"] = OnDemand() with { OnDemandThroughput = new() { MaxReadRequestUnits = 7 } },
         ["TableClassStandard"] = OnDemand() with { TableClass = TableClass.Standard },
         ["SpecialCharactersInTags"] = OnDemand() with { Tags = [new() { Key = OperationVectors.SpecialText, Value = OperationVectors.SpecialText }] },
         ["StreamViewNewImage"] = OnDemand() with { StreamSpecification = new() { StreamEnabled = true, StreamViewType = StreamViewType.NewImage } },

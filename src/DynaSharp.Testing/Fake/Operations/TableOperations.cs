@@ -22,7 +22,13 @@ namespace DynaSharp.Testing.Fake;
 /// <c>SSEDescription</c> with <c>ENABLED</c>, <c>KMS</c> and the ARN of the key. Without <c>KMSMasterKeyId</c> that is <see cref="FakeTable.AwsManagedKeyArn"/>; an ARN is
 /// echoed, and a key id or an alias name becomes an ARN of the fake's region and account (DynamoDB reports the key behind an alias, which the fake cannot know).
 /// <c>SSEType</c> is KMS whatever the request says, the only type DynamoDB documents for a request. <c>Enabled: false</c> or no specification is the key that DynamoDB owns,
-/// which has no <c>SSEDescription</c>. <c>UpdateTable</c> does not change the encryption.
+/// which has no <c>SSEDescription</c>. An <c>SSESpecification</c> in <c>UpdateTable</c> sets the encryption the same way, at once, also when it is the one the table has.
+/// </para>
+/// <para>
+/// <c>OnDemandThroughput</c> of a table or a global index is kept and reported, never enforced, and only on demand: with <c>PROVISIONED</c> it is a <c>ValidationException</c>,
+/// and a switch to <c>PROVISIONED</c> drops the maximums of the table and its indexes. A maximum is -1 or 1 to <see cref="MaxOnDemandUnits"/>, the default quota of a table;
+/// -1, and a member left out at creation, is no maximum, which is not reported. In <c>UpdateTable</c>, a member left out keeps its value. An object without either member is a
+/// <c>ValidationException</c>, which the API reference implies (DynamoDB Local rejects it, Dynoxide ignores it).
 /// </para>
 /// <para>
 /// A <c>StreamSpecification</c> with <c>StreamEnabled: true</c> enables a new <see cref="FakeStream"/>, with a new ARN and label each time, and <c>false</c> in <c>UpdateTable</c>
@@ -50,6 +56,7 @@ internal static class TableOperations
     private const int MaxLocalIndexes = 5;
     private const int MaxGlobalIndexes = 20;
     private const int MaxListLimit = 100;
+    private const long MaxOnDemandUnits = 40_000;
     private const string Invalid = "One or more parameter values were invalid: ";
 
     /// <summary>Answers <c>CreateTable</c>.</summary>
@@ -174,9 +181,12 @@ internal static class TableOperations
         }
 
         (table.ReadCapacityUnits, table.WriteCapacityUnits) = Throughput(table.BillingMode, request.ProvisionedThroughput, null);
+        table.OnDemandThroughput = OnDemandMaximums(table.BillingMode, request.OnDemandThroughput, null, null, CreateTableName);
         for (var i = 0; i < globals.Count; i++)
         {
-            (table.GlobalIndexes[i].ReadCapacityUnits, table.GlobalIndexes[i].WriteCapacityUnits) = Throughput(table.BillingMode, globals[i].ProvisionedThroughput, globals[i].IndexName);
+            var index = table.GlobalIndexes[i];
+            (index.ReadCapacityUnits, index.WriteCapacityUnits) = Throughput(table.BillingMode, globals[i].ProvisionedThroughput, globals[i].IndexName);
+            index.OnDemandThroughput = OnDemandMaximums(table.BillingMode, globals[i].OnDemandThroughput, null, globals[i].IndexName, CreateTableName);
         }
 
         ThrowIfUnusedDefinitions(table, types);
@@ -201,8 +211,8 @@ internal static class TableOperations
         ThrowIfInvalidName(request.TableName, "tableName");
         var table = db.DescribeTable(request.TableName);
         var updates = request.GlobalSecondaryIndexUpdates ?? [];
-        if (request.BillingMode == BillingMode.Unspecified && request.ProvisionedThroughput is null && updates.Count == 0
-            && request.TableClass == TableClass.Unspecified && request.DeletionProtectionEnabled is null && request.StreamSpecification is null)
+        if (request.BillingMode == BillingMode.Unspecified && request.ProvisionedThroughput is null && updates.Count == 0 && request.TableClass == TableClass.Unspecified
+            && request.DeletionProtectionEnabled is null && request.StreamSpecification is null && request.SSESpecification is null && request.OnDemandThroughput is null)
         {
             throw FakeError.Validation("At least one of ProvisionedThroughput, BillingMode, UpdateStreamEnabled, GlobalSecondaryIndexUpdates or SSESpecification or ReplicaUpdates is required");
         }
@@ -226,11 +236,13 @@ internal static class TableOperations
                 + $"{read}. Requested ReadCapacityUnits: {read}. Current WriteCapacityUnits provisioned for the table: {write}. Requested WriteCapacityUnits: {write}. Refer to the Amazon DynamoDB Developer Guide for current limits and how to request higher limits.");
         }
 
+        var onDemand = OnDemandMaximums(billingMode, request.OnDemandThroughput, table.OnDemandThroughput, null, UpdateTableName);
         ThrowIfInvalidStreamChange(table, request.StreamSpecification);
 
         // Everything is checked on copies first, so that a request that fails leaves the table as it was.
         var indexes = table.GlobalIndexes.ToList();
         var throughput = indexes.ToDictionary(static index => index.Name, static index => (index.ReadCapacityUnits, index.WriteCapacityUnits), StringComparer.Ordinal);
+        var indexOnDemand = indexes.ToDictionary(static index => index.Name, index => OnDemandMaximums(billingMode, null, index.OnDemandThroughput, index.Name, UpdateTableName), StringComparer.Ordinal);
         FakeIndex? created = null;
         foreach (var update in updates)
         {
@@ -244,10 +256,17 @@ internal static class TableOperations
                 created = NewGlobalIndex(table, create.IndexName, create.KeySchema, create.Projection, declared);
                 indexes.Add(created);
                 throughput[create.IndexName] = Throughput(billingMode, create.ProvisionedThroughput, create.IndexName);
+                indexOnDemand[create.IndexName] = OnDemandMaximums(billingMode, create.OnDemandThroughput, null, create.IndexName, UpdateTableName);
             }
             else if (update.Update is { } change)
             {
-                _ = Existing(indexes, change.IndexName);
+                var index = Existing(indexes, change.IndexName);
+                if (change.ProvisionedThroughput is null && change.OnDemandThroughput is null)
+                {
+                    throw FakeError.Validation(Invalid + $"ProvisionedThroughput or OnDemandThroughput must be specified for index: {change.IndexName}");
+                }
+
+                indexOnDemand[change.IndexName] = OnDemandMaximums(billingMode, change.OnDemandThroughput, index.OnDemandThroughput, change.IndexName, UpdateTableName);
                 throughput[change.IndexName] = Throughput(billingMode, change.ProvisionedThroughput, change.IndexName);
             }
             else if (update.Delete is { } delete)
@@ -270,17 +289,24 @@ internal static class TableOperations
 
         table.BillingMode = billingMode;
         (table.ReadCapacityUnits, table.WriteCapacityUnits) = (read, write);
+        table.OnDemandThroughput = onDemand;
         table.GlobalIndexes.Clear();
         table.GlobalIndexes.AddRange(indexes);
         foreach (var index in indexes)
         {
             (index.ReadCapacityUnits, index.WriteCapacityUnits) = throughput[index.Name];
+            index.OnDemandThroughput = indexOnDemand[index.Name];
         }
 
         created?.Backfill(table.All());
         table.AttributeDefinitions = [.. types.Where(type => KeyNames(table).Contains(type.Key)).Select(static type => new AttributeDefinition(type.Key, type.Value))];
         table.TableClass = request.TableClass == TableClass.Unspecified ? table.TableClass : request.TableClass;
         table.DeletionProtectionEnabled = request.DeletionProtectionEnabled ?? table.DeletionProtectionEnabled;
+        if (request.SSESpecification is { } encryption)
+        {
+            table.KmsMasterKeyArn = KmsKeyArn(encryption);
+        }
+
         if (request.StreamSpecification is { } stream)
         {
             ChangeStream(db, table, stream);
@@ -546,6 +572,47 @@ internal static class TableOperations
         return (throughput.ReadCapacityUnits, throughput.WriteCapacityUnits);
     }
 
+    // The maximums of a table or an index after a request, from those it asks for and those it has: a member left out keeps its value, and -1 removes it. Only on demand: a
+    // table with provisioned capacity rejects them and has none. The messages are Dynoxide's, which match DynamoDB Local's where both check.
+    private static OnDemandThroughput? OnDemandMaximums(BillingMode mode, OnDemandThroughput? requested, OnDemandThroughput? current, string? indexName, string operation)
+    {
+        if (requested is null)
+        {
+            return mode == BillingMode.PayPerRequest ? current : null;
+        }
+
+        if (requested is { MaxReadRequestUnits: null, MaxWriteRequestUnits: null })
+        {
+            throw FakeError.Validation(Invalid + "OnDemandThroughput must specify MaxReadRequestUnits, MaxWriteRequestUnits, or both");
+        }
+
+        if (mode == BillingMode.Provisioned)
+        {
+            var member = requested.MaxReadRequestUnits is null ? "MaxWriteRequestUnits" : "MaxReadRequestUnits";
+            throw FakeError.Validation(Invalid + (operation == CreateTableName
+                ? $"{member} for OnDemandThroughput cannot be specified when table BillingMode is PROVISIONED."
+                : $"{member} for OnDemandThroughput cannot be specified when the table BillingMode is PROVISIONED"));
+        }
+
+        var target = indexName is null ? "table" : "index : " + indexName;
+        foreach (var (value, member) in new[] { (requested.MaxReadRequestUnits, "MaxReadRequestUnits"), (requested.MaxWriteRequestUnits, "MaxWriteRequestUnits") })
+        {
+            if (value is not (null or -1 or >= 1))
+            {
+                throw FakeError.Validation(Invalid + $"Requested {member} for OnDemandThroughput for {target} is outside of valid range");
+            }
+        }
+
+        if (requested.MaxReadRequestUnits > MaxOnDemandUnits || requested.MaxWriteRequestUnits > MaxOnDemandUnits)
+        {
+            throw FakeError.Validation($"Cannot increase provisioned throughput to more than 40,000 units per {(indexName is null ? "table" : "global secondary index")}");
+        }
+
+        var maxRead = (requested.MaxReadRequestUnits ?? current?.MaxReadRequestUnits) is { } read and not -1 ? read : (long?)null;
+        var maxWrite = (requested.MaxWriteRequestUnits ?? current?.MaxWriteRequestUnits) is { } write and not -1 ? write : (long?)null;
+        return maxRead is null && maxWrite is null ? null : new OnDemandThroughput { MaxReadRequestUnits = maxRead, MaxWriteRequestUnits = maxWrite };
+    }
+
     private static CreateTableRequest ReadCreateTable(JsonElement request)
     {
         RequestJson.Members(
@@ -561,7 +628,8 @@ internal static class TableOperations
             "StreamSpecification",
             "SSESpecification",
             "TableClass",
-            "DeletionProtectionEnabled");
+            "DeletionProtectionEnabled",
+            "OnDemandThroughput");
         return new CreateTableRequest
         {
             AttributeDefinitions = ReadDefinitions(RequestJson.Required(request, "AttributeDefinitions"), CreateTableName),
@@ -572,9 +640,10 @@ internal static class TableOperations
             BillingMode = ReadOptionalEnum(request, "BillingMode", WireNames.BillingModes),
             ProvisionedThroughput = ReadOptionalThroughput(request, "ProvisionedThroughput", CreateTableName),
             StreamSpecification = RequestJson.Optional(request, "StreamSpecification") is { } stream ? ReadStream(stream, CreateTableName) : null,
-            SSESpecification = RequestJson.Optional(request, "SSESpecification") is { } sse ? ReadSse(sse) : null,
+            SSESpecification = RequestJson.Optional(request, "SSESpecification") is { } sse ? ReadSse(sse, CreateTableName) : null,
             TableClass = ReadOptionalEnum(request, "TableClass", WireNames.TableClasses),
             DeletionProtectionEnabled = RequestJson.Optional(request, "DeletionProtectionEnabled") is { } protection && RequestJson.ReadBool(protection, "DeletionProtectionEnabled"),
+            OnDemandThroughput = ReadOptionalOnDemand(request, CreateTableName),
         };
     }
 
@@ -589,8 +658,10 @@ internal static class TableOperations
             "ProvisionedThroughput",
             "GlobalSecondaryIndexUpdates",
             "StreamSpecification",
+            "SSESpecification",
             "TableClass",
-            "DeletionProtectionEnabled");
+            "DeletionProtectionEnabled",
+            "OnDemandThroughput");
         return new UpdateTableRequest
         {
             AttributeDefinitions = RequestJson.Optional(request, "AttributeDefinitions") is { } definitions ? ReadDefinitions(definitions, UpdateTableName) : null,
@@ -601,8 +672,10 @@ internal static class TableOperations
                 ? [.. RequestJson.ReadArray(updates, "GlobalSecondaryIndexUpdates").Select(ReadIndexUpdate)]
                 : null,
             StreamSpecification = RequestJson.Optional(request, "StreamSpecification") is { } stream ? ReadStream(stream, UpdateTableName) : null,
+            SSESpecification = RequestJson.Optional(request, "SSESpecification") is { } sse ? ReadSse(sse, UpdateTableName) : null,
             TableClass = ReadOptionalEnum(request, "TableClass", WireNames.TableClasses),
             DeletionProtectionEnabled = RequestJson.Optional(request, "DeletionProtectionEnabled") is { } protection ? RequestJson.ReadBool(protection, "DeletionProtectionEnabled") : null,
+            OnDemandThroughput = ReadOptionalOnDemand(request, UpdateTableName),
         };
     }
 
@@ -622,13 +695,14 @@ internal static class TableOperations
 
         if (RequestJson.Optional(element, "Update") is { } update)
         {
-            RequestJson.Members(update, "Update of UpdateTable", "IndexName", "ProvisionedThroughput");
+            RequestJson.Members(update, "Update of UpdateTable", "IndexName", "ProvisionedThroughput", "OnDemandThroughput");
             return new GlobalSecondaryIndexUpdate
             {
                 Update = new UpdateGlobalSecondaryIndexAction
                 {
                     IndexName = RequestJson.ReadString(RequestJson.Required(update, "IndexName"), "IndexName"),
-                    ProvisionedThroughput = ReadThroughput(RequestJson.Required(update, "ProvisionedThroughput"), "Update of UpdateTable"),
+                    ProvisionedThroughput = ReadOptionalThroughput(update, "ProvisionedThroughput", "Update of UpdateTable"),
+                    OnDemandThroughput = ReadOptionalOnDemand(update, "Update of UpdateTable"),
                 },
             };
         }
@@ -663,13 +737,14 @@ internal static class TableOperations
 
     private static GlobalSecondaryIndex ReadGlobalIndex(JsonElement element, string where)
     {
-        RequestJson.Members(element, where, "IndexName", "KeySchema", "Projection", "ProvisionedThroughput");
+        RequestJson.Members(element, where, "IndexName", "KeySchema", "Projection", "ProvisionedThroughput", "OnDemandThroughput");
         return new GlobalSecondaryIndex
         {
             IndexName = RequestJson.ReadString(RequestJson.Required(element, "IndexName"), "IndexName"),
             KeySchema = ReadKeyElements(RequestJson.Required(element, "KeySchema"), where),
             Projection = ReadProjection(RequestJson.Required(element, "Projection"), where),
             ProvisionedThroughput = ReadOptionalThroughput(element, "ProvisionedThroughput", where),
+            OnDemandThroughput = ReadOptionalOnDemand(element, where),
         };
     }
 
@@ -718,6 +793,21 @@ internal static class TableOperations
         };
     }
 
+    private static OnDemandThroughput? ReadOptionalOnDemand(JsonElement value, string where)
+    {
+        if (RequestJson.Optional(value, "OnDemandThroughput") is not { } throughput)
+        {
+            return null;
+        }
+
+        RequestJson.Members(throughput, "OnDemandThroughput of " + where, "MaxReadRequestUnits", "MaxWriteRequestUnits");
+        return new OnDemandThroughput
+        {
+            MaxReadRequestUnits = RequestJson.Optional(throughput, "MaxReadRequestUnits") is { } read ? RequestJson.ReadLong(read, "MaxReadRequestUnits") : null,
+            MaxWriteRequestUnits = RequestJson.Optional(throughput, "MaxWriteRequestUnits") is { } write ? RequestJson.ReadLong(write, "MaxWriteRequestUnits") : null,
+        };
+    }
+
     private static StreamSpecification ReadStream(JsonElement value, string operation)
     {
         RequestJson.Members(value, "StreamSpecification of " + operation, "StreamEnabled", "StreamViewType");
@@ -728,9 +818,9 @@ internal static class TableOperations
         };
     }
 
-    private static SSESpecification ReadSse(JsonElement value)
+    private static SSESpecification ReadSse(JsonElement value, string operation)
     {
-        RequestJson.Members(value, "SSESpecification of CreateTable", "Enabled", "SSEType", "KMSMasterKeyId");
+        RequestJson.Members(value, "SSESpecification of " + operation, "Enabled", "SSEType", "KMSMasterKeyId");
         return new SSESpecification
         {
             Enabled = RequestJson.Optional(value, "Enabled") is { } enabled && RequestJson.ReadBool(enabled, "Enabled"),

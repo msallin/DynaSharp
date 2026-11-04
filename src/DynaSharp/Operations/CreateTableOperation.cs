@@ -56,10 +56,11 @@ internal readonly struct CreateTableOperation : IOperation<CreateTableRequest, C
         WireNames.BillingModes.WriteIfSet(json, "BillingMode"u8, request.BillingMode);
         TableJson.WriteProvisionedThroughput(json, request.ProvisionedThroughput);
         TableJson.WriteStreamSpecification(json, request.StreamSpecification);
-        WriteSseSpecification(json, request.SSESpecification);
+        TableJson.WriteSseSpecification(json, request.SSESpecification, alwaysWriteEnabled: false);
         WriteTags(json, request.Tags);
         WireNames.TableClasses.WriteIfSet(json, "TableClass"u8, request.TableClass);
         OperationJson.WriteIfTrue(json, "DeletionProtectionEnabled"u8, request.DeletionProtectionEnabled);
+        TableJson.WriteOnDemandThroughput(json, request.OnDemandThroughput);
         json.WriteEndObject();
     }
 
@@ -68,20 +69,6 @@ internal readonly struct CreateTableOperation : IOperation<CreateTableRequest, C
 
     public static void SetActivityTags(Activity activity, CreateTableRequest request) =>
         OperationTelemetry.RecordProvisionedThroughput(activity, request.ProvisionedThroughput);
-
-    private static void WriteSseSpecification(Utf8JsonWriter json, SSESpecification? specification)
-    {
-        if (specification is null)
-        {
-            return;
-        }
-
-        json.WriteStartObject("SSESpecification"u8);
-        OperationJson.WriteIfTrue(json, "Enabled"u8, specification.Enabled);
-        WireNames.SSETypes.WriteIfSet(json, "SSEType"u8, specification.SSEType);
-        OperationJson.WriteStringIfSet(json, "KMSMasterKeyId"u8, specification.KMSMasterKeyId);
-        json.WriteEndObject();
-    }
 
     private static void WriteTags(Utf8JsonWriter json, IReadOnlyList<TableTag>? tags)
     {

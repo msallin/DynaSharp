@@ -72,6 +72,12 @@ internal sealed class FakeTable
     /// <summary>Gets or sets the provisioned write capacity, 0 on demand.</summary>
     public long WriteCapacityUnits { get; set; }
 
+    /// <summary>
+    /// Gets or sets the on-demand maximums, or <see langword="null"/> for none. A member is <see langword="null"/> where there is no maximum, never <c>-1</c>, and the
+    /// object is <see langword="null"/> when neither has one.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; set; }
+
     /// <summary>Gets or sets the table class, or <see cref="TableClass.Unspecified"/> for the default, which is not reported.</summary>
     public TableClass TableClass { get; set; }
 

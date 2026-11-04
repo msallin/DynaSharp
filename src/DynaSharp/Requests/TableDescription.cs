@@ -50,6 +50,12 @@ public sealed record TableDescription
     public ProvisionedThroughputDescription? ProvisionedThroughput { get; init; }
 
     /// <summary>
+    /// Gets the maximum throughput of a table with <see cref="BillingMode.PayPerRequest"/> capacity, or <see langword="null"/> if DynamoDB reported none,
+    /// which it does for a table without a maximum.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; init; }
+
+    /// <summary>
     /// Gets the storage class. <see cref="Requests.TableClass.Unspecified"/> if DynamoDB did not report one, which it may omit for a table that
     /// always had the standard class.
     /// </summary>

@@ -57,6 +57,18 @@ public enum Gap
     /// <summary>A table created with server-side encryption enabled reports it in SSEDescription.</summary>
     ServerSideEncryptionDescription,
 
+    /// <summary>OnDemandThroughput on a table with provisioned capacity is a ValidationException.</summary>
+    OnDemandThroughputRejectedWithProvisionedCapacity,
+
+    /// <summary>A global secondary index takes OnDemandThroughput in CreateTable, and DescribeTable reports it.</summary>
+    GlobalIndexOnDemandThroughput,
+
+    /// <summary>UpdateTable changes the OnDemandThroughput of a global secondary index.</summary>
+    UpdateGlobalIndexOnDemandThroughput,
+
+    /// <summary>UpdateTable changes the server-side encryption of a table.</summary>
+    UpdateServerSideEncryption,
+
     /// <summary>A BatchGetItem whose response would pass 16 MB returns the rest as UnprocessedKeys.</summary>
     BatchResponseLimit,
 
@@ -107,9 +119,15 @@ public static class Gaps
         [(Backend.Dynoxide, Gap.TransactGetProjectionWithoutKeys)] = "Dynoxide adds the key attributes to the items TransactGetItems projects.",
         [(Backend.Dynoxide, Gap.GlobalIndexCapacity)] = "Dynoxide ignores the capacity of a global secondary index in UpdateTable and reports none for a new one.",
         [(Backend.Dynoxide, Gap.DescribeLimits)] = "Dynoxide answers DescribeLimits with UnknownOperationException.",
+        [(Backend.Dynoxide, Gap.GlobalIndexOnDemandThroughput)] = "Dynoxide ignores the OnDemandThroughput of a global secondary index and reports none.",
+        [(Backend.Dynoxide, Gap.UpdateGlobalIndexOnDemandThroughput)] = "Dynoxide requires ProvisionedThroughput in the Update of a global secondary index, also on demand.",
+        [(Backend.Dynoxide, Gap.UpdateServerSideEncryption)] = "Dynoxide rejects an UpdateTable with only SSESpecification as one that changes nothing.",
         [(Backend.DynamoDbLocal, Gap.UpdateTableClass)] = "DynamoDB Local rejects an UpdateTable that only changes the table class with 'Nothing to update'.",
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
         [(Backend.DynamoDbLocal, Gap.ServerSideEncryptionDescription)] = "DynamoDB Local accepts SSESpecification and leaves SSEDescription out of the table description.",
+        [(Backend.DynamoDbLocal, Gap.OnDemandThroughputRejectedWithProvisionedCapacity)] = "DynamoDB Local accepts OnDemandThroughput on a table with provisioned capacity, and drops it.",
+        [(Backend.DynamoDbLocal, Gap.UpdateGlobalIndexOnDemandThroughput)] = "DynamoDB Local accepts the OnDemandThroughput of an index in UpdateTable and keeps the old one.",
+        [(Backend.DynamoDbLocal, Gap.UpdateServerSideEncryption)] = "DynamoDB Local rejects an UpdateTable with only SSESpecification with 'Nothing to update'.",
 
         // The fake's rows name only what docs/testing.md lists as outside the fake, see Backend.Fake.
         [(Backend.Fake, Gap.MultiShardStreams)] = "The fake's streams have a single shard.",

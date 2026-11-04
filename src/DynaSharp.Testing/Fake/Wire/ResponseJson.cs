@@ -134,6 +134,7 @@ internal static class ResponseJson
         }
 
         json.WriteBoolean("DeletionProtectionEnabled"u8, table.DeletionProtectionEnabled);
+        TableJson.WriteOnDemandThroughput(json, table.OnDemandThroughput);
         json.WriteEndObject();
     }
 
@@ -171,6 +172,7 @@ internal static class ResponseJson
             json.WriteNumber("IndexSizeBytes"u8, index.SizeBytes);
             json.WriteNumber("ItemCount"u8, index.ItemCount);
             json.WriteString("IndexArn"u8, table.Arn + "/index/" + index.Name);
+            TableJson.WriteOnDemandThroughput(json, index.OnDemandThroughput);
             json.WriteEndObject();
         }
 

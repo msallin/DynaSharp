@@ -75,6 +75,14 @@ internal static class OperationJson
         }
     }
 
+    public static void WriteInt64IfSet(Utf8JsonWriter json, ReadOnlySpan<byte> propertyName, long? value)
+    {
+        if (value is { } number)
+        {
+            json.WriteNumber(propertyName, number);
+        }
+    }
+
     public static void WriteBooleanIfSet(Utf8JsonWriter json, ReadOnlySpan<byte> propertyName, bool? value)
     {
         if (value is { } flag)

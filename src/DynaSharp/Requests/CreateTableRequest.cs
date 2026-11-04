@@ -59,6 +59,12 @@ public sealed record CreateTableRequest
     /// </summary>
     public ProvisionedThroughput? ProvisionedThroughput { get; init; }
 
+    /// <summary>
+    /// Gets the maximum throughput of a table with <see cref="Requests.BillingMode.PayPerRequest"/> capacity. Not allowed with
+    /// <see cref="Requests.BillingMode.Provisioned"/> capacity, also when the mode is not set. <see langword="null"/> sets no maximum.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; init; }
+
     /// <summary>Gets whether the table has a stream, and what its records contain. <see langword="null"/> creates a table without a stream.</summary>
     public StreamSpecification? StreamSpecification { get; init; }
 

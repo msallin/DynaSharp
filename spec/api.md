@@ -88,6 +88,10 @@ member the model leaves optional is nullable or reads as its default, even one D
 `TableDescription` holds the commonly needed subset of what DynamoDB describes, and an enum value of a response that the library does not know reads as the zero member of its enum. Its
 `SSEDescription` (`Status` as `SSEStatus`, `SSEType`, `KMSMasterKeyArn`, `InaccessibleEncryptionDateTime`) describes encryption with an AWS KMS key and is `null` for a table encrypted with the key
 that DynamoDB owns, the default, for which DynamoDB sends none.
+`OnDemandThroughput` (`MaxReadRequestUnits`, `MaxWriteRequestUnits`, both `long?`) is one record for the request and the description, since they have one shape: `CreateTableRequest`, `UpdateTableRequest`,
+`GlobalSecondaryIndex` and `UpdateGlobalSecondaryIndexAction` send it, `TableDescription` and `GlobalSecondaryIndexDescription` report it. A `null` member is not sent, and in a description it is no
+maximum, as `-1` is. `UpdateGlobalSecondaryIndexAction.ProvisionedThroughput` is optional, as in the service model, so that an index of an on-demand table can take maximums alone.
+`UpdateTableRequest.SSESpecification` reuses the record of `CreateTable` and always sends `Enabled`, because `false` there switches back to the key that DynamoDB owns, where `CreateTable` leaves the default out.
 
 ## 2. Client
 

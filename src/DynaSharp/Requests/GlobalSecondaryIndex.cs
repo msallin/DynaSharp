@@ -25,4 +25,10 @@ public sealed record GlobalSecondaryIndex
     /// with <see cref="BillingMode.PayPerRequest"/>.
     /// </summary>
     public ProvisionedThroughput? ProvisionedThroughput { get; init; }
+
+    /// <summary>
+    /// Gets the maximum throughput of the index, for a table with <see cref="BillingMode.PayPerRequest"/> capacity; not allowed with
+    /// <see cref="BillingMode.Provisioned"/>. <see langword="null"/> sets no maximum. The index has maximums of its own: those of the table do not apply to it.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; init; }
 }

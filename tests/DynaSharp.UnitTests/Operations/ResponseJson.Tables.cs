@@ -65,7 +65,7 @@ internal static partial class ResponseJson
     {
         var response = JsonNode.Parse(botocoreJson)!.AsObject();
         var table = response["TableDescription"]!.AsObject();
-        Keep(table, "TableName", "TableArn", "TableStatus", "KeySchema", "AttributeDefinitions", "ItemCount", "TableSizeBytes", "CreationDateTime", "BillingModeSummary", "LocalSecondaryIndexes", "GlobalSecondaryIndexes", "StreamSpecification", "LatestStreamArn", "LatestStreamLabel", "DeletionProtectionEnabled", "ProvisionedThroughput", "TableClassSummary", "SSEDescription");
+        Keep(table, "TableName", "TableArn", "TableStatus", "KeySchema", "AttributeDefinitions", "ItemCount", "TableSizeBytes", "CreationDateTime", "BillingModeSummary", "LocalSecondaryIndexes", "GlobalSecondaryIndexes", "StreamSpecification", "LatestStreamArn", "LatestStreamLabel", "DeletionProtectionEnabled", "ProvisionedThroughput", "TableClassSummary", "SSEDescription", "OnDemandThroughput");
         table.TryAdd("KeySchema", new JsonArray());
         table.TryAdd("AttributeDefinitions", new JsonArray());
         table.TryAdd("ItemCount", 0);
@@ -79,6 +79,7 @@ internal static partial class ResponseJson
             Keep(summary, "TableClass");
         }
 
+        KeepOnDemand(table);
         if (table["SSEDescription"] is JsonObject encryption)
         {
             Keep(encryption, "Status", "SSEType", "KMSMasterKeyArn", "InaccessibleEncryptionDateTime");
@@ -92,10 +93,11 @@ internal static partial class ResponseJson
 
         foreach (var index in table["GlobalSecondaryIndexes"]!.AsArray().Select(static node => node!.AsObject()))
         {
-            Keep(index, "IndexName", "IndexStatus", "Backfilling", "KeySchema", "Projection", "ProvisionedThroughput");
+            Keep(index, "IndexName", "IndexStatus", "Backfilling", "KeySchema", "Projection", "ProvisionedThroughput", "OnDemandThroughput");
             index.TryAdd("KeySchema", new JsonArray());
             index.TryAdd("Backfilling", false);
             KeepCapacity(index);
+            KeepOnDemand(index);
         }
 
         return response.ToJsonString();
@@ -109,6 +111,14 @@ internal static partial class ResponseJson
             Keep(capacity, "ReadCapacityUnits", "WriteCapacityUnits");
             capacity.TryAdd("ReadCapacityUnits", 0);
             capacity.TryAdd("WriteCapacityUnits", 0);
+        }
+    }
+
+    private static void KeepOnDemand(JsonObject node)
+    {
+        if (node["OnDemandThroughput"] is JsonObject maximums)
+        {
+            Keep(maximums, "MaxReadRequestUnits", "MaxWriteRequestUnits");
         }
     }
 
@@ -169,6 +179,7 @@ internal static partial class ResponseJson
             WriteKeySchema(json, "KeySchema", index.KeySchema);
             WriteProjection(json, index.Projection);
             WriteCapacity(json, index.ProvisionedThroughput);
+            WriteOnDemand(json, index.OnDemandThroughput);
             json.WriteEndObject();
         }
 
@@ -185,6 +196,7 @@ internal static partial class ResponseJson
         WriteString(json, "LatestStreamLabel", table.LatestStreamLabel);
         json.WriteBoolean("DeletionProtectionEnabled", table.DeletionProtectionEnabled);
         WriteCapacity(json, table.ProvisionedThroughput);
+        WriteOnDemand(json, table.OnDemandThroughput);
         if (table.TableClass != TableClass.Unspecified)
         {
             json.WriteStartObject("TableClassSummary");
@@ -228,6 +240,27 @@ internal static partial class ResponseJson
         json.WriteStartObject("ProvisionedThroughput");
         json.WriteNumber("ReadCapacityUnits", capacity.ReadCapacityUnits);
         json.WriteNumber("WriteCapacityUnits", capacity.WriteCapacityUnits);
+        json.WriteEndObject();
+    }
+
+    private static void WriteOnDemand(Utf8JsonWriter json, OnDemandThroughput? maximums)
+    {
+        if (maximums is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("OnDemandThroughput");
+        if (maximums.MaxReadRequestUnits is { } read)
+        {
+            json.WriteNumber("MaxReadRequestUnits", read);
+        }
+
+        if (maximums.MaxWriteRequestUnits is { } write)
+        {
+            json.WriteNumber("MaxWriteRequestUnits", write);
+        }
+
         json.WriteEndObject();
     }
 

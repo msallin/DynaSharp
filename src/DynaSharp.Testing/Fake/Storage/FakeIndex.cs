@@ -47,6 +47,9 @@ internal sealed class FakeIndex
     /// <summary>Gets or sets the provisioned write capacity of a global index, 0 on demand.</summary>
     public long WriteCapacityUnits { get; set; }
 
+    /// <summary>Gets or sets the on-demand maximums of a global index, as <see cref="FakeTable.OnDemandThroughput"/> holds those of a table.</summary>
+    public OnDemandThroughput? OnDemandThroughput { get; set; }
+
     /// <summary>Gets the number of items in the index.</summary>
     public long ItemCount => Store.Count;
 

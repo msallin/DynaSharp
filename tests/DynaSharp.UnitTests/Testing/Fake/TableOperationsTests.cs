@@ -148,7 +148,7 @@ public sealed class TableOperationsTests
     [Test]
     [Arguments(""","Tags":[{"Key":"team","Value":"shop"}]""", "the member Tags in CreateTable")]
     [Arguments(""","SSESpecification":{"Enabled":true,"Unknown":1}""", "the member Unknown in SSESpecification of CreateTable")]
-    [Arguments(""","OnDemandThroughput":{"MaxReadRequestUnits":10}""", "the member OnDemandThroughput in CreateTable")]
+    [Arguments(""","OnDemandThroughput":{"MaxReadRequestUnits":10,"Unknown":1}""", "the member Unknown in OnDemandThroughput of CreateTable")]
 
     [Arguments(""","StreamSpecification":{"StreamEnabled":false,"Shards":1}""", "the member Shards in StreamSpecification of CreateTable")]
     public async Task HandleCreateTable_MemberTheFakeDoesNotImplement_AnswersUnsupported(string member, string named)
@@ -496,8 +496,9 @@ public sealed class TableOperationsTests
     }
 
     [Test]
-    [Arguments("""{"TableName":"Thread","SSESpecification":{"Enabled":true}}""", "the member SSESpecification in UpdateTable")]
-    [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","OnDemandThroughput":{}}}]}""", "the member OnDemandThroughput in Update of UpdateTable")]
+    [Arguments("""{"TableName":"Thread","SSESpecification":{"Enabled":true,"Unknown":1}}""", "the member Unknown in SSESpecification of UpdateTable")]
+    [Arguments("""{"TableName":"Thread","ReplicaUpdates":[{"Delete":{"RegionName":"eu-west-1"}}]}""", "the member ReplicaUpdates in UpdateTable")]
+    [Arguments("""{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","WarmThroughput":{}}}]}""", "the member WarmThroughput in Update of UpdateTable")]
     public async Task HandleUpdateTable_MemberTheFakeDoesNotImplement_AnswersUnsupported(string request, string named)
     {
         // Arrange
@@ -789,6 +790,258 @@ public sealed class TableOperationsTests
         // Assert
         await Assert.That(FakeCalls.SameJson("""[{"pk":{"S":"fits"},"g":{"S":"v"}}]""", body.GetProperty("Items"))).IsTrue();
     }
+
+    [Test]
+    [Arguments("""{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}""", """{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}""")]
+    [Arguments("""{"MaxReadRequestUnits":7}""", """{"MaxReadRequestUnits":7}""")]
+    [Arguments("""{"MaxReadRequestUnits":-1,"MaxWriteRequestUnits":40000}""", """{"MaxWriteRequestUnits":40000}""")]
+    public async Task HandleCreateTable_OnDemandThroughput_DescribesTheMaximums(string maximums, string described)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","OnDemandThroughput":""" + maximums + "}";
+
+        // Act
+        var body = FakeCalls.Ok(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo(described);
+    }
+
+    [Test]
+    public async Task HandleCreateTable_NoMaximumEither_DescribesNoOnDemandThroughput()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","OnDemandThroughput":{"MaxReadRequestUnits":-1,"MaxWriteRequestUnits":-1}}""";
+
+        // Act
+        var body = FakeCalls.Ok(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").TryGetProperty("OnDemandThroughput", out _)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("""{}""", Invalid + "OnDemandThroughput must specify MaxReadRequestUnits, MaxWriteRequestUnits, or both")]
+    [Arguments("""{"MaxReadRequestUnits":0,"MaxWriteRequestUnits":5}""", Invalid + "Requested MaxReadRequestUnits for OnDemandThroughput for table is outside of valid range")]
+    [Arguments("""{"MaxReadRequestUnits":5,"MaxWriteRequestUnits":-2}""", Invalid + "Requested MaxWriteRequestUnits for OnDemandThroughput for table is outside of valid range")]
+    [Arguments("""{"MaxReadRequestUnits":40001}""", "Cannot increase provisioned throughput to more than 40,000 units per table")]
+    [Arguments("""{"MaxWriteRequestUnits":40001}""", "Cannot increase provisioned throughput to more than 40,000 units per table")]
+    public async Task HandleCreateTable_InvalidOnDemandThroughput_AnswersValidation(string maximums, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.TrimEnd()[..^1] + ""","OnDemandThroughput":""" + maximums + "}";
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That((answer.Code, answer.Message, fake.TableNames.Count)).IsEqualTo(("ValidationException", message, 0));
+    }
+
+    [Test]
+    [Arguments("""{"MaxReadRequestUnits":5}""", "MaxReadRequestUnits")]
+    [Arguments("""{"MaxWriteRequestUnits":5}""", "MaxWriteRequestUnits")]
+    public async Task HandleCreateTable_OnDemandThroughputWithProvisionedCapacity_AnswersValidation(string maximums, string member)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var request = FakeCalls.Users.Replace("\"BillingMode\":\"PAY_PER_REQUEST\"", "\"ProvisionedThroughput\":{\"ReadCapacityUnits\":1,\"WriteCapacityUnits\":1},\"OnDemandThroughput\":" + maximums, StringComparison.Ordinal);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", request);
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo(Invalid + member + " for OnDemandThroughput cannot be specified when table BillingMode is PROVISIONED.");
+    }
+
+    [Test]
+    public async Task HandleCreateTable_IndexWithOnDemandThroughput_DescribesItOnTheIndex()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+
+        // Act
+        var body = FakeCalls.Ok(fake, "CreateTable", UsersWithIndex("""{"MaxReadRequestUnits":4,"MaxWriteRequestUnits":3}"""));
+
+        // Assert
+        var index = body.GetProperty("TableDescription").GetProperty("GlobalSecondaryIndexes")[0];
+        await Assert.That(index.GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo("""{"MaxReadRequestUnits":4,"MaxWriteRequestUnits":3}""");
+    }
+
+    [Test]
+    [Arguments("""{"MaxReadRequestUnits":0}""", Invalid + "Requested MaxReadRequestUnits for OnDemandThroughput for index : ByG is outside of valid range")]
+    [Arguments("""{"MaxReadRequestUnits":1,"MaxWriteRequestUnits":40001}""", "Cannot increase provisioned throughput to more than 40,000 units per global secondary index")]
+    public async Task HandleCreateTable_IndexWithInvalidOnDemandThroughput_AnswersValidation(string maximums, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", UsersWithIndex(maximums));
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo(message);
+    }
+
+    [Test]
+    [Arguments("""{"MaxReadRequestUnits":20,"MaxWriteRequestUnits":15}""", """{"MaxReadRequestUnits":20,"MaxWriteRequestUnits":15}""")]
+    [Arguments("""{"MaxReadRequestUnits":30}""", """{"MaxReadRequestUnits":30,"MaxWriteRequestUnits":5}""")]
+    [Arguments("""{"MaxWriteRequestUnits":9}""", """{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":9}""")]
+    [Arguments("""{"MaxReadRequestUnits":-1}""", """{"MaxWriteRequestUnits":5}""")]
+    [Arguments("""{"MaxReadRequestUnits":-1,"MaxWriteRequestUnits":-1}""", "")]
+    public async Task HandleUpdateTable_OnDemandThroughput_ChangesWhatItNames(string maximums, string described)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users.TrimEnd()[..^1] + ""","OnDemandThroughput":{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}}""");
+
+        // Act
+        FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","OnDemandThroughput":""" + maximums + "}");
+
+        // Assert
+        var table = FakeCalls.Ok(fake, "DescribeTable", """{"TableName":"Users"}""").GetProperty("Table");
+        await Assert.That(table.TryGetProperty("OnDemandThroughput", out var found) ? found.GetRawText() : string.Empty).IsEqualTo(described);
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_OnDemandThroughputOfAProvisionedTable_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateTable", """{"TableName":"Thread","OnDemandThroughput":{"MaxReadRequestUnits":5,"MaxWriteRequestUnits":5}}""");
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo(Invalid + "MaxReadRequestUnits for OnDemandThroughput cannot be specified when the table BillingMode is PROVISIONED");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_ToOnDemandWithMaximums_DescribesThem()
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Thread","BillingMode":"PAY_PER_REQUEST","OnDemandThroughput":{"MaxReadRequestUnits":5,"MaxWriteRequestUnits":6}}""");
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo("""{"MaxReadRequestUnits":5,"MaxWriteRequestUnits":6}""");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_ToProvisioned_DropsTheMaximumsOfTheTableAndItsIndexes()
+    {
+        // Arrange
+        var fake = FakeCalls.With(UsersWithIndex("""{"MaxReadRequestUnits":4}""").TrimEnd()[..^1] + ""","OnDemandThroughput":{"MaxReadRequestUnits":10}}""");
+        const string Request = """
+            {"TableName":"Users","BillingMode":"PROVISIONED","ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1},
+             "GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByG","ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}]}
+            """;
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", Request).GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((table.TryGetProperty("OnDemandThroughput", out _), table.GetProperty("GlobalSecondaryIndexes")[0].TryGetProperty("OnDemandThroughput", out _))).IsEqualTo((false, false));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_IndexOnDemandThroughput_ChangesWhatItNames()
+    {
+        // Arrange
+        var fake = FakeCalls.With(UsersWithIndex("""{"MaxReadRequestUnits":4,"MaxWriteRequestUnits":3}"""));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByG","OnDemandThroughput":{"MaxReadRequestUnits":6}}}]}""");
+
+        // Assert
+        var index = body.GetProperty("TableDescription").GetProperty("GlobalSecondaryIndexes")[0];
+        await Assert.That(index.GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo("""{"MaxReadRequestUnits":6,"MaxWriteRequestUnits":3}""");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_IndexUpdateWithoutThroughput_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(UsersWithIndex("""{"MaxReadRequestUnits":4}"""));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateTable", """{"TableName":"Users","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByG"}}]}""");
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo(Invalid + "ProvisionedThroughput or OnDemandThroughput must be specified for index: ByG");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_NewIndexWithOnDemandThroughput_DescribesItOnTheIndex()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        const string Request = """
+            {"TableName":"Users","AttributeDefinitions":[{"AttributeName":"g","AttributeType":"S"}],
+             "GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByG","KeySchema":[{"AttributeName":"g","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"},
+                                                       "OnDemandThroughput":{"MaxWriteRequestUnits":2}}}]}
+            """;
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", Request);
+
+        // Assert
+        var index = body.GetProperty("TableDescription").GetProperty("GlobalSecondaryIndexes")[0];
+        await Assert.That(index.GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo("""{"MaxWriteRequestUnits":2}""");
+    }
+
+    [Test]
+    [Arguments("""{"Enabled":true}""", "arn:aws:kms:us-east-1:123456789012:key/8f2b1c4e-6d3a-4e5f-9a7b-0c1d2e3f4a5b")]
+    [Arguments("""{"Enabled":true,"SSEType":"KMS","KMSMasterKeyId":"alias/orders"}""", "arn:aws:kms:us-east-1:123456789012:alias/orders")]
+    public async Task HandleUpdateTable_SseEnabled_EncryptsWithTheKmsKey(string sse, string keyArn)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","SSESpecification":""" + sse + "}");
+
+        // Assert
+        var table = FakeCalls.Ok(fake, "DescribeTable", """{"TableName":"Users"}""").GetProperty("Table");
+        await Assert.That(table.GetProperty("SSEDescription").GetRawText()).IsEqualTo($$"""{"Status":"ENABLED","SSEType":"KMS","KMSMasterKeyArn":"{{keyArn}}"}""");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_SseDisabled_GoesBackToTheKeyThatDynamoDbOwns()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users.TrimEnd()[..^1] + ""","SSESpecification":{"Enabled":true,"KMSMasterKeyId":"alias/orders"}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","SSESpecification":{"Enabled":false}}""");
+
+        // Assert
+        await Assert.That(body.GetProperty("TableDescription").TryGetProperty("SSEDescription", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task Update_RecordWithoutAnyChange_ThrowsValidation()
+    {
+        // Arrange
+        var db = new FakeDatabase(TimeProvider.System);
+        TableOperations.Create(db, UsersRequest());
+
+        // Act
+        var act = () => TableOperations.Update(db, new UpdateTableRequest { TableName = "Users" });
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage("At least one of ProvisionedThroughput, BillingMode, UpdateStreamEnabled, GlobalSecondaryIndexUpdates or SSESpecification or ReplicaUpdates is required", StringComparison.Ordinal);
+    }
+
+    private static string UsersWithIndex(string maximums) => $$"""
+        {"TableName":"Users","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}],
+         "KeySchema":[{"AttributeName":"pk","KeyType":"HASH"}],"BillingMode":"PAY_PER_REQUEST",
+         "GlobalSecondaryIndexes":[{"IndexName":"ByG","KeySchema":[{"AttributeName":"g","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"},"OnDemandThroughput":{{maximums}}}]}
+        """;
 
     private static CreateTableRequest UsersRequest() => new()
     {

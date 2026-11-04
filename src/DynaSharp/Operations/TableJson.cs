@@ -60,6 +60,7 @@ internal static class TableJson
         ProvisionedThroughputDescription? provisionedThroughput = null;
         var tableClass = TableClass.Unspecified;
         SSEDescription? sseDescription = null;
+        OnDemandThroughput? onDemandThroughput = null;
 
         reader.ReadStartItem();
         while (reader.TryReadAttributeName())
@@ -136,6 +137,10 @@ internal static class TableJson
             {
                 sseDescription = ReadSseDescription(ref reader);
             }
+            else if (reader.AttributeNameEquals("OnDemandThroughput"u8))
+            {
+                onDemandThroughput = ReadOnDemandThroughput(ref reader);
+            }
             else
             {
                 OperationJson.SkipValue(ref reader);
@@ -162,6 +167,7 @@ internal static class TableJson
             ProvisionedThroughput = provisionedThroughput,
             TableClass = tableClass,
             SSEDescription = sseDescription,
+            OnDemandThroughput = onDemandThroughput,
         };
     }
 
@@ -225,6 +231,7 @@ internal static class TableJson
         WriteKeySchema(json, index.KeySchema);
         WriteProjection(json, index.Projection);
         WriteProvisionedThroughput(json, index.ProvisionedThroughput);
+        WriteOnDemandThroughput(json, index.OnDemandThroughput);
     }
 
     public static void WriteKeySchema(Utf8JsonWriter json, IReadOnlyList<KeySchemaElement> keySchema)
@@ -270,6 +277,47 @@ internal static class TableJson
         json.WriteStartObject("ProvisionedThroughput"u8);
         json.WriteNumber("ReadCapacityUnits"u8, throughput.ReadCapacityUnits);
         json.WriteNumber("WriteCapacityUnits"u8, throughput.WriteCapacityUnits);
+        json.WriteEndObject();
+    }
+
+    public static void WriteOnDemandThroughput(Utf8JsonWriter json, OnDemandThroughput? throughput)
+    {
+        if (throughput is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("OnDemandThroughput"u8);
+        OperationJson.WriteInt64IfSet(json, "MaxReadRequestUnits"u8, throughput.MaxReadRequestUnits);
+        OperationJson.WriteInt64IfSet(json, "MaxWriteRequestUnits"u8, throughput.MaxWriteRequestUnits);
+        json.WriteEndObject();
+    }
+
+    /// <summary>Writes an <c>SSESpecification</c>, if there is one.</summary>
+    /// <param name="json">The writer.</param>
+    /// <param name="specification">The specification.</param>
+    /// <param name="alwaysWriteEnabled">
+    /// Whether <c>Enabled: false</c> is written: in <c>UpdateTable</c> it switches to the key that DynamoDB owns, in <c>CreateTable</c> it is the default and left out.
+    /// </param>
+    public static void WriteSseSpecification(Utf8JsonWriter json, SSESpecification? specification, bool alwaysWriteEnabled)
+    {
+        if (specification is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("SSESpecification"u8);
+        if (alwaysWriteEnabled)
+        {
+            json.WriteBoolean("Enabled"u8, specification.Enabled);
+        }
+        else
+        {
+            OperationJson.WriteIfTrue(json, "Enabled"u8, specification.Enabled);
+        }
+
+        WireNames.SSETypes.WriteIfSet(json, "SSEType"u8, specification.SSEType);
+        OperationJson.WriteStringIfSet(json, "KMSMasterKeyId"u8, specification.KMSMasterKeyId);
         json.WriteEndObject();
     }
 
@@ -362,6 +410,30 @@ internal static class TableJson
         }
 
         return new ProvisionedThroughputDescription { ReadCapacityUnits = readCapacityUnits, WriteCapacityUnits = writeCapacityUnits };
+    }
+
+    private static OnDemandThroughput ReadOnDemandThroughput(ref DynamoDbReader reader)
+    {
+        long? maxRead = null;
+        long? maxWrite = null;
+        reader.ReadStartItem();
+        while (reader.TryReadAttributeName())
+        {
+            if (reader.AttributeNameEquals("MaxReadRequestUnits"u8))
+            {
+                maxRead = OperationJson.ReadInt64(ref reader);
+            }
+            else if (reader.AttributeNameEquals("MaxWriteRequestUnits"u8))
+            {
+                maxWrite = OperationJson.ReadInt64(ref reader);
+            }
+            else
+            {
+                OperationJson.SkipValue(ref reader);
+            }
+        }
+
+        return new OnDemandThroughput { MaxReadRequestUnits = maxRead, MaxWriteRequestUnits = maxWrite };
     }
 
     private static TableClass ReadTableClassSummary(ref DynamoDbReader reader)
@@ -499,6 +571,7 @@ internal static class TableJson
             IReadOnlyList<KeySchemaElement> keySchema = [];
             IndexProjection? projection = null;
             ProvisionedThroughputDescription? provisionedThroughput = null;
+            OnDemandThroughput? onDemandThroughput = null;
             while (reader.TryReadAttributeName())
             {
                 if (reader.AttributeNameEquals("IndexName"u8))
@@ -508,6 +581,10 @@ internal static class TableJson
                 else if (reader.AttributeNameEquals("ProvisionedThroughput"u8))
                 {
                     provisionedThroughput = ReadProvisionedThroughput(ref reader);
+                }
+                else if (reader.AttributeNameEquals("OnDemandThroughput"u8))
+                {
+                    onDemandThroughput = ReadOnDemandThroughput(ref reader);
                 }
                 else if (reader.AttributeNameEquals("IndexStatus"u8))
                 {
@@ -539,6 +616,7 @@ internal static class TableJson
                 KeySchema = keySchema,
                 Projection = projection,
                 ProvisionedThroughput = provisionedThroughput,
+                OnDemandThroughput = onDemandThroughput,
             });
         }
 

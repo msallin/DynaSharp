@@ -1,8 +1,8 @@
 namespace DynaSharp.Requests;
 
 /// <summary>
-/// Changes the settings of a table: its billing mode and capacity, its stream, its global secondary indexes, its storage class and
-/// its deletion protection (DynamoDB <c>UpdateTable</c>).
+/// Changes the settings of a table: its billing mode, capacity and on-demand maximums, its stream, its global secondary indexes, its server-side
+/// encryption, its storage class and its deletion protection (DynamoDB <c>UpdateTable</c>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -15,7 +15,7 @@ namespace DynaSharp.Requests;
 /// DynamoDB limits what one request may combine. It rejects a request that changes nothing, and in general at most one global
 /// secondary index may be created or deleted per request (an index can be updated together with other changes). Capacity can be
 /// lowered only a few times a day, and the billing mode can be switched only once every 24 hours. Settings that this request does
-/// not cover (server-side encryption, replicas, on-demand throughput limits and warm throughput) are not available here.
+/// not cover (replicas and warm throughput) are not available here.
 /// </para>
 /// </remarks>
 public sealed record UpdateTableRequest
@@ -43,6 +43,12 @@ public sealed record UpdateTableRequest
     public ProvisionedThroughput? ProvisionedThroughput { get; init; }
 
     /// <summary>
+    /// Gets the new maximum throughput, for a table with <see cref="Requests.BillingMode.PayPerRequest"/> capacity or one this request switches to it.
+    /// <see langword="null"/> keeps the current maximums, and so does a member of it that is <see langword="null"/>; <c>-1</c> removes a maximum.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; init; }
+
+    /// <summary>
     /// Gets the changes to the global secondary indexes: create, update or delete. <see langword="null"/> or empty changes none.
     /// </summary>
     public IReadOnlyList<GlobalSecondaryIndexUpdate>? GlobalSecondaryIndexUpdates { get; init; }
@@ -53,6 +59,14 @@ public sealed record UpdateTableRequest
     /// <see cref="StreamSpecification.StreamEnabled"/> to <see langword="false"/>.
     /// </summary>
     public StreamSpecification? StreamSpecification { get; init; }
+
+    /// <summary>
+    /// Gets the new server-side encryption. <see langword="null"/> keeps it. Unlike in <see cref="CreateTableRequest.SSESpecification"/>,
+    /// <see cref="SSESpecification.Enabled"/> is always sent: <see langword="true"/> switches to the AWS managed key, or to the customer managed key of
+    /// <see cref="SSESpecification.KMSMasterKeyId"/>, and <see langword="false"/> back to the key that DynamoDB owns. DynamoDB applies the change
+    /// asynchronously, and the table stays readable and writable meanwhile.
+    /// </summary>
+    public SSESpecification? SSESpecification { get; init; }
 
     /// <summary>
     /// Gets the new storage class. <see cref="Requests.TableClass.Unspecified"/> (the default) sends nothing and keeps the current class.

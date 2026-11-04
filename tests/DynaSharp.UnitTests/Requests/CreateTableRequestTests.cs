@@ -65,6 +65,18 @@ public sealed class CreateTableRequestTests
     }
 
     [Test]
+    public async Task Constructor_OnlyRequiredMembers_OnDemandThroughputIsNull()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var value = new CreateTableRequest { TableName = "Users", AttributeDefinitions = [], KeySchema = [] };
+
+        // Assert
+        await Assert.That(value.OnDemandThroughput).IsNull();
+    }
+
+    [Test]
     public async Task Constructor_OnlyRequiredMembers_TagsIsNull()
     {
         // Arrange (nothing to arrange)

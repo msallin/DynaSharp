@@ -1200,6 +1200,36 @@ REQUESTS += [
     ),
     request(
         "CreateTable",
+        "OnDemandThroughputOnTableAndIndex",
+        {
+            "AttributeDefinitions": ORDERS_ATTRIBUTES,
+            "TableName": "Orders",
+            "KeySchema": ORDERS_KEY,
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "ByStatus",
+                    "KeySchema": [KEY("status", "HASH")],
+                    "Projection": {"ProjectionType": "KEYS_ONLY"},
+                    "OnDemandThroughput": {"MaxReadRequestUnits": 4, "MaxWriteRequestUnits": 3},
+                }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+            "OnDemandThroughput": {"MaxReadRequestUnits": 10, "MaxWriteRequestUnits": 5},
+        },
+    ),
+    request(
+        "CreateTable",
+        "OnDemandThroughputReadOnly",
+        {
+            "AttributeDefinitions": [ATTR("pk", "S")],
+            "TableName": "Users",
+            "KeySchema": [KEY("pk", "HASH")],
+            "BillingMode": "PAY_PER_REQUEST",
+            "OnDemandThroughput": {"MaxReadRequestUnits": 7},
+        },
+    ),
+    request(
+        "CreateTable",
         "TableClassStandard",
         {
             "AttributeDefinitions": [ATTR("pk", "S")],
@@ -1534,6 +1564,55 @@ REQUESTS += [
             ],
         },
     ),
+    request(
+        "UpdateTable",
+        "OnDemandThroughput",
+        {"TableName": "Orders", "OnDemandThroughput": {"MaxReadRequestUnits": 20, "MaxWriteRequestUnits": 15}},
+    ),
+    request(
+        "UpdateTable",
+        "OnDemandThroughputRemoved",
+        {"TableName": "Orders", "OnDemandThroughput": {"MaxReadRequestUnits": -1, "MaxWriteRequestUnits": -1}},
+    ),
+    request("UpdateTable", "OnDemandThroughputWriteOnly", {"TableName": "Orders", "OnDemandThroughput": {"MaxWriteRequestUnits": 3}}),
+    request(
+        "UpdateTable",
+        "BillingModePayPerRequestWithOnDemandThroughput",
+        {"TableName": "Orders", "BillingMode": "PAY_PER_REQUEST", "OnDemandThroughput": {"MaxReadRequestUnits": 9223372036854775807, "MaxWriteRequestUnits": 1}},
+    ),
+    request(
+        "UpdateTable",
+        "GlobalSecondaryIndexCreateWithOnDemandThroughput",
+        {
+            "TableName": "Orders",
+            "AttributeDefinitions": [ATTR("status", "S")],
+            "GlobalSecondaryIndexUpdates": [
+                {
+                    "Create": {
+                        "IndexName": "ByStatus",
+                        "KeySchema": [KEY("status", "HASH")],
+                        "Projection": {"ProjectionType": "ALL"},
+                        "OnDemandThroughput": {"MaxReadRequestUnits": 4, "MaxWriteRequestUnits": 3},
+                    }
+                }
+            ],
+        },
+    ),
+    request(
+        "UpdateTable",
+        "GlobalSecondaryIndexUpdateOnDemandThroughput",
+        {
+            "TableName": "Orders",
+            "GlobalSecondaryIndexUpdates": [{"Update": {"IndexName": "ByStatus", "OnDemandThroughput": {"MaxReadRequestUnits": 6}}}],
+        },
+    ),
+    request("UpdateTable", "SseAwsManagedKey", {"TableName": "Orders", "SSESpecification": {"Enabled": True}}),
+    request(
+        "UpdateTable",
+        "SseCustomerManagedKey",
+        {"TableName": "Orders", "SSESpecification": {"Enabled": True, "SSEType": "KMS", "KMSMasterKeyId": "alias/orders"}},
+    ),
+    request("UpdateTable", "SseOwnedKey", {"TableName": "Orders", "SSESpecification": {"Enabled": False}}),
     request("UpdateTable", "DeletionProtectionOn", {"TableName": "Orders", "DeletionProtectionEnabled": True}),
     request("UpdateTable", "DeletionProtectionOff", {"TableName": "Orders", "DeletionProtectionEnabled": False}),
     request("UpdateTable", "TableClassStandard", {"TableName": "Orders", "TableClass": "STANDARD"}),
@@ -2240,6 +2319,7 @@ FULL_TABLE = {
             "Backfilling": True,
             "ProvisionedThroughput": {"ReadCapacityUnits": 3, "WriteCapacityUnits": 2},
             "WarmThroughput": {"ReadUnitsPerSecond": 12000, "WriteUnitsPerSecond": 4000, "Status": "ACTIVE"},
+            "OnDemandThroughput": {"MaxReadRequestUnits": 4, "MaxWriteRequestUnits": 3},
         },
         {
             "IndexName": "ByCustomer",
@@ -2247,6 +2327,7 @@ FULL_TABLE = {
             "Projection": {"ProjectionType": "KEYS_ONLY"},
             "IndexStatus": "ACTIVE",
             "Backfilling": False,
+            "OnDemandThroughput": {"MaxWriteRequestUnits": 5},
         },
         {"IndexName": "Minimal"},
     ],
@@ -2256,6 +2337,7 @@ FULL_TABLE = {
     "SSEDescription": {"Status": "ENABLED", "SSEType": "KMS", "KMSMasterKeyArn": "arn:aws:kms:eu-central-2:123456789012:key/1"},
     "TableClassSummary": {"TableClass": "STANDARD_INFREQUENT_ACCESS"},
     "DeletionProtectionEnabled": True,
+    "OnDemandThroughput": {"MaxReadRequestUnits": 9223372036854775807, "MaxWriteRequestUnits": -1, "FutureMember": 1},
     "FutureMember": UNKNOWN_NESTED,
 }
 

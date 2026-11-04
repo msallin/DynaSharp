@@ -1,1 +1,30 @@
 #nullable enable
+DynaSharp.Requests.CreateTableRequest.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.CreateTableRequest.OnDemandThroughput.init -> void
+DynaSharp.Requests.GlobalSecondaryIndex.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.GlobalSecondaryIndex.OnDemandThroughput.init -> void
+DynaSharp.Requests.GlobalSecondaryIndexDescription.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.GlobalSecondaryIndexDescription.OnDemandThroughput.init -> void
+DynaSharp.Requests.OnDemandThroughput
+DynaSharp.Requests.OnDemandThroughput.<Clone>$() -> DynaSharp.Requests.OnDemandThroughput!
+DynaSharp.Requests.OnDemandThroughput.Equals(DynaSharp.Requests.OnDemandThroughput? other) -> bool
+DynaSharp.Requests.OnDemandThroughput.MaxReadRequestUnits.get -> long?
+DynaSharp.Requests.OnDemandThroughput.MaxReadRequestUnits.init -> void
+DynaSharp.Requests.OnDemandThroughput.MaxWriteRequestUnits.get -> long?
+DynaSharp.Requests.OnDemandThroughput.MaxWriteRequestUnits.init -> void
+DynaSharp.Requests.OnDemandThroughput.OnDemandThroughput() -> void
+DynaSharp.Requests.TableDescription.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.TableDescription.OnDemandThroughput.init -> void
+DynaSharp.Requests.UpdateGlobalSecondaryIndexAction.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.UpdateGlobalSecondaryIndexAction.OnDemandThroughput.init -> void
+*REMOVED*DynaSharp.Requests.UpdateGlobalSecondaryIndexAction.ProvisionedThroughput.get -> DynaSharp.Requests.ProvisionedThroughput!
+DynaSharp.Requests.UpdateGlobalSecondaryIndexAction.ProvisionedThroughput.get -> DynaSharp.Requests.ProvisionedThroughput?
+DynaSharp.Requests.UpdateTableRequest.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
+DynaSharp.Requests.UpdateTableRequest.OnDemandThroughput.init -> void
+DynaSharp.Requests.UpdateTableRequest.SSESpecification.get -> DynaSharp.Requests.SSESpecification?
+DynaSharp.Requests.UpdateTableRequest.SSESpecification.init -> void
+override DynaSharp.Requests.OnDemandThroughput.Equals(object? obj) -> bool
+override DynaSharp.Requests.OnDemandThroughput.GetHashCode() -> int
+override DynaSharp.Requests.OnDemandThroughput.ToString() -> string!
+static DynaSharp.Requests.OnDemandThroughput.operator !=(DynaSharp.Requests.OnDemandThroughput? left, DynaSharp.Requests.OnDemandThroughput? right) -> bool
+static DynaSharp.Requests.OnDemandThroughput.operator ==(DynaSharp.Requests.OnDemandThroughput? left, DynaSharp.Requests.OnDemandThroughput? right) -> bool

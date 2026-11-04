@@ -101,6 +101,18 @@ public sealed class TableDescriptionTests
     }
 
     [Test]
+    public async Task Constructor_OnlyRequiredMembers_OnDemandThroughputIsNull()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var description = new TableDescription { TableName = "Orders" };
+
+        // Assert
+        await Assert.That(description.OnDemandThroughput).IsNull();
+    }
+
+    [Test]
     public async Task Constructor_OnlyRequiredMembers_DeletionProtectionIsOff()
     {
         // Arrange (nothing to arrange)

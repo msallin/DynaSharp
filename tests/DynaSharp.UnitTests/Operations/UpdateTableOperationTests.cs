@@ -66,6 +66,26 @@ public sealed class UpdateTableOperationTests
                 new() { Create = new() { IndexName = "ByCustomer", KeySchema = [new("customer", KeyType.Hash)], Projection = new() { ProjectionType = ProjectionType.All } } },
             ],
         },
+        ["OnDemandThroughput"] = Request() with { OnDemandThroughput = new() { MaxReadRequestUnits = 20, MaxWriteRequestUnits = 15 } },
+        ["OnDemandThroughputRemoved"] = Request() with { OnDemandThroughput = new() { MaxReadRequestUnits = -1, MaxWriteRequestUnits = -1 } },
+        ["OnDemandThroughputWriteOnly"] = Request() with { OnDemandThroughput = new() { MaxWriteRequestUnits = 3 } },
+        ["BillingModePayPerRequestWithOnDemandThroughput"] = Request() with
+        {
+            BillingMode = BillingMode.PayPerRequest,
+            OnDemandThroughput = new() { MaxReadRequestUnits = long.MaxValue, MaxWriteRequestUnits = 1 },
+        },
+        ["GlobalSecondaryIndexCreateWithOnDemandThroughput"] = Request() with
+        {
+            AttributeDefinitions = [new("status", ScalarAttributeType.String)],
+            GlobalSecondaryIndexUpdates = [new() { Create = Index(ProjectionType.All) with { OnDemandThroughput = new() { MaxReadRequestUnits = 4, MaxWriteRequestUnits = 3 } } }],
+        },
+        ["GlobalSecondaryIndexUpdateOnDemandThroughput"] = Request() with
+        {
+            GlobalSecondaryIndexUpdates = [new() { Update = new() { IndexName = "ByStatus", OnDemandThroughput = new() { MaxReadRequestUnits = 6 } } }],
+        },
+        ["SseAwsManagedKey"] = Request() with { SSESpecification = new() { Enabled = true } },
+        ["SseCustomerManagedKey"] = Request() with { SSESpecification = new() { Enabled = true, SSEType = SSEType.Kms, KMSMasterKeyId = "alias/orders" } },
+        ["SseOwnedKey"] = Request() with { SSESpecification = new() { Enabled = false } },
         ["DeletionProtectionOn"] = Request() with { DeletionProtectionEnabled = true },
         ["DeletionProtectionOff"] = Request() with { DeletionProtectionEnabled = false },
         ["TableClassStandard"] = Request() with { TableClass = TableClass.Standard },

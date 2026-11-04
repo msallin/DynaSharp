@@ -37,4 +37,10 @@ public sealed record GlobalSecondaryIndexDescription
     /// <see cref="BillingMode.PayPerRequest"/> capacity reports zero units.
     /// </summary>
     public ProvisionedThroughputDescription? ProvisionedThroughput { get; init; }
+
+    /// <summary>
+    /// Gets the maximum throughput of an index of a table with <see cref="BillingMode.PayPerRequest"/> capacity, or <see langword="null"/> if DynamoDB
+    /// reported none, which it does for an index without a maximum.
+    /// </summary>
+    public OnDemandThroughput? OnDemandThroughput { get; init; }
 }

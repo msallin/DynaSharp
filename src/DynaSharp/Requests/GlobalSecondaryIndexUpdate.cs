@@ -17,7 +17,7 @@ public sealed record GlobalSecondaryIndexUpdate
     /// </summary>
     public GlobalSecondaryIndex? Create { get; init; }
 
-    /// <summary>Gets the index whose capacity to change, or <see langword="null"/> if this change is another kind.</summary>
+    /// <summary>Gets the index whose capacity or on-demand maximums to change, or <see langword="null"/> if this change is another kind.</summary>
     public UpdateGlobalSecondaryIndexAction? Update { get; init; }
 
     /// <summary>Gets the index to delete, or <see langword="null"/> if this change is another kind.</summary>

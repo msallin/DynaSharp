@@ -32,8 +32,10 @@ internal readonly struct UpdateTableOperation : IOperation<UpdateTableRequest, U
         TableJson.WriteProvisionedThroughput(json, request.ProvisionedThroughput);
         WriteIndexUpdates(json, request.GlobalSecondaryIndexUpdates);
         TableJson.WriteStreamSpecification(json, request.StreamSpecification);
+        TableJson.WriteSseSpecification(json, request.SSESpecification, alwaysWriteEnabled: true);
         WireNames.TableClasses.WriteIfSet(json, "TableClass"u8, request.TableClass);
         OperationJson.WriteBooleanIfSet(json, "DeletionProtectionEnabled"u8, request.DeletionProtectionEnabled);
+        TableJson.WriteOnDemandThroughput(json, request.OnDemandThroughput);
         json.WriteEndObject();
     }
 
@@ -67,6 +69,7 @@ internal readonly struct UpdateTableOperation : IOperation<UpdateTableRequest, U
                 json.WriteStartObject("Update"u8);
                 json.WriteString("IndexName"u8, change.IndexName);
                 TableJson.WriteProvisionedThroughput(json, change.ProvisionedThroughput);
+                TableJson.WriteOnDemandThroughput(json, change.OnDemandThroughput);
                 json.WriteEndObject();
             }
 

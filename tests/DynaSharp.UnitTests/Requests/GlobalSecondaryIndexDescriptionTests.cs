@@ -63,4 +63,16 @@ public sealed class GlobalSecondaryIndexDescriptionTests
         // Assert
         await Assert.That(value.ProvisionedThroughput).IsNull();
     }
+
+    [Test]
+    public async Task Constructor_OnlyRequiredMembers_OnDemandThroughputIsNull()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var value = new GlobalSecondaryIndexDescription { IndexName = "ByStatus" };
+
+        // Assert
+        await Assert.That(value.OnDemandThroughput).IsNull();
+    }
 }

@@ -102,6 +102,60 @@ public sealed class TableOperationTests(Backend backend)
     }
 
     [Test]
+    public async Task CreateTable_OnDemandThroughput_DescribesTheMaximums()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var name = Tables.UniqueName();
+        var request = Tables.Request(name, TableSpec.PartitionOnly) with { OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 10, MaxWriteRequestUnits = 5 } };
+
+        // Act
+        await sandbox.CreateTableAsync(request);
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = name })).Table!;
+
+        // Assert
+        await Assert.That(description.OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 10, MaxWriteRequestUnits = 5 });
+    }
+
+    [Test]
+    public async Task CreateTable_OnDemandThroughputWithProvisionedCapacity_ThrowsValidationException()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.OnDemandThroughputRejectedWithProvisionedCapacity);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var request = Tables.Request(Tables.UniqueName(), TableSpec.PartitionOnly) with
+        {
+            BillingMode = BillingMode.Provisioned,
+            ProvisionedThroughput = new ProvisionedThroughput { ReadCapacityUnits = 1, WriteCapacityUnits = 1 },
+            OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 10, MaxWriteRequestUnits = 5 },
+        };
+
+        // Act
+        var failure = await Items.FailureOfAsync<ValidationException>(() => sandbox.CreateTableAsync(request));
+
+        // Assert
+        await Assert.That(failure.ErrorCode).IsEqualTo("ValidationException");
+    }
+
+    [Test]
+    public async Task CreateTable_GlobalIndexWithOnDemandThroughput_DescribesItOnTheIndex()
+    {
+        // Arrange
+        Gaps.SkipIfMissing(backend, Gap.GlobalIndexOnDemandThroughput);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var name = Tables.UniqueName();
+        var request = Tables.Request(name, new TableSpec(WithGlobalIndex: true));
+        request = request with { GlobalSecondaryIndexes = [request.GlobalSecondaryIndexes![0] with { OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 4, MaxWriteRequestUnits = 3 } }] };
+
+        // Act
+        await sandbox.CreateTableAsync(request);
+        var description = (await sandbox.Client.DescribeTableAsync(new DescribeTableRequest { TableName = name })).Table!;
+
+        // Assert
+        await Assert.That(description.GlobalSecondaryIndexes.Single().OnDemandThroughput).IsEqualTo(new OnDemandThroughput { MaxReadRequestUnits = 4, MaxWriteRequestUnits = 3 });
+    }
+
+    [Test]
     public async Task CreateTable_LocalIndex_AllowsQueriesByTheIndexSortKey()
     {
         // Arrange

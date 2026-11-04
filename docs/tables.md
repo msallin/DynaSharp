@@ -91,3 +91,15 @@ await orders.CreateTable()
 ## Other table operations
 
 Table administration beyond `CreateTable()`, such as `UpdateTable` above, lives in the request API, `DynaSharp.Requests`, which mirrors the service. [API levels](api-levels.md) says how the levels share a client.
+
+An on-demand table can have a maximum throughput, above which DynamoDB throttles, and a KMS key of your account instead of the one DynamoDB owns:
+
+```csharp
+await client.UpdateTableAsync(new UpdateTableRequest
+{
+    TableName = "Shop",
+    OnDemandThroughput = new OnDemandThroughput { MaxReadRequestUnits = 2_000, MaxWriteRequestUnits = 500 },
+}, ct);
+```
+
+`CreateTableRequest` and each `GlobalSecondaryIndex` take `OnDemandThroughput` too; an index has maximums of its own. A member left out keeps its value, `-1` removes a maximum, and a table with provisioned capacity takes none. `SSESpecification = new SSESpecification { Enabled = true }` switches to the AWS managed key, with `KMSMasterKeyId` to a key of yours, and `Enabled = false` back. Each change puts the table into updating, so the next waits for it.
