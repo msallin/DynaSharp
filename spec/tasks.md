@@ -746,16 +746,63 @@ Branch `m4/r3-bind-errors`, item 11 of the advice on the second focus group, app
 
 ## M7 - DynaSharp.Coordination (after M3)
 
-- [ ] Lease / lock: Lock Client semantics (relative lease duration, record version number, heartbeat at most half the
+Narrowed by the owner on 2026-11-04 (see Decisions): the package holds the lease with fencing and leader election, nothing else.
+
+- [x] Lease / lock: Lock Client semantics (relative lease duration, record version number, heartbeat at a fixed third of the
       lease, contender waits out the lease on a monotonic clock via `TimeProvider.GetTimestamp`), fencing token
-      (monotonic counter on acquire) plus a condition helper for downstream DynamoDB writes; document that external
-      systems must check the token themselves
-- [ ] Leader election on top of the lease
-- [ ] Sparse-GSI queue: sharded GSI key (`PENDING#k`), conditional claim with owner and lease, completion removes the
-      GSI attribute, reaper resets expired claims, transactional enqueue together with a business write
-- [ ] Hi/lo allocator (block claim via `ADD`, gaps on crash documented)
-- [ ] Telemetry for acquire/renew/lose, claim/reap, block allocation
-- [ ] M7 independent review
+      (monotonic counter, `ADD` on every acquire) plus `IsHeld(lease)`, a condition check for a `TransactWrite`; document that
+      external systems must check the token themselves. `LockTable`, `Lease`, `LeaseTransactExtensions` in `src/DynaSharp.Coordination`.
+- [x] Leader election on top of the lease: `LeaderElection.RunAsync`
+- [-] Sparse-GSI queue: dropped from the package, a recipe instead (`Recipes/SparseIndexQueueTests.cs`, `docs/patterns-indexes.md`).
+      Owner's decision of 2026-11-04.
+- [-] Hi/lo allocator: dropped from the package, a recipe instead (`Recipes/HiLoAllocatorTests.cs`, `docs/patterns-writes.md`).
+      Owner's decision of 2026-11-04.
+- [x] Telemetry for acquire/renew/lose: spans `Lock.TryAcquire`, `Lock.Acquire`, `Lock.Renew`, `Lock.Release`, counters
+      `dynasharp.lock.acquisitions`, `dynasharp.lock.renewals`, `dynasharp.lock.losses`, log events 40 to 46 in the category
+      `DynaSharp.Coordination.LockTable`, 45 and 46 for the start and end of a leader's term (claim/reap and block allocation went with
+      the queue and hi/lo)
+- [x] Packaging: `DynaSharp.Coordination` in the solution, the unit, integration (`Coordination/`, fake and emulators) and AOT smoke
+      tests, Stryker (`DynaSharp.Mutation.slnx`, shard `coordination` in `ci.yml`), coverage, ReadmeCheck (`build/ReadmeCheck.cs` references
+      the project, the package README is a page of it), the API reference (`docs/docfx.json`, `docs.yml`), the pack of `ci.yml` and the pack
+      and version check of `release.yml`. A `README.md` of its own in the package. Docs: `docs/coordination.md`
+- [ ] Stryker run of the shard `coordination`, before the milestone closes (not run yet)
+- [ ] M7 independent review, before the first release that ships the package (the public surface freezes with it)
+
+Decisions taken while building it (beyond the plan):
+- The client's options (its `TimeProvider` and `LoggerFactory`) are read through `InternalsVisibleTo("DynaSharp.Coordination")`, so
+  `LockTable` takes only a `Table<Item>` and the core gets no public member for it. The two packages ship at the same version, as
+  `DynaSharp.Testing` does; a mixed install of two versions can fail at run time if the internals changed.
+- `TryAcquireAsync` makes one attempt and never waits. It remembers the record version it saw per lock name, with the monotonic
+  timestamp, so a later call takes over once the holder's lease has passed unchanged; `AcquireAsync` polls it every third of the
+  holder's lease (or less, if the lease runs out sooner). Each acquire writes a new owner id, so a process that acquires twice holds two leases.
+- A release removes `owner` and `leaseMs` under the condition `owner = :me` and keeps the item, so the fencing token never goes back.
+  The item has no time to live (a first draft wrote `ttl` 30 days after the last write, and was dropped in review): a deleted item starts
+  its token at 1 again, which a downstream system that keeps the highest token refuses for good. Lock items are few and small.
+- A renewal that fails with anything but `ConditionalCheckFailed` or `ResourceNotFound` is tried once more at once; if that fails too,
+  the lease is lost (fail-safe). The plan's "retry immediately" and "any other error means lost" are reconciled this way.
+- `Lost` is also cancelled when the lease is released by `DisposeAsync`, so it means "no longer held". The loss counter and log count
+  only real losses.
+- `RenewAsync` returns `bool` (false: lost or released) and throws for `ResourceNotFound` and for a failure after the retry.
+- `LeaderElection.RunAsync` contends again after a transient acquire failure (`IsTransient`, timeout, network) after a third of the
+  lease, and stops on any other error. Work that returns on its own ends the election and hands the lock on.
+- Lease duration from 1 second to 1 day, stored as whole milliseconds rounded up. A first draft allowed 1 ms: below 3 ms the heartbeat
+  period truncates to 0 and renews in a busy loop, and below a second no lease outlasts the round trips and retries of its renewals. Lock names go into telemetry and logs as
+  `dynasharp.lock.name`, as table names do: they are names chosen in code, not data, and the docs say not to put data in them.
+- Telemetry names: the package reports to the activity source and the meter named `DynaSharp`, the ones of the client, not to a
+  `DynaSharp.Coordination` of its own, so the one subscription that `docs/observability.md` shows covers it, and a span of a lock is the
+  parent of the spans of its requests. Instruments are prefixed `dynasharp.lock.`, spans `Lock.`, attributes `dynasharp.lock.*`. The log
+  category is the type, `DynaSharp.Coordination.LockTable`, and the event ids continue those of the client (40 to 46).
+- An acquire whose condition fails reads the item, and if the owner there is the one this acquire wrote, the lease is held: the client
+  retried after a lost response, and the retry failed the condition the first attempt met. Without this the lock stayed orphaned for a
+  lease, and the process waited for its own lock.
+- A renewal extends the lease only if it was sent after the one that last extended it. The first draft ended the lease when the late answer
+  of an older renewal (`RenewAsync` beside the heartbeat) came after that renewal's own lease, although a newer renewal had extended it.
+- The work of a leader logs the start (45, with the fencing token) and the end of its term (46: `lease_lost`, `cancelled`,
+  `work_returned`, `work_failed`); leadership changes happen outside any call a caller sees.
+- Review of the first draft (2026-11-04, the agent that took it over): the unit tests hung, because a test that held back renewals also held
+  back the release of its `await using`, and a test drove the clock a fixed number of steps on `Task.Yield`, which ran out before the
+  election under test had armed its wait. The harness (`LockHarness`, a test helper, not a benchmark) lets a release through and steps
+  the clock with a moment of real time, bounded. Assertions on logs read the category of the locks only, since the client logs too.
 
 ## Decisions
 
@@ -773,7 +820,7 @@ Branch `m4/r3-bind-errors`, item 11 of the advice on the second focus group, app
 | 2026-10-31 | Contiguous pooled buffers instead of segmented ones (simpler; one-shot hashing). Revisit with benchmarks. |
 | 2026-10-31 | No gzip in M1. If added later, handle error bodies that claim gzip but are not compressed. |
 | 2026-10-31 | `AGENTS.md` is the only file of working agreements. Specs and plans live in `spec/`, never in `README.md`. |
-| 2026-10-31 | Design patterns: primitives in the core, recipes as scenario tests, first-class types only in `DynaSharp.Coordination` (lease/lock, leader election, queue, hi/lo). |
+| 2026-10-31 | Design patterns: primitives in the core, recipes as scenario tests, first-class types only in `DynaSharp.Coordination` (lease/lock, leader election, queue, hi/lo). Narrowed on 2026-11-04, see there. |
 | 2026-10-31 | Optimistic locking: opt-in per entity type via `[Version]`, then enforced on every write. Not a global default (blind upserts must stay possible). |
 | 2026-10-31 | Single-table design and key grammar are core requirements; the key grammar gets a design spike before M2. |
 | 2026-10-31 | Integration tests run against Dynoxide (local default) and DynamoDB Local (additionally in PRs), same tests parametrized by backend. |
@@ -825,6 +872,7 @@ Branch `m4/r3-bind-errors`, item 11 of the advice on the second focus group, app
 | 2026-11-03 | Owner's decision, security review: `KeyWriter` returns its arrays uncleared like every other pooled buffer, and the in-process threat model is decision 18 of `architecture.md`. An http endpoint is not rejected, because DynamoDB Local in docker-compose (`http://dynamodb-local:8000`) must work; on a host that is not loopback the client warns once (event 9), and the web identity provider once for STS (event 25). A custom `HttpHandler` reads the request content only before its `SendAsync` returns and sends a request once. |
 | 2026-11-03 | Owner's decision (R2): continuation tokens can be signed, opt-in, with `DynamoDbClientOptions.TokenSigner`. Plain tokens stay as decided on 2026-11-01. Details under "R2" in "M4 and later". |
 | 2026-11-03 | Owner's decisions: the retry of a throttled control-plane call (`CreateTable`, `UpdateTable`, `DeleteTable`) keeps the budget of every other call; `mfa_serial` in a profile fails with advice to get a session from the CLI, no prompt; `DYNA202` stays a warning, since it can report code that compiles; the Stryker run on the code of the morning was stopped and runs again once M4 merges. |
+| 2026-11-04 | Owner's decision, scope review for a frozen API: `DynaSharp.Coordination` ships, narrowed to the lease with fencing tokens (`LockTable`, `Lease`, `IsHeld` in a transaction) and leader election (`LeaderElection.RunAsync`). The sparse-GSI queue and the hi/lo allocator of M7 are dropped from the package and become recipes. Why: a queue cannot be frozen, because every user needs one more feature (visibility timeouts, priorities, delays, a dead-letter queue, FIFO groups) until it is a small SQS; hi/lo is a single `ADD` plus a documented gap after a crash, which a recipe shows in full. The lease and leader election are small, have subtle failure modes (clocks, heartbeats, fencing) and a contract that can be frozen. Out of scope, documented in `docs/coordination.md`: a hosting package or `IHostedService` (a `BackgroundService` of five lines is a recipe), configuration sections, custom attribute names, enforcing fencing across tables or in external systems. |
 
 ## Findings and notes
 

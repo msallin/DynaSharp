@@ -23,6 +23,12 @@
       "dynasharp": {
         "type": "Project"
       },
+      "dynasharp.coordination": {
+        "type": "Project",
+        "dependencies": {
+          "DynaSharp": "[1.0.0, )"
+        }
+      },
       "dynasharp.testing": {
         "type": "Project",
         "dependencies": {

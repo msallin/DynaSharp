@@ -53,8 +53,8 @@ Fix:
 - **TTL**: converter for epoch seconds, so TTL attributes work.
 - **Pattern support** (see `patterns.md`): every pattern of the catalog is expressible with the core primitives and
   shipped as a recipe in the scenario tests (executable documentation). First-class types only where subtle bugs live,
-  in a separate package `DynaSharp.Coordination`: lease/lock with fencing tokens and leader election, sparse-GSI queue,
-  hi/lo allocator.
+  in a separate package `DynaSharp.Coordination`: lease/lock with fencing tokens, and leader election on top of it.
+  Nothing else: the queue over a sparse GSI and the hi/lo allocator are recipes (decision of 2026-11-04 in `tasks.md`).
 - **Configuration**: region and endpoint from options or environment (`AWS_REGION`, `AWS_DEFAULT_REGION`,
   `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL`); endpoint override for DynamoDB Local.
 - **Credentials**: static; environment; web identity from a token file through STS (IRSA on EKS); shared config/credentials files;
@@ -111,13 +111,14 @@ Infrastructure: `DynaSharp.Keys` (except `KeyFormatException`, which callers cat
 The public API is defined in `api.md`, the code as it stands is described in `architecture.md`. The primary API is `Table<T>` over `Item` or a generated entity, on the pipeline directly; the request API is a sibling in `DynaSharp.Requests`, not a layer beneath it.
 
 Internal modules: HTTP pipeline, SigV4 signing, configuration resolution, operations, error mapping, telemetry.
-Separate projects: `DynaSharp.Generators` (netstandard2.0, packed into `DynaSharp`), `DynaSharp.Testing`,
-later `DynaSharp.Coordination` (depends only on `DynaSharp`).
+Separate projects: `DynaSharp.Generators` (netstandard2.0, packed into `DynaSharp`), `DynaSharp.Testing`, and
+`DynaSharp.Coordination` (lease with fencing and leader election; depends only on `DynaSharp`, at the same version,
+and reads the clock and the logger factory of the client through `InternalsVisibleTo`).
 
 Key design rules:
 - **Primitives over patterns.** The core offers composable primitives (typed conditions and updates, transactions with
   markers, key grammar, fan-out query, versioning). Patterns are recipes on top; only coordination types with subtle
-  failure modes get their own implementation.
+  failure modes and a contract that can be frozen get their own implementation: the lease and leader election.
 - **One serialization path.** `DynamoDbReader`/`DynamoDbWriter` and `IDynamoDbConverter<T>` (static abstract) are the
   only DynamoDB-JSON code. `AttributeValue` is their first converter; generated entity code uses the same API. Every
   DynamoDB-JSON quirk (N as text, B as base64, `NULL: true`, no empty sets) is implemented once.
