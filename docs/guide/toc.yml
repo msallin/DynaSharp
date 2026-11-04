@@ -26,6 +26,8 @@
     href: ../without-a-model.md
   - name: Streams
     href: ../streams.md
+  - name: Locks and leader election
+    href: ../coordination.md
   - name: Testing
     href: ../testing.md
 - name: Moving to DynaSharp

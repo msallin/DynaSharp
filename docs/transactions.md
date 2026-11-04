@@ -35,6 +35,8 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 
 `Put` returns a step that takes the clauses of a put, `Update` one of an update, and `Delete` and `Check` one with conditions only. Each step offers the verbs of the next action as well. `Unique(table, item, out marker)` is a put with `attribute_not_exists` on the partition key. `TransactionCanceledException` has `ReasonFor(marker)`, `ItemFor(marker)` and `Failures`, the reason of every action.
 
+With `DynaSharp.Coordination`, `IsHeld(lease)` is a step too: a condition check on the item of a lock, so the transaction commits only while a lease holds it. See [Fencing](coordination.md#fencing).
+
 ## TransactGetItems
 
 Two gets can see two items at two different moments. `TransactGet` reads up to 100 items as of one point in time. Each get hands out a slot, which reads its item from the result, with its type.

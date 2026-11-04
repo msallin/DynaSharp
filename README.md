@@ -22,7 +22,8 @@ DynaSharp needs .NET 11. The package brings its source generator and analyzers a
 
 ```shell
 dotnet add package DynaSharp
-dotnet add package DynaSharp.Testing   # in a test project
+dotnet add package DynaSharp.Testing        # in a test project
+dotnet add package DynaSharp.Coordination   # locks and leader election, optional
 ```
 
 ### A first table
@@ -154,7 +155,7 @@ await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().Keys(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
-**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` for [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
+**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` for [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));
@@ -237,7 +238,7 @@ dotnet test --project tests/DynaSharp.IntegrationTests   # needs Docker
 dotnet stryker                                           # mutation testing
 ```
 
-The documentation site is built with DocFX from `docs/`: `dotnet build src/DynaSharp.Testing -c Release`, then `dotnet docfx docs/docfx.json --serve`.
+The documentation site is built with DocFX from `docs/`: `dotnet build src/DynaSharp.Testing -c Release` and `dotnet build src/DynaSharp.Coordination -c Release`, then `dotnet docfx docs/docfx.json --serve`.
 
 ## License
 

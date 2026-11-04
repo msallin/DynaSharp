@@ -24,6 +24,8 @@ public static class ClientSetup
 
 Without `LoggerFactory` nothing is logged. The credentials provider the client makes when `Credentials` is not set logs to the same factory; a provider you pass in does not log.
 
+The locks and leader election of `DynaSharp.Coordination` report to the same source and meter, and log to the factory of the client of their table: see [Coordination](coordination.md#observability).
+
 ## Traces
 
 Each request is one span of kind `Client`, named after service and operation: `DynamoDB.GetItem`, `DynamoDB Streams.GetRecords`. A retried request is still one span; a query of three pages is three, a batch one per request, and `CreateTable()` one per call it makes, such as `DescribeTable` and `CreateTable`. A failed request sets the status to `Error` without the message, which can quote the request.

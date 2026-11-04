@@ -262,6 +262,35 @@ Caveats:
 - The window is the day the caller builds the key. A caller's retry across midnight UTC lands in the next day's item, which has not seen the id, and counts twice. The client's own retries resend the same key.
 - An atomic counter has gaps where a write failed. For numbers without gaps, as invoices need, see the [gapless sequence](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/GaplessSequenceTests.cs).
 
+## Hi/lo sequence
+
+Ids that are numbers, unique across processes, without a write per id: one `ADD` claims a block, and the process hands the block out from memory.
+
+```csharp
+[DynamoDbEntity]
+[Discriminator("HILO")]
+[PartitionKey("HILO#{Name}")]
+[SortKey("HILO")]
+public partial record HiLoBlock
+{
+    public required string Name { get; init; }
+    public long Hi { get; init; }
+}
+```
+
+```csharp
+const int BlockSize = 100;
+long hi = await shop.Of<HiLoBlock>().Update(HiLoBlock.Keys.Of("orders"))
+    .Add(HiLoBlock.Attrs.Hi, (long)BlockSize)
+    .Return(HiLoBlock.Attrs.Hi)
+    .SendAsync(ct);
+
+// This process owns hi - BlockSize + 1 to hi, and claims the next block when they are used up.
+var first = hi - BlockSize + 1;
+```
+
+The numbers are unique, because each `ADD` returns a value no other call gets. They have gaps: a process that stops leaves the rest of its block unused, and a retry of the client after a lost response claims a block twice and wastes one, which is why this write needs no `MaxAttempts(1)`. Gaps are fine for ids and wrong for invoice numbers, which take the [gapless sequence](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/GaplessSequenceTests.cs). [The recipe](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/HiLoAllocatorTests.cs) has a thread-safe allocator.
+
 ## Transactional outbox
 
 A state change and its event are written in one transaction, so neither happens without the other.
