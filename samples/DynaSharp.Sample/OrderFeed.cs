@@ -5,7 +5,7 @@ namespace DynaSharp.Sample;
 /// <summary>
 /// Reads the stream of the shop table and hands each change of an order on, the reader of the Streams page of the guide.
 /// <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> reads every shard, a parent before its children, so the changes of one item come in order, and the
-/// first failure of any shard ends the loop. It keeps no position across restarts and shares no shards with other processes: that is what a consumer in
+/// first failure of any shard that is not transient ends the loop. It keeps no position across restarts and shares no shards with other processes: that is what a consumer in
 /// production adds.
 /// </summary>
 internal static class OrderFeed

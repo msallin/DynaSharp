@@ -177,6 +177,24 @@ internal sealed class ClientCore : IDisposable
     /// <param name="elapsed">The time since the first look for the children of the shard.</param>
     public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => _pipeline.LogChildListedLate(childShardId, shardId, elapsed);
 
+    /// <summary>Waits before a shard is read again after a transient failure, see <see cref="DynamoDbPipeline.ShardRetryBackoffAsync"/>.</summary>
+    /// <param name="retry">The number of the retry of this outage of the shard, starting at 1.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>A task that completes when the wait is over.</returns>
+    public Task ShardRetryBackoffAsync(int retry, CancellationToken cancellationToken) => _pipeline.ShardRetryBackoffAsync(retry, cancellationToken);
+
+    /// <summary>Logs that a shard failed transiently and is tried again, see <see cref="DynamoDbPipeline.LogShardRetrying"/>.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="failure">The failure that started the outage.</param>
+    /// <param name="window">How long the reader tries before the failure surfaces.</param>
+    public void LogShardRetrying(string shardId, Exception failure, TimeSpan window) => _pipeline.LogShardRetrying(shardId, failure, window);
+
+    /// <summary>Logs that a shard is read again after an outage, see <see cref="DynamoDbPipeline.LogShardRecovered"/>.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="elapsed">The time since the failure that started the outage.</param>
+    /// <param name="retries">How many times the shard was tried again.</param>
+    public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => _pipeline.LogShardRecovered(shardId, elapsed, retries);
+
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

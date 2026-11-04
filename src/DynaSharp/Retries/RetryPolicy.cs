@@ -26,6 +26,11 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
     public const double ConflictBaseMilliseconds = 10;
     public const double MaxConflictDelayMilliseconds = 1_000;
 
+    // ReadStreamAsync reads a shard again once the attempts of a call failed, which took up to a second or so. What outlasts them is an outage of minutes, so the
+    // reader backs off from a second, to at most half a minute between two tries, which a shard's five GetRecords per second shrug off.
+    public const double ShardRetryBaseMilliseconds = 1_000;
+    public const double MaxShardRetryDelayMilliseconds = 30_000;
+
     private readonly RetryQuota _quota = new();
 
     /// <summary>Gets the retry quota tokens left.</summary>
@@ -86,6 +91,14 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
     /// <param name="run">The number of the run that failed, starting at 1.</param>
     /// <returns>The delay.</returns>
     public TimeSpan GetConflictDelay(int run) => Jitter(ConflictBaseMilliseconds, MaxConflictDelayMilliseconds, run);
+
+    /// <summary>
+    /// Picks the wait before <c>ReadStreamAsync</c> reads a shard again after a transient failure, uniformly from zero to <c>min(30 s, 1 s * 2^(retry - 1))</c>. Like the wait of a
+    /// conflict retry it asks no quota: the calls it repeats ask their own.
+    /// </summary>
+    /// <param name="retry">The number of the retry of this outage of the shard, starting at 1.</param>
+    /// <returns>The delay.</returns>
+    public TimeSpan GetShardRetryDelay(int retry) => Jitter(ShardRetryBaseMilliseconds, MaxShardRetryDelayMilliseconds, retry);
 
     [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Jitter spreads retries in time; it protects nothing.")]
     private TimeSpan Jitter(double baseMilliseconds, double maxMilliseconds, int attempt) =>

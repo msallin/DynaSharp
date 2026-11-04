@@ -1,0 +1,290 @@
+using DynaSharp.Streams;
+using DynaSharp.Testing;
+using DynaSharp.UnitTests.Testing.Fake;
+
+namespace DynaSharp.UnitTests.Streams;
+
+/// <summary>
+/// <see cref="TableStreamExtensions.ReadStreamAsync{T}"/> over a <see cref="FakeDynamoDb"/>, whose table <c>Users</c> has a stream: the stream that <c>DescribeTable</c> names
+/// at the start of each enumeration, a table without one, and the arguments.
+/// </summary>
+public sealed class TableStreamExtensionsTests
+{
+    private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    [Test]
+    public async Task ReadStreamAsync_TableWithAStream_ReadsTheStreamTheTableNames()
+    {
+        // Arrange
+        var fake = FakeStreams.UsersOn(new ManualTimeProvider(Start));
+        FakeStreams.Put(fake, "k", 1);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var records = await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That(records.Single().Record.DynamoDb!.Keys!["pk"].AsString()).IsEqualTo("k");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_StreamSwitchedOffAfterTheStart_EndsWithTheStream()
+    {
+        // Arrange
+        using var handler = SwitchedOffAfterTheStart();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var records = await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
+
+        // Assert
+        await Assert.That((records.Single().ShardId, handler.Requests[1].BodyJson.GetProperty("StreamArn").GetString())).IsEqualTo(("shard-1", TestClient.StreamArn));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_TokensOfTheCallAndOfWithCancellation_ReadsToTheEnd()
+    {
+        // Arrange
+        using var handler = SwitchedOffAfterTheStart();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+        using var call = new CancellationTokenSource();
+        using var enumeration = new CancellationTokenSource();
+
+        // Act
+        var records = new List<ShardChangeRecord>();
+        await foreach (var change in client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon, cancellationToken: call.Token).WithCancellation(enumeration.Token))
+        {
+            records.Add(change);
+        }
+
+        // Assert
+        await Assert.That(records.Single().ShardId).IsEqualTo("shard-1");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_StreamGoneAfterTheTableNamedIt_ThrowsResourceNotFoundException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json($$$"""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"KEYS_ONLY"},"LatestStreamArn":"{{{TestClient.StreamArn}}}"}}"""));
+        handler.Enqueue(StubResponse.ResourceNotFound());
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var act = async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ResourceNotFoundException>();
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_StreamTurnedOffAndOnBetweenTwoEnumerations_ReadsTheNewStreamTheSecondTime()
+    {
+        // Arrange: the old stream keeps the first value for 24 hours, and only the new one has the second
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        FakeStreams.Put(fake, "k", 1);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var reading = client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon);
+        var first = await reading.Take(1).ToListAsync();
+        SetStream(fake, enabled: false);
+        time.Advance(TimeSpan.FromSeconds(1));
+        SetStream(fake, enabled: true);
+        FakeStreams.Put(fake, "k", 2);
+
+        // Act
+        var second = await reading.Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That((Value(first.Single()), Value(second.Single()))).IsEqualTo((1m, 2m));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_Joined_ReadsAWriteAfterTheCall()
+    {
+        // Arrange: the item is written once the reader holds its position, and the clock moves the waits after empty pages
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        FakeStreams.Put(fake, "before", 1);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reading = client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.Latest, onJoined: () => joined.TrySetResult()).Take(1).ToListAsync().AsTask();
+        await joined.Task;
+        FakeStreams.Put(fake, "after", 1);
+
+        // Act
+        while (!reading.IsCompleted)
+        {
+            if (time.NextDueIn is { } dueIn)
+            {
+                time.Advance(dueIn);
+            }
+            else
+            {
+                await Task.Yield();
+            }
+        }
+
+        // Assert
+        await Assert.That((await reading).Single().Record.DynamoDb!.Keys!["pk"].AsString()).IsEqualTo("after");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_EmptyPageDelay_IsWaitedAfterAnEmptyPage()
+    {
+        // Arrange
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        using var cancellation = new CancellationTokenSource();
+        var reading = client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.Latest, TimeSpan.FromSeconds(3), cancellationToken: cancellation.Token).ToListAsync().AsTask();
+        while (time.ArmedTimers == 0)
+        {
+            await Task.Yield();
+        }
+
+        // Act
+        var delay = time.NextDueIn;
+        await cancellation.CancelAsync();
+
+        // Assert
+        await Assert.That((delay, await TestClient.CaptureAsync<OperationCanceledException>(() => reading) is not null)).IsEqualTo(((TimeSpan?)TimeSpan.FromSeconds(3), true));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_TableWithoutAStream_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var act = async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
+            "The table Users has no enabled stream. Turn one on with Stream(...) of CreateTable(), or with StreamSpecification of UpdateTableAsync.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_StreamTurnedOff_ThrowsInvalidOperationException()
+    {
+        // Arrange: DescribeTable still names the stream that was switched off
+        var fake = FakeStreams.UsersOn(new ManualTimeProvider(Start));
+        SetStream(fake, enabled: false);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var act = async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+    }
+
+    [Test]
+    [Arguments("""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":false},"LatestStreamArn":"arn:aws:dynamodb:eu-central-2:123456789012:table/Users/stream/x"}}""")]
+    [Arguments("""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}}}""")]
+    [Arguments("""{"Table":{"TableName":"Users"}}""")]
+    public async Task ReadStreamAsync_DescriptionWithoutAnEnabledAndNamedStream_ThrowsWithoutReadingAStream(string description)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(description));
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        await TestClient.CaptureAsync<InvalidOperationException>(() => client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync().AsTask());
+
+        // Assert
+        await Assert.That(string.Join(",", handler.Requests.Select(static sent => sent.Operation))).IsEqualTo("DescribeTable");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_NotEnumerated_SendsNothing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        _ = client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon);
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_NullTable_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var streams = TestClient.CreateStreams(new StubHandler());
+
+        // Act
+        var act = () => TableStreamExtensions.ReadStreamAsync<Item>(null!, streams, ShardIteratorType.TrimHorizon);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("table");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_NullStreamsClient_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var client = TestClient.Create(new StubHandler());
+
+        // Act
+        var act = () => client.Table("Users", "pk").ReadStreamAsync(null!, ShardIteratorType.TrimHorizon);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("streams");
+    }
+
+    [Test]
+    [Arguments(ShardIteratorType.AfterSequenceNumber, 0L)]
+    [Arguments(ShardIteratorType.Latest, -1L)]
+    [Arguments(ShardIteratorType.TrimHorizon, 15 * 60 * 1000L)]
+    public async Task ReadStreamAsync_PositionOrDelayOutOfRange_ThrowsArgumentOutOfRangeException(ShardIteratorType type, long milliseconds)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var act = () => client.Table("Users", "pk").ReadStreamAsync(streams, type, TimeSpan.FromMilliseconds(milliseconds));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+    }
+
+    // DescribeTable finds the stream on, and DescribeStream finds it switched off, with its one shard read to its end.
+    private static StubHandler SwitchedOffAfterTheStart()
+    {
+        var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json($$$"""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"KEYS_ONLY"},"LatestStreamArn":"{{{TestClient.StreamArn}}}"}}"""));
+        handler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled, StubResponse.Shard("shard-1", endingSequenceNumber: "9")));
+        handler.Enqueue(StubResponse.ShardIterator("iterator-1"));
+        handler.Enqueue(StubResponse.Records(null, StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "k" })));
+        handler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled));
+        return handler;
+    }
+
+    private static void SetStream(FakeDynamoDb fake, bool enabled)
+    {
+        var specification = enabled ? """{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"}""" : """{"StreamEnabled":false}""";
+        FakeCalls.Ok(fake, "UpdateTable", $$"""{"TableName":"Users","StreamSpecification":{{specification}}}""");
+    }
+
+    private static decimal Value(ShardChangeRecord change) => change.Record.DynamoDb!.NewImage!["v"].AsNumber<decimal>();
+}

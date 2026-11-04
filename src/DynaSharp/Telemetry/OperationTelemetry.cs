@@ -263,11 +263,14 @@ internal sealed class OperationTelemetry
         return activity;
     }
 
-    /// <summary>Ends what <see cref="StartShard"/> started: the span, with the number of records and the failure, and the count of shards being read.</summary>
+    /// <summary>
+    /// Ends what <see cref="StartShard"/> started: the span, with the number of records, the number of retries if there were any, and the failure, and the count of shards being read.
+    /// </summary>
     /// <param name="activity">The span, if there is one.</param>
     /// <param name="records">How many records of the shard were handed over.</param>
+    /// <param name="retries">How many times the shard was read again after a transient failure.</param>
     /// <param name="failure">The failure that ended the shard, or <see langword="null"/> if it ended or was stopped.</param>
-    public void EndShard(Activity? activity, int records, Exception? failure)
+    public void EndShard(Activity? activity, int records, int retries, Exception? failure)
     {
         AddShard(-1);
 
@@ -279,6 +282,10 @@ internal sealed class OperationTelemetry
         if (activity.IsAllDataRequested)
         {
             activity.SetTag(TelemetryNames.ShardRecords, records);
+            if (retries > 0)
+            {
+                activity.SetTag(TelemetryNames.ShardRetries, retries);
+            }
         }
 
         if (failure is not null)
@@ -300,6 +307,21 @@ internal sealed class OperationTelemetry
         var tags = default(TagList);
         AddServer(ref tags);
         DynaSharpTelemetry.StreamRecords.Add(1, tags);
+    }
+
+    /// <summary>Counts a retry of a shard that <c>ReadStreamAsync</c> reads, after a transient failure.</summary>
+    /// <param name="failure">The failure, whose type is the <c>error.type</c>.</param>
+    public void CountStreamRetry(Exception failure)
+    {
+        if (!DynaSharpTelemetry.StreamRetries.Enabled)
+        {
+            return;
+        }
+
+        var tags = default(TagList);
+        AddServer(ref tags);
+        tags.Add(TelemetryNames.ErrorType, GetErrorType(failure));
+        DynaSharpTelemetry.StreamRetries.Add(1, tags);
     }
 
     // Once per shard and not per record, so a check of Enabled would save nothing worth its branch.

@@ -51,6 +51,32 @@ public sealed class ShardChangeRecordTests
     }
 
     [Test]
+    public async Task SequenceNumber_RecordWithOne_IsItsSequenceNumber()
+    {
+        // Arrange
+        var change = new ShardChangeRecord("shard-1", Insert with { DynamoDb = new StreamRecord { SequenceNumber = "300" } });
+
+        // Act
+        var sequenceNumber = change.SequenceNumber;
+
+        // Assert
+        await Assert.That(sequenceNumber).IsEqualTo("300");
+    }
+
+    [Test]
+    public async Task SequenceNumber_RecordWithoutStreamRecordOrDefault_IsNull()
+    {
+        // Arrange
+        var change = new ShardChangeRecord("shard-1", Insert);
+
+        // Act
+        var sequenceNumbers = (change.SequenceNumber, default(ShardChangeRecord).SequenceNumber);
+
+        // Assert
+        await Assert.That(sequenceNumbers).IsEqualTo(((string?)null, (string?)null));
+    }
+
+    [Test]
     public async Task Default_EqualsDefault_AndHashesWithoutAShard()
     {
         // Arrange

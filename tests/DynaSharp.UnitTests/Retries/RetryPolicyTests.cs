@@ -78,6 +78,24 @@ internal sealed class RetryPolicyTests
     }
 
     [Test]
+    [Arguments(1, 1.0, 1_000.0)]
+    [Arguments(3, 0.5, 2_000.0)]
+    [Arguments(6, 1.0, 30_000.0)]
+    [Arguments(int.MaxValue, 1.0, 30_000.0)]
+    [Arguments(int.MaxValue, 0.0, 0.0)]
+    public async Task GetShardRetryDelay_FixedRandom_IsTheShareOfTheCeiling(int retry, double random, double expectedMilliseconds)
+    {
+        // Arrange (the ceiling is min(30 s, 1 s * 2^(retry - 1)))
+        var policy = new RetryPolicy(3, new FixedRandom(random));
+
+        // Act
+        var delay = policy.GetShardRetryDelay(retry);
+
+        // Assert
+        await Assert.That(delay).IsEqualTo(TimeSpan.FromMilliseconds(expectedMilliseconds));
+    }
+
+    [Test]
     public async Task GetConflictDelay_ManyRuns_TakesNothingFromTheQuota()
     {
         // Arrange

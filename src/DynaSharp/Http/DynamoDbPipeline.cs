@@ -241,6 +241,16 @@ internal sealed class DynamoDbPipeline : IDisposable
     public Task ConflictBackoffAsync(int run, CancellationToken cancellationToken) =>
         DelayAsync(_retryPolicy.GetConflictDelay(run), cancellationToken);
 
+    /// <summary>
+    /// Waits before <c>ReadStreamAsync</c> reads a shard again after a transient failure, with the jitter of the retry policy and on the clock of the client. The calls it
+    /// repeats take from the retry quota as any call does, so the wait takes nothing.
+    /// </summary>
+    /// <param name="retry">The number of the retry of this outage of the shard, starting at 1.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>A task that completes when the wait is over.</returns>
+    public Task ShardRetryBackoffAsync(int retry, CancellationToken cancellationToken) =>
+        DelayAsync(_retryPolicy.GetShardRetryDelay(retry), cancellationToken);
+
     /// <summary>Counts a run of a conflict retry that lost and is repeated.</summary>
     /// <param name="conflict">The failure of the run.</param>
     public void CountConflictRetry(DynamoDbException conflict) =>
@@ -262,6 +272,19 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <param name="shardId">The shard it continues.</param>
     /// <param name="elapsed">The time since the first look for the children of the shard.</param>
     public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => ClientLog.ChildListedLate(_logger, childShardId, shardId, elapsed);
+
+    /// <summary>Reports that the reading of a shard failed transiently and is tried again, once per outage of the shard, an event of the reading of a stream and of no single call.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="failure">The failure that started the outage.</param>
+    /// <param name="window">How long the reader tries before the failure surfaces.</param>
+    public void LogShardRetrying(string shardId, Exception failure, TimeSpan window) =>
+        ClientLog.ShardRetrying(_logger, shardId, OperationTelemetry.GetErrorType(failure), window);
+
+    /// <summary>Logs that the reading of a shard works again after an outage.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="elapsed">The time since the failure that started the outage.</param>
+    /// <param name="retries">How many times the shard was tried again.</param>
+    public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => ClientLog.ShardRecovered(_logger, shardId, elapsed, retries);
 
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>

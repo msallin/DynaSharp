@@ -55,6 +55,11 @@ internal static class DynaSharpTelemetry
         unit: "{record}",
         description: "Number of records that ReadStreamAsync handed to its caller.");
 
+    internal static readonly Counter<long> StreamRetries = Meter.CreateCounter<long>(
+        TelemetryNames.StreamRetriesMetric,
+        unit: "{retry}",
+        description: "Number of times ReadStreamAsync read a shard again after a transient failure.");
+
     internal static readonly Counter<double> ConsumedCapacity = Meter.CreateCounter<double>(
         TelemetryNames.ConsumedCapacityMetric,
         unit: "{capacity_unit}",

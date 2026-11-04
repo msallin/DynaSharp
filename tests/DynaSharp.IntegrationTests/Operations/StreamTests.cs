@@ -491,13 +491,12 @@ public sealed class StreamTests(Backend backend)
         var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
         var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
         fake.SplitStreamShards(table, secondChildListedAfter: TimeSpan.FromSeconds(5));
-        using var positioned = new PositionedHandler(sandbox.Emulator.CreateHandler());
-        using var streams = new DynamoDbStreamsClient(sandbox.Emulator.CreateOptions() with { HttpHandler = positioned });
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
         string[] keys = ["k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10", "k11", "k12", "k13", "k14", "k15"];
-        var reading = streams.ReadStreamAsync(StreamFromTrimHorizon(arn) with { ShardIteratorType = ShardIteratorType.Latest }, timeout.Token)
-            .Take(keys.Length).ToListAsync(timeout.Token).AsTask();
-        await positioned.Positioned.WaitAsync(timeout.Token);
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var latest = StreamFromTrimHorizon(arn) with { ShardIteratorType = ShardIteratorType.Latest, OnJoined = () => joined.TrySetResult() };
+        var reading = sandbox.Streams.ReadStreamAsync(latest, timeout.Token).Take(keys.Length).ToListAsync(timeout.Token).AsTask();
+        await joined.Task.WaitAsync(timeout.Token);
 
         // Act
         await PutAllAsync(sandbox, table, keys, 1);
@@ -506,6 +505,67 @@ public sealed class StreamTests(Backend backend)
         // Assert
         await Assert.That(string.Join(",", records.Select(static change => change.Record.DynamoDb!.Keys!["pk"].AsString()).Order(StringComparer.Ordinal)))
             .IsEqualTo(string.Join(",", keys.Order(StringComparer.Ordinal)));
+    }
+
+    [Test]
+    public async Task ReadStream_Table_ReadsTheStreamTheTableNames()
+    {
+        // Arrange: the stream is listed first, as a new stream of real DynamoDB is described some time after the table turned active
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Client.Table(table, "pk").ReadStreamAsync(sandbox.Streams, ShardIteratorType.TrimHorizon, cancellationToken: timeout.Token)
+            .Take(3).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(string.Join(",", records.Select(static change => change.Record.EventName))).IsEqualTo("Insert,Modify,Remove");
+    }
+
+    [Test]
+    public async Task ReadStream_LatestOnceJoined_ReadsAWriteAfterTheCall()
+    {
+        // Arrange: a write before the start, which Latest leaves out, and one after the signal. ReadStreamAsync reads only the open shards from Latest.
+        Gaps.SkipIfMissing(backend, Gap.OpenShardWithoutEndingSequenceNumber);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("before", AttributeValue.FromNumber(1)) });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var latest = StreamFromTrimHorizon(arn) with { ShardIteratorType = ShardIteratorType.Latest, OnJoined = () => joined.TrySetResult() };
+        var reading = sandbox.Streams.ReadStreamAsync(latest, timeout.Token).Take(1).ToListAsync(timeout.Token).AsTask();
+        await joined.Task.WaitAsync(timeout.Token);
+
+        // Act
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("after", AttributeValue.FromNumber(1)) });
+        var records = await reading;
+
+        // Assert
+        await Assert.That(records.Single().Record.DynamoDb!.Keys!["pk"].AsString()).IsEqualTo("after");
+    }
+
+    [Test]
+    public async Task ReadStream_PageFailsWithAServerError_ReturnsEveryChangeOnce()
+    {
+        // Arrange: the first GetRecords gets a 500 that the stream never sent, and the client makes one attempt per call, so the reader of the shard sees it.
+        // One item, so one shard, also on real DynamoDB.
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        using var failing = new FailingHandler(sandbox.Emulator.CreateHandler(), failOnCall: 1);
+        using var streams = new DynamoDbStreamsClient(sandbox.Emulator.CreateOptions() with { HttpHandler = failing, MaxAttempts = 1 });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await streams.ReadStreamAsync(StreamFromTrimHorizon(arn), timeout.Token).Take(3).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That((string.Join(",", records.Select(static change => change.Record.EventName)), failing.Failed)).IsEqualTo(("Insert,Modify,Remove", true));
     }
 
     [Test]
@@ -575,22 +635,25 @@ public sealed class StreamTests(Backend backend)
         await sandbox.Client.DeleteItemAsync(new DeleteItemRequest { TableName = table, Key = Items.Key("a") });
     }
 
-    // Says when the first GetShardIterator has been answered.
-    private sealed class PositionedHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
+    // Answers the nth GetRecords with a 500 of DynamoDB without sending it on.
+    private sealed class FailingHandler(HttpMessageHandler inner, int failOnCall) : DelegatingHandler(inner)
     {
-        private readonly TaskCompletionSource _positioned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
 
-        public Task Positioned => _positioned.Task;
+        public bool Failed => Volatile.Read(ref _calls) >= failOnCall;
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var response = await base.SendAsync(request, cancellationToken);
-            if (request.Headers.TryGetValues("X-Amz-Target", out var targets) && targets.Single().EndsWith(".GetShardIterator", StringComparison.Ordinal))
+            if (request.Headers.TryGetValues("X-Amz-Target", out var targets) && targets.Single().EndsWith(".GetRecords", StringComparison.Ordinal)
+                && Interlocked.Increment(ref _calls) == failOnCall)
             {
-                _positioned.TrySetResult();
+                return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent("""{"__type":"com.amazon.coral.service#InternalFailure","message":"Failure of the test."}""", System.Text.Encoding.UTF8, "application/x-amz-json-1.0"),
+                });
             }
 
-            return response;
+            return base.SendAsync(request, cancellationToken);
         }
     }
 }

@@ -55,13 +55,14 @@ Each request is one span of kind `Client`, named after service and operation: `D
 
 ### Reading a stream
 
-`ReadStreamAsync` adds a span per shard it reads, of kind `Internal`, named `DynamoDB Streams.ReadStream`. It is a child of the span that was current when the loop started, and the calls of the shard are its children. A child shard is not the child span of its parent, so that a stream read for days is no trace that grows for days: its span links to the span of the parent shard instead. The span lasts as long as the shard is read and its children are looked for, up to a minute more, which for an open shard can be hours, until DynamoDB closes it.
+`ReadStreamAsync` adds a span per shard it reads, of kind `Internal`, named `DynamoDB Streams.ReadStream`. It is a child of the span that was current when the loop started, and the calls of the shard are its children. A child shard is not the child span of its parent, so that a stream read for days is no trace that grows for days: its span links to the span of the parent shard instead. The span lasts as long as the shard is read and its children are looked for, up to a minute more, which for an open shard can be hours, until DynamoDB closes it. A shard read again after a transient failure stays one span, with the failed calls under it.
 
 | Attribute | Value |
 |---|---|
 | `db.system.name`, `rpc.service`, `cloud.region`, `server.address`, `server.port` | As on the spans of the calls |
 | `dynasharp.stream.shard_id` | The shard |
 | `dynasharp.stream.record_count` | The records of the shard handed over |
+| `dynasharp.stream.retry_count` | How many times the shard was read again after a transient failure, on a shard that was |
 | `error.type`, `db.response.status_code` | The failure that ended the reading, set as on a failed request. A shard stopped by the loop, or by the failure of another shard, has none |
 
 ## Metrics
@@ -76,14 +77,15 @@ Each request is one span of kind `Client`, named after service and operation: `D
 | `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item `OnMappingFailure` skipped, see [Queries](queries.md#skip-items-that-fail-to-map) |
 | `dynasharp.client.stream.shards` | UpDownCounter | `{shard}` | The shards `ReadStreamAsync` is reading, up when one starts and down when it ends |
 | `dynasharp.client.stream.records` | Counter | `{record}` | Each record `ReadStreamAsync` handed out |
+| `dynasharp.client.stream.retries` | Counter | `{retry}` | Each time `ReadStreamAsync` read a shard again after a transient failure, see [Streams](streams.md#when-a-shard-fails) |
 | `dynasharp.client.consumed_capacity` | Counter | `{capacity_unit}` | Capacity units DynamoDB reported, per table, indexes included. Only requests that ask, with `.ReturnCapacity()` or `ReturnConsumedCapacity`, have any |
 
 | Tag | On |
 |---|---|
 | `db.operation.name` | All |
 | `db.collection.name` | All, for a call of one table. On `consumed_capacity`, the table DynamoDB names in the response |
-| `server.address`, `server.port` | All; they tell two clients apart. The two stream metrics carry nothing else |
-| `error.type` | The duration of a failed request, the retries, the throttles and the two conflict counters |
+| `server.address`, `server.port` | All; they tell two clients apart. The stream metrics carry nothing else but the `error.type` of a stream retry |
+| `error.type` | The duration of a failed request, the retries, the throttles, the two conflict counters and the stream retries |
 | `db.system.name` | The duration |
 | `db.response.status_code` | The duration of a request that failed with a code from DynamoDB |
 
@@ -91,7 +93,7 @@ The conflict counters carry the operation that met the conflict, such as `PutIte
 
 ## Logs
 
-The client logs only what no single caller sees: its configuration, retries that ran out, a corrected clock, failed credential refreshes, an endpoint over plain http, the shards of a stream as they end. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as an empty retry quota. Event ids are stable; categories are the types:
+The client logs only what no single caller sees: its configuration, retries that ran out, a corrected clock, failed credential refreshes, an endpoint over plain http, the shards of a stream as they end or fail for a while. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as an empty retry quota. Event ids are stable; categories are the types:
 
 - `DynaSharp.DynamoDbClient`
 - `DynaSharp.Streams.DynamoDbStreamsClient`
@@ -110,6 +112,8 @@ The client logs only what no single caller sees: its configuration, retries that
 | 9 | Warning | The endpoint is http on a non-loopback host, once per client | `DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.` |
 | 10 | Debug | `ReadStreamAsync` read a shard to its end and stopped looking for its children | `DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.` |
 | 11 | Debug | `ReadStreamAsync` found a child only on a later look | `DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the first look for its children.` |
+| 12 | Warning | `ReadStreamAsync` reads a shard again after a transient failure, once at the start of each outage of the shard | `DynamoDB Streams shard {ShardId} failed with {ErrorType} on the last attempt of a call. ReadStreamAsync reads it on from where it stopped, with a backoff, for up to {Window}, ...` |
+| 13 | Information | The shard works again after such an outage | `DynamoDB Streams shard {ShardId} is read again, {Elapsed} after it failed and after {Retries} retries.` |
 | 20 | Debug | The default chain chose a source | `Credentials come from the {Source}.` |
 | 21 | Warning | A refresh failed while the credentials are still good | `Refreshing the credentials from the {Source} failed in the advisory refresh period: {Reason}. ...`, with the exception |
 | 22 | Warning | A refresh failed and requests fail until one succeeds | `Refreshing the credentials from the {Source} failed in the mandatory refresh period: {Reason}. ...`, with the exception |

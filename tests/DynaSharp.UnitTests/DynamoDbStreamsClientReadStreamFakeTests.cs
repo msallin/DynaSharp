@@ -71,30 +71,19 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
     }
 
     [Test]
-    [Arguments(0, 2)]
-    [Arguments(30, 1)]
-    public async Task ReadStreamAsync_LatestDuringASplitWhoseSecondChildIsListedLate_ReadsTheWritesOfBothChildren(int secondChildListedAfter, int listedAtTheStart)
+    [Arguments(0)]
+    [Arguments(30)]
+    public async Task ReadStreamAsync_LatestDuringASplitWhoseSecondChildIsListedLate_ReadsTheWritesOfBothChildren(int secondChildListedAfter)
     {
         // Arrange: the split happens before the start, and the items are written once the readers of the children listed at the start hold their iterators
         var time = new ManualTimeProvider(Start);
         var fake = FakeStreams.UsersOn(time);
         fake.SplitStreamShards("Users", secondChildListedAfter: TimeSpan.FromSeconds(secondChildListedAfter));
-        var positioned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var iterators = 0;
-        using var handler = new StubHandler((request, cancellationToken) =>
-        {
-            var answer = fake.Answer(request);
-            if (request.Operation == "GetShardIterator" && Interlocked.Increment(ref iterators) == listedAtTheStart)
-            {
-                positioned.TrySetResult();
-            }
-
-            return Task.FromResult(answer);
-        });
-        using var streams = StubClient.CreateStreams(handler, options => options with { TimeProvider = time });
-        var latest = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest };
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var streams = fake.CreateStreamsClient();
+        var latest = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest, OnJoined = () => joined.TrySetResult() };
         var reading = streams.ReadStreamAsync(latest).Take(2 * Keys.Length).ToListAsync().AsTask();
-        await positioned.Task;
+        await joined.Task;
         PutAll(fake, 1);
         PutAll(fake, 2);
 

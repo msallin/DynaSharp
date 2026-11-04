@@ -41,4 +41,10 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 11, Level = LogLevel.Debug, Message = "DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the first look for its children.")]
     public static partial void ChildListedLate(ILogger logger, string childShardId, string shardId, TimeSpan elapsed);
+
+    [LoggerMessage(EventId = 12, Level = LogLevel.Warning, Message = "DynamoDB Streams shard {ShardId} failed with {ErrorType} on the last attempt of a call. ReadStreamAsync reads it on from where it stopped, with a backoff, for up to {Window}, and then passes the error on.")]
+    public static partial void ShardRetrying(ILogger logger, string shardId, string errorType, TimeSpan window);
+
+    [LoggerMessage(EventId = 13, Level = LogLevel.Information, Message = "DynamoDB Streams shard {ShardId} is read again, {Elapsed} after it failed and after {Retries} retries.")]
+    public static partial void ShardRecovered(ILogger logger, string shardId, TimeSpan elapsed, int retries);
 }

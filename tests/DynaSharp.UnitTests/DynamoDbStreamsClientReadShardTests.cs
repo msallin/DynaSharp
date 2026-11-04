@@ -237,6 +237,22 @@ public sealed class DynamoDbStreamsClientReadShardTests
     }
 
     [Test]
+    public async Task ReadShardAsync_TransientError_ThrowsItWithoutReadingAgain()
+    {
+        // Arrange: ReadStreamAsync reads a shard again after this, ReadShardAsync leaves it to the caller
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub, random: FixedRandom.Zero);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError));
+
+        // Act
+        var act = async () => await streams.ReadShardAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InternalServerErrorException>();
+    }
+
+    [Test]
     public async Task ReadShardAsync_StartIsTrimmed_ThrowsTrimmedDataAccessException()
     {
         // Arrange

@@ -16,6 +16,7 @@ internal static class TelemetryNames
     public const string SkippedItemsMetric = "dynasharp.client.operation.skipped_items";
     public const string StreamShardsMetric = "dynasharp.client.stream.shards";
     public const string StreamRecordsMetric = "dynasharp.client.stream.records";
+    public const string StreamRetriesMetric = "dynasharp.client.stream.retries";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";
@@ -61,6 +62,7 @@ internal static class TelemetryNames
     public const string ReadStreamSpan = "DynamoDB Streams.ReadStream";
     public const string ShardId = "dynasharp.stream.shard_id";
     public const string ShardRecords = "dynasharp.stream.record_count";
+    public const string ShardRetries = "dynasharp.stream.retry_count";
 
     // Value of error.type when an attempt timed out.
     public const string TimeoutErrorType = "timeout";
