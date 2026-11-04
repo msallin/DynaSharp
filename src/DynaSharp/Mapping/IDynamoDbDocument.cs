@@ -21,6 +21,12 @@ namespace DynaSharp.Mapping;
 public interface IDynamoDbDocument<TSelf>
     where TSelf : IDynamoDbDocument<TSelf>
 {
+    /// <summary>
+    /// Gets <see cref="IDynamoDbEntity{TSelf}.Info"/> of an entity, or <see langword="null"/> for a document, for code that takes any document and reads an entity by what it knows, as
+    /// <c>FakeDynamoDb.Items&lt;T&gt;</c> does with the discriminator. A constraint on a document cannot reach <c>Info</c> otherwise without reflection.
+    /// </summary>
+    internal static virtual DynamoDbEntityInfo? EntityInfo => null;
+
     /// <summary>Writes the attribute names and values, without the surrounding braces.</summary>
     /// <param name="writer">The writer, positioned inside an item or a map.</param>
     /// <param name="entity">The value to write.</param>

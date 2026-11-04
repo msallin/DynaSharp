@@ -403,6 +403,104 @@ public sealed class FakeDynamoDbTests
     }
 
     [Test]
+    public async Task ItemsOfT_TableOfSeveralEntities_GivesThoseOfTheEntityAndSkipsTheOthers()
+    {
+        // Arrange: an item of another entity whose email no subscriber could read, one without a type and one whose type is no string, each before the subscriber in key order.
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Subscriber>("Shop");
+        var subscriber = new Subscriber("s-1", "a@example.com", "pro");
+        fake.Put("Shop", subscriber);
+        fake.Put("Shop", new Item { ["pk"] = "c-1", ["_type"] = "COST_CENTER", ["email"] = 5 });
+        fake.Put("Shop", new Item { ["pk"] = "c-2", ["email"] = "b@example.com" });
+        fake.Put("Shop", new Item { ["pk"] = "c-3", ["_type"] = 1, ["email"] = "c@example.com" });
+
+        // Act
+        var subscribers = fake.Items<Subscriber>("Shop");
+
+        // Assert
+        await Assert.That(subscribers).IsEquivalentTo([subscriber]);
+    }
+
+    [Test]
+    public async Task ItemsOfT_ItemOfTheEntityItCannotRead_Throws()
+    {
+        // Arrange: a subscriber without its required email.
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Subscriber>("Shop");
+        fake.Put("Shop", new Item { ["pk"] = "s-1", ["_type"] = "SUBSCRIBER" });
+
+        // Act
+        var read = () => fake.Items<Subscriber>("Shop");
+
+        // Assert
+        await Assert.That(read).Throws<DynamoDbMappingException>();
+    }
+
+    [Test]
+    public async Task ItemsOfT_DiscriminatorUnderAnotherName_ComparesThatAttribute()
+    {
+        // Arrange: Account keeps its type in "kind", and "_type" means nothing to it.
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Mapping.Account>("Accounts");
+        var account = new Mapping.Account { Id = "a-1" };
+        fake.Put("Accounts", account);
+        fake.Put("Accounts", new Item(Item.From(new Mapping.Account { Id = "a-0" })) { ["kind"] = "LEDGER", ["_type"] = "ACCOUNT" });
+
+        // Act
+        var accounts = fake.Items<Mapping.Account>("Accounts");
+
+        // Assert
+        await Assert.That(accounts.Select(read => read.Id)).IsEquivalentTo(["a-1"]);
+    }
+
+    [Test]
+    public async Task ItemsOfT_EntityWithoutADiscriminator_ReadsEveryItemAndThrowsForOneItCannotRead()
+    {
+        // Arrange: nothing tells the item of another writer apart, so it is read as the entity, and its key does not fit the template.
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Mapping.KeyEntities.OwnedThing>("Things");
+        fake.Put("Things", new Mapping.KeyEntities.OwnedThing { Id = "t-1" });
+        fake.Put("Things", new Item { ["pk"] = "COST#1", ["_type"] = "COST_CENTER" });
+
+        // Act
+        var read = () => fake.Items<Mapping.KeyEntities.OwnedThing>("Things");
+
+        // Assert
+        await Assert.That(read).Throws<DynamoDbMappingException>();
+    }
+
+    [Test]
+    public async Task ItemsOfT_Document_ReadsEveryItem()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Subscriber>("Shop");
+        fake.Put("Shop", new Subscriber("s-1", "a@example.com"));
+        fake.Put("Shop", new Item { ["pk"] = "c-1", ["_type"] = "COST_CENTER" });
+
+        // Act
+        var items = fake.Items<Item>("Shop");
+
+        // Assert
+        await Assert.That(items.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task GetOfT_ItemOfAnotherEntity_Throws()
+    {
+        // Arrange: a key names one item, so another entity on it is a mistake, as Get(key).ItemAsync() of a client says.
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Subscriber>("Shop");
+        fake.Put("Shop", new Item { ["pk"] = "s-1", ["_type"] = "COST_CENTER", ["email"] = "a@example.com" });
+
+        // Act
+        var read = () => fake.Get<Subscriber>("Shop", new Item { ["pk"] = "s-1" });
+
+        // Assert
+        await Assert.That(read).Throws<DynamoDbMappingException>().WithMessageContaining("COST_CENTER", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task GetOfT_NoItem_IsNull()
     {
         // Arrange

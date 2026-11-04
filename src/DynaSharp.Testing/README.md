@@ -101,6 +101,19 @@ Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `f
 
 `Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
+On a table of several entities, `Items<T>` gives the items of `T` and skips the others, as a typed `Scan()` does, so a single-table design reads back one entity at a time:
+
+```csharp
+var fake = new FakeDynamoDb();
+fake.CreateTable<Customer>("Shop");
+fake.Put("Shop", customer);
+fake.Put("Shop", order);
+
+IReadOnlyList<Customer> stored = fake.Items<Customer>("Shop");
+```
+
+An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and so does `Get<T>` for an item of another entity on that key. [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) has the rules.
+
 `fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, a `StubHandler` whose responder is the fake. `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB.
 
 A client of the fake makes one attempt per call. A test of the retries queues the failure on the handler and asks for more attempts:
