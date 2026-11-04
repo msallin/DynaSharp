@@ -818,6 +818,15 @@ Fixed as the reviewer suggested:
 - L9: `RenewAsync` documents every exception and what it leaves of the lease.
 - L11: documented that a lease never disposed is renewed for the life of the process.
 - L12: `AcquireAsync_HolderReleases_AcquiresWithinAThirdOfItsLease` waits until the contender has armed its wait, then moves the clock once.
+- Bugs found by the yats migration (2026-11-04), fixed: (1) `RunAsync` threw what the work threw when the caller cancelled and the work
+  turned its cancellation into another exception; it throws `OperationCanceledException` now whenever the caller's token is cancelled, and
+  logs what the work threw at Debug (event 48). (2) An item at the key of a lock with an `owner` but without the other attributes broke
+  `TryAcquireAsync` with a `KeyNotFoundException` (and an `owner` of another type made it poll in a loop): every read of a lock item is
+  checked, and such an item throws `InvalidOperationException` naming the lock and the table. Chosen over "held, lease unknown": an item
+  that `LockTable` did not write has no lease to wait out, so a contender would wait forever or guess, and taking it over would overwrite
+  data that is not a lock; a clear error says to rename the lock. A free item with a `fence` that is no whole number throws the same, after
+  the acquire wrote it. (3) A lock item deleted while held lost the lease as `taken_over`; the renewal asks for the old item on a failed
+  condition, and none is the new reason `deleted`, in the metric, the log and the docs, which say the next acquire starts the token at 1.
 - Coverage flake after the merge (1 run of 3): the outcome "cancelled" of the retry filter of the heartbeat was reached only by
   `Lost_NoRenewalAnswersWithinTheLease_IsCancelledWhenTheLeaseRunsOut`, and only when its renewal was in flight before the lease ran out;
   otherwise the heartbeat saw the ended lease first. `Heartbeat_RenewalInFlightWhenTheLeaseRunsOut_StopsWithoutTryingAgain` waits for the

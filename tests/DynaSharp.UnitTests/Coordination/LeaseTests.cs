@@ -82,6 +82,25 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task Heartbeat_ItemDeleted_LosesTheLeaseAsDeletedAndTheNextTokenIsOne()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.losses");
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Fake.Delete(bench.TableName, bench.KeyOf("job"));
+
+        // Act
+        await BeatAsync(bench, lease!);
+        await using var next = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((lease!.LossReason, metrics.Single().TagText, bench.LockLogs.Single(static entry => entry.EventId.Id == 40).Message, next!.FencingToken)).IsEqualTo(
+            ("deleted", $"db.collection.name={bench.TableName},dynasharp.lock.loss_reason=deleted", $"The lease on lock job in table {bench.TableName} is lost (deleted).", 1L));
+    }
+
+    [Test]
     public async Task Heartbeat_AfterTheLoss_Stops()
     {
         // Arrange
