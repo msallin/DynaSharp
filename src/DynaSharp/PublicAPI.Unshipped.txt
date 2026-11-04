@@ -23,6 +23,7 @@ DynaSharp.Requests.UpdateTableRequest.OnDemandThroughput.get -> DynaSharp.Reques
 DynaSharp.Requests.UpdateTableRequest.OnDemandThroughput.init -> void
 DynaSharp.Requests.UpdateTableRequest.SSESpecification.get -> DynaSharp.Requests.SSESpecification?
 DynaSharp.Requests.UpdateTableRequest.SSESpecification.init -> void
+DynaSharp.Table<T>.Client.get -> DynaSharp.DynamoDbClient!
 override DynaSharp.Requests.OnDemandThroughput.Equals(object? obj) -> bool
 override DynaSharp.Requests.OnDemandThroughput.GetHashCode() -> int
 override DynaSharp.Requests.OnDemandThroughput.ToString() -> string!

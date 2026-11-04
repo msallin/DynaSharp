@@ -88,6 +88,7 @@ public sealed class DynamoDbClient : IDisposable
         HttpMessageHandler? credentialsHandler = null)
     {
         Core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, options, getEnvironmentVariable, pool, activitySource, random, readFile, maxResponseLength, credentialsHandler);
+        Core.Client = this;
         _transactions = TableModel.ForTransactions(Core);
     }
 

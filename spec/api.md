@@ -136,6 +136,8 @@ Index<Item> byStatusMixed = shop.Index<Order>(Order.Indexes.StatusIndex);   // n
 ```
 
 `Table<T>` is sealed, immutable and thread-safe. `T` is `Item` or a generated type, and it decides only how an item is written and read.
+`Name`, `PartitionKeyName` and `SortKeyName` describe it, and `Client` is the `DynamoDbClient` it was opened from, the same for every view of it through `Of<T>()` and
+for its indexes (`Index<T>.Table.Client`), so code that takes a table needs no client besides, and reads the clock and the logger of the client from `Client.Options`.
 `Of<T>()` and `client.Table<T>()` require an entity, not a keyless document. Opening a table makes no request. `DescribeAsync(ct)` and
 `WaitUntilActiveAsync(timeout, ct)` cover the two administrative calls a table user makes; the timeout defaults to 5 minutes. A response without a description gives one with the name of the table and `TableStatus.Unknown`, which a wait does not take for active.
 A wait returns when the table and all its global secondary indexes are `ACTIVE`, because a table reads `ACTIVE` while an index backfills, on `Table<T>` and `CreateTableCommand`. DynamoDB allocates an index that `UpdateTable` adds before it backfills it, which takes minutes on any table and often more than five, and a backfill takes as long as the table is large, so such a wait needs a longer timeout than the default.

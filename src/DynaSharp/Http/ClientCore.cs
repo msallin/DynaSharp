@@ -49,6 +49,9 @@ internal sealed class ClientCore : IDisposable
     /// <summary>Gets the options as they were resolved, once, when the client was created, see <see cref="DynamoDbClient.Options"/>.</summary>
     public DynamoDbClientOptions Options { get; }
 
+    /// <summary>Gets or sets the <see cref="DynamoDbClient"/> this is the core of, which its tables hand out; set once by its constructor, and null for a streams client.</summary>
+    public DynamoDbClient? Client { get; set; }
+
     /// <summary>Resolves the configuration and creates the HTTP client and the pipeline.</summary>
     /// <typeparam name="TClient">The public client, which is the category of its logger.</typeparam>
     /// <param name="service">The service the client talks to.</param>

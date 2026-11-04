@@ -38,6 +38,21 @@ public sealed class TableTests
     }
 
     [Test]
+    public async Task Client_OfATableAndItsViews_IsTheClientItWasOpenedFrom()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var table = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var clients = (table.Client, table.Of<Customer>().Client, client.Table<Customer>("Shop").Client);
+
+        // Assert
+        await Assert.That(clients.Item1 == client && clients.Item2 == client && clients.Item3 == client).IsTrue();
+    }
+
+    [Test]
     public async Task TableOfEntity_KeyNames_ComeFromTheEntity()
     {
         // Arrange

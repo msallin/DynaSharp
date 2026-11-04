@@ -46,6 +46,16 @@ public sealed class Table<T>
     /// <summary>Gets the attribute name of the sort key, or <see langword="null"/> if the table has none.</summary>
     public string? SortKeyName => Model.SortKeyName;
 
+    /// <summary>
+    /// Gets the client the table was opened from, which sends every command of the table. Its <see cref="DynamoDbClient.Options"/> say what the commands
+    /// run with: the clock, the logger factory, the retries. A table seen through <see cref="Of{TOther}"/> and an <see cref="Index{T}"/> of it have the same client.
+    /// </summary>
+    /// <remarks>
+    /// Code that takes a table and needs the client too, such as <c>DynaSharp.Coordination</c>, which sends transactions and reads the clock of the
+    /// client, takes it from here instead of asking for both.
+    /// </remarks>
+    public DynamoDbClient Client => Model.Core.Client!;
+
     /// <summary>Gets what a command starts from.</summary>
     internal TableModel Model { get; }
 
