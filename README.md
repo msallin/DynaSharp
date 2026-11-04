@@ -9,7 +9,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 - **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 9 % less than EfficientDynamoDb and a seventh of `DynamoDBContext`.
 - **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation.
-- **Single-table first:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions with typed failure reasons.
+- **Single-table first, one table per entity just as well:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions across tables with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
 - **No AWS SDK:** no runtime package dependencies.
 - **Testable:** every request to DynamoDB goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire. Credential requests do not, so a test sets `Credentials` too.

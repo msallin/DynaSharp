@@ -111,7 +111,7 @@ using DynaSharp.Mapping;
 [assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, OmitEmpty = true)]
 ```
 
-`DiscriminatorOptOut = true` lets an entity without `[Discriminator]` go without one, for tables other code wrote, see [Items without a discriminator](adopting.md#items-without-a-discriminator). `[assembly: DynamoDbDefaultConverter]` gives a type a converter for the whole project, see [Converters](#converters).
+`DiscriminatorOptOut = true` lets an entity without `[Discriminator]` go without one, for tables other code wrote or a [table of one entity](tables.md#one-table-per-entity), see [Items without a discriminator](adopting.md#items-without-a-discriminator). `[assembly: DynamoDbDefaultConverter]` gives a type a converter for the whole project, see [Converters](#converters).
 
 An attribute on a type or property still wins. A stored attribute is named after its property, so changing `Naming` or renaming a property renames stored attributes: the rename compiles, items written before keep the old name, and a read finds the new one missing. Give a property whose name may change a `[DynamoDbAttribute]`. `pk`, `sk` and `_type` stay as they are.
 

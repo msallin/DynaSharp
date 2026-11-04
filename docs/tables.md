@@ -88,6 +88,59 @@ await orders.CreateTable()
 
 `UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait, which fails if the index is not there. A backfill finds the items that hold the attributes of the index. An older item enters it when a `Put` of the entity writes them.
 
+## One table per entity
+
+Single-table design is a choice, not a requirement. An entity can have a table of its own, opened, created and read the same way. Its keys need no prefix, since nothing else lives in the table, and `[Discriminator(OptOut = true)]` leaves out `_type`, which a table of one type does not need: a `Query` or a `Scan` of the entity then reads every item without filtering on it. Keep the discriminator if the table may take a second type later.
+
+```csharp
+using DynaSharp;
+using DynaSharp.Mapping;
+
+[DynamoDbEntity]
+[Discriminator(OptOut = true)]
+[PartitionKey("{Id}")]
+public partial record Wallet
+{
+    public required string Id { get; init; }
+    public required decimal Balance { get; init; }
+}
+
+[DynamoDbEntity]
+[Discriminator(OptOut = true)]
+[PartitionKey("{WalletId}")]
+[SortKey("{At}")]
+public partial record Deposit
+{
+    public required string WalletId { get; init; }
+    public required DateTimeOffset At { get; init; }
+    public required decimal Amount { get; init; }
+}
+
+public static class Deposits
+{
+    public static async Task BookAsync(DynamoDbClient client, Deposit deposit, CancellationToken ct)
+    {
+        var wallets = client.Table<Wallet>("Wallets");
+        var deposits = client.Table<Deposit>("Deposits");
+
+        await wallets.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
+        await deposits.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
+
+        await client.TransactWrite()
+            .Put(deposits, deposit).IfNotExists()
+            .Update(wallets, Wallet.Keys.Of(deposit.WalletId)).Add(Wallet.Attrs.Balance, deposit.Amount)
+            .SendAsync(ct);
+    }
+}
+```
+
+What spans tables and what does not:
+
+- A transaction belongs to the client, so `client.TransactWrite()` and `client.TransactGet()` take actions on any tables of the account and region, as DynamoDB does.
+- A batch belongs to a table: `BatchGet()` and `BatchWrite()` of `Table<T>` read or write that table only, so two tables take two batches.
+- What reads several types at once, mixed-type reads, fan-out queries and `Of<T>()`, is about one table holding several types, and has nothing to do in a table of one.
+- `FakeDynamoDb` holds any number of tables, and the [locks](coordination.md) and [streams](streams.md) work on any table.
+
 ## Other table operations
 
 Table administration beyond `CreateTable()`, such as `UpdateTable` above, lives in the request API, `DynaSharp.Requests`, which mirrors the service. [API levels](api-levels.md) says how the levels share a client.

@@ -903,6 +903,8 @@ Keys and queries
 - [ ] `ListAsync(ct)` as a terminal, instead of `ItemsAsync(ct).ToListAsync(ct)`.
 - [ ] Say plainly in the guide whether helpers that return an `UpdateCommand<T>` for the caller to finish are supported.
 
+- [ ] A batch across tables: `BatchGetItem` and `BatchWriteItem` take several tables in one request, while `BatchGet()` and `BatchWrite()` belong to one `Table<T>`. A client-level batch, like `client.TransactWrite()`, would read or write several tables in one round trip.
+
 Coordination
 - [ ] An ambient way to reach the current `Lease` for `IsHeld` from work deep in a call graph (yats would have to pass it through pollers and stores).
 - [ ] Warning 44 repeats every third of a lease during a long outage; rate-limit it.
