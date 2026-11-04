@@ -49,7 +49,7 @@ internal static class CoordinationTelemetry
     private static readonly Counter<long> Losses = Meter.CreateCounter<long>(
         LossesMetric,
         unit: "{lease}",
-        description: "Number of leases lost before they were released: taken over, run out, or the table gone.");
+        description: "Number of leases lost before they were released: taken over, deleted, run out, or the table gone.");
 
     /// <summary>Starts the span of an operation on a lock.</summary>
     /// <param name="name">The name of the span.</param>

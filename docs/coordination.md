@@ -26,7 +26,9 @@ The table is opened without a model, and its key attributes must be strings. The
 | `fence` | The fencing token, raised by one with `ADD` on every acquire |
 | `leaseMs` | The duration of the lease in milliseconds. Absent while the lock is free |
 
-A release keeps the item, and it has no time to live, so the fencing token never goes back. Deleting the item starts the token at 1 again.
+A release keeps the item, and it has no time to live, so the fencing token never goes back. Deleting the item starts the token at 1 again, also while a lease holds it: that lease is then lost with the reason `deleted`, and the next acquire gets token 1.
+
+The key of a lock belongs to the lock. An item at that key with an `owner` but without the other attributes, such as an entity whose key happens to be `LOCK#` and a name, makes `TryAcquireAsync`, `AcquireAsync` and `RunAsync` throw `InvalidOperationException`, naming the lock and the table, instead of guessing how long that item holds the lock. Give the lock another name.
 
 Hold one `LockTable` per table in a process. It remembers the holders it has seen, which a takeover depends on. Two instances in one process contend like two processes.
 
@@ -82,7 +84,8 @@ A release is one conditional `UpdateItem` that removes the owner, on condition t
 
 `Ended` is a `CancellationToken` that is cancelled once the lease is no longer held. Pass it to the work that needs the lock. The lease is lost:
 
-- when a renewal finds another owner in the item, because a contender took it over or someone wrote the item;
+- when a renewal finds another owner in the item, because a contender took it over or someone wrote the item (`taken_over`);
+- when a renewal finds the item deleted (`deleted`), which also starts the fencing token at 1 again;
 - when DynamoDB answers a renewal with `ResourceNotFoundException`;
 - when the lease runs out on the monotonic clock without a renewal that succeeded.
 
@@ -129,7 +132,7 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(held) =
 
 The lock item must be in the same account and region as the items of the transaction. A system outside DynamoDB, such as a file store or another database, protects itself only if it checks the token: it keeps the highest `FencingToken` it has seen and refuses a write with a lower one. DynaSharp cannot enforce that for it.
 
-The token rises as long as the item of the lock lives. Deleting the item starts it at 1 again, and restoring the table from a backup or to a point in time brings an older token back: a system that checks the token then refuses every holder until the count passes what it has seen. A global table that takes writes in more than one region can grant a lock twice with the same token, because each region applies its conditional write before the other one's arrives. Keep the lock table to a single region that writes.
+The token rises as long as the item of the lock lives. Deleting the item starts it at 1 again, even while a lease holds it, which loses that lease with the reason `deleted`, and restoring the table from a backup or to a point in time brings an older token back: a system that checks the token then refuses every holder until the count passes what it has seen. A global table that takes writes in more than one region can grant a lock twice with the same token, because each region applies its conditional write before the other one's arrives. Keep the lock table to a single region that writes.
 
 ## Leader election
 
@@ -149,7 +152,7 @@ await LeaderElection.RunAsync(locks, "order-sweeper", TimeSpan.FromSeconds(30), 
 The token the work gets is cancelled when the caller cancels or the lease is lost. A term ends in one of three ways:
 
 - The lease is lost: whatever the work returned or threw, the election waits for it and contends again.
-- The caller cancels: the lease is released, and `RunAsync` throws `OperationCanceledException`.
+- The caller cancels: the lease is released, and `RunAsync` throws `OperationCanceledException`, whatever the work returned or threw.
 - The work returns or throws on its own: the lease is released, and `RunAsync` returns or throws that exception. A leader that is done hands the lock on.
 
 An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. Any other error ends it. A lease that has ended by the time its acquire answers starts no term, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
@@ -170,7 +173,7 @@ The spans and metrics go to the activity source and the meter named `DynaSharp`,
 |---|---|---|
 | `dynasharp.lock.acquisitions` | `{lease}` | Each lease acquired, with `dynasharp.lock.takeover` |
 | `dynasharp.lock.renewals` | `{renewal}` | Each renewal, with `error.type` on one that failed |
-| `dynasharp.lock.losses` | `{lease}` | Each lease lost before it was released, with `dynasharp.lock.loss_reason`: `taken_over`, `expired` or `table_not_found` |
+| `dynasharp.lock.losses` | `{lease}` | Each lease lost before it was released, with `dynasharp.lock.loss_reason`: `taken_over`, `deleted`, `expired` or `table_not_found` |
 
 Spans and metrics carry `db.collection.name`, the table. The name of the lock is on the spans, as `dynasharp.lock.name`, and in the logs, so that an operator sees which lock it was, but not on the metrics, where it would be a dimension per lock. A span of an acquire also has `dynasharp.lock.acquired`, and for a lease `dynasharp.lock.takeover` and `dynasharp.lock.fencing_token`. Lock names are names chosen in code, as table names are, so put no data in them, such as a user id.
 
@@ -186,6 +189,7 @@ The log category is `DynaSharp.Coordination.LockTable`, and it logs what no call
 | 45 | Information | This process leads, with its fencing token |
 | 46 | Information | This process no longer leads: `lease_lost`, `cancelled`, `work_returned` or `work_failed` |
 | 47 | Debug | The work of the leader threw after its lease was lost, with the type of the exception |
+| 48 | Debug | The work of the leader threw after the election was cancelled, with the type of the exception |
 
 ## Testing
 

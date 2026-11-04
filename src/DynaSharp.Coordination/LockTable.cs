@@ -17,7 +17,9 @@ namespace DynaSharp.Coordination;
 /// <para>
 /// A lock is one item in the table the caller passes, so it fits a single-table design. Its partition key is <c>LOCK#</c> and the name of the lock,
 /// its sort key, if the table has one, is <c>LOCK</c>, and both key attributes must be strings. Its attributes are <c>_type</c> (<c>LOCK</c>),
-/// <c>owner</c>, <c>rvn</c>, <c>fence</c> and <c>leaseMs</c>; the names are fixed. A release keeps the item, so that the fencing token never goes back:
+/// <c>owner</c>, <c>rvn</c>, <c>fence</c> and <c>leaseMs</c>; the names are fixed. An item at that key with an <c>owner</c> whose attributes are not those,
+/// such as an entity whose key happens to match, makes an acquire throw <see cref="InvalidOperationException"/> naming the lock and the table, rather
+/// than guess how long it is held. A release keeps the item, so that the fencing token never goes back:
 /// the item has no time to live, and deleting it starts the token at 1 again, which a system that checks the token refuses.
 /// </para>
 /// <para>
@@ -93,6 +95,7 @@ public sealed class LockTable
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="leaseDuration"/> is below 1 second or above 1 day.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbException">DynamoDB failed the request, after the retries of the client.</exception>
+    /// <exception cref="InvalidOperationException">The item at the key of the lock has an <c>owner</c> but is not a lock item written by <see cref="LockTable"/>.</exception>
     public async Task<Lease?> TryAcquireAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration);
@@ -128,6 +131,7 @@ public sealed class LockTable
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbException">DynamoDB failed a request, after the retries of the client.</exception>
+    /// <exception cref="InvalidOperationException">The item at the key of the lock has an <c>owner</c> but is not a lock item written by <see cref="LockTable"/>.</exception>
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration);
@@ -186,16 +190,17 @@ public sealed class LockTable
 
             // The old item says what the write did: the token it raised, and whether it took the lock from a holder or found it free.
             var before = (await update.ReturnOld().SendAsync(cancellationToken).ConfigureAwait(false)).Item;
-            var takenOver = before?.GetString(LockItem.Owner) is not null;
-            return Acquired(name, owner, (before?.GetNumber<long>(LockItem.FencingToken) ?? 0) + 1, leaseDuration, sent, takenOver ? seen : null);
+            var takenOver = before?.ContainsKey(LockItem.Owner) == true;
+            return Acquired(name, owner, LockItem.FencingTokenOf(before, name, Table.Name) + 1, leaseDuration, sent, takenOver ? seen : null);
         }
         catch (ConditionalCheckFailedException)
         {
-            var holder = await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+            var item = await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+            var holder = LockItem.HolderOf(item, name, Table.Name);
 
             // The client retries a request whose response was lost, and the retry fails the condition that its first attempt met: the lock is ours.
-            return holder?.GetString(LockItem.Owner) == owner
-                ? Acquired(name, owner, holder[LockItem.FencingToken].AsNumber<long>(), leaseDuration, sent, null)
+            return holder?.Owner == owner
+                ? Acquired(name, owner, LockItem.FencingTokenOf(item, name, Table.Name), leaseDuration, sent, null)
                 : new(null, false, Observe(name, holder));
         }
     }
@@ -214,16 +219,16 @@ public sealed class LockTable
 
     // Remembers the holder the lock has now, and says how long to wait before the next try: at once if it is free, else a third of the holder's lease,
     // or 10 seconds if that is sooner, or less if the lease runs out before.
-    private TimeSpan Observe(string name, Item? holder)
+    private TimeSpan Observe(string name, LockItem.Holder? holder)
     {
-        if (holder?.GetString(LockItem.Owner) is null)
+        if (holder is null)
         {
             _sightings.TryRemove(name, out _);
             return TimeSpan.Zero;
         }
 
-        var recordVersion = holder[LockItem.RecordVersion].AsString();
-        var leaseDuration = TimeSpan.FromMilliseconds(holder[LockItem.LeaseDuration].AsNumber<long>());
+        var recordVersion = holder.RecordVersion;
+        var leaseDuration = holder.LeaseDuration;
         var sighting = _sightings.AddOrUpdate(
             name,
             static (_, now) => now,

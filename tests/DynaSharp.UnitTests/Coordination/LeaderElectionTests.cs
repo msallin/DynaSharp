@@ -239,6 +239,38 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
+    public async Task RunAsync_CancelledAndTheWorkThrowsSomethingElse_ThrowsOperationCanceledAndLogsIt()
+    {
+        // Arrange (the work catches its cancellation and throws an exception of its own, as a wrapper might)
+        using var bench = new LockHarness();
+        using var stop = new CancellationTokenSource();
+        var leading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        async Task Work(Lease lease, CancellationToken token)
+        {
+            leading.SetResult();
+            try
+            {
+                await Task.Delay(Timeout.Infinite, token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new InvalidOperationException("stopped");
+            }
+        }
+
+        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, stop.Token);
+        await leading.Task;
+
+        // Act
+        await stop.CancelAsync();
+
+        // Assert
+        await Assert.That(() => election).ThrowsExactly<OperationCanceledException>();
+        await Assert.That((bench.ItemOf("leader")!.ContainsKey("owner"), bench.LockLogs.Single(static entry => entry.EventId.Id == 48).Message)).IsEqualTo(
+            (false, $"The work of the leader on lock leader in table {bench.TableName} threw System.InvalidOperationException after the election was cancelled."));
+    }
+
+    [Test]
     public async Task RunAsync_CancelledWhileTheWorkReturns_Throws()
     {
         // Arrange
@@ -320,6 +352,20 @@ public sealed class LeaderElectionTests
 
         // Assert
         await Assert.That(ran).IsTrue();
+    }
+
+    [Test]
+    public async Task RunAsync_ItemAtTheKeyIsNoLock_EndsWithInvalidOperationException()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        bench.Fake.Put(bench.TableName, new Item(bench.KeyOf("leader")) { ["owner"] = "someone" });
+
+        // Act
+        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("is not a lock item written by LockTable", StringComparison.Ordinal);
     }
 
     [Test]

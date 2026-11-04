@@ -395,6 +395,88 @@ public sealed class LockTableTests
     }
 
     [Test]
+    [Arguments("no rvn", "rvn")]
+    [Arguments("owner a number", "owner")]
+    [Arguments("rvn a number", "rvn")]
+    [Arguments("no leaseMs", "leaseMs")]
+    [Arguments("leaseMs a string", "leaseMs")]
+    [Arguments("leaseMs a fraction", "leaseMs")]
+    [Arguments("leaseMs zero", "leaseMs")]
+    [Arguments("leaseMs over a day", "leaseMs")]
+    public async Task TryAcquireAsync_ItemAtTheKeyIsNoLock_ThrowsNamingTheLockAndTheTable(string item, string attribute)
+    {
+        // Arrange (an item another writer put at the key of the lock, with an owner)
+        using var bench = new LockHarness();
+        var foreign = new Item(bench.KeyOf("b")) { ["owner"] = "someone", ["rvn"] = "v1", ["leaseMs"] = 30_000 };
+        switch (item)
+        {
+            case "no rvn":
+                foreign.Remove("rvn");
+                break;
+            case "owner a number":
+                foreign["owner"] = 7;
+                break;
+            case "rvn a number":
+                foreign["rvn"] = 7;
+                break;
+            case "no leaseMs":
+                foreign.Remove("leaseMs");
+                break;
+            case "leaseMs a string":
+                foreign["leaseMs"] = "30000";
+                break;
+            case "leaseMs a fraction":
+                foreign["leaseMs"] = 1.5m;
+                break;
+            case "leaseMs zero":
+                foreign["leaseMs"] = 0;
+                break;
+            default:
+                foreign["leaseMs"] = 86_400_001L;
+                break;
+        }
+
+        bench.Fake.Put(bench.TableName, foreign);
+
+        // Act
+        var act = () => bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
+            $"The item of lock \"b\" in table {bench.TableName} is not a lock item written by LockTable: its attribute {attribute} is missing or not "
+            + (attribute == "leaseMs" ? "a whole number from 1 to 86400000" : "a string") + ". Another item uses the key of this lock; give the lock another name.",
+            StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_FreeItemWithAFenceThatIsNoWholeNumber_Throws()
+    {
+        // Arrange (no owner, so the acquire writes, and the old item it reads back has a fence no lock writes)
+        using var bench = new LockHarness();
+        bench.Fake.Put(bench.TableName, new Item(bench.KeyOf("b")) { ["fence"] = 1.5m });
+
+        // Act
+        var act = () => bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("its attribute fence is missing or not a whole number", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_FreeItemWithoutAFence_StartsTheTokenAtOne()
+    {
+        // Arrange (an item at the key without owner and fence, such as one written before by hand)
+        using var bench = new LockHarness();
+        bench.Fake.Put(bench.TableName, new Item(bench.KeyOf("b")) { ["note"] = "reserved" });
+
+        // Act
+        await using var lease = await bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(lease!.FencingToken).IsEqualTo(1L);
+    }
+
+    [Test]
     public async Task TryAcquireAsync_TableMissing_ThrowsResourceNotFoundException()
     {
         // Arrange

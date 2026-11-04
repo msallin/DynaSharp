@@ -32,4 +32,7 @@ internal static partial class CoordinationLog
 
     [LoggerMessage(EventId = 47, Level = LogLevel.Debug, Message = "The work of the leader on lock {Lock} in table {Table} threw {ErrorType} after the lease was lost.")]
     public static partial void WorkFailedAfterLoss(ILogger logger, string @lock, string table, string errorType);
+
+    [LoggerMessage(EventId = 48, Level = LogLevel.Debug, Message = "The work of the leader on lock {Lock} in table {Table} threw {ErrorType} after the election was cancelled.")]
+    public static partial void WorkFailedAfterCancel(ILogger logger, string @lock, string table, string errorType);
 }

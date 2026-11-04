@@ -18,7 +18,8 @@ namespace DynaSharp.Coordination;
 /// lease ended without knowing it yet. That case is what <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> and <see cref="FencingToken"/> are for.
 /// </para>
 /// <para>
-/// It is lost when a renewal finds another owner in the item (a contender took it over, or someone wrote the item), when DynamoDB answers a renewal with
+/// It is lost when a renewal finds another owner in the item (a contender took it over, or someone wrote the item), when it finds the item deleted,
+/// which starts the fencing token at 1 again for the next acquire, when DynamoDB answers a renewal with
 /// <see cref="ResourceNotFoundException"/>, and when the lease runs out on the monotonic clock without a renewal that succeeded. A renewal of the heartbeat
 /// that fails with any other error, after the retries of the client, is tried again with a growing wait, up to a sixth of the duration, until one succeeds
 /// or the lease runs out. Losing it is final: acquire the lock again for a new lease.
@@ -235,6 +236,7 @@ public sealed class Lease : IAsyncDisposable
             await Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table))
                 .Set(LockItem.RecordVersion, LockItem.NewId())
                 .If(Attr(LockItem.Owner).Eq(Owner))
+                .ReturnOldOnFailure()
                 .SendAsync(cancellationToken)
                 .ConfigureAwait(false);
             CoordinationTelemetry.Renew(this, null);
@@ -242,7 +244,8 @@ public sealed class Lease : IAsyncDisposable
         }
         catch (ConditionalCheckFailedException exception)
         {
-            Fail(activity, exception, LossReasons.TakenOver);
+            // The item that failed the condition comes with the answer: none means it was deleted, which also starts its fencing token at 1 again.
+            Fail(activity, exception, exception.Item is null ? LossReasons.Deleted : LossReasons.TakenOver);
             return false;
         }
         catch (ResourceNotFoundException exception)
@@ -312,6 +315,7 @@ public sealed class Lease : IAsyncDisposable
     internal static class LossReasons
     {
         public const string TakenOver = "taken_over";
+        public const string Deleted = "deleted";
         public const string Expired = "expired";
         public const string TableNotFound = "table_not_found";
     }

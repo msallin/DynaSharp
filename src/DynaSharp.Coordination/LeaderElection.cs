@@ -13,7 +13,7 @@ public static class LeaderElection
     /// <remarks>
     /// <para>
     /// The work ends in one of three ways. If the lease was lost, whatever the work returned or threw, the election contends again. If the caller cancelled,
-    /// the lease is released and this throws <see cref="OperationCanceledException"/>. If the work returned or threw on its own, the lease is released and this
+    /// the lease is released and this throws <see cref="OperationCanceledException"/>, whatever the work returned or threw. If the work returned or threw on its own, the lease is released and this
     /// returns or throws that exception: a leader that is done hands the lock on.
     /// </para>
     /// <para>
@@ -35,7 +35,8 @@ public static class LeaderElection
     /// <exception cref="ArgumentNullException"><paramref name="locks"/> or <paramref name="work"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="leaseDuration"/> is below 1 second or above 1 day.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled, also when the work then threw something else.</exception>
+    /// <exception cref="InvalidOperationException">The item at the key of the lock is not a lock item written by <see cref="LockTable"/>; see <see cref="LockTable.AcquireAsync"/>. Or the work threw it.</exception>
     public static async Task RunAsync(LockTable locks, string name, TimeSpan leaseDuration, Func<Lease, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(locks);
@@ -100,11 +101,19 @@ public static class LeaderElection
                 {
                     await work(lease, stop.Token).ConfigureAwait(false);
                 }
-                catch (Exception exception) when (lease.Ended.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                catch (Exception exception) when (cancellationToken.IsCancellationRequested || lease.Ended.IsCancellationRequested)
                 {
-                    // The work stopped because the lease was lost, by the token or by a failed write. The loss is logged, and this at Debug.
+                    // The work stopped because the caller cancelled or the lease was lost, by the token or by a failed write. Either way what it threw is
+                    // not the answer: a cancellation throws OperationCanceledException below, and a loss contends again. It is logged at Debug.
                     var errorType = CoordinationTelemetry.ErrorTypeOf(exception);
-                    CoordinationLog.WorkFailedAfterLoss(locks.Logger, lease.Name, locks.Table.Name, errorType);
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        CoordinationLog.WorkFailedAfterCancel(locks.Logger, lease.Name, locks.Table.Name, errorType);
+                    }
+                    else
+                    {
+                        CoordinationLog.WorkFailedAfterLoss(locks.Logger, lease.Name, locks.Table.Name, errorType);
+                    }
                 }
             }
 
