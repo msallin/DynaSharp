@@ -96,6 +96,8 @@ File.WriteAllText(project, """
       <ItemGroup>
         <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />
         <Compile Include="../../samples/DynaSharp.Sample/OrderFeed.cs" />
+        <!-- For the pages only: recipes of a BackgroundService. No project of src depends on hosting. -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
         <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Coordination/DynaSharp.Coordination.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />

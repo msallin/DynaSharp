@@ -1,5 +1,5 @@
 #nullable enable
-DynaSharp.Coordination.LeaderElection
+const DynaSharp.Coordination.LockTableOptions.MaxHolderLabelLength = 256 -> int
 DynaSharp.Coordination.Lease
 DynaSharp.Coordination.Lease.DisposeAsync() -> System.Threading.Tasks.ValueTask
 DynaSharp.Coordination.Lease.Ended.get -> System.Threading.CancellationToken
@@ -9,9 +9,25 @@ DynaSharp.Coordination.Lease.RenewAsync(System.Threading.CancellationToken cance
 DynaSharp.Coordination.LeaseTransactExtensions
 DynaSharp.Coordination.LockTable
 DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
-DynaSharp.Coordination.LockTable.LockTable(DynaSharp.Table<DynaSharp.Item!>! table) -> void
+DynaSharp.Coordination.LockTable.LockTable(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.Coordination.LockTableOptions? options = null) -> void
+DynaSharp.Coordination.LockTable.Options.get -> DynaSharp.Coordination.LockTableOptions!
+DynaSharp.Coordination.LockTable.RunAsLeaderAsync(string! name, System.TimeSpan leaseDuration, System.Func<DynaSharp.Coordination.Lease!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.Coordination.LockTable.Table.get -> DynaSharp.Table<DynaSharp.Item!>!
 DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
-static DynaSharp.Coordination.LeaderElection.RunAsync(DynaSharp.Coordination.LockTable! locks, string! name, System.TimeSpan leaseDuration, System.Func<DynaSharp.Coordination.Lease!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+DynaSharp.Coordination.LockTableOptions
+DynaSharp.Coordination.LockTableOptions.HolderLabel.get -> string?
+DynaSharp.Coordination.LockTableOptions.HolderLabel.init -> void
+DynaSharp.Coordination.LockTableOptions.LockTableOptions() -> void
+DynaSharp.Coordination.LockTableOptions.TimeToLiveAttribute.get -> string?
+DynaSharp.Coordination.LockTableOptions.TimeToLiveAttribute.init -> void
+DynaSharp.Coordination.LockTableOptions.TimeToLiveRetention.get -> System.TimeSpan
+DynaSharp.Coordination.LockTableOptions.TimeToLiveRetention.init -> void
+DynaSharp.Coordination.Testing.LockTableTesting
 static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, DynaSharp.Coordination.Lease! lease) -> DynaSharp.ConditionStep
 static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, DynaSharp.Coordination.Lease! lease, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
+static DynaSharp.Coordination.LockTable.For<T>(DynaSharp.Table<T>! table, DynaSharp.Coordination.LockTableOptions? options = null) -> DynaSharp.Coordination.LockTable!
+static DynaSharp.Coordination.Testing.LockTableTesting.SimulateDeleteAsync(this DynaSharp.Coordination.LockTable! locks, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+static DynaSharp.Coordination.Testing.LockTableTesting.SimulateHolderAsync(this DynaSharp.Coordination.LockTable! locks, string! name, System.TimeSpan leaseDuration, string? holderLabel = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
+static DynaSharp.Coordination.Testing.LockTableTesting.SimulateReleaseAsync(this DynaSharp.Coordination.LockTable! locks, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+static readonly DynaSharp.Coordination.LockTable.MaxLeaseDuration -> System.TimeSpan
+static readonly DynaSharp.Coordination.LockTable.MinLeaseDuration -> System.TimeSpan

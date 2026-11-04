@@ -5,64 +5,51 @@ using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.UnitTests.Coordination;
 
-public sealed class LeaderElectionTests
+public sealed class LockTableRunAsLeaderTests
 {
     private static readonly TimeSpan Lease = TimeSpan.FromSeconds(30);
 
     [Test]
-    public async Task RunAsync_NullLocks_ThrowsArgumentNullException()
-    {
-        // Arrange
-        LockTable? locks = null;
-
-        // Act
-        var act = () => LeaderElection.RunAsync(locks!, "leader", Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
-
-        // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("locks");
-    }
-
-    [Test]
-    public async Task RunAsync_NullWork_ThrowsArgumentNullException()
+    public async Task RunAsLeaderAsync_NullWork_ThrowsArgumentNullException()
     {
         // Arrange
         using var bench = new LockHarness();
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, null!, CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", Lease, null!);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("work");
     }
 
     [Test]
-    public async Task RunAsync_NoName_ThrowsArgumentException()
+    public async Task RunAsLeaderAsync_NoName_ThrowsArgumentException()
     {
         // Arrange
         using var bench = new LockHarness();
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, string.Empty, Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync(string.Empty, Lease, static (_, _) => Task.CompletedTask);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("name");
     }
 
     [Test]
-    public async Task RunAsync_LeaseOutOfRange_ThrowsArgumentOutOfRangeException()
+    public async Task RunAsLeaderAsync_LeaseOutOfRange_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         using var bench = new LockHarness();
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", TimeSpan.Zero, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", TimeSpan.Zero, static (_, _) => Task.CompletedTask);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("leaseDuration");
     }
 
     [Test]
-    public async Task RunAsync_WorkCompletes_ReturnsAndHandsTheLockOn()
+    public async Task RunAsLeaderAsync_WorkCompletes_ReturnsAndHandsTheLockOn()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -75,28 +62,28 @@ public sealed class LeaderElectionTests
         }
 
         // Act
-        await LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None);
+        await bench.Locks.RunAsLeaderAsync("leader", Lease, Work);
 
         // Assert
         await Assert.That((token, bench.ItemOf("leader")!.ContainsKey("owner"))).IsEqualTo(((long?)1L, false));
     }
 
     [Test]
-    public async Task RunAsync_WorkCompletes_LogsTheTermWithoutItemData()
+    public async Task RunAsLeaderAsync_WorkCompletes_LogsTheTermWithTheHolderLabelAndWithoutItemData()
     {
         // Arrange
-        using var bench = new LockHarness();
+        using var bench = new LockHarness(options: new() { HolderLabel = "pod-7" });
 
         // Act
-        await LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        await bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask);
 
         // Assert
         await Assert.That(string.Join("|", bench.LockLogs.Select(static entry => $"{entry.Level} {entry.EventId.Id} {entry.Message}"))).IsEqualTo(
-            $"Information 45 This process leads on lock leader in table {bench.TableName}, with fencing token 1.|Information 46 This process no longer leads on lock leader in table {bench.TableName} (work_returned).");
+            $"Information 45 This process leads on lock leader in table {bench.TableName}, with fencing token 1 (holder label pod-7).|Information 46 This process no longer leads on lock leader in table {bench.TableName} (work_returned, holder label pod-7).");
     }
 
     [Test]
-    public async Task RunAsync_LeaseLostAndWonAgain_LogsBothTerms()
+    public async Task RunAsLeaderAsync_LeaseLostAndWonAgain_LogsBothTerms()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -110,7 +97,7 @@ public sealed class LeaderElectionTests
             }
         }
 
-        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None);
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work);
         var first = await leading.Task;
         var beat = first.NextBeat;
         bench.Steal("leader", "thief");
@@ -125,27 +112,27 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_WorkFails_LogsTheEndOfTheTerm()
+    public async Task RunAsLeaderAsync_WorkFails_LogsTheEndOfTheTerm()
     {
         // Arrange
         using var bench = new LockHarness();
 
         // Act
-        await Assert.That(() => LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => throw new InvalidOperationException("broken"), CancellationToken.None))
+        await Assert.That(() => bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => throw new InvalidOperationException("broken")))
             .ThrowsExactly<InvalidOperationException>();
 
         // Assert
-        await Assert.That(bench.LockLogs[^1].Message).IsEqualTo($"This process no longer leads on lock leader in table {bench.TableName} (work_failed).");
+        await Assert.That(bench.LockLogs[^1].Message).IsEqualTo($"This process no longer leads on lock leader in table {bench.TableName} (work_failed, holder label (null)).");
     }
 
     [Test]
-    public async Task RunAsync_WorkFails_ReleasesTheLockAndThrows()
+    public async Task RunAsLeaderAsync_WorkFails_ReleasesTheLockAndThrows()
     {
         // Arrange
         using var bench = new LockHarness();
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => throw new InvalidOperationException("broken"), CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => throw new InvalidOperationException("broken"));
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage("broken", StringComparison.Ordinal);
@@ -153,7 +140,7 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_LeaseLost_StopsTheWorkAndContendsAgain()
+    public async Task RunAsLeaderAsync_LeaseLost_StopsTheWorkAndContendsAgain()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -169,7 +156,7 @@ public sealed class LeaderElectionTests
             }
         }
 
-        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None);
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work);
         var first = await leading.Task;
 
         // Act (another process takes the lock, and stops renewing it at once)
@@ -184,7 +171,7 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_WorkIgnoresTheLoss_ContendsAgainOnceItReturns()
+    public async Task RunAsLeaderAsync_WorkIgnoresTheLoss_ContendsAgainOnceItReturns()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -201,7 +188,7 @@ public sealed class LeaderElectionTests
             }
         }
 
-        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None);
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work);
         var first = await leading.Task;
         bench.Steal("leader", "thief");
         await first.RenewAsync();
@@ -215,7 +202,7 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_CancelledWhileLeading_StopsTheWorkReleasesAndThrows()
+    public async Task RunAsLeaderAsync_CancelledWhileLeading_StopsTheWorkReleasesAndThrows()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -227,7 +214,7 @@ public sealed class LeaderElectionTests
             await Task.Delay(Timeout.Infinite, token);
         }
 
-        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, stop.Token);
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work, stop.Token);
         await leading.Task;
 
         // Act
@@ -239,7 +226,7 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_CancelledAndTheWorkThrowsSomethingElse_ThrowsOperationCanceledAndLogsIt()
+    public async Task RunAsLeaderAsync_CancelledAndTheWorkThrowsSomethingElse_ThrowsOperationCanceledAndLogsIt()
     {
         // Arrange (the work catches its cancellation and throws an exception of its own, as a wrapper might)
         using var bench = new LockHarness();
@@ -258,7 +245,7 @@ public sealed class LeaderElectionTests
             }
         }
 
-        var election = LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, stop.Token);
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work, stop.Token);
         await leading.Task;
 
         // Act
@@ -267,31 +254,31 @@ public sealed class LeaderElectionTests
         // Assert
         await Assert.That(() => election).ThrowsExactly<OperationCanceledException>();
         await Assert.That((bench.ItemOf("leader")!.ContainsKey("owner"), bench.LockLogs.Single(static entry => entry.EventId.Id == 48).Message)).IsEqualTo(
-            (false, $"The work of the leader on lock leader in table {bench.TableName} threw System.InvalidOperationException after the election was cancelled."));
+            (false, $"The work of the leader on lock leader in table {bench.TableName} threw System.InvalidOperationException after the caller cancelled."));
     }
 
     [Test]
-    public async Task RunAsync_CancelledWhileTheWorkReturns_Throws()
+    public async Task RunAsLeaderAsync_CancelledWhileTheWorkReturns_Throws()
     {
         // Arrange
         using var bench = new LockHarness();
         using var stop = new CancellationTokenSource();
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, (_, _) => stop.CancelAsync(), stop.Token);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", Lease, (_, _) => stop.CancelAsync(), stop.Token);
 
         // Assert
         await Assert.That(act).Throws<OperationCanceledException>();
     }
 
     [Test]
-    public async Task RunAsync_CancelledWhileContending_Throws()
+    public async Task RunAsLeaderAsync_CancelledWhileContending_Throws()
     {
         // Arrange
         using var bench = new LockHarness();
         await using var holder = await bench.Locks.TryAcquireAsync("leader", Lease);
         using var stop = new CancellationTokenSource();
-        var election = LeaderElection.RunAsync(new LockTable(bench.Table), "leader", Lease, static (_, _) => Task.CompletedTask, stop.Token);
+        var election = new LockTable(bench.Table).RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask, stop.Token);
 
         // Act
         await stop.CancelAsync();
@@ -301,7 +288,7 @@ public sealed class LeaderElectionTests
     }
 
     [Test]
-    public async Task RunAsync_TransientErrorWhileContending_LogsAndContendsAgain()
+    public async Task RunAsLeaderAsync_TransientErrorWhileContending_LogsAndContendsAgain()
     {
         // Arrange
         using var bench = new LockHarness();
@@ -314,7 +301,7 @@ public sealed class LeaderElectionTests
         }
 
         // Act
-        await bench.RunAsync(Completion(LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None)), TimeSpan.FromSeconds(1));
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
 
         // Assert
         var entry = bench.LockLogs.Single(entry => entry.EventId.Id == 44);
@@ -325,7 +312,7 @@ public sealed class LeaderElectionTests
     [Test]
     [Arguments(typeof(TimeoutException))]
     [Arguments(typeof(HttpRequestException))]
-    public async Task RunAsync_NetworkFailureWhileContending_ContendsAgain(Type failure)
+    public async Task RunAsLeaderAsync_NetworkFailureWhileContending_ContendsAgain(Type failure)
     {
         // Arrange
         using var bench = new LockHarness();
@@ -348,21 +335,21 @@ public sealed class LeaderElectionTests
         }
 
         // Act
-        await bench.RunAsync(Completion(LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None)), TimeSpan.FromSeconds(1));
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
 
         // Assert
         await Assert.That(ran).IsTrue();
     }
 
     [Test]
-    public async Task RunAsync_ItemAtTheKeyIsNoLock_EndsWithInvalidOperationException()
+    public async Task RunAsLeaderAsync_ItemAtTheKeyIsNoLock_EndsWithInvalidOperationException()
     {
         // Arrange
         using var bench = new LockHarness();
         bench.Fake.Put(bench.TableName, new Item(bench.KeyOf("leader")) { ["owner"] = "someone" });
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask);
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("is not a lock item written by LockTable", StringComparison.Ordinal);
@@ -375,14 +362,14 @@ public sealed class LeaderElectionTests
         var exception = new CredentialsUnavailableException("No credentials yet.");
 
         // Act
-        var transient = LeaderElection.IsTransient(exception);
+        var transient = Leadership.IsTransient(exception);
 
         // Assert
         await Assert.That(transient).IsTrue();
     }
 
     [Test]
-    public async Task RunAsync_AcquireAnsweredAfterTheLease_StartsNoTermAndContendsAgain()
+    public async Task RunAsLeaderAsync_AcquireAnsweredAfterTheLease_StartsNoTermAndContendsAgain()
     {
         // Arrange (the answer of the first acquire comes a whole lease after it was sent)
         using var bench = new LockHarness();
@@ -407,21 +394,21 @@ public sealed class LeaderElectionTests
         }
 
         // Act
-        await LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+        await bench.Locks.RunAsLeaderAsync("leader", Lease, Work).WaitAsync(TimeSpan.FromSeconds(10));
 
         // Assert
         await Assert.That((string.Join(",", terms), bench.LockLogs.Count(static entry => entry.EventId.Id == 45))).IsEqualTo(("2", 1));
     }
 
     [Test]
-    public async Task RunAsync_TableMissing_Throws()
+    public async Task RunAsLeaderAsync_TableMissing_Throws()
     {
         // Arrange
         using var bench = new LockHarness();
         bench.Fake.DeleteTable(bench.TableName);
 
         // Act
-        var act = () => LeaderElection.RunAsync(bench.Locks, "leader", Lease, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        var act = () => bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask);
 
         // Assert
         await Assert.That(act).ThrowsExactly<ResourceNotFoundException>();

@@ -765,7 +765,7 @@ Narrowed by the owner on 2026-11-04 (see Decisions): the package holds the lease
       lease, contender waits out the lease on a monotonic clock via `TimeProvider.GetTimestamp`), fencing token
       (monotonic counter, `ADD` on every acquire) plus `IsHeld(lease)`, a condition check for a `TransactWrite`; document that
       external systems must check the token themselves. `LockTable`, `Lease`, `LeaseTransactExtensions` in `src/DynaSharp.Coordination`.
-- [x] Leader election on top of the lease: `LeaderElection.RunAsync`
+- [x] Leader election on top of the lease: `LeaderElection.RunAsync`, since the app migrations `LockTable.RunAsLeaderAsync` (below)
 - [-] Sparse-GSI queue: dropped from the package, a recipe instead (`Recipes/SparseIndexQueueTests.cs`, `docs/patterns-indexes.md`).
       Owner's decision of 2026-11-04.
 - [-] Hi/lo allocator: dropped from the package, a recipe instead (`Recipes/HiLoAllocatorTests.cs`, `docs/patterns-writes.md`).
@@ -811,7 +811,7 @@ Fixed as the reviewer suggested:
   Information.
 - L3: `CredentialsUnavailableException` is transient for the election.
 - L5: a contender polls at least every 10 s, so a released lock with a long lease is not left free for hours; 10 s costs a waiting process
-  at most 6 conditional writes and reads a minute.
+  at most 6 conditional writes and reads a minute (since the app migrations 6 reads and no write, see above).
 - L6: an acquire answered after a whole lease returns a lease that has ended (documented); the election starts no term on it and logs no 45.
 - L7: the acquire reads the old item (`ALL_OLD`): the token is its `fence` plus one, and only an old `owner` counts as a takeover, in the
   metric and in event 41.
@@ -838,6 +838,47 @@ Follow-ups:
   - L4: an acquire whose request committed but then failed or was cancelled leaves an orphaned lock for one lease, because the next attempt uses a new owner id. Reusing the owner id across `RunAsync` retries would shorten the gap.
   - L13: log 41 (takeover) and log 42 during `RenewAsync` are written within a caller's request, at the edge of the rule that logs are only for events outside a single request.
 
+
+Changes from the app migrations (2026-11-04, owner's decisions; the package had not shipped, so its API changed freely):
+- [x] Followers poll by reading. A `LockTable` that has a sighting of a lock reads it with a strongly consistent `GetItem` before it writes, and writes only
+      when it reads the lock free or the same `rvn` for a whole lease of the holder (takeover due). A `LockTable` without a sighting writes at once, so a
+      free lock still costs one request; the acquire asks for `ReturnValuesOnConditionCheckFailure ALL_OLD`, so a held lock costs no read after the failed
+      write either, and the item of the failed condition is the sighting. Before, a waiting process sent a failing conditional write and a read every poll
+      (about 52k `ConditionalCheckFailedRequests` a day per follower at 10 s, which teams alarm on); now one read per poll, and a failed write only when a
+      `LockTable` first meets a held lock and when contenders race for a free or due one. Kept: the lost-response recovery (the failed condition's item
+      with this owner is this lease), the token (`ADD`, old item plus one), takeover only after a whole lease on the contender's monotonic clock from its
+      first sighting of that `rvn`, the lease counted from the send of the write. Where no item comes with a failed condition (an emulator), it reads, as
+      before. Decided against reading first without a sighting: it would cost every uncontended acquire, such as a lock per entity, a second request. No
+      new metric: the polls are `GetItem` spans under `Lock.Acquire` and in the client's request metrics. Tests count the requests of a follower
+      (`AcquireAsync_HolderAlive_PollsWithReadsOnlyAfterTheFirstTry`, `AcquireAsync_HolderCrashed_WritesOnlyToFindItAndToTakeOver`).
+- [x] `LeaderElection.RunAsync(locks, ...)` is `LockTable.RunAsLeaderAsync(name, leaseDuration, work, ct = default)`; the static class collided with
+      an app namespace `LeaderElection`. Behaviour unchanged (it ends when the work ends; non-transient errors throw); the argument checks are in the
+      returned task, as with the acquires. The loop is the internal `Leadership`. Log 48 says "after the caller cancelled"; telemetry names unchanged.
+- [x] A `BackgroundService` recipe in `docs/coordination.md` ("In a hosted service"): leads forever, logs and pauses after work faults and
+      non-transient errors, returns on shutdown, so `BackgroundServiceExceptionBehavior.StopHost` never applies. `build/ReadmeCheck.cs` references the
+      shared framework `Microsoft.AspNetCore.App` for the hosting types; no package and nothing in `src/`.
+- [x] `LockTable.For<T>(Table<T>, options)`: any table, typed or not, opened again without a model from its name, key names and client
+      (`client.Table(name, pk, sk)`); a `Table<Item>` is used as given. The owner asked for `new LockTable(client.Table<MyEntity>("Shop"))`, which C#
+      cannot express: a constructor cannot be generic, and `Table<T>` has no non-generic base or interface (by design, `Table.cs`). A static factory
+      is the closest without a change of `DynaSharp`. `new LockTable(Table<Item>)` stays.
+- [x] Holder label: `LockTableOptions.HolderLabel` (one per `LockTable`, so per process), 1 to 256 characters, written as `holder` by every acquire,
+      removed by a release and by an acquire without a label, never in a condition, read as none when it is not a string. In logs 41 (the labels
+      before and after a takeover), 45 and 46 (the label of this process, `(null)` without one); not on spans or metrics, since the lock name is
+      already the one exception there. Documented as shown to operators, with no data in it.
+- [x] `LockTable.MinLeaseDuration` (1 s) and `MaxLeaseDuration` (1 day), public `static readonly`, used by the validation and the docs.
+- [x] Backlog: expiry of lock items, for a lock per entity. `LockTableOptions.TimeToLiveAttribute` and `TimeToLiveRetention` (from 1 day, default
+      30 days): every acquire, renewal and release sets the attribute to the client's `GetUtcNow()` plus the retention, in epoch seconds. A held lock
+      renews at least every 8 hours, so it is never due unless its holder's wall clock is off by more than the retention less the lease. The user turns
+      time to live on for the table. Documented trade-off: an item deleted by time to live starts its token at 1, so fencing across that gap is not
+      guaranteed (`IsHeld` is unaffected, it compares the owner). The attribute may not be empty, a path, a key or a lock attribute.
+- [x] Backlog: test helpers. `DynaSharp.Coordination.Testing.LockTableTesting`, extensions on `LockTable`: `SimulateHolderAsync` (another process
+      holds it, acquired now and never renewed; returns its token), `SimulateReleaseAsync`, `SimulateDeleteAsync`. In the Coordination package, in a
+      namespace of their own, because `DynaSharp.Testing` pins `DynaSharp` exactly and would otherwise pull Coordination into every test project; they
+      write through the table of the `LockTable`, so they work on the fake and on emulators. Unconditional writes, documented as for tests only. No
+      telemetry of their own beyond the client's spans.
+- [x] Backlog: `FakeDynamoDb.CreateTable(name, partitionKey, sortKey = null)` in `DynaSharp.Testing`, a table on demand with string keys (yats built
+      a client only to make a `CreateTable` request for a lock table). The lock harness of the unit tests and the AOT smoke use it.
+- Not done, owner's decision: a guide for moving from a home-grown lease.
 
 Decisions taken while building it (beyond the plan):
 - The client's options (its `TimeProvider` and `LoggerFactory`) were first read through `InternalsVisibleTo("DynaSharp.Coordination")`;
@@ -906,6 +947,10 @@ Keys and queries
 - [ ] A batch across tables: `BatchGetItem` and `BatchWriteItem` take several tables in one request, while `BatchGet()` and `BatchWrite()` belong to one `Table<T>`. A client-level batch, like `client.TransactWrite()`, would read or write several tables in one round trip.
 
 Coordination
+- [x] Optional expiry for lock items, for a lock per entity (M7, `LockTableOptions.TimeToLiveAttribute`).
+- [x] Helpers for tests that hold, release or delete a lock as another process would (M7, `DynaSharp.Coordination.Testing`).
+- [x] `FakeDynamoDb.CreateTable(name, partitionKey, sortKey)` for a table without a model (M7).
+- [x] Followers that do not fail a conditional write per poll, `RunAsLeaderAsync` on `LockTable`, `LockTable.For` over a typed table, a holder label, public lease bounds, a `BackgroundService` recipe (M7).
 - [ ] An ambient way to reach the current `Lease` for `IsHeld` from work deep in a call graph (yats would have to pass it through pollers and stores).
 - [ ] Warning 44 repeats every third of a lease during a long outage; rate-limit it.
 
@@ -981,6 +1026,7 @@ Coordination
 | 2026-11-04 | Owner's decision, scope review for a frozen API: `DynaSharp.Coordination` ships, narrowed to the lease with fencing tokens (`LockTable`, `Lease`, `IsHeld` in a transaction) and leader election (`LeaderElection.RunAsync`). The sparse-GSI queue and the hi/lo allocator of M7 are dropped from the package and become recipes. Why: a queue cannot be frozen, because every user needs one more feature (visibility timeouts, priorities, delays, a dead-letter queue, FIFO groups) until it is a small SQS; hi/lo is a single `ADD` plus a documented gap after a crash, which a recipe shows in full. The lease and leader election are small, have subtle failure modes (clocks, heartbeats, fencing) and a contract that can be frozen. Out of scope, documented in `docs/coordination.md`: a hosting package or `IHostedService` (a `BackgroundService` of five lines is a recipe), configuration sections, custom attribute names, enforcing fencing across tables or in external systems. |
 | 2026-11-04 | Owner's decisions, M7 review: `TryAcquireAsync` stays instant and a short-lived process uses `AcquireAsync` with a timeout over one lease; `Table<T>.Client` is public and `DynaSharp.Coordination` uses no internals (`>= X`), while `DynaSharp.Testing` pins `[X]`; the lock name is on spans and logs, not metrics, an accepted exception to the no-keys rule; `Lease.Lost` is `Lease.Ended`. Stryker below v1 runs in bigger cycles, not before each release, so the `coordination` shard waits for the next cycle. Details under M7. |
 | 2026-11-04 | App migrations: `CreateTableCommand` gets `ToRequestJson()`, the body of its `CreateTable`, without ending the command. `TransactWriteExtensions.ToRequestJson<TChain>(this TChain)` stays as shipped: C# offers an extension over a type parameter on every type, also as an extension block, and only a receiver of concrete types would hide it, which removes a shipped member; its remarks and `docs/commands.md` explain the `CS0311`. A parallel scan keeps no `ToRequestJson`. |
+| 2026-11-04 | Owner's decisions, `DynaSharp.Coordination` after the app migrations: waiting contenders poll with reads and write only for a free lock or a due takeover; `LockTable.RunAsLeaderAsync` replaces `LeaderElection.RunAsync`; `LockTable.For<T>` over any table; `LockTableOptions` with a holder label (logs only) and an opt-in time to live of lock items; public `MinLeaseDuration`/`MaxLeaseDuration`; test helpers in `DynaSharp.Coordination.Testing`; `FakeDynamoDb.CreateTable(name, pk, sk)`. Details under M7. |
 | 2026-11-04 | App migrations: `FakeDynamoDb.Items<T>` of an entity with a discriminator skips the items of other entities, as a typed scan does, and throws for an item of `T` it cannot read; without a discriminator, and for a document, it reads every item. `Get<T>` keeps throwing for another entity, as a client's `Get` does. It reaches `Info` through the internal `IDynamoDbDocument<T>.EntityInfo`, a `static virtual` that `IDynamoDbEntity<T>` implements. |
 
 ## Findings and notes

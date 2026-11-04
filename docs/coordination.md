@@ -16,7 +16,13 @@ The locks live in a table you already have, as one item each, so they fit a sing
 var locks = new LockTable(client.Table("Shop", "pk", "sk"));
 ```
 
-The table is opened without a model, and its key attributes must be strings. The item of the lock `nightly-report` has the partition key `LOCK#nightly-report` and, if the table has a sort key, the sort key `LOCK`. Its attributes have fixed names, because every process that contends for a lock must read the item the same way:
+The table is opened without a model, and its key attributes must be strings. A typed table works as well, since the locks need only its name, its key names and its client, so you do not restate the keys:
+
+```csharp
+var locks = LockTable.For(client.Table<Order>("Shop"));
+```
+
+The item of the lock `nightly-report` has the partition key `LOCK#nightly-report` and, if the table has a sort key, the sort key `LOCK`. Its attributes have fixed names, because every process that contends for a lock must read the item the same way:
 
 | Attribute | Holds |
 |---|---|
@@ -25,12 +31,38 @@ The table is opened without a model, and its key attributes must be strings. The
 | `rvn` | The record version number, a new id on every acquire and renewal |
 | `fence` | The fencing token, raised by one with `ADD` on every acquire |
 | `leaseMs` | The duration of the lease in milliseconds. Absent while the lock is free |
+| `holder` | The holder label of the process that holds it, with `HolderLabel` in the options. Absent while the lock is free |
+| Your time to live attribute | The expiry of the item, with `TimeToLiveAttribute` in the options |
 
-A release keeps the item, and it has no time to live, so the fencing token never goes back. Deleting the item starts the token at 1 again, also while a lease holds it: that lease is then lost with the reason `deleted`, and the next acquire gets token 1.
+A release keeps the item, and by default it has no time to live, so the fencing token never goes back. Deleting the item starts the token at 1 again, also while a lease holds it: that lease is then lost with the reason `deleted`, and the next acquire gets token 1.
 
-The key of a lock belongs to the lock. An item at that key with an `owner` but without the other attributes, such as an entity whose key happens to be `LOCK#` and a name, makes `TryAcquireAsync`, `AcquireAsync` and `RunAsync` throw `InvalidOperationException`, naming the lock and the table, instead of guessing how long that item holds the lock. Give the lock another name.
+The key of a lock belongs to the lock. An item at that key with an `owner` but without the other attributes, such as an entity whose key happens to be `LOCK#` and a name, makes `TryAcquireAsync`, `AcquireAsync` and `RunAsLeaderAsync` throw `InvalidOperationException`, naming the lock and the table, instead of guessing how long that item holds the lock. Give the lock another name.
 
 Hold one `LockTable` per table in a process. It remembers the holders it has seen, which a takeover depends on. Two instances in one process contend like two processes.
+
+### Holder label
+
+A lock item says who holds it only as an id. A holder label says it in words an operator knows, such as the name of the pod:
+
+```csharp
+var locks = new LockTable(client.Table("Shop", "pk", "sk"), new LockTableOptions { HolderLabel = Environment.MachineName });
+```
+
+Every lease of that `LockTable` writes the label into the item as `holder`, a release removes it, and an acquire without a label removes the one of the holder before. The logs of a takeover (41) and of the terms of a leader (45, 46) name it. The label is never part of a condition, so processes with and without labels contend as equals, and it is not on spans or metrics. It is shown to operators in the table and in the logs, so it must not carry data: a name of the process, from 1 to 256 characters, nothing else.
+
+### Expiry of lock items
+
+A lock item stays after its release, so that the fencing token never goes back. For a few locks that is what you want. With a lock per entity, thousands of items that are each used once, the items pile up. `TimeToLiveAttribute` lets DynamoDB delete them:
+
+```csharp
+var locks = new LockTable(client.Table("Shop", "pk", "sk"), new LockTableOptions { TimeToLiveAttribute = "expiresAt", TimeToLiveRetention = TimeSpan.FromDays(7) });
+```
+
+Every write of a lock, its acquire, each renewal and its release, sets that attribute to the wall clock of the process plus the retention, in seconds since the epoch. A held lock is renewed at least every 8 hours and the retention is at least a day, so its item is never due while it is held; a released lock, or one whose holder crashed, is due once nobody has written it for the retention, 30 days by default, and DynamoDB deletes it some time after that, often within days.
+
+Turn on time to live for the table on that attribute yourself, with `TimeToLive(...)` on its `CreateTable()` (see [Creating a table](tables.md#creating-a-table)) or in the console: the option only writes the attribute. The attribute must not be a key of the table or an attribute of the lock.
+
+The trade-off: a lock whose item was deleted starts its fencing token at 1 again. A system outside DynamoDB that keeps the highest token it has seen then refuses the next holders until the count passes what it saw, so fencing across that gap is not guaranteed. `IsHeld` is not affected, because it compares the owner too. Keep locks whose tokens another system checks in a `LockTable` without expiry.
 
 ## Acquire and release
 
@@ -76,7 +108,7 @@ await using (lease)
 }
 ```
 
-The lease duration runs from 1 second to 1 day. A lease renews itself every third of its duration until it is disposed or lost. `RenewAsync` renews it at once, before a step that must not start on a lease that is about to run out, and returns `false` if the lease has ended. It sends one renewal: an error throws and leaves the lease to the heartbeat.
+The lease duration runs from 1 second to 1 day, `LockTable.MinLeaseDuration` to `LockTable.MaxLeaseDuration`. A lease renews itself every third of its duration until it is disposed or lost. `RenewAsync` renews it at once, before a step that must not start on a lease that is about to run out, and returns `false` if the lease has ended. It sends one renewal: an error throws and leaves the lease to the heartbeat.
 
 A release is one conditional `UpdateItem` that removes the owner, on condition that the owner is still this lease, so a lock that someone else took over is left alone. A release that fails is logged, not thrown, and the lock is free once the lease runs out. A lease that is never disposed is renewed for as long as the process runs, and holds the lock that long.
 
@@ -100,6 +132,8 @@ A holder that crashed does not release its lock. A contender takes the lock over
 A holder that stops without knowing it, because its host was suspended, its virtual machine froze, or a garbage collection paused it, does not see its clock run while the contender's does. It can wake up holding a lease that ended a while ago, and act on it before its heartbeat notices. No lease can prevent that; [fencing](#fencing) is what makes it harmless.
 
 While another holder has the lock, `AcquireAsync` polls every third of that holder's lease, but at least every 10 seconds, or sooner if the lease runs out before. A lock that is released is acquired at the next poll; a lock whose holder crashed is taken over after a whole lease.
+
+A poll is a read. A `LockTable` that has not seen the lock held yet writes at once, which costs a free lock a single request; if the lock is held, the failed write brings the item along, and from then on each poll is one strongly consistent `GetItem`. It writes again only when it reads the lock free or when the holder is due for a takeover. So a process that waits for a live leader costs one read per poll and no failed conditional write, which keeps `ConditionalCheckFailedRequests` in CloudWatch for real conflicts: a failed write happens when contenders race for a lock that is free or due, and once when a `LockTable` first meets a held lock.
 
 A takeover raises the fencing token, as every acquire does. If an acquire is retried by the client after its response was lost, the retry finds its own owner in the item, and the lease is the one the first attempt took. An acquire that is cancelled after its write reached DynamoDB leaves a lock that nobody holds until its lease runs out.
 
@@ -136,10 +170,10 @@ The token rises as long as the item of the lock lives. Deleting the item starts 
 
 ## Leader election
 
-`LeaderElection.RunAsync` contends for a lock until the caller cancels. The process that holds it runs the work, the others wait, and when the leader stops, one of them takes over:
+`RunAsLeaderAsync` contends for a lock until the work ends or the caller cancels. The process that holds it runs the work, the others wait, and when the leader stops, one of them takes over:
 
 ```csharp
-await LeaderElection.RunAsync(locks, "order-sweeper", TimeSpan.FromSeconds(30), async (lease, stop) =>
+await locks.RunAsLeaderAsync("order-sweeper", TimeSpan.FromSeconds(30), async (lease, stop) =>
 {
     while (true)
     {
@@ -152,12 +186,64 @@ await LeaderElection.RunAsync(locks, "order-sweeper", TimeSpan.FromSeconds(30), 
 The token the work gets is cancelled when the caller cancels or the lease is lost. A term ends in one of three ways:
 
 - The lease is lost: whatever the work returned or threw, the election waits for it and contends again.
-- The caller cancels: the lease is released, and `RunAsync` throws `OperationCanceledException`, whatever the work returned or threw.
-- The work returns or throws on its own: the lease is released, and `RunAsync` returns or throws that exception. A leader that is done hands the lock on.
+- The caller cancels: the lease is released, and `RunAsLeaderAsync` throws `OperationCanceledException`, whatever the work returned or threw.
+- The work returns or throws on its own: the lease is released, and `RunAsLeaderAsync` returns or throws that exception. A leader that is done hands the lock on.
 
 An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. Any other error ends it. A lease that has ended by the time its acquire answers starts no term, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
 
-Work that ignores the token runs on after the lease is lost, and another process may lead at the same time. Writes that must not happen then go through `IsHeld`, or carry the fencing token to a system that checks it. In a hosted application, call `RunAsync` from `ExecuteAsync` of a `BackgroundService` with its stopping token; the package has no hosting integration of its own.
+Work that ignores the token runs on after the lease is lost, and another process may lead at the same time. Writes that must not happen then go through `IsHeld`, or carry the fencing token to a system that checks it.
+
+### In a hosted service
+
+The package has no hosting integration of its own. A service that should lead for as long as it runs calls `RunAsLeaderAsync` in a loop from a `BackgroundService`:
+
+```csharp
+using DynaSharp.Coordination;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+public sealed partial class OrderSweeper(LockTable locks, ILogger<OrderSweeper> logger) : BackgroundService
+{
+    private static readonly TimeSpan Lease = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Pause = TimeSpan.FromMinutes(1);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await locks.RunAsLeaderAsync("order-sweeper", Lease, SweepAsync, stoppingToken);
+                continue; // The work returned and handed the lock on: contend again.
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return; // The host stops: the lease is released.
+            }
+            catch (Exception exception)
+            {
+                LogFailed(logger, exception, Pause);
+            }
+
+            await Task.Delay(Pause, stoppingToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
+    }
+
+    private static async Task SweepAsync(Lease lease, CancellationToken stop)
+    {
+        while (true)
+        {
+            // One round of work, each write under IsHeld(lease).
+            await Task.Delay(TimeSpan.FromMinutes(1), stop);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The order sweeper failed. It contends again in {Pause}.")]
+    private static partial void LogFailed(ILogger logger, Exception exception, TimeSpan pause);
+}
+```
+
+Register one `LockTable` per table as a singleton and the service with `AddHostedService<OrderSweeper>()`. Shutdown cancels the stopping token, which stops the work, releases the lease, so another instance takes over at its next poll, and ends `ExecuteAsync` without an exception. Work that fails and an error that ends `RunAsLeaderAsync`, such as a missing table, are logged and followed by a pause, and the loop contends again. That matters: since .NET 6 an exception that leaves `ExecuteAsync` stops the whole host (`BackgroundServiceExceptionBehavior.StopHost`), which this loop never lets happen. A transient error of an acquire is retried inside `RunAsLeaderAsync` already, with log 44.
 
 ## Observability
 
@@ -175,22 +261,49 @@ The spans and metrics go to the activity source and the meter named `DynaSharp`,
 | `dynasharp.lock.renewals` | `{renewal}` | Each renewal, with `error.type` on one that failed |
 | `dynasharp.lock.losses` | `{lease}` | Each lease lost before it was released, with `dynasharp.lock.loss_reason`: `taken_over`, `deleted`, `expired` or `table_not_found` |
 
-Spans and metrics carry `db.collection.name`, the table. The name of the lock is on the spans, as `dynasharp.lock.name`, and in the logs, so that an operator sees which lock it was, but not on the metrics, where it would be a dimension per lock. A span of an acquire also has `dynasharp.lock.acquired`, and for a lease `dynasharp.lock.takeover` and `dynasharp.lock.fencing_token`. Lock names are names chosen in code, as table names are, so put no data in them, such as a user id.
+The requests of a lock have spans of their own under the span of the lock, so the polls of a waiting process show as `GetItem` spans under `Lock.Acquire`, and the client's request metrics count them.
+
+Spans and metrics carry `db.collection.name`, the table. The name of the lock is on the spans, as `dynasharp.lock.name`, and in the logs, so that an operator sees which lock it was, but not on the metrics, where it would be a dimension per lock. A span of an acquire also has `dynasharp.lock.acquired`, and for a lease `dynasharp.lock.takeover` and `dynasharp.lock.fencing_token`. Lock names are names chosen in code, as table names are, so put no data in them, such as a user id. The holder label is in the logs only, never on spans or metrics.
 
 The log category is `DynaSharp.Coordination.LockTable`, and it logs what no caller sees:
 
 | Id | Level | Event |
 |---|---|---|
 | 40 | Warning | A lease was lost, with the reason |
-| 41 | Information | A lock was taken over from a holder that stopped renewing it |
+| 41 | Information | A lock was taken over from a holder that stopped renewing it, with the holder labels of both |
 | 42 | Warning | A renewal of the heartbeat failed and is tried again after a wait, until the lease runs out |
 | 43 | Warning | A release failed; the lock is free once its lease runs out |
-| 44 | Warning | An acquire of the election failed with a transient error; it contends again |
-| 45 | Information | This process leads, with its fencing token |
-| 46 | Information | This process no longer leads: `lease_lost`, `cancelled`, `work_returned` or `work_failed` |
+| 44 | Warning | An acquire of `RunAsLeaderAsync` failed with a transient error; it contends again |
+| 45 | Information | This process leads, with its fencing token and its holder label |
+| 46 | Information | This process no longer leads: `lease_lost`, `cancelled`, `work_returned` or `work_failed`, with its holder label |
 | 47 | Debug | The work of the leader threw after its lease was lost, with the type of the exception |
-| 48 | Debug | The work of the leader threw after the election was cancelled, with the type of the exception |
+| 48 | Debug | The work of the leader threw after the caller cancelled, with the type of the exception |
 
 ## Testing
 
-A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep.
+A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep. `fake.CreateTable("Shop", "pk", "sk")` creates a table with string keys for it.
+
+What other processes do to a lock, a test does with the extensions of `DynaSharp.Coordination.Testing`, without knowing the format of the item. They write through the table of the `LockTable`, so they work on the fake and on an emulator alike:
+
+| Method | Does what |
+|---|---|
+| `SimulateHolderAsync(name, leaseDuration, holderLabel)` | Another process holds the lock, acquired just now and never renewed, as a holder that crashed. Returns its fencing token. A lease of this process is lost at its next renewal (`taken_over`), and a contender takes over once it has seen this holder for a whole lease |
+| `SimulateReleaseAsync(name)` | The holder released the lock, whoever it was: the next acquire finds it free and raises the token. A lease of this process is lost (`taken_over`) |
+| `SimulateDeleteAsync(name)` | The item is deleted, as time to live or an operator would: a lease is lost (`deleted`) and the next acquire starts the token at 1 |
+
+```csharp
+using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
+using DynaSharp.Testing;
+
+var fake = new FakeDynamoDb();
+fake.CreateTable("Shop", "pk", "sk");
+using var client = fake.CreateClient();
+var locks = new LockTable(client.Table("Shop", "pk", "sk"));
+
+await using var lease = await locks.AcquireAsync("order-sweeper", TimeSpan.FromSeconds(30));
+await locks.SimulateHolderAsync("order-sweeper", TimeSpan.FromSeconds(30), "another-pod");
+var stillHeld = await lease.RenewAsync(); // false: the lease is lost, and lease.Ended is cancelled
+```
+
+They write without a condition, so they are for tests, not for a table in production.

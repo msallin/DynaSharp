@@ -602,6 +602,50 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task RenewAsync_TimeToLive_MovesTheExpiryOn()
+    {
+        // Arrange
+        using var bench = new LockHarness(options: new() { TimeToLiveAttribute = "expires" });
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Act
+        await lease!.RenewAsync();
+
+        // Assert
+        await Assert.That(bench.ItemOf("job")!.GetNumber<long>("expires")).IsEqualTo(bench.Clock.GetUtcNow().AddDays(30).ToUnixTimeSeconds());
+    }
+
+    [Test]
+    public async Task DisposeAsync_TimeToLive_StampsTheExpiryOfTheReleasedItem()
+    {
+        // Arrange
+        using var bench = new LockHarness(options: new() { TimeToLiveAttribute = "expires", TimeToLiveRetention = TimeSpan.FromDays(7) });
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Act
+        await lease!.DisposeAsync();
+
+        // Assert
+        await Assert.That(bench.ItemOf("job")!.GetNumber<long>("expires")).IsEqualTo(bench.Clock.GetUtcNow().AddDays(7).ToUnixTimeSeconds());
+    }
+
+    [Test]
+    public async Task DisposeAsync_HolderLabel_RemovesTheLabel()
+    {
+        // Arrange
+        using var bench = new LockHarness(options: new() { HolderLabel = "pod-1" });
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Act
+        await lease!.DisposeAsync();
+
+        // Assert
+        await Assert.That(bench.ItemOf("job")!.ContainsKey("holder")).IsFalse();
+    }
+
+    [Test]
     public async Task DisposeAsync_Held_StopsTheHeartbeat()
     {
         // Arrange

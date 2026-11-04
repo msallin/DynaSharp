@@ -2,46 +2,18 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace DynaSharp.Coordination;
 
-/// <summary>Leader election on a lock: of all the processes that run it for the same lock, one at a time does the work.</summary>
-public static class LeaderElection
+/// <summary>The loop of <see cref="LockTable.RunAsLeaderAsync"/>, whose remarks are the contract: contend, lead for a term, contend again after a loss.</summary>
+internal static class Leadership
 {
-    /// <summary>
-    /// Contends for a lock until the caller cancels: acquires it with <see cref="LockTable.AcquireAsync"/>, runs <paramref name="work"/> while the lease is
-    /// held, and when the lease is lost, waits for the work to stop and contends again. The token the work gets is cancelled when the caller cancels or
-    /// the lease is lost, so work that honours it stops in time.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The work ends in one of three ways. If the lease was lost, whatever the work returned or threw, the election contends again. If the caller cancelled,
-    /// the lease is released and this throws <see cref="OperationCanceledException"/>, whatever the work returned or threw. If the work returned or threw on its own, the lease is released and this
-    /// returns or throws that exception: a leader that is done hands the lock on.
-    /// </para>
-    /// <para>
-    /// An acquire that fails with a transient error, a <see cref="DynamoDbException"/> whose <see cref="DynamoDbException.IsTransient"/> is
-    /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is logged, and
-    /// the election contends again after a third of the lease. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and the election contends again.
-    /// </para>
-    /// <para>
-    /// Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
-    /// happen then take <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, or the <see cref="Lease.FencingToken"/> to a system that checks it.
-    /// </para>
-    /// </remarks>
+    /// <summary>Leads on a lock until the work ends on its own or the caller cancels. The arguments are checked.</summary>
     /// <param name="locks">The table of the lock.</param>
     /// <param name="name">The name of the lock.</param>
-    /// <param name="leaseDuration">How long a lease lasts without a renewal, from 1 second to 1 day. It is also about how long the work of a leader that crashed stays undone.</param>
-    /// <param name="work">The work of the leader. It gets the lease and a token to stop at.</param>
-    /// <param name="cancellationToken">Ends the election.</param>
-    /// <returns>A task that completes when the work completed on its own, and fails when the work failed on its own, the caller cancelled or an acquire failed.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="locks"/> or <paramref name="work"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="leaseDuration"/> is below 1 second or above 1 day.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled, also when the work then threw something else.</exception>
-    /// <exception cref="InvalidOperationException">The item at the key of the lock is not a lock item written by <see cref="LockTable"/>; see <see cref="LockTable.AcquireAsync"/>. Or the work threw it.</exception>
+    /// <param name="leaseDuration">How long a lease lasts without a renewal.</param>
+    /// <param name="work">The work of the leader.</param>
+    /// <param name="cancellationToken">Ends the leadership.</param>
+    /// <returns>A task that completes as <see cref="LockTable.RunAsLeaderAsync"/> says.</returns>
     public static async Task RunAsync(LockTable locks, string name, TimeSpan leaseDuration, Func<Lease, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(locks);
-        LockTable.Validate(name, leaseDuration);
-        ArgumentNullException.ThrowIfNull(work);
         while (true)
         {
             Lease lease;
@@ -87,11 +59,11 @@ public static class LeaderElection
     internal static bool IsTransient(Exception exception) =>
         exception is DynamoDbException { IsTransient: true } or TimeoutException or HttpRequestException or CredentialsUnavailableException;
 
-    // Runs the work of one term. True if the lease was lost, so the election goes on.
+    // Runs the work of one term. True if the lease was lost, so the leadership goes on.
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Whatever work that lost its lease throws ends that term only; the loss is logged.")]
     private static async Task<bool> LeadAsync(LockTable locks, Lease lease, Func<Lease, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
-        CoordinationLog.Elected(locks.Logger, lease.Name, locks.Table.Name, lease.FencingToken);
+        CoordinationLog.Elected(locks.Logger, lease.Name, locks.Table.Name, lease.FencingToken, locks.Options.HolderLabel);
         var returned = false;
         try
         {
@@ -124,7 +96,7 @@ public static class LeaderElection
         finally
         {
             var end = EndOf(lease, returned, cancellationToken);
-            CoordinationLog.TermEnded(locks.Logger, lease.Name, locks.Table.Name, end);
+            CoordinationLog.TermEnded(locks.Logger, lease.Name, locks.Table.Name, end, locks.Options.HolderLabel);
         }
     }
 
