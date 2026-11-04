@@ -194,7 +194,7 @@ Caveats:
 
 ## Queue over a sparse index
 
-A work queue in a table is two sparse indexes: a pending job is in one under a few shards, so the queue is no hot partition, and a claimed job is in the other, keyed by the end of its claim. A version-7 GUID as the id orders the jobs of a shard by the time they were enqueued.
+A work queue in a table is two sparse indexes: a pending job is in one under a few shards, so the queue is no hot partition, and a claimed job is in the other, under the same shard and keyed by the end of its claim. A version-7 GUID as the id orders the jobs of a shard by the time they were enqueued.
 
 ```csharp
 [DynamoDbEntity]
@@ -202,18 +202,19 @@ A work queue in a table is two sparse indexes: a pending job is in one under a f
 [PartitionKey("JOB#{Id}")]
 [SortKey("JOB")]
 [GlobalIndexKey("GSI2", PartitionKey = "PENDING#{Shard}", SortKey = "{Id}", Sparse = true)]
-[GlobalIndexKey("GSI1", PartitionKey = "CLAIMED", SortKey = "{ClaimedUntil}", Sparse = true)]
+[GlobalIndexKey("GSI1", PartitionKey = "CLAIMED#{ClaimShard}", SortKey = "{ClaimedUntil}", Sparse = true)]
 public partial record QueuedJob
 {
     public required Guid Id { get; init; }
     public int? Shard { get; init; }
+    public int? ClaimShard { get; init; }
     public string? Owner { get; init; }
     public DateTimeOffset? ClaimedUntil { get; init; }
     public required string Payload { get; init; }
 }
 ```
 
-A job is enqueued with a `Put` that sets its shard, also in the transaction of the write it belongs to, so there is no job without its order and no order without its job. A worker reads a shard of the pending index and claims a job with a conditional update, which moves it from the pending index to the claimed one. The index is eventually consistent, so the worker can read a job that another worker claimed a moment ago; the condition is what makes the claim correct:
+A job is enqueued with a `Put` that sets its shard, also in the transaction of the write it belongs to, so there is no job without its order and no order without its job. A worker reads a shard of the pending index and claims a job with a conditional update, which moves it from the pending index to the claimed one under an id that is new for each claim. The index is eventually consistent, so the worker can read a job that another worker claimed a moment ago; the condition is what makes the claim correct. Completing the job deletes it on condition of that id, so a worker whose claim was put back cannot complete the job of the claim after it, even when that claim is its own:
 
 ```csharp
 var jobs = shop.Of<QueuedJob>();
@@ -227,16 +228,17 @@ await foreach (var pending in jobs.Index(QueuedJob.Indexes.Gsi2).Query(QueuedJob
 {
     try
     {
-        var claimed = await jobs.Update(QueuedJob.Keys.Of(pending.Id))
+        var claim = Guid.NewGuid().ToString("N");
+        await jobs.Update(QueuedJob.Keys.Of(pending.Id))
             .Remove(QueuedJob.Attrs.Shard)
-            .Set(QueuedJob.Attrs.Owner, "worker-1")
+            .Set(QueuedJob.Attrs.ClaimShard, 0)
+            .Set(QueuedJob.Attrs.Owner, claim)
             .Set(QueuedJob.Attrs.ClaimedUntil, DateTimeOffset.UtcNow.AddMinutes(5))
             .If(QueuedJob.Attrs.Shard.Exists())
-            .ReturnNew()
             .SendAsync(ct);
 
-        // Run the job, then complete it: only while this worker still holds it.
-        await jobs.Delete(QueuedJob.Keys.Of(pending.Id)).If(QueuedJob.Attrs.Owner.Eq("worker-1")).SendAsync(ct);
+        // Run the job, then complete it: only while this claim still holds it.
+        await jobs.Delete(QueuedJob.Keys.Of(pending.Id)).If(QueuedJob.Attrs.Owner.Eq(claim)).SendAsync(ct);
         break;
     }
     catch (ConditionalCheckFailedException)
@@ -246,25 +248,29 @@ await foreach (var pending in jobs.Index(QueuedJob.Indexes.Gsi2).Query(QueuedJob
 }
 ```
 
-A reaper puts back what a worker claimed and never completed. It reads the claims that ran out, and resets each on condition that its claim did not change since the read:
+A reaper puts back what a worker claimed and never completed. It reads the claims that ran out, shard by shard, and resets each on condition that its claim did not change since the read:
 
 ```csharp
 var jobs = shop.Of<QueuedJob>();
 var now = DateTimeOffset.UtcNow;
-await foreach (var stale in jobs.Index(QueuedJob.Indexes.Gsi1).Query(QueuedJob.Keys.Gsi1Pk.Of(), QueuedJob.Keys.Gsi1Sk.Lt(now)).ItemsAsync(ct))
+for (var shard = 0; shard < 4; shard++)
 {
-    try
+    await foreach (var stale in jobs.Index(QueuedJob.Indexes.Gsi1).Query(QueuedJob.Keys.Gsi1Pk.Of(shard), QueuedJob.Keys.Gsi1Sk.Lt(now)).ItemsAsync(ct))
     {
-        await jobs.Update(QueuedJob.Keys.Of(stale.Id))
-            .Remove(QueuedJob.Attrs.Owner)
-            .Remove(QueuedJob.Attrs.ClaimedUntil)
-            .Set(QueuedJob.Attrs.Shard, (int)((uint)stale.Id.GetHashCode() % 4))
-            .If(QueuedJob.Attrs.ClaimedUntil.Eq(stale.ClaimedUntil!.Value))
-            .SendAsync(ct);
-    }
-    catch (ConditionalCheckFailedException)
-    {
-        // Completed or put back in the meantime.
+        try
+        {
+            await jobs.Update(QueuedJob.Keys.Of(stale.Id))
+                .Remove(QueuedJob.Attrs.Owner)
+                .Remove(QueuedJob.Attrs.ClaimShard)
+                .Remove(QueuedJob.Attrs.ClaimedUntil)
+                .Set(QueuedJob.Attrs.Shard, shard)
+                .If(QueuedJob.Attrs.Owner.Eq(stale.Owner!))
+                .SendAsync(ct);
+        }
+        catch (ConditionalCheckFailedException)
+        {
+            // Completed or put back in the meantime.
+        }
     }
 }
 ```
@@ -273,7 +279,7 @@ A priority queue puts the priority in front of the sort key of the pending index
 
 Caveats:
 
-- The claim compares the clock of the reaper with the end a worker wrote, so the clocks of the machines must agree to within a fraction of the claim. A worker whose claim was put back finds out when its completion fails; work that must not run twice needs the fencing of a [lease](coordination.md#fencing) or an [idempotency key](patterns-writes.md#idempotency-keys).
+- The reaper compares its clock with the end a worker wrote, so the clocks of the machines must agree to within a fraction of the claim. A worker whose claim was put back finds out when its completion fails; work that must not run twice needs the fencing of a [lease](coordination.md#fencing) or an [idempotency key](patterns-writes.md#idempotency-keys).
 - Throttling of a global index throttles the writes of the table. Choose enough shards for the rate of enqueues, and read every shard.
 - This is the queue a table gives you, not a message broker. Visibility timeouts per message, delays, a dead-letter queue and FIFO groups are what SQS is for.
 - [The recipe](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/SparseIndexQueueTests.cs) runs this against every backend, with several workers at once.
