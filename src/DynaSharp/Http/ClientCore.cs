@@ -171,7 +171,7 @@ internal sealed class ClientCore : IDisposable
     /// <summary>Logs that DynamoDB listed a child of a shard late, see <see cref="DynamoDbPipeline.LogChildListedLate"/>.</summary>
     /// <param name="childShardId">The child.</param>
     /// <param name="shardId">The shard it continues.</param>
-    /// <param name="elapsed">The time since the shard was read to its end.</param>
+    /// <param name="elapsed">The time since the first look for the children of the shard.</param>
     public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => _pipeline.LogChildListedLate(childShardId, shardId, elapsed);
 
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>

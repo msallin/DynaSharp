@@ -18,7 +18,8 @@ public sealed record ReadStreamRequest
     /// </summary>
     /// <remarks>
     /// With <see cref="ShardIteratorType.TrimHorizon"/> the shards that are closed at the start are read too, from their oldest record, each before its children.
-    /// With <see cref="ShardIteratorType.Latest"/> they count as read, so only their open descendants are, from the start of the reading on.
+    /// With <see cref="ShardIteratorType.Latest"/> they have nothing to read from now on, so only their open descendants are, from the start of the reading on, and
+    /// a child listed after the start, of a split in progress, from its first record.
     /// </remarks>
     public required ShardIteratorType ShardIteratorType { get; init; }
 

@@ -204,7 +204,7 @@ public sealed class ReadStreamTelemetryTests
         handler.Enqueue(StubResponse.ShardIterator("c/0"));
         handler.Enqueue(StubResponse.Records(null, Insert("c-1")));
         handler.Enqueue(Description());
-        using var streams = TestClient.CreateStreams(handler, time, loggerFactory: logs);
+        using var streams = TestClient.CreateStreams(handler, time, attemptTimeout: Timeout.InfiniteTimeSpan, loggerFactory: logs);
         var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
 
         // Act
@@ -213,7 +213,7 @@ public sealed class ReadStreamTelemetryTests
 
         // Assert
         var entry = logs.Entries.Single(static entry => entry.EventId.Id == 11);
-        await Assert.That($"{entry.Level} {entry.Message}").IsEqualTo("Debug DynamoDB Streams listed the child shard c of shard p only 00:00:01 after the shard was read to its end.");
+        await Assert.That($"{entry.Level} {entry.Message}").IsEqualTo("Debug DynamoDB Streams listed the child shard c of shard p only 00:00:01 after the first look for its children.");
     }
 
     [Test]
