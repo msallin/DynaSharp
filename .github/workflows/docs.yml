@@ -38,10 +38,12 @@ jobs:
 
       - run: dotnet tool restore
       - run: dotnet restore src/DynaSharp.Testing --locked-mode
+      - run: dotnet restore src/DynaSharp.Coordination --locked-mode
 
       # The API reference is read from the assemblies and their XML docs, not from the projects: DocFX would load them with an MSBuild
-      # that does not know the .NET 11 SDK. The output of DynaSharp.Testing holds both assemblies.
+      # that does not know the .NET 11 SDK. The output of DynaSharp.Testing holds DynaSharp and DynaSharp.Testing, that of DynaSharp.Coordination its own assembly.
       - run: dotnet build src/DynaSharp.Testing -c Release --no-restore
+      - run: dotnet build src/DynaSharp.Coordination -c Release --no-restore
 
       # The metadata step warns that the Of overloads of MixedExtensions document T1 and T2 twice: DocFX adds what <inheritdoc/> brings to
       # what the member says itself. The pages build with warnings as errors, so a broken link between them fails here.

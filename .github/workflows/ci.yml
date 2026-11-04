@@ -54,7 +54,7 @@ jobs:
 
       # The pages for users promise examples that compile, and nothing else builds them. One compilation takes all of them.
       - name: README and docs examples compile
-        run: dotnet run build/ReadmeCheck.cs -- README.md src/DynaSharp.Testing/README.md docs/*.md
+        run: dotnet run build/ReadmeCheck.cs -- README.md src/DynaSharp.Testing/README.md src/DynaSharp.Coordination/README.md docs/*.md
 
       # The solution also holds the integration tests, which need Docker and run in their own job.
       - name: Unit tests with coverage
@@ -67,6 +67,7 @@ jobs:
 
       - run: dotnet pack src/DynaSharp -c Release --no-build -o artifacts/packages
       - run: dotnet pack src/DynaSharp.Testing -c Release --no-build -o artifacts/packages
+      - run: dotnet pack src/DynaSharp.Coordination -c Release --no-build -o artifacts/packages
 
       # Packaging mistakes in the generator are silent: a package without it still builds. This restores DynaSharp from
       # artifacts/packages like a user would, checks that the compiler is given the generator from the package, and runs.
@@ -162,6 +163,9 @@ jobs:
             mutate: '**/*.cs'
           - shard: testing
             project: DynaSharp.Testing.csproj
+            mutate: '**/*.cs'
+          - shard: coordination
+            project: DynaSharp.Coordination.csproj
             mutate: '**/*.cs'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
