@@ -23,18 +23,33 @@ public sealed partial class StubResponse
     /// Creates the answer to a <c>DescribeStream</c> of the enabled stream of a table with the key <c>pk</c>, with old and new images: <c>{"StreamDescription":{...}}</c>. Read the ARN from the response, or give one with the
     /// <see cref="StreamDescription(DynaSharp.Streams.StreamDescription)"/> overload, which also says the rest.
     /// </summary>
+    /// <remarks>
+    /// An enabled stream can still open shards, so <c>ReadStreamAsync</c> keeps looking for the children of a closed shard while it lists none. A script whose last shard closes
+    /// without children answers with <see cref="StreamDescription(string, StreamStatus, ReadOnlySpan{Shard})"/> and <see cref="StreamStatus.Disabled"/>, which ends the reading.
+    /// </remarks>
     /// <param name="tableName">The table of the stream.</param>
     /// <param name="shards">The shards, as <see cref="Shard"/> makes them.</param>
     /// <returns>The response.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
-    public static StubResponse StreamDescription(string tableName, params ReadOnlySpan<Shard> shards)
+    public static StubResponse StreamDescription(string tableName, params ReadOnlySpan<Shard> shards) => StreamDescription(tableName, StreamStatus.Enabled, shards);
+
+    /// <summary>
+    /// Creates the answer to a <c>DescribeStream</c> of the stream of a table with the key <c>pk</c>, with old and new images, in a status: <c>StreamDescription("Shop", StreamStatus.Disabled, shard)</c>
+    /// for a stream that was switched off, whose shards are all closed and which opens no more.
+    /// </summary>
+    /// <param name="tableName">The table of the stream.</param>
+    /// <param name="status">The status of the stream. <see cref="StreamStatus.Unknown"/> sends none.</param>
+    /// <param name="shards">The shards, as <see cref="Shard"/> makes them.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
+    public static StubResponse StreamDescription(string tableName, StreamStatus status, params ReadOnlySpan<Shard> shards)
     {
         ArgumentNullException.ThrowIfNull(tableName);
         return StreamDescription(new StreamDescription
         {
             StreamArn = ArnPrefix + tableName + "/stream/" + StreamLabel,
             StreamLabel = StreamLabel,
-            StreamStatus = StreamStatus.Enabled,
+            StreamStatus = status,
             StreamViewType = StreamViewType.NewAndOldImages,
             CreationRequestDateTime = DateTimeOffset.FromUnixTimeSeconds(CreationEpochSeconds),
             TableName = tableName,

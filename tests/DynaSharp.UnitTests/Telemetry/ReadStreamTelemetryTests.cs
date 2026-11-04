@@ -217,6 +217,51 @@ public sealed class ReadStreamTelemetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_ShardReadAgainAfterATransientFailure_TagsItsSpanWithTheRetries()
+    {
+        // Arrange
+        using var capture = new ActivityCapture();
+
+        // Act
+        await ReadAfterTwoFailuresAsync();
+
+        // Assert
+        await Assert.That(Shard(capture, "p").GetTagItem("dynasharp.stream.retry_count")).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_ShardReadAgainAfterATransientFailure_CountsEachRetryWithItsErrorType()
+    {
+        // Arrange
+        var host = TestClient.UniqueHost();
+        using var counters = MeasurementCapture<long>.ForServer(host, TelemetryNames.StreamRetriesMetric);
+
+        // Act
+        await ReadAfterTwoFailuresAsync(serviceUrl: new Uri($"http://{host}:8000"));
+
+        // Assert
+        await Assert.That((counters.All.Sum(static measurement => measurement.Value), counters.All[0].TagText, counters.All[0].Unit))
+            .IsEqualTo((2L, $"error.type=InternalServerError,server.address={host},server.port=8000", "{retry}"));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_ShardReadAgainAfterATransientFailure_LogsTheOutageOnceAndItsEnd()
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory();
+
+        // Act
+        await ReadAfterTwoFailuresAsync(loggerFactory: logs);
+
+        // Assert
+        var entries = logs.Entries.Where(static entry => entry.EventId.Id is 12 or 13).Select(static entry => $"{entry.Level} {entry.Message}");
+        await Assert.That(string.Join("\n", entries)).IsEqualTo(
+            "Warning DynamoDB Streams shard p failed with InternalServerError on the last attempt of a call. ReadStreamAsync reads it on from where it stopped, with a backoff, "
+            + "for up to 00:15:00, and then passes the error on.\n"
+            + "Information DynamoDB Streams shard p is read again, 00:00:00 after it failed and after 2 retries.");
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Listener_ReportsNoKeyAndNoStream()
     {
         // Arrange
@@ -260,6 +305,21 @@ public sealed class ReadStreamTelemetryTests
         var records = await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
         handler.ThrowIfResponsesLeft();
         return records;
+    }
+
+    // A closed shard p whose first GetRecords fails twice, on a clock that stands still, with no jitter, so the retries wait nothing.
+    private static async Task ReadAfterTwoFailuresAsync(Uri? serviceUrl = null, ILoggerFactory? loggerFactory = null)
+    {
+        using var handler = new StubHandler();
+        handler.Enqueue(Description(StubResponse.Shard("p", endingSequenceNumber: "999")));
+        handler.Enqueue(StubResponse.ShardIterator("p/0"));
+        handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError));
+        handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError));
+        handler.Enqueue(StubResponse.Records(null, Insert("p-1")));
+        handler.Enqueue(Description());
+        using var streams = TestClient.CreateStreams(handler, new ManualTimeProvider(), serviceUrl: serviceUrl, loggerFactory: loggerFactory, random: FixedRandom.Zero);
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+        handler.ThrowIfResponsesLeft();
     }
 
     private static async Task<StubResponse> UntilCancelledAsync(CancellationToken cancellationToken)

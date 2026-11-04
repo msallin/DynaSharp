@@ -60,3 +60,8 @@ static DynaSharp.Streams.ShardChangeRecord.operator !=(DynaSharp.Streams.ShardCh
 static DynaSharp.Streams.ShardChangeRecord.operator ==(DynaSharp.Streams.ShardChangeRecord left, DynaSharp.Streams.ShardChangeRecord right) -> bool
 override DynaSharp.Streams.ShardChangeRecord.Equals(object? obj) -> bool
 override DynaSharp.Streams.ShardChangeRecord.ToString() -> string!
+DynaSharp.Streams.ReadStreamRequest.OnJoined.get -> System.Action?
+DynaSharp.Streams.ReadStreamRequest.OnJoined.init -> void
+DynaSharp.Streams.ShardChangeRecord.SequenceNumber.get -> string?
+DynaSharp.Streams.TableStreamExtensions
+static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!

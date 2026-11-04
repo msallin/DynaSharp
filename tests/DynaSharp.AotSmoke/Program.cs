@@ -510,6 +510,25 @@ await foreach (var change in helperStreamsClient.ReadStreamAsync(new ReadStreamR
 
 Check(streamRecords.Single() is { ShardId: "shard-1", Record.EventName: OperationType.Insert }, "ReadStreamAsync reads a stream to its end");
 
+// The stream of a table, by the ARN DescribeTable names: a page that fails with a server error is read again, and the signal comes once the shard holds its iterator.
+using var tableStreamHandler = new StubHandler();
+using var tableStreamClient = StubClient.Create(tableStreamHandler);
+using var tableStreamStreams = StubClient.CreateStreams(tableStreamHandler);
+tableStreamHandler.Enqueue(StubResponse.Json("""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"KEYS_ONLY"},"LatestStreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/2026-01-01T00:00:00.000"}}"""));
+tableStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled, StubResponse.Shard("shard-1", endingSequenceNumber: "9")));
+tableStreamHandler.Enqueue(StubResponse.ShardIterator("iterator"));
+tableStreamHandler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError));
+tableStreamHandler.Enqueue(StubResponse.Records(null, StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "user-1" })));
+tableStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled));
+var tableJoined = 0;
+var tableStreamRecords = new List<ShardChangeRecord>();
+await foreach (var change in tableStreamClient.Table("Users", "pk").ReadStreamAsync(tableStreamStreams, ShardIteratorType.TrimHorizon, onJoined: () => tableJoined++))
+{
+    tableStreamRecords.Add(change);
+}
+
+Check(tableStreamRecords.Single().SequenceNumber is { Length: > 0 } && tableJoined == 1, "ReadStreamAsync of a table reads its stream, again after a server error, and signals once");
+
 // A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
 var lenients = users.Of<Lenient>();
 const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"Shipped":{"S":""},"After":{"N":"7"}}}""";

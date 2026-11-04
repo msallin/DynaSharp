@@ -6,8 +6,7 @@ namespace DynaSharp.Streams;
 /// <remarks>
 /// <para>
 /// The shard and the sequence number of the record are the position to keep: <see cref="DynamoDbStreamsClient.ReadShardAsync"/> with this
-/// <see cref="ShardId"/>, <see cref="ShardIteratorType.AfterSequenceNumber"/> and <see cref="StreamRecord.SequenceNumber"/> of
-/// <see cref="ChangeRecord.DynamoDb"/> reads the shard on after this record.
+/// <see cref="ShardId"/>, <see cref="ShardIteratorType.AfterSequenceNumber"/> and <see cref="SequenceNumber"/> reads the shard on after this record.
 /// </para>
 /// <para>
 /// The shard is here and not on <see cref="ChangeRecord"/> because <c>GetRecords</c> does not say it: a record of
@@ -29,6 +28,12 @@ public readonly struct ShardChangeRecord(string shardId, ChangeRecord record) : 
 
     /// <summary>Gets the record, as <see cref="DynamoDbStreamsClient.ReadShardAsync"/> returns it.</summary>
     public ChangeRecord Record { get; init; } = record;
+
+    /// <summary>
+    /// Gets the sequence number of the record, <see cref="StreamRecord.SequenceNumber"/> of <see cref="ChangeRecord.DynamoDb"/>, or <see langword="null"/> if the record has none,
+    /// which DynamoDB always sends. It orders the records of one shard, and it is no number to compare across shards.
+    /// </summary>
+    public string? SequenceNumber => Record?.DynamoDb?.SequenceNumber;
 
     /// <summary>Tells whether two values hold the same shard and equal records.</summary>
     /// <param name="left">The first value.</param>

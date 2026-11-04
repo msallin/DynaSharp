@@ -16,9 +16,14 @@ namespace DynaSharp.Streams;
 /// and <see cref="_idle"/> when it reaches zero. A reader increments it for its children before it decrements it for itself, so it never reaches zero early.
 /// </para>
 /// <para>
-/// The first failure wins the completion of the channel, drops what the channel still holds so that it is the next thing the consumer sees, and stops the other
-/// readers. A reader that was stopped is not a failure. However the enumeration ends, its <c>finally</c> stops what still runs and waits for it, so no reader
+/// A reader goes through a transient failure on its own, see <see cref="ShardRun"/>, and only what is left fails the reading. The first failure wins the completion
+/// of the channel, drops what the channel still holds so that it is the next thing the consumer sees, and stops the other readers. A reader that was stopped is
+/// not a failure. However the enumeration ends, its <c>finally</c> stops what still runs and waits for it, so no reader
 /// outlives the enumerator.
+/// </para>
+/// <para>
+/// <see cref="ReadStreamRequest.OnJoined"/> is a count too: one for the discovery, which it drops once it has started every shard it starts, and one for each of those
+/// shards, which its reader drops once the shard holds an iterator. Zero calls it, once.
 /// </para>
 /// </remarks>
 internal sealed class StreamMerge
@@ -47,7 +52,11 @@ internal sealed class StreamMerge
     // The span that was current when the enumeration started. Each shard is a span under it, a child shard too, which links to its parent instead: as a
     // child of its parent, a stream read for days would be one trace that grows for days.
     private readonly ActivityContext _caller;
+
+    // What a shard started by the discovery calls once it holds an iterator.
+    private readonly Action _shardJoined;
     private int _running;
+    private int _unjoined = 1;
 
     private StreamMerge(DynamoDbStreamsClient client, ClientCore core, ReadStreamRequest request, CancellationTokenSource stop)
     {
@@ -56,6 +65,7 @@ internal sealed class StreamMerge
         _request = request;
         _stop = stop;
         _caller = Activity.Current?.Context ?? default;
+        _shardJoined = Joined;
     }
 
     /// <summary>Reads the stream, on enumeration.</summary>
@@ -134,7 +144,8 @@ internal sealed class StreamMerge
     {
         try
         {
-            var (shards, _) = await ShardsAsync(null).ConfigureAwait(false);
+            // Not tried again: nothing has been read yet, and a setup that does not work, such as a wrong endpoint, shows at once.
+            var (shards, _) = await ShardsAsync(null, null).ConfigureAwait(false);
             var listed = new HashSet<string>(StringComparer.Ordinal);
             foreach (var shard in shards)
             {
@@ -152,7 +163,7 @@ internal sealed class StreamMerge
                     // is not listed yet, so it is watched as a shard read to its end is.
                     if (!closed)
                     {
-                        Launch(shard.ShardId!, closed: false, ShardIteratorType.Latest, null, default);
+                        LaunchFirst(shard.ShardId!, closed: false, ShardIteratorType.Latest);
                     }
                     else
                     {
@@ -163,9 +174,11 @@ internal sealed class StreamMerge
                 {
                     // The trim horizon of a shard without a listed parent is where the caller asked to start. A shard whose parent is listed starts once the parent has been
                     // read, as its child.
-                    Launch(shard.ShardId!, closed, ShardIteratorType.TrimHorizon, null, default);
+                    LaunchFirst(shard.ShardId!, closed, ShardIteratorType.TrimHorizon);
                 }
             }
+
+            Joined();
         }
 #pragma warning disable CA1031 // The failure is not swallowed: the consumer gets it from the channel.
         catch (Exception failure)
@@ -215,7 +228,7 @@ internal sealed class StreamMerge
         var stopped = _stop.Token;
         try
         {
-            await StartChildrenAsync(shardId, default, known, firstChild, read: false, stopped).ConfigureAwait(false);
+            await StartChildrenAsync(shardId, default, known, firstChild, new ShardRun(_core, shardId, null), read: false, stopped).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -233,12 +246,28 @@ internal sealed class StreamMerge
         }
     }
 
-    private void Launch(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard)
+    // A shard the discovery starts, which the signal waits for.
+    private void LaunchFirst(string shardId, bool closed, ShardIteratorType position)
+    {
+        Interlocked.Increment(ref _unjoined);
+        Launch(shardId, closed, position, null, default, _shardJoined);
+    }
+
+    private void Launch(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard, Action? positioned = null)
     {
         Enter();
 
         // On the pool, so a reader never runs inside the one that started it, nor on the context of the consumer.
-        _ = Task.Run(() => ReadShardAsync(shardId, closed, position, sequenceNumber, parentShard));
+        _ = Task.Run(() => ReadShardAsync(shardId, closed, position, sequenceNumber, parentShard, positioned));
+    }
+
+    // An exception of the callback fails the reading, through the reader or the discovery that called it.
+    private void Joined()
+    {
+        if (Interlocked.Decrement(ref _unjoined) == 0)
+        {
+            _request.OnJoined?.Invoke();
+        }
     }
 
     // A child must not lose records to the trim horizon unnoticed. Every record of a shard is younger than the shard, and DynamoDB keeps a record 24 hours, so a
@@ -264,7 +293,7 @@ internal sealed class StreamMerge
         }
     }
 
-    private async Task ReadShardAsync(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard)
+    private async Task ReadShardAsync(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard, Action? positioned)
     {
         var stopped = _stop.Token;
 
@@ -273,6 +302,7 @@ internal sealed class StreamMerge
         Activity.Current = null;
         var activity = _core.Telemetry.StartShard(shardId, _caller, parentShard);
         var records = 0;
+        var run = new ShardRun(_core, shardId, positioned);
         Exception? failed = null;
         try
         {
@@ -286,7 +316,7 @@ internal sealed class StreamMerge
             };
             try
             {
-                await foreach (var record in _client.ReadShardAsync(shard, stopped).ConfigureAwait(false))
+                await foreach (var record in _client.ReadShardCoreAsync(shard, run, stopped).ConfigureAwait(false))
                 {
                     await _records.Writer.WriteAsync(new ShardChangeRecord(shardId, record), stopped).ConfigureAwait(false);
                     records++;
@@ -301,7 +331,7 @@ internal sealed class StreamMerge
                     gone.StatusCode);
             }
 
-            await StartChildrenAsync(shardId, activity?.Context ?? default, null, null, read: true, stopped).ConfigureAwait(false);
+            await StartChildrenAsync(shardId, activity?.Context ?? default, null, null, run, read: true, stopped).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -316,7 +346,7 @@ internal sealed class StreamMerge
         }
         finally
         {
-            _core.Telemetry.EndShard(activity, records, failed);
+            _core.Telemetry.EndShard(activity, records, run.Retries, failed);
             Leave();
         }
     }
@@ -324,8 +354,8 @@ internal sealed class StreamMerge
     // The filter finds the children without listing the stream, and the check of the parent keeps an emulator that ignores the filter from starting every shard.
     // DynamoDB may list a child a moment after its parent closed, so each child starts as soon as it is listed, and the looks go on: while the stream is enabled
     // and none is listed, until one is; after the first, for a while longer, see MoreChildrenWindow. A stream that is no longer enabled opens no more shards.
-    // The children in known are not started again, and firstChild is when the first of them was there.
-    private async Task StartChildrenAsync(string shardId, ActivityContext span, List<string>? known, DateTimeOffset? firstChild, bool read, CancellationToken stopped)
+    // The children in known are not started again, and firstChild is when the first of them was there. A look that fails transiently is tried again through the run.
+    private async Task StartChildrenAsync(string shardId, ActivityContext span, List<string>? known, DateTimeOffset? firstChild, ShardRun run, bool read, CancellationToken stopped)
     {
         var time = _core.TimeProvider;
         var filter = new ShardFilter { Type = ShardFilterType.ChildShards, ShardId = shardId };
@@ -333,7 +363,7 @@ internal sealed class StreamMerge
         var ended = time.GetTimestamp();
         for (var look = 0; ; look++)
         {
-            var (shards, status) = await ShardsAsync(filter).ConfigureAwait(false);
+            var (shards, status) = await ShardsAsync(filter, run).ConfigureAwait(false);
             foreach (var shard in shards)
             {
                 if (string.Equals(shard.ParentShardId, shardId, StringComparison.Ordinal) && started.Add(shard.ShardId!))
@@ -363,8 +393,8 @@ internal sealed class StreamMerge
         }
     }
 
-    // Every page; a shard without an id is no shard to read. The status is the one of the last page.
-    private async Task<(List<Shard> Shards, StreamStatus Status)> ShardsAsync(ShardFilter? filter)
+    // Every page; a shard without an id is no shard to read. The status is the one of the last page. A page that fails transiently is asked for again through the run.
+    private async Task<(List<Shard> Shards, StreamStatus Status)> ShardsAsync(ShardFilter? filter, ShardRun? run)
     {
         var shards = new List<Shard>();
         var status = StreamStatus.Unknown;
@@ -372,7 +402,7 @@ internal sealed class StreamMerge
         do
         {
             var request = new DescribeStreamRequest { StreamArn = _request.StreamArn, ShardFilter = filter, ExclusiveStartShardId = start };
-            var page = (await _client.DescribeStreamAsync(request, _stop.Token).ConfigureAwait(false)).StreamDescription;
+            var page = (await DescribeAsync(request, run).ConfigureAwait(false)).StreamDescription;
             if (page is null)
             {
                 break;
@@ -392,6 +422,23 @@ internal sealed class StreamMerge
         while (start is not null);
 
         return (shards, status);
+    }
+
+    private async Task<DescribeStreamResponse> DescribeAsync(DescribeStreamRequest request, ShardRun? run)
+    {
+        while (true)
+        {
+            try
+            {
+                var response = await _client.DescribeStreamAsync(request, _stop.Token).ConfigureAwait(false);
+                run?.Progressed();
+                return response;
+            }
+            catch (Exception failure) when (run is not null && run.CanRetry(failure))
+            {
+                await run.WaitAsync(failure, _stop.Token).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task FailAsync(Exception failure)

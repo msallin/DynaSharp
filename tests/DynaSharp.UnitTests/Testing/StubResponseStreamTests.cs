@@ -61,6 +61,52 @@ public sealed class StubResponseStreamTests
     }
 
     [Test]
+    [Arguments(StreamStatus.Disabled, "DISABLED")]
+    [Arguments(StreamStatus.Disabling, "DISABLING")]
+    [Arguments(StreamStatus.Enabling, "ENABLING")]
+    public async Task StreamDescription_TableAndStatus_SendsTheStatus(StreamStatus status, string expected)
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var description = JsonElement.Parse(StubResponse.StreamDescription("Orders", status, StubResponse.Shard("shard-1", endingSequenceNumber: "200")).Body).GetProperty("StreamDescription");
+
+        // Assert
+        await Assert.That((description.GetProperty("StreamStatus").GetString(), description.GetProperty("Shards").GetArrayLength())).IsEqualTo((expected, 1));
+    }
+
+    [Test]
+    public async Task StreamDescription_UnknownStatus_SendsNone()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var description = JsonElement.Parse(StubResponse.StreamDescription("Orders", StreamStatus.Unknown).Body).GetProperty("StreamDescription");
+
+        // Assert
+        await Assert.That(description.TryGetProperty("StreamStatus", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task StreamDescription_DisabledStreamWhoseLastShardClosed_EndsTheReading()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var client = StubClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.StreamDescription("Orders", StreamStatus.Disabled, StubResponse.Shard("shard-1", endingSequenceNumber: "200")));
+        stub.Enqueue(StubResponse.ShardIterator("iterator-1"));
+        stub.Enqueue(StubResponse.Records(null));
+        stub.Enqueue(StubResponse.StreamDescription("Orders", StreamStatus.Disabled));
+        var request = new ReadStreamRequest { StreamArn = Arn, ShardIteratorType = ShardIteratorType.TrimHorizon };
+
+        // Act
+        var records = await client.ReadStreamAsync(request).ToListAsync();
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task StreamDescription_NullTable_Throws()
     {
         // Arrange

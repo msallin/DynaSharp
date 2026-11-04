@@ -343,7 +343,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
             throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, EmptyPageDelayMessage);
         }
 
-        return ReadShardCoreAsync(request, cancellationToken);
+        return ReadShardCoreAsync(request, null, cancellationToken);
     }
 
     /// <summary>
@@ -360,9 +360,9 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <remarks>
     /// <para>
     /// This reads one stream in one process and is no consumer: nothing stores how far it got, nothing shares the shards with other processes, and there is no
-    /// position to resume at, no checkpoint store, no lease, no retry policy per shard, no setting of the buffer and no typed record. An image is an
+    /// position to resume at, no checkpoint store, no lease, no setting of the retries of a shard or of the buffer, and no typed record. An image is an
     /// <see cref="Item"/>: <see cref="Item.Is{T}"/> tells the entities apart and <see cref="Item.To{T}"/> reads one. The position to keep is on each record:
-    /// <see cref="ShardChangeRecord.ShardId"/> and <see cref="StreamRecord.SequenceNumber"/>, from which <see cref="ReadShardAsync"/> with
+    /// <see cref="ShardChangeRecord.ShardId"/> and <see cref="ShardChangeRecord.SequenceNumber"/>, from which <see cref="ReadShardAsync"/> with
     /// <see cref="ShardIteratorType.AfterSequenceNumber"/> reads that shard on. The shard is on <see cref="ShardChangeRecord"/> and not on
     /// <see cref="ChangeRecord"/>, because <see cref="GetRecordsAsync"/> cannot know it.
     /// </para>
@@ -389,17 +389,29 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// and an open shard is asked again after <see cref="ReadStreamRequest.EmptyPageDelay"/>.
     /// </para>
     /// <para>
-    /// The first failure of any shard ends the sequence with that exception: the other readers are stopped and awaited, and the records still in the buffer are
-    /// dropped. Nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
+    /// A shard that fails for a moment is read on from where it stopped. When the last attempt of a call of a shard fails with what <see cref="DynamoDbException.IsTransient"/> calls transient,
+    /// or with a network failure or a timeout of an attempt, the reader of the shard waits, from a second up, doubling to half a minute, with jitter, on
+    /// <see cref="DynamoDbClientOptions.TimeProvider"/>, and sends the call again: a page with the same iterator, which returns the same records, and a look for children
+    /// again. An iterator that expired in the meantime is renewed after the last record the shard handed out, or at the start position of the shard when it has handed out
+    /// none, so nothing repeats and nothing is skipped, and a position trimmed in the meantime throws <see cref="TrimmedDataAccessException"/>. The reader tries for
+    /// 15 minutes from the failure that started the outage, the life of an iterator, within which the position is never lost; a page or a look that succeeds ends the
+    /// outage. The first listing of the shards is not tried again: nothing has been read then, and a setup that does not work shows at once.
+    /// </para>
+    /// <para>
+    /// Any other failure, and one that outlasts the 15 minutes, ends the sequence with that exception: the other readers are stopped and awaited, and the records
+    /// still in the buffer are dropped. Nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
     /// closed shard that DynamoDB removed, 24 hours after it closed, before it was read, whose records are lost. Disposing the enumerator or cancelling stops
-    /// every reader and waits for it, so none outlives the enumeration.
+    /// every reader and waits for it, also one that waits to try again, so none outlives the enumeration. <see cref="ReadStreamRequest.OnJoined"/> says when every
+    /// shard read from the start holds its position.
     /// </para>
     /// <para>
     /// Each call it makes is a span and a measurement of its own, as with the methods it is made of. Each shard it reads is an <c>Internal</c> span too, named
     /// <c>DynamoDB Streams.ReadStream</c>, under the span that was current when the enumeration started, with the calls of the shard under it and a link to the
     /// span of its parent shard. It ends when the looks for the children of the shard end, and a shard that DynamoDB keeps open for hours makes a span of hours.
-    /// The metric <c>dynasharp.client.stream.shards</c> counts the shards being read, and <c>dynasharp.client.stream.records</c> the records handed out. A shard
-    /// read to its end logs its children at the debug level, and so does a child listed only on a later look.
+    /// The metric <c>dynasharp.client.stream.shards</c> counts the shards being read, <c>dynasharp.client.stream.records</c> the records handed out, and
+    /// <c>dynasharp.client.stream.retries</c> the retries of a shard, which its span counts in <c>dynasharp.stream.retry_count</c>. A shard
+    /// read to its end logs its children at the debug level, and so does a child listed only on a later look. A shard that starts to fail transiently logs a
+    /// warning, once, and an information when it reads again.
     /// Neither names a key, an image or the ARN of the stream.
     /// </para>
     /// </remarks>
@@ -417,25 +429,15 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <exception cref="ResourceNotFoundException">The stream does not exist (any more), or a shard that was open when it was listed is gone.</exception>
     /// <exception cref="DynamoDbException">
     /// DynamoDB returns any other error, for example <see cref="ValidationException"/> for a malformed ARN. A throttling or server error
-    /// surfaces only when the last attempt of a call failed with it too.
+    /// surfaces only when the first listing failed with it, or when a shard kept failing with it for 15 minutes.
     /// </exception>
     /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">A request could not be sent or its response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt of a call did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="HttpRequestException">A request could not be sent or its response could not be read, on every attempt of the first listing, or for 15 minutes of a shard.</exception>
+    /// <exception cref="TimeoutException">The last attempt of the first listing, or of a shard for 15 minutes, did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     public IAsyncEnumerable<ShardChangeRecord> ReadStreamAsync(ReadStreamRequest request, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        if (request.ShardIteratorType is not (ShardIteratorType.TrimHorizon or ShardIteratorType.Latest))
-        {
-            throw new ArgumentOutOfRangeException(nameof(request), request.ShardIteratorType, "ShardIteratorType must be TrimHorizon or Latest.");
-        }
-
-        if (!IsEmptyPageDelayValid(request.EmptyPageDelay))
-        {
-            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, EmptyPageDelayMessage);
-        }
-
+        CheckStreamRequest(request);
         return StreamMerge.ReadAsync(this, _core, request, cancellationToken);
     }
 
@@ -483,12 +485,35 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// </remarks>
     public void Dispose() => _core.Dispose();
 
-    private static bool IsEmptyPageDelayValid(TimeSpan delay) => delay >= TimeSpan.Zero && delay < IteratorLifetime;
+    /// <summary>Checks the arguments of <see cref="ReadStreamAsync"/>, which reading the stream of a table checks too.</summary>
+    /// <param name="request">The request.</param>
+    internal static void CheckStreamRequest(ReadStreamRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.ShardIteratorType is not (ShardIteratorType.TrimHorizon or ShardIteratorType.Latest))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.ShardIteratorType, "ShardIteratorType must be TrimHorizon or Latest.");
+        }
 
-    private async IAsyncEnumerable<ChangeRecord> ReadShardCoreAsync(ReadShardRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+        if (!IsEmptyPageDelayValid(request.EmptyPageDelay))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, EmptyPageDelayMessage);
+        }
+    }
+
+    /// <summary>
+    /// Reads a shard as <see cref="ReadShardAsync"/> does, for a request that is checked. With a <paramref name="run"/>, as <see cref="ReadStreamAsync"/> reads, a transient failure
+    /// of a call is waited out and the call sent again, and the run hears when the shard first holds a position.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <param name="run">The retries and the signal of a shard of <see cref="ReadStreamAsync"/>, or <see langword="null"/>.</param>
+    /// <param name="cancellationToken">Cancels the reading.</param>
+    /// <returns>The records.</returns>
+    internal async IAsyncEnumerable<ChangeRecord> ReadShardCoreAsync(ReadShardRequest request, ShardRun? run, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         string? last = null;
-        var iterator = await IteratorAsync(request, last, cancellationToken).ConfigureAwait(false);
+        var iterator = await IteratorAsync(request, last, run, cancellationToken).ConfigureAwait(false);
+        run?.Positioned();
 
         // True while the iterator comes from GetShardIterator and has not been used: one that expired then would expire again.
         var fresh = true;
@@ -499,10 +524,10 @@ public sealed class DynamoDbStreamsClient : IDisposable
                 yield break;
             }
 
-            var page = await PageAsync(iterator, request.Limit, renewable: !fresh, cancellationToken).ConfigureAwait(false);
+            var page = await PageAsync(iterator, request.Limit, renewable: !fresh, run, cancellationToken).ConfigureAwait(false);
             if (page is null)
             {
-                iterator = await IteratorAsync(request, last, cancellationToken).ConfigureAwait(false);
+                iterator = await IteratorAsync(request, last, run, cancellationToken).ConfigureAwait(false);
                 fresh = true;
                 continue;
             }
@@ -527,22 +552,34 @@ public sealed class DynamoDbStreamsClient : IDisposable
         }
     }
 
-    // Null when the iterator expired and may be renewed.
-    private async Task<GetRecordsResponse?> PageAsync(string iterator, int? limit, bool renewable, CancellationToken cancellationToken)
+    private static bool IsEmptyPageDelayValid(TimeSpan delay) => delay >= TimeSpan.Zero && delay < IteratorLifetime;
+
+    // Null when the iterator expired and may be renewed. A transient failure sends the same iterator again, which returns the same records, so nothing repeats and
+    // nothing is skipped; it may have expired during the wait, and then it is renewed as any other.
+    private async Task<GetRecordsResponse?> PageAsync(string iterator, int? limit, bool renewable, ShardRun? run, CancellationToken cancellationToken)
     {
         try
         {
-            return await GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator, Limit = limit }, cancellationToken).ConfigureAwait(false);
+            var page = await GetRecordsAsync(new GetRecordsRequest { ShardIterator = iterator, Limit = limit }, cancellationToken).ConfigureAwait(false);
+            run?.Progressed();
+            return page;
         }
         catch (ExpiredIteratorException) when (renewable)
         {
             return null;
         }
+        catch (Exception failure) when (run is not null && run.CanRetry(failure))
+        {
+            await run.WaitAsync(failure, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Once per retry, of which an outage has a few dozen at most.
+        return await PageAsync(iterator, limit, renewable: true, run, cancellationToken).ConfigureAwait(false);
     }
 
     // At the position of the request until a record was returned, and after the last record returned from then on: Latest again would
-    // skip what was written in between.
-    private async Task<string?> IteratorAsync(ReadShardRequest request, string? last, CancellationToken cancellationToken)
+    // skip what was written in between. A transient failure asks again for the same position.
+    private async Task<string?> IteratorAsync(ReadShardRequest request, string? last, ShardRun? run, CancellationToken cancellationToken)
     {
         var position = new GetShardIteratorRequest
         {
@@ -551,6 +588,16 @@ public sealed class DynamoDbStreamsClient : IDisposable
             ShardIteratorType = last is null ? request.ShardIteratorType : ShardIteratorType.AfterSequenceNumber,
             SequenceNumber = last ?? request.SequenceNumber,
         };
-        return (await GetShardIteratorAsync(position, cancellationToken).ConfigureAwait(false)).ShardIterator;
+        while (true)
+        {
+            try
+            {
+                return (await GetShardIteratorAsync(position, cancellationToken).ConfigureAwait(false)).ShardIterator;
+            }
+            catch (Exception failure) when (run is not null && run.CanRetry(failure))
+            {
+                await run.WaitAsync(failure, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 }

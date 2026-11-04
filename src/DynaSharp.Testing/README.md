@@ -54,6 +54,8 @@ The timeout of `WaitUntilActiveAsync` and `WaitUntilActive()` runs on that clock
 
 `TablesListed` with `lastEvaluatedTableName` is a page with more to follow. `Table<T>(name)` lists the entity's keys and indexes as active, so a wait for its indexes ends on it; a table of several entities takes `Table(name, status, indexes)`.
 
+`StreamDescription(table, shards)` describes an `ENABLED` stream, and an enabled stream can still open shards, so `ReadStreamAsync` keeps looking for the children of a closed shard and never ends. A closed stream must say `DISABLED`: a script whose last shard closes answers `StreamDescription(table, StreamStatus.Disabled, shards)`, which ends the reading.
+
 ## What was sent
 
 `stub.Requests` holds every request. A `RecordedRequest` has `Operation`, `Body`, `BodyText` and `BodyJson`, and reads an item or key back with `ReadItem<T>()` and `ReadKey<T>()`. `TableName`, `IndexName`, `ConsistentRead`, `ScanIndexForward` and `Limit` give those members as sent, or `null` where absent: a batch or transaction names a table per entry, and a command sends `ConsistentRead` only as `true` and `ScanIndexForward` only as `false`.
