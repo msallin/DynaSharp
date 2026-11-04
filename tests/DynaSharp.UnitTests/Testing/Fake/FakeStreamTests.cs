@@ -21,7 +21,7 @@ public sealed class FakeStreamTests
         var stream = new FakeStream(table, StreamViewType.KeysOnly, "2026-01-01T00:00:00.000", Start, 7, shardSuffix: 255);
 
         // Assert
-        await Assert.That((stream.Arn, stream.ShardId, stream.TableName, stream.IsEnabled, stream.EndingSequenceNumber, stream.LastSequenceNumber))
+        await Assert.That((stream.Arn, stream.Shards[0].Id, stream.TableName, stream.IsEnabled, stream.Shards[0].EndingSequenceNumber, stream.Shards[0].LastSequenceNumber))
             .IsEqualTo(("arn:aws:dynamodb:us-east-1:123456789012:table/Forum/stream/2026-01-01T00:00:00.000", "shardId-00000001767225600000-000000ff", "Forum", true, (BigInteger?)null, new BigInteger(7)));
     }
 
@@ -40,7 +40,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        await Assert.That(stream.Records.Select(static record => (record.EventName, record.SizeBytes)))
+        await Assert.That(stream.Shards[0].Records.Select(static record => (record.EventName, record.SizeBytes)))
             .IsEquivalentTo([(OperationType.Insert, 26L), (OperationType.Modify, 59L), (OperationType.Remove, 38L)]);
     }
 
@@ -55,7 +55,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        var record = stream.Records.Single();
+        var record = stream.Shards[0].Records.Single();
         await Assert.That((record.Keys, record.NewImage, record.OldImage, record.ApproximateCreationDateTime, record.EventId.Length))
             .IsEqualTo((new Item { ["Id"] = AttributeValue.FromNumber(101) }, Message("New item!"), (Item?)null, Start, 32));
     }
@@ -75,7 +75,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        var record = stream.Records.Single();
+        var record = stream.Shards[0].Records.Single();
         await Assert.That((record.NewImage is not null, record.OldImage is not null, record.Keys.Count)).IsEqualTo((hasNew, hasOld, 1));
     }
 
@@ -90,7 +90,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        await Assert.That(stream.Records.Count).IsEqualTo(0);
+        await Assert.That(stream.Shards[0].Records.Count).IsEqualTo(0);
     }
 
     [Test]
@@ -105,7 +105,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start.AddSeconds(5), byTimeToLive: true);
 
         // Assert
-        await Assert.That(stream.Records.Select(static record => (record.SequenceNumber, record.ApproximateCreationDateTime, record.ByTimeToLive)))
+        await Assert.That(stream.Shards[0].Records.Select(static record => (record.SequenceNumber, record.ApproximateCreationDateTime, record.ByTimeToLive)))
             .IsEquivalentTo([(new BigInteger(1), Start.AddSeconds(5), true), (new BigInteger(2), Start.AddSeconds(5), true)]);
     }
 
@@ -122,7 +122,7 @@ public sealed class FakeStreamTests
         stream.Commit(next, Start, byTimeToLive: false);
 
         // Assert
-        await Assert.That(stream.Records.Count).IsEqualTo(1);
+        await Assert.That(stream.Shards[0].Records.Count).IsEqualTo(1);
     }
 
     [Test]
@@ -137,7 +137,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        await Assert.That(stream.Records.Count).IsEqualTo(0);
+        await Assert.That(stream.Shards[0].Records.Count).IsEqualTo(0);
     }
 
     [Test]
@@ -152,7 +152,7 @@ public sealed class FakeStreamTests
         stream.Commit(Counter(), Start, byTimeToLive: false);
 
         // Assert
-        await Assert.That(stream.Records.Count).IsEqualTo(0);
+        await Assert.That(stream.Shards[0].Records.Count).IsEqualTo(0);
     }
 
     [Test]
@@ -167,7 +167,7 @@ public sealed class FakeStreamTests
         stream.Close(Start.AddHours(1));
 
         // Assert
-        await Assert.That((stream.IsEnabled, stream.ClosedAt, stream.EndingSequenceNumber)).IsEqualTo((false, (DateTimeOffset?)Start.AddHours(1), (BigInteger?)42));
+        await Assert.That((stream.IsEnabled, stream.ClosedAt, stream.Shards[0].EndingSequenceNumber)).IsEqualTo((false, (DateTimeOffset?)Start.AddHours(1), (BigInteger?)42));
     }
 
     [Test]
@@ -181,7 +181,7 @@ public sealed class FakeStreamTests
         stream.Close(Start.AddHours(1));
 
         // Assert
-        await Assert.That((stream.ClosedAt, stream.EndingSequenceNumber)).IsEqualTo(((DateTimeOffset?)Start, (BigInteger?)stream.StartingSequenceNumber));
+        await Assert.That((stream.ClosedAt, stream.Shards[0].EndingSequenceNumber)).IsEqualTo(((DateTimeOffset?)Start, (BigInteger?)stream.Shards[0].StartingSequenceNumber));
     }
 
     [Test]
@@ -220,7 +220,7 @@ public sealed class FakeStreamTests
         stream.Commit(next, Start.AddHours(1), byTimeToLive: false);
 
         // Act
-        var result = stream.TrimHorizon(Start.AddHours(hoursLater));
+        var result = stream.Shards[0].TrimHorizon(Start.AddHours(hoursLater));
 
         // Assert
         await Assert.That(result).IsEqualTo(horizon);

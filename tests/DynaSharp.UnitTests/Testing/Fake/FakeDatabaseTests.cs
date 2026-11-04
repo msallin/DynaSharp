@@ -147,7 +147,7 @@ public sealed class FakeDatabaseTests
         var second = db.EnableStream(after, StreamViewType.KeysOnly);
 
         // Assert
-        await Assert.That((second.Arn == first.Arn, second.ShardId == first.ShardId)).IsEqualTo((false, false));
+        await Assert.That((second.Arn == first.Arn, second.Shards[0].Id == first.Shards[0].Id)).IsEqualTo((false, false));
     }
 
     private static FakeTable Table(string name) => new(name, new KeySchema("pk", ScalarAttributeType.String), [], DateTimeOffset.UnixEpoch);

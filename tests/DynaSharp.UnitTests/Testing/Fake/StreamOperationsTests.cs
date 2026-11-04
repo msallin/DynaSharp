@@ -170,7 +170,7 @@ public sealed class StreamOperationsTests
     [Arguments(""","ExclusiveStartShardId":"shardId-0","Limit":1""", 1)]
     public async Task HandleDescribeStream_FilterOrStart_ListsTheShardsAfterIt(string members, int shards)
     {
-        // Arrange: a shard of the fake has no children, and the shards after a start are those whose id sorts after it.
+        // Arrange: a shard that never split has no children, and the shards after a start are those whose id sorts after it.
         var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
 
         // Act

@@ -23,10 +23,10 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <summary>What DynamoDB answers an item operation on a table it does not have.</summary>
     public const string NoSuchTableForItems = "Cannot do operations on a non-existent table";
 
-    // Every stream ARN the fake handed out, and how many streams it enabled, which Reset keeps: a stream enabled after it has another ARN and shard id than one before it on the same
+    // Every stream ARN the fake handed out, and how many shards it opened, which Reset keeps: a stream enabled after it has another ARN and shard ids than one before it on the same
     // clock, so an iterator of a stream that is gone finds none.
     private readonly HashSet<string> _streamArns = new(StringComparer.Ordinal);
-    private int _streamsEnabled;
+    private int _shardsOpened;
 
     // Sequence numbers of DynamoDB Streams are decimal strings of 21 digits and more, and those of the fake grow from here, over all its streams.
     private BigInteger _nextSequence = BigInteger.Pow(10, 20);
@@ -99,7 +99,7 @@ internal sealed class FakeDatabase(TimeProvider clock)
             at = at.AddMilliseconds(1);
         }
 
-        var created = new FakeStream(table, viewType, Label(at), now, NextSequenceNumber(), ++_streamsEnabled);
+        var created = new FakeStream(table, viewType, Label(at), now, NextSequenceNumber(), NextShardNumber());
         Streams.Add(created);
         table.LatestStream = created;
         return created;
@@ -121,6 +121,10 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <summary>Gives the next sequence number of the fake.</summary>
     /// <returns>A number larger than every one before.</returns>
     public BigInteger NextSequenceNumber() => _nextSequence++;
+
+    /// <summary>Gives the number of the id of a new shard.</summary>
+    /// <returns>A number larger than every one before, also before a <see cref="Reset"/>.</returns>
+    public int NextShardNumber() => ++_shardsOpened;
 
     /// <summary>Turns the changes the request staged on the streams into records.</summary>
     /// <param name="byTimeToLive"><see langword="true"/> for the deletes of the sweep of time to live.</param>

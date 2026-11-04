@@ -8,12 +8,12 @@ namespace DynaSharp.Testing.Fake;
 
 /// <summary>
 /// The operations of DynamoDB Streams: <c>ListStreams</c>, <c>DescribeStream</c>, <c>GetShardIterator</c> and <c>GetRecords</c>, over the <see cref="FakeStream"/>s of the tables.
-/// A stream has one shard, without a parent, open while the stream is enabled and closed from when it is disabled or its table deleted.
+/// A stream starts with one shard, open while the stream is enabled and closed from when it is disabled or its table deleted, and <see cref="FakeStream.Split"/> adds children.
 /// </summary>
 /// <remarks>
 /// <para>
 /// An iterator is valid for 15 minutes on the clock of the fake and is then <c>ExpiredIteratorException</c>; a position older than the 24 hours records are kept is
-/// <c>TrimmedDataAccessException</c>; a stream closed for 24 hours is <c>ResourceNotFoundException</c>. A page holds at most <c>Limit</c> records, 1,000 by default, and at most
+/// <c>TrimmedDataAccessException</c>; a shard or a stream closed for 24 hours is <c>ResourceNotFoundException</c>. A page holds at most <c>Limit</c> records, 1,000 by default, and at most
 /// 1 MB of them by <c>SizeBytes</c>, and the last page of a closed shard has no <c>NextShardIterator</c>. A record arrives in the answer of the request that made it.
 /// </para>
 /// <para>The records, the shard ids and the iterators are those of <see cref="FakeStream"/> and <see cref="ShardIterator"/>.</para>
@@ -80,8 +80,9 @@ internal static class StreamOperations
     }
 
     /// <summary>
-    /// Answers <c>DescribeStream</c>: the settings of the stream and its one shard, after <c>ExclusiveStartShardId</c>. A <c>ShardFilter</c> of <c>CHILD_SHARDS</c> asks for the
-    /// children of a shard, and a shard of the fake has none.
+    /// Answers <c>DescribeStream</c>: the settings of the stream and the shards it lists, in the order of their ids, after <c>ExclusiveStartShardId</c>, at most <c>Limit</c>, and the
+    /// last one as <c>LastEvaluatedShardId</c> when more follow. A <c>ShardFilter</c> of <c>CHILD_SHARDS</c> lists the children of the shard it names. A shard gone 24 hours after it
+    /// closed is not listed, and neither is a child whose time to be listed has not come.
     /// </summary>
     /// <param name="db">The state.</param>
     /// <param name="request">The body of the request.</param>
@@ -90,13 +91,18 @@ internal static class StreamOperations
     {
         RequestJson.Members(request, DescribeStreamName, "StreamArn", "Limit", "ExclusiveStartShardId", "ShardFilter");
         var arn = ReadArn(RequestJson.Required(request, "StreamArn"), "StreamArn");
-        _ = ReadLimit(request, MaxShards);
+        var limit = ReadLimit(request, MaxShards);
         var start = RequestJson.Optional(request, "ExclusiveStartShardId") is { } startId ? RequestJson.ReadString(startId, "ExclusiveStartShardId") : null;
-        var filtered = RequestJson.Optional(request, "ShardFilter") is { } filter && ReadChildShardsFilter(filter);
+        var parent = RequestJson.Optional(request, "ShardFilter") is { } filter ? ReadChildShardsFilter(filter) : null;
         var stream = db.FindStream(arn);
+        var now = db.Clock.GetUtcNow();
 
         // Shard ids of DynamoDB grow with the time a shard opens, so the shards after a start are those whose id sorts after it.
-        var listed = !filtered && (start is null || string.CompareOrdinal(stream.ShardId, start) > 0);
+        var listed = stream.Shards
+            .Where(shard => shard.IsListed(now) && (parent is null || shard.ParentId == parent) && (start is null || string.CompareOrdinal(shard.Id, start) > 0))
+            .OrderBy(static shard => shard.Id, StringComparer.Ordinal)
+            .ToList();
+        var page = listed.Take(limit).ToList();
         response.WriteStartObject("StreamDescription"u8);
         response.WriteString("StreamArn"u8, stream.Arn);
         response.WriteString("StreamLabel"u8, stream.Label);
@@ -106,13 +112,14 @@ internal static class StreamOperations
         response.WriteString("TableName"u8, stream.TableName);
         TableJson.WriteKeySchema(response, ResponseJson.KeyElements(stream.KeySchema));
         response.WriteStartArray("Shards"u8);
-        if (listed)
+        foreach (var shard in page)
         {
             response.WriteStartObject();
-            response.WriteString("ShardId"u8, stream.ShardId);
+            response.WriteString("ShardId"u8, shard.Id);
+            OperationJson.WriteStringIfSet(response, "ParentShardId"u8, shard.ParentId);
             response.WriteStartObject("SequenceNumberRange"u8);
-            response.WriteString("StartingSequenceNumber"u8, Text(stream.StartingSequenceNumber));
-            if (stream.EndingSequenceNumber is { } ending)
+            response.WriteString("StartingSequenceNumber"u8, Text(shard.StartingSequenceNumber));
+            if (shard.EndingSequenceNumber is { } ending)
             {
                 response.WriteString("EndingSequenceNumber"u8, Text(ending));
             }
@@ -122,6 +129,7 @@ internal static class StreamOperations
         }
 
         response.WriteEndArray();
+        OperationJson.WriteStringIfSet(response, "LastEvaluatedShardId"u8, listed.Count > page.Count ? page[^1].Id : null);
         response.WriteEndObject();
     }
 
@@ -151,20 +159,16 @@ internal static class StreamOperations
         var sequenceNumber = given is { } value ? ReadSequenceNumber(value) : (BigInteger?)null;
 
         var stream = db.FindStream(arn);
-        if (shardId != stream.ShardId)
-        {
-            throw FakeError.ResourceNotFound($"Requested resource not found: Shard does not exist: {shardId}");
-        }
-
         var now = db.Clock.GetUtcNow();
-        var horizon = stream.TrimHorizon(now);
+        var shard = stream.FindShard(shardId, now) ?? throw FakeError.ResourceNotFound($"Requested resource not found: Shard does not exist: {shardId}");
+        var horizon = shard.TrimHorizon(now);
         var position = type switch
         {
             ShardIteratorType.TrimHorizon => horizon,
-            ShardIteratorType.Latest => stream.Records.Count,
-            _ => Locate(stream, sequenceNumber!.Value, after: type == ShardIteratorType.AfterSequenceNumber, horizon),
+            ShardIteratorType.Latest => shard.Records.Count,
+            _ => Locate(shard, sequenceNumber!.Value, after: type == ShardIteratorType.AfterSequenceNumber, horizon),
         };
-        response.WriteString("ShardIterator"u8, new ShardIterator(stream.Arn, stream.ShardId, position, now).Encode());
+        response.WriteString("ShardIterator"u8, new ShardIterator(stream.Arn, shard.Id, position, now).Encode());
     }
 
     /// <summary>
@@ -187,28 +191,30 @@ internal static class StreamOperations
         }
 
         var stream = db.FindStream(iterator.StreamArn);
-        if (iterator.ShardId != stream.ShardId || iterator.Position > stream.Records.Count)
+        var shard = stream.FindShard(iterator.ShardId, now);
+        if (shard is null || iterator.Position > shard.Records.Count)
         {
             throw InvalidIterator();
         }
 
-        if (iterator.Position < stream.TrimHorizon(now))
+        if (iterator.Position < shard.TrimHorizon(now))
         {
             throw FakeError.TrimmedDataAccess();
         }
 
+        var records = shard.Records;
         var next = iterator.Position;
         long bytes = 0;
         response.WriteStartArray("Records"u8);
-        while (next < stream.Records.Count && next - iterator.Position < limit && (next == iterator.Position || bytes + stream.Records[next].SizeBytes <= MaxPageBytes))
+        while (next < records.Count && next - iterator.Position < limit && (next == iterator.Position || bytes + records[next].SizeBytes <= MaxPageBytes))
         {
-            bytes += stream.Records[next].SizeBytes;
-            WriteRecord(response, stream, stream.Records[next]);
+            bytes += records[next].SizeBytes;
+            WriteRecord(response, stream, records[next]);
             next++;
         }
 
         response.WriteEndArray();
-        if (stream.IsEnabled || next < stream.Records.Count)
+        if (shard.IsOpen || next < records.Count)
         {
             response.WriteString("NextShardIterator"u8, (iterator with { Position = next, IssuedAt = now }).Encode());
         }
@@ -251,14 +257,14 @@ internal static class StreamOperations
         response.WriteEndObject();
     }
 
-    private static int Locate(FakeStream stream, BigInteger sequenceNumber, bool after, int horizon)
+    private static int Locate(FakeShard shard, BigInteger sequenceNumber, bool after, int horizon)
     {
-        if (sequenceNumber < stream.StartingSequenceNumber || sequenceNumber > stream.LastSequenceNumber)
+        if (sequenceNumber < shard.StartingSequenceNumber || sequenceNumber > shard.LastSequenceNumber)
         {
-            throw FakeError.Validation($"Invalid SequenceNumber {Text(sequenceNumber)} for the shard {stream.ShardId}: it is outside the range of the shard");
+            throw FakeError.Validation($"Invalid SequenceNumber {Text(sequenceNumber)} for the shard {shard.Id}: it is outside the range of the shard");
         }
 
-        var records = stream.Records;
+        var records = shard.Records;
         var position = 0;
         while (position < records.Count && (after ? records[position].SequenceNumber <= sequenceNumber : records[position].SequenceNumber < sequenceNumber))
         {
@@ -268,13 +274,13 @@ internal static class StreamOperations
         return position < horizon ? throw FakeError.TrimmedDataAccess() : position;
     }
 
-    private static bool ReadChildShardsFilter(JsonElement filter)
+    // The one type of filter is CHILD_SHARDS, so the filter is the shard whose children it asks for.
+    private static string ReadChildShardsFilter(JsonElement filter)
     {
         const string Where = "ShardFilter of DescribeStream";
         RequestJson.Members(filter, Where, "Type", "ShardId");
         _ = RequestJson.ReadEnum(RequestJson.Required(filter, "Type"), "Type", WireNames.ShardFilterTypes);
-        _ = RequestJson.ReadString(RequestJson.Required(filter, "ShardId"), "ShardId");
-        return true;
+        return RequestJson.ReadString(RequestJson.Required(filter, "ShardId"), "ShardId");
     }
 
     private static string ReadArn(JsonElement value, string member)

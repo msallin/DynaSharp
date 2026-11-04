@@ -1,3 +1,4 @@
 #nullable enable
 DynaSharp.Testing.RecordedStsRequest.DurationSeconds.get -> string!
 DynaSharp.Testing.RecordedStsRequest.ExternalId.get -> string!
+DynaSharp.Testing.FakeDynamoDb.SplitStreamShards(string! tableName, int children = 2, System.TimeSpan secondChildListedAfter = default(System.TimeSpan)) -> void

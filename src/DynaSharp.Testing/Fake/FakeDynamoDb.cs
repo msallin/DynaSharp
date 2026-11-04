@@ -25,14 +25,14 @@ namespace DynaSharp.Testing;
 /// <c>DescribeLimits</c>, <c>GetItem</c>, <c>PutItem</c>, <c>UpdateItem</c>, <c>DeleteItem</c>, <c>Query</c>, <c>Scan</c>, <c>BatchGetItem</c>, <c>BatchWriteItem</c>, <c>TransactGetItems</c> and
 /// <c>TransactWriteItems</c>, with condition, update, key condition, filter and projection expressions, <c>ReturnValues</c>, <c>ReturnConsumedCapacity</c> and a transaction token that holds for
 /// 10 minutes on the clock, and of DynamoDB Streams <c>ListStreams</c>, <c>DescribeStream</c>, <c>GetShardIterator</c> and <c>GetRecords</c>: a table with a stream records every change
-/// of an item in one shard, in the order of the writes, the records of a request together and none of a request that failed. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
+/// of an item in a shard, in the order of the writes, the records of a request together and none of a request that failed. A table and its indexes are <c>ACTIVE</c> in the answer that creates them, an index holds the items
 /// of its table at once and follows every write at once, and every read sees the last write. Keys are checked against the schema with the messages of DynamoDB, as are the type of a key of an index,
 /// empty keys, the sizes of keys and the item limit of 400 KB, and numbers keep their 38 digits and come back in canonical form, <c>1.50</c> as <c>1.5</c>.
 /// </para>
 /// <para>
 /// <b>What it does not do.</b> An operation it does not answer, such as PartiQL, is HTTP 400 with <c>UnknownOperationException</c>. A member it does not implement inside an
 /// operation it answers, such as tags or a legacy parameter, is HTTP 400 with the code <c>UnsupportedByFakeException</c>, which names the member: the fake never ignores a member. Nothing throttles, nothing is eventually consistent,
-/// no transaction conflicts, a batch leaves nothing unprocessed, a stream has one shard, and nothing expires by itself.
+/// no transaction conflicts, a batch leaves nothing unprocessed, a stream has one shard until <see cref="SplitStreamShards"/> gives it children, and nothing expires by itself.
 /// </para>
 /// <para>
 /// <b>Time.</b> The clock given to the constructor dates the tables and the stream records, expires shard iterators after 15 minutes and trims records after 24 hours, and
@@ -257,6 +257,38 @@ public sealed partial class FakeDynamoDb
         {
             return TimeToLive.Expire(_db);
         }
+    }
+
+    /// <summary>
+    /// Ends every open shard of the stream of a table and opens its children, as DynamoDB does on its own: one child when it rolls a shard over, which it does every few hours, two
+    /// when it splits a shard with its partition. The children take the records of the shard from then on, each the items of its share of the partition keys, and name it in
+    /// <c>ParentShardId</c>. The ended shard gets its <c>EndingSequenceNumber</c>, and a reader of it reaches its end.
+    /// </summary>
+    /// <remarks>
+    /// DynamoDB can list a child in <c>DescribeStream</c> a moment after its parent ended. <paramref name="secondChildListedAfter"/> plays that for the second of two children: it takes
+    /// records at once and is listed, also by a <c>ShardFilter</c> of <c>CHILD_SHARDS</c>, only once the clock of the fake has moved on by that much.
+    /// </remarks>
+    /// <param name="tableName">The table, whose stream is enabled.</param>
+    /// <param name="children">How many children each open shard gets: 1 or 2, the most a shard of DynamoDB has.</param>
+    /// <param name="secondChildListedAfter">How long after the split the second child is listed; zero, the default, lists it at once. It applies only to two children.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="children"/> is not 1 or 2, or <paramref name="secondChildListedAfter"/> is negative.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The table has no enabled stream.</exception>
+    public void SplitStreamShards(string tableName, int children = 2, TimeSpan secondChildListedAfter = default)
+    {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentOutOfRangeException.ThrowIfLessThan(children, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(children, 2);
+        ArgumentOutOfRangeException.ThrowIfLessThan(secondChildListedAfter, TimeSpan.Zero);
+        Direct(TableOperations.UpdateTableName, tableName, () =>
+        {
+            var stream = _db.DescribeTable(tableName).LatestStream is { IsEnabled: true } enabled
+                ? enabled
+                : throw FakeError.Validation($"The table {tableName} has no enabled stream to split.");
+            stream.Split(_db.Clock.GetUtcNow(), children, secondChildListedAfter, _db.NextShardNumber, _db.NextSequenceNumber);
+            return stream;
+        });
     }
 
     private static TableDescription Describe(FakeTable table)
