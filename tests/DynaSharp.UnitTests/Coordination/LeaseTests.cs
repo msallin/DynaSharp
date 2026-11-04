@@ -280,6 +280,36 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task Heartbeat_RenewalInFlightWhenTheLeaseRunsOut_StopsWithoutTryingAgain()
+    {
+        // Arrange (the renewal has reached DynamoDB and hangs; only then does the lease run out, which cancels it)
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bench.Intercept = async (request, cancellationToken) =>
+        {
+            if (Encoding.UTF8.GetString(request.Body.Span).Contains("REMOVE", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            arrived.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return null;
+        };
+        bench.Clock.Advance(Period);
+        await arrived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var stopped = lease!.NextBeat;
+
+        // Act
+        bench.Clock.Advance(Lease - Period);
+        await stopped.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert (a cancelled renewal is not a failure to try again)
+        await Assert.That((lease.LossReason, bench.LockLogs.Count(static entry => entry.EventId.Id == 42))).IsEqualTo(("expired", 0));
+    }
+
+    [Test]
     public async Task Lost_RenewedLate_LastsAWholeLeaseFromTheRenewal()
     {
         // Arrange
