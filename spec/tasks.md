@@ -875,6 +875,38 @@ Decisions taken while building it (beyond the plan):
   election under test had armed its wait. The harness (`LockHarness`, a test helper, not a benchmark) lets a release through and steps
   the clock with a moment of real time, bounded. Assertions on logs read the category of the locks only, since the client logs too.
 
+## Backlog from the app migrations (2026-11-04)
+
+Six services moved to 0.2.0 (data-pond and nrt-showcase to `ReadStreamAsync`, yats and customer-adapter to `DynaSharp.Coordination`, socce-cockpit and lps-label-print-server to the new version). The owner put what they found into the backlog; streams, coordination and testing items are done right away, see R7 and M7.
+
+Writes
+- [ ] "Only if newer": a shorthand for `X.NotExists().Or(X.Lt(v))`, and a recipe in `patterns-writes.md` for events that arrive out of order, with timestamps per field (socce-cockpit writes the guard five times).
+- [ ] An expected failed condition without an exception: a terminal such as `TrySendAsync` with `ConditionMet`, which also tells a duplicate apart from a write that failed against its own retry after a lost response.
+- [ ] `[TimeToLive]` on the property: `CreateTable()` and `FakeDynamoDb.CreateTable<T>` turn it on, and it implies or checks epoch seconds. Until then the Testing README says `ExpireItems` needs time to live turned on.
+- [ ] `RetryOnConflictAsync` with an initial state or the attempt number, so a value read before the first attempt needs no closure.
+- [ ] `WriteResult.Version` is `long?` even for a put of a versioned entity; a non-null accessor, or updating a settable `[Version]` property.
+- [ ] A bridge between JSON and `AttributeValue` (`FromJson`/`ToJson`, numbers kept as their text), AOT-safe (lps-label-print-server converts by hand with Newtonsoft).
+
+Table setup
+- [ ] `IfNotExists()` on an existing table silently ignores an index or time to live a new entity adds: report the drift in `CreateTableResult`, or an ensure mode.
+- [ ] A registry of the entities of an assembly that `Including` can take, so a forgotten entity cannot drop its indexes (lps-label-print-server guards it with a reflection test).
+- [ ] `Table<Item>.CreateTable().Including<...>()` in `tables.md`, which shows only a typed start.
+- [ ] A timeout for the whole `CreateTable` chain that names the table, instead of a linked token and a shorter wait.
+- [ ] An emulator helper for the options (`ServiceUrl` plus static credentials), which services copy.
+
+Keys and queries
+- [ ] A sparse index that also skips an empty string (`""` throws at `Put` today), or a hint on a `string?` input of a sparse key.
+- [ ] An index named twice: `Index(Indexes.Gsi1).Query(Keys.Gsi1Pk.Of(x))`; infer the index from the key builder, or index handles that carry their keys. `DYNA221` sees constants only.
+- [ ] `TryOf(v)` that returns a nullable key, so `is { } k` replaces the ternary around a read (about ten call sites in lps-label-print-server).
+- [ ] An info diagnostic for a `raw` table-key input without `[KeyOnly]`, and a line in `entities.md` (socce-cockpit shipped without it).
+- [ ] Filling a page after a client-side filter: `ContinuationToken.After(entity, index)`, since `FromKey` needs the index key attributes an entity cannot easily give.
+- [ ] `ListAsync(ct)` as a terminal, instead of `ItemsAsync(ct).ToListAsync(ct)`.
+- [ ] Say plainly in the guide whether helpers that return an `UpdateCommand<T>` for the caller to finish are supported.
+
+Coordination
+- [ ] An ambient way to reach the current `Lease` for `IsHeld` from work deep in a call graph (yats would have to pass it through pollers and stores).
+- [ ] Warning 44 repeats every third of a lease during a long outage; rate-limit it.
+
 ## Decisions
 
 | Date | Decision |
