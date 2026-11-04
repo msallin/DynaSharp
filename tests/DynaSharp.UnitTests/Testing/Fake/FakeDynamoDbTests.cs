@@ -163,6 +163,51 @@ public sealed class FakeDynamoDbTests
     }
 
     [Test]
+    public async Task CreateTable_KeyNames_DeclaresStringKeysOnDemand()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var description = fake.CreateTable("Locks", "pk", "sk");
+
+        // Assert
+        await Assert.That((
+            string.Join(",", description.KeySchema.Select(static key => $"{key.AttributeName}:{key.KeyType}")),
+            string.Join(",", description.AttributeDefinitions.Select(static attribute => $"{attribute.AttributeName}:{attribute.AttributeType}")),
+            description.BillingModeSummary?.BillingMode))
+            .IsEqualTo(("pk:Hash,sk:Range", "pk:String,sk:String", (BillingMode?)BillingMode.PayPerRequest));
+    }
+
+    [Test]
+    public async Task CreateTable_PartitionKeyNameAlone_HasNoSortKey()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var description = fake.CreateTable("Locks", "pk");
+
+        // Assert
+        await Assert.That(string.Join(",", description.KeySchema.Select(static key => key.AttributeName))).IsEqualTo("pk");
+    }
+
+    [Test]
+    [Arguments(null, "pk", "tableName")]
+    [Arguments("Locks", null, "partitionKey")]
+    public async Task CreateTable_KeyNamesWithANull_ThrowsArgumentNullException(string? tableName, string? partitionKey, string parameter)
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var act = () => fake.CreateTable(tableName!, partitionKey!, null);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName(parameter);
+    }
+
+    [Test]
     public async Task CreateTable_Twice_ThrowsResourceInUse()
     {
         // Arrange

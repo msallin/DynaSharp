@@ -158,6 +158,34 @@ public sealed partial class FakeDynamoDb
         return CreateTable(schema.ToRequest(tableName, null, null));
     }
 
+    /// <summary>
+    /// Creates a table without a model, on demand, whose keys are strings: the table of <c>client.Table(name, partitionKey, sortKey)</c>, such as the table
+    /// of a <c>LockTable</c> of <c>DynaSharp.Coordination</c>. A table with keys of other types, indexes or a stream takes <see cref="CreateTable(CreateTableRequest)"/>.
+    /// </summary>
+    /// <param name="tableName">The table.</param>
+    /// <param name="partitionKey">The attribute name of the partition key, a string.</param>
+    /// <param name="sortKey">The attribute name of the sort key, a string, or <see langword="null"/> for a table without one.</param>
+    /// <returns>The description.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tableName"/> or <paramref name="partitionKey"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ResourceInUseException">A table of that name exists.</exception>
+    /// <exception cref="ValidationException">DynamoDB would reject the request, such as for an empty name or a sort key named as the partition key.</exception>
+    public TableDescription CreateTable(string tableName, string partitionKey, string? sortKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentNullException.ThrowIfNull(partitionKey);
+        return CreateTable(new CreateTableRequest
+        {
+            TableName = tableName,
+            AttributeDefinitions = sortKey is null
+                ? [new AttributeDefinition(partitionKey, ScalarAttributeType.String)]
+                : [new AttributeDefinition(partitionKey, ScalarAttributeType.String), new AttributeDefinition(sortKey, ScalarAttributeType.String)],
+            KeySchema = sortKey is null
+                ? [new KeySchemaElement(partitionKey, KeyType.Hash)]
+                : [new KeySchemaElement(partitionKey, KeyType.Hash), new KeySchemaElement(sortKey, KeyType.Range)],
+            BillingMode = BillingMode.PayPerRequest,
+        });
+    }
+
     /// <summary>Describes a table, as <c>DescribeTable</c> does, with its item count and size as they are now.</summary>
     /// <param name="tableName">The table.</param>
     /// <returns>The description.</returns>

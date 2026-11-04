@@ -97,7 +97,7 @@ await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
 var stored = fake.Get<Customer>("Shop", StubResponse.KeyOf(Customer.Keys.Of("alice")));
 ```
 
-Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)` or `fake.CreateTable<T>(name)`, which declares the entity's keys and indexes as its `CreateTable()` would. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
+Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)`, `fake.CreateTable<T>(name)`, which declares the entity's keys and indexes as its `CreateTable()` would, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
 
 `Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
