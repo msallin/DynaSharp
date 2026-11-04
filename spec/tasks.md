@@ -973,6 +973,12 @@ Coordination
 - [ ] An ambient way to reach the current `Lease` for `IsHeld` from work deep in a call graph (yats would have to pass it through pollers and stores).
 - [ ] Warning 44 repeats every third of a lease during a long outage; rate-limit it.
 
+From the update of the apps to 0.2.0-local.3
+- [ ] `table.ReadStreamAsync` with an optional required `StreamViewType`, so a reader that needs old images does not describe the table twice (data-pond reads by ARN for that).
+- [ ] `LockTableTesting`: a read helper (`GetStateAsync`: holder, lease, fence), and a way for a test to see that a contender tried and was refused, instead of counting `UpdateItem` requests.
+- [ ] The hosted-service recipe cannot tell a fault of the work from an error of the election (a missing table); say how to stop the host on the latter, or offer it.
+- [ ] `LockTable.For` needs an entity; a dedicated lock table without a model still names its key as a literal.
+
 ## Decisions
 
 | Date | Decision |
