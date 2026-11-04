@@ -34,7 +34,7 @@ Sparse-attribute toggle needs no primitive of its own: it is `SET`/`REMOVE` of a
 | Optimistic locking | P6 | Core | Opt-in per type, enforced per write |
 | Uniqueness constraints | P2 | Core helper | Caller must learn which marker failed |
 | Distributed lock / lease | P1, P2 | Coordination (`LockTable`, `Lease`) | Relative lease, RVN, heartbeat at lease/3, contender waits on its monotonic clock; fencing token by `ADD`, `IsHeld` in a transaction |
-| Leader election | lease | Coordination (`LeaderElection`) | Fencing tokens; they only protect systems that check them |
+| Leader election | lease | Coordination (`LockTable.RunAsLeaderAsync`) | Fencing tokens; they only protect systems that check them |
 | Counting semaphore | lease | Recipe | Counter variant leaks permits on crash |
 | Barrier / rendezvous | P1 | Recipe | |
 | Service registry with liveness | P3, P1 | Recipe | TTL only for cleanup, deletion lags days |

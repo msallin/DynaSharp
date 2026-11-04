@@ -32,6 +32,9 @@ internal static class LockItem
     /// <summary>The duration of the lease in milliseconds, which a contender waits out on its own clock.</summary>
     public const string LeaseDuration = "leaseMs";
 
+    /// <summary>The label of the process that holds the lock, as <see cref="LockTableOptions.HolderLabel"/> gave it. Absent without a label, and while the lock is free.</summary>
+    public const string HolderLabel = "holder";
+
     /// <summary>Builds the partition key of a lock.</summary>
     /// <param name="name">The name of the lock.</param>
     /// <returns>The partition key.</returns>
@@ -72,6 +75,12 @@ internal static class LockItem
         var leaseDuration = TimeSpan.FromMilliseconds(Whole(item, LeaseDuration, 1, (long)TimeSpan.FromDays(1).TotalMilliseconds, name, table));
         return new(owner, recordVersion, leaseDuration);
     }
+
+    /// <summary>Reads the label of the holder from an item, which is only for the logs, so anything but a string counts as none.</summary>
+    /// <param name="item">The item, or <see langword="null"/> if there is none.</param>
+    /// <returns>The label, or <see langword="null"/>.</returns>
+    public static string? HolderLabelOf(Item? item) =>
+        item is not null && item.TryGetValue(HolderLabel, out var value) && value.Type == AttributeType.String ? value.AsString() : null;
 
     /// <summary>Reads the fencing token of an item, 0 for none, and checks that it is a whole number that is not negative.</summary>
     /// <param name="item">The item, or <see langword="null"/> if there is none.</param>

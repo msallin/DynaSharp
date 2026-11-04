@@ -1,6 +1,5 @@
 using System.Text;
 using DynaSharp.Coordination;
-using DynaSharp.Requests;
 using DynaSharp.Testing;
 
 namespace DynaSharp.UnitTests.Coordination;
@@ -12,23 +11,15 @@ namespace DynaSharp.UnitTests.Coordination;
 /// </summary>
 internal sealed class LockHarness : IDisposable
 {
-    public LockHarness(bool sortKey = true, int maxAttempts = 1)
+    public LockHarness(bool sortKey = true, int maxAttempts = 1, LockTableOptions? options = null)
     {
         TableName = "Locks-" + Guid.NewGuid().ToString("N");
         Fake = new FakeDynamoDb(Clock);
-        Fake.CreateTable(new CreateTableRequest
-        {
-            TableName = TableName,
-            AttributeDefinitions = sortKey
-                ? [new AttributeDefinition("pk", ScalarAttributeType.String), new AttributeDefinition("sk", ScalarAttributeType.String)]
-                : [new AttributeDefinition("pk", ScalarAttributeType.String)],
-            KeySchema = sortKey ? [new KeySchemaElement("pk", KeyType.Hash), new KeySchemaElement("sk", KeyType.Range)] : [new KeySchemaElement("pk", KeyType.Hash)],
-            BillingMode = BillingMode.PayPerRequest,
-        });
+        Fake.CreateTable(TableName, "pk", sortKey ? "sk" : null);
         Handler = new StubHandler(AnswerAsync);
         Client = StubClient.Create(Handler, options => options with { TimeProvider = Clock, LoggerFactory = Logs, MaxAttempts = maxAttempts });
         Table = Client.Table(TableName, "pk", sortKey ? "sk" : null);
-        Locks = new LockTable(Table);
+        Locks = new LockTable(Table, options);
     }
 
     public string TableName { get; }
@@ -97,11 +88,12 @@ internal sealed class LockHarness : IDisposable
     /// holders of this bench as a process on another machine would.
     /// </summary>
     /// <param name="clock">The clock of the other process.</param>
+    /// <param name="options">The options of its lock table.</param>
     /// <returns>The lock table of the other process.</returns>
-    public LockTable OtherProcess(ManualTimeProvider clock)
+    public LockTable OtherProcess(ManualTimeProvider clock, LockTableOptions? options = null)
     {
-        var client = StubClient.Create(Fake.CreateHandler(), options => options with { TimeProvider = clock });
-        return new LockTable(client.Table(TableName, "pk", Table.SortKeyName));
+        var client = StubClient.Create(Fake.CreateHandler(), clientOptions => clientOptions with { TimeProvider = clock });
+        return new LockTable(client.Table(TableName, "pk", Table.SortKeyName), options);
     }
 
     /// <summary>Moves the clock in steps of <paramref name="step"/> until <paramref name="task"/> completes, at most <paramref name="steps"/> times, and returns its result.</summary>

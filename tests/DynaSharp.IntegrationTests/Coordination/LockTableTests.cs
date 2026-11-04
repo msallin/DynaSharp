@@ -1,4 +1,5 @@
 using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Commands;
 using DynaSharp.IntegrationTests.Support;
@@ -121,6 +122,71 @@ public sealed class LockTableTests(Backend backend)
 
         // Assert
         await Assert.That((failure.ReasonFor(check), await sandbox.ReadAsync("REPORT", "2026-11-04"))).IsEqualTo((TransactionFailure.ConditionalCheckFailed, (Item?)null));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_HolderSeenAndReleased_ReadsAndAcquires()
+    {
+        // Arrange (the second try of the contender reads first, because it has seen the holder)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var contender = new LockTable(sandbox.Shop);
+        var first = await new LockTable(sandbox.Shop).TryAcquireAsync("nightly-report", Lease);
+        var seen = await contender.TryAcquireAsync("nightly-report", Lease);
+        await first!.DisposeAsync();
+
+        // Act
+        await using var second = await contender.TryAcquireAsync("nightly-report", Lease);
+
+        // Assert
+        await Assert.That((seen, second?.FencingToken)).IsEqualTo(((Lease?)null, (long?)2L));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_Options_WriteTheHolderLabelAndTheExpiry()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var locks = LockTable.For(sandbox.Shop, new() { HolderLabel = "pod-1", TimeToLiveAttribute = "expires" });
+
+        // Act
+        await using var lease = await locks.TryAcquireAsync("nightly-report", Lease);
+
+        // Assert
+        var item = (await sandbox.ReadAsync("LOCK#nightly-report", "LOCK"))!;
+        await Assert.That((item.GetString("holder"), item.GetNumber<long>("expires") > DateTimeOffset.UtcNow.AddDays(29).ToUnixTimeSeconds())).IsEqualTo(((string?)"pod-1", true));
+    }
+
+    [Test]
+    public async Task SimulateHolderAsync_LockHeld_IsHeldFailsAndTheLeaseIsLost()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var locks = new LockTable(sandbox.Shop);
+        await using var lease = await locks.TryAcquireAsync("nightly-report", Lease);
+        var token = await locks.SimulateHolderAsync("nightly-report", Lease, "elsewhere");
+
+        // Act
+        var renewed = await lease!.RenewAsync();
+
+        // Assert
+        await Assert.That((token, renewed, lease.Ended.IsCancellationRequested)).IsEqualTo((2L, false, true));
+    }
+
+    [Test]
+    public async Task SimulateDeleteAsync_LockReleased_TheNextTokenIsOne()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var locks = new LockTable(sandbox.Shop);
+        await (await locks.TryAcquireAsync("nightly-report", Lease))!.DisposeAsync();
+        await locks.SimulateReleaseAsync("nightly-report");
+        await locks.SimulateDeleteAsync("nightly-report");
+
+        // Act
+        await using var lease = await locks.TryAcquireAsync("nightly-report", Lease);
+
+        // Assert
+        await Assert.That(lease?.FencingToken).IsEqualTo(1L);
     }
 
     private static Item Report(Lease lease) => new() { ["pk"] = "REPORT", ["sk"] = "2026-11-04", ["fence"] = lease.FencingToken };

@@ -136,7 +136,7 @@ public sealed class Lease : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stops the heartbeat and releases the lock if this lease still holds it: one <c>UpdateItem</c> that removes the owner, on condition that the owner is
+    /// Stops the heartbeat and releases the lock if this lease still holds it: one <c>UpdateItem</c> that removes the owner and the holder label, on condition that the owner is
     /// this lease, so a lock that someone else took over is left alone. The fencing token stays in the item. A release that fails is logged, not thrown,
     /// and the lock is then free once the lease runs out. <see cref="Ended"/> is cancelled. Calling it again does nothing.
     /// </summary>
@@ -154,9 +154,10 @@ public sealed class Lease : IAsyncDisposable
         using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.ReleaseSpan, Locks.Table.Name, Name, _acquiredIn);
         try
         {
-            await Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table))
+            await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
                 .Remove(LockItem.Owner)
                 .Remove(LockItem.LeaseDuration)
+                .Remove(LockItem.HolderLabel)
                 .Set(LockItem.RecordVersion, LockItem.NewId())
                 .If(Attr(LockItem.Owner).Eq(Owner))
                 .SendAsync()
@@ -233,7 +234,7 @@ public sealed class Lease : IAsyncDisposable
         var sent = Locks.Time.GetTimestamp();
         try
         {
-            await Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table))
+            await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
                 .Set(LockItem.RecordVersion, LockItem.NewId())
                 .If(Attr(LockItem.Owner).Eq(Owner))
                 .ReturnOldOnFailure()

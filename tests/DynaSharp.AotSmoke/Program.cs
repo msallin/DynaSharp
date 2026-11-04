@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using DynaSharp;
 using DynaSharp.AotSmoke;
 using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
 using DynaSharp.Credentials;
 using DynaSharp.Requests;
 using DynaSharp.Streams;
@@ -582,23 +583,28 @@ fake.Delete("Visitors", new Item { ["pk"] = "c-1" });
 await fakeVisitors.Delete(new Visitor("v-1", 2)).IfExists().SendAsync();
 Check(fake.Items("Visitors").Count == 0, "the fake answers a Delete");
 
-// DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, and the release.
-fake.CreateTable(new CreateTableRequest
-{
-    TableName = "Locks",
-    AttributeDefinitions = [new AttributeDefinition("pk", ScalarAttributeType.String)],
-    KeySchema = [new KeySchemaElement("pk", KeyType.Hash)],
-    BillingMode = BillingMode.PayPerRequest,
-});
-var locks = new LockTable(fakeClient.Table("Locks", "pk"));
+// DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, the release, the options, the helpers
+// for tests, and a term of a leader.
+fake.CreateTable("Locks", "pk");
+var locks = new LockTable(fakeClient.Table("Locks", "pk"), new LockTableOptions { HolderLabel = "smoke", TimeToLiveAttribute = "expires" });
 var held = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
 Check(held is { FencingToken: 1 } && await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30)) is null, "a lease is acquired once, with fencing token 1");
+Check(fake.Get("Locks", new Item { ["pk"] = "LOCK#smoke" }) is { } lockItem && lockItem.GetString("holder") == "smoke" && lockItem.ContainsKey("expires"), "the lock item carries the holder label and the expiry");
 await fakeClient.TransactWrite().IsHeld(held!).Put(fakeClient.Table("Locks", "pk"), new Item { ["pk"] = "REPORT" }).SendAsync();
 Check(fake.Get("Locks", new Item { ["pk"] = "REPORT" }) is not null, "a transaction that checks the lease commits");
 await held!.DisposeAsync();
 var next = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
 Check(next is { FencingToken: 2 } && held.Ended.IsCancellationRequested, "a released lock is acquired again with the next fencing token");
 await next!.DisposeAsync();
+Check(await locks.SimulateHolderAsync("smoke", LockTable.MinLeaseDuration) == 3, "a test helper holds the lock for another process");
+await locks.SimulateDeleteAsync("smoke");
+long? ledWith = null;
+await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, (lease, _) =>
+{
+    ledWith = lease.FencingToken;
+    return Task.CompletedTask;
+});
+Check(ledWith == 1, "a leader runs its term on a typed table, with the token started again after the delete");
 
 foreach (var failure in failures)
 {
