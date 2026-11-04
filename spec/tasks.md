@@ -806,6 +806,10 @@ Fixed as the reviewer suggested:
 - L9: `RenewAsync` documents every exception and what it leaves of the lease.
 - L11: documented that a lease never disposed is renewed for the life of the process.
 - L12: `AcquireAsync_HolderReleases_AcquiresWithinAThirdOfItsLease` waits until the contender has armed its wait, then moves the clock once.
+- Coverage flake after the merge (1 run of 3): the outcome "cancelled" of the retry filter of the heartbeat was reached only by
+  `Lost_NoRenewalAnswersWithinTheLease_IsCancelledWhenTheLeaseRunsOut`, and only when its renewal was in flight before the lease ran out;
+  otherwise the heartbeat saw the ended lease first. `Heartbeat_RenewalInFlightWhenTheLeaseRunsOut_StopsWithoutTryingAgain` waits for the
+  renewal to arrive before it ends the lease, so the branch is covered every run.
 Follow-ups:
 - L2, L4, L13 of the review: not fixed in this round; their text is in the reviewer's report, which the implementer did not get. Open.
 
