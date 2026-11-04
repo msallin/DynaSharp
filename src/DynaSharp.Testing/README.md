@@ -129,7 +129,7 @@ The constructor's clock dates the tables. Time to live is stored and reported, b
 
 Reads and writes behave as on DynamoDB: queries, segmented scans, projections, pages cut by `Limit` before the filter and at 1 MB with `LastEvaluatedKey` holding the index key too, conditions with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, batches, and all-or-nothing transactions with one cancellation reason per action. An optimistic lock, a create that must not overwrite, or a failed transaction condition leaves the item as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the fake's clock. Consumed capacity follows the Developer Guide, indexes included. A batch never leaves unprocessed items or keys; to test a client that retries them, queue that answer on the handler.
 
-A table with a stream records its changes in a shard, which `fake.SplitStreamShards(table)` splits, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it. So the code that consumes a stream is tested with the code that writes:
+A table with a stream records its changes in a shard, which `fake.SplitStreamShards(table)` splits, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it, waiting on the clock of the fake. So the code that consumes a stream is tested with the code that writes:
 
 ```csharp
 var fake = new FakeDynamoDb();

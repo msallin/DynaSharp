@@ -71,6 +71,34 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
     }
 
     [Test]
+    public async Task CreateStreamsClient_NoOptions_WaitsOnTheClockOfTheFake()
+    {
+        // Arrange
+        var time = new ManualTimeProvider(Start);
+        var fake = new FakeDynamoDb(time);
+
+        // Act
+        using var streams = fake.CreateStreamsClient();
+
+        // Assert
+        await Assert.That(streams.Options.TimeProvider).IsSameReferenceAs(time);
+    }
+
+    [Test]
+    public async Task CreateStreamsClient_OptionsWithAClock_KeepThatClock()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb(new ManualTimeProvider(Start));
+        var other = new ManualTimeProvider(Start);
+
+        // Act
+        using var streams = fake.CreateStreamsClient(options => options with { TimeProvider = other });
+
+        // Assert
+        await Assert.That(streams.Options.TimeProvider).IsSameReferenceAs(other);
+    }
+
+    [Test]
     public async Task ReadStreamAsync_ChildTrimmedWhileItsParentWasRead_ThrowsTrimmedDataAccessException()
     {
         // Arrange: a minute before the records are 24 hours old the reading starts, and the look for the children of the parent takes two minutes
