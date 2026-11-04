@@ -212,34 +212,34 @@ format, tests, 100 % coverage; the lead runs the Linux AOT gate at merge. Stryke
       `TransactionInProgress`; mark affected tests per backend.
 - [x] **P7** Check the Parity Suite's `ground-truth/` and `captures/` for recorded AWS responses; if usable, add them as
       serialization test data with Apache-2.0 attribution (NOTICE).
-- [~] **P11** (branch `m1b/p11-review-fixes`) M1b review findings, see "M1b review findings" below
+- [x] **P11** (merged) M1b review findings, see "M1b review findings" below
 - [x] **P12** (merged; 97.22 % on the last full run, the rest equivalent or Stryker noise) Stryker survivors
 - [x] **P13** (merged; pipeline 489 to 347 lines, 4 bugs found) Refactoring pass over M1b
 - [x] **P14** (merged) API friction that does not depend on the layers decision
 - [x] **P10** (merged) Runnable sample `samples/DynaSharp.Sample` against a local emulator, public API only; it moves to the fluent API with M3
-- [~] M1b independent review
+- [x] M1b independent review (no Critical or High; findings and decisions below, fixed in P11)
 
 ### M1b review findings
 
 Independent review, no Critical or High. Decisions by the lead:
-- [~] M1 Response bodies get a hard ceiling of 64 MB (above the 16 MB of BatchGetItem); beyond it the call fails.
-- [~] M2 Enum convention: wire value `NONE` is member `None`. Optional enums a caller can send use `Unspecified` = 0 (sends nothing; on a response,
+- [x] M1 Response bodies get a hard ceiling of 64 MB (above the 16 MB of BatchGetItem); beyond it the call fails.
+- [x] M2 Enum convention: wire value `NONE` is member `None`. Optional enums a caller can send use `Unspecified` = 0 (sends nothing; on a response,
       a value this library does not know). Response-only and required enums use `Unknown` = 0.
-- [~] M3 Generic public names go: `Record` becomes `ChangeRecord`, `Identity` `RecordIdentity`, `Tag` `TableTag`, `Projection` `IndexProjection`,
+- [x] M3 Generic public names go: `Record` becomes `ChangeRecord`, `Identity` `RecordIdentity`, `Tag` `TableTag`, `Projection` `IndexProjection`,
       `Capacity` `CapacityDetail`. Member names stay as in the service model.
-- [~] M4 One default provider per client stays. The docs tell users on EC2 and ECS to share one provider between clients.
-- [~] M5 `RefreshingCredentialsCache`: log by the window at completion, so a mandatory waiter never reads "stay in use"; a throwing logger cannot escape.
-- [~] M6 One wire-name table per enum, used for reading and writing, not mutable and not public.
-- [~] L1 `MaxAttempts` defaults to 4. With 3 a throttled call gave up after at most 150 ms; aws-sdk-java-v2 uses 4 attempts for DynamoDB.
+- [x] M4 One default provider per client stays. The docs tell users on EC2 and ECS to share one provider between clients.
+- [x] M5 `RefreshingCredentialsCache`: log by the window at completion, so a mandatory waiter never reads "stay in use"; a throwing logger cannot escape.
+- [x] M6 One wire-name table per enum, used for reading and writing, not mutable and not public.
+- [x] L1 `MaxAttempts` defaults to 4. With 3 a throttled call gave up after at most 150 ms; aws-sdk-java-v2 uses 4 attempts for DynamoDB.
 - [-] L2 A skew resend stays inside `MaxAttempts`: 1 must mean one request.
-- [~] L3 `ReadBodyAsync` wraps `IOException` only when the token is not cancelled.
-- [~] L4 Add `rpc.system.name = aws-api` beside the deprecated attributes; `aws.dynamodb.count` on Query is a deliberate superset.
-- [~] L5 `GetTableName` no longer boxes an enumerator for dictionaries.
-- [~] L6 `AdvanceThroughDelaysAsync` takes the expected timeout explicitly.
-- [~] L7 Retry, throttle and capacity counters carry `server.address`, as the duration metric does, and tests without a table isolate on it.
-- [~] L8 One generic measurement capture in the tests instead of three.
+- [x] L3 `ReadBodyAsync` wraps `IOException` only when the token is not cancelled.
+- [x] L4 Add `rpc.system.name = aws-api` beside the deprecated attributes; `aws.dynamodb.count` on Query is a deliberate superset.
+- [x] L5 `GetTableName` no longer boxes an enumerator for dictionaries.
+- [x] L6 `AdvanceThroughDelaysAsync` takes the expected timeout explicitly.
+- [x] L7 Retry, throttle and capacity counters carry `server.address`, as the duration metric does, and tests without a table isolate on it.
+- [x] L8 One generic measurement capture in the tests instead of three.
 - [-] L9 Dropped: botocore raises `InvalidConfigError` for that profile, so failing loudly already matches it. The review was wrong here.
-- [~] L10 Say why the skew code list holds codes DynamoDB's protocol does not send: proxies and emulators.
+- [x] L10 Say why the skew code list holds codes DynamoDB's protocol does not send: proxies and emulators.
 
 ## M1c - core for the table API
 
@@ -285,11 +285,11 @@ Work packages G0 to G9 in `history/generator-design.md` section 10, with its ame
 - [x] Diagnostics `DYNA001`.. (unsupported type, missing partition key, non-partial, name collisions, invalid key
       template)
 - [x] Snapshot tests (Verify.SourceGenerators) and compile-and-run round trips
-- [~] M2 independent review (together with M3)
+- [x] M2 independent review (together with M3, see the M3 review below)
 
 ## M3 - fluent API
 
-Feature complete on `m1/lead`. Both M2 and M3 stay open for one pass before the first push: Stryker (>= 90 %) and the AOT publish, paused by the owner. The last AOT run was before R1, R2 and R3.
+Merged and released in 0.1.0. The AOT smoke test runs in CI; Stryker on `main` is open, see the Handoff.
 
 Contracts: `history/api-design.md` section 9. Packages: **M3a** (merged) `[Version]`, template inputs, typed `.Unique`, generator findings of G5 and A2. **M3b** (merged) mixed-type reads, fan-out query. **A5** (merged) polish after the sample. **M3c** (merged; 36 patterns, 105 tests on each emulator) recipes. **R2** (merged) findings of the recipes. **R3** (merged) findings of the second review. **R1** (merged) findings of the independent review.
 
@@ -306,7 +306,7 @@ Contracts: `history/api-design.md` section 9. Packages: **M3a** (merged) `[Versi
 - [x] Mixed-type query results via discriminator
 - [x] Fan-out query over a set of partition keys, ordered k-way merge by sort key, composite continuation token
 - [x] Scenario tests, including the recipes from `patterns.md`
-- [~] M3 independent review (done by a second reviewer after the A5 merge: no Critical or High, nine findings, decisions in `history/api-design.md` section 9. Not reached: bodies of several emitters, serialization, telemetry, credentials; integration tests were not run by it)
+- [x] M3 independent review (done by a second reviewer after the A5 merge: no Critical or High, nine findings, decisions in `history/api-design.md` section 9, fixed in R1. What it did not reach, the bodies of the emitters, serialization, telemetry and credentials, the second review under Findings covered, fixed in R3)
 
 ### G1 - additions from the three services
 
@@ -331,11 +331,12 @@ Branch `m3/g2-projection`, merged. `Project` stays as it is: leaving out what th
 
 ### D1 - web identity and real AWS
 
-Branch `m3/d1-web-identity`, merged. Never run against AWS, because no role exists yet.
+Branch `m3/d1-web-identity`, merged.
 
 - [x] `WebIdentityCredentialsProvider` at botocore's place in the chain, for IRSA. Checked against vectors from botocore's serializer and parser. `AWS_STS_REGIONAL_ENDPOINTS=legacy` uses the global endpoint only for botocore's `LEGACY_GLOBAL_STS_REGIONS`.
 - [x] The `aws` backend of the integration tests and `.github/workflows/real-aws.yml` on `workflow_dispatch`, which take their role from the repository variable `AWS_ROLE_ARN`. The header of the workflow says what the role needs.
-- [ ] First run on real AWS, which needs the role. It checks the STS exchange, the renewal loop of the workflow, and the settling times in `SettlingHandler`. Then IRSA on EKS in a real service.
+- [x] First run on real AWS: the STS exchange, the renewal loop of the workflow, and the settling times in `SettlingHandler` (`real-aws.yml` run 41628424048, 2026-11-03, 1 h 30 min: passed 886, skipped 10, failed 0).
+- [ ] IRSA on EKS in a real service (owner side).
 
 ### H1 and H2 - review of the code at G2, and the last changes of the public shape
 
@@ -650,7 +651,7 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
   7. On DynamoDB Local, `UPDATED_OLD` and `UPDATED_NEW` of a nested path hold the whole top-level attribute: `SET m.x` returns all of `m`, `REMOVE m.x` returns `m` as it was. Real DynamoDB returns the named path alone, as a fragment (Parity `updateItem/basic` on AWS), and so does the fake since P7; the vector selects `m.M.x`, which both answer alike. A removed path is not in `UPDATED_NEW`: `REMOVE m.y SET t = :s` returns `t` alone (`Vectors/updates.json`, `updated-old-and-new`). Open: the index of an appended element.
   8. A key condition takes the value on either side, `:v < sk` as `sk > :v`. Not so: an empty sort value is rejected as an empty partition value is, "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: sk" (`Vectors/keys.json`, `key-condition-sides-and-empty-values`).
 
-- [~] M5: SSO, `credential_process`, assume role, see the M5 section above
+- [x] M5: SSO, `credential_process`, assume role (merged; the real-AWS check stays open in the M5 section above)
 - [x] M6: first release 0.1.0 (enable `PUBLISH_TO_NUGET`, configure trusted publishing). Released 2026-11-03: tag `v0.1.0` on `9a3a0ba`, `DynaSharp` and `DynaSharp.Testing` 0.1.0 on nuget.org (release run 41729314289; the first try of the publish job failed with no matching trust policy, the re-run after the owner fixed it on nuget.org pushed)
   - [x] Shipped API files: `PublicAPI.Unshipped.txt` and `AnalyzerReleases.Unshipped.md` moved into Shipped (see D6 leftovers); the Unshipped files keep their header.
   - [x] Package icon: `docs/images/icon.png`, 128 px with a transparent background, rendered from `docs/images/logo.svg`, `PackageIcon` of both packages (NuGet takes no SVG). Svg.Skia draws no stroke whose `objectBoundingBox` gradient sits on an arc between two points of the same height (it takes the height as 0), so the PNG was rendered from a copy with the gradient of the sharp in user space; browsers show the SVG as it is.
