@@ -60,7 +60,7 @@ A number attribute that holds a time in seconds since 1970. Once that time has p
 
 ## Stream
 
-The change log of a table: each write to an item becomes a record, kept for 24 hours, and a consumer such as a Lambda function reads it. See [Streams](streams.md).
+The change log of a table: each write to an item becomes a record, kept for 24 hours, in shards that split and close over time. A consumer such as a Lambda function reads it, and `DynamoDbStreamsClient.ReadStreamAsync` reads it in one process. See [Streams](streams.md).
 
 ## IRSA
 

@@ -1,10 +1,10 @@
 # Streams
 
-A stream is the change log of a table: each write to an item becomes a record, kept for 24 hours. `DynamoDbStreamsClient` reads it through the DynamoDB Streams API: `DescribeStreamAsync` lists the shards and `ReadShardAsync` reads one.
+A stream is the change log of a table: each write to an item becomes a record, kept for 24 hours. `DynamoDbStreamsClient` reads it through the DynamoDB Streams API: `ReadStreamAsync` reads every shard of a stream, `ReadShardAsync` reads one, and `DescribeStreamAsync` lists them.
 
 `orders`, `customers` and `shop` are the tables of [the shop](getting-started.md#the-shop).
 
-This is the plain API, not a consumer. Nothing stores how far a reader got, and nothing shares the shards out among several workers, so a reader that restarts or runs twice is yours to coordinate. For a consumer in production, a Lambda function with an event source mapping on the stream does both, and so does the Kinesis Client Library with the DynamoDB Streams Kinesis Adapter.
+This reads a stream in one process, and is no consumer. Nothing stores how far a reader got, and nothing shares the shards out among several processes, so a reader that restarts or runs twice is yours to coordinate. For a consumer in production, a Lambda function with an event source mapping on the stream does both, and so does the Kinesis Client Library with the DynamoDB Streams Kinesis Adapter.
 
 ## Turning a stream on
 
@@ -60,7 +60,40 @@ Without options it reads the environment as `DynamoDbClient` does, with `AWS_END
 
 A stream is split into shards, and a record is in the shard of the partition of its item. DynamoDB closes a shard from time to time, and when its partition splits, and its children go on from there and name it in `ParentShardId`. So the changes of one item come in order only if a parent is read to its end before its children.
 
-`ReadShardAsync` reads one shard from a position to its end, as an `IAsyncEnumerable<ChangeRecord>`:
+`ReadStreamAsync` reads the whole stream in this process, as one `IAsyncEnumerable<ShardChangeRecord>`: each record with the `ShardId` it came from.
+
+```csharp
+var stream = new ReadStreamRequest { StreamArn = streamArn, ShardIteratorType = ShardIteratorType.TrimHorizon };
+await foreach (var change in streams.ReadStreamAsync(stream, ct))
+{
+    var image = change.Record.DynamoDb!.NewImage;
+    if (image is not null && image.Is<Order>())
+    {
+        Console.WriteLine($"{change.Record.EventName} #{image.To<Order>().Number} from {change.ShardId}");
+    }
+}
+```
+
+It lists the shards with `DescribeStream`, reads them at the same time, and starts the children of a shard once the shard has been read to its end.
+
+- **The start.** `TrimHorizon` reads every shard from its oldest record, closed or open, each parent before its children. `Latest` reads the shards that are open at the start from now on, and counts the closed ones as read. A child that comes later is always read from its oldest record. No other position is taken: to resume, see [Resuming one shard](#resuming-one-shard).
+- **The order.** The changes of one item come in their order, since a parent comes before its children. Records of different shards come in no order at all.
+- **The end.** The loop ends when no shard is left to read, which is when the stream was switched off and every shard has been read. While the stream is on it runs until `ct` is cancelled. A shard that ended without children is asked about again after `EmptyPageDelay` while the stream is on, since DynamoDB can list them a moment later.
+- **The pace.** Records go through a small buffer, and a shard waits while the loop is behind: a slow loop slows every shard down, and nothing piles up in memory.
+- **A failure.** The first exception of any shard ends the loop with that exception, and the other shards are stopped and awaited before it surfaces. Nothing is skipped: `TrimmedDataAccessException` surfaces too, see [Errors](#errors).
+- **Stopping.** Leaving the loop, or cancelling `ct`, stops every shard and waits for it, so nothing runs on.
+- **Telemetry.** Each shard is a span of its own under the span of the loop, with the calls of the shard under it and a link to its parent shard, and two metrics count the shards being read and the records handed out, see [Observability](observability.md#reading-a-stream).
+- **Images.** An image is an `Item`: [`Is<T>()`](without-a-model.md#item) says whether it is of an entity, by its discriminator, and `To<T>()` reads it as one.
+
+What it leaves out, on purpose: positions to resume at, a store of checkpoints, leases, several processes, a retry policy per shard, a limit per call, the size of the buffer, and typed records.
+
+The reader of the sample, [`OrderFeed.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/OrderFeed.cs), is that loop, and hands on the order before and after each change.
+
+Which images a record has follows from the view and the kind of change. An insert has no old image and a delete no new one, and `KeysOnly` gives only `Keys`. A delete by time to live has `UserIdentity` set, to the service `dynamodb.amazonaws.com`.
+
+### Reading one shard
+
+`ReadShardAsync` reads one shard from a position to its end, as an `IAsyncEnumerable<ChangeRecord>`. `ReadStreamAsync` reads each shard with it, and it is there for a reader that picks its shards itself:
 
 ```csharp
 var shard = new ReadShardRequest { StreamArn = streamArn, ShardId = shardId, ShardIteratorType = ShardIteratorType.TrimHorizon };
@@ -79,16 +112,10 @@ It takes the iterator and pages through `GetRecords`.
 - **The end.** The loop ends when the shard is closed and every record of it has been returned. An open shard has no end, so the loop runs until `ct` is cancelled.
 - **An idle shard.** An open shard answers an empty page when nothing changed, and the reader then waits `EmptyPageDelay`, a second by default, on the `TimeProvider` of the client, so that it does not poll an idle shard without pause: DynamoDB may throttle a shard that more than two processes read at once, see [Reading and processing a stream](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html#Streams.Processing).
 - **An expired iterator.** An iterator lives 15 minutes. When one expires because the loop took longer over a record, the reader takes a new one after the last record it returned, so nothing is skipped and nothing repeats.
-- **Images.** An image is an `Item`: [`Is<T>()`](without-a-model.md#item) says whether it is of an entity, by its discriminator, and `To<T>()` reads it as one.
 
-The reader of the sample, [`OrderFeed.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/OrderFeed.cs), starts at every shard whose parent is not listed, reads each with `ReadShardAsync`, then finds the children with a `ShardFilter` and reads those. It hands on the order before and after each change.
+### Resuming one shard
 
-> [!WARNING]
-> The sample reads its shards with `Task.WhenAll`, which reports the failure of one shard only once the others end, and an open shard never ends. A reader that runs for good watches each shard and cancels the others when one fails.
-
-Which images a record has follows from the view and the kind of change. An insert has no old image and a delete no new one, and `KeysOnly` gives only `Keys`. A delete by time to live has `UserIdentity` set, to the service `dynamodb.amazonaws.com`.
-
-`TrimHorizon` starts at the oldest record still kept, so a new reader sees up to a day of changes again. `Latest` starts after the newest. A change is in the stream once, but a reader that starts over sees it again, so handle records in a way that a repeat does no harm. The position to keep is on each record: to resume after a restart, store `record.DynamoDb.SequenceNumber` of the last record handled per shard, and start after it, here the stored `after`:
+`TrimHorizon` starts at the oldest record still kept, so a new reader sees up to a day of changes again. `Latest` starts after the newest. A change is in the stream once, but a reader that starts over sees it again, so handle records in a way that a repeat does no harm. The position to keep is on each record: to resume after a restart, store the `ShardId` and `record.DynamoDb.SequenceNumber` of the last record handled per shard, and read that shard on after it, here the stored `after`:
 
 ```csharp
 var resume = new ReadShardRequest
@@ -104,10 +131,10 @@ var resume = new ReadShardRequest
 
 Both errors are a `DynamoDbException`, and the client does not retry either, because the same request fails the same way.
 
-- `ExpiredIteratorException`: an iterator is valid for 15 minutes. `ReadShardAsync` renews it, see [Reading a stream](#reading-a-stream). A loop of `GetRecordsAsync` of its own takes a new one with `AfterSequenceNumber` and the sequence number of the last record handled: `Latest` would skip what was written in between.
-- `TrimmedDataAccessException`: the position is older than the 24 hours that records are kept, so the changes in between are gone. `ReadShardAsync` throws it, at the start or while reading. Start again at `TrimHorizon`, and if the gap matters, rebuild what the reader keeps from the table.
+- `ExpiredIteratorException`: an iterator is valid for 15 minutes. `ReadShardAsync` renews it, and so `ReadStreamAsync` does, see [Reading one shard](#reading-one-shard). A loop of `GetRecordsAsync` of its own takes a new one with `AfterSequenceNumber` and the sequence number of the last record handled: `Latest` would skip what was written in between.
+- `TrimmedDataAccessException`: the position is older than the 24 hours that records are kept, so the changes in between are gone. `ReadShardAsync` and `ReadStreamAsync` throw it, at the start or while reading. Start again at `TrimHorizon`, and if the gap matters, rebuild what the reader keeps from the table.
 
-A shard that DynamoDB removed, 24 hours after it closed, gives `ResourceNotFoundException`. `LimitExceededException` is retried, and surfaces only when every attempt got it.
+A shard that DynamoDB removed, 24 hours after it closed, gives `ResourceNotFoundException`. `ReadStreamAsync` throws `TrimmedDataAccessException` for it instead when the shard was closed when listed: its records are gone, as those before a trimmed position are. `LimitExceededException` is retried, and surfaces only when every attempt got it.
 
 ## Testing
 
@@ -120,7 +147,7 @@ stub.Enqueue(StubResponse.StreamDescription("Shop", StubResponse.Shard("shard-1"
 stub.Enqueue(StubResponse.ShardIterator("iterator-1"));
 stub.Enqueue(StubResponse.Records("iterator-2", StubResponse.Inserted(order)));
 stub.Enqueue(StubResponse.Records(null, StubResponse.Modified(order, order with { Total = 120m }), StubResponse.Removed(order with { Total = 120m })));
-stub.Enqueue(StubResponse.StreamDescription("Shop"));
+stub.Enqueue(StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Disabled }));
 
 var seen = new List<(Order? Before, Order? After)>();
 await OrderFeed.ReadAsync(streams, "arn:aws:dynamodb:us-east-1:123456789012:table/Shop/stream/2026-01-01T00:00:00.000", (before, after) => seen.Add((before, after)), ct);
@@ -129,4 +156,4 @@ stub.ThrowIfResponsesLeft();
 Console.WriteLine(seen.Count); // 3
 ```
 
-The last answer is the `DescribeStream` that looks for children of the closed shard and finds none. [Testing](testing.md) has the rest of the stub.
+The last answer is the `DescribeStream` that looks for children of the closed shard: it finds none, and the stream is switched off, so the reading ends. With one shard the answers come in this order. Several shards are read at the same time, so a test of those answers each shard by what it asks for, with the responder of `StubHandler`. [Testing](testing.md) has the rest of the stub.

@@ -154,7 +154,7 @@ await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().Keys(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
-**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` for [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
+**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` to read [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), one shard or a whole stream, and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));
