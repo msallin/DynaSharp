@@ -60,6 +60,7 @@ jobs:
         run: |
           dotnet pack src/DynaSharp -c Release -o artifacts/packages
           dotnet pack src/DynaSharp.Testing -c Release -o artifacts/packages
+          dotnet pack src/DynaSharp.Coordination -c Release -o artifacts/packages
 
       - name: Packages carry the version
         if: steps.version.outputs.version != ''
@@ -67,6 +68,7 @@ jobs:
           ls artifacts/packages
           test -f "artifacts/packages/DynaSharp.${{ steps.version.outputs.version }}.nupkg"
           test -f "artifacts/packages/DynaSharp.Testing.${{ steps.version.outputs.version }}.nupkg"
+          test -f "artifacts/packages/DynaSharp.Coordination.${{ steps.version.outputs.version }}.nupkg"
 
       - name: Push the tag
         if: steps.version.outputs.version != ''

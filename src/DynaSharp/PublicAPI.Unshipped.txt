@@ -43,6 +43,7 @@ DynaSharp.Streams.ShardChangeRecord.ShardChangeRecord() -> void
 DynaSharp.Streams.ShardChangeRecord.ShardChangeRecord(string! ShardId, DynaSharp.Streams.ChangeRecord! Record) -> void
 DynaSharp.Streams.ShardChangeRecord.ShardId.get -> string!
 DynaSharp.Streams.ShardChangeRecord.ShardId.init -> void
+DynaSharp.Table<T>.Client.get -> DynaSharp.DynamoDbClient!
 override DynaSharp.Requests.OnDemandThroughput.Equals(object? obj) -> bool
 override DynaSharp.Requests.OnDemandThroughput.GetHashCode() -> int
 override DynaSharp.Requests.OnDemandThroughput.ToString() -> string!

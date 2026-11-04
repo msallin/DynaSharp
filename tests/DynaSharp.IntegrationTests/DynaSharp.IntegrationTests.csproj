@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <ProjectReference Include="../../src/DynaSharp.Coordination/DynaSharp.Coordination.csproj" />
     <!-- The fake backend, see Backends/FakeBackend.cs. -->
     <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
     <ProjectReference Include="../DynaSharp.DefaultsFixture/DynaSharp.DefaultsFixture.csproj" />

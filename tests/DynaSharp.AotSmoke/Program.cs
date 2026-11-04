@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using DynaSharp;
 using DynaSharp.AotSmoke;
+using DynaSharp.Coordination;
 using DynaSharp.Credentials;
 using DynaSharp.Requests;
 using DynaSharp.Streams;
@@ -577,6 +578,24 @@ var fakeVisits = await fakeVisitors.Update(new Visitor.Key("v-1")).Add("visits",
 Check(fakeVisits == 2, "the fake answers an Update");
 await fakeVisitors.Delete(new Visitor("v-1", 2)).IfExists().SendAsync();
 Check(fake.Items("Visitors").Count == 0, "the fake answers a Delete");
+
+// DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, and the release.
+fake.CreateTable(new CreateTableRequest
+{
+    TableName = "Locks",
+    AttributeDefinitions = [new AttributeDefinition("pk", ScalarAttributeType.String)],
+    KeySchema = [new KeySchemaElement("pk", KeyType.Hash)],
+    BillingMode = BillingMode.PayPerRequest,
+});
+var locks = new LockTable(fakeClient.Table("Locks", "pk"));
+var held = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
+Check(held is { FencingToken: 1 } && await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30)) is null, "a lease is acquired once, with fencing token 1");
+await fakeClient.TransactWrite().IsHeld(held!).Put(fakeClient.Table("Locks", "pk"), new Item { ["pk"] = "REPORT" }).SendAsync();
+Check(fake.Get("Locks", new Item { ["pk"] = "REPORT" }) is not null, "a transaction that checks the lease commits");
+await held!.DisposeAsync();
+var next = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
+Check(next is { FencingToken: 2 } && held.Ended.IsCancellationRequested, "a released lock is acquired again with the next fencing token");
+await next!.DisposeAsync();
 
 foreach (var failure in failures)
 {

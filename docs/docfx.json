@@ -6,6 +6,10 @@
         {
           "src": "../src/DynaSharp.Testing/bin/Release/net11.0",
           "files": ["DynaSharp.dll", "DynaSharp.Testing.dll"]
+        },
+        {
+          "src": "../src/DynaSharp.Coordination/bin/Release/net11.0",
+          "files": ["DynaSharp.Coordination.dll"]
         }
       ],
       "dest": "api",

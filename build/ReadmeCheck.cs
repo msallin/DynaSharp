@@ -20,6 +20,7 @@ using System.Text;
 const string Fence = "```";
 const string SharedUsings = """
     using DynaSharp;
+    using DynaSharp.Coordination;
     using DynaSharp.Credentials;
     using DynaSharp.Mapping;
     using DynaSharp.Requests;
@@ -55,6 +56,8 @@ const string PageFields = """
         private static DynamoDbStreamsClient streams = null!;
         private static string streamArn = "";
         private static string shardId = "";
+        private static LockTable locks = null!;
+        private static Lease lease = null!;
 
     """;
 
@@ -94,6 +97,7 @@ File.WriteAllText(project, """
         <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />
         <Compile Include="../../samples/DynaSharp.Sample/OrderFeed.cs" />
         <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+        <ProjectReference Include="../../src/DynaSharp.Coordination/DynaSharp.Coordination.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
         <ProjectReference Include="../../src/DynaSharp.Generators/DynaSharp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
       </ItemGroup>

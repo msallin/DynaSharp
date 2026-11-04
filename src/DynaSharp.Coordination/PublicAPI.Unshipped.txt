@@ -1,0 +1,17 @@
+#nullable enable
+DynaSharp.Coordination.LeaderElection
+DynaSharp.Coordination.Lease
+DynaSharp.Coordination.Lease.DisposeAsync() -> System.Threading.Tasks.ValueTask
+DynaSharp.Coordination.Lease.Ended.get -> System.Threading.CancellationToken
+DynaSharp.Coordination.Lease.FencingToken.get -> long
+DynaSharp.Coordination.Lease.Name.get -> string!
+DynaSharp.Coordination.Lease.RenewAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<bool>!
+DynaSharp.Coordination.LeaseTransactExtensions
+DynaSharp.Coordination.LockTable
+DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
+DynaSharp.Coordination.LockTable.LockTable(DynaSharp.Table<DynaSharp.Item!>! table) -> void
+DynaSharp.Coordination.LockTable.Table.get -> DynaSharp.Table<DynaSharp.Item!>!
+DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
+static DynaSharp.Coordination.LeaderElection.RunAsync(DynaSharp.Coordination.LockTable! locks, string! name, System.TimeSpan leaseDuration, System.Func<DynaSharp.Coordination.Lease!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, DynaSharp.Coordination.Lease! lease) -> DynaSharp.ConditionStep
+static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, DynaSharp.Coordination.Lease! lease, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep

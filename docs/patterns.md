@@ -15,11 +15,13 @@ DynaSharp was designed around a catalog of such patterns. Each one runs as a sce
 | [Index overloading](patterns-indexes.md#index-overloading) | One global index that answers a question per type |
 | [Sparse index](patterns-indexes.md#sparse-index) | The few items in a rare state, read at the cost of those |
 | [Status-keyed index](patterns-indexes.md#status-keyed-index) | "My open items, oldest first" |
+| [Queue over a sparse index](patterns-indexes.md#queue-over-a-sparse-index) | Jobs that workers claim one at a time, with a reaper for a worker that stopped |
 | [Soft delete](patterns-indexes.md#soft-delete) | Items that leave the lists when deleted, and can come back |
 | [Optimistic locking](patterns-writes.md#optimistic-locking) | A read-modify-write that loses no update, without a lock |
 | [Uniqueness constraints](patterns-writes.md#uniqueness-constraints) | A value other than the key that must be unique |
 | [Idempotency keys](patterns-writes.md#idempotency-keys) | A request that a client retries, and that takes effect once |
 | [Counters](patterns-writes.md#counters) | Counting on the server, and a counter that a retry cannot count twice |
+| [Hi/lo sequence](patterns-writes.md#hilo-sequence) | Numeric ids without a write per id |
 | [Transactional outbox](patterns-writes.md#transactional-outbox) | A change of state and the event about it, both or neither |
 
 ## More recipes
@@ -47,6 +49,10 @@ These run as tests too, with the same primitives, and each file explains its pat
 - [Barrier](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/BarrierTests.cs): n parties add their names to a set, and exactly one sees it complete.
 - [HyperLogLog](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/HyperLogLogTests.cs): distinct counts in a fixed kilobyte, merged on the client under `[Version]`.
 
+## Locks and leader election
+
+A distributed lock needs more than a conditional write: a heartbeat, a wait on a monotonic clock, fencing tokens. The package `DynaSharp.Coordination` has a lease on a named lock with fencing tokens, and leader election on top of it, see [Coordination](coordination.md). The [counting semaphore](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/CountingSemaphoreTests.cs) above is the lighter form without fencing.
+
 ## Not in DynaSharp
 
-A distributed lock or lease, leader election, a hi/lo sequence and a queue over a sparse index, with or without priorities, need more than a few writes: a heartbeat, fencing tokens, a monotonic clock. DynaSharp ships neither a type nor a recipe for them. Rollups through DynamoDB Streams run in a consumer such as a Lambda function, outside the client.
+Rollups through DynamoDB Streams run in a consumer such as a Lambda function, outside the client.

@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/DynaSharp/DynaSharp.csproj" />
+    <ProjectReference Include="../../src/DynaSharp.Coordination/DynaSharp.Coordination.csproj" />
     <ProjectReference Include="../../src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
     <ProjectReference Include="../DynaSharp.DefaultsFixture/DynaSharp.DefaultsFixture.csproj" />
     <!-- As an analyzer, so entities in the test assembly are mapped by the real generator; as an assembly, for the driver tests. -->

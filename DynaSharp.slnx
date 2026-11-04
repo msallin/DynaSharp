@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DynaSharp/DynaSharp.csproj" />
+    <Project Path="src/DynaSharp.Coordination/DynaSharp.Coordination.csproj" />
     <Project Path="src/DynaSharp.Generators/DynaSharp.Generators.csproj" />
     <Project Path="src/DynaSharp.Testing/DynaSharp.Testing.csproj" />
   </Folder>
