@@ -236,6 +236,80 @@ internal sealed class OperationTelemetry
     public void CountSkippedItem(string operationName, string tableName) =>
         Count(DynaSharpTelemetry.SkippedItems, operationName, tableName, null);
 
+    /// <summary>
+    /// Starts the span of a shard that <c>ReadStreamAsync</c> reads, and counts the shard as being read until <see cref="EndShard"/>. The span is
+    /// <c>Internal</c>: the calls of the shard are its children and the clients.
+    /// </summary>
+    /// <param name="shardId">The shard, which is no key and no data of an item.</param>
+    /// <param name="caller">The span the reading started under, or <see langword="default"/> for <see cref="Activity.Current"/>.</param>
+    /// <param name="parentShard">The span of the parent shard, to link to, or <see langword="default"/> for a shard read without its parent.</param>
+    /// <returns>The span, or <see langword="null"/> if nobody listens.</returns>
+    public Activity? StartShard(string shardId, ActivityContext caller, ActivityContext parentShard)
+    {
+        AddShard(1);
+
+        var links = parentShard == default ? null : new[] { new ActivityLink(parentShard) };
+        var activity = _activitySource.StartActivity(TelemetryNames.ReadStreamSpan, ActivityKind.Internal, caller, links: links);
+        if (activity is { IsAllDataRequested: true })
+        {
+            activity.SetTag(TelemetryNames.DbSystemName, TelemetryNames.DbSystemNameValue);
+            activity.SetTag(TelemetryNames.RpcService, TelemetryNames.RpcServiceStreamsValue);
+            activity.SetTag(TelemetryNames.CloudRegion, _regionName);
+            activity.SetTag(TelemetryNames.ServerAddress, _serverAddress);
+            activity.SetTag(TelemetryNames.ServerPort, _serverPort);
+            activity.SetTag(TelemetryNames.ShardId, shardId);
+        }
+
+        return activity;
+    }
+
+    /// <summary>Ends what <see cref="StartShard"/> started: the span, with the number of records and the failure, and the count of shards being read.</summary>
+    /// <param name="activity">The span, if there is one.</param>
+    /// <param name="records">How many records of the shard were handed over.</param>
+    /// <param name="failure">The failure that ended the shard, or <see langword="null"/> if it ended or was stopped.</param>
+    public void EndShard(Activity? activity, int records, Exception? failure)
+    {
+        AddShard(-1);
+
+        if (activity is null)
+        {
+            return;
+        }
+
+        if (activity.IsAllDataRequested)
+        {
+            activity.SetTag(TelemetryNames.ShardRecords, records);
+        }
+
+        if (failure is not null)
+        {
+            RecordFailure(activity, GetErrorType(failure), GetResponseStatusCode(failure));
+        }
+
+        activity.Dispose();
+    }
+
+    /// <summary>Counts a record that <c>ReadStreamAsync</c> handed to its caller.</summary>
+    public void CountStreamRecord()
+    {
+        if (!DynaSharpTelemetry.StreamRecords.Enabled)
+        {
+            return;
+        }
+
+        var tags = default(TagList);
+        AddServer(ref tags);
+        DynaSharpTelemetry.StreamRecords.Add(1, tags);
+    }
+
+    // Once per shard and not per record, so a check of Enabled would save nothing worth its branch.
+    private void AddShard(int delta)
+    {
+        var tags = default(TagList);
+        AddServer(ref tags);
+        DynaSharpTelemetry.StreamShards.Add(delta, tags);
+    }
+
     // A call that spans several tables has no table tag. The server is what tells the counters of two clients apart, as it does for
     // the duration.
     private void Count(Counter<long> counter, string operationName, string? tableName, Exception? exception)

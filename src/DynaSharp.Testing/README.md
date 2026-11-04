@@ -145,15 +145,14 @@ var updated = await client.UpdateTableAsync(new UpdateTableRequest
 await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
 
 var arn = updated.TableDescription!.LatestStreamArn!;
-var shard = (await streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn }, ct)).StreamDescription!.Shards[0];
-await foreach (var change in streams.ReadShardAsync(new ReadShardRequest { StreamArn = arn, ShardId = shard.ShardId!, ShardIteratorType = ShardIteratorType.TrimHorizon }, ct))
+await foreach (var change in streams.ReadStreamAsync(new ReadStreamRequest { StreamArn = arn, ShardIteratorType = ShardIteratorType.TrimHorizon }, ct))
 {
-    Console.WriteLine(change.EventName); // Insert
+    Console.WriteLine(change.Record.EventName); // Insert
     break;
 }
 ```
 
-The shard of a disabled stream is closed, so a read of it ends.
+The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
 
 [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. It never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`.
 

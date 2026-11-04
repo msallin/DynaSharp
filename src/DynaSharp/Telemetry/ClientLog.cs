@@ -35,4 +35,7 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.")]
     public static partial void UnencryptedEndpoint(ILogger logger, string host);
+
+    [LoggerMessage(EventId = 10, Level = LogLevel.Debug, Message = "DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.")]
+    public static partial void ShardFinished(ILogger logger, string shardId, int children);
 }

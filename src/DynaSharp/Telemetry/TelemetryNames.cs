@@ -14,6 +14,8 @@ internal static class TelemetryNames
     public const string ConflictsExhaustedMetric = "dynasharp.client.conflict.exhausted";
     public const string ConsumedCapacityMetric = "dynasharp.client.consumed_capacity";
     public const string SkippedItemsMetric = "dynasharp.client.operation.skipped_items";
+    public const string StreamShardsMetric = "dynasharp.client.stream.shards";
+    public const string StreamRecordsMetric = "dynasharp.client.stream.records";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";
@@ -54,6 +56,11 @@ internal static class TelemetryNames
     public const string ConsumedCapacity = "aws.dynamodb.consumed_capacity";
     public const string ExclusiveStartTable = "aws.dynamodb.exclusive_start_table";
     public const string TableCount = "aws.dynamodb.table_count";
+
+    // A shard that ReadStreamAsync reads. The conventions have no attributes for DynamoDB Streams, so these are the library's own.
+    public const string ReadStreamSpan = "DynamoDB Streams.ReadStream";
+    public const string ShardId = "dynasharp.stream.shard_id";
+    public const string ShardRecords = "dynasharp.stream.record_count";
 
     // Value of error.type when an attempt timed out.
     public const string TimeoutErrorType = "timeout";

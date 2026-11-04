@@ -49,6 +49,9 @@ internal sealed class ClientCore : IDisposable
     /// <summary>Gets the options as they were resolved, once, when the client was created, see <see cref="DynamoDbClient.Options"/>.</summary>
     public DynamoDbClientOptions Options { get; }
 
+    /// <summary>Gets what the client reports about its operations, see <see cref="DynamoDbPipeline.Telemetry"/>.</summary>
+    public OperationTelemetry Telemetry => _pipeline.Telemetry;
+
     /// <summary>Resolves the configuration and creates the HTTP client and the pipeline.</summary>
     /// <typeparam name="TClient">The public client, which is the category of its logger.</typeparam>
     /// <param name="service">The service the client talks to.</param>
@@ -159,6 +162,11 @@ internal sealed class ClientCore : IDisposable
     /// <param name="operationName">The operation of the read.</param>
     /// <param name="tableName">The table of the read.</param>
     public void CountSkippedItem(string operationName, string tableName) => _pipeline.CountSkippedItem(operationName, tableName);
+
+    /// <summary>Logs that a shard of a stream was read to its end, see <see cref="DynamoDbPipeline.LogShardFinished"/>.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="children">How many child shards are read next.</param>
+    public void LogShardFinished(string shardId, int children) => _pipeline.LogShardFinished(shardId, children);
 
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>

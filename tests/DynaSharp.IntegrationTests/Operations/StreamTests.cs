@@ -386,6 +386,44 @@ public sealed class StreamTests(Backend backend)
     }
 
     [Test]
+    public async Task ReadStream_OpenStream_ReturnsTheChangesOfAnItemInOrderFromAListedShard()
+    {
+        // Arrange: one item, so one shard, also on real DynamoDB
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var shards = (await sandbox.Streams.DescribeStreamAsync(new DescribeStreamRequest { StreamArn = arn })).StreamDescription!.Shards.Select(static shard => shard.ShardId).ToList();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Streams.ReadStreamAsync(StreamFromTrimHorizon(arn), timeout.Token).Take(3).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(string.Join(",", records.Select(static change => change.Record.EventName))).IsEqualTo("Insert,Modify,Remove");
+        await Assert.That(shards.Contains(records.Select(static change => change.ShardId).Distinct().Single())).IsTrue();
+    }
+
+    [Test]
+    public async Task ReadStream_DisabledStream_EndsAfterItsRecords()
+    {
+        // Arrange: the client has no UpdateTable, so the stream is switched off by hand
+        Gaps.SkipIfMissing(backend, Gap.ClosedShardsAfterDisablingTheStream);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        await WriteInsertModifyRemoveAsync(sandbox, table);
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        (await sandbox.Emulator.Raw.SendAsync("UpdateTable", $$$$$"""{"TableName":"{{{{{table}}}}}","StreamSpecification":{"StreamEnabled":false}}""")).EnsureSuccess();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Streams.ReadStreamAsync(StreamFromTrimHorizon(arn), timeout.Token).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(string.Join(",", records.Select(static change => change.Record.EventName))).IsEqualTo("Insert,Modify,Remove");
+    }
+
+    [Test]
     public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
     {
         // Arrange
@@ -420,6 +458,13 @@ public sealed class StreamTests(Backend backend)
     {
         StreamArn = streamArn,
         ShardId = shardId,
+        ShardIteratorType = ShardIteratorType.TrimHorizon,
+        EmptyPageDelay = TimeSpan.FromMilliseconds(50),
+    };
+
+    private static ReadStreamRequest StreamFromTrimHorizon(string streamArn) => new()
+    {
+        StreamArn = streamArn,
         ShardIteratorType = ShardIteratorType.TrimHorizon,
         EmptyPageDelay = TimeSpan.FromMilliseconds(50),
     };

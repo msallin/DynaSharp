@@ -42,7 +42,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for `CommandPool` |
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
-| `Streams` | `DynamoDbStreamsClient`, its records | `Requests`, `Operations`, `Http` |
+| `Streams` | `DynamoDbStreamsClient`, its records, `StreamMerge` (the shards of `ReadStreamAsync`) | `Requests`, `Operations`, `Http`, `Telemetry` |
 | `Fluent` | `Table<T>`, `Index<T>`, `TableExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema`, and the four folders below | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
 | `Fluent/Commands` | What a chain is built of: every command and step, their interfaces, the verbs of a transaction, and what sends one item: `CommandCall`, `ICommandOperation<T>`, the operations of a write, `WriteResult<T>`, `FailedCondition`, `RejectedRequest` | As `Fluent` |
 | `Fluent/Reads` | What a read does after its clauses: operations of reads, `PagedRead`, `PageCall`, `PageResponse`, `Page<T>`, `ContinuationToken`, parallel scan, fan-out and mixed machinery, `FailedItem` | As `Fluent` |
@@ -107,9 +107,15 @@ the client's value.
 again, of the `ConflictKind` the call names, and `RetryPolicy.GetConflictDelay` says how long it waits, on the client's clock, with the jitter of the policy and nothing from the quota. A run is any number of calls with their own attempts. The remarks of the method are the contract.
 
 Telemetry is one span per request (`DynamoDB.GetItem`), `db.client.operation.duration`, `dynasharp.client.operation.retries` and `.throttles`,
-`dynasharp.client.conflict.retries` and `.exhausted`, and `dynasharp.client.consumed_capacity`, all from `OperationTelemetry`, one per client. A batch of three requests is three spans. A conflict retry has no span of its own: the
+`dynasharp.client.conflict.retries` and `.exhausted`, `dynasharp.client.consumed_capacity`, and `dynasharp.client.stream.shards` and `.records`, all from `OperationTelemetry`, one per client. A batch of three requests is three spans. A conflict retry has no span of its own: the
 failed calls of a run have theirs under the span of the caller, so another one would add a level and no fact, and its counters take the operation and the table from the exception. Logs exist for what no single request sees: resolved configuration, an endpoint over plain http to a host that is not loopback (`ClientConfiguration.IsUnencryptedRemote`, once per client and once per web identity provider),
-retries given up, a corrected clock, a batch that gave up, a conflict retry that gave up, credential refresh. Neither ever carries a key or a value.
+retries given up, a corrected clock, a batch that gave up, a conflict retry that gave up, credential refresh, a shard of a stream read to its end. Neither ever carries a key or a value.
+
+`ReadStreamAsync` is `StreamMerge`: one task per shard, each a `ReadShardAsync`, writing into one bounded channel of 16 that the enumerator reads. The set of readers grows as shards end and start their children,
+so a count of running readers, the discovery included, completes the channel when it reaches zero; a reader counts its children before itself. The first failure completes the channel with it, drains what is
+buffered and cancels a linked source that stops every reader; the `finally` of the enumerator cancels it too and waits until the count is zero, so no reader outlives the enumeration. A shard has a span of its
+own, unlike a conflict retry, because it is a unit of work with a lifetime of its own that no call shows: `OperationTelemetry.StartShard` puts it under the span current at the start of the enumeration and links it
+to the span of the parent shard rather than nesting it, so the trace of a stream read for days does not grow for days. The reader clears `Activity.Current` first, which flowed from the parent's task.
 
 The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and `RequestCall` forwards to it.
 

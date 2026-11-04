@@ -44,6 +44,9 @@ internal sealed class ActivityCapture : IDisposable
     /// <summary>Gets the trace id of the parent activity.</summary>
     public ActivityTraceId ParentTraceId => _parent.TraceId;
 
+    /// <summary>Gets the span id of the parent activity.</summary>
+    public ActivitySpanId ParentSpanId => _parent.SpanId;
+
     /// <summary>Gets the activities that stopped so far, in that order.</summary>
     public IReadOnlyList<Activity> All
     {

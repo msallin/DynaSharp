@@ -16,10 +16,10 @@ namespace DynaSharp.Streams;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the plain API: there is no consumer, no checkpointing and no assignment of shards to workers. A reader lists the
-/// shards with <see cref="DescribeStreamAsync"/> and reads each with <see cref="ReadShardAsync"/>, which takes the iterator, pages through
-/// <see cref="GetRecordsAsync"/> and renews an expired iterator; <see cref="GetShardIteratorAsync"/> and <see cref="GetRecordsAsync"/> are
-/// there for a loop of its own. A stream is enabled per table, with <see cref="CreateTableRequest.StreamSpecification"/>
+/// There is no consumer: no checkpointing, no leasing and no sharing of shards among processes. <see cref="ReadStreamAsync"/> reads every shard of a
+/// stream in this process, parents before their children. <see cref="ReadShardAsync"/> reads one shard, which a reader lists with
+/// <see cref="DescribeStreamAsync"/>: it takes the iterator, pages through <see cref="GetRecordsAsync"/> and renews an expired iterator.
+/// <see cref="GetShardIteratorAsync"/> and <see cref="GetRecordsAsync"/> are there for a loop of its own. A stream is enabled per table, with <see cref="CreateTableRequest.StreamSpecification"/>
 /// when the table is created or later through <c>UpdateTable</c>; <see cref="TableDescription.LatestStreamArn"/> names the stream.
 /// </para>
 /// <para>
@@ -47,6 +47,8 @@ namespace DynaSharp.Streams;
 /// </remarks>
 public sealed class DynamoDbStreamsClient : IDisposable
 {
+    private const string EmptyPageDelayMessage = "EmptyPageDelay must be zero or more and below the 15 minutes an iterator lives.";
+
     private static readonly TimeSpan IteratorLifetime = TimeSpan.FromMinutes(15);
 
     private readonly ClientCore _core;
@@ -279,7 +281,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// keep is on each record, <see cref="StreamRecord.SequenceNumber"/> of <see cref="ChangeRecord.DynamoDb"/>: a reader that stores the one of
     /// the last record it handled starts again after it with <see cref="ShardIteratorType.AfterSequenceNumber"/>. Changes of one item can move to
     /// a child shard when a shard ends, so a reader that wants them in order reads a parent to its end before its children, which
-    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/>.
+    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/>. <see cref="ReadStreamAsync"/> does that for every shard of a stream.
     /// </para>
     /// <para>
     /// Nothing is requested until the first record is asked for. An iterator lives 15 minutes, and a caller that takes longer between two
@@ -336,12 +338,96 @@ public sealed class DynamoDbStreamsClient : IDisposable
             throw new ArgumentException("AtSequenceNumber and AfterSequenceNumber need a SequenceNumber, and TrimHorizon and Latest take none.", nameof(request));
         }
 
-        if (request.EmptyPageDelay < TimeSpan.Zero || request.EmptyPageDelay >= IteratorLifetime)
+        if (!IsEmptyPageDelayValid(request.EmptyPageDelay))
         {
-            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, "EmptyPageDelay must be zero or more and below the 15 minutes an iterator lives.");
+            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, EmptyPageDelayMessage);
         }
 
         return ReadShardCoreAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads every shard of a stream in this process, as one sequence of records: it lists the shards, reads them at the same time with
+    /// <see cref="ReadShardAsync"/>, and starts the children of a shard once the shard has been read to its end.
+    /// </summary>
+    /// <param name="request">The stream, the position to start at and the wait on an idle shard.</param>
+    /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
+    /// <returns>
+    /// The records of all shards, each with the shard it came from. The changes of one item come in their order, because a shard is read to its end before its
+    /// children; records of different shards come in no particular order. The sequence ends only when no shard is left to read, which is when the stream was
+    /// switched off and every shard has been read; while the stream is enabled it runs until it is cancelled.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This reads one stream in one process and is no consumer: nothing stores how far it got, nothing shares the shards with other processes, and there is no
+    /// position to resume at, no checkpoint store, no lease, no retry policy per shard, no setting of the buffer and no typed record. An image is an
+    /// <see cref="Item"/>: <see cref="Item.Is{T}"/> tells the entities apart and <see cref="Item.To{T}"/> reads one. The position to keep is on each record:
+    /// <see cref="ShardChangeRecord.ShardId"/> and <see cref="StreamRecord.SequenceNumber"/>, from which <see cref="ReadShardAsync"/> with
+    /// <see cref="ShardIteratorType.AfterSequenceNumber"/> reads that shard on. The shard is on <see cref="ShardChangeRecord"/> and not on
+    /// <see cref="ChangeRecord"/>, because <see cref="GetRecordsAsync"/> cannot know it.
+    /// </para>
+    /// <para>
+    /// <see cref="DescribeStreamAsync"/> lists the shards, page by page. With <see cref="ShardIteratorType.TrimHorizon"/> each shard whose parent is not listed is
+    /// read from its oldest record, closed or open, and the others wait for their parent. With <see cref="ShardIteratorType.Latest"/> the shards closed at the
+    /// start count as read, and each shard open at the start is read from now on. A shard read to its end starts its children, which
+    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/> of <see cref="ShardFilterType.ChildShards"/>, and a child is read from its oldest
+    /// record. A shard counts as one of the children only if its <see cref="Shard.ParentShardId"/> names the parent, also when the service ignores the filter.
+    /// While the stream is <see cref="StreamStatus.Enabled"/> or <see cref="StreamStatus.Enabling"/>, a shard that ended without listed children is asked about
+    /// again after <see cref="ReadStreamRequest.EmptyPageDelay"/>, since DynamoDB can list them a moment later.
+    /// </para>
+    /// <para>
+    /// Nothing is requested until the first record is asked for. The records go through a small bounded buffer, so a shard waits while the caller is behind, and
+    /// a reader that keeps a shard busy holds the others back too. Each shard is read as <see cref="ReadShardAsync"/> reads it: an expired iterator is renewed,
+    /// and an open shard is asked again after <see cref="ReadStreamRequest.EmptyPageDelay"/>.
+    /// </para>
+    /// <para>
+    /// The first failure of any shard ends the sequence with that exception: the other readers are stopped and awaited, and the records still in the buffer are
+    /// dropped. Nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
+    /// closed shard that DynamoDB removed, 24 hours after it closed, before it was read, whose records are lost. Disposing the enumerator or cancelling stops
+    /// every reader and waits for it, so none outlives the enumeration.
+    /// </para>
+    /// <para>
+    /// Each call it makes is a span and a measurement of its own, as with the methods it is made of. Each shard it reads is an <c>Internal</c> span too, named
+    /// <c>DynamoDB Streams.ReadStream</c>, under the span that was current when the enumeration started, with the calls of the shard under it and a link to the
+    /// span of its parent shard. A shard that DynamoDB keeps open for hours makes a span of hours. The metric <c>dynasharp.client.stream.shards</c> counts the
+    /// shards being read, and <c>dynasharp.client.stream.records</c> the records handed out. A shard read to its end logs its children at the debug level.
+    /// Neither names a key, an image or the ARN of the stream.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="ReadStreamRequest.ShardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or
+    /// <see cref="ReadStreamRequest.EmptyPageDelay"/> is negative or 15 minutes or more.
+    /// </exception>
+    /// <exception cref="TrimmedDataAccessException">
+    /// The position in a shard is older than the 24 hours that records are kept, or a closed shard was removed before it was read, so changes are lost. It is
+    /// not handled here: start again, and rebuild from the table what the gap matters for.
+    /// </exception>
+    /// <exception cref="ExpiredIteratorException">A new iterator was expired before it could be used.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed (raised while reading).</exception>
+    /// <exception cref="ResourceNotFoundException">The stream does not exist (any more), or a shard that was open when it was listed is gone.</exception>
+    /// <exception cref="DynamoDbException">
+    /// DynamoDB returns any other error, for example <see cref="ValidationException"/> for a malformed ARN. A throttling or server error
+    /// surfaces only when the last attempt of a call failed with it too.
+    /// </exception>
+    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
+    /// <exception cref="HttpRequestException">A request could not be sent or its response could not be read, on every attempt.</exception>
+    /// <exception cref="TimeoutException">The last attempt of a call did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    public IAsyncEnumerable<ShardChangeRecord> ReadStreamAsync(ReadStreamRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.ShardIteratorType is not (ShardIteratorType.TrimHorizon or ShardIteratorType.Latest))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.ShardIteratorType, "ShardIteratorType must be TrimHorizon or Latest.");
+        }
+
+        if (!IsEmptyPageDelayValid(request.EmptyPageDelay))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.EmptyPageDelay, EmptyPageDelayMessage);
+        }
+
+        return StreamMerge.ReadAsync(this, _core, request, cancellationToken);
     }
 
     /// <summary>
@@ -387,6 +473,8 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// The handler given in <see cref="DynamoDbClientOptions.HttpHandler"/> is not disposed; its owner does that.
     /// </remarks>
     public void Dispose() => _core.Dispose();
+
+    private static bool IsEmptyPageDelayValid(TimeSpan delay) => delay >= TimeSpan.Zero && delay < IteratorLifetime;
 
     private async IAsyncEnumerable<ChangeRecord> ReadShardCoreAsync(ReadShardRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

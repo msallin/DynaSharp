@@ -496,6 +496,19 @@ helperStreamsHandler.Enqueue(StubResponse.Records("next", StubResponse.Change(Op
 var helperRecords = await helperStreamsClient.GetRecordsAsync(new GetRecordsRequest { ShardIterator = "iterator" });
 Check(helperRecords.Records.Single().EventName == OperationType.Remove, "StubResponse.Records reads back through a streams client");
 
+// A whole stream: the shard readers run on the pool and hand their records over through a channel.
+helperStreamsHandler.Enqueue(StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Disabled, Shards = [StubResponse.Shard("shard-1", endingSequenceNumber: "9")] }));
+helperStreamsHandler.Enqueue(StubResponse.ShardIterator("iterator"));
+helperStreamsHandler.Enqueue(StubResponse.Records(null, StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "user-1" })));
+helperStreamsHandler.Enqueue(StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Disabled }));
+var streamRecords = new List<ShardChangeRecord>();
+await foreach (var change in helperStreamsClient.ReadStreamAsync(new ReadStreamRequest { StreamArn = "arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/2026-01-01T00:00:00.000", ShardIteratorType = ShardIteratorType.TrimHorizon }))
+{
+    streamRecords.Add(change);
+}
+
+Check(streamRecords.Single() is { ShardId: "shard-1", Record.EventName: OperationType.Insert }, "ReadStreamAsync reads a stream to its end");
+
 // A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
 var lenients = users.Of<Lenient>();
 const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"Shipped":{"S":""},"After":{"N":"7"}}}""";

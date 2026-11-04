@@ -589,8 +589,12 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ### R6 - whole-stream reader (before 0.1.0, approved by the owner)
 
-- [~] claude: `DynamoDbStreamsClient.ReadStreamAsync(ReadStreamRequest)`: every shard of a stream in one process, concurrently, merged into one `IAsyncEnumerable`, parents before their children. Branch `feat/read-stream`.
+- [x] `DynamoDbStreamsClient.ReadStreamAsync(ReadStreamRequest)`: every shard of a stream in one process, concurrently, merged into one `IAsyncEnumerable<ShardChangeRecord>`, parents before their children. Branch `feat/read-stream`.
       Docs page, `docs/migrating.md` and `OrderFeed` use it. No consumer: no leasing, no checkpoints, no sharing of shards across processes (decision of 2026-11-04).
+- Decision: `ReadStreamRequest` has `StreamArn`, `ShardIteratorType` (`TrimHorizon` or `Latest`) and `EmptyPageDelay`, nothing else. A `Limit` per `GetRecords` was dropped: it tunes a call, and a reader that needs it reads its shards with `ReadShardAsync`.
+- Decision: nothing is skipped. A closed shard whose `GetShardIterator` answers `ResourceNotFoundException` was removed 24 hours after it closed, with its records, so it throws `TrimmedDataAccessException` (request id and status of the original) instead of counting as read. An open shard that is gone keeps its `ResourceNotFoundException`.
+- Decision: telemetry. A span per shard (`DynamoDB Streams.ReadStream`, `Internal`) under the span of the caller and linked, not nested, to its parent shard; `dynasharp.client.stream.shards` (up-down) and `.records`; log event 10 (Debug) when a shard is read to its end. No stream ARN anywhere, it names the account and the table.
+- Open: a child shard is read from `TRIM_HORIZON`. If it was trimmed before its turn, which takes a parent read more than 24 hours behind with an empty tail, the trimmed records are not noticed. `AT_SEQUENCE_NUMBER` with the `StartingSequenceNumber` of the child would throw, but whether DynamoDB takes that number for a shard whose first record has another is unverified, and the fake has one shard. Also open: if DynamoDB lists the second child of a split later than the first, the second is never read, since nobody asks again once some children are listed.
 
 ### R5 - an index key copied from its attribute, before 0.1.0
 

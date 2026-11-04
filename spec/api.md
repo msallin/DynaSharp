@@ -765,7 +765,7 @@ has no `PageAsync`, and `BeginsWith` takes no handle of a number.
 Escape hatches: `client.SendRawAsync("ListTables", """{"Limit":1}"""u8.ToArray(), ct)` for what nothing models, with the pipeline's signing, retries and
 telemetry; raw paths and interpolated expressions on typed commands; `Item.From` and `To<T>`.
 
-`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync` and `SendRawAsync`.
+`DynamoDbStreamsClient` takes the same options and has `ListStreamsAsync`, `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync`, `ReadStreamAsync` and `SendRawAsync`.
 `ReadShardAsync(ReadShardRequest, ct)` returns `IAsyncEnumerable<ChangeRecord>` for one shard: `StreamArn`, `ShardId`, a required `ShardIteratorType` with `SequenceNumber` exactly for the two sequence positions
 (`ArgumentException` otherwise, `ArgumentOutOfRangeException` for `Unknown`), `Limit` per `GetRecords`, and `EmptyPageDelay` (default 1 s, at least zero and below the 15 minutes of an iterator), waited on the client's
 `TimeProvider` after an empty page of an open shard. Arguments are checked at the call, requests start with the first `MoveNextAsync`. An expired iterator is renewed with `AfterSequenceNumber` of the last record returned, or at
@@ -774,6 +774,19 @@ the request's position before the first record; an iterator that is expired at o
 page boundary means nothing to a caller, and the position is per record. `StreamRecord.NewImage` and `OldImage` are `Item`, so `To<T>()` reads an image as an entity and `Is<T>()` tells the entities of one table apart. The members of
 the responses are nullable as the service model has them: botocore's `dynamodbstreams` marks no member of an output shape required but those of `KeySchemaElement`, and the API reference says `Required: No` for each, so a
 response without one reads as null, as everywhere else in the library, and nothing throws for it. There is no consumer, by scope.
+
+`ReadStreamAsync(ReadStreamRequest, ct)` returns `IAsyncEnumerable<ShardChangeRecord>` for every shard of one stream, read in this process. `ReadStreamRequest` is a record of `StreamArn`, a required
+`ShardIteratorType` of `TrimHorizon` or `Latest` (`ArgumentOutOfRangeException` otherwise) and `EmptyPageDelay` as on `ReadShardRequest`; nothing else, no `Limit`, no buffer size, no position to resume at.
+`ShardChangeRecord` is a `readonly record struct` of `ShardId` and `Record` (`ChangeRecord`): the shard is not on `ChangeRecord`, because `GetRecords` does not say it. Arguments are checked at the call, requests start with the
+first `MoveNextAsync`. It lists the shards with `DescribeStream`, every page; `TrimHorizon` starts each shard whose parent is not listed, closed or open, from the trim horizon, `Latest` starts each open shard from
+`Latest` and counts the closed ones as read. A shard is read with `ReadShardAsync` on a task of its own, and one read to its end starts its children, found with a `ShardFilter` of `CHILD_SHARDS` and kept only if
+their `ParentShardId` names it, from the trim horizon; while the stream is `ENABLED` or `ENABLING` and none is listed it asks again after `EmptyPageDelay`. Records go through a bounded buffer of 16. The changes of
+one item come in order, records of different shards in none. The sequence ends when no shard is left, which needs a stream that was switched off. The first failure of any shard ends it with that exception, after
+the other readers were stopped and awaited, and the records still buffered are dropped. Nothing is skipped: `TrimmedDataAccessException` surfaces, and a closed shard whose `GetShardIterator` gives
+`ResourceNotFoundException`, which DynamoDB removed 24 hours after it closed, throws `TrimmedDataAccessException` too, with the request id and status of the original. Cancelling or disposing the enumerator stops
+every reader and waits for it. Each shard is an `Internal` span `DynamoDB Streams.ReadStream` under the span current at the first `MoveNextAsync`, linked to the span of its parent shard, with
+`dynasharp.stream.shard_id` and `dynasharp.stream.record_count`; `dynasharp.client.stream.shards` (`{shard}`, an up-down counter) and `dynasharp.client.stream.records` (`{record}`) carry `server.address` and
+`server.port`; event 10 (Debug) logs a shard read to its end and the number of its children. No consumer: no leasing, no checkpoints, no sharing of shards across processes.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,

@@ -90,7 +90,7 @@ public sealed partial class FakeDynamoDb
 
     /// <summary>
     /// Creates a client of DynamoDB Streams over a new handler of this fake, as <see cref="StubClient.CreateStreams"/> makes it: it reads the streams of the tables of this fake, and
-    /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> works over it as over DynamoDB.
+    /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> work over it as over DynamoDB.
     /// </summary>
     /// <param name="configure">Adjusts the options with a <c>with</c> expression, or <see langword="null"/> to keep them.</param>
     /// <returns>The client.</returns>

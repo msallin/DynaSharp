@@ -45,6 +45,16 @@ internal static class DynaSharpTelemetry
         unit: "{item}",
         description: "Number of items a read with OnMappingFailure skipped because their type could not read them.");
 
+    internal static readonly UpDownCounter<long> StreamShards = Meter.CreateUpDownCounter<long>(
+        TelemetryNames.StreamShardsMetric,
+        unit: "{shard}",
+        description: "Number of shards that ReadStreamAsync is reading.");
+
+    internal static readonly Counter<long> StreamRecords = Meter.CreateCounter<long>(
+        TelemetryNames.StreamRecordsMetric,
+        unit: "{record}",
+        description: "Number of records that ReadStreamAsync handed to its caller.");
+
     internal static readonly Counter<double> ConsumedCapacity = Meter.CreateCounter<double>(
         TelemetryNames.ConsumedCapacityMetric,
         unit: "{capacity_unit}",

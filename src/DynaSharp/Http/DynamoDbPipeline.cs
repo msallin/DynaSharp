@@ -59,7 +59,6 @@ internal sealed class DynamoDbPipeline : IDisposable
     // What the signer needs of the endpoint, and what SigV4Signer.GetAuthority would build again on every attempt.
     private readonly string _authority;
     private readonly ArrayPool<byte> _pool;
-    private readonly OperationTelemetry _telemetry;
     private readonly ILogger _logger;
     private readonly RetryPolicy _retryPolicy;
     private readonly ClockSkewCorrection _clock;
@@ -80,7 +79,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         _maxResponseLength = maxResponseLength;
         _http = http;
         _pool = pool;
-        _telemetry = new OperationTelemetry(activitySource, configuration.TimeProvider, configuration.Region.Name, configuration.Endpoint);
+        Telemetry = new OperationTelemetry(activitySource, configuration.TimeProvider, configuration.Region.Name, configuration.Endpoint);
         _logger = logger;
         _retryPolicy = new RetryPolicy(configuration.MaxAttempts, random);
         _clock = configuration.Clock;
@@ -92,6 +91,9 @@ internal sealed class DynamoDbPipeline : IDisposable
         _authority = SigV4Signer.GetAuthority(_endpoint);
         _signer = new SigV4Signer(configuration.Region.Name, pool: pool);
     }
+
+    /// <summary>Gets what the client reports about its operations, for the layers that report more than a call, such as the shards of a stream.</summary>
+    public OperationTelemetry Telemetry { get; }
 
     /// <summary>Runs an operation of the request API.</summary>
     /// <typeparam name="TOperation">The operation.</typeparam>
@@ -120,7 +122,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         var tableName = call.GetTableName();
         var measure = DynaSharpTelemetry.OperationDuration.Enabled;
         var startTimestamp = measure ? _timeProvider.GetTimestamp() : 0;
-        var activity = _telemetry.StartActivity<TCall, TResponse>(in call, tableName);
+        var activity = Telemetry.StartActivity<TCall, TResponse>(in call, tableName);
         string? errorType = null;
         string? responseStatusCode = null;
         var buffers = _buffers.Rent() ?? new CallBuffers(_pool);
@@ -179,7 +181,7 @@ internal sealed class DynamoDbPipeline : IDisposable
             }
 
             // After the loop, not inside it: a failure here must not be mistaken for a failed attempt and retried.
-            _telemetry.RecordResponse<TCall, TResponse>(activity, tableName, in call, result);
+            Telemetry.RecordResponse<TCall, TResponse>(activity, tableName, in call, result);
             return result;
         }
         catch (Exception exception)
@@ -198,7 +200,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         {
             if (measure)
             {
-                _telemetry.RecordDuration(call.OperationName, tableName, startTimestamp, errorType, responseStatusCode);
+                Telemetry.RecordDuration(call.OperationName, tableName, startTimestamp, errorType, responseStatusCode);
             }
 
             activity?.Dispose();
@@ -242,13 +244,18 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <summary>Counts a run of a conflict retry that lost and is repeated.</summary>
     /// <param name="conflict">The failure of the run.</param>
     public void CountConflictRetry(DynamoDbException conflict) =>
-        _telemetry.CountConflictRetry(conflict.OperationName ?? UnknownOperation, conflict.TableName, conflict);
+        Telemetry.CountConflictRetry(conflict.OperationName ?? UnknownOperation, conflict.TableName, conflict);
 
     /// <summary>Counts an item that a read skipped because its type could not read it.</summary>
     /// <param name="operationName">The operation of the read.</param>
     /// <param name="tableName">The table of the read.</param>
     public void CountSkippedItem(string operationName, string tableName) =>
-        _telemetry.CountSkippedItem(operationName, tableName);
+        Telemetry.CountSkippedItem(operationName, tableName);
+
+    /// <summary>Logs that a shard of a stream was read to its end, an event of the reading of a stream and of no single call.</summary>
+    /// <param name="shardId">The shard.</param>
+    /// <param name="children">How many child shards are read next.</param>
+    public void LogShardFinished(string shardId, int children) => ClientLog.ShardFinished(_logger, shardId, children);
 
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>
@@ -256,7 +263,7 @@ internal sealed class DynamoDbPipeline : IDisposable
     public void ReportConflictsExhausted(DynamoDbException conflict, int runs)
     {
         var operationName = conflict.OperationName ?? UnknownOperation;
-        _telemetry.CountConflictExhausted(operationName, conflict.TableName, conflict);
+        Telemetry.CountConflictExhausted(operationName, conflict.TableName, conflict);
         ClientLog.ConflictRunsExhausted(_logger, operationName, conflict.TableName ?? NoSingleTable, OperationTelemetry.GetErrorType(conflict), runs);
     }
 
@@ -444,7 +451,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         var kind = FailureClassifier.Classify(exception);
         if (kind == FailureKind.Throttling)
         {
-            _telemetry.CountThrottle(operationName, tableName, exception);
+            Telemetry.CountThrottle(operationName, tableName, exception);
         }
 
         var decision = _retryPolicy.Decide(kind, resendAtOnce, attempt, lastRetryCost, callMaxAttempts);
@@ -457,7 +464,7 @@ internal sealed class DynamoDbPipeline : IDisposable
                 ClientLog.RetryQuotaExhausted(_logger, operationName, tableName ?? NoSingleTable, OperationTelemetry.GetErrorType(exception), attempt);
                 break;
             case RetryVerdict.Resend or RetryVerdict.Retry:
-                _telemetry.CountRetry(operationName, tableName, exception);
+                Telemetry.CountRetry(operationName, tableName, exception);
                 break;
         }
 
