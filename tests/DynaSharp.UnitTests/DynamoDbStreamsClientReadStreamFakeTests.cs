@@ -64,10 +64,73 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
         var reading = streams.ReadStreamAsync(FromTrimHorizon()).Take(2 * Keys.Length).ToListAsync().AsTask();
 
         // Act
-        await RunOnTheClockAsync(reading, time, TimeSpan.FromMinutes(5));
+        await RunOnTheClockAsync(reading, time, TimeSpan.FromMinutes(5), waiting: 2);
 
         // Assert
         await Assert.That(Changes(await reading)).IsEqualTo(string.Join(",", Keys.Select(static key => key + ":1>2")));
+    }
+
+    [Test]
+    [Arguments(0, 2)]
+    [Arguments(30, 1)]
+    public async Task ReadStreamAsync_LatestDuringASplitWhoseSecondChildIsListedLate_ReadsTheWritesOfBothChildren(int secondChildListedAfter, int listedAtTheStart)
+    {
+        // Arrange: the split happens before the start, and the items are written once the readers of the children listed at the start hold their iterators
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        fake.SplitStreamShards("Users", secondChildListedAfter: TimeSpan.FromSeconds(secondChildListedAfter));
+        var positioned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var iterators = 0;
+        using var handler = new StubHandler((request, cancellationToken) =>
+        {
+            var answer = fake.Answer(request);
+            if (request.Operation == "GetShardIterator" && Interlocked.Increment(ref iterators) == listedAtTheStart)
+            {
+                positioned.TrySetResult();
+            }
+
+            return Task.FromResult(answer);
+        });
+        using var streams = StubClient.CreateStreams(handler, options => options with { TimeProvider = time });
+        var latest = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest };
+        var reading = streams.ReadStreamAsync(latest).Take(2 * Keys.Length).ToListAsync().AsTask();
+        await positioned.Task;
+        PutAll(fake, 1);
+        PutAll(fake, 2);
+
+        // Act
+        await RunOnTheClockAsync(reading, time, TimeSpan.FromMinutes(2), waiting: 2);
+
+        // Assert
+        await Assert.That(Changes(await reading)).IsEqualTo(string.Join(",", Keys.Select(static key => key + ":1>2")));
+    }
+
+    [Test]
+    public async Task CreateStreamsClient_NoOptions_WaitsOnTheClockOfTheFake()
+    {
+        // Arrange
+        var time = new ManualTimeProvider(Start);
+        var fake = new FakeDynamoDb(time);
+
+        // Act
+        using var streams = fake.CreateStreamsClient();
+
+        // Assert
+        await Assert.That(streams.Options.TimeProvider).IsSameReferenceAs(time);
+    }
+
+    [Test]
+    public async Task CreateStreamsClient_OptionsWithAClock_KeepThatClock()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb(new ManualTimeProvider(Start));
+        var other = new ManualTimeProvider(Start);
+
+        // Act
+        using var streams = fake.CreateStreamsClient(options => options with { TimeProvider = other });
+
+        // Assert
+        await Assert.That(streams.Options.TimeProvider).IsSameReferenceAs(other);
     }
 
     [Test]
@@ -120,13 +183,14 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
             .OrderBy(static item => item.Key, StringComparer.Ordinal)
             .Select(static item => item.Key + ":" + string.Join(">", item.Select(static change => change.Record.DynamoDb!.NewImage!["v"].AsNumber()))));
 
-    // Moves the clock to each wait the reading starts, until it ends or the clock moved by the limit.
-    private static async Task RunOnTheClockAsync(Task reading, ManualTimeProvider time, TimeSpan limit)
+    // Moves the clock to the next wait of the reading, but only once as many waits as the test names are armed: the reader of an open shard waits again at
+    // once, on the thread that moved the clock, and would otherwise run the clock away from a reader that the pool has not run yet.
+    private static async Task RunOnTheClockAsync(Task reading, ManualTimeProvider time, TimeSpan limit, int waiting)
     {
         var moved = TimeSpan.Zero;
         while (!reading.IsCompleted)
         {
-            if (time.NextDueIn is { } dueIn && dueIn < TimeSpan.FromMinutes(10))
+            if (time.ArmedTimers >= waiting && time.NextDueIn is { } dueIn)
             {
                 moved += dueIn;
                 if (moved > limit)
@@ -134,7 +198,7 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
                     throw new TimeoutException("The reading did not end on the clock.");
                 }
 
-                time.Advance(dueIn);
+                time.Advance(dueIn < TimeSpan.Zero ? TimeSpan.Zero : dueIn);
             }
             else
             {

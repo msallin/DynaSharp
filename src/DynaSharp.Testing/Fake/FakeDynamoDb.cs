@@ -92,10 +92,17 @@ public sealed partial class FakeDynamoDb
     /// Creates a client of DynamoDB Streams over a new handler of this fake, as <see cref="StubClient.CreateStreams"/> makes it: it reads the streams of the tables of this fake, and
     /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> work over it as over DynamoDB.
     /// </summary>
+    /// <remarks>
+    /// Its <see cref="DynamoDbClientOptions.TimeProvider"/> is the clock of this fake, so that what the client waits for the stream, <see cref="ReadShardRequest.EmptyPageDelay"/> and
+    /// the looks for the children of a shard, passes as the fake's iterators expire, its records age and its late children are listed: a test that moves the clock moves both.
+    /// <paramref name="configure"/> can set another. <see cref="CreateClient"/> keeps the system clock, because its client waits only for itself, between the runs of
+    /// <c>RetryOnConflictAsync</c>, which a test should not have to move a clock for.
+    /// </remarks>
     /// <param name="configure">Adjusts the options with a <c>with</c> expression, or <see langword="null"/> to keep them.</param>
     /// <returns>The client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
-    public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) => StubClient.CreateStreams(CreateHandler(), configure);
+    public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) =>
+        StubClient.CreateStreams(CreateHandler(), options => configure is null ? options with { TimeProvider = _db.Clock } : configure(options with { TimeProvider = _db.Clock }));
 
     /// <summary>Answers a request a <see cref="StubHandler"/> received: the operation from <c>X-Amz-Target</c>, and the body as sent.</summary>
     /// <param name="request">The request.</param>

@@ -109,7 +109,7 @@ The client logs only what no single caller sees: its configuration, retries that
 | 8 | Warning | `RetryOnConflictAsync` used up its runs | `DynamoDB {Operation} on table {Table} lost to another writer with {ErrorType} on run {Runs} of RetryOnConflictAsync, ...` |
 | 9 | Warning | The endpoint is http on a non-loopback host, once per client | `DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.` |
 | 10 | Debug | `ReadStreamAsync` read a shard to its end and stopped looking for its children | `DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.` |
-| 11 | Debug | `ReadStreamAsync` found a child only on a later look | `DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the shard was read to its end.` |
+| 11 | Debug | `ReadStreamAsync` found a child only on a later look | `DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the first look for its children.` |
 | 20 | Debug | The default chain chose a source | `Credentials come from the {Source}.` |
 | 21 | Warning | A refresh failed while the credentials are still good | `Refreshing the credentials from the {Source} failed in the advisory refresh period: {Reason}. ...`, with the exception |
 | 22 | Warning | A refresh failed and requests fail until one succeeds | `Refreshing the credentials from the {Source} failed in the mandatory refresh period: {Reason}. ...`, with the exception |

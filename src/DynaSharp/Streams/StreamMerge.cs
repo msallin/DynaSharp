@@ -109,6 +109,26 @@ internal sealed class StreamMerge
         return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
     }
 
+    // The children listed at the start, by parent.
+    private static Dictionary<string, List<string>> ChildrenOf(List<Shard> shards)
+    {
+        var children = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var shard in shards)
+        {
+            if (shard.ParentShardId is { } parent)
+            {
+                if (!children.TryGetValue(parent, out var known))
+                {
+                    children[parent] = known = [];
+                }
+
+                known.Add(shard.ShardId!);
+            }
+        }
+
+        return children;
+    }
+
     // Never fails, like every reader: what goes wrong goes through the channel.
     private async Task DiscoverAsync()
     {
@@ -122,15 +142,21 @@ internal sealed class StreamMerge
             }
 
             var latest = _request.ShardIteratorType == ShardIteratorType.Latest;
+            var children = latest ? ChildrenOf(shards) : null;
             foreach (var shard in shards)
             {
                 var closed = IsClosed(shard);
                 if (latest)
                 {
-                    // A shard closed at the start counts as read, so its children that are open at the start are read from now on, as every open shard.
+                    // A shard open at the start is read from now on. A closed one has no records to read from now on, but it can still get a child that
+                    // is not listed yet, so it is watched as a shard read to its end is.
                     if (!closed)
                     {
                         Launch(shard.ShardId!, closed: false, ShardIteratorType.Latest, null, default);
+                    }
+                    else
+                    {
+                        Watch(shard.ShardId!, children!.GetValueOrDefault(shard.ShardId!));
                     }
                 }
                 else if (shard.ParentShardId is not { } parent || !listed.Contains(parent))
@@ -140,6 +166,60 @@ internal sealed class StreamMerge
                     Launch(shard.ShardId!, closed, ShardIteratorType.TrimHorizon, null, default);
                 }
             }
+        }
+#pragma warning disable CA1031 // The failure is not swallowed: the consumer gets it from the channel.
+        catch (Exception failure)
+#pragma warning restore CA1031
+        {
+            await FailAsync(failure).ConfigureAwait(false);
+        }
+        finally
+        {
+            Leave();
+        }
+    }
+
+    // A shard closed at the start under Latest: its children listed then are handled by their own state at the start, and only a child listed later is
+    // started, from its first record. The look is the one of a shard read to its end, with the window for more children counted from the opening of the
+    // first known child, which its id tells: a shard whose children opened more than MoreChildrenWindow ago gets no look at all, which keeps a stream with
+    // a long history from paying a look for every closed shard. Without a child it is looked at as long as the stream is enabled.
+    private void Watch(string shardId, List<string>? known)
+    {
+        DateTimeOffset? firstChild = null;
+        if (known is not null)
+        {
+            var now = _core.TimeProvider.GetUtcNow();
+            var first = now;
+            foreach (var child in known)
+            {
+                if (OpenedAt(child) is { } opened && opened < first)
+                {
+                    first = opened;
+                }
+            }
+
+            if (now - first >= MoreChildrenWindow)
+            {
+                return;
+            }
+
+            firstChild = first;
+        }
+
+        Enter();
+        _ = Task.Run(() => WatchAsync(shardId, known, firstChild));
+    }
+
+    private async Task WatchAsync(string shardId, List<string>? known, DateTimeOffset? firstChild)
+    {
+        var stopped = _stop.Token;
+        try
+        {
+            await StartChildrenAsync(shardId, default, known, firstChild, read: false, stopped).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stopped.IsCancellationRequested)
+        {
+            // Stopped by the consumer or by a reader, which has reported why.
         }
 #pragma warning disable CA1031 // The failure is not swallowed: the consumer gets it from the channel.
         catch (Exception failure)
@@ -221,7 +301,7 @@ internal sealed class StreamMerge
                     gone.StatusCode);
             }
 
-            await StartChildrenAsync(shardId, activity?.Context ?? default, stopped).ConfigureAwait(false);
+            await StartChildrenAsync(shardId, activity?.Context ?? default, null, null, read: true, stopped).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (stopped.IsCancellationRequested)
         {
@@ -244,13 +324,13 @@ internal sealed class StreamMerge
     // The filter finds the children without listing the stream, and the check of the parent keeps an emulator that ignores the filter from starting every shard.
     // DynamoDB may list a child a moment after its parent closed, so each child starts as soon as it is listed, and the looks go on: while the stream is enabled
     // and none is listed, until one is; after the first, for a while longer, see MoreChildrenWindow. A stream that is no longer enabled opens no more shards.
-    private async Task StartChildrenAsync(string shardId, ActivityContext span, CancellationToken stopped)
+    // The children in known are not started again, and firstChild is when the first of them was there.
+    private async Task StartChildrenAsync(string shardId, ActivityContext span, List<string>? known, DateTimeOffset? firstChild, bool read, CancellationToken stopped)
     {
         var time = _core.TimeProvider;
         var filter = new ShardFilter { Type = ShardFilterType.ChildShards, ShardId = shardId };
-        var started = new HashSet<string>(StringComparer.Ordinal);
+        var started = known is null ? new HashSet<string>(StringComparer.Ordinal) : new HashSet<string>(known, StringComparer.Ordinal);
         var ended = time.GetTimestamp();
-        long? firstChild = null;
         for (var look = 0; ; look++)
         {
             var (shards, status) = await ShardsAsync(filter).ConfigureAwait(false);
@@ -267,10 +347,14 @@ internal sealed class StreamMerge
                 }
             }
 
-            firstChild ??= started.Count > 0 ? time.GetTimestamp() : null;
-            if (status is not (StreamStatus.Enabled or StreamStatus.Enabling) || (firstChild is { } first && time.GetElapsedTime(first) >= MoreChildrenWindow))
+            firstChild ??= started.Count > 0 ? time.GetUtcNow() : null;
+            if (status is not (StreamStatus.Enabled or StreamStatus.Enabling) || (firstChild is { } first && time.GetUtcNow() - first >= MoreChildrenWindow))
             {
-                _core.LogShardFinished(shardId, started.Count);
+                if (read)
+                {
+                    _core.LogShardFinished(shardId, started.Count);
+                }
+
                 return;
             }
 

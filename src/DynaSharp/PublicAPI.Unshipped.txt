@@ -35,12 +35,12 @@ DynaSharp.Streams.ReadStreamRequest.ShardIteratorType.init -> void
 DynaSharp.Streams.ReadStreamRequest.StreamArn.get -> string!
 DynaSharp.Streams.ReadStreamRequest.StreamArn.init -> void
 DynaSharp.Streams.ShardChangeRecord
-DynaSharp.Streams.ShardChangeRecord.Deconstruct(out string! ShardId, out DynaSharp.Streams.ChangeRecord! Record) -> void
+DynaSharp.Streams.ShardChangeRecord.Deconstruct(out string! shardId, out DynaSharp.Streams.ChangeRecord! record) -> void
 DynaSharp.Streams.ShardChangeRecord.Equals(DynaSharp.Streams.ShardChangeRecord other) -> bool
 DynaSharp.Streams.ShardChangeRecord.Record.get -> DynaSharp.Streams.ChangeRecord!
 DynaSharp.Streams.ShardChangeRecord.Record.init -> void
 DynaSharp.Streams.ShardChangeRecord.ShardChangeRecord() -> void
-DynaSharp.Streams.ShardChangeRecord.ShardChangeRecord(string! ShardId, DynaSharp.Streams.ChangeRecord! Record) -> void
+DynaSharp.Streams.ShardChangeRecord.ShardChangeRecord(string! shardId, DynaSharp.Streams.ChangeRecord! record) -> void
 DynaSharp.Streams.ShardChangeRecord.ShardId.get -> string!
 DynaSharp.Streams.ShardChangeRecord.ShardId.init -> void
 DynaSharp.Table<T>.Client.get -> DynaSharp.DynamoDbClient!
@@ -57,5 +57,5 @@ static DynaSharp.Streams.ReadStreamRequest.operator !=(DynaSharp.Streams.ReadStr
 static DynaSharp.Streams.ReadStreamRequest.operator ==(DynaSharp.Streams.ReadStreamRequest? left, DynaSharp.Streams.ReadStreamRequest? right) -> bool
 static DynaSharp.Streams.ShardChangeRecord.operator !=(DynaSharp.Streams.ShardChangeRecord left, DynaSharp.Streams.ShardChangeRecord right) -> bool
 static DynaSharp.Streams.ShardChangeRecord.operator ==(DynaSharp.Streams.ShardChangeRecord left, DynaSharp.Streams.ShardChangeRecord right) -> bool
-~override DynaSharp.Streams.ShardChangeRecord.Equals(object obj) -> bool
-~override DynaSharp.Streams.ShardChangeRecord.ToString() -> string
+override DynaSharp.Streams.ShardChangeRecord.Equals(object? obj) -> bool
+override DynaSharp.Streams.ShardChangeRecord.ToString() -> string!

@@ -477,6 +477,38 @@ public sealed class StreamTests(Backend backend)
     }
 
     [Test]
+    public async Task ReadStream_LatestDuringASplitWithALateSecondChild_ReadsTheWritesOfBothChildren()
+    {
+        // Arrange: the split is before the start, its second child is listed five seconds later, well after the start, and the items are written once
+        // the reader of the first child holds its iterator, so that Latest sees them
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        if (sandbox.Emulator.Fake is not { } fake)
+        {
+            Skip.Test($"{backend}: only the fake splits a shard on demand.");
+            return;
+        }
+
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        fake.SplitStreamShards(table, secondChildListedAfter: TimeSpan.FromSeconds(5));
+        using var positioned = new PositionedHandler(sandbox.Emulator.CreateHandler());
+        using var streams = new DynamoDbStreamsClient(sandbox.Emulator.CreateOptions() with { HttpHandler = positioned });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        string[] keys = ["k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10", "k11", "k12", "k13", "k14", "k15"];
+        var reading = streams.ReadStreamAsync(StreamFromTrimHorizon(arn) with { ShardIteratorType = ShardIteratorType.Latest }, timeout.Token)
+            .Take(keys.Length).ToListAsync(timeout.Token).AsTask();
+        await positioned.Positioned.WaitAsync(timeout.Token);
+
+        // Act
+        await PutAllAsync(sandbox, table, keys, 1);
+        var records = await reading;
+
+        // Assert
+        await Assert.That(string.Join(",", records.Select(static change => change.Record.DynamoDb!.Keys!["pk"].AsString()).Order(StringComparer.Ordinal)))
+            .IsEqualTo(string.Join(",", keys.Order(StringComparer.Ordinal)));
+    }
+
+    [Test]
     public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
     {
         // Arrange
@@ -541,5 +573,24 @@ public sealed class StreamTests(Backend backend)
             ExpressionAttributeValues = Items.Values((":v", AttributeValue.FromNumber(2))),
         });
         await sandbox.Client.DeleteItemAsync(new DeleteItemRequest { TableName = table, Key = Items.Key("a") });
+    }
+
+    // Says when the first GetShardIterator has been answered.
+    private sealed class PositionedHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
+    {
+        private readonly TaskCompletionSource _positioned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Positioned => _positioned.Task;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken);
+            if (request.Headers.TryGetValues("X-Amz-Target", out var targets) && targets.Single().EndsWith(".GetShardIterator", StringComparison.Ordinal))
+            {
+                _positioned.TrySetResult();
+            }
+
+            return response;
+        }
     }
 }

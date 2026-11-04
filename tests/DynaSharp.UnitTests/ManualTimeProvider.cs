@@ -35,6 +35,18 @@ internal sealed class ManualTimeProvider : TimeProvider
         }
     }
 
+    /// <summary>Gets the number of timers that wait to fire.</summary>
+    public int ArmedTimers
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _timers.Count(static timer => timer.DueAt is not null);
+            }
+        }
+    }
+
     /// <summary>Gets the time until the earliest armed timer fires, or <see langword="null"/> if none is armed.</summary>
     public TimeSpan? NextDueIn
     {

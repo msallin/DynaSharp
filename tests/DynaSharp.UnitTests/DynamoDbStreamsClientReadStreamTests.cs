@@ -110,6 +110,83 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_LatestAndAChildOfAClosedShardListedLate_ReadsTheLateChild()
+    {
+        // Arrange: a split in progress at the start, whose second child DynamoDB lists only on the second look
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p"), Open("c1", "p")));
+        script.Answer("children:p", Description(StreamStatus.Enabled, null, Open("c1", "p")), Description(StreamStatus.Enabled, null, Open("c1", "p"), Closed("c2", "p")));
+        script.ClosedShard("c1", "c1-1");
+        script.ClosedShard("c2", "c2-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(string.Join(",", Positions(script.Handler).Order(StringComparer.Ordinal))).IsEqualTo($"c1:LATEST,c2:AT_SEQUENCE_NUMBER:{ShardStart}");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_LatestAndTheLookForChildrenOfAClosedShardFails_ThrowsTheFailure()
+    {
+        // Arrange
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.Answer("children:p", StubResponse.DynamoDbError("ValidationException", "Failure of the look."));
+        using var streams = TestClient.CreateStreams(script.Handler);
+
+        // Act
+        var act = async () => await streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ValidationException>();
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_LatestAndAClosedShardWithoutAChildYet_ReadsTheChildOnceItIsListed()
+    {
+        // Arrange: the shard closed just before the start, and DynamoDB lists its child a second later
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.Answer("children:p", Description(StreamStatus.Enabled, null), Description(StreamStatus.Disabled, null, Closed("c", "p")));
+        script.ClosedShard("c", "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(string.Join(",", SequenceNumbers(await reading))).IsEqualTo("c-1");
+    }
+
+    [Test]
+    [Arguments(61, 0)]
+    [Arguments(59, 1)]
+    public async Task ReadStreamAsync_LatestAndAClosedShardWhoseChildOpenedThatLongAgo_LooksForMoreChildrenOnlyWithinAMinute(int secondsAgo, int looks)
+    {
+        // Arrange: the id of the child tells when it opened, and with it when the split was
+        var now = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        var child = $"shardId-{now.AddSeconds(-secondsAgo).ToUnixTimeMilliseconds():D20}-0000000a";
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p"), Open(child, "p")));
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Open(child, "p")));
+        script.ClosedShard(child, "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(now));
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync();
+
+        // Assert
+        await Assert.That(script.Handler.Requests.Count(static sent => sent.Operation == "DescribeStream" && sent.BodyJson.TryGetProperty("ShardFilter", out var filter)
+            && filter.GetProperty("ShardId").GetString() == "p")).IsEqualTo(looks);
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Latest_ReadsAChildOfAShardOpenAtTheStartFromItsFirstSequenceNumber()
     {
         // Arrange
@@ -231,7 +308,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         script.ClosedShard("p", "p-1");
         script.Answer("children:p", Description(status, null), Description(StreamStatus.Disabled, null, Closed("c", "p")));
         script.ClosedShard("c", "c-1");
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.FromSeconds(2) }).ToListAsync().AsTask();
 
         // Act
@@ -302,7 +379,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         script.Answer("iterator:o", StubResponse.ShardIterator("o/0"));
         script.Answer("records:o/0", StubResponse.Records("o/1"));
         script.Answer("records:o/1", StubResponse.Records(null, Insert("o-1")));
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.FromSeconds(3) }).ToListAsync().AsTask();
 
         // Act
@@ -542,7 +619,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
             Description(StreamStatus.Enabled, null, Closed("c1", "p"), Closed("c2", "p")));
         script.ClosedShard("c1", "c1-1");
         script.ClosedShard("c2", "c2-1");
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
 
         // Act
@@ -562,7 +639,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         script.ClosedShard("p", "p-1");
         script.Answer("children:p", Description(StreamStatus.Enabled, null, Closed("c", "p")));
         script.ClosedShard("c", "c-1");
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
 
         // Act
@@ -582,7 +659,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         script.ClosedShard("p", "p-1");
         script.Answer("children:p", Description(StreamStatus.Enabled, null, Closed("c", "p")));
         script.ClosedShard("c", "c-1");
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.FromSeconds(7) }).ToListAsync().AsTask();
 
         // Act
@@ -602,7 +679,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         script.ClosedShard("p", "p-1");
         script.Answer("children:p", Description(StreamStatus.Enabled, null), Description(StreamStatus.Disabled, null, Closed("c", "p")));
         script.ClosedShard("c", "c-1");
-        using var streams = TestClient.CreateStreams(script.Handler, time);
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
         var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.Zero }).ToListAsync().AsTask();
 
         // Act
