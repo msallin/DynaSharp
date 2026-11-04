@@ -777,7 +777,7 @@ response without one reads as null, as everywhere else in the library, and nothi
 
 `ReadStreamAsync(ReadStreamRequest, ct)` returns `IAsyncEnumerable<ShardChangeRecord>` for every shard of one stream, read in this process. `ReadStreamRequest` is a record of `StreamArn`, a required
 `ShardIteratorType` of `TrimHorizon` or `Latest` (`ArgumentOutOfRangeException` otherwise) and `EmptyPageDelay` as on `ReadShardRequest`; nothing else, no `Limit`, no buffer size, no position to resume at.
-`ShardChangeRecord` is a `readonly record struct` of `ShardId` and `Record` (`ChangeRecord`): the shard is not on `ChangeRecord`, because `GetRecords` does not say it. Arguments are checked at the call, requests start with the
+`ShardChangeRecord` is a `readonly struct` of `ShardId` and `Record` (`ChangeRecord`) with value equality, `Deconstruct` and `ToString` written out, not a `record struct`, whose generated `Equals(object)` has no nullable annotation: the shard is not on `ChangeRecord`, because `GetRecords` does not say it. Arguments are checked at the call, requests start with the
 first `MoveNextAsync`. It lists the shards with `DescribeStream`, every page; `TrimHorizon` starts each shard whose parent is not listed, closed or open, from the trim horizon, `Latest` starts each open shard from
 `Latest` and counts the closed ones as read. A shard is read with `ReadShardAsync` on a task of its own, and one read to its end starts its children, found with a `ShardFilter` of `CHILD_SHARDS` and kept only if
 their `ParentShardId` names it. A child is read from the trim horizon if its id (`shardId-<20 digits of Unix milliseconds>-...`) says it opened less than 23 hours ago on the client's clock, since none of its
