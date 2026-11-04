@@ -14,6 +14,9 @@ public interface IDynamoDbEntity<TSelf> : IDynamoDbDocument<TSelf>
     /// <summary>Gets what the type knows about its table: key names, indexes, discriminator and version attribute.</summary>
     public static abstract DynamoDbEntityInfo Info { get; }
 
+    /// <inheritdoc/>
+    static DynamoDbEntityInfo? IDynamoDbDocument<TSelf>.EntityInfo => TSelf.Info;
+
     /// <summary>Writes the primary key attributes, without the surrounding braces.</summary>
     /// <param name="writer">The writer, positioned inside a <c>Key</c> object.</param>
     /// <param name="entity">The entity to take the key from.</param>

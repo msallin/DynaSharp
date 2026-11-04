@@ -403,6 +403,11 @@ public static class TransactWriteExtensions
     /// Renders the body this transaction would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests
     /// and debugging. The text contains the items and a generated token that nothing ever sends.
     /// </summary>
+    /// <remarks>
+    /// C# offers an extension method over a type parameter on every type and checks the constraint only after picking it, so on a type without a <c>ToRequestJson</c> of its own this one is
+    /// the candidate, and the compiler answers <c>CS0311</c>, naming <c>TransactWriteExtensions.ToRequestJson&lt;TChain&gt;</c>. The error means that the type has no <c>ToRequestJson</c>, as
+    /// <see cref="ParallelScanCommand{T}"/>, which sends one request per segment, has none. Every other command has one of its own, which wins over this one.
+    /// </remarks>
     /// <typeparam name="TChain">The type of the command or step.</typeparam>
     /// <param name="chain">The command or step.</param>
     /// <returns>The request body.</returns>

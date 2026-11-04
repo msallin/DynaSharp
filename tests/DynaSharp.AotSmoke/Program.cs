@@ -576,6 +576,9 @@ var fakeQueried = await fakeVisitors.Query("v-1").ItemsAsync().ToListAsync();
 Check(fakeQueried is [{ Id: "v-1", Visits: 1 }], "the fake answers a Put and a Query");
 var fakeVisits = await fakeVisitors.Update(new Visitor.Key("v-1")).Add("visits", 1).Return(Attr<int>("visits")).SendAsync();
 Check(fakeVisits == 2, "the fake answers an Update");
+fake.Put("Visitors", new Item { ["pk"] = "c-1", ["_type"] = "COST_CENTER" });
+Check(fake.Items<Visitor>("Visitors") is [{ Id: "v-1" }], "Items<T> of the fake skips the items of another entity");
+fake.Delete("Visitors", new Item { ["pk"] = "c-1" });
 await fakeVisitors.Delete(new Visitor("v-1", 2)).IfExists().SendAsync();
 Check(fake.Items("Visitors").Count == 0, "the fake answers a Delete");
 

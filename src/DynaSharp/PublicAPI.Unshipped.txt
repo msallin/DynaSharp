@@ -1,4 +1,5 @@
 #nullable enable
+DynaSharp.CreateTableCommand.ToRequestJson() -> string!
 DynaSharp.Requests.CreateTableRequest.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
 DynaSharp.Requests.CreateTableRequest.OnDemandThroughput.init -> void
 DynaSharp.Requests.GlobalSecondaryIndex.OnDemandThroughput.get -> DynaSharp.Requests.OnDemandThroughput?
