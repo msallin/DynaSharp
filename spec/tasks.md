@@ -587,6 +587,11 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R6 - whole-stream reader (before 0.1.0, approved by the owner)
+
+- [~] claude: `DynamoDbStreamsClient.ReadStreamAsync(ReadStreamRequest)`: every shard of a stream in one process, concurrently, merged into one `IAsyncEnumerable`, parents before their children. Branch `feat/read-stream`.
+      Docs page, `docs/migrating.md` and `OrderFeed` use it. No consumer: no leasing, no checkpoints, no sharing of shards across processes (decision of 2026-11-04).
+
 ### R5 - an index key copied from its attribute, before 0.1.0
 
 Branch `m4/r5-key-copy`, from the last review, approved by the owner.
@@ -762,7 +767,7 @@ Branch `m4/r3-bind-errors`, item 11 of the advice on the second focus group, app
 | Date | Decision |
 |---|---|
 | 2026-10-31 | Target `net11.0` only (personal project for now). |
-| 2026-10-31 | Streams: low-level API only. No consumer, no leasing. |
+| 2026-10-31 | Streams: low-level API only. No consumer, no leasing. Amended on 2026-11-04. |
 | 2026-10-31 | No CRC32 response validation. |
 | 2026-10-31 | Stryker break threshold 90 %. Coverage 100 % line and branch. |
 | 2026-10-31 | No interface on `DynamoDbClient`; the handler seam plus the fake is the testing story. |
@@ -825,6 +830,7 @@ Branch `m4/r3-bind-errors`, item 11 of the advice on the second focus group, app
 | 2026-11-03 | Owner's decision, security review: `KeyWriter` returns its arrays uncleared like every other pooled buffer, and the in-process threat model is decision 18 of `architecture.md`. An http endpoint is not rejected, because DynamoDB Local in docker-compose (`http://dynamodb-local:8000`) must work; on a host that is not loopback the client warns once (event 9), and the web identity provider once for STS (event 25). A custom `HttpHandler` reads the request content only before its `SendAsync` returns and sends a request once. |
 | 2026-11-03 | Owner's decision (R2): continuation tokens can be signed, opt-in, with `DynamoDbClientOptions.TokenSigner`. Plain tokens stay as decided on 2026-11-01. Details under "R2" in "M4 and later". |
 | 2026-11-03 | Owner's decisions: the retry of a throttled control-plane call (`CreateTable`, `UpdateTable`, `DeleteTable`) keeps the budget of every other call; `mfa_serial` in a profile fails with advice to get a session from the CLI, no prompt; `DYNA202` stays a warning, since it can report code that compiles; the Stryker run on the code of the morning was stopped and runs again once M4 merges. |
+| 2026-11-04 | Owner's decision, amending the one of 2026-10-31 on streams: no consumer. No leasing, no checkpoints, no sharing of shards across processes. Reading one shard or one stream in-process is API (`ReadShardAsync`, `ReadStreamAsync`, R6). Why: `ReadShardAsync` already composes wire calls, so reading a whole stream is the same kind of API one level up; two migrated apps hand-wrote the same shard walk of about 150 lines (roots, children after their parent, `DescribeStream` paging); and the repository's own sample got failure reporting wrong, waiting with `Task.WhenAll` on shards that never end. |
 
 ## Findings and notes
 

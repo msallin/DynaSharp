@@ -84,7 +84,7 @@ Fix:
 
 ### Out of scope
 
-- High-level stream consumer, shard leasing, checkpointing (KCL territory).
+- Streams: no consumer. No leasing, no checkpoints, no sharing of shards across processes (KCL territory). Reading one shard or one stream in-process is API.
 - CRC32 response validation (TLS guarantees integrity).
 - PartiQL, DAX, other target frameworks.
 - Lambda stream-event deserialization (deferred, revisit on demand).
