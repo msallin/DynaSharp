@@ -1,14 +1,12 @@
 name: release
 
-# Runs after every CI run on main and releases after a green one of a push: derive the version from Conventional Commits, tag, pack,
-# create a GitHub release. A run whose commits warrant no release (only docs, chore, ci, test, ...) does nothing. The branches filter
-# keeps out CI on ci/** branches, and the job's if keeps out pull requests and manual runs. Publishing to nuget.org runs only while the
-# repository variable PUBLISH_TO_NUGET is 'true', in the environment nuget, with NuGet trusted publishing for the user NUGET_USER.
+# Releases on demand: run it on main (Actions, release, Run workflow) once the commits to ship are there. It releases the head of
+# main only after a green CI run of a push for that commit, derives the version from Conventional Commits, tags, packs and creates a
+# GitHub release. A run whose commits warrant no release (only docs, chore, ci, test, ...) does nothing. Publishing to nuget.org runs
+# only while the repository variable PUBLISH_TO_NUGET is 'true', in the environment nuget, with NuGet trusted publishing for the user
+# NUGET_USER.
 on:
-  workflow_run:
-    workflows: [ci]
-    branches: [main]
-    types: [completed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,17 +21,25 @@ env:
 
 jobs:
   release:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
+
+      - name: Require a green CI run of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=$(gh run list --repo "${{ github.repository }}" --workflow ci.yml --commit "${{ github.sha }}" --event push --status success --json databaseId --jq length)
+          if [ "$green" = 0 ]; then echo "::error::No green CI run of a push for ${{ github.sha }}; wait for it, then run the release again."; exit 1; fi
 
       - name: Compute next version
         id: version
@@ -72,7 +78,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "v${{ steps.version.outputs.version }}" artifacts/packages/*
-          --target "${{ github.event.workflow_run.head_sha }}" --generate-notes
+          --target "${{ github.sha }}" --generate-notes
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.version.outputs.version != ''

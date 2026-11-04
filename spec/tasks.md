@@ -16,6 +16,8 @@ Next steps, in order:
 1. Stryker on `main`: the sharded run 41671331841 (on `cbc1c4b`) hit the 6-hour limit of a job; fluent passed, core, generators and testing were cancelled without a score. Split those three into smaller shards so each fits, run them on `main`, fix the survivors in 0.1.1. Break at 90 %.
 2. Owner side: the six credential checks against real AWS under M5; move the AWS CLI off the root user.
 
+Releasing: run `release.yml` on `main` (Actions, release, Run workflow) once the commits to ship have a green CI; it derives the version from the Conventional Commits since the last tag.
+
 How to work:
 - Local: SDK exactly `11.0.100-rc.3.26522.148` (`global.json`, no roll-forward), `dotnet tool restore` (docfx, Stryker). Run the unit tests with `-c Release`: the allocation tests (`CommandAllocationTests` and others) fail in Debug, where the JIT does not optimize. Docker only for the emulator backends; the default backend `fake` needs none. Python with `botocore` for the vector scripts.
 - Run only the build, the tests that cover a change, `dotnet format whitespace --verify-no-changes` and ReadmeCheck locally; the full unit suite with the 100 % coverage gate, the AOT smoke and the integration tests run in GitHub CI. Gate a change by pushing its tree as a `ci/merge-*` branch, wait for `ci.yml` and `docs.yml`, then put it onto `main` as one commit per package and delete the branch.
@@ -661,6 +663,7 @@ Branch `m4/r5-key-copy`, from the last review, approved by the owner.
   - [x] GitHub (owner, 2026-11-03): repository variables `PUBLISH_TO_NUGET=true` and `NUGET_USER=msallin`, environment `nuget` limited to deployments from `main`. A `workflow_run` job runs on the default branch, so the policy admits it.
   - [x] nuget.org (owner): a trusted publishing policy with repository owner `msallin`, repository `DynaSharp`, workflow file `release.yml`, environment `nuget`, under the account `NUGET_USER` names. A first push creates `DynaSharp` and `DynaSharp.Testing` under that account.
   - [x] Land the commit that arms `release.yml` (`workflow_run` on `ci`, branches `main`, types `completed`). `ci.yml` runs on every push to `main`, docs-only ones included (it has no path filter), and the job's `if` takes only a successful run of a `push` event, so neither a `ci/**` branch (the `branches` filter) nor a pull request nor a manual run releases.
+- Decision (owner, 2026-11-04): releases are on demand. `release.yml` runs by `workflow_dispatch` on `main` and releases its head only after a green CI run of a push for that commit, so packages can land on `main` and ship together in one release.
 
 ### R4 - one-shard stream reader (before 0.1.0, approved by the owner)
 
