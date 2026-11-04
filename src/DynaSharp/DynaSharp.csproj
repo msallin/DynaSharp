@@ -46,8 +46,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DynaSharp.Testing" />
-    <!-- The coordination package reads the options of the client a table belongs to, for its clock and its logger. -->
-    <InternalsVisibleTo Include="DynaSharp.Coordination" />
     <InternalsVisibleTo Include="DynaSharp.UnitTests" />
     <InternalsVisibleTo Include="DynaSharp.Benchmarks" />
     <InternalsVisibleTo Include="DynaSharp.AotSmoke" />

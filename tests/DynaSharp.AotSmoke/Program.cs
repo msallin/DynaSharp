@@ -581,7 +581,7 @@ await fakeClient.TransactWrite().IsHeld(held!).Put(fakeClient.Table("Locks", "pk
 Check(fake.Get("Locks", new Item { ["pk"] = "REPORT" }) is not null, "a transaction that checks the lease commits");
 await held!.DisposeAsync();
 var next = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
-Check(next is { FencingToken: 2 } && held.Lost.IsCancellationRequested, "a released lock is acquired again with the next fencing token");
+Check(next is { FencingToken: 2 } && held.Ended.IsCancellationRequested, "a released lock is acquired again with the next fencing token");
 await next!.DisposeAsync();
 
 foreach (var failure in failures)

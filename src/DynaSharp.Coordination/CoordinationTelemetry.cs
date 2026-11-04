@@ -5,7 +5,9 @@ namespace DynaSharp.Coordination;
 
 /// <summary>
 /// Spans and metrics of the locks, under the activity source and the meter named <c>DynaSharp</c> that the client reports to, so that one subscription
-/// covers both. A span of a lock is the parent of the spans of the requests it sends. Without a listener a span costs a null check, and a measurement the check inside the counter.
+/// covers both. A span of a lock is the parent of the spans of the requests it sends. A span allocates its tags even without a listener, which costs an
+/// array per operation on a lock, and a measurement costs the check inside the counter. The name of a lock is on spans and logs, not on metrics, so that
+/// it adds no dimension to a metric.
 /// </summary>
 internal static class CoordinationTelemetry
 {
@@ -47,15 +49,26 @@ internal static class CoordinationTelemetry
     private static readonly Counter<long> Losses = Meter.CreateCounter<long>(
         LossesMetric,
         unit: "{lease}",
-        description: "Number of leases lost before they were released: taken over, run out, or given up after a failed renewal.");
+        description: "Number of leases lost before they were released: taken over, run out, or the table gone.");
 
     /// <summary>Starts the span of an operation on a lock.</summary>
     /// <param name="name">The name of the span.</param>
     /// <param name="table">The table of the lock.</param>
     /// <param name="lockName">The name of the lock.</param>
-    /// <returns>The span, or <see langword="null"/> without a listener.</returns>
-    public static Activity? Start(string name, string table, string lockName) =>
-        ActivitySource.StartActivity(name, ActivityKind.Internal, default(ActivityContext), [new(DbSystemName, DbSystemNameValue), new(DbCollectionName, table), new(LockName, lockName)]);
+    /// <param name="link">The span this one links to, such as the acquire of a lease, or none.</param>
+    /// <returns>The span, or <see langword="null"/> without a listener. Its parent is the current span, if there is one.</returns>
+    public static Activity? Start(string name, string table, string lockName, ActivityContext link = default) =>
+        ActivitySource.StartActivity(name, ActivityKind.Internal, default(ActivityContext), [new(DbSystemName, DbSystemNameValue), new(DbCollectionName, table), new(LockName, lockName)], LinksTo(link));
+
+    /// <summary>Gets the context of a span, to link to it later.</summary>
+    /// <param name="activity">The span, or <see langword="null"/>.</param>
+    /// <returns>Its context, or the default for none.</returns>
+    public static ActivityContext ContextOf(Activity? activity) => activity?.Context ?? default;
+
+    /// <summary>Gets the links of a span to another one.</summary>
+    /// <param name="context">The context of the other span, or the default for none.</param>
+    /// <returns>The links, or <see langword="null"/> for none.</returns>
+    public static ActivityLink[]? LinksTo(ActivityContext context) => context == default ? null : [new ActivityLink(context)];
 
     /// <summary>Records the outcome of an acquire on its span and in the metrics.</summary>
     /// <param name="activity">The span.</param>
@@ -71,7 +84,7 @@ internal static class CoordinationTelemetry
 
         activity?.SetTag(TakeOver, takeOver);
         activity?.SetTag(FencingToken, lease.FencingToken);
-        Acquisitions.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LockName, lease.Name), new(TakeOver, takeOver));
+        Acquisitions.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(TakeOver, takeOver));
     }
 
     /// <summary>Records a renewal in the metrics.</summary>
@@ -81,11 +94,11 @@ internal static class CoordinationTelemetry
     {
         if (errorType is null)
         {
-            Renewals.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LockName, lease.Name));
+            Renewals.Add(1, new KeyValuePair<string, object?>(DbCollectionName, lease.Locks.Table.Name));
         }
         else
         {
-            Renewals.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LockName, lease.Name), new(ErrorType, errorType));
+            Renewals.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(ErrorType, errorType));
         }
     }
 
@@ -94,7 +107,7 @@ internal static class CoordinationTelemetry
     /// <param name="reason">Why it was lost.</param>
     public static void Lose(Lease lease, string reason)
     {
-        Losses.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LockName, lease.Name), new(LossReason, reason));
+        Losses.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LossReason, reason));
     }
 
     /// <summary>Marks a span as failed, with the error code of DynamoDB or the type of the exception, never the message.</summary>

@@ -759,39 +759,81 @@ Narrowed by the owner on 2026-11-04 (see Decisions): the package holds the lease
       Owner's decision of 2026-11-04.
 - [x] Telemetry for acquire/renew/lose: spans `Lock.TryAcquire`, `Lock.Acquire`, `Lock.Renew`, `Lock.Release`, counters
       `dynasharp.lock.acquisitions`, `dynasharp.lock.renewals`, `dynasharp.lock.losses`, log events 40 to 46 in the category
-      `DynaSharp.Coordination.LockTable`, 45 and 46 for the start and end of a leader's term (claim/reap and block allocation went with
-      the queue and hi/lo)
+      `DynaSharp.Coordination.LockTable`, 45 and 46 for the start and end of a leader's term, 47 (Debug) for work that threw after its
+      lease was lost (claim/reap and block allocation went with the queue and hi/lo)
 - [x] Packaging: `DynaSharp.Coordination` in the solution, the unit, integration (`Coordination/`, fake and emulators) and AOT smoke
       tests, Stryker (`DynaSharp.Mutation.slnx`, shard `coordination` in `ci.yml`), coverage, ReadmeCheck (`build/ReadmeCheck.cs` references
       the project, the package README is a page of it), the API reference (`docs/docfx.json`, `docs.yml`), the pack of `ci.yml` and the pack
       and version check of `release.yml`. A `README.md` of its own in the package. Docs: `docs/coordination.md`
-- [ ] Stryker run of the shard `coordination`, before the milestone closes (not run yet)
-- [ ] M7 independent review, before the first release that ships the package (the public surface freezes with it)
+- [ ] Stryker run of the shard `coordination`: open for the next Stryker cycle, not a release gate. Owner's decision of 2026-11-04:
+      below v1 Stryker runs in bigger cycles, not before each release, so this release ships without it.
+- [x] M7 independent review, done 2026-11-04, before the first release that ships the package. Findings and what became of them below.
+
+M7 independent review (2026-11-04). Owner's decisions:
+- H1: `TryAcquireAsync` stays instant, so it never takes over a crashed holder from a `LockTable` that lives shorter than a lease (a
+  takeover needs a sighting a lease earlier). Documented on the method and in `docs/coordination.md`: a short-lived process (scheduled
+  job, function, command line tool) calls `AcquireAsync` with a token that cancels after more than one lease; the nightly-report example
+  does that.
+- H2: the package reached internals of `DynaSharp` while its nuspec said `DynaSharp >= X`. `Table<T>.Client` is public now (the
+  `DynamoDbClient` a table was opened from, like `Index<T>.Table`), `LockTable` reads `table.Client.Options`, and `DynaSharp` no longer
+  grants `InternalsVisibleTo("DynaSharp.Coordination")`; Coordination keeps `>= X`. `DynaSharp.Testing`, which uses many internals, now
+  depends on exactly `[X]` (target `PinDynaSharpVersion`, checked in the nuspec of a pack).
+- M4: `dynasharp.lock.name` is on spans and in logs and no longer on metrics. The owner confirmed the lock name as an exception to the
+  rule that telemetry carries no keys: operators need to see which lock, and it is a name chosen in code. `docs/coordination.md` and
+  `docs/observability.md` say so.
+- L10: `Lease.Lost` is `Lease.Ended`, since it fires on a loss and on a release.
+Fixed as the reviewer suggested:
+- M1: the heartbeat runs without the execution context of the caller (`Task.Run` under `ExecutionContext.SuppressFlow`, unless the caller
+  suppressed it already), so it keeps no async locals of the acquiring call alive, and each renewal span is a root linked to the acquire span.
+- M2: the next renewal is due a third of the lease after the last successful renewal was sent (the first after the acquire was sent), not
+  after its answer; an answer 12 s late with a lease of 30 s keeps the lease (test).
+- M3: a renewal of the heartbeat that fails is retried with a wait of 100 ms doubling up to a sixth of the lease, until it succeeds or the
+  lease runs out (`expired`); `renew_failed` is gone. `RenewAsync` sends one renewal and leaves a failure to the heartbeat.
+- M5: the docs say the lease holds for any clock offset assuming equal clock rates, that a suspended host is what `IsHeld` and fencing are
+  for, that a restore from a backup or to a point in time and a deleted item take the token back, and that the lock table needs a single
+  writing region (a global table written in two regions can grant a lock twice with the same token).
+- M6: the queue recipe shards the claimed index too (`CLAIMED#{ClaimShard}`) and claims under a new id per claim, which completion and the
+  reaper check.
+- L1: event 47 (Debug) logs the type of what the work threw after its lease was lost. A new id, because a message has one level and 46 is
+  Information.
+- L3: `CredentialsUnavailableException` is transient for the election.
+- L5: a contender polls at least every 10 s, so a released lock with a long lease is not left free for hours; 10 s costs a waiting process
+  at most 6 conditional writes and reads a minute.
+- L6: an acquire answered after a whole lease returns a lease that has ended (documented); the election starts no term on it and logs no 45.
+- L7: the acquire reads the old item (`ALL_OLD`): the token is its `fence` plus one, and only an old `owner` counts as a takeover, in the
+  metric and in event 41.
+- L8: the comment says that a span allocates its tags without a listener (an array per operation on a lock).
+- L9: `RenewAsync` documents every exception and what it leaves of the lease.
+- L11: documented that a lease never disposed is renewed for the life of the process.
+- L12: `AcquireAsync_HolderReleases_AcquiresWithinAThirdOfItsLease` waits until the contender has armed its wait, then moves the clock once.
+Follow-ups:
+- L2, L4, L13 of the review: not fixed in this round; their text is in the reviewer's report, which the implementer did not get. Open.
+
 
 Decisions taken while building it (beyond the plan):
-- The client's options (its `TimeProvider` and `LoggerFactory`) are read through `InternalsVisibleTo("DynaSharp.Coordination")`, so
-  `LockTable` takes only a `Table<Item>` and the core gets no public member for it. The two packages ship at the same version, as
-  `DynaSharp.Testing` does; a mixed install of two versions can fail at run time if the internals changed.
+- The client's options (its `TimeProvider` and `LoggerFactory`) were first read through `InternalsVisibleTo("DynaSharp.Coordination")`;
+  replaced in the M7 review by the public `Table<T>.Client` (H2 above).
 - `TryAcquireAsync` makes one attempt and never waits. It remembers the record version it saw per lock name, with the monotonic
   timestamp, so a later call takes over once the holder's lease has passed unchanged; `AcquireAsync` polls it every third of the
   holder's lease (or less, if the lease runs out sooner). Each acquire writes a new owner id, so a process that acquires twice holds two leases.
 - A release removes `owner` and `leaseMs` under the condition `owner = :me` and keeps the item, so the fencing token never goes back.
   The item has no time to live (a first draft wrote `ttl` 30 days after the last write, and was dropped in review): a deleted item starts
   its token at 1 again, which a downstream system that keeps the highest token refuses for good. Lock items are few and small.
-- A renewal that fails with anything but `ConditionalCheckFailed` or `ResourceNotFound` is tried once more at once; if that fails too,
-  the lease is lost (fail-safe). The plan's "retry immediately" and "any other error means lost" are reconciled this way.
-- `Lost` is also cancelled when the lease is released by `DisposeAsync`, so it means "no longer held". The loss counter and log count
+- A renewal that fails with anything but `ConditionalCheckFailed` or `ResourceNotFound` is retried until the lease runs out (M3 above;
+  the first draft gave up after one retry).
+- `Ended` is also cancelled when the lease is released by `DisposeAsync`, so it means "no longer held". The loss counter and log count
   only real losses.
-- `RenewAsync` returns `bool` (false: lost or released) and throws for `ResourceNotFound` and for a failure after the retry.
+- `RenewAsync` returns `bool` (false: lost or released) and throws for `ResourceNotFound` (lease lost) and for any other failure (lease kept).
 - `LeaderElection.RunAsync` contends again after a transient acquire failure (`IsTransient`, timeout, network) after a third of the
   lease, and stops on any other error. Work that returns on its own ends the election and hands the lock on.
 - Lease duration from 1 second to 1 day, stored as whole milliseconds rounded up. A first draft allowed 1 ms: below 3 ms the heartbeat
-  period truncates to 0 and renews in a busy loop, and below a second no lease outlasts the round trips and retries of its renewals. Lock names go into telemetry and logs as
-  `dynasharp.lock.name`, as table names do: they are names chosen in code, not data, and the docs say not to put data in them.
+  period truncates to 0 and renews in a busy loop, and below a second no lease outlasts the round trips and retries of its renewals. Lock names go into spans and logs as
+  `dynasharp.lock.name`, as table names do: they are names chosen in code, not data, and the docs say not to put data in them (not
+  into metrics, M4 above).
 - Telemetry names: the package reports to the activity source and the meter named `DynaSharp`, the ones of the client, not to a
   `DynaSharp.Coordination` of its own, so the one subscription that `docs/observability.md` shows covers it, and a span of a lock is the
   parent of the spans of its requests. Instruments are prefixed `dynasharp.lock.`, spans `Lock.`, attributes `dynasharp.lock.*`. The log
-  category is the type, `DynaSharp.Coordination.LockTable`, and the event ids continue those of the client (40 to 46).
+  category is the type, `DynaSharp.Coordination.LockTable`, and the event ids continue those of the client (40 to 47).
 - An acquire whose condition fails reads the item, and if the owner there is the one this acquire wrote, the lease is held: the client
   retried after a lost response, and the retry failed the condition the first attempt met. Without this the lock stayed orphaned for a
   lease, and the process waited for its own lock.
@@ -873,6 +915,7 @@ Decisions taken while building it (beyond the plan):
 | 2026-11-03 | Owner's decision (R2): continuation tokens can be signed, opt-in, with `DynamoDbClientOptions.TokenSigner`. Plain tokens stay as decided on 2026-11-01. Details under "R2" in "M4 and later". |
 | 2026-11-03 | Owner's decisions: the retry of a throttled control-plane call (`CreateTable`, `UpdateTable`, `DeleteTable`) keeps the budget of every other call; `mfa_serial` in a profile fails with advice to get a session from the CLI, no prompt; `DYNA202` stays a warning, since it can report code that compiles; the Stryker run on the code of the morning was stopped and runs again once M4 merges. |
 | 2026-11-04 | Owner's decision, scope review for a frozen API: `DynaSharp.Coordination` ships, narrowed to the lease with fencing tokens (`LockTable`, `Lease`, `IsHeld` in a transaction) and leader election (`LeaderElection.RunAsync`). The sparse-GSI queue and the hi/lo allocator of M7 are dropped from the package and become recipes. Why: a queue cannot be frozen, because every user needs one more feature (visibility timeouts, priorities, delays, a dead-letter queue, FIFO groups) until it is a small SQS; hi/lo is a single `ADD` plus a documented gap after a crash, which a recipe shows in full. The lease and leader election are small, have subtle failure modes (clocks, heartbeats, fencing) and a contract that can be frozen. Out of scope, documented in `docs/coordination.md`: a hosting package or `IHostedService` (a `BackgroundService` of five lines is a recipe), configuration sections, custom attribute names, enforcing fencing across tables or in external systems. |
+| 2026-11-04 | Owner's decisions, M7 review: `TryAcquireAsync` stays instant and a short-lived process uses `AcquireAsync` with a timeout over one lease; `Table<T>.Client` is public and `DynaSharp.Coordination` uses no internals (`>= X`), while `DynaSharp.Testing` pins `[X]`; the lock name is on spans and logs, not metrics, an accepted exception to the no-keys rule; `Lease.Lost` is `Lease.Ended`. Stryker below v1 runs in bigger cycles, not before each release, so the `coordination` shard waits for the next cycle. Details under M7. |
 
 ## Findings and notes
 

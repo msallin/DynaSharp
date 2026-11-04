@@ -112,8 +112,9 @@ The public API is defined in `api.md`, the code as it stands is described in `ar
 
 Internal modules: HTTP pipeline, SigV4 signing, configuration resolution, operations, error mapping, telemetry.
 Separate projects: `DynaSharp.Generators` (netstandard2.0, packed into `DynaSharp`), `DynaSharp.Testing`, and
-`DynaSharp.Coordination` (lease with fencing and leader election; depends only on `DynaSharp`, at the same version,
-and reads the clock and the logger factory of the client through `InternalsVisibleTo`).
+`DynaSharp.Coordination` (lease with fencing and leader election; depends only on the public API of `DynaSharp`, at
+that version or later, and reads the clock and the logger factory of the client through `Table<T>.Client`). `DynaSharp.Testing`
+reaches internals of `DynaSharp` and so depends on exactly the version it was packed with.
 
 Key design rules:
 - **Primitives over patterns.** The core offers composable primitives (typed conditions and updates, transactions with

@@ -106,7 +106,7 @@ public sealed class LockTableTests
         await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
 
         // Assert
-        await Assert.That((lease!.Name, lease.FencingToken, lease.Lost.IsCancellationRequested)).IsEqualTo(("job", 1L, false));
+        await Assert.That((lease!.Name, lease.FencingToken, lease.Ended.IsCancellationRequested)).IsEqualTo(("job", 1L, false));
     }
 
     [Test]
@@ -228,7 +228,7 @@ public sealed class LockTableTests
         var taken = await bench.Locks.TryAcquireAsync("job", Lease);
 
         // Assert
-        await Assert.That((taken, holder.Lost.IsCancellationRequested)).IsEqualTo(((Lease?)null, false));
+        await Assert.That((taken, holder.Ended.IsCancellationRequested)).IsEqualTo(((Lease?)null, false));
     }
 
     [Test]
@@ -366,7 +366,7 @@ public sealed class LockTableTests
         await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
 
         // Assert
-        await Assert.That((lease!.Lost.IsCancellationRequested, lease.LossReason)).IsEqualTo((true, "expired"));
+        await Assert.That((lease!.Ended.IsCancellationRequested, lease.LossReason)).IsEqualTo((true, "expired"));
     }
 
     [Test]
@@ -391,7 +391,7 @@ public sealed class LockTableTests
         await using var lease = await bench.RunAsync(bench.Locks.TryAcquireAsync("job", Lease), TimeSpan.FromMilliseconds(10));
 
         // Assert
-        await Assert.That((lease!.FencingToken, lease.Owner, lease.Lost.IsCancellationRequested)).IsEqualTo((1L, bench.ItemOf("job")!.GetString("owner")!, false));
+        await Assert.That((lease!.FencingToken, lease.Owner, lease.Ended.IsCancellationRequested)).IsEqualTo((1L, bench.ItemOf("job")!.GetString("owner")!, false));
     }
 
     [Test]
@@ -423,7 +423,7 @@ public sealed class LockTableTests
         var span = capture.All.Single(activity => activity.OperationName == "Lock.TryAcquire");
         await Assert.That((ActivityCapture.Tags(span), metrics.Single().TagText, metrics.Single().Value)).IsEqualTo(
             ($"db.system.name=aws.dynamodb,db.collection.name={bench.TableName},dynasharp.lock.name=job,dynasharp.lock.acquired=True,dynasharp.lock.takeover=False,dynasharp.lock.fencing_token=1",
-             $"db.collection.name={bench.TableName},dynasharp.lock.name=job,dynasharp.lock.takeover=False",
+             $"db.collection.name={bench.TableName},dynasharp.lock.takeover=False",
              1L));
     }
 
@@ -527,7 +527,7 @@ public sealed class LockTableTests
         }
 
         // Assert
-        await Assert.That((waiting.IsCompleted, holder!.Lost.IsCancellationRequested)).IsEqualTo((false, false));
+        await Assert.That((waiting.IsCompleted, holder!.Ended.IsCancellationRequested)).IsEqualTo((false, false));
         await stop.CancelAsync();
         await Assert.That(async () => await waiting).Throws<OperationCanceledException>();
     }
@@ -535,18 +535,56 @@ public sealed class LockTableTests
     [Test]
     public async Task AcquireAsync_HolderReleases_AcquiresWithinAThirdOfItsLease()
     {
-        // Arrange
+        // Arrange (the contender found the lock held and armed its wait, then the holder released)
         using var bench = new LockHarness();
         var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", Lease);
         var waiting = bench.Locks.AcquireAsync("job", Lease);
+        SpinWait.SpinUntil(() => bench.Clock.ActiveTimers == 1, TimeSpan.FromSeconds(10));
         await holder!.DisposeAsync();
-        var start = bench.Clock.GetTimestamp();
 
         // Act
-        await using var lease = await bench.RunAsync<Lease>(waiting, TimeSpan.FromSeconds(1));
+        bench.Clock.Advance(Lease / 3);
+        await using var lease = await waiting.WaitAsync(TimeSpan.FromSeconds(10));
 
         // Assert
-        await Assert.That((lease.FencingToken, bench.Clock.GetElapsedTime(start) <= Lease / 3)).IsEqualTo((2L, true));
+        await Assert.That(lease.FencingToken).IsEqualTo(2L);
+    }
+
+    [Test]
+    public async Task AcquireAsync_HolderWithALongLeaseReleases_AcquiresWithinTenSeconds()
+    {
+        // Arrange (a third of the holder's lease is 8 hours; the contender polls every 10 seconds all the same)
+        using var bench = new LockHarness();
+        var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", TimeSpan.FromDays(1));
+        var waiting = bench.Locks.AcquireAsync("job", Lease);
+        SpinWait.SpinUntil(() => bench.Clock.ActiveTimers == 1, TimeSpan.FromSeconds(10));
+        await holder!.DisposeAsync();
+
+        // Act
+        bench.Clock.Advance(TimeSpan.FromSeconds(10));
+        await using var lease = await waiting.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        await Assert.That(lease.FencingToken).IsEqualTo(2L);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_WaitedOutHolderReleasedFirst_IsNoTakeover()
+    {
+        // Arrange (the contender waited out the holder's lease, but the holder released before the next try)
+        using var bench = new LockHarness();
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.acquisitions");
+        var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", Lease);
+        await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Clock.Advance(Lease);
+        await holder!.DisposeAsync();
+
+        // Act
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((lease!.FencingToken, bench.LockLogs.Count(static entry => entry.EventId.Id == 41), metrics.All[^1].TagText)).IsEqualTo(
+            (2L, 0, $"db.collection.name={bench.TableName},dynasharp.lock.takeover=False"));
     }
 
     [Test]

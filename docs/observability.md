@@ -24,7 +24,7 @@ public static class ClientSetup
 
 Without `LoggerFactory` nothing is logged. The credentials provider the client makes when `Credentials` is not set logs to the same factory; a provider you pass in does not log.
 
-The locks and leader election of `DynaSharp.Coordination` report to the same source and meter, and log to the factory of the client of their table: see [Coordination](coordination.md#observability).
+The locks and leader election of `DynaSharp.Coordination` report to the same source and meter, and log to the factory of the client of their table: see [Coordination](coordination.md#observability). Their spans and logs name the lock, which is a name chosen in code; their metrics do not.
 
 ## Traces
 
@@ -119,4 +119,4 @@ A handler must send a request once, never twice in parallel, which rules out hed
 
 ## What stays out
 
-Telemetry carries operations, tables, indexes, region and server, error codes, counts, capacity units and attribute names in a projection. Never a key, item, attribute value or an expression with its values; `ItemCollectionMetrics` holds a partition key, so it is never reported. Exception messages follow the same rule, but not what some exceptions carry on purpose, such as `ConditionalCheckFailedException.Key`, see [Errors and retries](errors.md#what-throws). `ToString()` of an `Item` or `AttributeValue` is DynamoDB JSON with the values.
+Telemetry carries operations, tables, indexes, region and server, error codes, counts, capacity units and attribute names in a projection. The spans and logs of `DynaSharp.Coordination` also carry the name of a lock, which operators need to tell locks apart: it is a name chosen in code, like a table name, so keep data out of it. Never a key, item, attribute value or an expression with its values; `ItemCollectionMetrics` holds a partition key, so it is never reported. Exception messages follow the same rule, but not what some exceptions carry on purpose, such as `ConditionalCheckFailedException.Key`, see [Errors and retries](errors.md#what-throws). `ToString()` of an `Item` or `AttributeValue` is DynamoDB JSON with the values.

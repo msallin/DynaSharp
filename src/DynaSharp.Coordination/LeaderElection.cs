@@ -18,8 +18,8 @@ public static class LeaderElection
     /// </para>
     /// <para>
     /// An acquire that fails with a transient error, a <see cref="DynamoDbException"/> whose <see cref="DynamoDbException.IsTransient"/> is
-    /// <see langword="true"/>, a <see cref="TimeoutException"/> or an <see cref="HttpRequestException"/>, after the retries of the client, is logged, and
-    /// the election contends again after a third of the lease. Any other error ends it, <see cref="ResourceNotFoundException"/> included.
+    /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is logged, and
+    /// the election contends again after a third of the lease. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and the election contends again.
     /// </para>
     /// <para>
     /// Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
@@ -56,6 +56,13 @@ public static class LeaderElection
                 continue;
             }
 
+            // An acquire whose answer came after a whole lease hands out a lease that has ended: no term starts on it.
+            if (lease.Ended.IsCancellationRequested)
+            {
+                await lease.DisposeAsync().ConfigureAwait(false);
+                continue;
+            }
+
             bool lost;
             try
             {
@@ -73,6 +80,12 @@ public static class LeaderElection
         }
     }
 
+    /// <summary>Gets whether an acquire that failed with an exception is worth another try after a wait.</summary>
+    /// <param name="exception">The exception.</param>
+    /// <returns><see langword="true"/> for an error that a later call can succeed after, with no change.</returns>
+    internal static bool IsTransient(Exception exception) =>
+        exception is DynamoDbException { IsTransient: true } or TimeoutException or HttpRequestException or CredentialsUnavailableException;
+
     // Runs the work of one term. True if the lease was lost, so the election goes on.
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Whatever work that lost its lease throws ends that term only; the loss is logged.")]
     private static async Task<bool> LeadAsync(LockTable locks, Lease lease, Func<Lease, CancellationToken, Task> work, CancellationToken cancellationToken)
@@ -81,21 +94,23 @@ public static class LeaderElection
         var returned = false;
         try
         {
-            using (var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.Lost))
+            using (var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.Ended))
             {
                 try
                 {
                     await work(lease, stop.Token).ConfigureAwait(false);
                 }
-                catch (Exception) when (lease.Lost.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                catch (Exception exception) when (lease.Ended.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
-                    // The work stopped because the lease was lost, by the token or by a failed write. The loss is logged.
+                    // The work stopped because the lease was lost, by the token or by a failed write. The loss is logged, and this at Debug.
+                    var errorType = CoordinationTelemetry.ErrorTypeOf(exception);
+                    CoordinationLog.WorkFailedAfterLoss(locks.Logger, lease.Name, locks.Table.Name, errorType);
                 }
             }
 
             cancellationToken.ThrowIfCancellationRequested();
             returned = true;
-            return lease.Lost.IsCancellationRequested;
+            return lease.Ended.IsCancellationRequested;
         }
         finally
         {
@@ -111,16 +126,13 @@ public static class LeaderElection
             return TermEnd.Cancelled;
         }
 
-        if (lease.Lost.IsCancellationRequested)
+        if (lease.Ended.IsCancellationRequested)
         {
             return TermEnd.LeaseLost;
         }
 
         return returned ? TermEnd.WorkReturned : TermEnd.WorkFailed;
     }
-
-    private static bool IsTransient(Exception exception) =>
-        exception is DynamoDbException { IsTransient: true } or TimeoutException or HttpRequestException;
 
     /// <summary>Why a term of a leader ended, as the log says it.</summary>
     internal static class TermEnd

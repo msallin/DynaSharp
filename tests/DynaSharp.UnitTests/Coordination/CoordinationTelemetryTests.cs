@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DynaSharp.Coordination;
 
 namespace DynaSharp.UnitTests.Coordination;
@@ -34,5 +35,31 @@ public sealed class CoordinationTelemetryTests
 
         // Assert
         await Assert.That(act).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task ContextOf_NoSpan_IsTheDefault()
+    {
+        // Arrange
+        Activity? none = null;
+
+        // Act
+        var context = CoordinationTelemetry.ContextOf(none);
+
+        // Assert
+        await Assert.That(context == default).IsTrue();
+    }
+
+    [Test]
+    public async Task LinksTo_NoSpan_IsNone()
+    {
+        // Arrange
+        ActivityContext none = default;
+
+        // Act
+        var links = CoordinationTelemetry.LinksTo(none);
+
+        // Assert
+        await Assert.That(links).IsNull();
     }
 }

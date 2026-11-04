@@ -15,8 +15,8 @@ internal static partial class CoordinationLog
     [LoggerMessage(EventId = 41, Level = LogLevel.Information, Message = "Lock {Lock} in table {Table} was taken over from a holder that did not renew it for its lease of {LeaseDuration}.")]
     public static partial void TakenOver(ILogger logger, string @lock, string table, TimeSpan leaseDuration);
 
-    [LoggerMessage(EventId = 42, Level = LogLevel.Warning, Message = "Renewing the lease on lock {Lock} in table {Table} failed with {ErrorType}. It is tried once more at once.")]
-    public static partial void RenewRetried(ILogger logger, string @lock, string table, string errorType);
+    [LoggerMessage(EventId = 42, Level = LogLevel.Warning, Message = "Renewing the lease on lock {Lock} in table {Table} failed with {ErrorType}. It is tried again in {Delay}, until the lease runs out.")]
+    public static partial void RenewRetried(ILogger logger, string @lock, string table, string errorType, TimeSpan delay);
 
     [LoggerMessage(EventId = 43, Level = LogLevel.Warning, Message = "Releasing the lease on lock {Lock} in table {Table} failed with {ErrorType}. The lock is free once its lease runs out.")]
     public static partial void ReleaseFailed(ILogger logger, string @lock, string table, string errorType);
@@ -29,4 +29,7 @@ internal static partial class CoordinationLog
 
     [LoggerMessage(EventId = 46, Level = LogLevel.Information, Message = "This process no longer leads on lock {Lock} in table {Table} ({Reason}).")]
     public static partial void TermEnded(ILogger logger, string @lock, string table, string reason);
+
+    [LoggerMessage(EventId = 47, Level = LogLevel.Debug, Message = "The work of the leader on lock {Lock} in table {Table} threw {ErrorType} after the lease was lost.")]
+    public static partial void WorkFailedAfterLoss(ILogger logger, string @lock, string table, string errorType);
 }

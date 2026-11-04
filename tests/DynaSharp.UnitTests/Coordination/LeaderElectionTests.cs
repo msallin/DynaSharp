@@ -121,7 +121,7 @@ public sealed class LeaderElectionTests
         await bench.RunAsync(Completion(election), TimeSpan.FromSeconds(1));
 
         // Assert
-        await Assert.That(string.Join(",", bench.LockLogs.Select(static entry => entry.EventId.Id))).IsEqualTo("45,40,46,41,45,46");
+        await Assert.That(string.Join(",", bench.LockLogs.Select(static entry => entry.EventId.Id))).IsEqualTo("45,40,47,46,41,45,46");
     }
 
     [Test]
@@ -320,6 +320,51 @@ public sealed class LeaderElectionTests
 
         // Assert
         await Assert.That(ran).IsTrue();
+    }
+
+    [Test]
+    public async Task IsTransient_NoCredentialsYet_IsTransient()
+    {
+        // Arrange (the credentials of a pod can arrive after it starts, and an expired token is replaced)
+        var exception = new CredentialsUnavailableException("No credentials yet.");
+
+        // Act
+        var transient = LeaderElection.IsTransient(exception);
+
+        // Assert
+        await Assert.That(transient).IsTrue();
+    }
+
+    [Test]
+    public async Task RunAsync_AcquireAnsweredAfterTheLease_StartsNoTermAndContendsAgain()
+    {
+        // Arrange (the answer of the first acquire comes a whole lease after it was sent)
+        using var bench = new LockHarness();
+        var slow = true;
+        bench.Intercept = (request, _) =>
+        {
+            if (slow && request.Operation == "UpdateItem")
+            {
+                slow = false;
+                bench.Fake.Answer(request);
+                bench.Clock.Advance(Lease);
+                return Task.FromResult<StubResponse?>(StubResponse.Json("{}"));
+            }
+
+            return Task.FromResult<StubResponse?>(null);
+        };
+        var terms = new List<long>();
+        Task Work(Lease lease, CancellationToken stop)
+        {
+            terms.Add(lease.FencingToken);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await LeaderElection.RunAsync(bench.Locks, "leader", Lease, Work, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        await Assert.That((string.Join(",", terms), bench.LockLogs.Count(static entry => entry.EventId.Id == 45))).IsEqualTo(("2", 1));
     }
 
     [Test]

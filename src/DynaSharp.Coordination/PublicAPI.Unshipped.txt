@@ -2,8 +2,8 @@
 DynaSharp.Coordination.LeaderElection
 DynaSharp.Coordination.Lease
 DynaSharp.Coordination.Lease.DisposeAsync() -> System.Threading.Tasks.ValueTask
+DynaSharp.Coordination.Lease.Ended.get -> System.Threading.CancellationToken
 DynaSharp.Coordination.Lease.FencingToken.get -> long
-DynaSharp.Coordination.Lease.Lost.get -> System.Threading.CancellationToken
 DynaSharp.Coordination.Lease.Name.get -> string!
 DynaSharp.Coordination.Lease.RenewAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<bool>!
 DynaSharp.Coordination.LeaseTransactExtensions

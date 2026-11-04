@@ -1,6 +1,6 @@
 # DynaSharp.Coordination
 
-Distributed coordination on DynamoDB for [DynaSharp](https://github.com/msallin/DynaSharp): a lease on a named lock with fencing tokens, and leader election on top of it. The semantics are those of the DynamoDB Lock Client: a relative lease duration, a record version number, and a wait on the monotonic clock of the contender, so the clocks of the machines may differ by any amount.
+Distributed coordination on DynamoDB for [DynaSharp](https://github.com/msallin/DynaSharp): a lease on a named lock with fencing tokens, and leader election on top of it. The semantics are those of the DynamoDB Lock Client: a relative lease duration, a record version number, and a wait on the monotonic clock of the contender, so the clocks of the machines may be set apart by any offset, as long as they run at about the same rate.
 
 ## A lease
 
@@ -11,7 +11,7 @@ await using var lease = await locks.AcquireAsync("nightly-report", TimeSpan.From
 await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);
 ```
 
-The lock is one item in a table you already have. The lease renews itself every third of its duration, `lease.Lost` is cancelled once it is no longer held, and disposing it releases the lock. `IsHeld(lease)` lets a transaction commit only while the lease holds the lock, and `lease.FencingToken` rises with every acquire, for a system outside DynamoDB that checks it.
+The lock is one item in a table you already have. The lease renews itself every third of its duration, `lease.Ended` is cancelled once it is no longer held, and disposing it releases the lock. `IsHeld(lease)` lets a transaction commit only while the lease holds the lock, and `lease.FencingToken` rises with every acquire, for a system outside DynamoDB that checks it.
 
 ## Leader election
 

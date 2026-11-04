@@ -37,7 +37,7 @@ public sealed class LeaseTransactExtensionsTests
 
         // Assert
         var exception = await Assert.That(act).ThrowsExactly<TransactionCanceledException>();
-        await Assert.That((exception!.ReasonFor(held), holder!.Lost.IsCancellationRequested, bench.Fake.Get(bench.TableName, new() { ["pk"] = "REPORT", ["sk"] = "1" })))
+        await Assert.That((exception!.ReasonFor(held), holder!.Ended.IsCancellationRequested, bench.Fake.Get(bench.TableName, new() { ["pk"] = "REPORT", ["sk"] = "1" })))
             .IsEqualTo((TransactionFailure.ConditionalCheckFailed, false, (Item?)null));
     }
 

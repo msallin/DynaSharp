@@ -12,7 +12,7 @@ public static class LeaseTransactExtensions
     /// For example <c>await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);</c>.
     /// </summary>
     /// <remarks>
-    /// The check reads the item at the moment the transaction commits, which is what makes it safe; <see cref="Lease.Lost"/> is only what this process
+    /// The check reads the item at the moment the transaction commits, which is what makes it safe; <see cref="Lease.Ended"/> is only what this process
     /// knows. A transaction that fails it throws <see cref="TransactionCanceledException"/> with <see cref="TransactionFailure.ConditionalCheckFailed"/> for this
     /// step. A lease that ran out on the local clock still passes while nobody has taken the lock over, which is safe, because nobody else holds it.
     /// The lock item must be in a table of the same account and region as the other items of the transaction.
