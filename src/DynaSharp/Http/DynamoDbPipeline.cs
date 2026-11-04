@@ -257,6 +257,12 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <param name="children">How many child shards are read next.</param>
     public void LogShardFinished(string shardId, int children) => ClientLog.ShardFinished(_logger, shardId, children);
 
+    /// <summary>Logs that DynamoDB listed a child of a shard only on a later look, the event the reader of a stream looks again for.</summary>
+    /// <param name="childShardId">The child.</param>
+    /// <param name="shardId">The shard it continues.</param>
+    /// <param name="elapsed">The time since the shard was read to its end.</param>
+    public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => ClientLog.ChildListedLate(_logger, childShardId, shardId, elapsed);
+
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

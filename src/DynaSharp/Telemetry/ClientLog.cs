@@ -38,4 +38,7 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 10, Level = LogLevel.Debug, Message = "DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.")]
     public static partial void ShardFinished(ILogger logger, string shardId, int children);
+
+    [LoggerMessage(EventId = 11, Level = LogLevel.Debug, Message = "DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the shard was read to its end.")]
+    public static partial void ChildListedLate(ILogger logger, string childShardId, string shardId, TimeSpan elapsed);
 }

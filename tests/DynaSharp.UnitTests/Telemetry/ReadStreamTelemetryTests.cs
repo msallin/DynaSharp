@@ -190,6 +190,33 @@ public sealed class ReadStreamTelemetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_ChildListedOnALaterLook_LogsItAtDebugLevel()
+    {
+        // Arrange: the child of p is listed on the second look, a second after p was read to its end
+        var logs = new CapturingLoggerFactory();
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Enabled, Shards = [StubResponse.Shard("p", endingSequenceNumber: "999")] }));
+        handler.Enqueue(StubResponse.ShardIterator("p/0"));
+        handler.Enqueue(StubResponse.Records(null, Insert("p-1")));
+        handler.Enqueue(StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Enabled }));
+        handler.Enqueue(Description(StubResponse.Shard("c", "p", endingSequenceNumber: "999")));
+        handler.Enqueue(StubResponse.ShardIterator("c/0"));
+        handler.Enqueue(StubResponse.Records(null, Insert("c-1")));
+        handler.Enqueue(Description());
+        using var streams = TestClient.CreateStreams(handler, time, loggerFactory: logs);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        await Http.RetryTestSupport.AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+        await reading;
+
+        // Assert
+        var entry = logs.Entries.Single(static entry => entry.EventId.Id == 11);
+        await Assert.That($"{entry.Level} {entry.Message}").IsEqualTo("Debug DynamoDB Streams listed the child shard c of shard p only 00:00:01 after the shard was read to its end.");
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Listener_ReportsNoKeyAndNoStream()
     {
         // Arrange

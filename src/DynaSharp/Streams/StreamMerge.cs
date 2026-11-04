@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using DynaSharp.Http;
@@ -24,6 +25,17 @@ internal sealed class StreamMerge
 {
     // Small on purpose: it decouples the shards from the consumer, and a deeper buffer only holds records a failure would drop.
     private static readonly BoundedChannelOptions HandoverOptions = new(16);
+
+    // The looks for the children of a shard read to its end. Until one is listed they come every EmptyPageDelay, but at least a second apart, since a DescribeStream
+    // costs more than a GetRecords. After the first, DynamoDB may still list more: the Developer Guide says a shard can split into several, and a child can be listed
+    // late. The looks for those come every five seconds for a minute, at most twelve DescribeStream calls for a shard that ended.
+    private static readonly TimeSpan FirstChildLookDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MoreChildrenLookDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MoreChildrenWindow = TimeSpan.FromMinutes(1);
+
+    // An hour below the 24 hours DynamoDB keeps a record, for the clock of this process and for a trim that comes early.
+    private static readonly TimeSpan YoungShardAge = TimeSpan.FromHours(23);
+    private static readonly long MaxUnixMilliseconds = DateTimeOffset.MaxValue.ToUnixTimeMilliseconds();
 
     private readonly Channel<ShardChangeRecord> _records = Channel.CreateBounded<ShardChangeRecord>(HandoverOptions);
     private readonly TaskCompletionSource _idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -81,6 +93,22 @@ internal sealed class StreamMerge
 
     private static bool IsClosed(Shard shard) => shard.SequenceNumberRange?.EndingSequenceNumber is not null;
 
+    // shardId-<20 digits of Unix milliseconds>-<suffix>, or null for an id of another form.
+    private static DateTimeOffset? OpenedAt(string shardId)
+    {
+        const string Prefix = "shardId-";
+        const int Digits = 20;
+        var id = shardId.AsSpan();
+        if (id.Length <= Prefix.Length + Digits || !id.StartsWith(Prefix, StringComparison.Ordinal) || id[Prefix.Length + Digits] != '-'
+            || !long.TryParse(id.Slice(Prefix.Length, Digits), NumberStyles.None, CultureInfo.InvariantCulture, out var milliseconds)
+            || milliseconds > MaxUnixMilliseconds)
+        {
+            return null;
+        }
+
+        return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
+    }
+
     // Never fails, like every reader: what goes wrong goes through the channel.
     private async Task DiscoverAsync()
     {
@@ -102,13 +130,14 @@ internal sealed class StreamMerge
                     // A shard closed at the start counts as read, so its children that are open at the start are read from now on, as every open shard.
                     if (!closed)
                     {
-                        Launch(shard.ShardId!, closed: false, ShardIteratorType.Latest, default);
+                        Launch(shard.ShardId!, closed: false, ShardIteratorType.Latest, null, default);
                     }
                 }
                 else if (shard.ParentShardId is not { } parent || !listed.Contains(parent))
                 {
-                    // A shard whose parent is listed starts once the parent has been read, as its child.
-                    Launch(shard.ShardId!, closed, ShardIteratorType.TrimHorizon, default);
+                    // The trim horizon of a shard without a listed parent is where the caller asked to start. A shard whose parent is listed starts once the parent has been
+                    // read, as its child.
+                    Launch(shard.ShardId!, closed, ShardIteratorType.TrimHorizon, null, default);
                 }
             }
         }
@@ -124,15 +153,38 @@ internal sealed class StreamMerge
         }
     }
 
-    private void Launch(string shardId, bool closed, ShardIteratorType position, ActivityContext parentShard)
+    private void Launch(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard)
     {
         Enter();
 
         // On the pool, so a reader never runs inside the one that started it, nor on the context of the consumer.
-        _ = Task.Run(() => ReadShardAsync(shardId, closed, position, parentShard));
+        _ = Task.Run(() => ReadShardAsync(shardId, closed, position, sequenceNumber, parentShard));
     }
 
-    private async Task ReadShardAsync(string shardId, bool closed, ShardIteratorType position, ActivityContext parentShard)
+    // A child must not lose records to the trim horizon unnoticed. Every record of a shard is younger than the shard, and DynamoDB keeps a record 24 hours, so a
+    // child that opened less than YoungShardAge ago has lost nothing yet, and its trim horizon is its first record. Its id tells when it opened, as DynamoDB's
+    // read (shardId-00000001414562045508-2bac9cd2, Unix milliseconds). An older child, or one whose id tells nothing, is read at the starting sequence number
+    // of its range, where DynamoDB answers TrimmedDataAccessException if records before the trim horizon are gone. That is not the rule for every child, because
+    // a store may number the records of a shard from above its starting number and then answer so although nothing is gone, as DynamoDB Local does: a reader a
+    // day behind is where that can show. Without a starting sequence number, which an emulator leaves out of an empty shard, the trim horizon is the start.
+    private void LaunchChild(Shard child, ActivityContext parentShard)
+    {
+        var closed = IsClosed(child);
+        if (OpenedAt(child.ShardId!) is { } opened && _core.TimeProvider.GetUtcNow() - opened < YoungShardAge)
+        {
+            Launch(child.ShardId!, closed, ShardIteratorType.TrimHorizon, null, parentShard);
+        }
+        else if (child.SequenceNumberRange?.StartingSequenceNumber is { Length: > 0 } start)
+        {
+            Launch(child.ShardId!, closed, ShardIteratorType.AtSequenceNumber, start, parentShard);
+        }
+        else
+        {
+            Launch(child.ShardId!, closed, ShardIteratorType.TrimHorizon, null, parentShard);
+        }
+    }
+
+    private async Task ReadShardAsync(string shardId, bool closed, ShardIteratorType position, string? sequenceNumber, ActivityContext parentShard)
     {
         var stopped = _stop.Token;
 
@@ -149,6 +201,7 @@ internal sealed class StreamMerge
                 StreamArn = _request.StreamArn,
                 ShardId = shardId,
                 ShardIteratorType = position,
+                SequenceNumber = sequenceNumber,
                 EmptyPageDelay = _request.EmptyPageDelay,
             };
             try
@@ -189,30 +242,40 @@ internal sealed class StreamMerge
     }
 
     // The filter finds the children without listing the stream, and the check of the parent keeps an emulator that ignores the filter from starting every shard.
-    // DynamoDB may list the children of a shard a moment after it closed, so while the stream is enabled a shard without children is asked about again.
+    // DynamoDB may list a child a moment after its parent closed, so each child starts as soon as it is listed, and the looks go on: while the stream is enabled
+    // and none is listed, until one is; after the first, for a while longer, see MoreChildrenWindow. A stream that is no longer enabled opens no more shards.
     private async Task StartChildrenAsync(string shardId, ActivityContext span, CancellationToken stopped)
     {
+        var time = _core.TimeProvider;
         var filter = new ShardFilter { Type = ShardFilterType.ChildShards, ShardId = shardId };
-        while (true)
+        var started = new HashSet<string>(StringComparer.Ordinal);
+        var ended = time.GetTimestamp();
+        long? firstChild = null;
+        for (var look = 0; ; look++)
         {
             var (shards, status) = await ShardsAsync(filter).ConfigureAwait(false);
-            var children = 0;
             foreach (var shard in shards)
             {
-                if (string.Equals(shard.ParentShardId, shardId, StringComparison.Ordinal))
+                if (string.Equals(shard.ParentShardId, shardId, StringComparison.Ordinal) && started.Add(shard.ShardId!))
                 {
-                    Launch(shard.ShardId!, IsClosed(shard), ShardIteratorType.TrimHorizon, span);
-                    children++;
+                    if (look > 0)
+                    {
+                        _core.LogChildListedLate(shard.ShardId!, shardId, time.GetElapsedTime(ended));
+                    }
+
+                    LaunchChild(shard, span);
                 }
             }
 
-            if (children > 0 || status is not (StreamStatus.Enabled or StreamStatus.Enabling))
+            firstChild ??= started.Count > 0 ? time.GetTimestamp() : null;
+            if (status is not (StreamStatus.Enabled or StreamStatus.Enabling) || (firstChild is { } first && time.GetElapsedTime(first) >= MoreChildrenWindow))
             {
-                _core.LogShardFinished(shardId, children);
+                _core.LogShardFinished(shardId, started.Count);
                 return;
             }
 
-            await Task.Delay(_request.EmptyPageDelay, _core.TimeProvider, stopped).ConfigureAwait(false);
+            var delay = firstChild is null ? FirstChildLookDelay : MoreChildrenLookDelay;
+            await Task.Delay(_request.EmptyPageDelay > delay ? _request.EmptyPageDelay : delay, time, stopped).ConfigureAwait(false);
         }
     }
 

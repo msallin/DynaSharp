@@ -370,10 +370,16 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <see cref="DescribeStreamAsync"/> lists the shards, page by page. With <see cref="ShardIteratorType.TrimHorizon"/> each shard whose parent is not listed is
     /// read from its oldest record, closed or open, and the others wait for their parent. With <see cref="ShardIteratorType.Latest"/> the shards closed at the
     /// start count as read, and each shard open at the start is read from now on. A shard read to its end starts its children, which
-    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/> of <see cref="ShardFilterType.ChildShards"/>, and a child is read from its oldest
-    /// record. A shard counts as one of the children only if its <see cref="Shard.ParentShardId"/> names the parent, also when the service ignores the filter.
-    /// While the stream is <see cref="StreamStatus.Enabled"/> or <see cref="StreamStatus.Enabling"/>, a shard that ended without listed children is asked about
-    /// again after <see cref="ReadStreamRequest.EmptyPageDelay"/>, since DynamoDB can list them a moment later.
+    /// <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/> of <see cref="ShardFilterType.ChildShards"/>. A child is read with
+    /// <see cref="ShardIteratorType.AtSequenceNumber"/> at the <see cref="SequenceNumberRange.StartingSequenceNumber"/> of its range, so that records of it trimmed
+    /// before its turn came throw instead of being passed over; without a starting sequence number it is read from the trim horizon. A shard counts as one of the
+    /// children only if its <see cref="Shard.ParentShardId"/> names the parent, also when the service ignores the filter.
+    /// </para>
+    /// <para>
+    /// DynamoDB can list a child a moment after its parent closed, and the Developer Guide says a shard can split into several. So each child starts as soon as it is
+    /// listed, and the reader of the parent keeps asking: while the stream is <see cref="StreamStatus.Enabled"/> or <see cref="StreamStatus.Enabling"/> and no child is
+    /// listed, every <see cref="ReadStreamRequest.EmptyPageDelay"/> but at least every second; after the first child, every five seconds for one more minute. A stream
+    /// that is no longer enabled opens no more shards, which ends the asking.
     /// </para>
     /// <para>
     /// Nothing is requested until the first record is asked for. The records go through a small bounded buffer, so a shard waits while the caller is behind, and
@@ -389,8 +395,9 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <para>
     /// Each call it makes is a span and a measurement of its own, as with the methods it is made of. Each shard it reads is an <c>Internal</c> span too, named
     /// <c>DynamoDB Streams.ReadStream</c>, under the span that was current when the enumeration started, with the calls of the shard under it and a link to the
-    /// span of its parent shard. A shard that DynamoDB keeps open for hours makes a span of hours. The metric <c>dynasharp.client.stream.shards</c> counts the
-    /// shards being read, and <c>dynasharp.client.stream.records</c> the records handed out. A shard read to its end logs its children at the debug level.
+    /// span of its parent shard. It ends when the looks for the children of the shard end, and a shard that DynamoDB keeps open for hours makes a span of hours.
+    /// The metric <c>dynasharp.client.stream.shards</c> counts the shards being read, and <c>dynasharp.client.stream.records</c> the records handed out. A shard
+    /// read to its end logs its children at the debug level, and so does a child listed only on a later look.
     /// Neither names a key, an image or the ARN of the stream.
     /// </para>
     /// </remarks>

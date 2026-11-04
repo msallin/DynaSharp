@@ -424,6 +424,59 @@ public sealed class StreamTests(Backend backend)
     }
 
     [Test]
+    public async Task GetShardIterator_AtTheStartingSequenceNumberOfAShard_ReadsFromItsFirstRecord()
+    {
+        // Arrange: ReadStreamAsync reads a child that opened 23 hours ago or more at the starting sequence number of its range, so that trimmed records throw, and
+        // this shows whether DynamoDB reads from there without a false TrimmedDataAccessException. The first iterators are taken while the shards are empty, the
+        // second ones after the write; one table and one item, so it is cheap on real DynamoDB, which is where it counts.
+        Gaps.SkipIfMissing(backend, Gap.StartingSequenceNumberOfAnEmptyShard);
+        Gaps.SkipIfMissing(backend, Gap.ReadAtTheStartingSequenceNumber);
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.KeysOnly));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        var empty = await StreamReading.IteratorsAtStartAsync(sandbox.Streams, arn);
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item("a", AttributeValue.FromNumber(1)) });
+
+        // Act
+        var early = await StreamReading.ReadFromAsync(sandbox.Streams, empty, 1);
+        var late = await StreamReading.ReadFromAsync(sandbox.Streams, await StreamReading.IteratorsAtStartAsync(sandbox.Streams, arn), 1);
+
+        // Assert
+        await Assert.That((early[0].EventName, late[0].EventName, late[0].DynamoDb!.SequenceNumber == early[0].DynamoDb!.SequenceNumber))
+            .IsEqualTo((OperationType.Insert, OperationType.Insert, true));
+    }
+
+    [Test]
+    public async Task ReadStream_ShardSplitWithALateSecondChild_ReturnsEveryChangeOfEachItemInOrder()
+    {
+        // Arrange: only the fake splits a shard on demand. The second child is listed two seconds after the split, which the reader waits for.
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        if (sandbox.Emulator.Fake is not { } fake)
+        {
+            Skip.Test($"{backend}: only the fake splits a shard on demand.");
+            return;
+        }
+
+        var table = await sandbox.CreateTableAsync(TableSpec.WithStream(StreamViewType.NewImage));
+        var arn = await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        string[] keys = ["k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7"];
+        await PutAllAsync(sandbox, table, keys, 1);
+        fake.SplitStreamShards(table, secondChildListedAfter: TimeSpan.FromSeconds(2));
+        await PutAllAsync(sandbox, table, keys, 2);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var records = await sandbox.Streams.ReadStreamAsync(StreamFromTrimHorizon(arn), timeout.Token).Take(2 * keys.Length).ToListAsync(timeout.Token);
+
+        // Assert
+        var changes = records
+            .GroupBy(static change => change.Record.DynamoDb!.Keys!["pk"].AsString())
+            .OrderBy(static item => item.Key, StringComparer.Ordinal)
+            .Select(static item => item.Key + ":" + string.Join(">", item.Select(static change => change.Record.DynamoDb!.NewImage!["v"].AsNumber())));
+        await Assert.That(string.Join(",", changes)).IsEqualTo(string.Join(",", keys.Select(static key => key + ":1>2")));
+    }
+
+    [Test]
     public async Task DescribeStream_UnknownStream_ThrowsResourceNotFoundException()
     {
         // Arrange
@@ -468,6 +521,14 @@ public sealed class StreamTests(Backend backend)
         ShardIteratorType = ShardIteratorType.TrimHorizon,
         EmptyPageDelay = TimeSpan.FromMilliseconds(50),
     };
+
+    private static async Task PutAllAsync(Sandbox sandbox, string table, string[] keys, int value)
+    {
+        foreach (var key in keys)
+        {
+            await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = Items.Item(key, AttributeValue.FromNumber(value)) });
+        }
+    }
 
     private static async Task WriteInsertModifyRemoveAsync(Sandbox sandbox, string table)
     {

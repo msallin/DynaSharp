@@ -33,6 +33,9 @@ public enum Gap
     /// <summary>The shard of a stream that has no record yet already has a starting sequence number.</summary>
     StartingSequenceNumberOfAnEmptyShard,
 
+    /// <summary>GetShardIterator at the starting sequence number of a shard reads from its first record, also when the records of other streams came in between.</summary>
+    ReadAtTheStartingSequenceNumber,
+
     /// <summary>TransactGetItems with a ProjectionExpression returns the projected attributes only, key attributes included only when projected.</summary>
     TransactGetProjectionWithoutKeys,
 
@@ -122,6 +125,7 @@ public static class Gaps
         [(Backend.Dynoxide, Gap.GlobalIndexOnDemandThroughput)] = "Dynoxide ignores the OnDemandThroughput of a global secondary index and reports none.",
         [(Backend.Dynoxide, Gap.UpdateGlobalIndexOnDemandThroughput)] = "Dynoxide requires ProvisionedThroughput in the Update of a global secondary index, also on demand.",
         [(Backend.Dynoxide, Gap.UpdateServerSideEncryption)] = "Dynoxide rejects an UpdateTable with only SSESpecification as one that changes nothing.",
+        [(Backend.DynamoDbLocal, Gap.ReadAtTheStartingSequenceNumber)] = "DynamoDB Local numbers the records of all streams from one counter and answers TrimmedDataAccessException for a position below the first record of a shard.",
         [(Backend.DynamoDbLocal, Gap.UpdateTableClass)] = "DynamoDB Local rejects an UpdateTable that only changes the table class with 'Nothing to update'.",
         [(Backend.DynamoDbLocal, Gap.TransactionCapacityPerItem)] = "DynamoDB Local reports 2 units for a transaction of two items of one table.",
         [(Backend.DynamoDbLocal, Gap.ServerSideEncryptionDescription)] = "DynamoDB Local accepts SSESpecification and leaves SSEDescription out of the table description.",
@@ -130,7 +134,6 @@ public static class Gaps
         [(Backend.DynamoDbLocal, Gap.UpdateServerSideEncryption)] = "DynamoDB Local rejects an UpdateTable with only SSESpecification with 'Nothing to update'.",
 
         // The fake's rows name only what docs/testing.md lists as outside the fake, see Backend.Fake.
-        [(Backend.Fake, Gap.MultiShardStreams)] = "The fake's streams have a single shard.",
         [(Backend.Fake, Gap.PartiQl)] = "The fake does not answer PartiQL: ExecuteStatement is UnknownOperationException.",
         [(Backend.Fake, Gap.Tags)] = "The fake does not keep tags: Tags in CreateTable is UnsupportedByFakeException.",
         [(Backend.Fake, Gap.BatchResponseLimit)] = "The fake leaves no key unprocessed: it does not cut a BatchGetItem response at 16 MB.",

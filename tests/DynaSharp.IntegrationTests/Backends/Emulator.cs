@@ -1,3 +1,5 @@
+using DynaSharp.Testing;
+
 namespace DynaSharp.IntegrationTests.Backends;
 
 /// <summary>A backend that is up, an emulator, the fake or real AWS: which one it is and how to reach it.</summary>
@@ -9,4 +11,5 @@ namespace DynaSharp.IntegrationTests.Backends;
 /// Creates the handler a client of this backend sends over, which a test that watches the wire wraps in a <see cref="DelegatingHandler"/>: a new <see cref="SocketsHttpHandler"/> for a
 /// backend on the network, a handler of the fake for <see cref="Backend.Fake"/>, which has no network.
 /// </param>
-internal sealed record Emulator(Backend Backend, Func<DynamoDbClientOptions> CreateOptions, RawDynamoDb Raw, RawDynamoDb RawStreams, Func<HttpMessageHandler> CreateHandler);
+/// <param name="Fake">The fake of <see cref="Backend.Fake"/>, for what only it does on demand, such as splitting the shards of a stream; <see langword="null"/> for the others.</param>
+internal sealed record Emulator(Backend Backend, Func<DynamoDbClientOptions> CreateOptions, RawDynamoDb Raw, RawDynamoDb RawStreams, Func<HttpMessageHandler> CreateHandler, FakeDynamoDb? Fake = null);

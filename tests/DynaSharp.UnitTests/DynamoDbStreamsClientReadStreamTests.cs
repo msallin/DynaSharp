@@ -11,6 +11,9 @@ namespace DynaSharp.UnitTests;
 /// </summary>
 public sealed class DynamoDbStreamsClientReadStreamTests
 {
+    // The starting sequence number StubResponse.Shard gives every shard.
+    private const string ShardStart = "100000000000000000000";
+
     private static readonly Item Key = new() { ["pk"] = "order-1" };
 
     [Test]
@@ -72,13 +75,13 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
-    public async Task ReadStreamAsync_TrimHorizon_StartsEveryShardAtTheTrimHorizon()
+    public async Task ReadStreamAsync_TrimHorizon_StartsARootAtTheTrimHorizonAndAChildAtItsFirstSequenceNumber()
     {
-        // Arrange: the open root closes while it is read
+        // Arrange: the open child closes while it is read
         var script = new StreamScript();
         script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("old"), Open("new", "old")));
         script.ClosedShard("old", "old-1");
-        script.Answer("children:old", Description(StreamStatus.Enabled, null, Open("new", "old")));
+        script.Answer("children:old", Description(StreamStatus.Disabled, null, Open("new", "old")));
         script.ClosedShard("new", "new-1");
         script.Answer("children:new", Description(StreamStatus.Disabled, null));
         using var streams = TestClient.CreateStreams(script.Handler);
@@ -87,7 +90,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
 
         // Assert
-        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo("old:TRIM_HORIZON,new:TRIM_HORIZON");
+        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo($"old:TRIM_HORIZON,new:AT_SEQUENCE_NUMBER:{ShardStart}");
     }
 
     [Test]
@@ -107,13 +110,13 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
-    public async Task ReadStreamAsync_Latest_ReadsAChildOfAShardOpenAtTheStartFromTheTrimHorizon()
+    public async Task ReadStreamAsync_Latest_ReadsAChildOfAShardOpenAtTheStartFromItsFirstSequenceNumber()
     {
         // Arrange
         var script = new StreamScript();
         script.Answer("list:", Description(StreamStatus.Enabled, null, Open("open")));
         script.ClosedShard("open", "open-1");
-        script.Answer("children:open", Description(StreamStatus.Enabled, null, Closed("child", "open")));
+        script.Answer("children:open", Description(StreamStatus.Disabled, null, Closed("child", "open")));
         script.ClosedShard("child", "child-1");
         using var streams = TestClient.CreateStreams(script.Handler);
 
@@ -121,7 +124,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         await streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync();
 
         // Assert
-        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo("open:LATEST,child:TRIM_HORIZON");
+        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo($"open:LATEST,child:AT_SEQUENCE_NUMBER:{ShardStart}");
     }
 
     [Test]
@@ -181,7 +184,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
 
         // Assert
-        await Assert.That(string.Join(",", Positions(script.Handler).Order(StringComparer.Ordinal))).IsEqualTo("c:TRIM_HORIZON,p:TRIM_HORIZON,q:TRIM_HORIZON");
+        await Assert.That(string.Join(",", Positions(script.Handler).Order(StringComparer.Ordinal))).IsEqualTo($"c:AT_SEQUENCE_NUMBER:{ShardStart},p:TRIM_HORIZON,q:TRIM_HORIZON");
     }
 
     [Test]
@@ -439,6 +442,177 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_ChildTrimmedBeforeItsTurn_ThrowsTrimmedDataAccessException()
+    {
+        // Arrange: the first records of the child are gone, which its first sequence number shows and the trim horizon would not
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Open("c", "p")));
+        script.Answer("iterator:c", StubResponse.DynamoDbError("TrimmedDataAccessException", "The operation attempted to read past the oldest stream record in a shard."));
+        using var streams = TestClient.CreateStreams(script.Handler);
+
+        // Act
+        var act = async () => await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<TrimmedDataAccessException>();
+    }
+
+    [Test]
+    [Arguments(0, "TRIM_HORIZON")]
+    [Arguments((23 * 60) - 1, "TRIM_HORIZON")]
+    [Arguments(23 * 60, "AT_SEQUENCE_NUMBER:" + ShardStart)]
+    [Arguments(30 * 60, "AT_SEQUENCE_NUMBER:" + ShardStart)]
+    public async Task ReadStreamAsync_ChildOpenedThatLongAgo_StartsAtTheTrimHorizonOnlyWhileNothingCanBeTrimmed(int minutesAgo, string position)
+    {
+        // Arrange: the id of a shard of DynamoDB holds the Unix milliseconds it opened at
+        var now = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        var child = $"shardId-{now.AddMinutes(-minutesAgo).ToUnixTimeMilliseconds():D20}-0000000a";
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed(child, "p")));
+        script.ClosedShard(child, "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(now));
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:{position}");
+    }
+
+    [Test]
+    [Arguments("c")]
+    [Arguments("shardXd-00000001767225600000-0000000a")]
+    [Arguments("shardId-00000001767225600000x0000000a")]
+    [Arguments("shardId-0000000176722560000a-0000000a")]
+    [Arguments("shardId-00000999999999999999-0000000a")]
+    public async Task ReadStreamAsync_ChildWhoseIdTellsNoTime_StartsAtItsFirstSequenceNumber(string child)
+    {
+        // Arrange
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed(child, "p")));
+        script.ClosedShard(child, "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:AT_SEQUENCE_NUMBER:{ShardStart}");
+    }
+
+    [Test]
+    [Arguments("""{"ShardId":"c","ParentShardId":"p"}""")]
+    [Arguments("""{"ShardId":"c","ParentShardId":"p","SequenceNumberRange":{}}""")]
+    [Arguments("""{"ShardId":"c","ParentShardId":"p","SequenceNumberRange":{"StartingSequenceNumber":""}}""")]
+    public async Task ReadStreamAsync_ChildWithoutStartingSequenceNumber_ReadsItFromTheTrimHorizon(string child)
+    {
+        // Arrange: an emulator leaves the range of an empty shard empty
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", StubResponse.Json($$$"""{"StreamDescription":{"StreamStatus":"DISABLED","Shards":[{{{child}}}]}}"""));
+        script.ClosedShard("c", "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler);
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo("p:TRIM_HORIZON,c:TRIM_HORIZON");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_SecondChildListedLate_ReadsItToo()
+    {
+        // Arrange: DynamoDB lists the second child of a split only on the third look
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer(
+            "children:p",
+            Description(StreamStatus.Enabled, null, Closed("c1", "p")),
+            Description(StreamStatus.Enabled, null, Closed("c1", "p")),
+            Description(StreamStatus.Enabled, null, Closed("c1", "p"), Closed("c2", "p")));
+        script.ClosedShard("c1", "c1-1");
+        script.ClosedShard("c2", "c2-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(string.Join(",", SequenceNumbers(await reading).Order(StringComparer.Ordinal))).IsEqualTo("c1-1,c2-1,p-1");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_OneChildWhileTheStreamIsOn_LooksForMoreEveryFiveSecondsForAMinute()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Enabled, null, Closed("c", "p")));
+        script.ClosedShard("c", "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That((delays.Count, delays.Distinct().Single())).IsEqualTo((12, TimeSpan.FromSeconds(5)));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_DelayAboveFiveSeconds_LooksForMoreChildrenAtThatDelay()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Enabled, null, Closed("c", "p")));
+        script.ClosedShard("c", "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.FromSeconds(7) }).ToListAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That((delays.Count, delays.Distinct().Single())).IsEqualTo((9, TimeSpan.FromSeconds(7)));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_NoChildYetAndNoDelay_WaitsASecondBeforeItAsksAgain()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Enabled, null), Description(StreamStatus.Disabled, null, Closed("c", "p")));
+        script.ClosedShard("c", "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.Zero }).ToListAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(delays.Single()).IsEqualTo(TimeSpan.FromSeconds(1));
+    }
+
+    [Test]
     public async Task ReadStreamAsync_OpenShardIsGone_ThrowsResourceNotFoundException()
     {
         // Arrange
@@ -645,10 +819,11 @@ public sealed class DynamoDbStreamsClientReadStreamTests
 
     private static List<string> SequenceNumbers(IEnumerable<ShardChangeRecord> records) => [.. records.Select(static change => change.Record.DynamoDb!.SequenceNumber!)];
 
-    // The shards and positions of the GetShardIterator calls, in the order sent.
+    // The shards and positions of the GetShardIterator calls, in the order sent, with the sequence number of a position that has one.
     private static IEnumerable<string> Positions(StubHandler handler) => handler.Requests
         .Where(static sent => sent.Operation == "GetShardIterator")
-        .Select(static sent => sent.BodyJson.GetProperty("ShardId").GetString() + ":" + sent.BodyJson.GetProperty("ShardIteratorType").GetString());
+        .Select(static sent => sent.BodyJson.GetProperty("ShardId").GetString() + ":" + sent.BodyJson.GetProperty("ShardIteratorType").GetString()
+            + (sent.BodyJson.TryGetProperty("SequenceNumber", out var number) ? ":" + number.GetString() : string.Empty));
 
     private static async Task WhenCancelledAsync(CancellationToken cancellationToken)
     {

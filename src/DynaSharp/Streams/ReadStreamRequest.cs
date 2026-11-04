@@ -5,7 +5,7 @@ namespace DynaSharp.Streams;
 /// </summary>
 /// <remarks>
 /// The position is one of two: <see cref="ShardIteratorType.TrimHorizon"/> for everything still kept, or <see cref="ShardIteratorType.Latest"/> for what
-/// is written from now on. It applies to the shards open at the start; a shard that starts later is read from its beginning. There is no position to resume
+/// is written from now on. It applies to the shards open at the start; a shard that starts later is read from its first sequence number. There is no position to resume
 /// at: to resume, read the shard of a record with <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="ShardIteratorType.AfterSequenceNumber"/>.
 /// </remarks>
 public sealed record ReadStreamRequest
@@ -27,8 +27,8 @@ public sealed record ReadStreamRequest
     /// <see cref="ReadShardRequest.EmptyPageDelay"/> does. The default is one second.
     /// </summary>
     /// <remarks>
-    /// The same wait comes between two looks for the children of a closed shard while the stream is still enabled and DynamoDB lists none yet. Zero asks again
-    /// at once. The delay must stay below the 15 minutes an iterator lives.
+    /// The same wait, but at least a second, comes between two looks for the children of a closed shard while the stream is still enabled and DynamoDB lists none
+    /// yet. Zero asks a shard again at once. The delay must stay below the 15 minutes an iterator lives.
     /// </remarks>
     public TimeSpan EmptyPageDelay { get; init; } = TimeSpan.FromSeconds(1);
 }

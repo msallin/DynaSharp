@@ -53,7 +53,7 @@ Each request is one span of kind `Client`, named after service and operation: `D
 
 ### Reading a stream
 
-`ReadStreamAsync` adds a span per shard it reads, of kind `Internal`, named `DynamoDB Streams.ReadStream`. It is a child of the span that was current when the loop started, and the calls of the shard are its children. A child shard is not the child span of its parent, so that a stream read for days is no trace that grows for days: its span links to the span of the parent shard instead. The span lasts as long as the shard is read, which for an open shard can be hours, until DynamoDB closes it.
+`ReadStreamAsync` adds a span per shard it reads, of kind `Internal`, named `DynamoDB Streams.ReadStream`. It is a child of the span that was current when the loop started, and the calls of the shard are its children. A child shard is not the child span of its parent, so that a stream read for days is no trace that grows for days: its span links to the span of the parent shard instead. The span lasts as long as the shard is read and its children are looked for, up to a minute more, which for an open shard can be hours, until DynamoDB closes it.
 
 | Attribute | Value |
 |---|---|
@@ -106,7 +106,8 @@ The client logs only what no single caller sees: its configuration, retries that
 | 7 | Warning | A batch gave up with work left | `DynamoDB {Operation} on table {Table} gave up with {Unprocessed} actions unprocessed after {Requests} requests. ...` |
 | 8 | Warning | `RetryOnConflictAsync` used up its runs | `DynamoDB {Operation} on table {Table} lost to another writer with {ErrorType} on run {Runs} of RetryOnConflictAsync, ...` |
 | 9 | Warning | The endpoint is http on a non-loopback host, once per client | `DynamoDB client sends requests to {Host} over plain http. The requests, their signatures and the session token travel unencrypted.` |
-| 10 | Debug | `ReadStreamAsync` read a shard to its end | `DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.` |
+| 10 | Debug | `ReadStreamAsync` read a shard to its end and stopped looking for its children | `DynamoDB Streams shard {ShardId} was read to its end. Child shards to read next: {Children}.` |
+| 11 | Debug | `ReadStreamAsync` found a child only on a later look | `DynamoDB Streams listed the child shard {ChildShardId} of shard {ShardId} only {Elapsed} after the shard was read to its end.` |
 | 20 | Debug | The default chain chose a source | `Credentials come from the {Source}.` |
 | 21 | Warning | A refresh failed while the credentials are still good | `Refreshing the credentials from the {Source} failed in the advisory refresh period: {Reason}. ...`, with the exception |
 | 22 | Warning | A refresh failed and requests fail until one succeeds | `Refreshing the credentials from the {Source} failed in the mandatory refresh period: {Reason}. ...`, with the exception |

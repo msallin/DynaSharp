@@ -22,7 +22,8 @@ internal static class FakeBackend
             CreateOptions,
             new RawDynamoDb((operation, json, _) => Task.FromResult(Send(fake, RawDynamoDb.TableTargetPrefix + operation, json))),
             new RawDynamoDb((operation, json, _) => Task.FromResult(Send(fake, RawDynamoDb.StreamsTargetPrefix + operation, json))),
-            fake.CreateHandler);
+            fake.CreateHandler,
+            fake);
     }
 
     // As for the emulators: one attempt, so a failure shows up at once.

@@ -780,13 +780,16 @@ response without one reads as null, as everywhere else in the library, and nothi
 `ShardChangeRecord` is a `readonly record struct` of `ShardId` and `Record` (`ChangeRecord`): the shard is not on `ChangeRecord`, because `GetRecords` does not say it. Arguments are checked at the call, requests start with the
 first `MoveNextAsync`. It lists the shards with `DescribeStream`, every page; `TrimHorizon` starts each shard whose parent is not listed, closed or open, from the trim horizon, `Latest` starts each open shard from
 `Latest` and counts the closed ones as read. A shard is read with `ReadShardAsync` on a task of its own, and one read to its end starts its children, found with a `ShardFilter` of `CHILD_SHARDS` and kept only if
-their `ParentShardId` names it, from the trim horizon; while the stream is `ENABLED` or `ENABLING` and none is listed it asks again after `EmptyPageDelay`. Records go through a bounded buffer of 16. The changes of
+their `ParentShardId` names it. A child is read from the trim horizon if its id (`shardId-<20 digits of Unix milliseconds>-...`) says it opened less than 23 hours ago on the client's clock, since none of its
+records can be trimmed then; otherwise at `AT_SEQUENCE_NUMBER` of its `StartingSequenceNumber`, so that trimmed records give `TrimmedDataAccessException`; without a starting number from the trim horizon. Each child starts
+as soon as it is listed, and the reader of the parent keeps asking while the stream is `ENABLED` or `ENABLING`: until a first child is listed every `EmptyPageDelay` but at least every second, after it every
+five seconds (or `EmptyPageDelay` if longer) for one more minute, because DynamoDB can list a child late and the Developer Guide bounds no number of children. Records go through a bounded buffer of 16. The changes of
 one item come in order, records of different shards in none. The sequence ends when no shard is left, which needs a stream that was switched off. The first failure of any shard ends it with that exception, after
 the other readers were stopped and awaited, and the records still buffered are dropped. Nothing is skipped: `TrimmedDataAccessException` surfaces, and a closed shard whose `GetShardIterator` gives
 `ResourceNotFoundException`, which DynamoDB removed 24 hours after it closed, throws `TrimmedDataAccessException` too, with the request id and status of the original. Cancelling or disposing the enumerator stops
 every reader and waits for it. Each shard is an `Internal` span `DynamoDB Streams.ReadStream` under the span current at the first `MoveNextAsync`, linked to the span of its parent shard, with
 `dynasharp.stream.shard_id` and `dynasharp.stream.record_count`; `dynasharp.client.stream.shards` (`{shard}`, an up-down counter) and `dynasharp.client.stream.records` (`{record}`) carry `server.address` and
-`server.port`; event 10 (Debug) logs a shard read to its end and the number of its children. No consumer: no leasing, no checkpoints, no sharing of shards across processes.
+`server.port`; event 10 (Debug) logs a shard read to its end and the number of its children once the looks end, event 11 (Debug) a child listed only on a later look. No consumer: no leasing, no checkpoints, no sharing of shards across processes.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,
