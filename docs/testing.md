@@ -63,7 +63,7 @@ Every item operation, batch and transaction below also takes `ReturnConsumedCapa
 
 ### What the fake is not
 
-- Nothing throttles: provisioned throughput is stored and reported, never enforced. Faults come from the handler, as in the README above.
+- Nothing throttles: provisioned throughput is stored and reported, never enforced. Faults come from `FailNext` or from the handler, as in the README above.
 - No automatic expiry: see `ExpireItems()` in the README above.
 - No PartiQL, backups, point-in-time recovery, export or import, tags, resource policies, global tables, warm throughput, Contributor Insights or Kinesis destinations.
 - Shards split only when `SplitStreamShards` says so, never by themselves. A stream is `ENABLED` or `DISABLED` at once, never `ENABLING` or `DISABLING`.

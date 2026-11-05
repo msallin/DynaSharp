@@ -212,5 +212,15 @@ public sealed class RecordedRequest
         return new RecordedRequest(request.Method, request.RequestUri, headers, body);
     }
 
-    private static string? ParseOperation(string? target) => target?[(target.LastIndexOf('.', StringComparison.Ordinal) + 1)..];
+    /// <summary>Makes a request of an operation from its target and body, as a server in front of a fake hands them over.</summary>
+    /// <param name="target">The operation, or its whole target.</param>
+    /// <param name="body">The body.</param>
+    /// <returns>The request, a <c>POST</c> without a URI.</returns>
+    internal static RecordedRequest Create(string target, byte[] body) =>
+        new(HttpMethod.Post, null, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [WireProtocol.TargetHeaderName] = target }, body);
+
+    /// <summary>Takes the operation out of a target, the part after its last dot.</summary>
+    /// <param name="target">The target, or <see langword="null"/>.</param>
+    /// <returns>The operation, or <see langword="null"/>.</returns>
+    internal static string? ParseOperation(string? target) => target?[(target.LastIndexOf('.', StringComparison.Ordinal) + 1)..];
 }

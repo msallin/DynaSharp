@@ -543,7 +543,7 @@ Each entry names where the reasons are. "Decisions" and "Findings" are sections 
 
 ## 14. The fake
 
-`FakeDynamoDb` runs the client's path in reverse: it reads request JSON and writes response JSON, which the library never does, so it shares the codec and nothing of the operations. Everything but the facade is internal, in `src/DynaSharp.Testing/Fake/`, namespace `DynaSharp.Testing.Fake`. It is not a hot path: `JsonDocument` for envelopes, LINQ, copies.
+`FakeDynamoDb` runs the client's path in reverse: it reads request JSON and writes response JSON, which the library never does, so it shares the codec and nothing of the operations. Everything but the facade is internal, in `src/DynaSharp.Testing/Fake/`, namespace `DynaSharp.Testing.Fake`. It is not a hot path: `JsonDocument` for envelopes, LINQ, copies. The facade's `FakeFailures.cs` keeps the failures of `FailNext`, a list under `FakeDatabase.Gate` that both `Answer` overloads ask before `FakeWire.Handle`, so a failed request reaches no table; `Answer(operation, requestJson)` makes a `RecordedRequest` of its target for the `when` of a failure.
 
 | Folder | Holds |
 |---|---|

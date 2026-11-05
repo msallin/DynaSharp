@@ -631,6 +631,19 @@ Check(fake.Items<Visitor>("Visitors") is [{ Id: "v-1" }], "Items<T> of the fake 
 fake.Delete("Visitors", new Item { ["pk"] = "c-1" });
 await fakeVisitors.Delete(new Visitor("v-1", 2)).IfExists().SendAsync();
 Check(fake.Items("Visitors").Count == 0, "the fake answers a Delete");
+fake.FailNext("PutItem", StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError), when: static request => request.BodyText.Contains("v-9", StringComparison.Ordinal));
+var plannedFailure = false;
+try
+{
+    await fakeVisitors.Put(new Visitor("v-9", 1)).SendAsync();
+}
+catch (InternalServerErrorException)
+{
+    plannedFailure = true;
+}
+
+fake.ThrowIfFailuresLeft();
+Check(plannedFailure && fake.Items("Visitors").Count == 0, "a failure planned on the fake fails the next request of its operation, which writes nothing");
 
 // DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, the release, the options, the helpers
 // for tests, and a term of a leader.

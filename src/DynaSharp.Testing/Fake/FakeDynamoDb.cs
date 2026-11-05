@@ -111,7 +111,7 @@ public sealed partial class FakeDynamoDb
     public StubResponse Answer(RecordedRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return FakeWire.Handle(_db, request.Headers.GetValueOrDefault(WireProtocol.TargetHeaderName), request.Body.Span).ToStubResponse();
+        return TakeFailure(request) ?? FakeWire.Handle(_db, request.Headers.GetValueOrDefault(WireProtocol.TargetHeaderName), request.Body.Span).ToStubResponse();
     }
 
     /// <summary>Answers a request given as text, which is what a server in front of the fake or a raw client calls.</summary>
@@ -123,7 +123,8 @@ public sealed partial class FakeDynamoDb
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(requestJson);
-        return FakeWire.Handle(_db, operation, System.Text.Encoding.UTF8.GetBytes(requestJson)).ToStubResponse();
+        var body = System.Text.Encoding.UTF8.GetBytes(requestJson);
+        return TakeFailure(RecordedRequest.Create(operation, body)) ?? FakeWire.Handle(_db, operation, body).ToStubResponse();
     }
 
     /// <summary>Creates a table, as a <c>CreateTable</c> request does, with the same checks. It is <c>ACTIVE</c> at once.</summary>
@@ -209,7 +210,7 @@ public sealed partial class FakeDynamoDb
     }
 
     /// <summary>
-    /// Drops every table with its items and streams, and forgets every client request token. The handlers and clients of this fake stay valid and see no tables. A stream enabled
+    /// Drops every table with its items and streams, forgets every client request token, and drops the failures planned with <see cref="FailNext"/> that no request took. The handlers and clients of this fake stay valid and see no tables. A stream enabled
     /// afterwards gets another ARN than the streams before, also on the same clock, so a shard iterator from before is <c>ResourceNotFoundException</c>.
     /// </summary>
     public void Reset()
@@ -217,6 +218,7 @@ public sealed partial class FakeDynamoDb
         lock (_db.Gate)
         {
             _db.Reset();
+            _failures.Clear();
         }
     }
 
