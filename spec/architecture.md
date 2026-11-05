@@ -326,7 +326,7 @@ The generator stays on C# 12 and on Roslyn 5.0.0 on purpose. Consumers target ne
 | Template syntax | `KeyTemplateParser`, whose remarks show the grammar with an example |
 | Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
 | Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
-| Compile-time rules (`DYNA100` to `DYNA120`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
+| Compile-time rules (`DYNA100` to `DYNA120`, `DYNA123`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
 | Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter`. Which conditions exist is `KeyBuilderEmitter.IsInOrder` and `EmitRanges`, and `PlainKeyBuilderEmitter.OrderedText`, for the reasons in `api.md` section 6 |
 | `KeyFormatException` | `Keys/KeyFormatException.cs`, in namespace `DynaSharp`; it names the placeholder, never the value. A generated builder catches it around its writer and throws `InTemplate(template, delimiters)`, which names the template and, for a delimiter, the delimiter set, because `KeyWriter` gets the delimiters of a call and not the text of the template. A catch costs a key that is valid nothing |
 | `TryOf` and the check of `Keys.Of` | `KeyWriter`, whose `Reject` is the one place a value is turned away, and which with `throwOnInvalid: false` sets `IsInvalid` there. The generated `Encode` is the same for `Format`, `Of`, `TryOf` and `Check`, so they cannot disagree. `KeyEncoding.CanReject` says which keys have any of it |

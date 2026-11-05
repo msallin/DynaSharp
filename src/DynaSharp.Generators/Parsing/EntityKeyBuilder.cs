@@ -76,6 +76,7 @@ internal sealed class EntityKeyBuilder(
         ReportEmptyDefaults();
         ReportRawBesideStrict();
         RestoreKeyOnlyProperties();
+        ReportRawWithoutKeyOnly(partition, sort);
         FindFallbackKeys();
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
         return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs);
@@ -167,6 +168,26 @@ internal sealed class EntityKeyBuilder(
             if (raw.Template is not null)
             {
                 bag.Report(Descriptors.RawBesideStrict, strict.Spot, strict.Placeholder.Property, raw.Template.Text, strict.Template.Text, strict.Template.Delimiters, string.Empty);
+            }
+        }
+    }
+
+    // A raw input is mostly an id that holds the delimiter, and only the key needs it. A Put stores every input it has an attribute for, and an Update writes none unless it asks, so
+    // without [KeyOnly] some items hold the attribute and others do not. An adopted table whose items hold it is the case for keeping it, which is why this is information only.
+    private void ReportRawWithoutKeyOnly(KeyModel? partition, KeyModel? sort)
+    {
+        var reported = new HashSet<string>();
+        foreach (var key in new[] { partition, sort })
+        {
+            foreach (var placeholder in (key?.Template?.Segments ?? default).OfType<PlaceholderSegment>())
+            {
+                if (placeholder.Encoding is StringEncoding { IsRaw: true }
+                    && _stored.TryGetValue(placeholder.Property, out var property)
+                    && !property.IsComputed
+                    && reported.Add(property.Name))
+                {
+                    bag.Report(Descriptors.RawWithoutKeyOnly, property.Spot, property.Name, key!.Template!.Text);
+                }
             }
         }
     }

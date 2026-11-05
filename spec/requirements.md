@@ -216,7 +216,8 @@ silence. Case folding and normalization are never applied: ElectroDB's default l
   check and nothing else: an empty value, a lone surrogate, U+0000 to U+001F and U+10FFFF still throw, so an upper bound
   stays above every key under a prefix. A value without a delimiter gives the same bytes as without `raw`. A format
   belongs to its template, so a strict `{Key}` of the same property in another key goes on rejecting what `raw` takes,
-  and `DYNA120` warns of it.
+  and `DYNA120` warns of it. A raw input of the table key without `[KeyOnly]` is `DYNA123` (info): a `Put` stores it as
+  an attribute and an `Update` does not, so only some items would hold it.
 - The check runs on the formatted text of each segment, so a custom type that emits a delimiter is caught as well.
 - An empty value throws: DynamoDB rejects empty key attributes, and an empty middle segment would turn a key into a prefix
   of other keys. A value that is not well-formed UTF-16 throws, because lone surrogates collapse into U+FFFD and two
