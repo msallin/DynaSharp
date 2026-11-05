@@ -587,6 +587,14 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R10 - 0.3.0 writes and table setup
+
+Branch `feat/030-writes`. Owner-approved items of the backlog from the app migrations (writes and table setup), all additive to 0.2.0.
+
+- [x] **`NotExistsOrLt(v)` and `NotExistsOrLe(v)` on `Attr<T, TConverter>`**, the guard `NotExists().Or(Lt(v))` that socce-cockpit writes five times, and the recipe "Events that arrive out of order" in `patterns-writes.md` with `Recipes/OutOfOrderEventsTests.cs`.
+- Decision: the names follow the handle, whose methods are the operators of the grammar (`Eq`, `Lt`, `NotExists`): `NotExistsOrLt` says what it renders, `(attribute_not_exists(a) OR a < :v)`, where a name of intent (`IsOlderThan`, `OnlyIfNewer`) would hide whether equal passes, which is the difference between a duplicate and a write. The type is the `Or<AttributeExists, Compare<T, TConverter>>` the long form gives, so nothing allocates and it composes as before. `Le` too, because the recipes already wrote that guard for something free or expired (a lease, a held seat). Not on the untyped `Attr`: the guard compares a typed field, and `Attr` would need one overload per value kind. No `Gt`/`Ge` form, which nobody asked for. The recipes and `patterns-writes.md` use the shorthand.
+- Decision: the recipe says that a failed condition is the answer and not a conflict: no `RetryOnConflictAsync`, no `MaxAttempts(1)`, because a retry after a lost response fails against its own write and reads as the duplicate it is. A version per group of fields, a delete as a tombstone, and versions that compare only within one source (one Kafka partition) are its caveats.
+
 ### R9 - stream tests on the fake: switching a stream, fast waits, a stable gate (0.3.0)
 
 Branch `feat/fake-streams`. Found while nrt-showcase moved its stream tests onto `FakeDynamoDb`: a test ended a stream with an `UpdateTableAsync` of a `StreamSpecification`, each test of a reader took 1 to 3 seconds, and the 100 % line gate failed now and then.
@@ -980,7 +988,7 @@ Decisions taken while building it (beyond the plan):
 Six services moved to 0.2.0 (data-pond and nrt-showcase to `ReadStreamAsync`, yats and customer-adapter to `DynaSharp.Coordination`, socce-cockpit and lps-label-print-server to the new version). The owner put what they found into the backlog; streams, coordination and testing items are done right away, see R7 and M7. The streams and testing items of data-pond and nrt-showcase are done in R7: a transient shard error read through, `ReadStreamAsync` of a table, `ShardChangeRecord.SequenceNumber`, the signal `OnJoined`, and a status for `StubResponse.StreamDescription`.
 
 Writes
-- [ ] "Only if newer": a shorthand for `X.NotExists().Or(X.Lt(v))`, and a recipe in `patterns-writes.md` for events that arrive out of order, with timestamps per field (socce-cockpit writes the guard five times).
+- [x] "Only if newer": a shorthand for `X.NotExists().Or(X.Lt(v))`, and a recipe in `patterns-writes.md` for events that arrive out of order, with timestamps per field (socce-cockpit writes the guard five times). Done in 0.3.0: `NotExistsOrLt`, see R10.
 - [ ] An expected failed condition without an exception: a terminal such as `TrySendAsync` with `ConditionMet`, which also tells a duplicate apart from a write that failed against its own retry after a lost response.
 - [ ] `[TimeToLive]` on the property: `CreateTable()` and `FakeDynamoDb.CreateTable<T>` turn it on, and it implies or checks epoch seconds. Until then the Testing README says `ExpireItems` needs time to live turned on.
 - [ ] `RetryOnConflictAsync` with an initial state or the attempt number, so a value read before the first attempt needs no closure.

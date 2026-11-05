@@ -89,7 +89,7 @@ public sealed class IdempotencyKeyTests(Backend backend)
             {
                 await sandbox.Client.TransactWrite()
                     .Put(records, new IdempotencyRecord { Key = key, Answer = chargeId, ExpiresAt = now + Horizon }, out answered)
-                    .If(IdempotencyRecord.Attrs.ExpiresAt.NotExists().Or(IdempotencyRecord.Attrs.ExpiresAt.Lt(now)))
+                    .If(IdempotencyRecord.Attrs.ExpiresAt.NotExistsOrLt(now))
                     .ReturnOldOnFailure()
                     .Put(sandbox.Shop.Of<Charge>(), new Charge { Id = chargeId })
                     .SendAsync(ct);

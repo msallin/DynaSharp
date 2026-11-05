@@ -593,7 +593,7 @@ shop.Update(pk, sk).If(Open & Attr("version").Eq(3));
 ```
 
 Struct conditions cover comparisons, existence, `BeginsWith`, `Contains` and `Between`, compose with `And`, `Or`, `Negate` and allocate nothing. A chain of one operator renders as one group, `(a OR b OR c)`, and conditions
-added one by one as `(a) AND (b) AND (c)`. `BeginsWith` by handle is an extension method of `AttrExtensions`, because the type
+added one by one as `(a) AND (b) AND (c)`. A handle has `NotExistsOrLt(v)` and `NotExistsOrLe(v)`, `NotExists().Or(Lt(v))` and `NotExists().Or(Le(v))` in one call, `(attribute_not_exists(a) OR a < :v)`, the guard of a write that must not move an item back to an older version and of something free or expired; `Attr` has no such shorthand, since it is the guard of a typed field. No `Gt` or `Ge` form: nobody asked for a stored value that must be missing or newer. `BeginsWith` by handle is an extension method of `AttrExtensions`, because the type
 of the attribute decides: a number, a boolean and a timestamp stored as a number do not compile (`CS0619`), as DynamoDB finds nothing there, an enum, a `Guid` or a date, which are stored as strings, do, and
 a binary attribute takes a binary prefix, with a string as `CS0619`. A `[Flags]` enum is stored as a number, and its handle has a generated converter that no overload can name, so it compiles and `DYNA216` reports it.
 `Contains` by handle is an extension method of `AttrExtensions` too, with one overload per handle of a set, a list and a string that the generator emits, also nullable and with `[OmitEmpty]`: a set takes an element of its type,

@@ -172,7 +172,7 @@ string answer = await client.RetryOnConflictAsync(async token =>
     {
         await client.TransactWrite()
             .Put(records, new IdempotencyRecord { Key = requestKey, Answer = chargeId, ExpiresAt = now + horizon }, out answered)
-            .If(IdempotencyRecord.Attrs.ExpiresAt.NotExists().Or(IdempotencyRecord.Attrs.ExpiresAt.Lt(now)))
+            .If(IdempotencyRecord.Attrs.ExpiresAt.NotExistsOrLt(now))
             .ReturnOldOnFailure()
             .Put(shop.Of<Charge>(), new Charge { Id = chargeId })
             .SendAsync(token);
@@ -193,6 +193,66 @@ Caveats:
 - DynamoDB deletes an expired item up to days later, so the condition checks the time, not the record's absence. Never use time to live as a timer.
 - A conflict means the first call is still running; `RetryOnConflictAsync` asks again and gets its answer.
 - Every charge goes to the one partition `CHARGES`, limited to one partition's writes. A busier table gives each charge its own key, such as `CHARGE#{Id}`.
+
+## Events that arrive out of order
+
+An ingest from Kafka, or from any queue that delivers at least once, sees an event late, twice, or after a newer one of the same key. One item per key holds the latest state, and every write carries the version it comes from: a sequence of the producer, or the time of the event. The write holds only where the stored version is older or missing, so the item never moves back, and a failed condition says that the event is old news.
+
+Where events of different kinds change different fields, each group of fields keeps its own version beside it, here the time of the event that set it:
+
+```csharp
+[DynamoDbEntity]
+[Discriminator("LIVE_MATCH")]
+[PartitionKey("MATCH#{Id}")]
+[SortKey("LIVE")]
+public partial record LiveMatch
+{
+    public required string Id { get; init; }
+    public int HomeGoals { get; init; }
+    public int AwayGoals { get; init; }
+    public DateTimeOffset? ScoreAt { get; init; }
+    public string? Status { get; init; }
+    public DateTimeOffset? StatusAt { get; init; }
+}
+
+public sealed record ScoreChanged(string MatchId, int Home, int Away, DateTimeOffset At);
+```
+
+An update sets the fields of its group and their time, on condition that the stored time is older. `NotExistsOrLt(v)` is `NotExists().Or(Lt(v))`: an item that does not exist yet passes, and so does one that has a status and no score yet:
+
+```csharp
+var matches = shop.Of<LiveMatch>();
+
+async Task<bool> ApplyAsync(ScoreChanged change, CancellationToken token)
+{
+    try
+    {
+        await matches.Update(LiveMatch.Keys.Of(change.MatchId))
+            .Set(LiveMatch.Attrs.HomeGoals, change.Home)
+            .Set(LiveMatch.Attrs.AwayGoals, change.Away)
+            .Set(LiveMatch.Attrs.ScoreAt, change.At)
+            .If(LiveMatch.Attrs.ScoreAt.NotExistsOrLt(change.At))
+            .SendAsync(token);
+        return true;
+    }
+    catch (ConditionalCheckFailedException)
+    {
+        // A newer score is stored, or this very event: a duplicate, which the consumer commits like an applied one.
+        return false;
+    }
+}
+```
+
+A status event is the same update over `Status` and `StatusAt`, so a late score never undoes a newer status and the other way around. Where every event carries the whole state, one version for the item is enough, and a `Put` replaces it: `.Put(standing).If(Standing.Attrs.Seq.NotExistsOrLt(standing.Seq))`.
+
+Caveats:
+
+- `Lt`, not `Le`: the same version a second time is a duplicate and writes nothing. `NotExistsOrLe` writes it again, which is harmless for the same state, but cannot tell a duplicate from an applied event.
+- A failed condition is the answer, not a conflict, so the write takes no `RetryOnConflictAsync`, which would run it five times for nothing. It needs no `MaxAttempts(1)` either: a retry of the client after a lost response fails against its own write, and reads as a duplicate, which it is.
+- A version orders only what one source numbers. Times from several producers are as good as their clocks, and offsets of Kafka compare within one partition only, so a key has to stay on one partition, also when partitions are added.
+- One event that changes two groups is two updates, or one with both conditions joined by `And`, and then a newer value of one group blocks the older event for both.
+- A delete would let a late event bring the item back. Keep the item with a deleted flag and the version instead, and let time to live take it later, see [soft delete](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/SoftDeleteTests.cs).
+- A failed condition costs a write unit, as the write would. [The recipe](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/OutOfOrderEventsTests.cs) runs late and repeated events against every backend.
 
 ## Counters
 

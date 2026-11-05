@@ -55,6 +55,7 @@ Sparse-attribute toggle needs no primitive of its own: it is `SET`/`REMOVE` of a
 | Pub/sub via subscription items | P3 | Recipe | Streams are CDC, not a bus (max ~2 readers per shard) |
 | Transactional outbox | P2 | Recipe | Often the table's stream already is the outbox |
 | Idempotency keys | P2, P7 | Recipe | TTL longer than the client's retry horizon |
+| Events that arrive out of order | P1 | Recipe (`NotExistsOrLt` on a version per item or per group of fields) | A failed condition is a duplicate, not a conflict; a delete leaves a tombstone, or a late event brings the item back |
 | Fixed-window rate limit | P1, P7 | Recipe | |
 | Token bucket | P1 | Recipe | Condition on observed `lastRefill` and tokens: with `lastRefill` alone, 8 concurrent takers spent 3 tokens on a frozen clock |
 | Reservation with auto-release | P1, P2 | Recipe | |

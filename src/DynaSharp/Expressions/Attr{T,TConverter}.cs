@@ -79,6 +79,23 @@ public readonly struct Attr<T, TConverter>
     /// <returns>The condition.</returns>
     public AttributeExists NotExists() => new(Path, exists: false);
 
+    /// <summary>
+    /// Checks that the attribute is missing or below a value, <c>(attribute_not_exists(a) OR a &lt; :v)</c>, which is <c>NotExists().Or(Lt(value))</c>. It is the guard of a write that must never move an
+    /// item back: <c>.If(Reading.Attrs.Seq.NotExistsOrLt(reading.Seq))</c> stores an event only when the item holds an older one, or none, so an event that arrives late or twice fails the condition.
+    /// An item that does not exist passes, and so does one without the attribute. The DynamoDB null value is an attribute that exists and compares with nothing, so an item that holds it fails.
+    /// </summary>
+    /// <param name="value">The value the stored one has to be below, such as the version or the time of the event that is written.</param>
+    /// <returns>The condition.</returns>
+    public Or<AttributeExists, Compare<T, TConverter>> NotExistsOrLt(T value) => new(NotExists(), Lt(value));
+
+    /// <summary>
+    /// Checks that the attribute is missing or at most a value, <c>(attribute_not_exists(a) OR a &lt;= :v)</c>, which is <c>NotExists().Or(Le(value))</c>: the guard of something free or expired, such as a
+    /// lease whose end is at or before now. See <see cref="NotExistsOrLt(T)"/>.
+    /// </summary>
+    /// <param name="value">The value the stored one may not exceed.</param>
+    /// <returns>The condition.</returns>
+    public Or<AttributeExists, Compare<T, TConverter>> NotExistsOrLe(T value) => new(NotExists(), Le(value));
+
     /// <summary>Makes a value of this attribute for a hole of an interpolated expression: <c>$"{attr} = {attr.Value(x)}"</c>.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The value with its converter.</returns>

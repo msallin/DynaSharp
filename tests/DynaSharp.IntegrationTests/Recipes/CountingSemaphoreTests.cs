@@ -101,7 +101,7 @@ public sealed class CountingSemaphoreTests(Backend backend)
             try
             {
                 await permits.Put(new LeasedPermit { Name = Printer, Slot = slot, Holder = holder, LeaseUntil = now + Lease })
-                    .If(LeasedPermit.Attrs.LeaseUntil.NotExists().Or(LeasedPermit.Attrs.LeaseUntil.Le(now)))
+                    .If(LeasedPermit.Attrs.LeaseUntil.NotExistsOrLe(now))
                     .SendAsync();
                 return slot;
             }
@@ -120,7 +120,7 @@ public sealed class CountingSemaphoreTests(Backend backend)
         {
             await counter.Update(PermitCounter.Keys.Of(Printer))
                 .Add(PermitCounter.Attrs.Held, 1)
-                .If(PermitCounter.Attrs.Held.NotExists().Or(PermitCounter.Attrs.Held.Lt(Permits)))
+                .If(PermitCounter.Attrs.Held.NotExistsOrLt(Permits))
                 .SendAsync();
             return true;
         }
