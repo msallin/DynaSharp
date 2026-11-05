@@ -1040,7 +1040,7 @@ Keys and queries
 - [x] `TryOf(v)` that returns a nullable key, so `is { } k` replaces the ternary around a read (about ten call sites in lps-label-print-server). Done in 0.3.0, see R11.
 - [x] An info diagnostic for a `raw` table-key input without `[KeyOnly]`, and a line in `entities.md` (socce-cockpit shipped without it). Done in 0.3.0, `DYNA123`, see R11.
 - [ ] Filling a page after a client-side filter: `ContinuationToken.After(entity, index)`, since `FromKey` needs the index key attributes an entity cannot easily give.
-- [ ] `ListAsync(ct)` as a terminal, instead of `ItemsAsync(ct).ToListAsync(ct)`.
+- [-] `ListAsync(ct)` as a terminal, instead of `ItemsAsync(ct).ToListAsync(ct)`. Dropped by the owner (2026-11-05): `ItemsAsync` is the one streaming terminal and LINQ's `ToListAsync()` the list; a second way to the same list confuses. `queries.md` says when a list is safe and that the token goes to `ItemsAsync` once.
 - [x] Say plainly in the guide whether helpers that return an `UpdateCommand<T>` for the caller to finish are supported. Done in 0.3.0, `commands.md`, see R11.
 
 - [ ] A batch across tables: `BatchGetItem` and `BatchWriteItem` take several tables in one request, while `BatchGet()` and `BatchWrite()` belong to one `Table<T>`. A client-level batch, like `client.TransactWrite()`, would read or write several tables in one round trip.
