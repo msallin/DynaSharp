@@ -31,6 +31,8 @@ internal static class WellKnownNames
 
     public const string VersionAttribute = "DynaSharp.Mapping.VersionAttribute";
 
+    public const string TimeToLiveAttribute = "DynaSharp.Mapping.TimeToLiveAttribute";
+
     public const string OmitEmptyAttribute = "DynaSharp.Mapping.OmitEmptyAttribute";
 
     public const string DefaultsAttribute = "DynaSharp.Mapping.DynamoDbDefaultsAttribute";

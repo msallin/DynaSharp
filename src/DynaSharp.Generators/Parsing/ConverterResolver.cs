@@ -125,6 +125,25 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         return name.StartsWith(Serialization, StringComparison.Ordinal) ? WireTypeOf(inner) : KeyWireType.Unknown;
     }
 
+    /// <summary>
+    /// Whether a property is stored as a whole number of seconds, which is what time to live reads: <c>EpochSecondsConverter</c>, an integer without a converter of its own or with a built-in one, or a custom
+    /// converter that says it writes a number by <c>IAddableConverter</c>, which is all a custom one can say.
+    /// </summary>
+    /// <param name="property">The property, with its converter resolved.</param>
+    /// <returns>True if DynamoDB can read the stored value as an expiry.</returns>
+    public static bool StoresEpochSeconds(PropertyFacts property)
+    {
+        var (inner, _) = Types.Unwrap(property.Type);
+        var converter = OwnConverterOf(property, inner);
+        var name = converter is null ? null : Names.Of(converter);
+        if (name == EpochSecondsConverter)
+        {
+            return true;
+        }
+
+        return converter is null || name!.StartsWith(Serialization, StringComparison.Ordinal) ? KeyInputCatalog.IsInteger(inner) : IsAddable(converter);
+    }
+
     /// <summary>Whether an argument of an attribute is a converter of a value: a closed, accessible type that implements <c>IDynamoDbConverter&lt;T&gt;</c> for it.</summary>
     /// <param name="candidate">What the attribute names.</param>
     /// <param name="value">The value, without nullability.</param>

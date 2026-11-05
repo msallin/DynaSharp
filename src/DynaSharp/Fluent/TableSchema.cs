@@ -19,6 +19,8 @@ internal sealed class TableSchema
 
     private readonly string? _sortKey;
 
+    private (string Name, string DeclaredBy)? _timeToLive;
+
     /// <summary>Initializes a new instance of the <see cref="TableSchema"/> class with the key of the table and nothing about its type.</summary>
     /// <param name="owner">Who says that this is the key, as a message names it.</param>
     /// <param name="partitionKey">The attribute name of the partition key.</param>
@@ -37,6 +39,9 @@ internal sealed class TableSchema
 
     /// <summary>Gets the global secondary indexes of the union, which a wait for the table waits for.</summary>
     public IReadOnlyList<string> GlobalIndexNames => TableAdministration.GlobalIndexNames(_indexes.Select(static declared => declared.Index));
+
+    /// <summary>Gets the attribute of time to live that an entity declares, or <see langword="null"/> if none does.</summary>
+    public string? TimeToLiveAttributeName => _timeToLive?.Name;
 
     /// <summary>Adds what an entity declares.</summary>
     /// <param name="entity">The entity, as a message names it.</param>
@@ -64,6 +69,11 @@ internal sealed class TableSchema
             }
 
             Declare(index, entity);
+        }
+
+        if (info.TimeToLiveAttributeName is { } timeToLive)
+        {
+            DeclareTimeToLive(timeToLive, entity);
         }
     }
 
@@ -135,6 +145,19 @@ internal sealed class TableSchema
         else if ((known.Index.IsLocal, known.Index.PartitionKeyName, known.Index.SortKeyName) != (index.IsLocal, index.PartitionKeyName, index.SortKeyName))
         {
             throw new ArgumentException($"{known.DeclaredBy} declares the index {index.IndexName} as {Describe(known.Index)}, and {declaredBy} as {Describe(index)}.");
+        }
+    }
+
+    // DynamoDB keeps one attribute of time to live per table, and turning it on for another one means turning it off first.
+    private void DeclareTimeToLive(string name, string declaredBy)
+    {
+        if (_timeToLive is null)
+        {
+            _timeToLive = (name, declaredBy);
+        }
+        else if (_timeToLive.Value.Name != name)
+        {
+            throw new ArgumentException($"{_timeToLive.Value.DeclaredBy} expires its items by the attribute {_timeToLive.Value.Name}, and {declaredBy} by {name}, and a table has time to live on one attribute.");
         }
     }
 

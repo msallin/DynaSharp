@@ -132,3 +132,7 @@ DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.Cancel
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.get -> string?
+DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.init -> void
+DynaSharp.Mapping.TimeToLiveAttribute
+DynaSharp.Mapping.TimeToLiveAttribute.TimeToLiveAttribute() -> void

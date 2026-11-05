@@ -1432,6 +1432,91 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_EntityWithTimeToLive_TurnsItOnAsTheClauseDoes()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json(Updated));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaSession>("Shop").CreateTable().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var result = await sending;
+
+        // Assert
+        await Assert.That((result.TimeToLiveEnabled, Operations(handler), handler.Requests[3].BodyText)).IsEqualTo((
+            true,
+            "CreateTable,DescribeTable,DescribeTimeToLive,UpdateTimeToLive",
+            """{"TableName":"Shop","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"expires"}}"""));
+    }
+
+    [Test]
+    public async Task SendAsync_IncludedEntityWithTimeToLive_TurnsItOnForTheTable()
+    {
+        // Arrange (an entity without one takes that of the others)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(TimeToLive("ENABLED", "expires")));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        await client.Table("Shop", "pk", "sk").CreateTable().Including<SchemaSession>().Including<SchemaToken>().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That((Operations(handler), handler.Requests[1].BodyText)).IsEqualTo(("DescribeTable,DescribeTimeToLive", """{"TableName":"Shop"}"""));
+    }
+
+    [Test]
+    public async Task SendAsync_ClauseBesideAnEntityWithTimeToLive_TakesTheClause()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json("""{"TimeToLiveSpecification":{"Enabled":true,"AttributeName":"other"}}"""));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        await client.Table<SchemaSession>("Shop").CreateTable().IfNotExists().TimeToLive("other").SendAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[2].BodyText).IsEqualTo("""{"TableName":"Shop","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"other"}}""");
+    }
+
+    [Test]
+    public async Task Including_EntityWithAnotherTimeToLive_ThrowsNamingBothAndTheAttributes()
+    {
+        // Arrange (a table has time to live on one attribute)
+        using var client = TestClient.Create(new StubHandler());
+        var create = client.Table<SchemaSession>("Shop").CreateTable();
+
+        // Act
+        var failure = TestClient.Catch(() => create.Including<SchemaPurged>());
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo(
+            "DynaSharp.UnitTests.Fluent.SchemaSession expires its items by the attribute expires, and DynaSharp.UnitTests.Fluent.SchemaPurged by PurgeAt, and a table has time to live on one attribute.");
+    }
+
+    [Test]
+    public async Task Info_EntityWithTimeToLive_NamesItsAttribute()
+    {
+        // Arrange
+        var entities = (InfoOf<SchemaSession>(), InfoOf<SchemaPurged>(), InfoOf<SchemaCustomer>());
+
+        // Act
+        var names = (entities.Item1.TimeToLiveAttributeName, entities.Item2.TimeToLiveAttributeName, entities.Item3.TimeToLiveAttributeName);
+
+        // Assert
+        await Assert.That(names).IsEqualTo(("expires", "PurgeAt", (string?)null));
+    }
+
+    [Test]
     [Arguments("ENABLED")]
     [Arguments("ENABLING")]
     public async Task SendAsync_TimeToLiveOnOnThatAttribute_EndsThere(string status)
@@ -1934,4 +2019,7 @@ public sealed class CreateTableCommandTests
         var indexes = (request.GlobalSecondaryIndexes ?? []).Select(static index => index.IndexName).Concat((request.LocalSecondaryIndexes ?? []).Select(static index => index.IndexName));
         return $"{attributes} | {string.Join(" ", indexes.Order(StringComparer.Ordinal))}";
     }
+
+    private static DynaSharp.Mapping.DynamoDbEntityInfo InfoOf<T>()
+        where T : DynaSharp.Mapping.IDynamoDbEntity<T> => T.Info;
 }

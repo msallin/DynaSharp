@@ -70,8 +70,8 @@ public sealed class CreateTableCommand
     /// <typeparam name="TOther">Any entity on this table.</typeparam>
     /// <returns>This command.</returns>
     /// <exception cref="ArgumentException">
-    /// The entity disagrees with the table or with an entity before it, which the message names both of: the key of the table has other names, it stores an attribute as another type, or it declares an index of
-    /// that name over other attributes, or as local where the other is global.
+    /// The entity disagrees with the table or with an entity before it, which the message names both of: the key of the table has other names, it stores an attribute as another type, it declares an index of
+    /// that name over other attributes, or as local where the other is global, or its <see cref="TimeToLiveAttribute"/> is on another attribute, since a table has time to live on one.
     /// </exception>
     public CreateTableCommand Including<TOther>()
         where TOther : IDynamoDbEntity<TOther>
@@ -143,7 +143,8 @@ public sealed class CreateTableCommand
 
     /// <summary>
     /// Makes sure that the table has time to live on this attribute, on a table this command creates and on one <see cref="IfNotExists"/> finds. <c>CreateTable</c> does not take it, so it is no part of
-    /// <see cref="ToRequest"/>: it happens after the create, or after finding the table.
+    /// <see cref="ToRequest"/>: it happens after the create, or after finding the table. An entity of the command with <see cref="TimeToLiveAttribute"/> asks for the same without this call, and this call
+    /// replaces what the entities declare.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -162,7 +163,7 @@ public sealed class CreateTableCommand
     /// <b>Permissions.</b> It takes <c>dynamodb:DescribeTimeToLive</c> on every call, <c>dynamodb:UpdateTimeToLive</c> when time to live is not on yet, and <c>dynamodb:DescribeTable</c> for the wait.
     /// </para>
     /// <para>
-    /// The attribute of an item must be a number that holds a Unix time in seconds, which <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c> on a <see cref="DateTimeOffset"/> writes. See <see cref="UpdateTimeToLiveRequest"/> for when DynamoDB deletes.
+    /// The attribute of an item must be a number that holds a Unix time in seconds, which <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c> on a <see cref="DateTimeOffset"/> writes, and which <see cref="TimeToLiveAttribute"/> checks at build time. See <see cref="UpdateTimeToLiveRequest"/> for when DynamoDB deletes.
     /// </para>
     /// </remarks>
     /// <param name="attributeName">The name of the attribute that holds the expiry time.</param>
@@ -248,7 +249,7 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, which implies it, the table is normally <c>CREATING</c> when this returns.
+    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or time to live, of <see cref="TimeToLive(string)"/> or of a <see cref="TimeToLiveAttribute"/> of an entity, which implies it, the table is normally <c>CREATING</c> when this returns.
     /// </summary>
     /// <param name="cancellationToken">Cancels the call, and the wait. A table DynamoDB accepted stays accepted, so a cancelled wait leaves a table behind.</param>
     /// <returns>
@@ -270,14 +271,15 @@ public sealed class CreateTableCommand
         var existing = await FindExistingAsync(cancellationToken).ConfigureAwait(false);
         var (description, created) = existing is null ? await CreateAsync(cancellationToken).ConfigureAwait(false) : (existing, false);
         var declared = _schema.GlobalIndexNames;
-        var timeout = _activeTimeout ?? (_timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
+        var timeToLive = _timeToLive ?? _schema.TimeToLiveAttributeName;
+        var timeout = _activeTimeout ?? (timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
         if (timeout is { } bound && (existing is null || !TableAdministration.IsActive(existing, declared)))
         {
             // The create sent every declared index, and a table that exists gets one only from an UpdateTable sent before this command, so an index still not listed after the catch-up will not be.
             description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, unlistedIsFinal: true, cancellationToken).ConfigureAwait(false);
         }
 
-        var timeToLiveEnabled = _timeToLive is { } attributeName && await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
+        var timeToLiveEnabled = timeToLive is { } attributeName && await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
         return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled);
     }
 

@@ -8,6 +8,7 @@ namespace DynaSharp.Generators;
 /// <param name="Indexes">The indexes, global ones first, each in declaration order.</param>
 /// <param name="VersionProperty">The <c>[Version]</c> property, by <see cref="PropertyModel.Name"/>, or null.</param>
 /// <param name="ComputedInputs">The computed properties with <c>[ComputedFrom]</c>, for what a key says of them at run time and in a build.</param>
+/// <param name="TimeToLiveAttribute">The attribute of the <c>[TimeToLive]</c> property, or null.</param>
 internal sealed record EntityModel(
     string? Discriminator,
     string DiscriminatorAttribute,
@@ -15,7 +16,8 @@ internal sealed record EntityModel(
     KeyModel? SortKey,
     EquatableArray<IndexModel> Indexes,
     string? VersionProperty,
-    EquatableArray<ComputedInput> ComputedInputs)
+    EquatableArray<ComputedInput> ComputedInputs,
+    string? TimeToLiveAttribute)
 {
     /// <summary>Returns every key of the table and its indexes.</summary>
     /// <returns>The keys.</returns>

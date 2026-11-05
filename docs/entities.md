@@ -75,7 +75,7 @@ A document stores what an entity stores: every public readable property with a s
 - **Computed properties.** A get-only property without a constructor parameter, such as `Volume`, is not stored; the getter computes it after a read. `[DynamoDbAttribute]` on it stores it, written and never read.
 - **Constructors.** A read builds a positional record through its constructor, whose parameters are named after its properties. `[DynamoDbConstructor]` picks one where several could be used (`DYNA005`).
 - **Nesting.** A document can hold documents, and lists and dictionaries of them. An entity in a property is stored as a map too, with its keys and discriminator; `DYNA031` reports that on a property of an entity.
-- **What only an entity has.** A key, an index, a discriminator, `[KeyOnly]`, `[Version]` and `[ComputedFrom]` on a document are `DYNA012`.
+- **What only an entity has.** A key, an index, a discriminator, `[KeyOnly]`, `[Version]`, `[TimeToLive]` and `[ComputedFrom]` on a document are `DYNA012`.
 
 ## Stored types
 
@@ -210,3 +210,28 @@ These ship in `DynaSharp.Serialization` and are opt-in through either attribute,
 | `EmptyStringAsMissingConverter<T, TConverter>` | any | What `TConverter` stores; a stored `{"S":""}` reads as a missing attribute |
 
 [The migration page](migrating.md#what-changes-stored-data) says when each fits, and which built-in converters your own may call.
+
+## Time to live
+
+`[TimeToLive]` marks the attribute that DynamoDB deletes an item by, some time after the instant it holds. DynamoDB reads a number of seconds since 1970, so a `DateTimeOffset` takes `EpochSecondsConverter`, and an integer holds the seconds as they are:
+
+```csharp
+[DynamoDbEntity]
+[Discriminator("SESSION")]
+[PartitionKey("SESSION#{Id}")]
+[SortKey("SESSION")]
+public partial record Session
+{
+    public required string Id { get; init; }
+
+    [TimeToLive]
+    [DynamoDbConverter(typeof(EpochSecondsConverter))]
+    public DateTimeOffset? ExpiresAt { get; init; }
+}
+```
+
+`CreateTable()` of the entity then turns time to live on for `ExpiresAt`, as `.TimeToLive(Session.Attrs.ExpiresAt)` on the chain does, and `FakeDynamoDb.CreateTable<Session>` turns it on too. A null expiry is left out of the item, which then never expires.
+
+- **One per table.** A second `[TimeToLive]` on a type, one on a property that is not stored, and one on a property that is no number of seconds, such as a `DateTimeOffset` without the converter, are `DYNA036`. Two entities of a table that name different attributes make `CreateTable().Including<T>()` throw `ArgumentException`, as other disagreements do.
+- **What it costs.** Time to live needs an active table, so the create waits up to five minutes for it, and it takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`, also over a table that `IfNotExists()` finds. See [Creating a table](tables.md#creating-a-table).
+- **When it happens.** DynamoDB deletes within days of the expiry, and a read finds the item until then, so a read that must not see an expired one filters on the attribute.

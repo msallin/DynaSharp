@@ -303,7 +303,7 @@ internal sealed class ModelBuilder
 
         foreach (var property in properties)
         {
-            foreach (var attribute in new[] { property.PartitionKey, property.SortKey, property.KeyOnly, property.Version, property.ComputedFrom }.OfType<AttributeData>())
+            foreach (var attribute in new[] { property.PartitionKey, property.SortKey, property.KeyOnly, property.Version, property.TimeToLive, property.ComputedFrom }.OfType<AttributeData>())
             {
                 RejectOnDocument(attribute);
             }

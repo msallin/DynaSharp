@@ -141,6 +141,7 @@ public partial record IdempotencyRecord
     public required string Key { get; init; }
     public required string Answer { get; init; }
 
+    [TimeToLive]
     [DynamoDbAttribute("ttl")]
     [DynamoDbConverter(typeof(EpochSecondsConverter))]
     public required DateTimeOffset ExpiresAt { get; init; }
@@ -185,7 +186,7 @@ string answer = await client.RetryOnConflictAsync(async token =>
 }, ct);
 ```
 
-Turn time to live on with `.TimeToLive(IdempotencyRecord.Attrs.ExpiresAt)`, see [Creating a table](tables.md#creating-a-table).
+`[TimeToLive]` makes `CreateTable()` turn time to live on for `ExpiresAt`, see [Time to live](entities.md#time-to-live).
 
 Caveats:
 

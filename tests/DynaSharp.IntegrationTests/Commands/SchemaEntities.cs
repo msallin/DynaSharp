@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Serialization;
 
 namespace DynaSharp.IntegrationTests.Commands;
 
@@ -86,4 +87,19 @@ internal sealed partial record Ticket
     public required string Id { get; init; }
 
     public required string Desk { get; init; }
+}
+
+/// <summary>An entity whose attribute of time to live <c>CreateTable()</c> turns on without a clause.</summary>
+[DynamoDbEntity]
+[Discriminator("LOGIN")]
+[PartitionKey("LOGIN#{Id}")]
+[SortKey("LOGIN")]
+internal sealed partial record Login
+{
+    public required string Id { get; init; }
+
+    [TimeToLive]
+    [DynamoDbAttribute("expires")]
+    [DynamoDbConverter(typeof(EpochSecondsConverter))]
+    public DateTimeOffset? ExpiresAt { get; init; }
 }

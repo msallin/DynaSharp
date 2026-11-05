@@ -74,6 +74,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Remove the initializer, or make the default of the parameter null, so that a missing attribute reads as null. Where the value is what a missing attribute should mean, make the property non-nullable.
 - **Not reported.** `= null`, `= default` and `= null!`, a property that is not nullable, not stored or computed, and a value that a constructor body assigns. A base type in a compiled assembly, which shows no initializer.
 
+`DYNA036`: `[TimeToLive]` on a property that DynamoDB cannot read as an expiry, or on a second property of the type. DynamoDB deletes by a number of seconds since 1970 and ignores an item that holds anything else, so `[TimeToLive] public DateTimeOffset ExpiresAt { get; init; }`, which is stored as an ISO 8601 string, would never expire. A property that is not stored, such as one with `[DynamoDbIgnore]` or a getter alone, holds no expiry, and a table has time to live on one attribute.
+
+- **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type.
+- **Not reported.** A custom converter that implements `IAddableConverter`, which says that it writes a number, whatever it holds. Two entities of one table that name different attributes, which `CreateTable().Including<T>()` finds at run time and throws `ArgumentException` for. On a document it is `DYNA012`.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.

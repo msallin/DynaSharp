@@ -280,6 +280,51 @@ public sealed class FakeDynamoDbTests
     }
 
     [Test]
+    public async Task CreateTableOfT_EntityWithTimeToLive_TurnsItOnSoThatTheSweepDeletes()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        var description = fake.CreateTable<SchemaSession>("Shop");
+        var past = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
+        fake.Put("Shop", new Item { ["pk"] = "SESSION#a", ["sk"] = "SESSION", ["expires"] = past });
+
+        // Act
+        var expired = fake.ExpireItems();
+
+        // Assert
+        await Assert.That((description.TableName, expired, fake.Items("Shop").Count)).IsEqualTo(("Shop", 1, 0));
+    }
+
+    [Test]
+    public async Task CreateTableOfT_EntityWithTimeToLive_DescribesItAsEnabled()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<SchemaSession>("Shop");
+        using var client = fake.CreateClient();
+
+        // Act
+        var answer = await client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = "Shop" });
+
+        // Assert
+        await Assert.That((answer.TimeToLiveDescription!.TimeToLiveStatus, answer.TimeToLiveDescription.AttributeName)).IsEqualTo((TimeToLiveStatus.Enabled, (string?)"expires"));
+    }
+
+    [Test]
+    public async Task CreateTableOfT_TableThatExists_ThrowsResourceInUse()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<SchemaSession>("Shop");
+
+        // Act
+        var act = () => fake.CreateTable<SchemaSession>("Shop");
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ResourceInUseException>();
+    }
+
+    [Test]
     public async Task DescribeTable_Items_CountsThem()
     {
         // Arrange
