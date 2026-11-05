@@ -172,6 +172,9 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
         CloseWriter();
         code.Close();
         code.Blank();
+        code.Line("/// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>");
+        code.Line($"public static {partitionKey}? TryOf({Signature(_placeholders)}) => TryOf({Arguments(_placeholders)}, out var {result}) ? {result} : null;");
+        code.Blank();
     }
 
     // A literal between placeholders ends on the delimiter of the next one, and all of it belongs to the prefix, because every key under the

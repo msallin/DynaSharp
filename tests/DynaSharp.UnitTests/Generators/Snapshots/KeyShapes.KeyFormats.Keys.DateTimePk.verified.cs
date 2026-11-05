@@ -56,6 +56,9 @@
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.KeyFormats>? TryOf(global::System.DateTime utc) => TryOf(utc, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static DateTimePkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();

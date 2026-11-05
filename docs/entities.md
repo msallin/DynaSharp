@@ -51,12 +51,13 @@ Those are the default names. Key inputs are stored as follows:
 
 - **Put** also stores them as attributes, unless `[KeyOnly]` says the key is enough. Such a property has no attribute, so no handle in `Attrs`.
 - **Update** writes no input of the table key unless `StoreKeyInputs()` asks. An item it created holds the key without those attributes, and a read restores them from the key.
+- **A `raw` input of the table key**, such as `{Key:raw}`, goes with `[KeyOnly]`: it is mostly an id that holds the delimiter, and without `[KeyOnly]` only the items a `Put` wrote hold it as an attribute, those an `Update` created do not. `DYNA123` (info) reports one without it; an adopted table whose items hold the attribute keeps it and suppresses the message, see [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter).
 
 The rules of a template, and what the generator reports when one is broken, are under [Key templates](diagnostics.md#key-templates).
 
 ## Keys and Attrs
 
-`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query, such as `BeginsWith`, `Between` and `Ge`. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. [Generated code](generated-code.md) lists every member, including `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
+`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query, such as `BeginsWith`, `Between` and `Ge`. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `TryOf` checks without an exception and gives the key or `null`, so `Order.Keys.Pk.TryOf(id) is { } key` guards a read. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
 
 ## Documents
 

@@ -5,7 +5,8 @@ namespace DynaSharp.UnitTests.Mapping.KeyEntities;
 /// <param name="IsKey">Whether the values can be a key.</param>
 /// <param name="Try">The call that must not throw.</param>
 /// <param name="Throwing">The call that it stands in for.</param>
-public readonly record struct KeyCase(string Name, bool IsKey, GeneratedTryOfTests.TryKey Try, GeneratedTryOfTests.KeyCall Throwing)
+/// <param name="TryNullable">The same values through the <c>TryOf</c> that returns the key or null, true for a key.</param>
+public readonly record struct KeyCase(string Name, bool IsKey, GeneratedTryOfTests.TryKey Try, GeneratedTryOfTests.KeyCall Throwing, GeneratedTryOfTests.TryKey TryNullable)
 {
     public override string ToString() => Name;
 }

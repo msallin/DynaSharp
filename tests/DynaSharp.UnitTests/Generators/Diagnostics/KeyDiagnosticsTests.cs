@@ -626,7 +626,7 @@ public sealed class KeyDiagnosticsTests
         // Arrange
         var source = $$"""
             [DynamoDbEntity, Discriminator("E"), PartitionKey("{{template}}"), SortKey("S#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "P#{W}", SortKey = "G#{V:raw}"), LocalIndexKey("Lsi", "L#{V:raw}")]
-            public partial class E { public required string V { get; set; } public required string W { get; set; } public int N { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } public required string W { get; set; } public int N { get; set; } }
             """;
 
         // Act
@@ -642,7 +642,7 @@ public sealed class KeyDiagnosticsTests
         // Arrange
         const string Source = """
             [DynamoDbEntity, Discriminator("E"), PartitionKey("P"), SortKey("{N:d3}#{V:raw}")]
-            public partial class E { public required string V { get; set; } public int N { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } public int N { get; set; } }
             """;
 
         // Act
@@ -663,7 +663,7 @@ public sealed class KeyDiagnosticsTests
         // Arrange (a format belongs to its template, so the strict one goes on rejecting what the raw one holds, and a write that passes one key throws at the other)
         var source = $$"""
             [DynamoDbEntity, Discriminator("E"), {{attributes}}]
-            public partial class E { public required string V { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } }
             """;
 
         // Act
@@ -679,7 +679,7 @@ public sealed class KeyDiagnosticsTests
         // Arrange
         const string Source = """
             [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), GlobalIndexKey("One", PartitionKey = [|"B#{V}"|]), GlobalIndexKey("Two", PartitionKey = [|"C:{V}"|])]
-            public partial class E { public required string V { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } }
             """;
 
         // Act
@@ -697,7 +697,62 @@ public sealed class KeyDiagnosticsTests
         // Arrange (no delimiter means nothing to refuse, so the value that goes into the raw key goes in here as well)
         var source = $$"""
             [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "{{template}}")]
-            public partial class E { public required string V { get; set; } public int N { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } public int N { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""PartitionKey("A#{V:raw}")""", "A#{V:raw}")]
+    [Arguments("""PartitionKey("P"), SortKey("S#{V:raw}")""", "S#{V:raw}")]
+    [Arguments("""PartitionKey("A#{V:raw}"), SortKey("S#{V:raw}")""", "A#{V:raw}")]
+    [Arguments("""PartitionKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "G#{V:raw}")""", "A#{V:raw}")]
+    public async Task Build_RawTableKeyInputWithoutKeyOnly_ReportsDyna123AtTheProperty(string attributes, string template)
+    {
+        // Arrange (a Put stores the input as an attribute and an Update does not, so only some items would hold it; once per property)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { public required string [|V|] { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, RawWithoutKeyOnly("V", template)));
+    }
+
+    [Test]
+    public async Task Build_RawTableKeyInputsWithoutKeyOnly_ReportsEachOfThem()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{V:raw}"), SortKey("{N:d3}#{W:raw}")]
+            public partial class E { public required string [|V|] { get; set; } public required string [|W|] { get; set; } public int N { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, RawWithoutKeyOnly("V", "A#{V:raw}"), RawWithoutKeyOnly("W", "{N:d3}#{W:raw}")));
+    }
+
+    [Test]
+    [Arguments("""PartitionKey("A#{V:raw}")""", "[KeyOnly] public required string V { get; set; }")]
+    [Arguments("""PartitionKey("A#{W}"), GlobalIndexKey("Gsi", PartitionKey = "G#{V:raw}")""", "public required string V { get; set; } public required string W { get; set; }")]
+    [Arguments("""PartitionKey("A#{V:raw}")""", "[DynamoDbAttribute(\"v\")] public string V => \"x\";")]
+    public async Task Build_RawTableKeyInputThatKeyOnlyDoesNotConcern_ReportsNothing(string attributes, string property)
+    {
+        // Arrange (marked, raw in an index only, or computed, which [KeyOnly] does not take)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), {{attributes}}]
+            public partial class E { {{property}} }
             """;
 
         // Act
@@ -729,7 +784,7 @@ public sealed class KeyDiagnosticsTests
         // Arrange (each property keeps to one format, however many templates it is in)
         const string Source = """
             [DynamoDbEntity, Discriminator("E"), PartitionKey("{W}#{N:d3}"), SortKey("A#{V:raw}"), GlobalIndexKey("Gsi", PartitionKey = "B#{W}", SortKey = "C#{N:d3}#{V:raw}")]
-            public partial class E { public required string V { get; set; } public required string W { get; set; } public int N { get; set; } }
+            public partial class E { [KeyOnly] public required string V { get; set; } public required string W { get; set; } public int N { get; set; } }
             """;
 
         // Act
@@ -1358,6 +1413,9 @@ public sealed class KeyDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string RawWithoutKeyOnly(string property, string template) =>
+        $"DYNA123 Info: '{property}' is raw in the table key '{template}' and has no [KeyOnly], so a Put stores it as an attribute of its own as well, while an Update does not write it, and only the items a Put wrote hold it. Mark it [KeyOnly] if the key is all the item needs; a read restores it from the key.";
 
     private static string RawBesideStrict(string property, string raw, string strict, string delimiters) =>
         $"DYNA120 Warning: '{property}' is raw in '{raw}' and strict in '{strict}', so a value with a delimiter of the second ('{delimiters}') fits the first and throws KeyFormatException at the second. Use raw in both, at the end of each template, or in neither.";

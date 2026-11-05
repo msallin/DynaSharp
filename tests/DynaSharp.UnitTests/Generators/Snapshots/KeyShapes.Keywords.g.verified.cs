@@ -182,6 +182,9 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string @class, string @event) => Pk.Check(false, @class) && Sk.Check(false, @event) ? new PrimaryKey(@class, @event) : null;
+
         /// <summary>The primary key of <c>Keywords</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Keywords>
@@ -261,6 +264,9 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Keywords>? TryOf(string @class) => TryOf(@class, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

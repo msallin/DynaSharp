@@ -14,17 +14,19 @@ internal static class Leadership
     /// <returns>A task that completes as <see cref="LockTable.RunAsLeaderAsync"/> says.</returns>
     public static async Task RunAsync(LockTable locks, string name, TimeSpan leaseDuration, Func<Lease, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
+        var outage = new Outage(locks, name);
+        Action answered = outage.End;
         while (true)
         {
             Lease lease;
             try
             {
-                lease = await locks.AcquireAsync(name, leaseDuration, cancellationToken).ConfigureAwait(false);
+                lease = await locks.ContendAsync(name, leaseDuration, answered, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested && IsTransient(exception))
             {
                 var delay = leaseDuration / 3;
-                CoordinationLog.ContendFailed(locks.Logger, name, locks.Table.Name, CoordinationTelemetry.ErrorTypeOf(exception), delay);
+                outage.Fail(exception, delay);
                 await Task.Delay(delay, locks.Time, cancellationToken).ConfigureAwait(false);
                 continue;
             }
@@ -122,5 +124,39 @@ internal static class Leadership
         public const string LeaseLost = "lease_lost";
         public const string WorkReturned = "work_returned";
         public const string WorkFailed = "work_failed";
+    }
+
+    /// <summary>
+    /// The failures of acquires in a row, which a long outage of DynamoDB makes one every third of a lease. The first one logs a warning (44) and the next
+    /// answer an information (49), as the outage of a shard of a stream does, and the metric counts every one. An answer is a try that DynamoDB answered
+    /// with the lock free or held, so a follower ends its outage at its next poll, not when it next leads.
+    /// </summary>
+    /// <param name="locks">The table of the lock.</param>
+    /// <param name="name">The name of the lock.</param>
+    private sealed class Outage(LockTable locks, string name)
+    {
+        private long _started;
+        private int _retries;
+
+        public void Fail(Exception exception, TimeSpan delay)
+        {
+            var errorType = CoordinationTelemetry.ErrorTypeOf(exception);
+            CoordinationTelemetry.ContentionRetry(locks.Table.Name, errorType);
+            if (_retries++ == 0)
+            {
+                _started = locks.Time.GetTimestamp();
+                CoordinationLog.ContendFailed(locks.Logger, name, locks.Table.Name, errorType, delay);
+            }
+        }
+
+        public void End()
+        {
+            if (_retries > 0)
+            {
+                var elapsed = locks.Time.GetElapsedTime(_started);
+                CoordinationLog.ContendRecovered(locks.Logger, name, locks.Table.Name, elapsed, _retries);
+                _retries = 0;
+            }
+        }
     }
 }
