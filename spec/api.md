@@ -489,7 +489,7 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, or through `ItemFor` in a transaction |
 | `StoreKeyInputs()` | Update of an entity and `UpdateStep`: stores the inputs of the key of the table as attributes, section 8. On a `Table<Item>` it does not compile, and on a step of one it throws `InvalidOperationException` |
 
-`WriteResult<T>` has `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`.
+`WriteResult<T>` has `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`, a `long?` that is null for a write that stored no version, and `StoredVersion`, that `long` for code that knows it stored one (a put or an `IfVersion(n)` update of a `[Version]` entity), which throws `InvalidOperationException` where `Version` is null.
 
 A retry repeats a write. `Add`, `list_append` and arithmetic in `SET` are applied twice if a response was lost. `MaxAttempts(1)` makes them at most once, because a lost response then
 reports a failure after the write was applied, and a condition makes them exact. After a lost response a conditional write judges what its first attempt wrote, which the `SendAsync` docs of each command spell out.

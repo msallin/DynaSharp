@@ -40,4 +40,12 @@ public readonly struct WriteResult<T>
     /// none: a delete, an update with <c>.IgnoreVersion()</c>, or a type without a version. The entity of a put stays as it was.
     /// </summary>
     public long? Version { get; }
+
+    /// <summary>
+    /// Gets the version the write stored, as <see cref="Version"/> does, for code that knows it stored one: a put or an update with <c>.IfVersion(n)</c> of a <see cref="Mapping.VersionAttribute"/>
+    /// entity always does, so <c>var next = (await orders.Put(order).SendAsync(ct)).StoredVersion;</c> needs no <c>!.Value</c>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The write stored no version: a delete, an update with <c>.IgnoreVersion()</c>, or a type without a version. The message says which kinds of write store none.</exception>
+    public long StoredVersion => Version ?? throw new InvalidOperationException(
+        "The write stored no version. A put of a [Version] entity and an update with IfVersion(n) store one; a delete, an update with IgnoreVersion() and a write of a type without [Version] do not, and Version is null for them.");
 }

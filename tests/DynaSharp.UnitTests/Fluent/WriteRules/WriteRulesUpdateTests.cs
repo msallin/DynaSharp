@@ -53,6 +53,37 @@ public sealed class WriteRulesUpdateTests
     }
 
     [Test]
+    public async Task StoredVersion_UpdateIfVersion_IsTheStoredVersion()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        handler.Enqueue(StubResponse.Json("{}"));
+
+        // Act
+        var result = await client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).SendAsync();
+
+        // Assert
+        await Assert.That(result.StoredVersion).IsEqualTo(4L);
+    }
+
+    [Test]
+    public async Task StoredVersion_UpdateIgnoreVersion_ThrowsSayingWhichWritesStoreNone()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        handler.Enqueue(StubResponse.Json("{}"));
+        var result = await client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).Set("Note", "x").IgnoreVersion().SendAsync();
+
+        // Act
+        var act = () => result.StoredVersion;
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("IgnoreVersion()", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task ToRequestJson_UpdateIgnoreVersion_LeavesTheVersionAlone()
     {
         // Arrange

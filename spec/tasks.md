@@ -594,6 +594,8 @@ Branch `feat/030-writes`. Owner-approved items of the backlog from the app migra
 - [x] **`NotExistsOrLt(v)` and `NotExistsOrLe(v)` on `Attr<T, TConverter>`**, the guard `NotExists().Or(Lt(v))` that socce-cockpit writes five times, and the recipe "Events that arrive out of order" in `patterns-writes.md` with `Recipes/OutOfOrderEventsTests.cs`.
 - Decision: the names follow the handle, whose methods are the operators of the grammar (`Eq`, `Lt`, `NotExists`): `NotExistsOrLt` says what it renders, `(attribute_not_exists(a) OR a < :v)`, where a name of intent (`IsOlderThan`, `OnlyIfNewer`) would hide whether equal passes, which is the difference between a duplicate and a write. The type is the `Or<AttributeExists, Compare<T, TConverter>>` the long form gives, so nothing allocates and it composes as before. `Le` too, because the recipes already wrote that guard for something free or expired (a lease, a held seat). Not on the untyped `Attr`: the guard compares a typed field, and `Attr` would need one overload per value kind. No `Gt`/`Ge` form, which nobody asked for. The recipes and `patterns-writes.md` use the shorthand.
 - Decision: the recipe says that a failed condition is the answer and not a conflict: no `RetryOnConflictAsync`, no `MaxAttempts(1)`, because a retry after a lost response fails against its own write and reads as the duplicate it is. A version per group of fields, a delete as a tombstone, and versions that compare only within one source (one Kafka partition) are its caveats.
+- [x] **`WriteResult<T>.StoredVersion`**, a `long` beside the shipped `long? Version`, which throws `InvalidOperationException` where `Version` is null.
+- Decision: a property that throws, not a typed result for versioned entities: `Put`, `Update` and `Delete` return the shipped `WriteResult<T>` for every entity, and a second result type would mean new terminals or a generic over the presence of a version, for one `!.Value`. Not a mutated entity either: a `[Version]` property is often `init`, and a write that changes its argument is what the type promised not to do. CA1065 allows `InvalidOperationException` in a getter, and the message lists which writes store none.
 
 ### R9 - stream tests on the fake: switching a stream, fast waits, a stable gate (0.3.0)
 
@@ -992,7 +994,7 @@ Writes
 - [ ] An expected failed condition without an exception: a terminal such as `TrySendAsync` with `ConditionMet`, which also tells a duplicate apart from a write that failed against its own retry after a lost response.
 - [ ] `[TimeToLive]` on the property: `CreateTable()` and `FakeDynamoDb.CreateTable<T>` turn it on, and it implies or checks epoch seconds. Until then the Testing README says `ExpireItems` needs time to live turned on.
 - [ ] `RetryOnConflictAsync` with an initial state or the attempt number, so a value read before the first attempt needs no closure.
-- [ ] `WriteResult.Version` is `long?` even for a put of a versioned entity; a non-null accessor, or updating a settable `[Version]` property.
+- [x] `WriteResult.Version` is `long?` even for a put of a versioned entity; a non-null accessor, or updating a settable `[Version]` property. Done in 0.3.0: `WriteResult<T>.StoredVersion`, see R10.
 - [ ] A bridge between JSON and `AttributeValue` (`FromJson`/`ToJson`, numbers kept as their text), AOT-safe (lps-label-print-server converts by hand with Newtonsoft).
 
 Table setup
