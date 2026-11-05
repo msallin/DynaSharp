@@ -744,6 +744,28 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_CancelledWhileAClosedShardIsWatched_StopsTheWatchBeforeItThrows()
+    {
+        // Arrange: under Latest the shard closed at the start is only watched for children, and the look is held until it is cancelled
+        var script = new StreamScript();
+        var looking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.Answer("children:p", Hold(looking, released));
+        using var streams = TestClient.CreateStreams(script.Handler);
+        using var cancellation = new CancellationTokenSource();
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }, cancellation.Token).ToListAsync().AsTask();
+        await looking.Task;
+
+        // Act
+        await cancellation.CancelAsync();
+        await TestClient.CaptureAsync<OperationCanceledException>(() => reading);
+
+        // Assert
+        await Assert.That(released.Task.IsCompleted).IsTrue();
+    }
+
+    [Test]
     public async Task ReadStreamAsync_CallerStopsAfterTheFirstRecord_StopsTheReadersOnDispose()
     {
         // Arrange
