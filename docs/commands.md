@@ -182,3 +182,22 @@ await create.SendAsync(ct);
 ```
 
 On a type without `ToRequestJson`, the compiler answers `CS0311` and names `TransactWriteExtensions.ToRequestJson<TChain>`: that is the method of a transaction, which C# offers on every type and rejects only then.
+
+## Helpers that return a command
+
+A method of your own may build part of a command and return it for the caller to finish and send. That is supported, with the rules of any command, because a command is a `ref struct` over pooled state that the client lends it:
+
+```csharp
+static UpdateCommand<Customer> CountOrder(Table<Customer> customers, string id) =>
+    customers.Update(Customer.Keys.Of(id)).Add(Customer.Attrs.OrderCount, 1);
+
+await CountOrder(customers, "alice").IfExists().SendAsync(ct);
+```
+
+- **The helper is synchronous.** An `async` method cannot take a command (CS4012), a `Task` cannot hold one, and the caller cannot keep one across an `await` (CS4007), see the table of [Commands](diagnostics.md#commands). Compute the values first, call the helper, chain and send in one stretch.
+- **It returns the command it built and does not use it.** Every call on a command uses up the handle it was called on, so the helper returns the last handle, and the caller sends it once. Sending it twice, or calling on a handle the helper already used, throws `InvalidOperationException`.
+- **A command nobody sends costs nothing to clean up.** It has no `Dispose`: its state goes back to the pool when it is sent, and a command that is dropped, or whose caller throws before the send, is collected with its buffers. Only a statement that drops one is an error, `DYNA203`.
+- **The analyzers see one method at a time.** Rules that read a whole chain, from `Update(...)` to `SendAsync`, see only the part in front of them, so a helper hides what it added from the caller's checks and the other way round: overlapping actions (`DYNA223`), an index key without all its inputs (`DYNA226`), what a query reads for its filter (`DYNA221`, `DYNA222`), a version in the chain (`DYNA206`), a `Project` that leaves out a required member (`DYNA208`) and a batch of a versioned entity that the helper returns (`DYNA236`). The rules of a single call, such as a handle of another type (`DYNA215`) or a write of a key input (`DYNA205`), still apply inside the helper. The [diagnostics page](diagnostics.md#commands) says under each rule what it does not see.
+- **A helper with a type parameter** for the entity is not traced to its type, so the rules that need the entity skip it.
+
+A transaction step works the same way: a helper takes the chain, adds its steps, and returns it, as `IsHeld` of [Coordination](coordination.md#fencing) does.

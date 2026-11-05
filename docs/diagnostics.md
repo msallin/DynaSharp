@@ -149,7 +149,7 @@ A command such as `PutCommand<T>` is a `ref struct` over pooled state, so build 
 | Takes one as a parameter of an `async` method, or as an `async` local before C# 13 | CS4012, CS9202 | A synchronous helper that takes and returns the command, and an `await` in the caller. |
 | Captures one in a lambda or a local function | CS8175, CS9108 | Build inside the lambda: `pipeline.ExecuteAsync(ct => customers.Update(key).Add(attr, 1).SendAsync(ct))`. A retry from outside must rebuild anyway, since the buffers are gone after the send. |
 
-Sending a command twice is no compile error. It throws `InvalidOperationException`, as does a second use of a handle after a fluent call: build the command again. `DYNA204` reports what the build can see of that.
+Sending a command twice is no compile error. It throws `InvalidOperationException`, as does a second use of a handle after a fluent call: build the command again. `DYNA204` reports what the build can see of that. A synchronous helper that returns a command for the caller to finish and send is supported; what the rules below then cannot see is under [Helpers that return a command](commands.md#helpers-that-return-a-command).
 
 `DYNA202` (warning) reports `await shop.Query("a")` and `shop.Query("a").SendAsync()`. A read can end in several ways and none is the default. Without it the compiler reports only a type parameter constraint (CS0315).
 
