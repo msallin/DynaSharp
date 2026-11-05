@@ -154,8 +154,9 @@ public sealed partial class FakeDynamoDb
     }
 
     /// <summary>
-    /// Creates the table an entity lives in, as <c>client.Table&lt;T&gt;(tableName).CreateTable()</c> would: its keys with their types and every index it declares, on demand. A table of several
-    /// entities takes <see cref="CreateTable(CreateTableRequest)"/> with the request of <c>CreateTable().Including&lt;TOther&gt;().ToRequest()</c>.
+    /// Creates the table an entity lives in, as <c>client.Table&lt;T&gt;(tableName).CreateTable()</c> would: its keys with their types and every index it declares, on demand, and time to live <c>ENABLED</c> on the
+    /// attribute of its <see cref="TimeToLiveAttribute"/>, so <see cref="ExpireItems"/> sweeps it. A table of several entities takes <see cref="CreateTable(CreateTableRequest)"/> with the request of
+    /// <c>CreateTable().Including&lt;TOther&gt;().ToRequest()</c>, which holds no time to live, and then <c>UpdateTimeToLive</c> through a client of the fake for one.
     /// </summary>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="tableName">The table.</param>
@@ -169,7 +170,13 @@ public sealed partial class FakeDynamoDb
         const string Entity = "The entity";
         var schema = new TableSchema(Entity, T.Info.PartitionKeyName, T.Info.SortKeyName);
         schema.Add(Entity, T.Info);
-        return CreateTable(schema.ToRequest(tableName, null, null));
+        var request = schema.ToRequest(tableName, null, null);
+        return Direct(TableOperations.CreateTableName, tableName, () =>
+        {
+            var table = TableOperations.Create(_db, request);
+            table.TimeToLiveAttribute = schema.TimeToLiveAttributeName;
+            return Describe(table);
+        });
     }
 
     /// <summary>

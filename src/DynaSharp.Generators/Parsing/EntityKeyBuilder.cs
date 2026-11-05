@@ -65,6 +65,7 @@ internal sealed class EntityKeyBuilder(
         }
 
         var version = VersionProperty();
+        var timeToLive = TimeToLiveAttribute();
         var computedInputs = ComputedInputs(version);
         KeepKeysFromOmitting();
         KeepKeysFromMissing();
@@ -79,7 +80,7 @@ internal sealed class EntityKeyBuilder(
         ReportRawWithoutKeyOnly(partition, sort);
         FindFallbackKeys();
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
-        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs);
+        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs, timeToLive);
     }
 
     private static IndexModel WithGates(IndexModel index, List<IndexModel> indexes) => index with
@@ -98,6 +99,23 @@ internal sealed class EntityKeyBuilder(
 
     private static bool Holds(IndexModel index, string attributeName) =>
         (!index.IsLocal && index.PartitionKey.AttributeName == attributeName) || index.SortKey?.AttributeName == attributeName;
+
+    private static string? TimeToLiveProblem(PropertyFacts property, PropertyFacts? found)
+    {
+        if (found is not null)
+        {
+            return $"'{found.Name}' is the time to live of the type already, and a table has time to live on one attribute";
+        }
+
+        if (!property.IsStored)
+        {
+            return "it is not stored, so no item holds an expiry";
+        }
+
+        return ConverterResolver.StoresEpochSeconds(property)
+            ? null
+            : "DynamoDB deletes by a number of epoch seconds and ignores an item that holds anything else. On a DateTimeOffset add [DynamoDbConverter(typeof(EpochSecondsConverter))]; an integer holds the seconds as it is";
+    }
 
     private static TemplateInput ToInput(PropertyFacts property, INamedTypeSymbol type, EnumRegistry enums)
     {
@@ -508,6 +526,27 @@ internal sealed class EntityKeyBuilder(
         }
 
         return version;
+    }
+
+    // DynamoDB deletes by a number of epoch seconds and ignores an item that holds anything else, which is what a DateTimeOffset without EpochSecondsConverter stores, so that is the mistake to catch
+    // here. A table has one attribute of time to live, so a second property is one too many, whatever it stores.
+    private string? TimeToLiveAttribute()
+    {
+        PropertyFacts? found = null;
+        foreach (var property in properties.Where(static property => property.TimeToLive is not null))
+        {
+            var problem = TimeToLiveProblem(property, found);
+            if (problem is null)
+            {
+                found = property;
+            }
+            else
+            {
+                bag.Report(Descriptors.InvalidTimeToLive, Spot.Of(property.TimeToLive!, property.Spot), property.Name, problem);
+            }
+        }
+
+        return found?.AttributeName;
     }
 
     // After the keys and the version, because a list is valid only for a property some key uses, and every update moves the version without a handle.

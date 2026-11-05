@@ -345,6 +345,7 @@ var vouchers = users.Of<Voucher>();
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var putVoucher = await vouchers.Put(new Voucher { Id = "v-1", Revision = 2 }).SendAsync();
 Check(putVoucher.Version == 3 && commandHandler.Requests[^1].BodyText.Contains("\"Revision\":{\"N\":\"3\"}", StringComparison.Ordinal), "Put stores the next version");
+Check(putVoucher.StoredVersion == 3, "StoredVersion gives the stored version without the null");
 
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var importedVoucher = await vouchers.Put(new Voucher { Id = "v-1", Revision = 2 }).IgnoreVersion().SendAsync();
@@ -666,6 +667,24 @@ catch (InternalServerErrorException)
 
 fake.ThrowIfFailuresLeft();
 Check(plannedFailure && fake.Items("Visitors").Count == 0, "a failure planned on the fake fails the next request of its operation, which writes nothing");
+
+// Time to live from the entity, the guard of a write that must not move back, and the options of an emulator.
+fake.CreateTable<Pass>("Passes");
+var passes = fakeClient.Table<Pass>("Passes");
+await passes.Put(new Pass { Id = "p-1", Seq = 2, ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1) }).SendAsync();
+var movedBack = false;
+try
+{
+    await passes.Update(Pass.Keys.Of("p-1")).Set(Pass.Attrs.Seq, 1L).If(Pass.Attrs.Seq.NotExistsOrLt(1L)).SendAsync();
+}
+catch (ConditionalCheckFailedException)
+{
+    movedBack = true;
+}
+
+Check(movedBack, "NotExistsOrLt refuses an older version");
+Check(fake.ExpireItems() == 1, "CreateTable<T> of the fake turns time to live on for [TimeToLive]");
+Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) is { Region.Name: "us-east-1", Credentials: StaticCredentialsProvider }, "ForEmulator sets a region and static keys");
 
 // DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, the release, the options, the helpers
 // for tests, and a term of a leader.

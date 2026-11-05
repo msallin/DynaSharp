@@ -159,3 +159,43 @@ internal sealed partial record SchemaGlobalLocalIndex
 {
     public required string Id { get; init; }
 }
+
+// Entities of the table "Shop" with an attribute of time to live, the two that agree on it and one that names another.
+[DynamoDbEntity]
+[Discriminator("SESSION")]
+[PartitionKey("SESSION#{Id}")]
+[SortKey("SESSION")]
+internal sealed partial record SchemaSession
+{
+    public required string Id { get; init; }
+
+    [TimeToLive]
+    [DynamoDbAttribute("expires")]
+    [DynamoDbConverter(typeof(EpochSecondsConverter))]
+    public DateTimeOffset? ExpiresAt { get; init; }
+}
+
+[DynamoDbEntity]
+[Discriminator("TOKEN")]
+[PartitionKey("TOKEN#{Id}")]
+[SortKey("TOKEN")]
+internal sealed partial record SchemaToken
+{
+    public required string Id { get; init; }
+
+    [TimeToLive]
+    [DynamoDbAttribute("expires")]
+    public long ExpiresAtSeconds { get; init; }
+}
+
+[DynamoDbEntity]
+[Discriminator("PURGED")]
+[PartitionKey("PURGED#{Id}")]
+[SortKey("PURGED")]
+internal sealed partial record SchemaPurged
+{
+    public required string Id { get; init; }
+
+    [TimeToLive]
+    public long PurgeAt { get; init; }
+}

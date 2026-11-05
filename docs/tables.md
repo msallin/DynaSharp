@@ -32,7 +32,21 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
-`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream.
+Code that holds the table without a model, as `shop` (`client.Table("Shop", "pk", "sk")`), starts there and names every entity alike. The keys start as the names the table was opened with, and the entities give their types and indexes, or throw at `Including` when they disagree with those names:
+
+```csharp
+await shop.CreateTable()
+    .Including<Order>()
+    .Including<Customer>()
+    .Including<Product>()
+    .IfNotExists()
+    .WaitUntilActive()
+    .SendAsync(ct);
+```
+
+Without an `Including`, such a table has string keys and no index. Either start gives the same table for the same entities.
+
+`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream. An entity with a [`[TimeToLive]`](entities.md#time-to-live) property needs no `.TimeToLive(...)`: `CreateTable()` turns time to live on for it, and so does an `Including` of it, while `.TimeToLive(...)` replaces what the entities declare. Two entities that declare different attributes throw `ArgumentException` at `Including`, since a table has time to live on one.
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, and `TimeToLiveEnabled` whether this call turned time to live on.
 
@@ -48,9 +62,21 @@ await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 `IfNotExists()` describes the table first, and a table it finds ends the create there.
 
 - **Permissions.** Over a table that exists, a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable`, and no failed call shows in CloudTrail. Creating the table takes both.
-- **Changes.** It compares no schemas, and it changes nothing about a table it finds unless `TimeToLive` is on the chain, which goes on and takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`.
+- **Changes.** It compares no schemas, and it changes nothing about a table it finds unless time to live is asked for, by `TimeToLive` on the chain or a `[TimeToLive]` of an entity, which goes on and takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`.
 - **The wait.** `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it fails within seconds with a `TableNotActiveException` that names the index. [Adding an index](#adding-an-index) says how to add it.
-- **Timeouts.** `WaitUntilActive(timeout)` bounds the wait and nothing else: not the calls before it, and not `TimeToLive` after it. A `CancellationToken` on the same timeout races it, and when the token wins the caller gets a bare `TaskCanceledException` or `OperationCanceledException`, which names no table and no index. So give the wait less time than the token.
+- **Timeouts.** `WaitUntilActive(timeout)` bounds the wait and nothing else: not the calls before it, and not `TimeToLive` after it. `Timeout(timeout)` bounds the whole command, see below.
+
+A program that must not hang at its start gives the whole command a bound:
+
+```csharp
+await orders.CreateTable()
+    .IfNotExists()
+    .WaitUntilActive()
+    .Timeout(TimeSpan.FromMinutes(2))
+    .SendAsync(ct);
+```
+
+`Timeout` covers the look, the create, the wait and time to live, and throws a `TimeoutException` that names the table and the step it was at, where a `CancellationToken` on a timer gives a bare `OperationCanceledException` that names nothing. The bound of the wait still holds inside it, and a wait that runs out first throws its `TableNotActiveException`, which names the index. A table that DynamoDB accepted stays after a timeout, and the next start goes on from there. The token of the caller still cancels as before.
 
 ## Adding an index
 

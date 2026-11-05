@@ -78,7 +78,7 @@ public sealed class FixedWindowRateLimitTests(Backend backend)
             await windows.Update(RateWindow.Keys.Of(Caller, now))
                 .Add(RateWindow.Attrs.Hits, 1)
                 .SetIfNotExists(RateWindow.Attrs.ExpiresAt, now.AddMinutes(2))
-                .If(RateWindow.Attrs.Hits.NotExists().Or(RateWindow.Attrs.Hits.Lt(Limit)))
+                .If(RateWindow.Attrs.Hits.NotExistsOrLt(Limit))
                 .SendAsync();
             return true;
         }

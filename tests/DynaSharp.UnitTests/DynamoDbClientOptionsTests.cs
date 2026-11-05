@@ -103,6 +103,58 @@ public sealed class DynamoDbClientOptionsTests
     }
 
     [Test]
+    public async Task ForEmulator_Url_SetsTheUrlARegionAndStaticKeysAndNothingElse()
+    {
+        // Arrange
+        var url = new Uri("http://localhost:8000");
+
+        // Act
+        var options = DynamoDbClientOptions.ForEmulator(url);
+
+        // Assert
+        await Assert.That((options.ServiceUrl, options.Region?.Name, options.Credentials?.GetType(), options with { ServiceUrl = null, Region = null, Credentials = null }))
+            .IsEqualTo((url, (string?)"us-east-1", typeof(StaticCredentialsProvider), new DynamoDbClientOptions()));
+    }
+
+    [Test]
+    public async Task ForEmulator_EnvironmentThatNamesOtherValues_SignsWithTheStaticKeysForTheEmulator()
+    {
+        // Arrange (a machine set up for AWS still talks to the emulator)
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        var options = DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) with { HttpHandler = handler };
+        Func<string, string?> environment = static name => name switch
+        {
+            "AWS_ENDPOINT_URL_DYNAMODB" => "https://dynamodb.eu-west-1.amazonaws.com",
+            "AWS_REGION" => "eu-west-1",
+            "AWS_ACCESS_KEY_ID" => "AKIDFROMENVIRONMENT",
+            "AWS_SECRET_ACCESS_KEY" => "secret",
+            _ => null,
+        };
+        using var client = new DynamoDbClient(options, environment, null, null);
+
+        // Act
+        await client.GetItemAsync(TestClient.GetItem());
+
+        // Assert
+        var sent = handler.Requests.Single();
+        await Assert.That((sent.RequestUri, sent.Headers["Authorization"].Contains("Credential=local/", StringComparison.Ordinal), sent.Headers["Authorization"].Contains("/us-east-1/dynamodb/", StringComparison.Ordinal)))
+            .IsEqualTo((new Uri("http://localhost:8000/"), true, true));
+    }
+
+    [Test]
+    public async Task ForEmulator_NullUrl_Throws()
+    {
+        // Arrange
+        Uri? url = null;
+
+        // Act
+        var act = () => DynamoDbClientOptions.ForEmulator(url!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+    }
+
+    [Test]
     public async Task With_ChangedMaxAttempts_ChangesOnlyMaxAttempts()
     {
         // Arrange

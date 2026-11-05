@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Support;
+using DynaSharp.Mapping;
 using DynaSharp.Requests;
 
 namespace DynaSharp.IntegrationTests.Commands;
@@ -345,6 +346,21 @@ public sealed class CreateTableCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task SendAsync_EntityWithTimeToLive_TurnsItOnWithoutAClause()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var logins = sandbox.Client.Table<Login>(Tables.UniqueName());
+
+        // Act
+        var result = await sandbox.CreateTableAsync(logins, logins.CreateTable());
+        var timeToLive = await DescribeTimeToLiveAsync(sandbox, logins);
+
+        // Assert
+        await Assert.That((result.TimeToLiveEnabled, timeToLive!.TimeToLiveStatus is TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling, timeToLive.AttributeName)).IsEqualTo((true, true, (string?)"expires"));
+    }
+
+    [Test]
     public async Task SendAsync_TimeToLiveOnATableThatExists_TurnsItOn()
     {
         // Arrange
@@ -457,7 +473,8 @@ public sealed class CreateTableCommandTests(Backend backend)
         await Assert.That(again.Found).IsFalse();
     }
 
-    private static async Task<TimeToLiveDescription?> DescribeTimeToLiveAsync(Sandbox sandbox, Table<Item> table) =>
+    private static async Task<TimeToLiveDescription?> DescribeTimeToLiveAsync<T>(Sandbox sandbox, Table<T> table)
+        where T : IDynamoDbDocument<T> =>
         (await sandbox.Client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = table.Name })).TimeToLiveDescription;
 
     // The table goes when it goes, and the call says so: a loop over a bound, without a pause, because each round is a request.

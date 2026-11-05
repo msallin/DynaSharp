@@ -75,6 +75,19 @@ public sealed class ConditionTests
     }
 
     [Test]
+    public async Task Render_NotExistsOrCompare_WritesTheMissingCheckOrTheComparison()
+    {
+        // Arrange
+        var attribute = Attr<long>("seq");
+
+        // Act
+        var rendered = new[] { Render(attribute.NotExistsOrLt(7)), Render(attribute.NotExistsOrLe(7)) };
+
+        // Assert
+        await Assert.That(rendered).IsEquivalentTo(["(attribute_not_exists(#n0) OR #n0 < :v0)", "(attribute_not_exists(#n0) OR #n0 <= :v0)"]);
+    }
+
+    [Test]
     public async Task Render_Between_WritesBothBounds()
     {
         // Arrange

@@ -6,7 +6,7 @@ Conditions, filters, updates and projections are DynamoDB expressions. DynaSharp
 
 ## Typed handles
 
-`Attrs` holds a handle per stored property of an entity, with the type of the property. A handle compares with `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge` and `Between`, asks for `Exists()` and `NotExists()`, takes `BeginsWith` where the stored value is a string or a binary, and `Contains` on a set, a list or a string. Conditions compose with `And`, `Or` and `Negate`, and allocate nothing.
+`Attrs` holds a handle per stored property of an entity, with the type of the property. A handle compares with `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge` and `Between`, asks for `Exists()` and `NotExists()`, or `NotExistsOrLt(v)` and `NotExistsOrLe(v)` for an attribute that is missing or below a value (see [Events that arrive out of order](patterns-writes.md#events-that-arrive-out-of-order)), takes `BeginsWith` where the stored value is a string or a binary, and `Contains` on a set, a list or a string. Conditions compose with `And`, `Or` and `Negate`, and allocate nothing.
 
 ```csharp
 var open = orders.Query(Order.Keys.Pk.Of("alice"))

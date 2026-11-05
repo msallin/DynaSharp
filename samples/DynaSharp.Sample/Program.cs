@@ -2,19 +2,14 @@
 // one thing a shop needs from DynamoDB. The model is in ShopModel.cs, a handful of records. The source generator turns them into
 // everything below that reads, writes and addresses an item, so no item, key or expression is spelled out by hand.
 using DynaSharp;
-using DynaSharp.Credentials;
 using DynaSharp.Requests;
 using DynaSharp.Sample;
 
 // Everything in the options is optional. Left unset, region, endpoint and credentials come from the environment the way the AWS
-// SDKs read it, which is what you want in production. An emulator checks nothing, but requests are still signed.
+// SDKs read it, which is what you want in production. An emulator checks nothing, but requests are still signed, so ForEmulator
+// sets the endpoint, a region and static keys.
 var endpoint = Environment.GetEnvironmentVariable("AWS_ENDPOINT_URL_DYNAMODB") is { Length: > 0 } configured ? configured : "http://localhost:8000";
-using var client = new DynamoDbClient(new DynamoDbClientOptions
-{
-    ServiceUrl = new Uri(endpoint),
-    Region = AwsRegion.FromName("us-east-1"),
-    Credentials = new StaticCredentialsProvider("local", "local"),
-});
+using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri(endpoint)));
 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
 var ct = timeout.Token;
 

@@ -814,6 +814,143 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_TimeoutDuringTheWait_ThrowsTimeoutNamingTheTableAndTheStep()
+    {
+        // Arrange (the wait would go on for an hour; the command has a minute)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json(Creating));
+        handler.Enqueue(StubResponse.Json(Created));
+        using var client = TestClient.Create(handler, time);
+        var sending = client.Table("Shop", "pk").CreateTable().WaitUntilActive(TimeSpan.FromHours(1)).Timeout(TimeSpan.FromMinutes(1)).SendAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.Message, failure.InnerException is OperationCanceledException)).IsEqualTo((
+            "The CreateTable of Shop did not end within its timeout of 00:01:00: it was waiting for the table to become active. A table DynamoDB accepted stays, and sending the command again with IfNotExists() goes on from there.",
+            true));
+    }
+
+    [Test]
+    public async Task SendAsync_TimeoutDuringACallThatHangs_CancelsItAndThrowsTimeout()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new DelegateHandler(static async (_, ct) =>
+        {
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromHours(1));
+        var sending = client.Table("Shop", "pk").CreateTable().IfNotExists().Timeout(TimeSpan.FromSeconds(10)).SendAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(sending, time, TimeSpan.FromHours(1));
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.Message).Contains("it was looking for the table.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_TimeoutWhileTurningTimeToLiveOn_SaysSo()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new DelegateHandler(async (request, ct) =>
+        {
+            if (request.Headers.GetValues("X-Amz-Target").Single().EndsWith("DescribeTable", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage { Content = new StringContent(Active) };
+            }
+
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromHours(1));
+        var sending = client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").Timeout(TimeSpan.FromSeconds(10)).SendAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(sending, time, TimeSpan.FromHours(1));
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.Message).Contains("it was turning time to live on.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_TokenOfTheCallerBeforeTheTimeout_CancelsAsItDid()
+    {
+        // Arrange
+        using var handler = new DelegateHandler(static async (_, ct) =>
+        {
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), attemptTimeout: TimeSpan.FromHours(1));
+        using var caller = new CancellationTokenSource();
+        var sending = client.Table("Shop", "pk").CreateTable().Timeout(TimeSpan.FromHours(1)).SendAsync(caller.Token).AsTask();
+
+        // Act
+        await caller.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.CancellationToken == caller.Token).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_CancellationOfNeitherTokenWithATimeout_SurfacesAsItIs()
+    {
+        // Arrange (a handler of the application that gives up by itself is none of the timeout's business)
+        using var handler = new DelegateHandler(static (_, _) => throw new OperationCanceledException("The handler gave up."));
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), attemptTimeout: TimeSpan.FromHours(1));
+
+        // Act
+        var failure = await TestClient.CaptureAsync<Exception>(async () => await client.Table("Shop", "pk").CreateTable().Timeout(TimeSpan.FromHours(1)).SendAsync());
+
+        // Assert
+        await Assert.That(failure.GetType()).IsEqualTo(typeof(OperationCanceledException));
+    }
+
+    [Test]
+    [Arguments(1000L)]
+    [Arguments(-1L)]
+    public async Task SendAsync_TimeoutThatIsNotReachedOrInfinite_ReturnsTheTable(long milliseconds)
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Created));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().WaitUntilActive().Timeout(TimeSpan.FromMilliseconds(milliseconds)).SendAsync();
+
+        // Assert
+        await Assert.That((result.Table.TableStatus, Operations(handler))).IsEqualTo((TableStatus.Active, "CreateTable,DescribeTable"));
+    }
+
+    [Test]
+    [Arguments(0L)]
+    [Arguments(-2L)]
+    [Arguments(4294967295L)]
+    public async Task Timeout_OutOfRange_ThrowsAtTheClauseBeforeAnyTableExists(long milliseconds)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var create = client.Table("Shop", "pk").CreateTable();
+
+        // Act
+        var failure = TestClient.Catch(() => create.Timeout(TimeSpan.FromMilliseconds(milliseconds)));
+
+        // Assert
+        await Assert.That((((ArgumentOutOfRangeException)failure).ParamName, handler.Requests.Count)).IsEqualTo(("timeout", 0));
+    }
+
+    [Test]
     public async Task SendAsync_TableExists_ThrowsResourceInUse()
     {
         // Arrange
@@ -1432,6 +1569,91 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_EntityWithTimeToLive_TurnsItOnAsTheClauseDoes()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Created));
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json(Updated));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaSession>("Shop").CreateTable().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var result = await sending;
+
+        // Assert
+        await Assert.That((result.TimeToLiveEnabled, Operations(handler), handler.Requests[3].BodyText)).IsEqualTo((
+            true,
+            "CreateTable,DescribeTable,DescribeTimeToLive,UpdateTimeToLive",
+            """{"TableName":"Shop","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"expires"}}"""));
+    }
+
+    [Test]
+    public async Task SendAsync_IncludedEntityWithTimeToLive_TurnsItOnForTheTable()
+    {
+        // Arrange (an entity without one takes that of the others)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(TimeToLive("ENABLED", "expires")));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        await client.Table("Shop", "pk", "sk").CreateTable().Including<SchemaSession>().Including<SchemaToken>().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That((Operations(handler), handler.Requests[1].BodyText)).IsEqualTo(("DescribeTable,DescribeTimeToLive", """{"TableName":"Shop"}"""));
+    }
+
+    [Test]
+    public async Task SendAsync_ClauseBesideAnEntityWithTimeToLive_TakesTheClause()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.Json("""{"TimeToLiveSpecification":{"Enabled":true,"AttributeName":"other"}}"""));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        await client.Table<SchemaSession>("Shop").CreateTable().IfNotExists().TimeToLive("other").SendAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[2].BodyText).IsEqualTo("""{"TableName":"Shop","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"other"}}""");
+    }
+
+    [Test]
+    public async Task Including_EntityWithAnotherTimeToLive_ThrowsNamingBothAndTheAttributes()
+    {
+        // Arrange (a table has time to live on one attribute)
+        using var client = TestClient.Create(new StubHandler());
+        var create = client.Table<SchemaSession>("Shop").CreateTable();
+
+        // Act
+        var failure = TestClient.Catch(() => create.Including<SchemaPurged>());
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo(
+            "DynaSharp.UnitTests.Fluent.SchemaSession expires its items by the attribute expires, and DynaSharp.UnitTests.Fluent.SchemaPurged by PurgeAt, and a table has time to live on one attribute.");
+    }
+
+    [Test]
+    public async Task Info_EntityWithTimeToLive_NamesItsAttribute()
+    {
+        // Arrange
+        var entities = (InfoOf<SchemaSession>(), InfoOf<SchemaPurged>(), InfoOf<SchemaCustomer>());
+
+        // Act
+        var names = (entities.Item1.TimeToLiveAttributeName, entities.Item2.TimeToLiveAttributeName, entities.Item3.TimeToLiveAttributeName);
+
+        // Assert
+        await Assert.That(names).IsEqualTo(("expires", "PurgeAt", (string?)null));
+    }
+
+    [Test]
     [Arguments("ENABLED")]
     [Arguments("ENABLING")]
     public async Task SendAsync_TimeToLiveOnOnThatAttribute_EndsThere(string status)
@@ -1934,4 +2156,7 @@ public sealed class CreateTableCommandTests
         var indexes = (request.GlobalSecondaryIndexes ?? []).Select(static index => index.IndexName).Concat((request.LocalSecondaryIndexes ?? []).Select(static index => index.IndexName));
         return $"{attributes} | {string.Join(" ", indexes.Order(StringComparer.Ordinal))}";
     }
+
+    private static DynaSharp.Mapping.DynamoDbEntityInfo InfoOf<T>()
+        where T : DynaSharp.Mapping.IDynamoDbEntity<T> => T.Info;
 }

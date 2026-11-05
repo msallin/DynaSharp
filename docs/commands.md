@@ -73,7 +73,7 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
 | `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
 | `Get(...).Select(handle).SendAsync(ct)`, `Query(...).Select(handle).ValueAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found; `GetValueOrDefault()` and `GetValueOrDefault(fallback)`, which do not |
-| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored; `ConsumedCapacity` and `ItemCollectionMetrics` |
+| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, and `StoredVersion`, the same without the null; `ConsumedCapacity` and `ItemCollectionMetrics` |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
 | `BatchWrite()`, `BatchGet()` | `BatchWriteResult`, `BatchGetResult<T>` | `Written` or `Items`, `Requests` and `ConsumedCapacity` |
@@ -147,7 +147,11 @@ var saved = await carts.Update(Cart.Keys.Of("bob"))
     .Set(Cart.Attrs.Lines, lines)
     .IfVersion(seen.Revision)
     .SendAsync(ct);
+
+long next = saved.StoredVersion;
 ```
+
+The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null for a write that stored none (a delete, an update with `IgnoreVersion()`). `StoredVersion` is the same number as a `long`, for a put or an `IfVersion(n)` update that always stores one, and throws `InvalidOperationException` where there is none.
 
 ## Retry on a conflict
 
@@ -162,6 +166,17 @@ await carts.RetryOnConflictAsync(async token =>
 ```
 
 Inside it, a versioned write whose response was lost meets its own first attempt on the retry of the client, fails its condition, and counts as a conflict, so the delegate runs again, see [Where a retry applies a write twice](errors.md#where-a-retry-applies-a-write-twice). A delegate must be safe to run twice.
+
+A value read before the call, for a decision that came first, can serve the first run, as long as every later run reads again: the delegate that takes the number of the run, 1 for the first, says which run it is, without a variable that the delegate clears after its first use.
+
+```csharp
+var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(ct);
+await carts.RetryOnConflictAsync(async (run, token) =>
+{
+    var current = run == 1 ? cart : await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+    await carts.Put(current! with { Lines = lines }).SendAsync(token);
+}, ct);
+```
 
 A run that reads nothing, and whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once. See [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
 

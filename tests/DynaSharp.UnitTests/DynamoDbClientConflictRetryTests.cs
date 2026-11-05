@@ -415,6 +415,114 @@ internal sealed class DynamoDbClientConflictRetryTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRun_GetsTheNumberOfEachRun()
+    {
+        // Arrange
+        var script = new Script(Lost(), Lost());
+        var seen = new List<int>();
+        using var client = NewClient();
+
+        // Act
+        var result = await client.RetryOnConflictAsync((run, ct) =>
+        {
+            seen.Add(run);
+            return script.RunAsync(ct);
+        });
+
+        // Assert
+        await Assert.That((result, string.Join(",", seen))).IsEqualTo((3, "1,2,3"));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunWithoutAResult_GetsTheNumberOfEachRun()
+    {
+        // Arrange
+        var script = new Script(Lost());
+        var seen = new List<int>();
+        using var client = NewClient();
+
+        // Act
+        await client.RetryOnConflictAsync(async (run, ct) =>
+        {
+            seen.Add(run);
+            await script.RunWithoutResultAsync(ct);
+        });
+
+        // Assert
+        await Assert.That(string.Join(",", seen)).IsEqualTo("1,2");
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunAndANamedConflict_SurfacesAnotherConflictAtOnce()
+    {
+        // Arrange
+        var script = new Script(Lost());
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.TransactionConflict, 5));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunWithoutAResultAndMaxAttempts_CountsTheFirstRun()
+    {
+        // Arrange
+        var script = new Script(Lost(), Lost(), Lost());
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), ConflictKind.Any, 2));
+
+        // Assert
+        await Assert.That(script.Runs).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_NullDelegateWithTheRun_ThrowsAtTheCall()
+    {
+        // Arrange
+        using var client = NewClient();
+        Func<int, CancellationToken, ValueTask<int>>? operation = null;
+
+        // Act
+        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("operation");
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_NullDelegateWithTheRunWithoutAResult_ThrowsAtTheCall()
+    {
+        // Arrange
+        using var client = NewClient();
+        Func<int, CancellationToken, ValueTask>? operation = null;
+
+        // Act
+        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("operation");
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunAndMaxAttemptsBelowOne_ThrowsAtTheCallAndRunsNothing()
+    {
+        // Arrange
+        var script = new Script();
+        using var client = NewClient();
+
+        // Act
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.Any, 0));
+
+        // Assert
+        await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_LambdaThatEndsInAnAwait_BindsToTheOverloadWithAResult()
     {
         // Arrange (the lambda fits both overloads, and a result that went missing here would not show in a run)

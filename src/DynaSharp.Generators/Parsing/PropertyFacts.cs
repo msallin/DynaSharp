@@ -26,6 +26,8 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
 
     public AttributeData? Version { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.VersionAttribute);
 
+    public AttributeData? TimeToLive { get; } = AttributeReader.FindOnProperty(symbol, WellKnownNames.TimeToLiveAttribute);
+
     /// <summary>Gets a value indicating whether the property is a version that takes an item without one for version 0.</summary>
     public bool AllowsMissingVersion => Version is { } attribute && AttributeReader.Number(attribute, WellKnownNames.VersionMissingArgument) == WellKnownNames.VersionMissingAllow;
 

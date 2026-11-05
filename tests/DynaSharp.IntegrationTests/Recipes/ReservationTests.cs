@@ -93,7 +93,7 @@ public sealed class ReservationTests(Backend backend)
             await sandbox.Shop.Of<Seat>().Update(Seat.Keys.Of(Seat12))
                 .Set(Seat.Attrs.HeldBy, customer)
                 .Set(Seat.Attrs.HeldUntil, now + HoldTime)
-                .If(Seat.Attrs.SoldTo.NotExists().And(Seat.Attrs.HeldUntil.NotExists().Or(Seat.Attrs.HeldUntil.Le(now))))
+                .If(Seat.Attrs.SoldTo.NotExists().And(Seat.Attrs.HeldUntil.NotExistsOrLe(now)))
                 .SendAsync();
             return true;
         }

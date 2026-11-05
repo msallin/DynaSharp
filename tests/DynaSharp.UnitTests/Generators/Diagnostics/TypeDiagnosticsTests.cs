@@ -53,6 +53,10 @@ public sealed class TypeDiagnosticsTests
     [Arguments("DYNA030 ignored", "[DynamoDbDocument] public partial class A { [OmitEmpty, DynamoDbIgnore] public string? X { get; set; } }")]
     [Arguments("DYNA030 type", "[DynamoDbDocument, OmitEmpty] public partial class A { public string? X { get; set; } public int Y { get; set; } public int? Z { get; set; } public string W { get; set; } = \"\"; }")]
     [Arguments("DYNA030 keys on a type", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "{Plain}", PartitionKeyAttributeName = "Plain", Sparse = true), OmitEmpty] public partial class E { public string Id { get; set; } = "id"; public string? Owner { get; set; } public string? Plain { get; set; } }""")]
+    [Arguments("DYNA036 epoch seconds", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { [TimeToLive, DynamoDbConverter(typeof(EpochSecondsConverter))] public DateTimeOffset? Expires { get; set; } }""")]
+    [Arguments("DYNA036 integer", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { public string Id { get; set; } = "id"; [TimeToLive] public long Expires { get; set; } }""")]
+    [Arguments("DYNA036 built-in integer", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { [TimeToLive, DynamoDbConverter(typeof(NumberConverter<int>))] public int? Expires { get; set; } }""")]
+    [Arguments("DYNA036 addable", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { [TimeToLive, DynamoDbConverter(typeof(C))] public DateTime Expires { get; set; } } public readonly struct C : IDynamoDbConverter<DateTime>, IAddableConverter { public static void Write(DynamoDbWriter w, DateTime v) => w.WriteNumber(1L); public static DateTime Read(ref DynamoDbReader r, AttributeType t) => default; }""")]
     public async Task Build_SourceThatKeepsTheRule_ReportsNothing(string rule, string source)
     {
         // Arrange
@@ -812,6 +816,68 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
+    [Arguments("[[|TimeToLive|]] public DateTimeOffset Expires { get; set; }")]
+    [Arguments("[[|TimeToLive|]] public string? Expires { get; set; }")]
+    [Arguments("[[|TimeToLive|]] public double Expires { get; set; }")]
+    [Arguments("[[|TimeToLive|], DynamoDbConverter(typeof(BoolAsNumberConverter))] public bool Expires { get; set; }")]
+    [Arguments("[[|TimeToLive|], DynamoDbConverter(typeof(C))] public long Expires { get; set; }")]
+    public async Task Build_TimeToLiveNotStoredAsEpochSeconds_ReportsDyna036(string member)
+    {
+        // Arrange (DynamoDB ignores an expiry that is no number, so a DateTimeOffset as its default ISO string never expires)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { {{member}} }
+
+            public readonly struct C : IDynamoDbConverter<long>
+            {
+                public static void Write(DynamoDbWriter writer, long value) => writer.WriteString("x");
+                public static long Read(ref DynamoDbReader reader, AttributeType type) => 0;
+            }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            source,
+            "DYNA036 Error: [TimeToLive] on 'Expires' is not valid: DynamoDB deletes by a number of epoch seconds and ignores an item that holds anything else. On a DateTimeOffset add [DynamoDbConverter(typeof(EpochSecondsConverter))]; an integer holds the seconds as it is"));
+    }
+
+    [Test]
+    [Arguments("[[|TimeToLive|], DynamoDbIgnore] public long Expires { get; set; }")]
+    [Arguments("[[|TimeToLive|]] public long Expires => 1;")]
+    public async Task Build_TimeToLiveNotStored_ReportsDyna036(string member)
+    {
+        // Arrange
+        var source = $$"""[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { {{member}} }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA036 Error: [TimeToLive] on 'Expires' is not valid: it is not stored, so no item holds an expiry"));
+    }
+
+    [Test]
+    public async Task Build_SecondTimeToLive_ReportsDyna036OnTheSecond()
+    {
+        // Arrange (a table has time to live on one attribute)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E
+            {
+                [TimeToLive] public long Expires { get; set; }
+                [[|TimeToLive|]] public long Purge { get; set; }
+            }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA036 Error: [TimeToLive] on 'Purge' is not valid: 'Expires' is the time to live of the type already, and a table has time to live on one attribute"));
+    }
+
+    [Test]
     public async Task Build_VersionWithAConverter_ReportsDyna011()
     {
         // Arrange (a condition compares numbers, and a converter may store something else)
@@ -915,6 +981,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("public partial class A { [[|SortKey|]] public string X { get; set; } = \"\"; }", "SortKey")]
     [Arguments("public partial class A { [[|KeyOnly|]] public string X { get; set; } = \"\"; }", "KeyOnly")]
     [Arguments("public partial class A { [[|Version|]] public long X { get; set; } }", "Version")]
+    [Arguments("public partial class A { [[|TimeToLive|]] public long X { get; set; } }", "TimeToLive")]
     [Arguments("""public partial class A { public int X { get; set; } [[|ComputedFrom(nameof(X))|]] public int Y => X; }""", "ComputedFrom")]
     public async Task Build_EntityAttributeOnADocument_ReportsDyna012(string declaration, string attribute)
     {

@@ -36,6 +36,9 @@ namespace DynaSharp;
 /// </remarks>
 public sealed class CreateTableCommand
 {
+    // What a CancellationTokenSource takes: uint.MaxValue - 1 milliseconds.
+    private const double MaxTimeoutMilliseconds = 4294967294;
+
     private readonly TableModel _table;
 
     private readonly TableSchema _schema;
@@ -49,6 +52,8 @@ public sealed class CreateTableCommand
     private StreamViewType? _stream;
 
     private string? _timeToLive;
+
+    private TimeSpan? _timeout;
 
     /// <summary>Initializes a new instance of the <see cref="CreateTableCommand"/> class.</summary>
     /// <param name="table">The table.</param>
@@ -70,8 +75,8 @@ public sealed class CreateTableCommand
     /// <typeparam name="TOther">Any entity on this table.</typeparam>
     /// <returns>This command.</returns>
     /// <exception cref="ArgumentException">
-    /// The entity disagrees with the table or with an entity before it, which the message names both of: the key of the table has other names, it stores an attribute as another type, or it declares an index of
-    /// that name over other attributes, or as local where the other is global.
+    /// The entity disagrees with the table or with an entity before it, which the message names both of: the key of the table has other names, it stores an attribute as another type, it declares an index of
+    /// that name over other attributes, or as local where the other is global, or its <see cref="TimeToLiveAttribute"/> is on another attribute, since a table has time to live on one.
     /// </exception>
     public CreateTableCommand Including<TOther>()
         where TOther : IDynamoDbEntity<TOther>
@@ -109,11 +114,11 @@ public sealed class CreateTableCommand
     /// the fifth look in a row, 1.5 seconds in, ends the wait, because a create lists all its indexes and only an <c>UpdateTable</c> sent before this command adds one. Add the index with <c>UpdateTable</c> in <c>DynaSharp.Requests</c> first.
     /// That needs an active table, which a table opened without an entity waits for, because it declares nothing: <c>client.Table(name, "pk", "sk").WaitUntilActiveAsync()</c>. Then this wait follows the backfill.
     /// <para>
-    /// The timeout bounds the wait and nothing else, so the calls before it and time to live after it take their own time. A <see cref="CancellationToken"/> on the same timeout races it, and when the token wins the caller gets a
-    /// bare <see cref="TaskCanceledException"/> or <see cref="OperationCanceledException"/>, with no table and no index named. Give the wait less time than the token.
+    /// The timeout bounds the wait and nothing else, so the calls before it and time to live after it take their own time. <see cref="Timeout(TimeSpan)"/> bounds all of it and names the table when it runs out, where a
+    /// <see cref="CancellationToken"/> on a timer gives a bare <see cref="TaskCanceledException"/> or <see cref="OperationCanceledException"/>, with no table and no index named.
     /// </para>
     /// </remarks>
-    /// <param name="timeout">How long to wait after the table was created. <see cref="Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
+    /// <param name="timeout">How long to wait after the table was created. <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> is not a bound and is rejected.</param>
     /// <returns>This command.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative, which this call finds out, so that no table is created for it.</exception>
     public CreateTableCommand WaitUntilActive(TimeSpan timeout)
@@ -143,7 +148,8 @@ public sealed class CreateTableCommand
 
     /// <summary>
     /// Makes sure that the table has time to live on this attribute, on a table this command creates and on one <see cref="IfNotExists"/> finds. <c>CreateTable</c> does not take it, so it is no part of
-    /// <see cref="ToRequest"/>: it happens after the create, or after finding the table.
+    /// <see cref="ToRequest"/>: it happens after the create, or after finding the table. An entity of the command with <see cref="TimeToLiveAttribute"/> asks for the same without this call, and this call
+    /// replaces what the entities declare.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -162,7 +168,7 @@ public sealed class CreateTableCommand
     /// <b>Permissions.</b> It takes <c>dynamodb:DescribeTimeToLive</c> on every call, <c>dynamodb:UpdateTimeToLive</c> when time to live is not on yet, and <c>dynamodb:DescribeTable</c> for the wait.
     /// </para>
     /// <para>
-    /// The attribute of an item must be a number that holds a Unix time in seconds, which <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c> on a <see cref="DateTimeOffset"/> writes. See <see cref="UpdateTimeToLiveRequest"/> for when DynamoDB deletes.
+    /// The attribute of an item must be a number that holds a Unix time in seconds, which <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c> on a <see cref="DateTimeOffset"/> writes, and which <see cref="TimeToLiveAttribute"/> checks at build time. See <see cref="UpdateTimeToLiveRequest"/> for when DynamoDB deletes.
     /// </para>
     /// </remarks>
     /// <param name="attributeName">The name of the attribute that holds the expiry time.</param>
@@ -189,6 +195,36 @@ public sealed class CreateTableCommand
         }
 
         return TimeToLive(path);
+    }
+
+    /// <summary>
+    /// Bounds the whole of <see cref="SendAsync"/>, every call it makes and every wait: the look of <see cref="IfNotExists"/>, the <c>CreateTable</c> with its retries, the wait of <see cref="WaitUntilActive()"/>, and turning
+    /// time to live on. When the time runs out, the call in flight is cancelled and <see cref="SendAsync"/> throws a <see cref="TimeoutException"/> that names the table, the timeout and the step it was at, where a token
+    /// of the caller on a timer gives a bare <see cref="OperationCanceledException"/>. It is meant for a program that creates its table at the start and must not hang there.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The time runs on <see cref="DynamoDbClientOptions.TimeProvider"/> of the client. A table that DynamoDB accepted stays accepted, so a timeout after the create leaves the table behind, and sending the command again with
+    /// <see cref="IfNotExists"/> goes on from there. The bound of <see cref="WaitUntilActive(TimeSpan)"/> still applies inside it, and a wait that runs out first throws its <see cref="TableNotActiveException"/>, which names the
+    /// index it waited for. This adds no wait: without <see cref="WaitUntilActive()"/> or time to live, it bounds the calls alone. A <see cref="DynamoDbClientOptions.AttemptTimeout"/> of a call is its own and still throws its
+    /// own <see cref="TimeoutException"/>.
+    /// </para>
+    /// <para>
+    /// A token of the caller still cancels as it did, with an <see cref="OperationCanceledException"/> of that token, also when both happen at once.
+    /// </para>
+    /// </remarks>
+    /// <param name="timeout">The time for the whole command, more than zero, or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> for no bound.</param>
+    /// <returns>This command.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, negative other than infinite, or above 4294967294 milliseconds, which this call finds out before a table is created.</exception>
+    public CreateTableCommand Timeout(TimeSpan timeout)
+    {
+        if (timeout != System.Threading.Timeout.InfiniteTimeSpan && (timeout <= TimeSpan.Zero || timeout.TotalMilliseconds > MaxTimeoutMilliseconds))
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "The timeout of a CreateTable is more than zero and at most 4294967294 milliseconds, or Timeout.InfiniteTimeSpan for no bound.");
+        }
+
+        _timeout = timeout;
+        return this;
     }
 
     /// <summary>
@@ -248,7 +284,7 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, which implies it, the table is normally <c>CREATING</c> when this returns.
+    /// Creates the table (<c>CreateTable</c>). Creation is asynchronous: without <see cref="WaitUntilActive()"/> or time to live, of <see cref="TimeToLive(string)"/> or of a <see cref="TimeToLiveAttribute"/> of an entity, which implies it, the table is normally <c>CREATING</c> when this returns.
     /// </summary>
     /// <param name="cancellationToken">Cancels the call, and the wait. A table DynamoDB accepted stays accepted, so a cancelled wait leaves a table behind.</param>
     /// <returns>
@@ -263,28 +299,65 @@ public sealed class CreateTableCommand
     /// <exception cref="TableNotActiveException">
     /// The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, or the table did not list a global index this command declares, which ends the wait early.
     /// </exception>
-    /// <exception cref="TimeoutException">A call ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.</exception>
+    /// <exception cref="TimeoutException">
+    /// The command ran out of <see cref="Timeout(TimeSpan)"/>, with a message that names the table, the timeout and the step, and the <see cref="OperationCanceledException"/> of the call in flight inside it. Or a call ran out of
+    /// <see cref="DynamoDbClientOptions.AttemptTimeout"/> on its last attempt.
+    /// </exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public async ValueTask<CreateTableResult> SendAsync(CancellationToken cancellationToken = default)
     {
-        var existing = await FindExistingAsync(cancellationToken).ConfigureAwait(false);
-        var (description, created) = existing is null ? await CreateAsync(cancellationToken).ConfigureAwait(false) : (existing, false);
-        var declared = _schema.GlobalIndexNames;
-        var timeout = _activeTimeout ?? (_timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
-        if (timeout is { } bound && (existing is null || !TableAdministration.IsActive(existing, declared)))
+        if (_timeout is not { } bound || bound == System.Threading.Timeout.InfiniteTimeSpan)
         {
-            // The create sent every declared index, and a table that exists gets one only from an UpdateTable sent before this command, so an index still not listed after the catch-up will not be.
-            description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, unlistedIsFinal: true, cancellationToken).ConfigureAwait(false);
+            return await RunAsync(null, cancellationToken).ConfigureAwait(false);
         }
 
-        var timeToLiveEnabled = _timeToLive is { } attributeName && await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
-        return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled);
+        using var deadline = new CancellationTokenSource(bound, _table.Core.TimeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        var progress = new Progress();
+        try
+        {
+            return await RunAsync(progress, linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (deadline.IsCancellationRequested || cancellationToken.IsCancellationRequested)
+        {
+            // The calls saw the linked token, and a caller tells its own cancellation by its own token, which wins when both came.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(exception.Message, exception, cancellationToken);
+            }
+
+            throw new TimeoutException($"The CreateTable of {_table.Name} did not end within its timeout of {bound}: it was {progress.Step}. A table DynamoDB accepted stays, and sending the command again with IfNotExists() goes on from there.", exception);
+        }
     }
 
     /// <summary>Lets <c>await</c> send the command, for <c>await orders.CreateTable()</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ValueTaskAwaiter<CreateTableResult> GetAwaiter() => SendAsync().GetAwaiter();
+
+    // The steps say where a timeout met the command; without one there is nothing to tell, and no progress is kept.
+    private async ValueTask<CreateTableResult> RunAsync(Progress? progress, CancellationToken cancellationToken)
+    {
+        progress?.At("looking for the table");
+        var existing = await FindExistingAsync(cancellationToken).ConfigureAwait(false);
+        progress?.At("creating the table");
+        var (description, created) = existing is null ? await CreateAsync(cancellationToken).ConfigureAwait(false) : (existing, false);
+        var declared = _schema.GlobalIndexNames;
+        var timeToLive = _timeToLive ?? _schema.TimeToLiveAttributeName;
+        var timeout = _activeTimeout ?? (timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
+        if (timeout is { } bound && (existing is null || !TableAdministration.IsActive(existing, declared)))
+        {
+            progress?.At("waiting for the table to become active");
+
+            // The create sent every declared index, and a table that exists gets one only from an UpdateTable sent before this command, so an index still not listed after the catch-up will not be.
+            description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, unlistedIsFinal: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        progress?.At("turning time to live on");
+        var timeToLiveEnabled = timeToLive is { } attributeName && await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
+        progress?.At("describing the table");
+        return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled);
+    }
 
     // The description is null only for a response without one. Created is false for a table another process created first.
     private async ValueTask<(TableDescription? Description, bool Created)> CreateAsync(CancellationToken cancellationToken)
@@ -345,5 +418,13 @@ public sealed class CreateTableCommand
         {
             return null;
         }
+    }
+
+    /// <summary>The step a command with a timeout is at, for the message of the <see cref="TimeoutException"/>.</summary>
+    private sealed class Progress
+    {
+        public string Step { get; private set; } = string.Empty;
+
+        public void At(string step) => Step = step;
     }
 }

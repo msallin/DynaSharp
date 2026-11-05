@@ -17,6 +17,10 @@ namespace DynaSharp;
 /// </remarks>
 public sealed record DynamoDbClientOptions
 {
+    private const string EmulatorRegion = "us-east-1";
+
+    private const string EmulatorKey = "local";
+
     /// <summary>
     /// Gets the region. When <see langword="null"/>, the <c>AWS_REGION</c> and then the <c>AWS_DEFAULT_REGION</c>
     /// environment variable is used, and then the <c>region</c> setting of the profile selected by <c>AWS_PROFILE</c> (default
@@ -176,6 +180,30 @@ public sealed record DynamoDbClientOptions
     /// </para>
     /// </remarks>
     public ContinuationTokenSigner? TokenSigner { get; init; }
+
+    /// <summary>
+    /// Creates options for an emulator, such as DynamoDB Local or Dynoxide, at <paramref name="serviceUrl"/>: <see cref="ServiceUrl"/>, the region <c>us-east-1</c> and the static credentials <c>local</c> and
+    /// <c>local</c>, so that nothing is read from the environment for them. Every request is signed, and an emulator checks neither, so any values do: <c>new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")))</c>.
+    /// </summary>
+    /// <remarks>
+    /// The options are a record, so the rest is a <c>with</c>: <c>DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }</c>. The region and the keys are the same on every call, which matters to DynamoDB Local without
+    /// <c>-sharedDb</c>: it keeps one database per access key and region, so two programs that meet in one table use the same values, and a tool such as the AWS CLI that looks at the tables takes them too.
+    /// A <see cref="Streams.DynamoDbStreamsClient"/> made from these options reads the streams of the same emulator. An http URL whose host is not <c>localhost</c> or a loopback address logs the warning that
+    /// <see cref="ServiceUrl"/> describes. For real DynamoDB, leave this out and let the environment decide.
+    /// </remarks>
+    /// <param name="serviceUrl">The address of the emulator, for example <c>http://localhost:8000</c>, with the rules of <see cref="ServiceUrl"/>, which the client checks when it is created.</param>
+    /// <returns>The options.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceUrl"/> is <see langword="null"/>.</exception>
+    public static DynamoDbClientOptions ForEmulator(Uri serviceUrl)
+    {
+        ArgumentNullException.ThrowIfNull(serviceUrl);
+        return new DynamoDbClientOptions
+        {
+            ServiceUrl = serviceUrl,
+            Region = AwsRegion.FromName(EmulatorRegion),
+            Credentials = new StaticCredentialsProvider(EmulatorKey, EmulatorKey),
+        };
+    }
 
     // A record prints what its members print, and a provider of the application can be a record itself, which prints its keys. An endpoint can carry user info until a client rejects it.
     private bool PrintMembers(StringBuilder builder)
