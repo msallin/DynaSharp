@@ -1,6 +1,11 @@
+using DynaSharp.Requests;
 using DynaSharp.Streams;
+using DynaSharp.Telemetry;
 using DynaSharp.Testing;
+using DynaSharp.UnitTests.Fluent.Mix;
+using DynaSharp.UnitTests.Telemetry;
 using DynaSharp.UnitTests.Testing.Fake;
+using static DynaSharp.UnitTests.Streams.TypedChanges;
 
 namespace DynaSharp.UnitTests.Streams;
 
@@ -266,6 +271,275 @@ public sealed class TableStreamExtensionsTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_OneType_SkipsTheChangesOfOtherEntities()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(BetaValue() with { Sk = "2" }));
+        fake.Put("Shop", Item.From(AlphaValue()));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var changes = await client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon).Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That((changes.Single().Kind, changes.Single().After!.Name, changes.Single().Keys!["sk"].AsString())).IsEqualTo((OperationType.Insert, "first", "1"));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_StreamSwitchedOffAfterTheStart_EndsWithTheStream()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json($$$"""{"Table":{"TableName":"Shop","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamArn":"{{{TestClient.StreamArn}}}"}}"""));
+        handler.Enqueue(StubResponse.StreamDescription("Shop", StreamStatus.Disabled, StubResponse.Shard("shard-1", endingSequenceNumber: "9")));
+        handler.Enqueue(StubResponse.ShardIterator("iterator-1"));
+        handler.Enqueue(StubResponse.Records(null, StubResponse.Inserted(AlphaValue()), StubResponse.Inserted(BetaValue() with { Sk = "2" })));
+        handler.Enqueue(StubResponse.StreamDescription("Shop", StreamStatus.Disabled));
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        using var call = new CancellationTokenSource();
+        using var enumeration = new CancellationTokenSource();
+
+        // Act: the token of the call and that of WithCancellation, both of which end the reading
+        var changes = new List<Change<Alpha>>();
+        await foreach (var change in client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, cancellationToken: call.Token).WithCancellation(enumeration.Token))
+        {
+            changes.Add(change);
+        }
+
+        // Assert
+        await Assert.That(changes.Single().After!.Name).IsEqualTo("first");
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_CancelledWhileWaiting_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var time = new ManualTimeProvider(Start);
+        var fake = Shop("Shop");
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient(options => options with { TimeProvider = time });
+        using var cancellation = new CancellationTokenSource();
+        var reading = client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.Latest, cancellationToken: cancellation.Token).ToListAsync().AsTask();
+        while (time.ArmedTimers == 0)
+        {
+            await Task.Yield();
+        }
+
+        // Act
+        await cancellation.CancelAsync();
+
+        // Assert
+        await Assert.That(await TestClient.CaptureAsync<OperationCanceledException>(() => reading)).IsNotNull();
+    }
+
+    [Test]
+    [Arguments(StreamViewType.NewImage)]
+    [Arguments(StreamViewType.OldImage)]
+    [Arguments(StreamViewType.KeysOnly)]
+    public async Task ReadChangesAsync_ViewWithoutBothImages_ThrowsInvalidOperationException(StreamViewType view)
+    {
+        // Arrange
+        var fake = Shop("Shop", view);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var act = async () => await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
+            $"The stream of the table Shop has the view {view}, and a typed reading needs NewAndOldImages: without the old image a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.",
+            StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TypeChangedAtTheKey_GivesTheRemovalThenTheInsert()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(AlphaValue()));
+        fake.Put("Shop", Item.From(BetaValue()));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var changes = await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon).Take(3).ToListAsync();
+
+        // Assert
+        await Assert.That(string.Join(",", changes.Select(static change => change.Match(static alpha => $"A{alpha.Kind}", static beta => $"B{beta.Kind}"))))
+            .IsEqualTo("AInsert,ARemove,BInsert");
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_ThreeAndFourTypes_GiveEachType()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(AlphaValue()));
+        fake.Put("Shop", Item.From(BetaValue() with { Sk = "2" }));
+        fake.Put("Shop", Item.From(new Gamma { Pk = "a", Sk = "3" }));
+        fake.Put("Shop", Item.From(new Delta { Pk = "a", Sk = "4" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var three = await shop.ReadChangesAsync<Beta, Gamma, Delta>(streams, ShardIteratorType.TrimHorizon).Take(3).ToListAsync();
+        var four = await shop.ReadChangesAsync<Alpha, Beta, Gamma, Delta>(streams, ShardIteratorType.TrimHorizon).Take(4).ToListAsync();
+
+        // Assert
+        await Assert.That((
+            string.Join(",", three.Select(static change => change.Match(static _ => "B", static _ => "G", static _ => "D"))),
+            string.Join(",", four.Select(static change => change.Match(static _ => "A", static _ => "B", static _ => "G", static _ => "D"))))).IsEqualTo(("B,G,D", "A,B,G,D"));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_ImageThatCannotBeRead_ThrowsDynamoDbMappingException()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", BrokenBeta);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await client.Table("Shop", "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon).Take(1).ToListAsync());
+
+        // Assert
+        await Assert.That((failure.AttributeName, failure.Key)).IsEqualTo(("Amount", RecordKeys));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_OnMappingFailure_SkipsEachChangeThatCannotBeRead()
+    {
+        // Arrange: an insert, a modify of two broken images, and a modify from a broken image to a good one fail; the next insert is read
+        var fake = Shop("Shop");
+        fake.Put("Shop", BrokenBeta);
+        fake.Put("Shop", new Item(BrokenBeta) { ["note"] = "again" });
+        fake.Put("Shop", Item.From(BetaValue()));
+        fake.Put("Shop", Item.From(BetaValue(8) with { Sk = "2" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var failures = new List<DynamoDbMappingException>();
+
+        // Act
+        var changes = await client.Table("Shop", "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: failures.Add).Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That((changes.Single().After!.Amount, failures.Count)).IsEqualTo((8, 3));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_OnMappingFailureOfTheOldType_GivesTheInsertOfTheNewType()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", BrokenBeta);
+        fake.Put("Shop", Item.From(AlphaValue()));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var failures = new List<DynamoDbMappingException>();
+
+        // Act
+        var changes = await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon, onMappingFailure: failures.Add).Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That((changes.Single().Is(out Change<Alpha>? alpha), alpha!.Kind, failures.Count)).IsEqualTo((true, OperationType.Insert, 2));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_SkippedChanges_CountOneEachWithTheCallOfTheRecordAndTheTable()
+    {
+        // Arrange
+        var table = TestClient.UniqueTable();
+        using var counters = MeasurementCapture<long>.ForTable(table, TelemetryNames.SkippedItemsMetric);
+        var fake = Shop(table);
+        fake.Put(table, BrokenBeta);
+        fake.Put(table, Item.From(BetaValue() with { Sk = "2" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        await client.Table(table, "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: static _ => { }).Take(1).ToListAsync();
+
+        // Assert
+        await Assert.That((counters.All.Count, counters.All[0].Unit, counters.All[0].TagText)).IsEqualTo((
+            1,
+            "{item}",
+            $"db.collection.name={table},db.operation.name=GetRecords,server.address=streams.dynamodb.us-east-1.amazonaws.com"));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TypesThatCannotBeToldApart_ThrowsArgumentExceptionAtTheCall()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var act = () => client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, AlphaTwin>(streams, ShardIteratorType.TrimHorizon);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_NullTableOrStreams_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var names = new[]
+        {
+            Capture(() => TableStreamExtensions.ReadChangesAsync<Alpha>(null!, streams, ShardIteratorType.TrimHorizon)),
+            Capture(() => shop.Of<Alpha>().ReadChangesAsync(null!, ShardIteratorType.TrimHorizon)),
+            Capture(() => TableStreamExtensions.ReadChangesAsync<Alpha, Beta>(null!, streams, ShardIteratorType.TrimHorizon)),
+            Capture(() => shop.ReadChangesAsync<Alpha, Beta, Gamma>(null!, ShardIteratorType.TrimHorizon)),
+            Capture(() => shop.ReadChangesAsync<Alpha, Beta, Gamma, Delta>(null!, ShardIteratorType.TrimHorizon)),
+        };
+
+        // Assert
+        await Assert.That(string.Join(",", names)).IsEqualTo("table,streams,table,streams,streams");
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_PositionOutOfRange_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var act = () => client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.AtSequenceNumber);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+    }
+
+    private static string? Capture(Action act)
+    {
+        try
+        {
+            act();
+            return null;
+        }
+        catch (ArgumentNullException failure)
+        {
+            return failure.ParamName;
+        }
     }
 
     // DescribeTable finds the stream on, and DescribeStream finds it switched off, with its one shard read to its end.

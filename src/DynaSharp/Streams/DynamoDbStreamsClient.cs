@@ -501,6 +501,10 @@ public sealed class DynamoDbStreamsClient : IDisposable
         }
     }
 
+    /// <summary>Counts a change that a typed reading of a table skipped because its type could not read it, under the call that brought the record.</summary>
+    /// <param name="tableName">The table.</param>
+    internal void CountSkippedItem(string tableName) => _core.CountSkippedItem(GetRecordsOperation.Name, tableName);
+
     /// <summary>
     /// Reads a shard as <see cref="ReadShardAsync"/> does, for a request that is checked. With a <paramref name="run"/>, as <see cref="ReadStreamAsync"/> reads, a transient failure
     /// of a call is waited out and the call sent again, and the run hears when the shard first holds a position.

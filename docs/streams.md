@@ -1,6 +1,6 @@
 # Streams
 
-A stream is the change log of a table: each write to an item becomes a record, kept for 24 hours. `DynamoDbStreamsClient` reads it through the DynamoDB Streams API: `ReadStreamAsync` reads every shard of a stream, of a table or by its ARN, `ReadShardAsync` reads one, and `DescribeStreamAsync` lists them.
+A stream is the change log of a table: each write to an item becomes a record, kept for 24 hours. `DynamoDbStreamsClient` reads it through the DynamoDB Streams API: `ReadStreamAsync` reads every shard of a stream, of a table or by its ARN, `ReadShardAsync` reads one, and `DescribeStreamAsync` lists them. `ReadChangesAsync` of a table reads its changes as entities, and `As<T>()` types one record, see [Typed changes](#typed-changes).
 
 `orders`, `customers` and `shop` are the tables of [the shop](getting-started.md#the-shop).
 
@@ -66,10 +66,9 @@ A stream is split into shards, and a record is in the shard of the partition of 
 var stream = new ReadStreamRequest { StreamArn = streamArn, ShardIteratorType = ShardIteratorType.TrimHorizon };
 await foreach (var change in streams.ReadStreamAsync(stream, ct))
 {
-    var image = change.Record.DynamoDb!.NewImage;
-    if (image is not null && image.Is<Order>())
+    if (change.Record.As<Order>() is { } typed)
     {
-        Console.WriteLine($"{change.Record.EventName} #{image.To<Order>().Number} from {change.ShardId} at {change.SequenceNumber}");
+        Console.WriteLine($"{typed.Kind} #{(typed.After ?? typed.Before)!.Number} from {change.ShardId} at {change.SequenceNumber}");
     }
 }
 ```
@@ -85,9 +84,9 @@ It lists the shards with `DescribeStream`, reads them at the same time, and star
 - **A failure.** A shard that fails for a moment is read on from where it stopped, see [When a shard fails](#when-a-shard-fails). Any other exception of a shard ends the loop with that exception, and the other shards are stopped and awaited before it surfaces. Nothing is skipped: `TrimmedDataAccessException` surfaces too, see [Errors](#errors).
 - **Stopping.** Leaving the loop, or cancelling `ct`, stops every shard and waits for it, so nothing runs on.
 - **Telemetry.** Each shard is a span of its own under the span of the loop, with the calls of the shard under it and a link to its parent shard, and two metrics count the shards being read and the records handed out, see [Observability](observability.md#reading-a-stream).
-- **Images.** An image is an `Item`: [`Is<T>()`](without-a-model.md#item) says whether it is of an entity, by its discriminator, and `To<T>()` reads it as one.
+- **Images.** An image is an `Item`. `change.Record.As<Order>()` reads the images of an order as a `Change<Order>`, and is null for another entity, see [Typed changes](#typed-changes). For a table without a model, [`Is<T>()`](without-a-model.md#item) and `To<T>()` take one image apart, and the getters of `Item` read it.
 
-What it leaves out, on purpose: positions to resume at, a store of checkpoints, leases, several processes, settings of the retries of a shard, a limit per call, the size of the buffer, and typed records.
+What it leaves out, on purpose: positions to resume at, a store of checkpoints, leases, several processes, settings of the retries of a shard, a limit per call, and the size of the buffer.
 
 The reader of the sample, [`OrderFeed.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/OrderFeed.cs), is that loop, and hands on the order before and after each change.
 
@@ -106,7 +105,7 @@ await foreach (var change in orders.ReadStreamAsync(streams, ShardIteratorType.L
 
 - **A new stream.** A stream that is switched off and on again is a new stream with a new ARN. A loop that starts after that reads the new one, so a reader that starts its loop again, after a failure for instance, follows the table. A loop that runs reads its stream until that ends.
 - **No stream.** A table whose stream is off, or that never had one, throws `InvalidOperationException` when the loop starts, with the name of the table.
-- **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`.
+- **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`. [`ReadChangesAsync`](#typed-changes), the typed reading, checks it.
 - **The clients.** The table describes itself through its own client, so the two clients go to the same account and region, as [the options of one client make the other](#creating-the-client). The reading takes `dynamodb:DescribeTable` besides the permissions of the stream.
 - **The rest.** `emptyPageDelay` and `onJoined` are those of `ReadStreamRequest`, and everything else is as above.
 
@@ -157,10 +156,9 @@ It is called once, when every shard the loop starts with holds an iterator: unde
 var shard = new ReadShardRequest { StreamArn = streamArn, ShardId = shardId, ShardIteratorType = ShardIteratorType.TrimHorizon };
 await foreach (var record in streams.ReadShardAsync(shard, ct))
 {
-    var image = record.DynamoDb!.NewImage;
-    if (image is not null && image.Is<Order>())
+    if (record.As<Order>() is { } typed)
     {
-        Console.WriteLine($"{record.EventName} #{image.To<Order>().Number}");
+        Console.WriteLine($"{typed.Kind} #{(typed.After ?? typed.Before)!.Number}");
     }
 }
 ```
@@ -184,6 +182,89 @@ var resume = new ReadShardRequest
     SequenceNumber = after,
 };
 ```
+
+## Typed changes
+
+A table of a single-table design streams every entity it holds, and a stream cannot be filtered at its source: each reader gets every record. So the type of a change is decided where it is read, from its images, whose discriminator says what they are, as it does for a [mixed read](queries.md#several-types-in-one-query).
+
+### One record
+
+`As<T>()` of a `ChangeRecord` reads the images of a `T` into a `Change<T>`, and is null for a record of no `T`:
+
+```csharp
+var stream = new ReadStreamRequest { StreamArn = streamArn, ShardIteratorType = ShardIteratorType.TrimHorizon };
+await foreach (var change in streams.ReadStreamAsync(stream, ct))
+{
+    if (change.Record.As<Order>() is { } placed)
+    {
+        Console.WriteLine($"order {placed.Kind}: {placed.Before?.Status} -> {placed.After?.Status}");
+    }
+    else if (change.Record.As<Customer>() is { } signedUp)
+    {
+        Console.WriteLine($"customer {signedUp.Kind}: {signedUp.After?.Name}");
+    }
+}
+```
+
+- **The change.** `Kind` is `Insert`, `Modify` or `Remove`, the `OperationType` of the record, and never `Unknown`. `Before` is the item read from the old image and `After` the one read from the new image, each null where there is no image of a `T`; for an entity that is a struct, the default value, and `Kind` tells. `Keys` and `SequenceNumber` are those of the record, and `Record` is the record itself, with its time and `UserIdentity`, which tells a deletion by time to live.
+- **The type.** An image is a `T` when its discriminator attribute holds the discriminator of `T`, as `Is<T>()` tests. An entity without one, `[Discriminator(OptOut = true)]`, has nothing that tells its items from others, so every image is a `T`: that is for a table of one entity.
+- **A type that changes.** An item can become another entity at the same key, an `ORDER` written over by a `CART`. That is one `MODIFY`, and two changes: the order removed, `Kind` `Remove` with `Before`, and the cart inserted, `Kind` `Insert` with `After`, both with the sequence number of the record. `As<Order>()` gives the first and `As<Cart>()` the second.
+- **An image that does not fit.** An image that says it is a `T` and that `T` cannot read throws `DynamoDbMappingException`, with `Key` the keys of the record, as a read of the table does: it is a bug of the model or of a writer.
+
+What can be typed depends on the view of the stream:
+
+| View | What `As<T>()` gives |
+|---|---|
+| `NewAndOldImages` | Every change, a change of type included |
+| `NewImage` | Inserts and modifications, without `Before`. A removal has no image, so it is null, and a change of type shows as a `Modify` of the new type |
+| `OldImage` | Removals and modifications, without `After`. An insert has no image, so it is null |
+| `KeysOnly` | Nothing: a record has no image |
+
+### The changes of one entity
+
+`ReadChangesAsync` of a typed table reads the stream of the table as [`ReadStreamAsync`](#reading-the-stream-of-a-table) does, and gives the changes of its entity, skipping every other one. In a single-table design, `shop.Of<Order>()` is the table of orders:
+
+```csharp
+await foreach (Change<Order> change in shop.Of<Order>().ReadChangesAsync(streams, ShardIteratorType.Latest, cancellationToken: ct))
+{
+    if (change.Kind == OperationType.Remove)
+    {
+        Console.WriteLine($"order #{change.Before!.Number} is gone");
+    }
+}
+```
+
+- **The view.** The reading needs `NewAndOldImages`, and checks it in the `DescribeTable` it starts with: another view throws `InvalidOperationException` with the name of the table and the view. Under `NewImage` a removal has no image to tell its type by, so a reader of orders would miss every deleted order without a word; under `OldImage` it would miss every new one. A table with another view reads its records with `ReadStreamAsync` and types them with `As<T>()`, knowing what the table above leaves out, or turns the stream off and on again with `NewAndOldImages`, which starts a new stream.
+- **The rest.** The start, `emptyPageDelay`, `onJoined`, the stream that is read and every rule of the reading are those of `ReadStreamAsync`. An item whose type changed gives the removal of the old type, if it is the entity of the table, or the insert of the new one.
+
+### Several entities
+
+`ReadChangesAsync<T1, T2>` of `Table<Item>`, with up to four entities, gives a `MixedChange`: a change of one of them, which `Is(out Change<T>? change)` and `Match` tell apart, as `Mixed` does for a [mixed read](queries.md#several-types-in-one-query). `Match` takes one function per type, so adding a type breaks the build where it is not handled:
+
+```csharp
+await foreach (var change in shop.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
+{
+    change.Match(
+        customer => Console.WriteLine($"customer {customer.Kind}: {customer.After?.Email}"),
+        order => Console.WriteLine($"order {order.Kind}: {order.After?.Total}"));
+}
+```
+
+The types are entities with a discriminator, in one attribute, and two types with the same discriminator throw `ArgumentException` at the call, as `Of<...>()` of a query does. An item that becomes another of the types at its key gives two changes, the removal first, and both come before the next record. Changes of entities that are not named are skipped. More than four entities, or a table without a model, read the records and take them apart with `As<T>()` or with `Item`.
+
+### Skip changes that fail to map
+
+An image that does not fit its type ends the reading with `DynamoDbMappingException`, as it ends a query. `onMappingFailure` skips such a change and hands the exception to the callback instead, as [`OnMappingFailure`](queries.md#skip-items-that-fail-to-map) of a query does, with `Key` the keys of the record:
+
+```csharp
+var unreadable = new List<Item?>();
+await foreach (var change in shop.Of<Order>().ReadChangesAsync(streams, ShardIteratorType.Latest, onMappingFailure: failure => unreadable.Add(failure.Key), cancellationToken: ct))
+{
+    Console.WriteLine(change.Kind);
+}
+```
+
+The callback runs on the loop, before the next change is given, and what it throws ends the reading. A change of a type that changed is two changes, and only the one that fails is skipped. Each skipped change counts in `dynasharp.client.operation.skipped_items`, with the operation `GetRecords` and the table, see [Observability](observability.md#metrics).
 
 ## Errors
 

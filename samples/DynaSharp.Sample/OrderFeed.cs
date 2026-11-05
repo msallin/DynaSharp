@@ -17,31 +17,11 @@ internal static class OrderFeed
         var stream = new ReadStreamRequest { StreamArn = streamArn, ShardIteratorType = ShardIteratorType.TrimHorizon };
         await foreach (var change in streams.ReadStreamAsync(stream, ct))
         {
-            Apply(change.Record, onChange);
-        }
-    }
-
-    private static void Apply(ChangeRecord record, Action<Order?, Order?> onChange)
-    {
-        var change = record.DynamoDb!;
-
-        // The table holds customers too, and To<Order>() refuses an item of another entity.
-        if ((change.NewImage ?? change.OldImage)?.Is<Order>() != true)
-        {
-            return;
-        }
-
-        switch (record.EventName)
-        {
-            case OperationType.Insert:
-                onChange(null, change.NewImage!.To<Order>());
-                break;
-            case OperationType.Modify:
-                onChange(change.OldImage!.To<Order>(), change.NewImage!.To<Order>());
-                break;
-            case OperationType.Remove:
-                onChange(change.OldImage!.To<Order>(), null);
-                break;
+            // The table holds customers too: As<Order>() is null for a change of another entity, and types the images of an order.
+            if (change.Record.As<Order>() is { } order)
+            {
+                onChange(order.Before, order.After);
+            }
         }
     }
 }

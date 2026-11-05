@@ -1,0 +1,101 @@
+using System.Diagnostics.CodeAnalysis;
+using DynaSharp.Mapping;
+
+namespace DynaSharp.Streams;
+
+/// <summary>
+/// One change of a typed reading of several entities: a <see cref="Change{T}"/> of one of the types, from <c>shop.ReadChangesAsync&lt;Customer, Order&gt;(streams, ...)</c>. Ask with
+/// <c>change.Is(out Change&lt;Customer&gt;? customer)</c>, or handle every case with <c>Match</c>, which is what stays correct when a type is added.
+/// </summary>
+/// <remarks>
+/// It has the shape of <see cref="Mixed{T1, T2}"/>, which cannot hold a change: its types must be entities, so that a mixed read can read them. The default value holds nothing,
+/// and <c>Match</c> throws on it; a typed reading never gives one.
+/// </remarks>
+/// <typeparam name="T1">The first type.</typeparam>
+/// <typeparam name="T2">The second type.</typeparam>
+[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "A change of a reading is handled, not compared, as a Mixed of a mixed read is.")]
+public readonly struct MixedChange<T1, T2> : IChangeTypes<MixedChange<T1, T2>>
+    where T1 : IDynamoDbDiscriminated<T1>
+    where T2 : IDynamoDbDiscriminated<T2>
+{
+    private readonly int _type;
+    private readonly object? _change;
+
+    private MixedChange(int type, object change)
+    {
+        _type = type;
+        _change = change;
+    }
+
+    /// <inheritdoc/>
+    static int IChangeTypes<MixedChange<T1, T2>>.FindType(Item? image) => ChangeTyping.FindType(Mixed<T1, T2>.Schema, image);
+
+    /// <inheritdoc/>
+    static MixedChange<T1, T2> IChangeTypes<MixedChange<T1, T2>>.Create(int index, ChangeRecord record, bool before, bool after) => index switch
+    {
+        0 => new(1, ChangeTyping.Create<T1>(record, before, after)),
+        _ => new(2, ChangeTyping.Create<T2>(record, before, after)),
+    };
+
+    /// <summary>Gets the change if it is of the first type.</summary>
+    /// <param name="change">The change, or <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if the change is of this type.</returns>
+    public bool Is([NotNullWhen(true)] out Change<T1>? change)
+    {
+        change = _type == 1 ? (Change<T1>)_change! : null;
+        return change is not null;
+    }
+
+    /// <summary>Gets the change if it is of the second type.</summary>
+    /// <param name="change">The change, or <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if the change is of this type.</returns>
+    public bool Is([NotNullWhen(true)] out Change<T2>? change)
+    {
+        change = _type == 2 ? (Change<T2>)_change! : null;
+        return change is not null;
+    }
+
+    /// <summary>Computes a result from the change, with one function per type, so no type can be forgotten.</summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="first">What to do with a change of the first type.</param>
+    /// <param name="second">What to do with a change of the second type.</param>
+    /// <returns>The result of the function of the type of the change.</returns>
+    /// <exception cref="ArgumentNullException">A function is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">This is the default value, which holds nothing.</exception>
+    public TResult Match<TResult>(Func<Change<T1>, TResult> first, Func<Change<T2>, TResult> second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+        return _type switch
+        {
+            1 => first((Change<T1>)_change!),
+            2 => second((Change<T2>)_change!),
+            _ => throw Empty(),
+        };
+    }
+
+    /// <summary>Does something with the change, with one action per type, so no type can be forgotten.</summary>
+    /// <param name="first">What to do with a change of the first type.</param>
+    /// <param name="second">What to do with a change of the second type.</param>
+    /// <exception cref="ArgumentNullException">An action is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">This is the default value, which holds nothing.</exception>
+    public void Match(Action<Change<T1>> first, Action<Change<T2>> second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+        switch (_type)
+        {
+            case 1:
+                first((Change<T1>)_change!);
+                break;
+            case 2:
+                second((Change<T2>)_change!);
+                break;
+            default:
+                throw Empty();
+        }
+    }
+
+    private static InvalidOperationException Empty() =>
+        new("This MixedChange is a default value, which holds nothing. Changes of a typed reading always hold one of their types.");
+}

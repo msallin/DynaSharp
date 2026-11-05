@@ -155,7 +155,7 @@ await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().Keys(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
-**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` to read [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), one shard or a whole stream, locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
+**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` to read [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), one shard or a whole stream, and the changes of a table as entities ([`ReadChangesAsync`](https://msallin.github.io/DynaSharp/streams.html#typed-changes)), locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));

@@ -1,3 +1,6 @@
+using DynaSharp.Mapping;
+using DynaSharp.Requests;
+
 namespace DynaSharp.Streams;
 
 /// <summary>
@@ -43,4 +46,30 @@ public sealed record ChangeRecord
     /// <see langword="null"/> for changes made by a client.
     /// </summary>
     public RecordIdentity? UserIdentity { get; init; }
+
+    /// <summary>
+    /// Reads the change as a change of a <typeparamref name="T"/>, from its images: <c>if (record.As&lt;Order&gt;() is { } order) { }</c>. A table of several entities streams
+    /// all of them, so a reader asks for each type it handles, <c>As&lt;Customer&gt;()</c> after <c>As&lt;Order&gt;()</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An image is a <typeparamref name="T"/> when its discriminator attribute holds the discriminator of the entity, as <see cref="Item.Is{T}"/> tests; an entity without a
+    /// discriminator, <c>[Discriminator(OptOut = true)]</c>, takes every image. An image that is one is read as <see cref="Item.To{T}"/> reads it.
+    /// </para>
+    /// <para>
+    /// An item whose type changed at its key, an old image of another type than the new one, is a removal of the old type and an insert of the new one:
+    /// <c>As&lt;Order&gt;()</c> gives <see cref="OperationType.Remove"/> with <see cref="Change{T}.Before"/>, and <c>As&lt;Invoice&gt;()</c> <see cref="OperationType.Insert"/>
+    /// with <see cref="Change{T}.After"/>. Which images there are depends on the view of the stream, see <see cref="Change{T}"/>: under <see cref="StreamViewType.KeysOnly"/>
+    /// the result is always <see langword="null"/>.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The entity.</typeparam>
+    /// <returns>The change, or <see langword="null"/> when neither image is a <typeparamref name="T"/>, or the record has no <see cref="DynamoDb"/>.</returns>
+    /// <exception cref="DynamoDbMappingException">
+    /// An image that is a <typeparamref name="T"/> cannot be read as one, with <see cref="DynamoDbMappingException.Key"/> the keys of the record. An item of the
+    /// entity that does not fit it is a bug of the model or of a writer, as on a read of the table.
+    /// </exception>
+    public Change<T>? As<T>()
+        where T : IDynamoDbEntity<T> =>
+        ChangeTyping.Split<SingleChange<T>, Change<T>>(this, null, out var change, out _) == 0 ? null : change;
 }

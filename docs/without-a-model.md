@@ -53,7 +53,7 @@ An index without a model is `shop.Index("ByStatus", "bystatuspk", "bystatussk")`
 
 A map from `GetMap` is part of an `AttributeValue` and read-only. To change it, copy it with `new Item(map)` and store the copy with `AttributeValue.FromMap`.
 
-`item.Is<Order>()` is true when the discriminator attribute holds the value of `Order`, so a stream image or a raw read of a single-table design can be sorted before `To<Order>()` reads it. It compiles only for an entity with a discriminator.
+`item.Is<Order>()` is true when the discriminator attribute holds the value of `Order`, so a raw read of a single-table design can be sorted before `To<Order>()` reads it. It compiles only for an entity with a discriminator. A stream record is typed by `record.As<Order>()`, which does both for its two images, see [Typed changes](streams.md#typed-changes).
 
 ## AttributeValue
 

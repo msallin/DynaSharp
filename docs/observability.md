@@ -57,6 +57,8 @@ Each request is one span of kind `Client`, named after service and operation: `D
 
 `ReadStreamAsync` adds a span per shard it reads, of kind `Internal`, named `DynamoDB Streams.ReadStream`. It is a child of the span that was current when the loop started, and the calls of the shard are its children. A child shard is not the child span of its parent, so that a stream read for days is no trace that grows for days: its span links to the span of the parent shard instead. The span lasts as long as the shard is read and its children are looked for, up to a minute more, which for an open shard can be hours, until DynamoDB closes it. A shard read again after a transient failure stays one span, with the failed calls under it.
 
+`ReadChangesAsync`, the typed reading, reads through `ReadStreamAsync` and has the same spans; typing a change adds none, and a change it skips counts in `dynasharp.client.operation.skipped_items`.
+
 | Attribute | Value |
 |---|---|
 | `db.system.name`, `rpc.service`, `cloud.region`, `server.address`, `server.port` | As on the spans of the calls |
@@ -74,7 +76,7 @@ Each request is one span of kind `Client`, named after service and operation: `D
 | `dynasharp.client.operation.throttles` | Counter | `{throttle}` | Each throttling error, repeated or not |
 | `dynasharp.client.conflict.retries` | Counter | `{retry}` | Each rerun of the `RetryOnConflictAsync` delegate after a conflict |
 | `dynasharp.client.conflict.exhausted` | Counter | `{conflict}` | Each conflict `RetryOnConflictAsync` passed on after the delegate used up its runs |
-| `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item `OnMappingFailure` skipped, see [Queries](queries.md#skip-items-that-fail-to-map) |
+| `dynasharp.client.operation.skipped_items` | Counter | `{item}` | Each item `OnMappingFailure` skipped, see [Queries](queries.md#skip-items-that-fail-to-map), and each change `onMappingFailure` of `ReadChangesAsync` skipped, with `db.operation.name` `GetRecords`, see [Streams](streams.md#skip-changes-that-fail-to-map) |
 | `dynasharp.client.stream.shards` | UpDownCounter | `{shard}` | The shards `ReadStreamAsync` is reading, up when one starts and down when it ends |
 | `dynasharp.client.stream.records` | Counter | `{record}` | Each record `ReadStreamAsync` handed out |
 | `dynasharp.client.stream.retries` | Counter | `{retry}` | Each time `ReadStreamAsync` read a shard again after a transient failure, see [Streams](streams.md#when-a-shard-fails) |

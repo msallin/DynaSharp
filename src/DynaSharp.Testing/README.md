@@ -118,28 +118,6 @@ An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and
 
 `fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, a `StubHandler` whose responder is the fake. `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB.
 
-A client of the fake makes one attempt per call. A test of the retries queues the failure on the handler and asks for more attempts:
-
-```csharp
-var fake = new FakeDynamoDb();
-using var handler = fake.CreateHandler();
-handler.Enqueue(StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded."));
-using var retrying = StubClient.Create(handler, options => options with { MaxAttempts = 3 });
-```
-
-For a write whose response is lost, let the fake answer and return an error instead:
-
-```csharp
-var fake = new FakeDynamoDb();
-using var lost = new StubHandler(request =>
-{
-    var answer = fake.Answer(request);
-    return request.Operation == "PutItem"
-        ? StubResponse.DynamoDbError("InternalServerError", "The response was lost.", System.Net.HttpStatusCode.InternalServerError)
-        : answer;
-});
-```
-
 The constructor's clock dates the tables. Time to live is stored and reported, but nothing expires by itself: `fake.ExpireItems()` runs DynamoDB's background sweep when the test says, deleting every item whose time to live attribute is a number of epoch seconds at or before that clock. An expiry more than five years before the clock is left alone, as on DynamoDB.
 
 Reads and writes behave as on DynamoDB: queries, segmented scans, projections, pages cut by `Limit` before the filter and at 1 MB with `LastEvaluatedKey` holding the index key too, conditions with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, batches, and all-or-nothing transactions with one cancellation reason per action. An optimistic lock, a create that must not overwrite, or a failed transaction condition leaves the item as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the fake's clock. Consumed capacity follows the Developer Guide, indexes included. A batch never leaves unprocessed items or keys; to test a client that retries them, queue that answer on the handler.
@@ -151,25 +129,74 @@ var fake = new FakeDynamoDb();
 fake.CreateTable<Customer>("Shop");
 using var client = fake.CreateClient();
 using var streams = fake.CreateStreamsClient();
-var updated = await client.UpdateTableAsync(new UpdateTableRequest
+await client.UpdateTableAsync(new UpdateTableRequest
 {
     TableName = "Shop",
     StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.NewAndOldImages },
 }, ct);
 
-await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+var shop = client.Table<Customer>("Shop");
+await shop.Put(customer).SendAsync(ct);
 
-var arn = updated.TableDescription!.LatestStreamArn!;
-await foreach (var change in streams.ReadStreamAsync(new ReadStreamRequest { StreamArn = arn, ShardIteratorType = ShardIteratorType.TrimHorizon }, ct))
+await foreach (var change in shop.ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, cancellationToken: ct))
 {
-    Console.WriteLine(change.Record.EventName); // Insert
+    Console.WriteLine($"{change.Kind} {change.After!.Name}"); // Insert, and the name
     break;
 }
 ```
 
-The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
+`ReadChangesAsync` gives the changes as entities, as on DynamoDB, and `ReadStreamAsync` the records, whose `As<T>()` types one. The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
 
 [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. It never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`.
+
+### Failing a call
+
+`fake.FailNext(operation, failure, times = 1, when = null)` makes the next requests of an operation fail, through every handler of the fake, those made before too, so a client of `CreateClient` and one of `CreateStreamsClient` alike. The fake never sees such a request, as DynamoDB never sees one it throttles, so a failed write writes nothing, and the requests after it are answered by the fake. `ThrowIfFailuresLeft()` fails a test whose code sent fewer requests than it planned failures for, as `ThrowIfResponsesLeft()` does for a handler:
+
+```csharp
+var fake = new FakeDynamoDb();
+fake.CreateTable<Customer>("Shop");
+using var client = fake.CreateClient();
+fake.FailNext("PutItem", StubResponse.DynamoDbError("InternalServerError", "Failure of the service.", System.Net.HttpStatusCode.InternalServerError));
+
+try
+{
+    await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+}
+catch (InternalServerErrorException)
+{
+    // The fake holds no customer: the request never reached it.
+}
+
+fake.ThrowIfFailuresLeft();
+```
+
+A client of the fake makes one attempt per call, so a failure reaches the code under test at once. A test of the retries asks for more attempts: `fake.CreateClient(options => options with { MaxAttempts = 3 })` repeats a throttle or a server error as it does on DynamoDB. `ReadStreamAsync` reads a shard on after a failure that its client gave up on, waiting on the clock of the fake, which the test moves:
+
+```csharp
+var fake = new FakeDynamoDb(clock);
+using var streams = fake.CreateStreamsClient();
+fake.FailNext("GetRecords", StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded."), times: 2);
+// ReadStreamAsync over streams reads on after the two throttles, once the test moves the clock past its waits.
+```
+
+- **Which requests.** A request takes the first planned failure of its operation, `GetRecords` or its whole target, that `when` accepts, such as `request => request.BodyJson.GetProperty("TableName").GetString() == "Orders"` for one table; `when` runs under the lock of the fake and must not call it. `times` is how many requests get it.
+- **Threads.** The shard readers of `ReadStreamAsync` send at once; each failure is taken by one request, under the lock of the fake.
+- **The handler first.** A response queued with `Enqueue` on a handler still answers before the fake is asked, so before a planned failure.
+- **Reset.** `Reset()` drops the failures no request took. The direct API, `Put` or `Items`, is no request and takes none.
+
+For a write whose response is lost, the write must happen and the client must see an error, which `FailNext` does not do. Let the fake answer and return an error instead:
+
+```csharp
+var fake = new FakeDynamoDb();
+using var lost = new StubHandler(request =>
+{
+    var answer = fake.Answer(request);
+    return request.Operation == "PutItem"
+        ? StubResponse.DynamoDbError("InternalServerError", "The response was lost.", System.Net.HttpStatusCode.InternalServerError)
+        : answer;
+});
+```
 
 ## STS
 
