@@ -195,7 +195,12 @@ Work that ignores the token runs on after the lease is lost, and another process
 
 ### In a hosted service
 
-The package has no hosting integration of its own. A service that should lead for as long as it runs calls `RunAsLeaderAsync` in a loop from a `BackgroundService`:
+The package has no hosting integration of its own. A service that should lead for as long as it runs calls `RunAsLeaderAsync` in a loop from a `BackgroundService`. Two kinds of failure reach that loop, and they want different answers:
+
+- **A fault of the work**, such as a sweep that hit a bad item or a downstream service that was down. The next leader, or this process after a pause, may well succeed, so the service logs it and contends again.
+- **An error of the election**, which `RunAsLeaderAsync` throws when an acquire fails with an error that is not transient: a missing table (`ResourceNotFoundException`), a role without the permissions (`AccessDeniedException`), an item at the key of the lock that is no lock (`InvalidOperationException`). Contending again changes nothing, and a service that keeps running without ever leading looks healthy while its work stays undone. So the service lets it end `ExecuteAsync`, and the host stops.
+
+`RunAsLeaderAsync` throws what the work threw as well, so the work catches its own faults and leaves a note of them, and whatever `RunAsLeaderAsync` throws then is the election's:
 
 ```csharp
 using DynaSharp.Coordination;
@@ -211,21 +216,32 @@ public sealed partial class OrderSweeper(LockTable locks, ILogger<OrderSweeper> 
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            Exception? fault = null;
             try
             {
-                await locks.RunAsLeaderAsync("order-sweeper", Lease, SweepAsync, stoppingToken);
-                continue; // The work returned and handed the lock on: contend again.
+                await locks.RunAsLeaderAsync("order-sweeper", Lease, async (lease, stop) =>
+                {
+                    try
+                    {
+                        await SweepAsync(lease, stop);
+                    }
+                    catch (Exception exception) when (!stop.IsCancellationRequested)
+                    {
+                        fault = exception; // A fault of the work: the lease is released, and the loop pauses.
+                    }
+                }, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 return; // The host stops: the lease is released.
             }
-            catch (Exception exception)
-            {
-                LogFailed(logger, exception, Pause);
-            }
 
-            await Task.Delay(Pause, stoppingToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            // Any other exception of RunAsLeaderAsync is an error of the election. It leaves ExecuteAsync, and the host stops.
+            if (fault is not null)
+            {
+                LogWorkFailed(logger, fault, Pause);
+                await Task.Delay(Pause, stoppingToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            }
         }
     }
 
@@ -239,11 +255,18 @@ public sealed partial class OrderSweeper(LockTable locks, ILogger<OrderSweeper> 
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The order sweeper failed. It contends again in {Pause}.")]
-    private static partial void LogFailed(ILogger logger, Exception exception, TimeSpan pause);
+    private static partial void LogWorkFailed(ILogger logger, Exception exception, TimeSpan pause);
 }
 ```
 
-Register one `LockTable` per table as a singleton and the service with `AddHostedService<OrderSweeper>()`. Shutdown cancels the stopping token, which stops the work, releases the lease, so another instance takes over at its next poll, and ends `ExecuteAsync` without an exception. Work that fails and an error that ends `RunAsLeaderAsync`, such as a missing table, are logged and followed by a pause, and the loop contends again. That matters: since .NET 6 an exception that leaves `ExecuteAsync` stops the whole host (`BackgroundServiceExceptionBehavior.StopHost`), which this loop never lets happen. A transient error of an acquire is retried inside `RunAsLeaderAsync` already, with log 44.
+Register one `LockTable` per table as a singleton and the service with `AddHostedService<OrderSweeper>()`.
+
+- **Shutdown** cancels the stopping token, which stops the work and releases the lease, so another instance takes over at its next poll, and `ExecuteAsync` returns without an exception.
+- **A fault of the work** is caught inside the work while its token is not cancelled. The work then returns, `RunAsLeaderAsync` releases the lease and returns, and the loop logs the fault, pauses and contends again. Another instance may lead in the meantime. A fault after the lease was lost, while the token is cancelled, is the election's to handle: it contends again on its own, as [Leader election](#leader-election) says.
+- **An error of the election** leaves `ExecuteAsync`. Since .NET 6 that stops the host (`BackgroundServiceExceptionBehavior.StopHost`, the default), which logs the exception as the failure of the service first, so an orchestrator restarts the process or reports it, and the error is not lost among the logs of a loop.
+- **A transient error of an acquire**, such as throttling or a network failure, never reaches the loop: `RunAsLeaderAsync` retries it inside, with log 44 once per outage and 49 when DynamoDB answers again.
+
+A service that should outlast an error of the election as well, such as one whose table another deployment creates later, catches `Exception` after the `OperationCanceledException`, logs it and pauses like a fault of the work. It then never stops the host, and what it logs is the only sign that it does not lead.
 
 ## Observability
 
