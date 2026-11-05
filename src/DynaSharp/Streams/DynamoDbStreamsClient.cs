@@ -120,6 +120,14 @@ public sealed class DynamoDbStreamsClient : IDisposable
     public DynamoDbClientOptions Options => _core.Options;
 
     /// <summary>
+    /// Gets or sets what gives the next change of the streams of the server, as a task that completes then, for a server that can tell: only <c>FakeDynamoDb</c> of
+    /// <c>DynaSharp.Testing</c>, which sets it on the client of its <c>CreateStreamsClient</c>. A wait of a reader, after an empty page or before the next look for children, then
+    /// ends at a write or a change of the shards instead of after its whole time, so a test on the fake reads a write at once. It is <see langword="null"/> otherwise, and against
+    /// DynamoDB, which cannot tell, a reader waits its whole time.
+    /// </summary>
+    internal Func<Task>? NextStreamChange { get; set; }
+
+    /// <summary>
     /// Lists the streams of all tables of the account in the region, or of one table (DynamoDB Streams <c>ListStreams</c>).
     /// </summary>
     /// <param name="request">The optional table and paging settings.</param>
@@ -506,6 +514,19 @@ public sealed class DynamoDbStreamsClient : IDisposable
     internal void CountSkippedItem(string tableName) => _core.CountSkippedItem(GetRecordsOperation.Name, tableName);
 
     /// <summary>
+    /// Waits as a reader waits on an idle stream: <paramref name="delay"/> on <see cref="DynamoDbClientOptions.TimeProvider"/>, or, on a server that tells, until
+    /// <paramref name="changed"/> completes if that is sooner.
+    /// </summary>
+    /// <param name="delay">How long.</param>
+    /// <param name="changed">
+    /// What <see cref="NextStreamChange"/> gave before the call whose answer made the reader wait, so that a change in between ends the wait at once; <see langword="null"/> against DynamoDB.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>The wait.</returns>
+    internal Task IdleAsync(TimeSpan delay, Task? changed, CancellationToken cancellationToken) =>
+        changed is null ? Task.Delay(delay, _core.TimeProvider, cancellationToken) : IdleUntilChangedAsync(delay, changed, cancellationToken);
+
+    /// <summary>
     /// Reads a shard as <see cref="ReadShardAsync"/> does, for a request that is checked. With a <paramref name="run"/>, as <see cref="ReadStreamAsync"/> reads, a transient failure
     /// of a call is waited out and the call sent again, and the run hears when the shard first holds a position.
     /// </summary>
@@ -528,6 +549,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
                 yield break;
             }
 
+            var changed = NextStreamChange?.Invoke();
             var page = await PageAsync(iterator, request.Limit, renewable: !fresh, run, cancellationToken).ConfigureAwait(false);
             if (page is null)
             {
@@ -551,12 +573,28 @@ public sealed class DynamoDbStreamsClient : IDisposable
             iterator = page.NextShardIterator;
             if (iterator is not null && page.Records.Count == 0)
             {
-                await Task.Delay(request.EmptyPageDelay, _core.TimeProvider, cancellationToken).ConfigureAwait(false);
+                await IdleAsync(request.EmptyPageDelay, changed, cancellationToken).ConfigureAwait(false);
             }
         }
     }
 
     private static bool IsEmptyPageDelayValid(TimeSpan delay) => delay >= TimeSpan.Zero && delay < IteratorLifetime;
+
+    // The timer is cancelled when the change comes first, so that a test clock holds no wait that is over.
+    private async Task IdleUntilChangedAsync(TimeSpan delay, Task changed, CancellationToken cancellationToken)
+    {
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var delayed = Task.Delay(delay, _core.TimeProvider, timer.Token);
+        if (await Task.WhenAny(changed, delayed).ConfigureAwait(false) == delayed)
+        {
+            // Throws when the caller cancelled.
+            await delayed.ConfigureAwait(false);
+        }
+        else
+        {
+            await timer.CancelAsync().ConfigureAwait(false);
+        }
+    }
 
     // Null when the iterator expired and may be renewed. A transient failure sends the same iterator again, which returns the same records, so nothing repeats and
     // nothing is skipped; it may have expired during the wait, and then it is renewed as any other.

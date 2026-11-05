@@ -360,6 +360,7 @@ internal sealed class StreamMerge
         var ended = time.GetTimestamp();
         for (var look = 0; ; look++)
         {
+            var changed = _client.NextStreamChange?.Invoke();
             var (shards, status) = await ShardsAsync(filter, run).ConfigureAwait(false);
             foreach (var shard in shards)
             {
@@ -386,7 +387,7 @@ internal sealed class StreamMerge
             }
 
             var delay = firstChild is null ? FirstChildLookDelay : MoreChildrenLookDelay;
-            await Task.Delay(_request.EmptyPageDelay > delay ? _request.EmptyPageDelay : delay, time, stopped).ConfigureAwait(false);
+            await _client.IdleAsync(_request.EmptyPageDelay > delay ? _request.EmptyPageDelay : delay, changed, stopped).ConfigureAwait(false);
         }
     }
 

@@ -30,6 +30,9 @@ internal sealed class FakeStream
     private readonly List<FakeShard> _shards = [];
     private readonly List<(Item? OldImage, Item? NewImage)> _staged = [];
 
+    // The shards changed since the last commit, which tells the readers waiting on the fake.
+    private bool _reshaped;
+
     /// <summary>Initializes a new instance of the <see cref="FakeStream"/> class, enabled and empty.</summary>
     /// <param name="table">The table.</param>
     /// <param name="viewType">What a record holds of the item.</param>
@@ -100,9 +103,12 @@ internal sealed class FakeStream
     /// <param name="nextSequenceNumber">Gives the next sequence number of the fake.</param>
     /// <param name="now">The time of the request.</param>
     /// <param name="byTimeToLive"><see langword="true"/> for the deletes of the sweep of time to live, whose records name the service as the one who deleted.</param>
-    public void Commit(Func<BigInteger> nextSequenceNumber, DateTimeOffset now, bool byTimeToLive)
+    /// <returns><see langword="true"/> if there is a record now or the shards changed since the last commit, which a reader of the stream may want to know.</returns>
+    public bool Commit(Func<BigInteger> nextSequenceNumber, DateTimeOffset now, bool byTimeToLive)
     {
         ArgumentNullException.ThrowIfNull(nextSequenceNumber);
+        var changed = _reshaped;
+        _reshaped = false;
         foreach (var (oldImage, newImage) in _staged)
         {
             if (oldImage is not null && oldImage.Equals(newImage))
@@ -117,9 +123,11 @@ internal sealed class FakeStream
             var oldShown = ViewType is StreamViewType.OldImage or StreamViewType.NewAndOldImages ? oldImage : null;
             var size = ItemSize.Of(keys) + (newShown is null ? 0 : ItemSize.Of(newShown)) + (oldShown is null ? 0 : ItemSize.Of(oldShown));
             ShardOf(keys).Add(new FakeStreamRecord(Guid.NewGuid().ToString("N"), name, nextSequenceNumber(), now, keys, newShown, oldShown, size, byTimeToLive));
+            changed = true;
         }
 
         _staged.Clear();
+        return changed;
     }
 
     /// <summary>Drops the staged changes of a request that failed.</summary>
@@ -138,6 +146,7 @@ internal sealed class FakeStream
     {
         ArgumentNullException.ThrowIfNull(nextShardNumber);
         ArgumentNullException.ThrowIfNull(nextSequenceNumber);
+        _reshaped = true;
         foreach (var parent in _shards.FindAll(static shard => shard.IsOpen))
         {
             parent.Close(now);
@@ -155,6 +164,7 @@ internal sealed class FakeStream
     {
         if (IsEnabled)
         {
+            _reshaped = true;
             ClosedAt = now;
             foreach (var shard in _shards)
             {

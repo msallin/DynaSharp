@@ -296,3 +296,5 @@ Console.WriteLine(seen.Count); // 3
 ```
 
 The last answer is the `DescribeStream` that looks for children of the closed shard: it finds none, and the stream is switched off, so the reading ends. A stream that says `ENABLED` can still open shards, so the reader would look for children again and again: a script whose last shard closes says `DISABLED`. With one shard the answers come in this order. Several shards are read at the same time, so a test of those answers each shard by what it asks for, with the responder of `StubHandler`. [Testing](testing.md) has the rest of the stub.
+
+A test that writes and reads takes `FakeDynamoDb`, whose tables record their changes in streams that `fake.CreateStreamsClient()` reads as DynamoDB's: `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch a stream, and a disable ends a reading. On that client an idle reader asks again at the next write instead of after `EmptyPageDelay`, so such a test takes milliseconds, see [Testing](testing.md#a-fake-dynamodb).

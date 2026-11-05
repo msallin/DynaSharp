@@ -93,16 +93,29 @@ public sealed partial class FakeDynamoDb
     /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> work over it as over DynamoDB.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Its <see cref="DynamoDbClientOptions.TimeProvider"/> is the clock of this fake, so that what the client waits for the stream, <see cref="ReadShardRequest.EmptyPageDelay"/> and
     /// the looks for the children of a shard, passes as the fake's iterators expire, its records age and its late children are listed: a test that moves the clock moves both.
     /// <paramref name="configure"/> can set another. <see cref="CreateClient"/> keeps the system clock, because its client waits only for itself, between the runs of
     /// <c>RetryOnConflictAsync</c>, which a test should not have to move a clock for.
+    /// </para>
+    /// <para>
+    /// Those waits also end at the next change of a stream of this fake: a record, a split, a stream enabled or disabled, a <see cref="Reset"/>. So a reader that found nothing
+    /// asks again as soon as a write of the test is there, and a reading ends as soon as the stream is disabled, without moving any clock: a test on the system clock reads a
+    /// write in milliseconds and not after <see cref="ReadShardRequest.EmptyPageDelay"/>. The reader sends the same requests as against DynamoDB, an empty page, a wait and the
+    /// next page, and only the wait is shorter. A late child listed by the clock alone, see <see cref="SplitStreamShards"/>, is found after the whole wait, as a retry after a
+    /// failure, see <see cref="FailNext"/>, is sent after its whole backoff.
+    /// </para>
     /// </remarks>
     /// <param name="configure">Adjusts the options with a <c>with</c> expression, or <see langword="null"/> to keep them.</param>
     /// <returns>The client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
-    public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) =>
-        StubClient.CreateStreams(CreateHandler(), options => configure is null ? options with { TimeProvider = _db.Clock } : configure(options with { TimeProvider = _db.Clock }));
+    public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null)
+    {
+        var client = StubClient.CreateStreams(CreateHandler(), options => configure is null ? options with { TimeProvider = _db.Clock } : configure(options with { TimeProvider = _db.Clock }));
+        client.NextStreamChange = _db.NextStreamChange;
+        return client;
+    }
 
     /// <summary>Answers a request a <see cref="StubHandler"/> received: the operation from <c>X-Amz-Target</c>, and the body as sent.</summary>
     /// <param name="request">The request.</param>
@@ -328,6 +341,44 @@ public sealed partial class FakeDynamoDb
         });
     }
 
+    /// <summary>
+    /// Enables a stream on a table, as an <c>UpdateTable</c> with <c>StreamSpecification</c> <c>StreamEnabled: true</c> does: a new stream with one open shard, a new
+    /// <c>LatestStreamArn</c> and a new <c>LatestStreamLabel</c>, also on a table whose stream was enabled before. The writes from then on are its records.
+    /// </summary>
+    /// <param name="tableName">The table, which has no enabled stream.</param>
+    /// <param name="viewType">What a record holds of the item.</param>
+    /// <returns>The description, as <c>DescribeTable</c> gives it, with the new stream in <c>LatestStreamArn</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="viewType"/> is <see cref="StreamViewType.Unspecified"/> or undefined.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The table has an enabled stream: another view type takes <see cref="DisableStream"/> first, as on DynamoDB.</exception>
+    public TableDescription EnableStream(string tableName, StreamViewType viewType)
+    {
+        ArgumentNullException.ThrowIfNull(tableName);
+        if (viewType is not (StreamViewType.NewImage or StreamViewType.OldImage or StreamViewType.NewAndOldImages or StreamViewType.KeysOnly))
+        {
+            throw new ArgumentOutOfRangeException(nameof(viewType), viewType, "The view type must be NewImage, OldImage, NewAndOldImages or KeysOnly.");
+        }
+
+        return UpdateStream(tableName, new StreamSpecification { StreamEnabled = true, StreamViewType = viewType });
+    }
+
+    /// <summary>
+    /// Disables the stream of a table, as an <c>UpdateTable</c> with <c>StreamSpecification</c> <c>StreamEnabled: false</c> does: its open shards close, so a reader of a shard
+    /// reaches its end, <c>DescribeStream</c> says <c>DISABLED</c>, and <c>ReadStreamAsync</c> ends once it has read every shard. The stream stays readable for 24 hours on the
+    /// clock of the fake, and the table keeps naming it in <c>LatestStreamArn</c>.
+    /// </summary>
+    /// <param name="tableName">The table, whose stream is enabled.</param>
+    /// <returns>The description, as <c>DescribeTable</c> gives it, without <c>StreamSpecification</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The table has no enabled stream.</exception>
+    public TableDescription DisableStream(string tableName)
+    {
+        ArgumentNullException.ThrowIfNull(tableName);
+        return UpdateStream(tableName, new StreamSpecification { StreamEnabled = false });
+    }
+
     private static TableDescription Describe(FakeTable table)
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
@@ -365,4 +416,8 @@ public sealed partial class FakeDynamoDb
             }
         }
     }
+
+    // The StreamSpecification of an UpdateTable, with its checks.
+    private TableDescription UpdateStream(string tableName, StreamSpecification stream) =>
+        Direct(TableOperations.UpdateTableName, tableName, () => Describe(TableOperations.Update(_db, new UpdateTableRequest { TableName = tableName, StreamSpecification = stream })));
 }
