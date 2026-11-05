@@ -296,6 +296,88 @@ internal sealed class TableRetryOnConflictTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRun_TakesAValueReadBeforeOnTheFirstRunOnly()
+    {
+        // Arrange (what lps-label-print-server does: the first run writes what was read before the call, a later run reads again)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ConditionalCheckFailed());
+        handler.Enqueue(StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+        var before = "read before";
+
+        // Act
+        var written = await shop.RetryOnConflictAsync(async (run, ct) =>
+        {
+            var current = run == 1 ? before : "read again";
+            await shop.Put().With("pk", "a").With("note", current).IfNotExists().SendAsync(ct);
+            return current;
+        });
+
+        // Assert
+        await Assert.That((written, handler.Requests.Count)).IsEqualTo(("read again", 2));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunRetryOnAndMaxAttempts_CountsTheFirstRun()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(
+            async (_, ct) =>
+            {
+                await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+                return 7;
+            },
+            ConflictKind.ConditionalCheckFailed,
+            3));
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunWithoutAResult_RunsAgain()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ConditionalCheckFailed());
+        handler.Enqueue(StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+        var runs = new List<int>();
+
+        // Act
+        await shop.RetryOnConflictAsync(async (run, ct) =>
+        {
+            runs.Add(run);
+            await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+        });
+
+        // Assert
+        await Assert.That(string.Join(",", runs)).IsEqualTo("1,2");
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_DelegateWithTheRunWithoutAResultRetryOnAndMaxAttempts_CountsTheFirstRun()
+    {
+        // Arrange
+        using var handler = new StubHandler(static _ => StubResponse.ConditionalCheckFailed());
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async (_, ct) => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.Any, 2));
+
+        // Assert
+        await Assert.That(handler.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_RetryOnOfNoKind_ThrowsAtTheCall()
     {
         // Arrange

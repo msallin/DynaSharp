@@ -167,6 +167,17 @@ await carts.RetryOnConflictAsync(async token =>
 
 Inside it, a versioned write whose response was lost meets its own first attempt on the retry of the client, fails its condition, and counts as a conflict, so the delegate runs again, see [Where a retry applies a write twice](errors.md#where-a-retry-applies-a-write-twice). A delegate must be safe to run twice.
 
+A value read before the call, for a decision that came first, can serve the first run, as long as every later run reads again: the delegate that takes the number of the run, 1 for the first, says which run it is, without a variable that the delegate clears after its first use.
+
+```csharp
+var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(ct);
+await carts.RetryOnConflictAsync(async (run, token) =>
+{
+    var current = run == 1 ? cart : await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+    await carts.Put(current! with { Lines = lines }).SendAsync(token);
+}, ct);
+```
+
 A run that reads nothing, and whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once. See [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
 
 ## See what goes over the wire

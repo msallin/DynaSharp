@@ -390,6 +390,7 @@ public sealed class ConflictRetryAnalyzerTests
     [Arguments("""var order = await orders.Get(key).ItemAsync(token); ValueTask<WriteResult<Order>> Local(CancellationToken ct) => orders.Put([|order|]!).SendAsync(ct); await client.RetryOnConflictAsync(Local);""", "order")]
     [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await Task.Run(async () => await orders.Put([|order|]!).SendAsync(ct)));""", "order")]
     [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async ct => await orders.Put(order! with { Revision = [|order|].Revision }).SendAsync(ct), 2);""", "order")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async (run, ct) => await orders.Put([|order|]!).SendAsync(ct));""", "order")]
     public async Task RetryOnConflictAsync_VersionOfAReadBeforeTheRetry_IsReported(string statements, string variable)
     {
         // Arrange
@@ -551,6 +552,7 @@ public sealed class ConflictRetryAnalyzerTests
     [Arguments("""await client.RetryOnConflictAsync(async ct => await orders.Put(field).SendAsync(ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(async ct => await orders.Delete(key).IfVersion(expected + 1).SendAsync(ct));""")]
     [Arguments("""await client.RetryOnConflictAsync(async ct => await orders.Put(new Order { Id = "a", Revision = expected }).SendAsync(ct));""")]
+    [Arguments("""var order = await orders.Get(key).ItemAsync(token); await client.RetryOnConflictAsync(async (run, ct) => { var current = run == 1 ? order : await orders.Get(key).Consistent().ItemAsync(ct); await orders.Put(current!).SendAsync(ct); });""")]
     public async Task RetryOnConflictAsync_VersionThatARunReadsOrThatIsNoVariable_IsNotReported(string statements)
     {
         // Arrange
@@ -699,7 +701,7 @@ public sealed class ConflictRetryAnalyzerTests
         var others = retries.Where(static method => method.GetParameters().Single(static parameter => parameter.ParameterType == typeof(ConflictKind)).Name != ConflictRetryAnalyzer.RetryOnParameter);
 
         // Assert
-        await Assert.That((retries.Count, others.Count())).IsEqualTo((8, 0));
+        await Assert.That((retries.Count, others.Count())).IsEqualTo((12, 0));
     }
 
     [Test]

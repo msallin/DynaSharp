@@ -105,7 +105,7 @@ description, so a change in one changes the other. `FailureClassifier.IsTransien
 the client's value.
 
 `RetryOnConflictAsync`, on `DynamoDbClient` and on `Table<T>`, which reaches the same `ClientCore` through its `TableModel`, is the one retry a caller has to ask for, and it sits above the pipeline, which never sees it: `ConflictRetry` runs a delegate, `FailureClassifier.IsConflict` says what runs it
-again, of the `ConflictKind` the call names, and `RetryPolicy.GetConflictDelay` says how long it waits, on the client's clock, with the jitter of the policy and nothing from the quota. A run is any number of calls with their own attempts. The remarks of the method are the contract.
+again, of the `ConflictKind` the call names, and `RetryPolicy.GetConflictDelay` says how long it waits, on the client's clock, with the jitter of the policy and nothing from the quota. A run is any number of calls with their own attempts. A delegate with or without the number of the run goes into one loop as state with a static invoker, so neither shape allocates a closure of its own. The remarks of the method are the contract.
 
 Telemetry is one span per request (`DynamoDB.GetItem`), `db.client.operation.duration`, `dynasharp.client.operation.retries` and `.throttles`,
 `dynasharp.client.conflict.retries` and `.exhausted`, `dynasharp.client.consumed_capacity`, and `dynasharp.client.stream.shards`, `.records` and `.retries`, all from `OperationTelemetry`, one per client. A batch of three requests is three spans. A conflict retry has no span of its own: the
