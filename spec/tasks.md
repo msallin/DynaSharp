@@ -978,6 +978,7 @@ From the update of the apps to 0.2.0-local.3
 - [ ] `LockTableTesting`: a read helper (`GetStateAsync`: holder, lease, fence), and a way for a test to see that a contender tried and was refused, instead of counting `UpdateItem` requests.
 - [ ] The hosted-service recipe cannot tell a fault of the work from an error of the election (a missing table); say how to stop the host on the latter, or offer it.
 - [ ] `LockTable.For` needs an entity; a dedicated lock table without a model still names its key as a literal.
+- [ ] Make one operation of `FakeDynamoDb` fail without a wrapper, e.g. `fake.FailNext("GetRecords", error)`. Today a test puts `new StubHandler(r => r.Operation == "GetRecords" ? error : fake.Answer(r))` in front of the fake, and apps grew scripted fakes of the Streams API (nrt-showcase's `StreamScript`) for the same reason.
 
 ## Decisions
 
