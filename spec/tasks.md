@@ -1063,6 +1063,10 @@ From the update of the apps to 0.2.0-local.3
 - [x] Fast stream tests on the fake: a reader waited `EmptyPageDelay` (1 s) on an empty shard and at least a second before a look for children, so each stream test of an app took 1 to 3 s and could not be shortened without a seam in production code. Done in 0.3.0: the waits of a client of `CreateStreamsClient` end at the next change of a stream of the fake, see R9.
 - [ ] C# union types: once C# unions are released and Stryker/Roslyn can parse them, let `Mixed<...>` opt into the union pattern so a `switch` over a mixed read or stream is exhaustive; until then `Mixed` stays a small, stable struct with one case per type, `Is` and `Match`.
 
+From the update of the apps to 0.3.0
+- [ ] CA2016 against "pass the token once": `ItemsAsync(ct).ToListAsync()` with a token in scope reports CA2016 (forward the token), so under `AnalysisMode=All` the advice of `queries.md` cannot be followed (lps keeps `ToListAsync(ct)`). A `DiagnosticSuppressor` for CA2016 on a LINQ terminal over a DynaSharp terminal that took the token, or a sentence in `queries.md`.
+- [ ] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region.
+
 ## Decisions
 
 | Date | Decision |
