@@ -680,7 +680,10 @@ await held!.DisposeAsync();
 var next = await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30));
 Check(next is { FencingToken: 2 } && held.Ended.IsCancellationRequested, "a released lock is acquired again with the next fencing token");
 await next!.DisposeAsync();
+var refused = locks.WaitForRefusalAsync("smoke");
 Check(await locks.SimulateHolderAsync("smoke", LockTable.MinLeaseDuration) == 3, "a test helper holds the lock for another process");
+Check(await locks.GetStateAsync("smoke") == new LockState(true, null, LockTable.MinLeaseDuration, 3), "a test helper reads the state of the lock");
+Check(await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30)) is null && refused.IsCompletedSuccessfully, "a test sees a contender turned away");
 await locks.SimulateDeleteAsync("smoke");
 long? ledWith = null;
 await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, (lease, _) =>
