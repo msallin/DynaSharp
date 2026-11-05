@@ -223,16 +223,13 @@ internal sealed class StreamMerge
         _ = Task.Run(() => WatchAsync(shardId, known, firstChild));
     }
 
+    // A watch that was stopped, by the consumer or by a reader that has reported why, ends in FailAsync too, which reports nothing once the reading stops. Unlike a
+    // reader, a watch has no span to tell a stop from a failure for.
     private async Task WatchAsync(string shardId, List<string>? known, DateTimeOffset? firstChild)
     {
-        var stopped = _stop.Token;
         try
         {
-            await StartChildrenAsync(shardId, default, known, firstChild, new ShardRun(_core, shardId, null), read: false, stopped).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (stopped.IsCancellationRequested)
-        {
-            // Stopped by the consumer or by a reader, which has reported why.
+            await StartChildrenAsync(shardId, default, known, firstChild, new ShardRun(_core, shardId, null), read: false, _stop.Token).ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // The failure is not swallowed: the consumer gets it from the channel.
         catch (Exception failure)
@@ -363,6 +360,7 @@ internal sealed class StreamMerge
         var ended = time.GetTimestamp();
         for (var look = 0; ; look++)
         {
+            var changed = _client.NextStreamChange?.Invoke();
             var (shards, status) = await ShardsAsync(filter, run).ConfigureAwait(false);
             foreach (var shard in shards)
             {
@@ -389,7 +387,7 @@ internal sealed class StreamMerge
             }
 
             var delay = firstChild is null ? FirstChildLookDelay : MoreChildrenLookDelay;
-            await Task.Delay(_request.EmptyPageDelay > delay ? _request.EmptyPageDelay : delay, time, stopped).ConfigureAwait(false);
+            await _client.IdleAsync(_request.EmptyPageDelay > delay ? _request.EmptyPageDelay : delay, changed, stopped).ConfigureAwait(false);
         }
     }
 

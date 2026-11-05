@@ -122,18 +122,14 @@ The constructor's clock dates the tables. Time to live is stored and reported, b
 
 Reads and writes behave as on DynamoDB: queries, segmented scans, projections, pages cut by `Limit` before the filter and at 1 MB with `LastEvaluatedKey` holding the index key too, conditions with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, batches, and all-or-nothing transactions with one cancellation reason per action. An optimistic lock, a create that must not overwrite, or a failed transaction condition leaves the item as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the fake's clock. Consumed capacity follows the Developer Guide, indexes included. A batch never leaves unprocessed items or keys; to test a client that retries them, queue that answer on the handler.
 
-A table with a stream records its changes in a shard, which `fake.SplitStreamShards(table)` splits, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it, waiting on the clock of the fake. So the code that consumes a stream is tested with the code that writes:
+A table with a stream records its changes in a shard, which `fake.SplitStreamShards(table)` splits, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it, waiting on the clock of the fake. `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch the stream as an `UpdateTable` with a `StreamSpecification` does: an enable makes a new stream with a new `LatestStreamArn`, a disable closes its shards. So the code that consumes a stream is tested with the code that writes:
 
 ```csharp
 var fake = new FakeDynamoDb();
 fake.CreateTable<Customer>("Shop");
+fake.EnableStream("Shop", StreamViewType.NewAndOldImages);
 using var client = fake.CreateClient();
 using var streams = fake.CreateStreamsClient();
-await client.UpdateTableAsync(new UpdateTableRequest
-{
-    TableName = "Shop",
-    StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.NewAndOldImages },
-}, ct);
 
 var shop = client.Table<Customer>("Shop");
 await shop.Put(customer).SendAsync(ct);
@@ -145,7 +141,9 @@ await foreach (var change in shop.ReadChangesAsync(streams, ShardIteratorType.Tr
 }
 ```
 
-`ReadChangesAsync` gives the changes as entities, as on DynamoDB, and `ReadStreamAsync` the records, whose `As<T>()` types one. The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
+`ReadChangesAsync` gives the changes as entities, as on DynamoDB, and `ReadStreamAsync` the records, whose `As<T>()` types one. The shards of a disabled stream are closed, so a read of one, or of the whole stream, ends: `fake.DisableStream("Shop")` ends a reading that a test runs to its end, and `DescribeStream` says `DISABLED`.
+
+A reader that finds nothing waits before it asks again: `EmptyPageDelay`, a second by default, and at least a second before it looks for the children of a shard again. Against DynamoDB that keeps it from polling an idle shard without pause. On a client of `CreateStreamsClient` those waits also end at the next change of a stream of the fake: a write, a split, an enable or a disable. So a test reads a write in milliseconds, a reading ends as soon as the stream is disabled, and neither the test nor the code under test sets `EmptyPageDelay` or moves a clock for it. The reader sends the requests it sends to DynamoDB, an empty page, a wait and the next page; only the wait is shorter. A child that `secondChildListedAfter` lists late and a retry after a failure of `FailNext` still wait on the clock, which the test moves.
 
 [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. It never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`.
 

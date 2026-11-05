@@ -6,3 +6,5 @@ DynaSharp.Testing.FakeDynamoDb.SplitStreamShards(string! tableName, int children
 static DynaSharp.Testing.StubResponse.StreamDescription(string! tableName, DynaSharp.Streams.StreamStatus status, params System.ReadOnlySpan<DynaSharp.Streams.Shard!> shards) -> DynaSharp.Testing.StubResponse!
 DynaSharp.Testing.FakeDynamoDb.FailNext(string! operation, DynaSharp.Testing.StubResponse! failure, int times = 1, System.Func<DynaSharp.Testing.RecordedRequest!, bool>? when = null) -> void
 DynaSharp.Testing.FakeDynamoDb.ThrowIfFailuresLeft() -> void
+DynaSharp.Testing.FakeDynamoDb.EnableStream(string! tableName, DynaSharp.Requests.StreamViewType viewType) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.DisableStream(string! tableName) -> DynaSharp.Requests.TableDescription!

@@ -31,6 +31,9 @@ internal sealed class FakeDatabase(TimeProvider clock)
     // Sequence numbers of DynamoDB Streams are decimal strings of 21 digits and more, and those of the fake grow from here, over all its streams.
     private BigInteger _nextSequence = BigInteger.Pow(10, 20);
 
+    // Completes at the next change of a stream, and is replaced then: the readers of a client of CreateStreamsClient end their waits on it.
+    private TaskCompletionSource _nextStreamChange = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     /// <summary>Gets the gate.</summary>
     public Lock Gate { get; } = new();
 
@@ -102,6 +105,7 @@ internal sealed class FakeDatabase(TimeProvider clock)
         var created = new FakeStream(table, viewType, Label(at), now, NextSequenceNumber(), NextShardNumber());
         Streams.Add(created);
         table.LatestStream = created;
+        StreamsChanged();
         return created;
 
         // 2026-01-01T00:00:00.000, as DynamoDB labels a stream.
@@ -122,6 +126,19 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <returns>A number larger than every one before.</returns>
     public BigInteger NextSequenceNumber() => _nextSequence++;
 
+    /// <summary>
+    /// Gives a task that completes at the next change of a stream: a record, a split, a stream enabled or disabled, a <see cref="Reset"/>. Its continuations run on the pool, not under
+    /// the gate. A request that changes nothing on a stream, such as a <c>GetRecords</c>, completes none, so readers that wait on it do not wake each other.
+    /// </summary>
+    /// <returns>The task.</returns>
+    public Task NextStreamChange()
+    {
+        lock (Gate)
+        {
+            return _nextStreamChange.Task;
+        }
+    }
+
     /// <summary>Gives the number of the id of a new shard.</summary>
     /// <returns>A number larger than every one before, also before a <see cref="Reset"/>.</returns>
     public int NextShardNumber() => ++_shardsOpened;
@@ -131,9 +148,15 @@ internal sealed class FakeDatabase(TimeProvider clock)
     public void CommitChanges(bool byTimeToLive = false)
     {
         var now = Clock.GetUtcNow();
+        var changed = false;
         foreach (var stream in Streams)
         {
-            stream.Commit(NextSequenceNumber, now, byTimeToLive);
+            changed |= stream.Commit(NextSequenceNumber, now, byTimeToLive);
+        }
+
+        if (changed)
+        {
+            StreamsChanged();
         }
     }
 
@@ -152,5 +175,13 @@ internal sealed class FakeDatabase(TimeProvider clock)
         Tables.Clear();
         Streams.Clear();
         Tokens.Clear();
+        StreamsChanged();
+    }
+
+    private void StreamsChanged()
+    {
+        var changed = _nextStreamChange;
+        _nextStreamChange = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        changed.SetResult();
     }
 }
