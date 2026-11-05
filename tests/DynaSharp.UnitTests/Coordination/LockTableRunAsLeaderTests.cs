@@ -1,6 +1,8 @@
 using System.Net;
 using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
 using DynaSharp.Testing;
+using DynaSharp.UnitTests.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.UnitTests.Coordination;
@@ -306,7 +308,105 @@ public sealed class LockTableRunAsLeaderTests
         // Assert
         var entry = bench.LockLogs.Single(entry => entry.EventId.Id == 44);
         await Assert.That((ran, entry.Category, entry.Level, entry.Message)).IsEqualTo(
-            (true, "DynaSharp.Coordination.LockTable", LogLevel.Warning, $"Contending for lock leader in table {bench.TableName} failed with InternalServerError. The election contends again in 00:00:10."));
+            (true, "DynaSharp.Coordination.LockTable", LogLevel.Warning, $"Contending for lock leader in table {bench.TableName} failed with InternalServerError. The election contends again every 00:00:10, and logs again once DynamoDB answers."));
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_LongOutageWhileContending_WarnsOnceAndLogsTheEnd()
+    {
+        // Arrange (three failures in a row are one outage: one warning at its start, one information at the next answer)
+        using var bench = new LockHarness();
+        for (var i = 0; i < 3; i++)
+        {
+            bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask)), TimeSpan.FromSeconds(1));
+
+        // Assert
+        var outage = bench.LockLogs.Where(static entry => entry.EventId.Id is 44 or 49).Select(static entry => (entry.EventId.Id, entry.Level, entry.Message));
+        (int, LogLevel, string)[] expected =
+        [
+            (44, LogLevel.Warning, $"Contending for lock leader in table {bench.TableName} failed with InternalServerError. The election contends again every 00:00:10, and logs again once DynamoDB answers."),
+            (49, LogLevel.Information, $"Contending for lock leader in table {bench.TableName} works again, 00:00:30 after it failed and after 3 retries."),
+        ];
+        await Assert.That(outage).IsEquivalentTo(expected, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_LongOutageWhileContending_CountsEveryRetry()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.contention_retries");
+        for (var i = 0; i < 3; i++)
+        {
+            bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask)), TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That(metrics.All.Select(static measurement => (measurement.Unit, measurement.Value, measurement.TagText))).IsEquivalentTo(
+            Enumerable.Repeat<(string?, long, string)>(("{retry}", 1L, $"db.collection.name={bench.TableName},error.type=InternalServerError"), 3));
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_OutageEndsWhileAnotherHolderLeads_LogsTheEndAtThePoll()
+    {
+        // Arrange (a follower ends its outage at the first answer, the lock held, not when it next leads)
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("leader", Lease, "another-pod");
+        bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+        var polled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bench.Intercept = (request, _) =>
+        {
+            if (request.Operation == "GetItem")
+            {
+                polled.TrySetResult();
+            }
+
+            return Task.FromResult<StubResponse?>(null);
+        };
+        using var stop = new CancellationTokenSource();
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, static (_, _) => Task.CompletedTask, stop.Token);
+
+        // Act (the first poll by reading comes after the write that found the lock held)
+        await bench.RunAsync(Completion(polled.Task), TimeSpan.FromSeconds(1));
+        await stop.CancelAsync();
+        await election.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+
+        // Assert
+        await Assert.That(bench.LockLogs.Where(static entry => entry.EventId.Id is 44 or 49).Select(static entry => entry.EventId.Id)).IsEquivalentTo([44, 49], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_SecondOutage_WarnsAgain()
+    {
+        // Arrange (an outage that ended is over: the next failure starts another, with its own warning)
+        using var bench = new LockHarness();
+        bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+        var terms = 0;
+        async Task Work(Lease lease, CancellationToken stop)
+        {
+            terms++;
+            if (terms == 1)
+            {
+                // The lease is lost at the next renewal, and the release after it and the acquire after that fail.
+                bench.Steal("leader", "thief");
+                await Task.Delay(Timeout.Infinite, stop).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+                bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+            }
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That(bench.LockLogs.Where(static entry => entry.EventId.Id is 44 or 49).Select(static entry => entry.EventId.Id)).IsEquivalentTo([44, 49, 44, 49], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]

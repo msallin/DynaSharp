@@ -21,6 +21,7 @@ internal static class CoordinationTelemetry
     public const string AcquisitionsMetric = "dynasharp.lock.acquisitions";
     public const string RenewalsMetric = "dynasharp.lock.renewals";
     public const string LossesMetric = "dynasharp.lock.losses";
+    public const string ContentionRetriesMetric = "dynasharp.lock.contention_retries";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";
@@ -50,6 +51,11 @@ internal static class CoordinationTelemetry
         LossesMetric,
         unit: "{lease}",
         description: "Number of leases lost before they were released: taken over, deleted, run out, or the table gone.");
+
+    private static readonly Counter<long> ContentionRetries = Meter.CreateCounter<long>(
+        ContentionRetriesMetric,
+        unit: "{retry}",
+        description: "Number of times RunAsLeaderAsync contended again after an acquire failed with a transient error, with error.type.");
 
     /// <summary>Starts the span of an operation on a lock.</summary>
     /// <param name="name">The name of the span.</param>
@@ -108,6 +114,14 @@ internal static class CoordinationTelemetry
     public static void Lose(Lease lease, string reason)
     {
         Losses.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LossReason, reason));
+    }
+
+    /// <summary>Records that an election contends again after a transient failure of an acquire, each time, also while its log is quiet.</summary>
+    /// <param name="table">The table of the lock.</param>
+    /// <param name="errorType">The error.</param>
+    public static void ContentionRetry(string table, string errorType)
+    {
+        ContentionRetries.Add(1, new(DbCollectionName, table), new(ErrorType, errorType));
     }
 
     /// <summary>Marks a span as failed, with the error code of DynamoDB or the type of the exception, never the message.</summary>

@@ -169,26 +169,7 @@ public sealed class LockTable
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration);
-        using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.AcquireSpan, Table.Name, name);
-        try
-        {
-            while (true)
-            {
-                var attempt = await AttemptAsync(name, leaseDuration, cancellationToken).ConfigureAwait(false);
-                if (attempt.Lease is { } lease)
-                {
-                    CoordinationTelemetry.Acquire(activity, lease, attempt.TakeOver);
-                    return lease;
-                }
-
-                await Task.Delay(attempt.Wait, Time, cancellationToken).ConfigureAwait(false);
-            }
-        }
-        catch (Exception exception)
-        {
-            CoordinationTelemetry.Fail(activity, exception);
-            throw;
-        }
+        return await ContendAsync(name, leaseDuration, null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -205,8 +186,9 @@ public sealed class LockTable
     /// </para>
     /// <para>
     /// An acquire that fails with a transient error, a <see cref="DynamoDbException"/> whose <see cref="DynamoDbException.IsTransient"/> is
-    /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is logged, and
-    /// this contends again after a third of the lease. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and this contends again.
+    /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is counted, and
+    /// this contends again after a third of the lease. Only the first failure of a row is logged as a warning, and the next try that DynamoDB answers as an information, so an outage
+    /// of an hour logs two lines and not one per try. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and this contends again.
     /// </para>
     /// <para>
     /// Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
@@ -247,6 +229,37 @@ public sealed class LockTable
         Options.TimeToLiveAttribute is { } attribute
             ? update.Set(attribute, Time.GetUtcNow().ToUnixTimeSeconds() + (long)Options.TimeToLiveRetention.TotalSeconds)
             : update;
+
+    /// <summary>Acquires a lock as <see cref="AcquireAsync(string, TimeSpan, CancellationToken)"/> does, with checked arguments.</summary>
+    /// <param name="name">The name of the lock.</param>
+    /// <param name="leaseDuration">How long the lease lasts without a renewal.</param>
+    /// <param name="answered">Called after each try that DynamoDB answered, with the lock free or held, or <see langword="null"/>.</param>
+    /// <param name="cancellationToken">Ends the wait.</param>
+    /// <returns>The lease.</returns>
+    internal async Task<Lease> ContendAsync(string name, TimeSpan leaseDuration, Action? answered, CancellationToken cancellationToken)
+    {
+        using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.AcquireSpan, Table.Name, name);
+        try
+        {
+            while (true)
+            {
+                var attempt = await AttemptAsync(name, leaseDuration, cancellationToken).ConfigureAwait(false);
+                answered?.Invoke();
+                if (attempt.Lease is { } lease)
+                {
+                    CoordinationTelemetry.Acquire(activity, lease, attempt.TakeOver);
+                    return lease;
+                }
+
+                await Task.Delay(attempt.Wait, Time, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception)
+        {
+            CoordinationTelemetry.Fail(activity, exception);
+            throw;
+        }
+    }
 
     private static LockTableOptions Validate(LockTableOptions options, Table<Item> table)
     {

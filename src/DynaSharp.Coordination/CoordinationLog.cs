@@ -21,7 +21,7 @@ internal static partial class CoordinationLog
     [LoggerMessage(EventId = 43, Level = LogLevel.Warning, Message = "Releasing the lease on lock {Lock} in table {Table} failed with {ErrorType}. The lock is free once its lease runs out.")]
     public static partial void ReleaseFailed(ILogger logger, string @lock, string table, string errorType);
 
-    [LoggerMessage(EventId = 44, Level = LogLevel.Warning, Message = "Contending for lock {Lock} in table {Table} failed with {ErrorType}. The election contends again in {Delay}.")]
+    [LoggerMessage(EventId = 44, Level = LogLevel.Warning, Message = "Contending for lock {Lock} in table {Table} failed with {ErrorType}. The election contends again every {Delay}, and logs again once DynamoDB answers.")]
     public static partial void ContendFailed(ILogger logger, string @lock, string table, string errorType, TimeSpan delay);
 
     [LoggerMessage(EventId = 45, Level = LogLevel.Information, Message = "This process leads on lock {Lock} in table {Table}, with fencing token {FencingToken} (holder label {Holder}).")]
@@ -35,4 +35,7 @@ internal static partial class CoordinationLog
 
     [LoggerMessage(EventId = 48, Level = LogLevel.Debug, Message = "The work of the leader on lock {Lock} in table {Table} threw {ErrorType} after the caller cancelled.")]
     public static partial void WorkFailedAfterCancel(ILogger logger, string @lock, string table, string errorType);
+
+    [LoggerMessage(EventId = 49, Level = LogLevel.Information, Message = "Contending for lock {Lock} in table {Table} works again, {Elapsed} after it failed and after {Retries} retries.")]
+    public static partial void ContendRecovered(ILogger logger, string @lock, string table, TimeSpan elapsed, int retries);
 }

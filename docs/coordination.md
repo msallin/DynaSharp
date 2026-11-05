@@ -189,7 +189,7 @@ The token the work gets is cancelled when the caller cancels or the lease is los
 - The caller cancels: the lease is released, and `RunAsLeaderAsync` throws `OperationCanceledException`, whatever the work returned or threw.
 - The work returns or throws on its own: the lease is released, and `RunAsLeaderAsync` returns or throws that exception. A leader that is done hands the lock on.
 
-An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. Any other error ends it. A lease that has ended by the time its acquire answers starts no term, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
+An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. During a long outage that is a failure every third of a lease, so only the first one logs a warning (44), and the next answer of DynamoDB, the lock found free or held, logs an information (49) with how long it took and how many retries; the metric `dynasharp.lock.contention_retries` counts every one. Any other error ends it. A lease that has ended by the time its acquire answers starts no term, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
 
 Work that ignores the token runs on after the lease is lost, and another process may lead at the same time. Writes that must not happen then go through `IsHeld`, or carry the fencing token to a system that checks it.
 
@@ -260,6 +260,7 @@ The spans and metrics go to the activity source and the meter named `DynaSharp`,
 | `dynasharp.lock.acquisitions` | `{lease}` | Each lease acquired, with `dynasharp.lock.takeover` |
 | `dynasharp.lock.renewals` | `{renewal}` | Each renewal, with `error.type` on one that failed |
 | `dynasharp.lock.losses` | `{lease}` | Each lease lost before it was released, with `dynasharp.lock.loss_reason`: `taken_over`, `deleted`, `expired` or `table_not_found` |
+| `dynasharp.lock.contention_retries` | `{retry}` | Each time `RunAsLeaderAsync` contends again after an acquire failed with a transient error, with `error.type`, also while log 44 is quiet |
 
 The requests of a lock have spans of their own under the span of the lock, so the polls of a waiting process show as `GetItem` spans under `Lock.Acquire`, and the client's request metrics count them.
 
@@ -273,11 +274,12 @@ The log category is `DynaSharp.Coordination.LockTable`, and it logs what no call
 | 41 | Information | A lock was taken over from a holder that stopped renewing it, with the holder labels of both |
 | 42 | Warning | A renewal of the heartbeat failed and is tried again after a wait, until the lease runs out |
 | 43 | Warning | A release failed; the lock is free once its lease runs out |
-| 44 | Warning | An acquire of `RunAsLeaderAsync` failed with a transient error; it contends again |
+| 44 | Warning | An acquire of `RunAsLeaderAsync` failed with a transient error; it contends again. Once per outage: the failures after it log nothing until DynamoDB answers |
 | 45 | Information | This process leads, with its fencing token and its holder label |
 | 46 | Information | This process no longer leads: `lease_lost`, `cancelled`, `work_returned` or `work_failed`, with its holder label |
 | 47 | Debug | The work of the leader threw after its lease was lost, with the type of the exception |
 | 48 | Debug | The work of the leader threw after the caller cancelled, with the type of the exception |
+| 49 | Information | Contending works again after log 44: DynamoDB answered an acquire, with the time since the failure and the retries |
 
 ## Testing
 
