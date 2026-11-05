@@ -53,7 +53,7 @@ public partial record Customer
 | `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `GuidExtensions`, which adds `Guid.FirstVersion7` and `Guid.LastVersion7`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `ContinuationTokenSigner`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `ConflictKind`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types, not written by hand and hidden: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Contains<,>`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
-| `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums |
+| `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums, `TableStreamExtensions`, and the typed changes `Change<T>` and `MixedChange<...>` |
 | `DynaSharp.Mapping` | Attributes, `IDynamoDbDocument<T>`, `IDynamoDbEntity<T>`, `IDynamoDbDiscriminated<T>`, `IKey`, `IKey<T>`, `DynamoDbEntityInfo`, `DynamoDbIndexInfo`, `DynamoDbKeyTemplate`, `DynamoDbKeyInput` |
 | `DynaSharp.Keys` | `KeyWriter`, `KeyReader`, `KeyTimeFormat` |
 | `DynaSharp.Serialization` | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>`, `IDynamoDbSetElementConverter<T>`, `IAddableConverter`, built-in converters, `ConverterChecks` |
@@ -397,7 +397,7 @@ var unreadable = new List<Item?>();
 await foreach (Order order in orders.Query(pk).OnMappingFailure(failure => unreadable.Add(failure.Key)).ItemsAsync(ct)) { }
 ```
 
-An item that the type cannot read ends the read with `DynamoDbMappingException`, and that stays the default: such an item is a bug of the model or of a writer, and a read that drops items would hide it. `OnMappingFailure(Action<DynamoDbMappingException>)` on `QueryCommand<T>`, `ScanCommand<T>`, `FanOutQueryCommand<T>` and the six mixed commands skips it and hands the exception to the callback, with `EntityType`, `AttributeName` and `Key`, the key attributes of the table as stored, also on an index. It is a callback and not a result type, because a result type would change the element type of `ItemsAsync` and every terminal behind it, and the exception already carries what identifies the item. Nothing logs it, so the key goes where the callback puts it. `OnMappingFailure(static _ => { })` skips and counts only. A second call replaces the first. It covers every terminal that reads items, `ItemsAsync`, `ItemAsync`, `PageAsync` and `PagesAsync`, and those of a `Select` after it, whose response holds no key, so `Key` is null there. A `Parallel` scan takes it from the scan before it.
+An item that the type cannot read ends the read with `DynamoDbMappingException`, and that stays the default: such an item is a bug of the model or of a writer, and a read that drops items would hide it. `OnMappingFailure(Action<DynamoDbMappingException>)` on `QueryCommand<T>`, `ScanCommand<T>`, `FanOutQueryCommand<T>` and the six mixed commands, and the parameter `onMappingFailure` of `ReadChangesAsync`, section 15, skips it and hands the exception to the callback, with `EntityType`, `AttributeName` and `Key`, the key attributes of the table as stored, also on an index. It is a callback and not a result type, because a result type would change the element type of `ItemsAsync` and every terminal behind it, and the exception already carries what identifies the item. Nothing logs it, so the key goes where the callback puts it. `OnMappingFailure(static _ => { })` skips and counts only. A second call replaces the first. It covers every terminal that reads items, `ItemsAsync`, `ItemAsync`, `PageAsync` and `PagesAsync`, and those of a `Select` after it, whose response holds no key, so `Key` is null there. A `Parallel` scan takes it from the scan before it.
 
 Only `DynamoDbMappingException` is skipped: an item of another type where no filter kept it out, a value the converter cannot read, a missing `required` attribute, a stored key that does not fit its template, and on a fan-out an item without the keys the merge orders by. The response is read as before; on a failure the read goes on from the copy of the reader it keeps for `Key` anyway, past the item, so a page without a failure pays nothing, and a read without the clause runs the code it ran before, with one null check per page.
 
@@ -698,7 +698,7 @@ claims it, `Of<...>()` throws `ArgumentException`.
 
 The filter gains `#_type IN (:a, :b)`, so other types never reach the client and `ScannedCount` can exceed `Count`. A query of a table or index keyed by the
 discriminator skips that filter, as a typed read does. Dispatch reads straight into the entity with no `Item` in between. `Mixed<...>` is a readonly struct
-with `Is(out T)` per type and `Match(...)`. A read of `Table<T>` for an entity stays as it is. `Of<...>()` hangs off `Table<Item>`, so a mixed read of an index takes its key names
+with `Is(out T)` per type and `Match(...)`. The changes of a stream are typed by the same rule, `MixedChange<...>` of section 15. A read of `Table<T>` for an entity stays as it is. `Of<...>()` hangs off `Table<Item>`, so a mixed read of an index takes its key names
 from an entity through `shop.Index<Membership>(Membership.Indexes.Gsi1)`.
 
 ## 13. Fan-out query
@@ -805,6 +805,29 @@ client is a parameter, not made from the table's client, because one would be a 
 `dynasharp.stream.shard_id`, `dynasharp.stream.record_count` and, for a shard read again, `dynasharp.stream.retry_count`; `dynasharp.client.stream.shards` (`{shard}`, an up-down counter) and `dynasharp.client.stream.records` (`{record}`) carry `server.address` and
 `server.port`, `dynasharp.client.stream.retries` (`{retry}`) those and `error.type`; event 10 (Debug) logs a shard read to its end and the number of its children once the looks end, event 11 (Debug) a child listed only on a later look,
 event 12 (Warning) the start of an outage of a shard, once, and event 13 (Information) its end. No consumer: no leasing, no checkpoints, no sharing of shards across processes.
+
+Typed changes. A stream cannot be filtered at its source, so a table of several entities streams them all, and the type is decided at the reader from the images, by the rule of
+`Item.Is<T>()`. `ChangeRecord.As<T>()` (`where T : IDynamoDbEntity<T>`) returns `Change<T>?`, null when neither image is a `T` or the record has no `DynamoDb`. An entity
+without a discriminator takes every image, because nothing tells its items from others; a hand-written type whose `Info` has none is treated the same, where `Is<T>()` throws.
+`Change<T>` is a `sealed record` with `Kind` (`OperationType`, never `Unknown`), `Before` and `After` (`T?`, read from `OldImage` and `NewImage` by `To<T>()`, and the default of a
+struct entity where absent), `Keys` and `SequenceNumber` of the record, and the required `Record`, which carries `ApproximateCreationDateTime` and `UserIdentity`. The kind follows the
+images of a `T`: both are `Modify`, the new one alone `Insert`, the old one alone `Remove`, except in a `MODIFY` whose other image the view leaves out, which stays `Modify`. So an item
+whose discriminator changes at its key, an old image of `A` and a new one of `B`, is `Remove` of `A` and `Insert` of `B`, both with the sequence number of the record. An image of a `T`
+that `T` cannot read throws `DynamoDbMappingException` with `Key` a copy of the keys of the record. By view: `NewAndOldImages` types everything; `NewImage` has no `Before`, no removal and
+shows a change of type as a `Modify` of the new type; `OldImage` has no `After` and no insert; `KeysOnly` gives null.
+
+`TableStreamExtensions.ReadChangesAsync<T>(this Table<T>, DynamoDbStreamsClient, ShardIteratorType, TimeSpan? emptyPageDelay = null, Action? onJoined = null,
+Action<DynamoDbMappingException>? onMappingFailure = null, CancellationToken)` (`where T : IDynamoDbEntity<T>`) yields `Change<T>`, and `ReadChangesAsync<T1, T2>` to
+`<T1, T2, T3, T4>` on `Table<Item>` (`IDynamoDbDiscriminated<T>`, as `Of<...>()`) yield `MixedChange<...>`. They read as `ReadStreamAsync<T>` of the table, with its arguments and its
+checks, and the `DescribeTable` at the start also requires `StreamViewType.NewAndOldImages`, else `InvalidOperationException` naming the table and the view: under `NewImage` a removal
+has nothing to be typed by and under `OldImage` an insert, and a typed reading would drop them in silence. A combination of types that cannot be told apart throws `ArgumentException` at
+the call. Every record is typed and the changes of other types are skipped; a record whose type changed gives the removal of the old type, then the insert of the new one, each if its
+type is read. `onMappingFailure` is `OnMappingFailure` of a query: null throws, otherwise the change is skipped after the callback had it, on the loop, and counted in
+`dynasharp.client.operation.skipped_items` with `db.operation.name` `GetRecords`, the table and the streams server; only the change that fails is skipped. No new span, metric or log.
+The name is not `ReadStreamAsync`: `orders.ReadStreamAsync(...)` of a `Table<Order>` already gives records, and a typed overload of the same name and arity cannot exist beside it.
+
+`MixedChange<T1, T2>` to `<T1, T2, T3, T4>` is a readonly struct with `Is(out Change<Tn>? change)` per type and `Match` with functions and with actions, the shape of `Mixed<...>`, which
+cannot hold a change, because its types must be entities that a mixed read can read. Its default value holds nothing, `Is` answers false and `Match` throws `InvalidOperationException`.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,

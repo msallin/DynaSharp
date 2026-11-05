@@ -43,7 +43,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for `CommandPool` |
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
-| `Streams` | `DynamoDbStreamsClient`, its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (the retries and the signal of a shard), `TableStreamExtensions` (the stream of a `Table<T>`) | `Requests`, `Operations`, `Http`, `Telemetry`, `Retries`, and `Table<T>` of `Fluent` |
+| `Streams` | `DynamoDbStreamsClient`, its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (the retries and the signal of a shard), `TableStreamExtensions` (the stream of a `Table<T>`, raw and typed), `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>` and `SingleChange<T>` (the typing of a record) | `Requests`, `Operations`, `Http`, `Telemetry`, `Retries`, and `Table<T>`, `Mixed<...>` and `MixedSchema` of `Fluent` |
 | `Fluent` | `Table<T>`, `Index<T>`, `TableExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema`, and the four folders below | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
 | `Fluent/Commands` | What a chain is built of: every command and step, their interfaces, the verbs of a transaction, and what sends one item: `CommandCall`, `ICommandOperation<T>`, the operations of a write, `WriteResult<T>`, `FailedCondition`, `RejectedRequest` | As `Fluent` |
 | `Fluent/Reads` | What a read does after its clauses: operations of reads, `PagedRead`, `PageCall`, `PageResponse`, `Page<T>`, `ContinuationToken`, parallel scan, fan-out and mixed machinery, `FailedItem` | As `Fluent` |
@@ -128,6 +128,15 @@ retries inside the call it failed, so the position cannot move: `PageAsync` send
 `StreamMerge.DescribeAsync` the same look for children; a page or a look calls `Progressed`, which ends the outage, a new iterator does not, or a shard that fails on every page would never fail. The discovery
 passes no run. `ShardRun.Positioned` runs once after the first `GetShardIterator`; for a shard the discovery starts it drops `_unjoined`, which the discovery holds at one until it has launched them all, and zero
 calls `OnJoined`. `TableStreamExtensions.ReadStreamAsync` checks a request with an empty ARN through `CheckStreamRequest` at the call, and in its iterator describes the table and reads the stream it names.
+
+Typed changes sit on top and add nothing to the reading. `ChangeTyping.Split<TTypes, TOut>` takes one record: the index of the type of each image from `TTypes.FindType`, then
+one change for the same type on both sides, or the removal of the old type and the insert of the new one, each through `TTypes.Create`, which reads an image with `To<T>()` and
+copies the keys of the record into `Key` of a `DynamoDbMappingException`. `IChangeTypes<TOut>` is an internal interface of static abstract members, so the loop of
+`TableStreamExtensions.ReadChangesAsync` is one generic iterator for every arity, with no delegate per record: `SingleChange<T>` asks `MixedSchema.Of<T>` (whose constraint is
+`IDynamoDbEntity<T>`, and whose problem, a type without a discriminator, means every image), and each `MixedChange<...>` implements the interface explicitly and asks the schema of
+the `Mixed<...>` of its types, so the rule of a mixed read and of `Item.Is<T>()` is the one rule. `ChangeRecord.As<T>()` is `Split` of `SingleChange<T>` without a callback. The
+reading is `ReadAsync` of the raw one with `typed: true`, which also checks the view; `onMappingFailure` is one delegate per enumeration that calls the callback and
+`DynamoDbStreamsClient.CountSkippedItem`. `MixedChange` holds the change as an `object` and an index, because a change is a class and a field per type would only add size.
 
 The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and `RequestCall` forwards to it.
 

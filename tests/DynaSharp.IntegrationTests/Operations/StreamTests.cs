@@ -1,5 +1,6 @@
 using System.Numerics;
 using DynaSharp.IntegrationTests.Backends;
+using DynaSharp.IntegrationTests.Mapping;
 using DynaSharp.IntegrationTests.Support;
 using DynaSharp.Requests;
 using DynaSharp.Streams;
@@ -523,6 +524,49 @@ public sealed class StreamTests(Backend backend)
 
         // Assert
         await Assert.That(string.Join(",", records.Select(static change => change.Record.EventName))).IsEqualTo("Insert,Modify,Remove");
+    }
+
+    [Test]
+    public async Task ReadChanges_TwoEntitiesOfOneTable_TypesEachChangeAndSkipsTheOthers()
+    {
+        // Arrange: a customer and a comment change, a visit is written in between, which neither type is
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(new TableSpec(SortKeyType: KeyAttributeType.String, StreamViewType: StreamViewType.NewAndOldImages));
+        var shop = sandbox.Client.Table(table, "pk", "sk");
+        var customer = new Customer { Id = "c-1", Name = "Ada" };
+        var comment = new Comment { OrderId = Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), Author = "ada" };
+        await shop.Of<Customer>().Put(customer).SendAsync();
+        await shop.Of<Visit>().Put(new Visit { Visitor = "v-1", At = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) }).SendAsync();
+        await shop.Of<Comment>().Put(comment).SendAsync();
+        await shop.Of<Customer>().Put(customer with { Name = "Ada L." }).SendAsync();
+        await shop.Of<Comment>().Delete(Comment.Keys.Of(comment.OrderId, "ada")).SendAsync();
+        await StreamReading.FindStreamArnAsync(sandbox.Streams, table);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var changes = await shop.ReadChangesAsync<Customer, Comment>(sandbox.Streams, ShardIteratorType.TrimHorizon, cancellationToken: timeout.Token).Take(4).ToListAsync(timeout.Token);
+
+        // Assert (each item is one partition, and so may be another shard: the changes of one item keep their order)
+        var shown = changes.Select(static change => change.Match(static c => $"customer {c.Kind} {c.Before?.Name}>{c.After?.Name}", static m => $"comment {m.Kind} {m.Before?.Author}>{m.After?.Author}")).ToList();
+        await Assert.That(string.Join(",", shown.Where(static line => line.StartsWith("customer", StringComparison.Ordinal))))
+            .IsEqualTo("customer Insert >Ada,customer Modify Ada>Ada L.");
+        await Assert.That(string.Join(",", shown.Where(static line => line.StartsWith("comment", StringComparison.Ordinal))))
+            .IsEqualTo("comment Insert >ada,comment Remove ada>");
+    }
+
+    [Test]
+    public async Task ReadChanges_StreamWithoutOldImages_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(new TableSpec(SortKeyType: KeyAttributeType.String, StreamViewType: StreamViewType.NewImage));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+
+        // Act
+        var act = async () => await sandbox.Client.Table(table, "pk", "sk").Of<Customer>().ReadChangesAsync(sandbox.Streams, ShardIteratorType.TrimHorizon, cancellationToken: timeout.Token).ToListAsync(timeout.Token);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]

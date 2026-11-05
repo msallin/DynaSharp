@@ -44,6 +44,9 @@ internal sealed class MixedSchema
         _typeName = $"Mixed<{string.Join(", ", _discriminators)}>";
     }
 
+    /// <summary>Gets a value indicating whether the items of the combination can be told apart, which a single entity without a discriminator cannot.</summary>
+    public bool TellsApart => _problem is null;
+
     /// <summary>Gets what an empty value says when it is asked for what it holds.</summary>
     /// <returns>The exception.</returns>
     public static InvalidOperationException Empty() =>
@@ -136,12 +139,18 @@ internal sealed class MixedSchema
     /// <exception cref="ArgumentException">The combination cannot be told apart, see <see cref="FindProblem"/>.</exception>
     public int FindType(Item item)
     {
+        Check();
+        return item.TryGetValue(_attribute, out var value) && value.Type == AttributeType.String ? Array.IndexOf(_discriminators, value.AsString()) : -1;
+    }
+
+    /// <summary>Throws what is wrong with the combination, at the call that asked for it.</summary>
+    /// <exception cref="ArgumentException">The combination cannot be told apart, see <see cref="FindProblem"/>.</exception>
+    public void Check()
+    {
         if (_problem is not null)
         {
             throw new ArgumentException(_problem);
         }
-
-        return item.TryGetValue(_attribute, out var value) && value.Type == AttributeType.String ? Array.IndexOf(_discriminators, value.AsString()) : -1;
     }
 
     private static void Require(List<string> required, string? name)
@@ -154,11 +163,7 @@ internal sealed class MixedSchema
 
     private CommandState Enter(CommandHandle command)
     {
-        if (_problem is not null)
-        {
-            throw new ArgumentException(_problem);
-        }
-
+        Check();
         return CommandState.Enter(command.State, command.Version, command.Operation, command.Table);
     }
 
@@ -202,10 +207,13 @@ internal sealed class MixedSchema
             : null;
     }
 
-    /// <summary>The schema of one type, which is what <see cref="Item.Is{T}"/> asks with, built once per type as that of a mix is.</summary>
+    /// <summary>
+    /// The schema of one type, which is what <see cref="Item.Is{T}"/> and <see cref="Streams.ChangeRecord.As{T}"/> ask with, built once per type as that of a mix is. An
+    /// entity without a discriminator has a schema with a problem, which <see cref="Item.Is{T}"/> throws and a typed change takes as "every item".
+    /// </summary>
     /// <typeparam name="T">The type.</typeparam>
     internal static class Of<T>
-        where T : IDynamoDbDiscriminated<T>
+        where T : IDynamoDbEntity<T>
     {
         /// <summary>What the type knows about its items.</summary>
         public static readonly MixedSchema Schema = new(T.Info);

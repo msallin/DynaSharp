@@ -587,6 +587,22 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R8 - typed stream changes (0.3.0, approved by the owner)
+
+Branch `feat/typed-stream`. A stream cannot be filtered at its source, so the reader of a single-table design types each change from its images, by the discriminator, as a mixed read does.
+
+- [x] **`ChangeRecord.As<T>()`** returns `Change<T>?`, null when neither image is a `T`. A reader of several types calls it once per type.
+- [x] **`table.ReadChangesAsync(streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, ct)`** on `Table<T>` yields `Change<T>` and skips other entities; `ReadChangesAsync<T1, T2>` to `<T1, T2, T3, T4>` on `Table<Item>` yield `MixedChange<...>`.
+- Decision: the name is `ReadChangesAsync`, not `ReadStreamAsync<T>`. `ReadStreamAsync<T>(this Table<T>, ...)` shipped in 0.2.0 and gives records, so `orders.ReadStreamAsync(...)` already binds there; a typed overload of the same name and arity cannot exist beside it, and one on `Table<Item>` alone would make `shop.ReadStreamAsync<Order>` typed and `orders.ReadStreamAsync<Order>` raw. The one-type reading is on the typed table, `shop.Of<Order>().ReadChangesAsync(...)`, and infers its type; the mixed one is on `Table<Item>`, as `Of<...>()` of a query.
+- Decision: `Kind` is the existing `OperationType`, never `Unknown`, not a new enum: the values are the same three, and a consumer already switches over them. It is what happened to the `T`, which is not always `EventName`: an item whose discriminator changes at its key (old image `A`, new image `B`) is `Remove` of `A` and `Insert` of `B`, both with the sequence number of the record, the removal first in a typed reading, and `As<A>()` and `As<B>()` give the same two. A `MODIFY` whose other image the view leaves out stays `Modify`.
+- Decision: `Change<T>` is a `sealed record` (`Kind`, `Before`, `After`, `Keys`, `SequenceNumber`, required `Record`), a class so that `MixedChange` can hold it as an object and a test can build one. No `ApproximateCreationDateTime` and no `ShardId` of its own: the record carries the time and `UserIdentity` (time to live), and a reader that keeps positions per shard reads `ReadStreamAsync` and calls `As<T>()` on `ShardChangeRecord.Record`, since a typed reading has no position to resume either.
+- Decision: the mixed element is `MixedChange<...>`, not `Mixed<Change<T1>, Change<T2>>` as first asked. `Mixed<...>` constrains its types to `IDynamoDbDiscriminated<T>` and is a document that reads them, so a `Change<T>` cannot be one of its types without making it a fake entity (`Table<Change<Order>>` would compile), and loosening `Mixed` would drop a shipped interface. `MixedChange` has the same members, `Is(out Change<T>? change)` and `Match` with functions and actions, and the same default-value behaviour.
+- Decision: only `NewAndOldImages` for the typed readings, checked in the `DescribeTable` they start with, `InvalidOperationException` with the table and the view otherwise. Under `NewImage` a removal has no image to be typed by, so a reader of orders would miss every deletion in silence, and under `OldImage` every insert; `KeysOnly` types nothing. `As<T>()` takes any view and the docs list what each one gives, because a caller of it sees the record.
+- Decision: an entity without a discriminator (`OptOut`) is allowed in `As<T>()` and the one-type reading, and takes every image: nothing in its items tells them from others, so it is the entity of a table of one entity, as `FakeDynamoDb.Items<T>` reads every item for it. A hand-written type whose `Info` has none is treated the same, where `Is<T>()` throws. The mixed readings take `IDynamoDbDiscriminated<T>`, as `Of<...>()`, and throw `ArgumentException` at the call for a combination that cannot be told apart.
+- Decision: an image of a `T` that `T` cannot read throws `DynamoDbMappingException` with `Key` a copy of the keys of the record, as `FakeDynamoDb.Items<T>` and a read do. `onMappingFailure` is the callback of `OnMappingFailure`, a parameter because a stream reading has no clauses: the change is skipped once the callback had it, and only that change, so the insert of a type change survives a removal that fails. It counts in `dynasharp.client.operation.skipped_items` with `db.operation.name` `GetRecords` (the call that brought the record), the table and the streams server. No new span, metric or log: typing happens on the loop, in no request.
+- Decision: one generic loop for every arity, over an internal `IChangeTypes<TOut>` of static abstract members, one delegate per enumeration for the callback, none per record. The typing is `To<T>()` of the image, a round trip through the writer, which a stream of `Item`s already pays for in allocation; reading straight from the wire would need typed records in `GetRecords`.
+- [x] Docs: `streams.md` "Typed changes" (one record, one entity, several, skipping), its examples and those of `ReadStreamAsync` and `ReadShardAsync` with `As<T>()`, `queries.md`, `observability.md`, `without-a-model.md`, `migrating.md`, the README, the Testing README; the `OrderFeed` sample uses `As<Order>()`; the AOT smoke test types a change of type and reads a table typed.
+
 ### R7 - what the app migrations asked of `ReadStreamAsync` (before it ships, approved by the owner)
 
 Branch `feat/streams-resume`. From data-pond and nrt-showcase, see the backlog of 2026-11-04. `ReadStreamAsync` had not shipped, so its shape could still change.
@@ -974,10 +990,11 @@ Coordination
 - [ ] Warning 44 repeats every third of a lease during a long outage; rate-limit it.
 
 From the update of the apps to 0.2.0-local.3
-- [ ] `table.ReadStreamAsync` with an optional required `StreamViewType`, so a reader that needs old images does not describe the table twice (data-pond reads by ARN for that).
+- [x] `table.ReadStreamAsync` with an optional required `StreamViewType`, so a reader that needs old images does not describe the table twice (data-pond reads by ARN for that). R8: the typed readings `ReadChangesAsync` require `NewAndOldImages` and check it in the one `DescribeTable` they start with, which is what a reader that needs old images asked for. A raw reader of a table without a model still reads `DescribeAsync()` for the view: a parameter for that alone stays out, as R7 decided.
 - [ ] `LockTableTesting`: a read helper (`GetStateAsync`: holder, lease, fence), and a way for a test to see that a contender tried and was refused, instead of counting `UpdateItem` requests.
 - [ ] The hosted-service recipe cannot tell a fault of the work from an error of the election (a missing table); say how to stop the host on the latter, or offer it.
 - [ ] `LockTable.For` needs an entity; a dedicated lock table without a model still names its key as a literal.
+- [ ] C# union types: once C# unions are released and Stryker/Roslyn can parse them, let `Mixed<...>` opt into the union pattern so a `switch` over a mixed read or stream is exhaustive; until then `Mixed` stays a small, stable struct with one case per type, `Is` and `Match`.
 
 ## Decisions
 

@@ -65,3 +65,50 @@ DynaSharp.Streams.ReadStreamRequest.OnJoined.init -> void
 DynaSharp.Streams.ShardChangeRecord.SequenceNumber.get -> string?
 DynaSharp.Streams.TableStreamExtensions
 static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
+DynaSharp.Streams.Change<T>
+DynaSharp.Streams.Change<T>.<Clone>$() -> DynaSharp.Streams.Change<T>!
+DynaSharp.Streams.Change<T>.After.get -> T?
+DynaSharp.Streams.Change<T>.After.init -> void
+DynaSharp.Streams.Change<T>.Before.get -> T?
+DynaSharp.Streams.Change<T>.Before.init -> void
+DynaSharp.Streams.Change<T>.Change() -> void
+DynaSharp.Streams.Change<T>.Equals(DynaSharp.Streams.Change<T>? other) -> bool
+DynaSharp.Streams.Change<T>.Keys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
+DynaSharp.Streams.Change<T>.Keys.init -> void
+DynaSharp.Streams.Change<T>.Kind.get -> DynaSharp.Streams.OperationType
+DynaSharp.Streams.Change<T>.Kind.init -> void
+DynaSharp.Streams.Change<T>.Record.get -> DynaSharp.Streams.ChangeRecord!
+DynaSharp.Streams.Change<T>.Record.init -> void
+DynaSharp.Streams.Change<T>.SequenceNumber.get -> string?
+DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
+DynaSharp.Streams.ChangeRecord.As<T>() -> DynaSharp.Streams.Change<T>?
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Is(out DynaSharp.Streams.Change<T1>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Is(out DynaSharp.Streams.Change<T2>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Is(out DynaSharp.Streams.Change<T3>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Is(out DynaSharp.Streams.Change<T4>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Match(System.Action<DynaSharp.Streams.Change<T1>!>! first, System.Action<DynaSharp.Streams.Change<T2>!>! second, System.Action<DynaSharp.Streams.Change<T3>!>! third, System.Action<DynaSharp.Streams.Change<T4>!>! fourth) -> void
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Match<TResult>(System.Func<DynaSharp.Streams.Change<T1>!, TResult>! first, System.Func<DynaSharp.Streams.Change<T2>!, TResult>! second, System.Func<DynaSharp.Streams.Change<T3>!, TResult>! third, System.Func<DynaSharp.Streams.Change<T4>!, TResult>! fourth) -> TResult
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.MixedChange() -> void
+DynaSharp.Streams.MixedChange<T1, T2, T3>
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Is(out DynaSharp.Streams.Change<T1>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Is(out DynaSharp.Streams.Change<T2>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Is(out DynaSharp.Streams.Change<T3>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Match(System.Action<DynaSharp.Streams.Change<T1>!>! first, System.Action<DynaSharp.Streams.Change<T2>!>! second, System.Action<DynaSharp.Streams.Change<T3>!>! third) -> void
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Match<TResult>(System.Func<DynaSharp.Streams.Change<T1>!, TResult>! first, System.Func<DynaSharp.Streams.Change<T2>!, TResult>! second, System.Func<DynaSharp.Streams.Change<T3>!, TResult>! third) -> TResult
+DynaSharp.Streams.MixedChange<T1, T2, T3>.MixedChange() -> void
+DynaSharp.Streams.MixedChange<T1, T2>
+DynaSharp.Streams.MixedChange<T1, T2>.Is(out DynaSharp.Streams.Change<T1>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2>.Is(out DynaSharp.Streams.Change<T2>? change) -> bool
+DynaSharp.Streams.MixedChange<T1, T2>.Match(System.Action<DynaSharp.Streams.Change<T1>!>! first, System.Action<DynaSharp.Streams.Change<T2>!>! second) -> void
+DynaSharp.Streams.MixedChange<T1, T2>.Match<TResult>(System.Func<DynaSharp.Streams.Change<T1>!, TResult>! first, System.Func<DynaSharp.Streams.Change<T2>!, TResult>! second) -> TResult
+DynaSharp.Streams.MixedChange<T1, T2>.MixedChange() -> void
+override DynaSharp.Streams.Change<T>.Equals(object? obj) -> bool
+override DynaSharp.Streams.Change<T>.GetHashCode() -> int
+override DynaSharp.Streams.Change<T>.ToString() -> string!
+static DynaSharp.Streams.Change<T>.operator !=(DynaSharp.Streams.Change<T>? left, DynaSharp.Streams.Change<T>? right) -> bool
+static DynaSharp.Streams.Change<T>.operator ==(DynaSharp.Streams.Change<T>? left, DynaSharp.Streams.Change<T>? right) -> bool
+static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T1, T2, T3, T4>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
+static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T1, T2, T3>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
+static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T1, T2>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2>>!
+static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.Change<T>!>!

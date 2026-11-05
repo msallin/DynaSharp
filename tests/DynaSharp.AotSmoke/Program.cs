@@ -530,6 +530,36 @@ await foreach (var change in tableStreamClient.Table("Users", "pk").ReadStreamAs
 
 Check(tableStreamRecords.Single().SequenceNumber is { Length: > 0 } && tableJoined == 1, "ReadStreamAsync of a table reads its stream, again after a server error, and signals once");
 
+// Typed changes: the images of a record typed by their discriminator, one change per type for an item whose type changed, through static abstract members of the mix.
+var typeChange = new ChangeRecord
+{
+    EventName = OperationType.Modify,
+    DynamoDb = new StreamRecord
+    {
+        Keys = new Item { ["pk"] = "v-1" },
+        OldImage = new Item { ["pk"] = "v-1", ["visits"] = 3, ["_type"] = "VISITOR" },
+        NewImage = new Item { ["pk"] = "v-1", ["_type"] = "BASKET", ["Priority"] = "High" },
+        SequenceNumber = "7",
+    },
+};
+Check(typeChange.As<Visitor>() is { Kind: OperationType.Remove, Before.Visits: 3, After: null } && typeChange.As<Basket>() is { Kind: OperationType.Insert, After.Priority: Priority.High, SequenceNumber: "7" }, "As<T> types the images of a record");
+
+using var typedStreamHandler = new StubHandler();
+using var typedStreamClient = StubClient.Create(typedStreamHandler);
+using var typedStreamStreams = StubClient.CreateStreams(typedStreamHandler);
+typedStreamHandler.Enqueue(StubResponse.Json("""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/2026-01-01T00:00:00.000"}}"""));
+typedStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled, StubResponse.Shard("shard-1", endingSequenceNumber: "9")));
+typedStreamHandler.Enqueue(StubResponse.ShardIterator("iterator"));
+typedStreamHandler.Enqueue(StubResponse.Records(null, typeChange, StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "m-1" }, newImage: new Item { ["pk"] = "m-1", ["_type"] = "MEMO" })));
+typedStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled));
+var typedSeen = new List<string>();
+await foreach (var change in typedStreamClient.Table("Users", "pk").ReadChangesAsync<Visitor, Basket>(typedStreamStreams, ShardIteratorType.TrimHorizon))
+{
+    typedSeen.Add(change.Match(static visitor => $"visitor {visitor.Kind}", static basket => $"basket {basket.Kind}"));
+}
+
+Check(string.Join(",", typedSeen) == "visitor Remove,basket Insert", "ReadChangesAsync types the changes of a table and skips the other entities");
+
 // A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
 var lenients = users.Of<Lenient>();
 const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"Shipped":{"S":""},"After":{"N":"7"}}}""";

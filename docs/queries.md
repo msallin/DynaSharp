@@ -111,6 +111,8 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 }
 ```
 
+The changes of a table of several entities are typed the same way, by the discriminator of their images, see [Typed changes](streams.md#typed-changes).
+
 ## One list over many partitions
 
 A fan-out query merges partitions by sort key in DynamoDB's own order. A partition is read only when the merge needs it, so breaking out of the loop reads no more.
@@ -136,7 +138,7 @@ await foreach (var order in orders.Query(Order.Keys.Pk.Of("alice")).OnMappingFai
 }
 ```
 
-`OnMappingFailure(static _ => { })` skips without a callback of its own. Query, scan, fan-out and mixed reads have it, and it covers every terminal that reads items, including a `Select` after it, whose response has no key, so `Key` is null there.
+`OnMappingFailure(static _ => { })` skips without a callback of its own. Query, scan, fan-out and mixed reads have it, and it covers every terminal that reads items, including a `Select` after it, whose response has no key, so `Key` is null there. `ReadChangesAsync` of a stream takes the same callback as `onMappingFailure`, see [Streams](streams.md#skip-changes-that-fail-to-map).
 
 - The callback runs once per skipped item, after its page arrived and before the items of that page are given out. An exception it throws ends the read as it is, and no retry repeats it. A parallel scan and a fan-out read pages on several threads at once, so there it can run concurrently.
 - `Page.Items` leaves the item out. `Page.Count` is still the count DynamoDB sent, so `Count - Items.Count` is what the page skipped, except on a fan-out, whose page counts what it gives.

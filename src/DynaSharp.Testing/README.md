@@ -151,23 +151,23 @@ var fake = new FakeDynamoDb();
 fake.CreateTable<Customer>("Shop");
 using var client = fake.CreateClient();
 using var streams = fake.CreateStreamsClient();
-var updated = await client.UpdateTableAsync(new UpdateTableRequest
+await client.UpdateTableAsync(new UpdateTableRequest
 {
     TableName = "Shop",
     StreamSpecification = new StreamSpecification { StreamEnabled = true, StreamViewType = StreamViewType.NewAndOldImages },
 }, ct);
 
-await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+var shop = client.Table<Customer>("Shop");
+await shop.Put(customer).SendAsync(ct);
 
-var arn = updated.TableDescription!.LatestStreamArn!;
-await foreach (var change in streams.ReadStreamAsync(new ReadStreamRequest { StreamArn = arn, ShardIteratorType = ShardIteratorType.TrimHorizon }, ct))
+await foreach (var change in shop.ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, cancellationToken: ct))
 {
-    Console.WriteLine(change.Record.EventName); // Insert
+    Console.WriteLine($"{change.Kind} {change.After!.Name}"); // Insert, and the name
     break;
 }
 ```
 
-The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
+`ReadChangesAsync` gives the changes as entities, as on DynamoDB, and `ReadStreamAsync` the records, whose `As<T>()` types one. The shard of a disabled stream is closed, so a read of it, or of the whole stream, ends.
 
 [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. It never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`.
 
