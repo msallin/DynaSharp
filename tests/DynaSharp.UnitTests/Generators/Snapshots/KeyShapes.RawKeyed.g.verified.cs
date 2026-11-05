@@ -306,6 +306,9 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string key, string site, global::System.DateOnly day, string @ref) => Pk.Check(false, key) && Sk.Check(false, site, day, @ref) ? new PrimaryKey(key, site, day, @ref) : null;
+
         /// <summary>The primary key of <c>RawKeyed</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.RawKeyed>
@@ -389,6 +392,9 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.RawKeyed>? TryOf(string key) => TryOf(key, out var key_) ? key_ : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -803,6 +809,9 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.RawKeyed>? TryOf(string owner) => TryOf(owner, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static ByOwnerPkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -1099,6 +1108,9 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.RawKeyed>? TryOf(string note) => TryOf(note, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

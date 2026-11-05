@@ -161,6 +161,9 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string key) => Pk.Check(false, key) ? new PrimaryKey(key) : null;
+
         /// <summary>The primary key of <c>RawTwin</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.RawTwin>
@@ -236,6 +239,9 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.RawTwin>? TryOf(string key) => TryOf(key, out var key_) ? key_ : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -382,6 +388,9 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.RawTwin>? TryOf(string key) => TryOf(key, out var key_) ? key_ : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

@@ -56,7 +56,7 @@ The rules of a template, and what the generator reports when one is broken, are 
 
 ## Keys and Attrs
 
-`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query, such as `BeginsWith`, `Between` and `Ge`. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. [Generated code](generated-code.md) lists every member, including `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
+`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query, such as `BeginsWith`, `Between` and `Ge`. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `TryOf` checks without an exception and gives the key or `null`, so `Order.Keys.Pk.TryOf(id) is { } key` guards a read. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
 
 ## Documents
 

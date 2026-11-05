@@ -675,6 +675,9 @@ partial record KeyFormats : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyFo
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string text) => Pk.Check(false, text) ? new PrimaryKey(text) : null;
+
         /// <summary>The primary key of <c>KeyFormats</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.KeyFormats>

@@ -587,6 +587,13 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R11 - 0.3.0 keys and coordination
+
+Branch `feat/030-keys-locks`, approved by the owner from the backlog of the app migrations (lps-label-print-server, socce-cockpit, yats). All additive.
+
+- [x] **`TryOf(values)` that returns the key or null**, beside every `TryOf(values, out key)`: `Keys.TryOf` gives `PrimaryKey?`, the `TryOf` of a partition key builder of the table or of an index `PartitionKey<T>?`. lps-label-print-server wrote `X.Keys.Gsi1Pk.TryOf(v, out PartitionKey<X> k) ? await t.Index(...).Query(k).ItemAsync(ct) : null` about ten times; now `X.Keys.Gsi1Pk.TryOf(v) is { } k ? ... : null`.
+- Decision: the same name, not `OfOrNull` or `TryOfOrNull`: it is the same check, and the two differ by the `out` parameter alone, so they never compete for a call. A placeholder called `Key` makes the out parameter `key_`, so `TryOf(key: v)` binds to the new one and `TryOf(key: v, key_: out var k)` to the old. A nullable struct, so the `null` allocates nothing; the twin of a partition key builder calls the out form, the twin of `Keys.TryOf` runs the checks of the builders itself, so neither renders more than the out form. Generated wherever the out form is, so a sort key builder, a plain key and a key of literals have neither, as before. The analyzers that skip `TryOf` (`DYNA122`, `DYNA237`) skip both by name, and `DYNA224` checks a key from `Of` only, as it said.
+
 ### R9 - stream tests on the fake: switching a stream, fast waits, a stable gate (0.3.0)
 
 Branch `feat/fake-streams`. Found while nrt-showcase moved its stream tests onto `FakeDynamoDb`: a test ended a stream with an `UpdateTableAsync` of a `StreamSpecification`, each test of a reader took 1 to 3 seconds, and the 100 % line gate failed now and then.
@@ -997,7 +1004,7 @@ Table setup
 Keys and queries
 - [ ] A sparse index that also skips an empty string (`""` throws at `Put` today), or a hint on a `string?` input of a sparse key.
 - [ ] An index named twice: `Index(Indexes.Gsi1).Query(Keys.Gsi1Pk.Of(x))`; infer the index from the key builder, or index handles that carry their keys. `DYNA221` sees constants only.
-- [ ] `TryOf(v)` that returns a nullable key, so `is { } k` replaces the ternary around a read (about ten call sites in lps-label-print-server).
+- [x] `TryOf(v)` that returns a nullable key, so `is { } k` replaces the ternary around a read (about ten call sites in lps-label-print-server). Done in 0.3.0, see R11.
 - [ ] An info diagnostic for a `raw` table-key input without `[KeyOnly]`, and a line in `entities.md` (socce-cockpit shipped without it).
 - [ ] Filling a page after a client-side filter: `ContinuationToken.After(entity, index)`, since `FromKey` needs the index key attributes an entity cannot easily give.
 - [ ] `ListAsync(ct)` as a terminal, instead of `ItemsAsync(ct).ToListAsync(ct)`.

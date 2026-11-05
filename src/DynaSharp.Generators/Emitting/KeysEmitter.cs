@@ -171,6 +171,9 @@ internal static class KeysEmitter
         code.Line("return false;");
         code.Close();
         code.Blank();
+        code.Line("/// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>");
+        code.Line($"public static PrimaryKey? TryOf({signature}) => {string.Join(" && ", checkedKeys.Select(key => Check(type, key, "false")))} ? {creation} : null;");
+        code.Blank();
     }
 
     private static string Check(TypeModel type, KeyModel key, string throwOnInvalid) =>

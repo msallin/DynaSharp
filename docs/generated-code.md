@@ -46,6 +46,15 @@ if (!Order.Keys.TryOf(after, 1, out var first))
 }
 ```
 
+`TryOf(...)` without the `out` parameter is the same check, and returns the key, or `null` for a value that `Of` throws for, so a read of a value from outside is one expression with `is { } key`:
+
+```csharp
+Order? placed = Order.Keys.TryOf(after, 1) is { } key ? await orders.Get(key).ItemAsync(ct) : null;
+Order? latest = Order.Keys.Pk.TryOf(after) is { } partition ? await orders.Query(partition).Descending().ItemAsync(ct) : null;
+```
+
+The key is a nullable struct, so the `null` costs nothing. Both forms are generated together, on `Keys` and on every partition key builder that has a `TryOf`; a sort key builder makes conditions and has neither.
+
 ### Builders
 
 Each key has a static class under `Keys`:
@@ -66,6 +75,7 @@ The index part is the index name in Pascal case: `orders-by_date` gives `OrdersB
 | `Format(values)` | Always | The key as stored: `Pk.Format("alice")` is `CUSTOMER#alice` |
 | `Of(values)` | Always | A `PartitionKey<Order>` for `Query`, bound to the attribute it was built for: a table key in a query of `ByStatus` throws `ArgumentException` naming the builder to use |
 | `TryOf(values, out key)` | Where the template can refuse a value | `false` instead of `KeyFormatException`, at the cost of `Of` |
+| `TryOf(values)` | Where `TryOf(values, out key)` is | The key, or `null` where that one gives `false`, for `is { } key` |
 | `Parse(text)`, `Parse(utf8)`, `TryParse(text, out parts)`, `TryParse(utf8, out parts)` | Always | `PkParts`, a record struct with a property per placeholder. `Parse` succeeds exactly when `Format` of the result gives the text back |
 
 ### A sort key of a template

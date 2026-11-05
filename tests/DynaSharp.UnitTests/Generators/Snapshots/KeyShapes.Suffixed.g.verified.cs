@@ -160,6 +160,9 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string name) => Sk.Check(false, name) ? new PrimaryKey(name) : null;
+
         /// <summary>The primary key of <c>Suffixed</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Suffixed>

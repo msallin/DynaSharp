@@ -234,6 +234,41 @@ public sealed partial class KeysEmitterTests
     }
 
     [Test]
+    public async Task Emit_PartitionKeyThatCanRejectAValue_HasTryOfThatReturnsTheKeyOrNull()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Id}"), GlobalIndexKey("Gsi1", PartitionKey = "G#{Owner}")]
+            public partial class E { public required string Id { get; set; } public required string Owner { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body)
+            .Contains("public static PrimaryKey? TryOf(string id) => Pk.Check(false, id) ? new PrimaryKey(id) : null;")
+            .And.Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string id) => TryOf(id, out var key) ? key : null;")
+            .And.Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string owner) => TryOf(owner, out var key) ? key : null;");
+    }
+
+    [Test]
+    public async Task Emit_PlaceholderCalledKey_TryOfThatReturnsTheKeyOrNullNamesItsLocalApart()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Key}")]
+            public partial class E { public required string Key { get; set; } }
+            """;
+
+        // Act
+        var body = Body(Analysis.Model(Source, "global::Shop.E"));
+
+        // Assert
+        await Assert.That(body).Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string key) => TryOf(key, out var key_) ? key_ : null;");
+    }
+
+    [Test]
     [Arguments("global::System.Guid")]
     [Arguments("global::System.DateOnly")]
     [Arguments("global::System.DateTimeOffset")]

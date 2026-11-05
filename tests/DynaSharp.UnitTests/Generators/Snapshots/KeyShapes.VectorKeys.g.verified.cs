@@ -529,6 +529,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
             return false;
         }
 
+        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        public static PrimaryKey? TryOf(string id) => Pk.Check(false, id) ? new PrimaryKey(id) : null;
+
         /// <summary>The primary key of <c>VectorKeys</c>, which holds the values of the key and costs no string until it is written.</summary>
         [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.VectorKeys>
@@ -604,6 +607,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string id) => TryOf(id, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -818,6 +824,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string id) => TryOf(id, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V03PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -944,6 +953,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string tenant, string id) => TryOf(tenant, id, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1077,6 +1089,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string country, string canton) => TryOf(country, canton, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1313,6 +1328,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(decimal total) => TryOf(total, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V07PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -1438,6 +1456,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(decimal total) => TryOf(total, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1566,6 +1587,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string x) => TryOf(x, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1697,6 +1721,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string x) => TryOf(x, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V10PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -1824,6 +1851,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(long number) => TryOf(number, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1953,6 +1983,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(long number) => TryOf(number, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V12PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -2081,6 +2114,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(long sequence, string name) => TryOf(sequence, name, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -2215,6 +2251,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(long sequence, string name) => TryOf(sequence, name, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V14PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -2348,6 +2387,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string a, string b, string c) => TryOf(a, b, c, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -2484,6 +2526,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                 }
             }
 
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string a, string b) => TryOf(a, b, out var key) ? key : null;
+
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
             public static V16PkParts Parse(string text) => TryParse(text, out var parts) ? parts : throw Invalid();
@@ -2614,6 +2659,9 @@ partial record VectorKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.Vecto
                     __key.Dispose();
                 }
             }
+
+            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.VectorKeys>? TryOf(string city, string name) => TryOf(city, name, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
