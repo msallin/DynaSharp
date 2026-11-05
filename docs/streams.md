@@ -239,7 +239,7 @@ await foreach (Change<Order> change in shop.Of<Order>().ReadChangesAsync(streams
 
 ### Several entities
 
-`ReadChangesAsync<T1, T2>` of `Table<Item>`, with up to four entities, gives a `MixedChange`: a change of one of them, which `Is(out Change<T>? change)` and `Match` tell apart, as `Mixed` does for a [mixed read](queries.md#several-types-in-one-query). `Match` takes one function per type, so adding a type breaks the build where it is not handled:
+`ReadChangesAsync<T1, T2>` of a table, with up to four entities, gives a `MixedChange`: a change of one of them, which `Is(out Change<T>? change)` and `Match` tell apart, as `Mixed` does for a [mixed read](queries.md#several-types-in-one-query). `Match` takes one function per type, so adding a type breaks the build where it is not handled:
 
 ```csharp
 await foreach (var change in shop.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
@@ -250,21 +250,48 @@ await foreach (var change in shop.ReadChangesAsync<Customer, Order>(streams, Sha
 }
 ```
 
+Every table has it, whatever type it was opened for, because the reading needs only the client, the name and the keys of the table. An application that opens the table once per entity reads from any of them, and the type of the table need not be one of the types read:
+
+```csharp
+await foreach (var change in orders.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
+{
+    if (change.Is(out Change<Customer>? signedUp))
+    {
+        Console.WriteLine($"customer {signedUp.Kind}");
+    }
+}
+```
+
+Without type arguments, `orders.ReadChangesAsync(streams, ...)` is the reading of the entity of the table, above.
+
 The types are entities with a discriminator, in one attribute, and two types with the same discriminator throw `ArgumentException` at the call, as `Of<...>()` of a query does. An item that becomes another of the types at its key gives two changes, the removal first, and both come before the next record. Changes of entities that are not named are skipped. More than four entities, or a table without a model, read the records and take them apart with `As<T>()` or with `Item`.
+
+Code that handles the changes is tested without a stream: `MixedChange` has a constructor per type, which takes the `Change<T>` of that type, and `Change<T>` is a record that a test fills in. The type of the argument picks the constructor:
+
+```csharp
+static string Describe(MixedChange<Customer, Order> change) =>
+    change.Match(customer => $"customer {customer.After?.Email}", order => $"order {order.Kind} {order.After?.Total}");
+
+var placed = new MixedChange<Customer, Order>(new Change<Order> { Kind = OperationType.Insert, After = order, Record = new ChangeRecord() });
+Console.WriteLine(Describe(placed)); // order Insert, then the total of the order
+```
 
 ### Skip changes that fail to map
 
-An image that does not fit its type ends the reading with `DynamoDbMappingException`, as it ends a query. `onMappingFailure` skips such a change and hands the exception to the callback instead, as [`OnMappingFailure`](queries.md#skip-items-that-fail-to-map) of a query does, with `Key` the keys of the record:
+An image that does not fit its type ends the reading with `DynamoDbMappingException`, as it ends a query. `onMappingFailure` skips such a change and hands it to the callback instead, as [`OnMappingFailure`](queries.md#skip-items-that-fail-to-map) of a query does: the exception, with `Key` the keys of the record, and the record with its shard, a `ShardChangeRecord`, so a log names the change by its shard and sequence number:
 
 ```csharp
-var unreadable = new List<Item?>();
-await foreach (var change in shop.Of<Order>().ReadChangesAsync(streams, ShardIteratorType.Latest, onMappingFailure: failure => unreadable.Add(failure.Key), cancellationToken: ct))
+await foreach (var change in orders.ReadChangesAsync(
+    streams,
+    ShardIteratorType.Latest,
+    onMappingFailure: (failure, skipped) => Console.WriteLine($"skipped {skipped.Record.EventName} {skipped.SequenceNumber} of {skipped.ShardId}: {failure.AttributeName}"),
+    cancellationToken: ct))
 {
     Console.WriteLine(change.Kind);
 }
 ```
 
-The callback runs on the loop, before the next change is given, and what it throws ends the reading. A change of a type that changed is two changes, and only the one that fails is skipped. Each skipped change counts in `dynasharp.client.operation.skipped_items`, with the operation `GetRecords` and the table, see [Observability](observability.md#metrics).
+The record holds the images, which are the values of the item, and `Key` holds its keys. Log the shard, the sequence number, the event name and the attribute that failed, not the record or the exception's `Key`, and the keys only where the application lets keys into its logs. The callback runs on the loop, before the next change is given, and what it throws ends the reading. A change of a type that changed is two changes, and only the one that fails is skipped. Each skipped change counts in `dynasharp.client.operation.skipped_items`, with the operation `GetRecords` and the table, see [Observability](observability.md#metrics).
 
 ## Errors
 
@@ -297,4 +324,4 @@ Console.WriteLine(seen.Count); // 3
 
 The last answer is the `DescribeStream` that looks for children of the closed shard: it finds none, and the stream is switched off, so the reading ends. A stream that says `ENABLED` can still open shards, so the reader would look for children again and again: a script whose last shard closes says `DISABLED`. With one shard the answers come in this order. Several shards are read at the same time, so a test of those answers each shard by what it asks for, with the responder of `StubHandler`. [Testing](testing.md) has the rest of the stub.
 
-A test that writes and reads takes `FakeDynamoDb`, whose tables record their changes in streams that `fake.CreateStreamsClient()` reads as DynamoDB's: `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch a stream, and a disable ends a reading. On that client an idle reader asks again at the next write instead of after `EmptyPageDelay`, so such a test takes milliseconds, see [Testing](testing.md#a-fake-dynamodb).
+A test that writes and reads takes `FakeDynamoDb`, whose tables record their changes in streams that `fake.CreateStreamsClient()` reads as DynamoDB's: `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch a stream, and a disable ends a reading. On that client an idle reader asks again at the next write instead of after `EmptyPageDelay`, so such a test takes milliseconds, see [Testing](testing.md#a-fake-dynamodb). That also means a write cuts the wait short, so a test that measures `EmptyPageDelay` itself, how much clock time passes before a reader sees a write, reads through a client of `StubClient.CreateStreams` over a script, which waits the whole delay.

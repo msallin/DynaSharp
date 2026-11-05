@@ -817,17 +817,24 @@ that `T` cannot read throws `DynamoDbMappingException` with `Key` a copy of the 
 shows a change of type as a `Modify` of the new type; `OldImage` has no `After` and no insert; `KeysOnly` gives null.
 
 `TableStreamExtensions.ReadChangesAsync<T>(this Table<T>, DynamoDbStreamsClient, ShardIteratorType, TimeSpan? emptyPageDelay = null, Action? onJoined = null,
-Action<DynamoDbMappingException>? onMappingFailure = null, CancellationToken)` (`where T : IDynamoDbEntity<T>`) yields `Change<T>`, and `ReadChangesAsync<T1, T2>` to
-`<T1, T2, T3, T4>` on `Table<Item>` (`IDynamoDbDiscriminated<T>`, as `Of<...>()`) yield `MixedChange<...>`. They read as `ReadStreamAsync<T>` of the table, with its arguments and its
+Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure = null, CancellationToken)` (`where T : IDynamoDbEntity<T>`) yields `Change<T>`, and the instance methods
+`Table<T>.ReadChangesAsync<T1, T2>` to `<T1, T2, T3, T4>` with the same parameters (`IDynamoDbDiscriminated<T>`, as `Of<...>()`) yield `MixedChange<...>`. The mixed readings are on
+every table, `Table<Item>` and `client.Table<Order>("Shop")` alike, whose type need not be one of theirs, because they need only its client, name and keys. They are members and not
+extensions over `Table<TTable>`: explicit type arguments name every type parameter of a method, an extension block's included (C# 14), so `orders.ReadChangesAsync<Customer, Order>`
+could not bind to one. Without type arguments, `orders.ReadChangesAsync(streams, ...)` finds no applicable member, none can infer `T1`, and binds to the one-type extension. They read as `ReadStreamAsync<T>` of the table, with its arguments and its
 checks, and the `DescribeTable` at the start also requires `StreamViewType.NewAndOldImages`, else `InvalidOperationException` naming the table and the view: under `NewImage` a removal
 has nothing to be typed by and under `OldImage` an insert, and a typed reading would drop them in silence. A combination of types that cannot be told apart throws `ArgumentException` at
 the call. Every record is typed and the changes of other types are skipped; a record whose type changed gives the removal of the old type, then the insert of the new one, each if its
 type is read. `onMappingFailure` is `OnMappingFailure` of a query: null throws, otherwise the change is skipped after the callback had it, on the loop, and counted in
 `dynasharp.client.operation.skipped_items` with `db.operation.name` `GetRecords`, the table and the streams server; only the change that fails is skipped. No new span, metric or log.
+Unlike a query's, the callback also gets the `ShardChangeRecord` of the change, so a log of the skip names it by `ShardId` and `SequenceNumber`, which the reading holds anyway; the
+docs say the record carries the images and is not logged whole.
 The name is not `ReadStreamAsync`: `orders.ReadStreamAsync(...)` of a `Table<Order>` already gives records, and a typed overload of the same name and arity cannot exist beside it.
 
 `MixedChange<T1, T2>` to `<T1, T2, T3, T4>` is a readonly struct with `Is(out Change<Tn>? change)` per type and `Match` with functions and with actions, the shape of `Mixed<...>`, which
 cannot hold a change, because its types must be entities that a mixed read can read. Its default value holds nothing, `Is` answers false and `Match` throws `InvalidOperationException`.
+A public constructor per type, `new MixedChange<T1, T2>(Change<T1>)` and `(Change<T2>)`, `ArgumentNullException` for null, lets a test build the input of code that handles a reading;
+the type of the argument picks it, and two equal types make the call ambiguous, which a reading rejects too (`ArgumentException`). `Mixed<...>` of a query has none.
 
 Credentials: `DefaultCredentialsProvider` is the chain of environment, web identity token file, shared files, container endpoint and instance metadata, in the order of botocore. A
 source that applies but is broken fails instead of falling through. `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`,

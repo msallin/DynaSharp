@@ -180,6 +180,73 @@ public sealed class MixedChangeTests
         await Assert.That(failures.All(static failure => failure is ArgumentNullException)).IsTrue();
     }
 
+    [Test]
+    public async Task Constructor_ChangeOfEachType_HoldsItAsThatType()
+    {
+        // Arrange
+        var alpha = new Change<Alpha> { Kind = OperationType.Insert, After = AlphaValue(), Record = new ChangeRecord() };
+        var beta = new Change<Beta> { Kind = OperationType.Remove, Before = BetaValue(), Record = new ChangeRecord() };
+        var gamma = new Change<Gamma> { Kind = OperationType.Modify, Record = new ChangeRecord() };
+        var delta = new Change<Delta> { Kind = OperationType.Insert, Record = new ChangeRecord() };
+
+        // Act
+        var held = new[]
+        {
+            new MixedChange<Alpha, Beta>(alpha).Match(static c => c, static _ => (object?)null),
+            new MixedChange<Alpha, Beta>(beta).Match(static _ => null, static c => (object?)c),
+            new MixedChange<Alpha, Beta, Gamma>(alpha).Match(static c => c, static _ => null, static _ => (object?)null),
+            new MixedChange<Alpha, Beta, Gamma>(beta).Match(static _ => null, static c => c, static _ => (object?)null),
+            new MixedChange<Alpha, Beta, Gamma>(gamma).Match(static _ => null, static _ => null, static c => (object?)c),
+            new MixedChange<Alpha, Beta, Gamma, Delta>(alpha).Match(static c => c, static _ => null, static _ => null, static _ => (object?)null),
+            new MixedChange<Alpha, Beta, Gamma, Delta>(beta).Match(static _ => null, static c => c, static _ => null, static _ => (object?)null),
+            new MixedChange<Alpha, Beta, Gamma, Delta>(gamma).Match(static _ => null, static _ => null, static c => c, static _ => (object?)null),
+            new MixedChange<Alpha, Beta, Gamma, Delta>(delta).Match(static _ => null, static _ => null, static _ => null, static c => (object?)c),
+        };
+
+        // Assert
+        await Assert.That(held.SequenceEqual([alpha, beta, alpha, beta, gamma, alpha, beta, gamma, delta], ReferenceEqualityComparer.Instance)).IsTrue();
+    }
+
+    [Test]
+    public async Task Constructor_NullChange_ThrowsArgumentNullException()
+    {
+        // Arrange
+        Change<Alpha> alpha = null!;
+        Change<Beta> beta = null!;
+        Change<Gamma> gamma = null!;
+        Change<Delta> delta = null!;
+
+        // Act
+        var failures = new[]
+        {
+            Failure(() => _ = new MixedChange<Alpha, Beta>(alpha)),
+            Failure(() => _ = new MixedChange<Alpha, Beta>(beta)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma>(alpha)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma>(beta)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma>(gamma)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma, Delta>(alpha)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma, Delta>(beta)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma, Delta>(gamma)),
+            Failure(() => _ = new MixedChange<Alpha, Beta, Gamma, Delta>(delta)),
+        };
+
+        // Assert
+        await Assert.That(failures.All(static failure => failure is ArgumentNullException { ParamName: "change" })).IsTrue();
+    }
+
+    [Test]
+    public async Task Constructor_ChangeForCodeThatHandlesAReading_IsHandledAsAReadingGivesIt()
+    {
+        // Arrange: what a test of a handler of a reading does, with no stream
+        var change = new MixedChange<Alpha, Beta>(new Change<Beta> { Kind = OperationType.Insert, After = BetaValue(12), Record = new ChangeRecord() });
+
+        // Act
+        var handled = Handle(change);
+
+        // Assert
+        await Assert.That(handled).IsEqualTo("beta Insert 12");
+    }
+
     private static Exception? Failure(Action action)
     {
         try
@@ -197,6 +264,10 @@ public sealed class MixedChangeTests
         }
     }
 
+    // A handler of the changes of a reading, as an application writes one.
+    private static string Handle(MixedChange<Alpha, Beta> change) =>
+        change.Match(static alpha => $"alpha {alpha.Kind} {alpha.After?.Name}", static beta => $"beta {beta.Kind} {beta.After?.Amount}");
+
     // The change of an insert of each image, as a typed reading makes it.
     private static List<TMix> Of<TMix>(params Item[] images)
         where TMix : IChangeTypes<TMix>
@@ -204,7 +275,7 @@ public sealed class MixedChangeTests
         var changes = new List<TMix>();
         foreach (var image in images)
         {
-            ChangeTyping.Split<TMix, TMix>(Record(OperationType.Insert, null, image), null, out var change, out _);
+            ChangeTyping.Split<TMix, TMix>(new ShardChangeRecord("shard-1", Record(OperationType.Insert, null, image)), null, out var change, out _);
             changes.Add(change);
         }
 

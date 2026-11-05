@@ -70,6 +70,9 @@ public sealed record ChangeRecord
     /// entity that does not fit it is a bug of the model or of a writer, as on a read of the table.
     /// </exception>
     public Change<T>? As<T>()
-        where T : IDynamoDbEntity<T> =>
-        ChangeTyping.Split<SingleChange<T>, Change<T>>(this, null, out var change, out _) == 0 ? null : change;
+        where T : IDynamoDbEntity<T>
+    {
+        // Only the callback of a reading reads the shard, and there is none here.
+        return ChangeTyping.Split<SingleChange<T>, Change<T>>(new ShardChangeRecord(string.Empty, this), null, out var change, out _) == 0 ? null : change;
+    }
 }

@@ -430,7 +430,7 @@ public sealed class TableStreamExtensionsTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var changes = await client.Table("Shop", "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: failures.Add).Take(1).ToListAsync();
+        var changes = await client.Table("Shop", "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: (failure, _) => failures.Add(failure)).Take(1).ToListAsync();
 
         // Assert
         await Assert.That((changes.Single().After!.Amount, failures.Count)).IsEqualTo((8, 3));
@@ -448,10 +448,79 @@ public sealed class TableStreamExtensionsTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var changes = await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon, onMappingFailure: failures.Add).Take(1).ToListAsync();
+        var changes = await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon, onMappingFailure: (failure, _) => failures.Add(failure)).Take(1).ToListAsync();
 
         // Assert
         await Assert.That((changes.Single().Is(out Change<Alpha>? alpha), alpha!.Kind, failures.Count)).IsEqualTo((true, OperationType.Insert, 2));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_OnMappingFailure_GetsTheShardAndTheSequenceNumberOfTheRecord()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json($$$"""{"Table":{"TableName":"Shop","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamArn":"{{{TestClient.StreamArn}}}"}}"""));
+        handler.Enqueue(StubResponse.StreamDescription("Shop", StreamStatus.Disabled, StubResponse.Shard("shard-7", endingSequenceNumber: "9")));
+        handler.Enqueue(StubResponse.ShardIterator("iterator-1"));
+        handler.Enqueue(StubResponse.Records(null, new ChangeRecord { EventName = OperationType.Insert, DynamoDb = new StreamRecord { Keys = RecordKeys, NewImage = BrokenBeta, SequenceNumber = "42" } }));
+        handler.Enqueue(StubResponse.StreamDescription("Shop", StreamStatus.Disabled));
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+        var skipped = new List<(string ShardId, string? SequenceNumber, OperationType EventName)>();
+
+        // Act
+        await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(
+            streams, ShardIteratorType.TrimHorizon, onMappingFailure: (_, change) => skipped.Add((change.ShardId, change.SequenceNumber, change.Record.EventName))).ToListAsync();
+
+        // Assert
+        await Assert.That(skipped.Single()).IsEqualTo(("shard-7", (string?)"42", OperationType.Insert));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TableOpenedForAnEntity_ReadsOneTypeWithoutTypeArgumentsAndSeveralWithThem()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(AlphaValue()));
+        fake.Put("Shop", Item.From(BetaValue() with { Sk = "2" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var alphas = client.Table("Shop", "pk", "sk").Of<Alpha>();
+
+        // Act: the one-type reading infers its type from the table, and a mixed reading names its types, the type of the table among them or not
+        var one = Typed<Change<Alpha>>(alphas.ReadChangesAsync(streams, ShardIteratorType.TrimHorizon));
+        var two = Typed<MixedChange<Alpha, Beta>>(alphas.ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon));
+        var other = Typed<MixedChange<Beta, Gamma>>(alphas.ReadChangesAsync<Beta, Gamma>(streams, ShardIteratorType.TrimHorizon));
+        var read = (
+            (await one.Take(1).ToListAsync()).Single().After!.Name,
+            string.Join(",", (await two.Take(2).ToListAsync()).Select(static change => change.Match(static _ => "A", static _ => "B"))),
+            (await other.Take(1).ToListAsync()).Single().Is(out Change<Beta>? beta) && beta.After!.Amount == 7);
+
+        // Assert
+        await Assert.That(read).IsEqualTo(("first", "A,B", true));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TableOpenedForAnEntity_ReadsThreeAndFourTypes()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(AlphaValue()));
+        fake.Put("Shop", Item.From(BetaValue() with { Sk = "2" }));
+        fake.Put("Shop", Item.From(new Gamma { Pk = "a", Sk = "3" }));
+        fake.Put("Shop", Item.From(new Delta { Pk = "a", Sk = "4" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var gammas = client.Table("Shop", "pk", "sk").Of<Gamma>();
+
+        // Act
+        var three = await gammas.ReadChangesAsync<Alpha, Beta, Gamma>(streams, ShardIteratorType.TrimHorizon).Take(3).ToListAsync();
+        var four = await gammas.ReadChangesAsync<Alpha, Beta, Gamma, Delta>(streams, ShardIteratorType.TrimHorizon).Take(4).ToListAsync();
+
+        // Assert
+        await Assert.That((
+            string.Join(",", three.Select(static change => change.Match(static _ => "A", static _ => "B", static _ => "G"))),
+            string.Join(",", four.Select(static change => change.Match(static _ => "A", static _ => "B", static _ => "G", static _ => "D"))))).IsEqualTo(("A,B,G", "A,B,G,D"));
     }
 
     [Test]
@@ -467,7 +536,7 @@ public sealed class TableStreamExtensionsTests
         using var streams = fake.CreateStreamsClient();
 
         // Act
-        await client.Table(table, "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: static _ => { }).Take(1).ToListAsync();
+        await client.Table(table, "pk", "sk").Of<Beta>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon, onMappingFailure: static (_, _) => { }).Take(1).ToListAsync();
 
         // Assert
         await Assert.That((counters.All.Count, counters.All[0].Unit, counters.All[0].TagText)).IsEqualTo((
@@ -505,13 +574,13 @@ public sealed class TableStreamExtensionsTests
         {
             Capture(() => TableStreamExtensions.ReadChangesAsync<Alpha>(null!, streams, ShardIteratorType.TrimHorizon)),
             Capture(() => shop.Of<Alpha>().ReadChangesAsync(null!, ShardIteratorType.TrimHorizon)),
-            Capture(() => TableStreamExtensions.ReadChangesAsync<Alpha, Beta>(null!, streams, ShardIteratorType.TrimHorizon)),
+            Capture(() => shop.ReadChangesAsync<Alpha, Beta>(null!, ShardIteratorType.TrimHorizon)),
             Capture(() => shop.ReadChangesAsync<Alpha, Beta, Gamma>(null!, ShardIteratorType.TrimHorizon)),
             Capture(() => shop.ReadChangesAsync<Alpha, Beta, Gamma, Delta>(null!, ShardIteratorType.TrimHorizon)),
         };
 
         // Assert
-        await Assert.That(string.Join(",", names)).IsEqualTo("table,streams,table,streams,streams");
+        await Assert.That(string.Join(",", names)).IsEqualTo("table,streams,streams,streams,streams");
     }
 
     [Test]
@@ -528,6 +597,9 @@ public sealed class TableStreamExtensionsTests
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
     }
+
+    // Pins at compile time which reading a call binds to.
+    private static IAsyncEnumerable<TChange> Typed<TChange>(IAsyncEnumerable<TChange> changes) => changes;
 
     private static string? Capture(Action act)
     {

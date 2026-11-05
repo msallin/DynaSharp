@@ -43,7 +43,7 @@ Serialization, Mapping, Keys, Shared                  the codec: one reader, one
 | `Http` | `ClientCore`, `DynamoDbPipeline`, `IWireCall<T>` and two calls, `CallBuffers`, `BoundedPool<T>`, `ConflictRetry` | Everything below it, and `Fluent` for `CommandPool` |
 | `Operations` | One `IOperation<,>` struct per service call, `OperationJson`, `WireNames`, `TableJson`, `ReadTags` | `Http`, `Requests`, `Serialization`, `Telemetry`; also the streams operations |
 | `Requests` | Records of the request API and `DynamoDbRequests` | `Operations`, `Http` |
-| `Streams` | `DynamoDbStreamsClient`, its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (the retries and the signal of a shard), `TableStreamExtensions` (the stream of a `Table<T>`, raw and typed), `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>` and `SingleChange<T>` (the typing of a record) | `Requests`, `Operations`, `Http`, `Telemetry`, `Retries`, and `Table<T>`, `Mixed<...>` and `MixedSchema` of `Fluent` |
+| `Streams` | `DynamoDbStreamsClient`, its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (the retries and the signal of a shard), `TableStreamExtensions` (the stream of a `Table<T>`, raw and typed), `Table.Streams.cs` (the mixed readings, members of the partial `Table<T>`), `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>` and `SingleChange<T>` (the typing of a record) | `Requests`, `Operations`, `Http`, `Telemetry`, `Retries`, and `Table<T>`, `Mixed<...>` and `MixedSchema` of `Fluent` |
 | `Fluent` | `Table<T>`, `Index<T>`, `TableExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema`, and the four folders below | `Expressions`, `Http`, `Mapping`, `Operations`, `Requests`, `Retries`, `Serialization`, `Telemetry` |
 | `Fluent/Commands` | What a chain is built of: every command and step, their interfaces, the verbs of a transaction, and what sends one item: `CommandCall`, `ICommandOperation<T>`, the operations of a write, `WriteResult<T>`, `FailedCondition`, `RejectedRequest` | As `Fluent` |
 | `Fluent/Reads` | What a read does after its clauses: operations of reads, `PagedRead`, `PageCall`, `PageResponse`, `Page<T>`, `ContinuationToken`, parallel scan, fan-out and mixed machinery, `FailedItem` | As `Fluent` |
@@ -133,11 +133,13 @@ Both waits on an idle stream, `EmptyPageDelay` after an empty page and the delay
 Typed changes sit on top and add nothing to the reading. `ChangeTyping.Split<TTypes, TOut>` takes one record: the index of the type of each image from `TTypes.FindType`, then
 one change for the same type on both sides, or the removal of the old type and the insert of the new one, each through `TTypes.Create`, which reads an image with `To<T>()` and
 copies the keys of the record into `Key` of a `DynamoDbMappingException`. `IChangeTypes<TOut>` is an internal interface of static abstract members, so the loop of
-`TableStreamExtensions.ReadChangesAsync` is one generic iterator for every arity, with no delegate per record: `SingleChange<T>` asks `MixedSchema.Of<T>` (whose constraint is
+`TableStreamExtensions.ReadTypedAsync` is one generic iterator for every arity, with no delegate per record: `SingleChange<T>` asks `MixedSchema.Of<T>` (whose constraint is
 `IDynamoDbEntity<T>`, and whose problem, a type without a discriminator, means every image), and each `MixedChange<...>` implements the interface explicitly and asks the schema of
-the `Mixed<...>` of its types, so the rule of a mixed read and of `Item.Is<T>()` is the one rule. `ChangeRecord.As<T>()` is `Split` of `SingleChange<T>` without a callback. The
-reading is `ReadAsync` of the raw one with `typed: true`, which also checks the view; `onMappingFailure` is one delegate per enumeration that calls the callback and
-`DynamoDbStreamsClient.CountSkippedItem`. `MixedChange` holds the change as an `object` and an index, because a change is a class and a field per type would only add size.
+the `Mixed<...>` of its types, so the rule of a mixed read and of `Item.Is<T>()` is the one rule. `Split` takes the `ShardChangeRecord`, a struct, so a failure hands the
+callback the shard and the record without an allocation; `ChangeRecord.As<T>()` is `Split` of `SingleChange<T>` without a callback, over a `ShardChangeRecord` with an empty shard id
+that nothing reads. The reading is `ReadAsync` of the raw one with `typed: true`, which also checks the view; `onMappingFailure` is one delegate per enumeration that calls the callback and
+`DynamoDbStreamsClient.CountSkippedItem`. The one-type reading is the extension `ReadChangesAsync<T>`; the mixed readings are members of `Table<T>`, in the partial
+`Streams/Table.Streams.cs`, because an extension over `Table<TTable>` cannot be called with the types of the reading alone, and they go through `TableStreamExtensions.StartChanges`. `MixedChange` holds the change as an `object` and an index, because a change is a class and a field per type would only add size.
 
 The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and `RequestCall` forwards to it.
 
