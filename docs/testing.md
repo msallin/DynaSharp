@@ -4,7 +4,7 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 
 ## What the fake does
 
-`FakeDynamoDb` is for functional tests: state a test sets up and reads back through the client. For DynamoDB's fine print (validation order, messages, limits), test against an emulator or DynamoDB. The fake is measured against tiers 1 and 2 of the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance).
+`FakeDynamoDb` is for functional tests: state a test sets up and reads back through the client. For DynamoDB's fine print (validation order, messages, limits), test against an emulator or DynamoDB; a client for an emulator is `new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")))`, see [Run a local emulator](getting-started.md#run-a-local-emulator). The fake is measured against tiers 1 and 2 of the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance).
 
 ### Operations
 

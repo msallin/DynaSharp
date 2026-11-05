@@ -605,6 +605,8 @@ Branch `feat/030-writes`. Owner-approved items of the backlog from the app migra
 - [x] **`CreateTableCommand.Timeout(TimeSpan)`**: one bound for all of `SendAsync` (the look of `IfNotExists`, `CreateTable` with its retries, the wait, time to live), which throws `TimeoutException` naming the table, the timeout and the step. socce-cockpit wrote a linked token, a shorter `WaitUntilActive` and an exception filter for it.
 - Decision: `TimeoutException`, as `AttemptTimeout` throws for one call, not `TableNotActiveException`, which is about a table or an index that is not active and has the index in its message; a timeout during the create or time to live is neither. The message names the step, because "looking for the table" and "waiting for the table to become active" call for different fixes (a role, a backfill). The inner exception is the `OperationCanceledException` of the call in flight. A wait whose own bound runs out first keeps its `TableNotActiveException`, and the caller's token wins with an `OperationCanceledException` of that token, rewrapped because the calls saw the linked one. A cancellation of neither token passes through.
 - Decision: the time runs on the client's `TimeProvider` (a `CancellationTokenSource` with it), so a test drives it with a manual clock. It implies no wait, unlike `TimeToLive`. `Timeout.InfiniteTimeSpan` is no bound, zero and other negatives are `ArgumentOutOfRangeException` at the clause, as is more than a `CancellationTokenSource` takes. The step is kept only when there is a timeout. No telemetry of its own: the call in flight ends its span cancelled, and a log line would be per request.
+- [x] **`DynamoDbClientOptions.ForEmulator(Uri serviceUrl)`**: `ServiceUrl`, `us-east-1` and `StaticCredentialsProvider("local", "local")`, the setup that services, the sample and `getting-started.md` copied.
+- Decision: a static factory on the options, one obvious call that composes with `with` (`ForEmulator(url) with { MaxAttempts = 1 }`), rather than a `with`-style extension on options or a constructor of the client. Fixed values, not parameters: an emulator checks neither, and DynamoDB Local without `-sharedDb` keeps a database per access key and region, so values that differ between two programs, or the AWS CLI, hide the tables from each other. Only `Uri`, as `ServiceUrl` takes; the client checks it when it is created, as for any `ServiceUrl`, and the warning for http on a host that is not loopback stays. No new telemetry: it only fills options.
 
 ### R9 - stream tests on the fake: switching a stream, fast waits, a stable gate (0.3.0)
 
@@ -1011,7 +1013,7 @@ Table setup
 - [ ] A registry of the entities of an assembly that `Including` can take, so a forgotten entity cannot drop its indexes (lps-label-print-server guards it with a reflection test).
 - [ ] `Table<Item>.CreateTable().Including<...>()` in `tables.md`, which shows only a typed start.
 - [x] A timeout for the whole `CreateTable` chain that names the table, instead of a linked token and a shorter wait. Done in 0.3.0: `CreateTableCommand.Timeout`, see R10.
-- [ ] An emulator helper for the options (`ServiceUrl` plus static credentials), which services copy.
+- [x] An emulator helper for the options (`ServiceUrl` plus static credentials), which services copy. Done in 0.3.0: `DynamoDbClientOptions.ForEmulator`, see R10.
 
 Keys and queries
 - [ ] A sparse index that also skips an empty string (`""` throws at `Put` today), or a hint on a `string?` input of a sparse key.

@@ -20,16 +20,13 @@ docker compose -f samples/compose.yaml up -d                           # Dynoxid
 docker compose -f samples/compose.yaml --profile dynamodb-local up -d  # DynamoDB Local on http://localhost:8001
 ```
 
-A client for an emulator names it in `ServiceUrl`. It still needs a region and credentials, because every request is signed, but an emulator checks neither, so any value does:
+A client for an emulator names it in `ServiceUrl`. It still needs a region and credentials, because every request is signed, but an emulator checks neither, so any value does. `DynamoDbClientOptions.ForEmulator` sets all three, with the region `us-east-1` and the keys `local` and `local`:
 
 ```csharp
-using var client = new DynamoDbClient(new DynamoDbClientOptions
-{
-    ServiceUrl = new Uri("http://localhost:8000"),
-    Region = AwsRegion.FromName("us-east-1"),
-    Credentials = new StaticCredentialsProvider("local", "local"),
-});
+using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
 ```
+
+The rest is a `with`, as in `DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }`. The values are the same on every call, which matters to DynamoDB Local without `-sharedDb`: it keeps one database per access key and region, so a second program, or the AWS CLI, sees the tables only with the same ones.
 
 The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000`, `AWS_REGION` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set, `new DynamoDbClient()` goes to the emulator, and the same build goes to AWS where they are not set. An option that is set wins over its variable.
 
@@ -44,19 +41,13 @@ This is the whole `Program.cs` of a console app (`dotnet new console`, then `dot
 
 ```csharp
 using DynaSharp;
-using DynaSharp.Credentials;
 using DynaSharp.Mapping;
 
 public static class Program
 {
     public static async Task Main()
     {
-        using var client = new DynamoDbClient(new DynamoDbClientOptions
-        {
-            ServiceUrl = new Uri("http://localhost:8000"),
-            Region = AwsRegion.FromName("us-east-1"),
-            Credentials = new StaticCredentialsProvider("local", "local"),
-        });
+        using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
 
         var todos = client.Table<TodoItem>("Todos");
         await todos.CreateTable().IfNotExists().WaitUntilActive().SendAsync();
