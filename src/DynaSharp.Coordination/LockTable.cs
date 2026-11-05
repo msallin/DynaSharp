@@ -46,6 +46,9 @@ public sealed class LockTable
 
     private readonly ConcurrentDictionary<string, Sighting> _sightings = new(StringComparer.Ordinal);
 
+    // The waits of LockTableTesting.WaitForRefusalAsync, by lock name; empty outside tests, which costs a try one check.
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _refusals = new(StringComparer.Ordinal);
+
     /// <summary>Initializes a new instance of the <see cref="LockTable"/> class over a table without a model.</summary>
     /// <param name="table">The table, opened with <see cref="DynamoDbClient.Table(string, string, string?)"/>. Its key attributes must be strings.</param>
     /// <param name="options">What the items of the locks carry beyond the lock, or <see langword="null"/> for nothing.</param>
@@ -222,6 +225,12 @@ public sealed class LockTable
         ArgumentOutOfRangeException.ThrowIfGreaterThan(leaseDuration, MaxLeaseDuration);
     }
 
+    /// <summary>Gets a task that completes the next time a try of this table finds the lock held, for <c>LockTableTesting.WaitForRefusalAsync</c>.</summary>
+    /// <param name="name">The name of the lock.</param>
+    /// <returns>The task, shared by every caller that waits for the same refusal.</returns>
+    internal Task NextRefusal(string name) =>
+        _refusals.GetOrAdd(name, static _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+
     /// <summary>Adds what the options ask every write of a lock item to carry: the time to live, from now on the wall clock.</summary>
     /// <param name="update">The write of a lock item.</param>
     /// <returns>The write, which replaces it.</returns>
@@ -359,6 +368,11 @@ public sealed class LockTable
         {
             _sightings.TryRemove(name, out _);
             return TimeSpan.Zero;
+        }
+
+        if (!_refusals.IsEmpty && _refusals.TryRemove(name, out var refusal))
+        {
+            refusal.TrySetResult();
         }
 
         var recordVersion = holder.RecordVersion;

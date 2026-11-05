@@ -1,9 +1,10 @@
 namespace DynaSharp.Coordination.Testing;
 
 /// <summary>
-/// What other processes do to a lock, for tests: hold it, release it, delete its item. They write the item of the lock through the table of the
-/// <see cref="LockTable"/>, as those processes would, so a test sets up a situation without knowing the format of the item. They work on any table,
-/// a <c>FakeDynamoDb</c> or an emulator, and are not meant for a table in production: they write without a condition.
+/// What other processes do to a lock, for tests: hold it, release it, delete its item; and what a test looks at: the state of a lock, and a contender that
+/// was turned away. They read and write the item of the lock through the table of the <see cref="LockTable"/>, as those processes would, so a test sets up
+/// and checks a situation without knowing the format of the item. They work on any table, a <c>FakeDynamoDb</c> or an emulator, and are not meant for a
+/// table in production: they write without a condition.
 /// </summary>
 /// <remarks>
 /// A contender takes a lock over only after it has seen the same holder for a whole lease on its own clock, so a test that wants a takeover holds the lock
@@ -79,6 +80,53 @@ public static class LockTableTesting
         ArgumentNullException.ThrowIfNull(locks);
         ArgumentException.ThrowIfNullOrEmpty(name);
         await locks.Table.Delete(LockItem.PartitionKey(name), LockItem.SortKeyOf(locks.Table)).SendAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads the item of a lock with a strongly consistent <c>GetItem</c> and says what it holds: whether a lease holds the lock, the holder label, the
+    /// lease duration and the fencing token. A test asserts on this instead of on the attributes of the item.
+    /// </summary>
+    /// <param name="locks">The lock table.</param>
+    /// <param name="name">The name of the lock.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The state, or <see langword="null"/> if the lock has no item: never acquired, or deleted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="locks"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="InvalidOperationException">The item at the key of the lock has an <c>owner</c> but is not a lock item written by <see cref="LockTable"/>.</exception>
+    public static async Task<LockState?> GetStateAsync(this LockTable locks, string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(locks);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        var item = await locks.Table.Get(LockItem.PartitionKey(name), LockItem.SortKeyOf(locks.Table)).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+        if (item is null)
+        {
+            return null;
+        }
+
+        var holder = LockItem.HolderOf(item, name, locks.Table.Name);
+        return new LockState(holder is not null, LockItem.HolderLabelOf(item), holder?.LeaseDuration, LockItem.FencingTokenOf(item, name, locks.Table.Name));
+    }
+
+    /// <summary>
+    /// Waits until a try of this <see cref="LockTable"/> to acquire the lock finds it held by another lease and is turned away: a <c>TryAcquireAsync</c>
+    /// that returns <see langword="null"/>, or a poll of <c>AcquireAsync</c> or <c>RunAsLeaderAsync</c> that waits on. A test sees that a contender
+    /// tried and was refused without counting its requests, which change with how the contender polls.
+    /// </summary>
+    /// <remarks>
+    /// The task waits for the next refusal after this call, so take it before the contender starts: a refusal that came before is not counted, and the task
+    /// then completes at the contender's next poll, which on a fake clock needs the clock to move.
+    /// </remarks>
+    /// <param name="locks">The lock table of the contender.</param>
+    /// <param name="name">The name of the lock.</param>
+    /// <param name="cancellationToken">Ends the wait with an <see cref="OperationCanceledException"/>.</param>
+    /// <returns>A task that completes at the next refusal.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="locks"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    public static Task WaitForRefusalAsync(this LockTable locks, string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(locks);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        return locks.NextRefusal(name).WaitAsync(cancellationToken);
     }
 
     private static UpdateCommand<Item> Update(LockTable locks, string name) => locks.Table.Update(LockItem.PartitionKey(name), LockItem.SortKeyOf(locks.Table));

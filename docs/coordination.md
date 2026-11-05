@@ -292,6 +292,8 @@ What other processes do to a lock, a test does with the extensions of `DynaSharp
 | `SimulateHolderAsync(name, leaseDuration, holderLabel)` | Another process holds the lock, acquired just now and never renewed, as a holder that crashed. Returns its fencing token. A lease of this process is lost at its next renewal (`taken_over`), and a contender takes over once it has seen this holder for a whole lease |
 | `SimulateReleaseAsync(name)` | The holder released the lock, whoever it was: the next acquire finds it free and raises the token. A lease of this process is lost (`taken_over`) |
 | `SimulateDeleteAsync(name)` | The item is deleted, as time to live or an operator would: a lease is lost (`deleted`) and the next acquire starts the token at 1 |
+| `GetStateAsync(name)` | Reads the item and returns a `LockState`: `IsHeld`, `HolderLabel`, `LeaseDuration` and `FencingToken`, or `null` for a lock without an item. A record, so a test compares it with one it builds |
+| `WaitForRefusalAsync(name)` | Completes when a try of this `LockTable` next finds the lock held and is turned away: a `TryAcquireAsync` that returns `null`, or a poll of `AcquireAsync` or `RunAsLeaderAsync` that waits on. Take the task before the contender starts |
 
 ```csharp
 using DynaSharp.Coordination;
@@ -306,6 +308,30 @@ var locks = new LockTable(client.Table("Shop", "pk", "sk"));
 await using var lease = await locks.AcquireAsync("order-sweeper", TimeSpan.FromSeconds(30));
 await locks.SimulateHolderAsync("order-sweeper", TimeSpan.FromSeconds(30), "another-pod");
 var stillHeld = await lease.RenewAsync(); // false: the lease is lost, and lease.Ended is cancelled
+var state = await locks.GetStateAsync("order-sweeper"); // held by "another-pod", with fencing token 2
+```
+
+A test of a service that leads checks that a second instance contends and waits, instead of counting its requests, which change with how a contender polls. The second instance has a `LockTable` of its own, as a process does:
+
+```csharp
+using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
+using DynaSharp.Testing;
+
+var fake = new FakeDynamoDb();
+fake.CreateTable("Shop", "pk", "sk");
+using var first = fake.CreateClient();
+using var second = fake.CreateClient();
+var leader = new LockTable(first.Table("Shop", "pk", "sk"));
+var follower = new LockTable(second.Table("Shop", "pk", "sk"));
+
+await using var held = await leader.AcquireAsync("order-sweeper", TimeSpan.FromSeconds(30));
+var refused = follower.WaitForRefusalAsync("order-sweeper");
+using var stop = new CancellationTokenSource();
+var election = follower.RunAsLeaderAsync("order-sweeper", TimeSpan.FromSeconds(30), (lease, token) => Task.Delay(Timeout.Infinite, token), stop.Token);
+await refused; // the follower tried, found the lock held, and waits for the next poll
+await stop.CancelAsync();
+await election.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing); // OperationCanceledException: the caller cancelled
 ```
 
 They write without a condition, so they are for tests, not for a table in production.
