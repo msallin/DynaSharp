@@ -9,7 +9,7 @@ namespace DynaSharp.Streams;
 /// </summary>
 /// <remarks>
 /// It has the shape of <see cref="Mixed{T1, T2, T3}"/>, which cannot hold a change: its types must be entities, so that a mixed read can read them. The default value holds nothing,
-/// and <c>Match</c> throws on it; a typed reading never gives one.
+/// and <c>Match</c> throws on it; a typed reading never gives one. A test builds one with the constructor of its type.
 /// </remarks>
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
@@ -22,6 +22,51 @@ public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2
 {
     private readonly int _type;
     private readonly object? _change;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MixedChange{T1, T2, T3}"/> struct that holds a change of the first type, as a typed reading gives it, so that a test of code that
+    /// handles the changes of a reading builds its input: <c>new MixedChange&lt;Customer, Order, Invoice&gt;(new Change&lt;Customer&gt; { Kind = OperationType.Insert, After = customer, Record = new ChangeRecord() })</c>.
+    /// </summary>
+    /// <remarks>
+    /// There is one constructor per type, and the type of the argument picks it. Two equal types make the call ambiguous, which does not compile, and a reading of them could not tell
+    /// them apart either: it throws <see cref="ArgumentException"/>.
+    /// </remarks>
+    /// <param name="change">The change.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="change"/> is <see langword="null"/>.</exception>
+    public MixedChange(Change<T1> change)
+        : this(1, change ?? throw new ArgumentNullException(nameof(change)))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MixedChange{T1, T2, T3}"/> struct that holds a change of the second type, as a typed reading gives it, so that a test of code that
+    /// handles the changes of a reading builds its input: <c>new MixedChange&lt;Customer, Order, Invoice&gt;(new Change&lt;Order&gt; { Kind = OperationType.Insert, After = order, Record = new ChangeRecord() })</c>.
+    /// </summary>
+    /// <remarks>
+    /// There is one constructor per type, and the type of the argument picks it. Two equal types make the call ambiguous, which does not compile, and a reading of them could not tell
+    /// them apart either: it throws <see cref="ArgumentException"/>.
+    /// </remarks>
+    /// <param name="change">The change.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="change"/> is <see langword="null"/>.</exception>
+    public MixedChange(Change<T2> change)
+        : this(2, change ?? throw new ArgumentNullException(nameof(change)))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MixedChange{T1, T2, T3}"/> struct that holds a change of the third type, as a typed reading gives it, so that a test of code that
+    /// handles the changes of a reading builds its input: <c>new MixedChange&lt;Customer, Order, Invoice&gt;(new Change&lt;Invoice&gt; { Kind = OperationType.Insert, After = invoice, Record = new ChangeRecord() })</c>.
+    /// </summary>
+    /// <remarks>
+    /// There is one constructor per type, and the type of the argument picks it. Two equal types make the call ambiguous, which does not compile, and a reading of them could not tell
+    /// them apart either: it throws <see cref="ArgumentException"/>.
+    /// </remarks>
+    /// <param name="change">The change.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="change"/> is <see langword="null"/>.</exception>
+    public MixedChange(Change<T3> change)
+        : this(3, change ?? throw new ArgumentNullException(nameof(change)))
+    {
+    }
 
     private MixedChange(int type, object change)
     {

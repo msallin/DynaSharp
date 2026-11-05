@@ -27,7 +27,7 @@ namespace DynaSharp;
 /// </remarks>
 /// <typeparam name="T">How items are written and read.</typeparam>
 [DebuggerDisplay("{Name,nq}")]
-public sealed class Table<T>
+public sealed partial class Table<T>
     where T : IDynamoDbDocument<T>
 {
     private ConcurrentDictionary<Type, object>? _views;

@@ -560,6 +560,28 @@ await foreach (var change in typedStreamClient.Table("Users", "pk").ReadChangesA
 
 Check(string.Join(",", typedSeen) == "visitor Remove,basket Insert", "ReadChangesAsync types the changes of a table and skips the other entities");
 
+// The mixed reading of a table opened for one of its entities, which skips a change that cannot be read and names it by its shard and sequence number.
+typedStreamHandler.Enqueue(StubResponse.Json("""{"Table":{"TableName":"Users","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/2026-01-01T00:00:00.000"}}"""));
+typedStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled, StubResponse.Shard("shard-2", endingSequenceNumber: "9")));
+typedStreamHandler.Enqueue(StubResponse.ShardIterator("iterator"));
+typedStreamHandler.Enqueue(StubResponse.Records(
+    null,
+    StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "b-1" }, newImage: new Item { ["pk"] = "b-1", ["_type"] = "BASKET", ["Priority"] = "Teleported" }, sequenceNumber: "8"),
+    StubResponse.Change(OperationType.Insert, new Item { ["pk"] = "v-2" }, newImage: new Item { ["pk"] = "v-2", ["visits"] = 1, ["_type"] = "VISITOR" })));
+typedStreamHandler.Enqueue(StubResponse.StreamDescription("Users", StreamStatus.Disabled));
+var skippedChanges = new List<string>();
+var visitorTableSeen = new List<string>();
+await foreach (var change in typedStreamClient.Table("Users", "pk").Of<Visitor>().ReadChangesAsync<Visitor, Basket>(
+    typedStreamStreams, ShardIteratorType.TrimHorizon, onMappingFailure: (_, skipped) => skippedChanges.Add($"{skipped.ShardId} {skipped.SequenceNumber}")))
+{
+    visitorTableSeen.Add(change.Match(static visitor => $"visitor {visitor.After?.Visits}", static basket => "basket"));
+}
+
+Check(string.Join(",", visitorTableSeen) == "visitor 1" && string.Join(",", skippedChanges) == "shard-2 8", "a mixed reading of a typed table skips a change that cannot be read and names its shard");
+
+var handBuilt = new MixedChange<Visitor, Basket>(new Change<Basket> { Kind = OperationType.Insert, After = new Basket { Id = "b-2", Priority = Priority.High }, Record = new ChangeRecord() });
+Check(handBuilt.Match(static _ => "visitor", static basket => $"basket {basket.After?.Priority}") == "basket High", "a MixedChange built by hand is matched as a reading gives it");
+
 // A converter that counts a stored value as missing: the read asks through a type parameter, past the wrappers of null and of [OmitEmpty], and the question is answered by a converter that the JIT never gets to see.
 var lenients = users.Of<Lenient>();
 const string LenientItem = """{"Item":{"Id":{"S":"l-1"},"Plan":{"S":"TELEPORTED"},"MaybePlan":{"S":"TELEPORTED"},"Weight":{"S":""},"Text":{"S":"-"},"Shipped":{"S":""},"After":{"N":"7"}}}""";

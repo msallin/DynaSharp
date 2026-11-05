@@ -95,15 +95,16 @@ internal static class ChangeTyping
     /// </summary>
     /// <typeparam name="TTypes">The types.</typeparam>
     /// <typeparam name="TOut">What a change is.</typeparam>
-    /// <param name="record">The record.</param>
+    /// <param name="change">The record, with the shard it came from, which <paramref name="onMappingFailure"/> gets.</param>
     /// <param name="onMappingFailure">What takes a change that cannot be read, or <see langword="null"/> to throw.</param>
     /// <param name="first">The first change.</param>
     /// <param name="second">The second change, of a type that changed.</param>
     /// <returns>How many changes there are: 0, 1 or 2, the left out ones not counted.</returns>
     /// <exception cref="DynamoDbMappingException">A change cannot be read, and <paramref name="onMappingFailure"/> is <see langword="null"/>.</exception>
-    public static int Split<TTypes, TOut>(ChangeRecord record, Action<DynamoDbMappingException>? onMappingFailure, out TOut first, out TOut second)
+    public static int Split<TTypes, TOut>(ShardChangeRecord change, Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure, out TOut first, out TOut second)
         where TTypes : IChangeTypes<TOut>
     {
+        var record = change.Record;
         first = default!;
         second = default!;
         if (record.DynamoDb is not { } data)
@@ -116,7 +117,7 @@ internal static class ChangeTyping
         var count = 0;
         if (old == @new)
         {
-            if (old >= 0 && TryCreate<TTypes, TOut>(old, record, true, true, onMappingFailure, out first))
+            if (old >= 0 && TryCreate<TTypes, TOut>(old, change, true, true, onMappingFailure, out first))
             {
                 count++;
             }
@@ -124,12 +125,12 @@ internal static class ChangeTyping
             return count;
         }
 
-        if (old >= 0 && TryCreate<TTypes, TOut>(old, record, true, false, onMappingFailure, out first))
+        if (old >= 0 && TryCreate<TTypes, TOut>(old, change, true, false, onMappingFailure, out first))
         {
             count++;
         }
 
-        if (@new >= 0 && TryCreate<TTypes, TOut>(@new, record, false, true, onMappingFailure, out var inserted))
+        if (@new >= 0 && TryCreate<TTypes, TOut>(@new, change, false, true, onMappingFailure, out var inserted))
         {
             if (count == 0)
             {
@@ -146,17 +147,18 @@ internal static class ChangeTyping
         return count;
     }
 
-    private static bool TryCreate<TTypes, TOut>(int index, ChangeRecord record, bool before, bool after, Action<DynamoDbMappingException>? onMappingFailure, out TOut change)
+    private static bool TryCreate<TTypes, TOut>(
+        int index, ShardChangeRecord source, bool before, bool after, Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure, out TOut change)
         where TTypes : IChangeTypes<TOut>
     {
         try
         {
-            change = TTypes.Create(index, record, before, after);
+            change = TTypes.Create(index, source.Record, before, after);
             return true;
         }
         catch (DynamoDbMappingException failure) when (onMappingFailure is not null)
         {
-            onMappingFailure(failure);
+            onMappingFailure(failure, source);
             change = default!;
             return false;
         }
