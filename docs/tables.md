@@ -32,6 +32,20 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
+Code that holds the table without a model, as `shop` (`client.Table("Shop", "pk", "sk")`), starts there and names every entity alike. The keys start as the names the table was opened with, and the entities give their types and indexes, or throw at `Including` when they disagree with those names:
+
+```csharp
+await shop.CreateTable()
+    .Including<Order>()
+    .Including<Customer>()
+    .Including<Product>()
+    .IfNotExists()
+    .WaitUntilActive()
+    .SendAsync(ct);
+```
+
+Without an `Including`, such a table has string keys and no index. Either start gives the same table for the same entities.
+
 `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream. An entity with a [`[TimeToLive]`](entities.md#time-to-live) property needs no `.TimeToLive(...)`: `CreateTable()` turns time to live on for it, and so does an `Including` of it, while `.TimeToLive(...)` replaces what the entities declare. Two entities that declare different attributes throw `ArgumentException` at `Including`, since a table has time to live on one.
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, and `TimeToLiveEnabled` whether this call turned time to live on.

@@ -607,6 +607,7 @@ Branch `feat/030-writes`. Owner-approved items of the backlog from the app migra
 - Decision: the time runs on the client's `TimeProvider` (a `CancellationTokenSource` with it), so a test drives it with a manual clock. It implies no wait, unlike `TimeToLive`. `Timeout.InfiniteTimeSpan` is no bound, zero and other negatives are `ArgumentOutOfRangeException` at the clause, as is more than a `CancellationTokenSource` takes. The step is kept only when there is a timeout. No telemetry of its own: the call in flight ends its span cancelled, and a log line would be per request.
 - [x] **`DynamoDbClientOptions.ForEmulator(Uri serviceUrl)`**: `ServiceUrl`, `us-east-1` and `StaticCredentialsProvider("local", "local")`, the setup that services, the sample and `getting-started.md` copied.
 - Decision: a static factory on the options, one obvious call that composes with `with` (`ForEmulator(url) with { MaxAttempts = 1 }`), rather than a `with`-style extension on options or a constructor of the client. Fixed values, not parameters: an emulator checks neither, and DynamoDB Local without `-sharedDb` keeps a database per access key and region, so values that differ between two programs, or the AWS CLI, hide the tables from each other. Only `Uri`, as `ServiceUrl` takes; the client checks it when it is created, as for any `ServiceUrl`, and the warning for http on a host that is not loopback stays. No new telemetry: it only fills options.
+- [x] **Docs.** `tables.md` shows `shop.CreateTable().Including<...>()` on a table without a model beside the typed start. `queries.md` says in one paragraph that `ItemsAsync(ct)` streams page by page, that `ToListAsync()` of `System.Linq` takes every page and belongs on bounded reads, and that the token goes to `ItemsAsync` once; the outbox relay of `patterns-writes.md` no longer passes it twice, and no other page did.
 
 ### R9 - stream tests on the fake: switching a stream, fast waits, a stable gate (0.3.0)
 
@@ -1011,7 +1012,7 @@ Writes
 Table setup
 - [ ] `IfNotExists()` on an existing table silently ignores an index or time to live a new entity adds: report the drift in `CreateTableResult`, or an ensure mode.
 - [ ] A registry of the entities of an assembly that `Including` can take, so a forgotten entity cannot drop its indexes (lps-label-print-server guards it with a reflection test).
-- [ ] `Table<Item>.CreateTable().Including<...>()` in `tables.md`, which shows only a typed start.
+- [x] `Table<Item>.CreateTable().Including<...>()` in `tables.md`, which shows only a typed start. Done in 0.3.0, see R10.
 - [x] A timeout for the whole `CreateTable` chain that names the table, instead of a linked token and a shorter wait. Done in 0.3.0: `CreateTableCommand.Timeout`, see R10.
 - [x] An emulator helper for the options (`ServiceUrl` plus static credentials), which services copy. Done in 0.3.0: `DynamoDbClientOptions.ForEmulator`, see R10.
 

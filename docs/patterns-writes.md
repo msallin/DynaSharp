@@ -389,7 +389,7 @@ A relay reads the outbox in time order, publishes each event and deletes it:
 
 ```csharp
 var outbox = shop.Of<OutboxEvent>();
-foreach (var pending in await outbox.Query(OutboxEvent.Keys.Pk.Of()).Consistent().ItemsAsync(ct).ToListAsync(ct))
+foreach (var pending in await outbox.Query(OutboxEvent.Keys.Pk.Of()).Consistent().ItemsAsync(ct).ToListAsync())
 {
     Console.WriteLine($"Paid: {pending.PaymentId}, event {pending.EventId}");
     await outbox.Delete(pending).SendAsync(ct);
