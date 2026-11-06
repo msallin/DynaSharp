@@ -1145,6 +1145,10 @@ Owner's decisions of 2026-11-06
 - [x] DYNA038 stays an error (owner, 2026-11-06): below 1.0 a break is fine where the design is right.
 - [x] Revisit what was shaped only to keep a shipped signature, now that a break is fine below 1.0: `ReadChangesAsync` named apart from `ReadStreamAsync<T>` (R8); `MixedChange<...>` beside `Mixed<...>` (R8); `WriteResult.StoredVersion` beside `long? Version` (R10); `ForEmulator(url)` and `ForEmulator(url, region)` instead of one method (R12); `DynamoDbEntityInfo.TimeToLiveAttributeName` as an init property (R10); the eight `RetryOnConflictAsync` overloads (R10); the generic `TransactWriteExtensions.ToRequestJson<TChain>` that binds to every type (R10/CS0311); `Table<T>` made partial for the mixed readings (R8). Decide per item whether the right design differs. Done in 0.4.0, see R15: `ForEmulator`, the info of time to live, `StoredVersion`, the retry overloads and the transaction's `ToRequestJson` changed; the names of the stream readings, `MixedChange` and the members of `Table<T>` kept, for reasons of their own.
 
+From the update of the apps to 0.4.0
+- [ ] `IncludingAll()` is generated per assembly, so it does not help one table whose entities span several assemblies (lps-label-print-server: six feature assemblies; it keeps its `Including<T>` list and reflection guard test). A table-level grouping, e.g. a table name on `[DynamoDbEntity]` collected across referenced assemblies, would close it.
+- [ ] Release note for consumers on JFrog: after a release, `yard-nuget-virtual`'s `registration-semver2` index listed the old version for over an hour; seeding the global NuGet cache with nuget.org's own nupkgs (not the GitHub release files, which nuget.org re-signs) lets a pinned restore proceed.
+
 ## Decisions
 
 | Date | Decision |
