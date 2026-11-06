@@ -8,7 +8,8 @@ DynaSharp needs .NET 11. The package brings its source generator and analyzers a
 
 ```shell
 dotnet add package DynaSharp
-dotnet add package DynaSharp.Testing   # in a test project
+dotnet add package DynaSharp.Testing        # in a test project
+dotnet add package DynaSharp.Coordination   # locks and leader election, optional
 ```
 
 ## Run a local emulator

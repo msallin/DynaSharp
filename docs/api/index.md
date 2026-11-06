@@ -1,6 +1,6 @@
 # API reference
 
-The reference lists the public types of `DynaSharp` and `DynaSharp.Testing`, with the XML docs of every member. Most code needs two namespaces: `DynaSharp` for the client, the tables and the commands, and `DynaSharp.Mapping` for the attributes on your types.
+The reference lists the public types of `DynaSharp`, `DynaSharp.Testing` and `DynaSharp.Coordination`, with the XML docs of every member. Most code needs two namespaces: `DynaSharp` for the client, the tables and the commands, and `DynaSharp.Mapping` for the attributes on your types.
 
 ## Where to start
 
@@ -18,8 +18,10 @@ The reference lists the public types of `DynaSharp` and `DynaSharp.Testing`, wit
 | <xref:DynaSharp.Serialization> | Converters: the built-in ones, such as `EpochSecondsConverter`, and `IDynamoDbConverter<T>` for a converter of your own |
 | <xref:DynaSharp.Requests> | The request API: a method per DynamoDB operation, its request and response records, and table administration beyond `CreateTable()` |
 | <xref:DynaSharp.Credentials> | The providers of credentials, for a source other than the default chain |
-| <xref:DynaSharp.Streams> | `DynamoDbStreamsClient` and its records |
-| <xref:DynaSharp.Testing> | The package `DynaSharp.Testing`: `StubHandler`, `StubClient` and `StubResponse` for tests without AWS |
+| <xref:DynaSharp.Streams> | `DynamoDbStreamsClient` and its records, the stream of a table, and its changes as entities: `Change<T>` and `MixedChange<...>` |
+| <xref:DynaSharp.Testing> | The package `DynaSharp.Testing`: `StubHandler`, `StubClient` and `StubResponse` for tests without AWS, and `FakeDynamoDb`, an in-memory DynamoDB |
+| <xref:DynaSharp.Coordination> | The package `DynaSharp.Coordination`: `LockTable`, `Lease` and `IsHeld`, for locks with fencing tokens and leader election |
+| <xref:DynaSharp.Coordination.Testing> | What a test of the locks does as another process would, and `LockState` |
 | <xref:DynaSharp.Expressions> | `ICondition`, for a condition type of your own. The structs that conditions are made of are return types, not written by hand |
 
 ## What is not here
