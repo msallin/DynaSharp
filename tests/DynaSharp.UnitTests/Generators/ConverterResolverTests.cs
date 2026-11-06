@@ -34,6 +34,7 @@ public sealed class ConverterResolverTests
     [Arguments("byte[]", "BinaryConverter")]
     [Arguments("ReadOnlyMemory<byte>", "ReadOnlyMemoryConverter")]
     [Arguments("AttributeValue", "AttributeValueConverter")]
+    [Arguments("System.Text.Json.JsonElement", "JsonElementConverter")]
     [Arguments("int", "NumberConverter<int>")]
     [Arguments("sbyte", "NumberConverter<sbyte>")]
     [Arguments("byte", "NumberConverter<byte>")]
@@ -62,6 +63,7 @@ public sealed class ConverterResolverTests
     [Test]
     [Arguments("int?", "NumberConverter<int>", "NullableConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>")]
     [Arguments("string?", "StringConverter", "NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>")]
+    [Arguments("System.Text.Json.JsonElement?", "JsonElementConverter", "NullableConverter<global::System.Text.Json.JsonElement, global::DynaSharp.Serialization.JsonElementConverter>")]
     [Arguments("Doc?", "DocumentConverter<global::Shop.Doc>", "NullableReferenceConverter<global::Shop.Doc, global::DynaSharp.Serialization.DocumentConverter<global::Shop.Doc>>")]
     public async Task Resolve_Nullable_WrapsTheReadConverterOnly(string type, string write, string read)
     {

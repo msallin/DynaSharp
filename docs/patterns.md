@@ -48,6 +48,7 @@ These run as tests too, with the same primitives, and each file explains its pat
 - [Counting semaphore](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/CountingSemaphoreTests.cs): at most n holders across processes, an item per permit with a lease. It has no fencing token, so a holder whose lease ran out can still act while the next one holds the permit: it bounds concurrency only among holders that stop at the end of their lease.
 - [Barrier](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/BarrierTests.cs): n parties add their names to a set, and exactly one sees it complete.
 - [HyperLogLog](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/HyperLogLogTests.cs): distinct counts in a fixed kilobyte, merged on the client under `[Version]`.
+- [Documents of an external contract](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/ExternalContractTests.cs): an event whose schema another team owns, kept as a native map in a `JsonElement` property, filtered, projected and updated by paths inside it, see [JSON of a contract](entities.md#json-of-a-contract).
 
 ## Locks and leader election
 

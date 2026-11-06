@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
@@ -241,6 +243,94 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
         return new(AttributeType.BinarySet, copy);
     }
 
+    /// <summary>
+    /// Creates the value that holds a JSON value as DynamoDB stores it natively: an object is a map, an array a list, a string a string, a number a number with its digits as written,
+    /// <c>true</c> and <c>false</c> a boolean, and null <see cref="Null"/>. Filters, projections and updates then reach into it by path, which a JSON string in one attribute does not allow.
+    /// </summary>
+    /// <param name="json">The JSON, for example from <c>JsonSerializer.SerializeToElement(value, context.Type)</c>.</param>
+    /// <returns>The value.</returns>
+    /// <remarks>
+    /// <para>
+    /// A null in an object is left out of the map, so a field that was null reads back missing. A null in an array is <see cref="Null"/>, which keeps the positions of the others. Empty
+    /// strings, arrays and objects stay, as DynamoDB allows them outside keys. JSON has no sets and no binary, so neither comes out of this, and <see cref="ToJson"/> gives a set as an array.
+    /// </para>
+    /// <para>
+    /// DynamoDB stores a number in a canonical form, so <c>1.50</c> reads back as <c>1.5</c>, and <c>1E+2</c> as <c>100</c>: the value stays, its text can change on a round trip.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// DynamoDB cannot store the JSON, and the message names the place, such as <c>$.lines[2].weight</c>, never a value: a number with more than 38 significant digits or a magnitude outside
+    /// 1E-130 to below 1E+126, a value nested deeper than 32 levels (a string is one level, an object of a string two), an empty name, a name twice in one object, text with a lone surrogate, or a
+    /// <see langword="default"/> <paramref name="json"/>, which holds no JSON. The levels count from this value: DynamoDB counts from the attribute, so a value stored inside a map has fewer.
+    /// </exception>
+    public static AttributeValue FromJson(JsonElement json)
+    {
+        if (json.ValueKind == JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("A default JsonElement holds no JSON.", nameof(json));
+        }
+
+        return FromJson(JsonMarshal.GetRawUtf8Value(json), JsonBridge.ElementOptions, nameof(json));
+    }
+
+    /// <summary>
+    /// Creates the value that holds JSON text as DynamoDB stores it natively, as <see cref="FromJson(JsonElement)"/> does, without a document in between, for example from
+    /// <c>JsonSerializer.SerializeToUtf8Bytes(value, context.Type)</c>.
+    /// </summary>
+    /// <param name="utf8Json">One JSON value as UTF-8, by RFC 8259: no comments, no trailing commas, nothing after the value but white space.</param>
+    /// <returns>The value.</returns>
+    /// <exception cref="JsonException"><paramref name="utf8Json"/> is not one JSON value.</exception>
+    /// <exception cref="ArgumentException">DynamoDB cannot store the JSON, see <see cref="FromJson(JsonElement)"/>, or a string or a name is not valid UTF-8.</exception>
+    public static AttributeValue FromJson(ReadOnlySpan<byte> utf8Json) => FromJson(utf8Json, default(JsonReaderOptions), nameof(utf8Json));
+
+    /// <summary>Gets the value as plain JSON, as <see cref="WriteJson"/> writes it.</summary>
+    /// <returns>A JSON element that owns its memory.</returns>
+    /// <exception cref="InvalidOperationException">The value is a <see langword="default"/> instance, which has no type.</exception>
+    /// <exception cref="FormatException">A number made with <see cref="FromNumber(string)"/> is not in the form of a JSON number.</exception>
+    /// <exception cref="ArgumentException">A string made by hand holds a lone surrogate, which is no text.</exception>
+    public JsonElement ToJson()
+    {
+        using var buffer = new PooledByteBuffer(256);
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            WriteJson(json);
+        }
+
+        return JsonElement.Parse(buffer.WrittenSpan, JsonBridge.DocumentOptions);
+    }
+
+    /// <summary>
+    /// Writes the value as plain JSON, the reverse of <see cref="FromJson(JsonElement)"/>: a map is an object, a list an array, a string a string, a number a number with its text as stored,
+    /// never through a <see cref="double"/>, a boolean a boolean, and <see cref="Null"/> null. To read it into a type, deserialize what this writes, or what <see cref="ToJson"/> gives,
+    /// with a source-generated <c>JsonSerializerContext</c>.
+    /// </summary>
+    /// <param name="writer">The destination, positioned where a value is expected. Its settings decide the escaping and the indentation.</param>
+    /// <remarks>
+    /// What JSON has no form for goes one way: a string set and a number set are written as an array, and a binary value and a binary set as the base64 text of the bytes, which
+    /// <see cref="FromJson(JsonElement)"/> reads back as strings. A <see cref="Null"/> in a map is written as null, where <see cref="FromJson(JsonElement)"/> leaves a null out.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The value is a <see langword="default"/> instance, which has no type.</exception>
+    /// <exception cref="FormatException">A number made with <see cref="FromNumber(string)"/> is not in the form of a JSON number.</exception>
+    /// <exception cref="ArgumentException">A string made by hand holds a lone surrogate, which is no text.</exception>
+    public void WriteJson(Utf8JsonWriter writer)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        if (Type == AttributeType.None)
+        {
+            throw new InvalidOperationException("A default AttributeValue has no type, so it has no JSON.");
+        }
+
+        using var buffer = new PooledByteBuffer(256);
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            AttributeValueConverter.Write(new DynamoDbWriter(json), this);
+        }
+
+        var reader = new DynamoDbReader(buffer.WrittenSpan);
+        JsonBridge.Read(ref reader, reader.ReadStartAttribute(), writer);
+    }
+
     /// <summary>Gets the string of a <see cref="AttributeType.String"/> value.</summary>
     /// <returns>The string.</returns>
     /// <exception cref="InvalidOperationException">The value has another type.</exception>
@@ -364,6 +454,19 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     internal static AttributeValue WrapNumberSet(string[] elements) => new(AttributeType.NumberSet, elements);
 
     internal static AttributeValue WrapBinarySet(ReadOnlyMemory<byte>[] elements) => new(AttributeType.BinarySet, elements);
+
+    // The JSON goes to DynamoDB JSON and is read back by the reader of responses, so a value from JSON has the form of a value from DynamoDB, maps and all.
+    private static AttributeValue FromJson(ReadOnlySpan<byte> utf8Json, JsonReaderOptions options, string paramName)
+    {
+        using var buffer = new PooledByteBuffer(Math.Max(256, utf8Json.Length));
+        using (var json = WireJson.CreateWriter(buffer))
+        {
+            JsonBridge.Write(new DynamoDbWriter(json), utf8Json, options, paramName);
+        }
+
+        var reader = new DynamoDbReader(buffer.WrittenSpan);
+        return AttributeValueConverter.Read(ref reader, reader.ReadStartAttribute());
+    }
 
     private static void ThrowIfNone(AttributeValue value, string paramName)
     {

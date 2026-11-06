@@ -96,11 +96,56 @@ The built-in converters store these types; anything else needs its own converter
 | `byte[]`, `ReadOnlyMemory<byte>` | `B` |
 | An enum | `S`, the member name; `N` for a `[Flags]` enum |
 | `AttributeValue` | What it holds, of any type |
+| `JsonElement` | The native value of its JSON: an object `M`, an array `L`, a string `S`, a number `N` with its digits, `BOOL`, and `NULL`. A null in an object is left out, see [JSON of a contract](#json-of-a-contract) |
 | `List<T>`, `IReadOnlyList<T>`, `IList<T>`, `T[]` | `L`, each element in the form of `T` |
 | `HashSet<T>`, `IReadOnlySet<T>` of strings, numbers, `byte[]`, `Guid` or an enum | `SS`, `NS` or `BS`. An empty set is left out, as DynamoDB refuses one, and reads as empty. One in a list or a dictionary cannot be left out, so a write throws an `ArgumentException` that names the property |
 | `Dictionary<string, T>`, `IReadOnlyDictionary<string, T>` | `M`, an attribute per key |
 | A `[DynamoDbDocument]` type | `M` |
 | `T?` of any of these | The form of `T`; a null property is left out of the item, and an item without the attribute reads as the initial value, null unless an initializer gives one (`DYNA035`) |
+
+## JSON of a contract
+
+A document whose schema another team owns, such as an event of a Kafka topic or the payload of an external API, goes into a property of type `JsonElement`. It is stored as a native map, so a filter, a projection and an update reach into it by path, and the service needs no code to convert it. Serialize the contract with a source-generated `JsonSerializerContext`, which stays free of reflection under Native AOT:
+
+```csharp
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using DynaSharp.Mapping;
+
+[DynamoDbEntity]
+[Discriminator("LABEL")]
+[PartitionKey("LABEL#{Id}")]
+public partial record LabelRecord
+{
+    public required string Id { get; init; }
+
+    public required JsonElement Label { get; init; }
+}
+
+public record ShippingLabel(string To, decimal Weight, string? Note);
+
+[JsonSerializable(typeof(ShippingLabel))]
+public partial class ContractJson : JsonSerializerContext;
+```
+
+```csharp
+var labels = client.Table<LabelRecord>("Labels");
+var label = new ShippingLabel("Bern", 1.50m, null);
+await labels.Put(new LabelRecord { Id = "l1", Label = System.Text.Json.JsonSerializer.SerializeToElement(label, ContractJson.Default.ShippingLabel) }).SendAsync(ct);
+
+await labels.Update(LabelRecord.Keys.Of("l1")).Set("Label.To", "Basel").SendAsync(ct);
+var heavy = labels.Scan().Filter(Attr("Label.Weight").Gt(10)).ItemsAsync(ct);
+
+var stored = await labels.Get(LabelRecord.Keys.Of("l1")).ItemAsync(ct);
+ShippingLabel? back = stored is null ? null : System.Text.Json.JsonSerializer.Deserialize(stored.Label, ContractJson.Default.ShippingLabel);
+```
+
+- **What it stores.** What [Documents from JSON](without-a-model.md#documents-from-json) says: `Note`, which is null, is left out of the map, a null in an array is `NULL`, and a number keeps its digits on the way in and its value on the way back, as DynamoDB stores `1.50` as `1.5`. Dates stay the text the contract wrote.
+- **What a write refuses.** JSON that DynamoDB cannot store throws an `ArgumentException` that names the property, its attribute and the place in the JSON, such as `$.lines[2].weight`: a number beyond 38 digits or the range of DynamoDB, more than 32 levels counted from the attribute, an empty name, a name twice in one object, and a `default(JsonElement)`, which holds no JSON.
+- **Null.** A `JsonElement?` that is null leaves the attribute out, and a missing attribute or `NULL` reads as null. A JSON `null` in a `JsonElement` is stored as `NULL`.
+- **What a read takes.** Any value, also one other code wrote: a string set and a number set read as an array, a binary value and a binary set as base64 text.
+- **Paths.** `LabelRecord.Attrs.Label` sets, compares and selects the whole document. Inside it a path is a string, as in `Set("Label.To", ...)`, `Attr("Label.Weight")` and `Project("Label.To")`: `.At(...)` walks into a `[DynamoDbDocument]` only, which has handles of its own.
+- **One type.** `JsonElement` and no other type of JSON: a `JsonDocument` has to be disposed, which a read has nobody to do, and a `JsonNode` converts with `JsonSerializer.SerializeToElement(node)`.
 
 ## Project defaults
 

@@ -28,6 +28,13 @@ internal static class DynamoDbNumber
 
     private const string NoFit = "The number does not fit the target type.";
 
+    // DynamoDB's limits: 38 significant digits, and a magnitude from 1E-130 to 9.9999999999999999999999999999999999999E+125, so the first digit stands at a power of ten from -130 to 125.
+    private const int MaxDigits = 38;
+
+    private const int MaxPowerOfFirstDigit = 125;
+
+    private const int MinPowerOfFirstDigit = -130;
+
     // 2^96 - 1, the largest whole number a decimal holds, and so the one number of 29 digits that decides.
     private static ReadOnlySpan<byte> LargestDecimalCoefficient => "79228162514264337593543950335"u8;
 
@@ -84,6 +91,90 @@ internal static class DynamoDbNumber
     {
         var invariant = CultureInfo.InvariantCulture;
         return T.TryParse(text, Styles, invariant, out value) && Fits(value, text);
+    }
+
+    /// <summary>
+    /// Checks a number in the grammar of JSON against what DynamoDB stores: at most 38 significant digits, leading and trailing zeros not counted, and a magnitude of zero or from 1E-130 to below 1E+126.
+    /// Input: <c>-0012.500e+3</c>. The digits that count are <c>125</c>, three, and the first of them stands at the power of ten 1 + 3 = 4.
+    /// </summary>
+    /// <param name="utf8Json">A JSON number, which the reader of the JSON has checked.</param>
+    /// <returns>Whether DynamoDB stores it, or why not.</returns>
+    internal static NumberFit FitsDynamoDb(ReadOnlySpan<byte> utf8Json)
+    {
+        var exponentAt = utf8Json.IndexOfAny((byte)'e', (byte)'E');
+        var mantissa = exponentAt < 0 ? utf8Json : utf8Json[..exponentAt];
+        var first = mantissa.IndexOfAnyInRange((byte)'1', (byte)'9');
+        if (first < 0)
+        {
+            return NumberFit.Fits;
+        }
+
+        var last = mantissa.LastIndexOfAnyInRange((byte)'1', (byte)'9');
+        var point = mantissa.IndexOf((byte)'.');
+        var afterUnits = point < 0 ? mantissa.Length : point;
+        var digits = last - first + 1 - (first < point && point < last ? 1 : 0);
+        if (digits > MaxDigits)
+        {
+            return NumberFit.TooManyDigits;
+        }
+
+        long powerOfFirst = first < afterUnits ? afterUnits - 1 - first : afterUnits - first;
+        if (exponentAt >= 0)
+        {
+            powerOfFirst += ReadExponent(utf8Json[(exponentAt + 1)..]);
+        }
+
+        return powerOfFirst > MaxPowerOfFirstDigit ? NumberFit.TooLarge : powerOfFirst < MinPowerOfFirstDigit ? NumberFit.TooSmall : NumberFit.Fits;
+    }
+
+    /// <summary>Determines whether text is a number in the grammar of JSON, <c>-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?</c>, which a number that DynamoDB sent always is.</summary>
+    /// <param name="utf8Text">The text.</param>
+    /// <returns><see langword="true"/> if it can stand in JSON as a number.</returns>
+    internal static bool IsJsonNumber(ReadOnlySpan<byte> utf8Text)
+    {
+        var rest = utf8Text.StartsWith((byte)'-') ? utf8Text[1..] : utf8Text;
+        var units = LeadingDigits(rest);
+        if (units == 0 || (units > 1 && rest[0] == (byte)'0'))
+        {
+            return false;
+        }
+
+        rest = rest[units..];
+        if (rest.StartsWith((byte)'.'))
+        {
+            var fraction = LeadingDigits(rest[1..]);
+            if (fraction == 0)
+            {
+                return false;
+            }
+
+            rest = rest[(1 + fraction)..];
+        }
+
+        if (rest.IsEmpty)
+        {
+            return true;
+        }
+
+        if (rest[0] is not ((byte)'e' or (byte)'E'))
+        {
+            return false;
+        }
+
+        rest = rest[1..];
+        if (rest.StartsWith((byte)'+') || rest.StartsWith((byte)'-'))
+        {
+            rest = rest[1..];
+        }
+
+        var exponent = LeadingDigits(rest);
+        return exponent > 0 && exponent == rest.Length;
+    }
+
+    private static int LeadingDigits(ReadOnlySpan<byte> text)
+    {
+        var end = text.IndexOfAnyExceptInRange((byte)'0', (byte)'9');
+        return end < 0 ? text.Length : end;
     }
 
     // Whether the value of text the parser accepted survived it. A binary float saturates at infinity and reads the text "NaN", and rounding and an underflow to 0 are what it is. The test of the type folds away in the code of each number type.

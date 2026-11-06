@@ -66,3 +66,4 @@ Sparse-attribute toggle needs no primitive of its own: it is `SET`/`REMOVE` of a
 | Status-keyed GSI ("my open items") | P3, P5 | Recipe | Status change rewrites the GSI key |
 | Soft delete | P1, P5 | Recipe | Base-table reads still see the item |
 | Bitemporal sort key | P3 | Recipe | |
+| Documents of an external contract | P1, `JsonElement` property | Recipe | A native map, so paths reach inside; DynamoDB stores numbers in canonical form (`1.50` as `1.5`); a null in an object is left out; sets and binary read back as arrays and base64 |

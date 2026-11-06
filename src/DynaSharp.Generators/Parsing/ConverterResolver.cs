@@ -34,7 +34,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         "nint", "nuint", "global::System.Half", "global::System.Int128", "global::System.UInt128", "global::System.Numerics.BigInteger",
     ];
 
-    // Everything with a key-compatible wire type, that is S, N or B. bool and AttributeValue are added to the full table below.
+    // Everything with a key-compatible wire type, that is S, N or B. bool, AttributeValue and JsonElement are added to the full table below.
     private static readonly Dictionary<string, string> KeyScalars = new()
     {
         ["string"] = Serialization + "StringConverter",
@@ -52,6 +52,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     {
         ["bool"] = Serialization + "BoolConverter",
         ["global::DynaSharp.AttributeValue"] = AttributeValueConverter,
+        ["global::System.Text.Json.JsonElement"] = Serialization + "JsonElementConverter",
     };
 
     private static readonly Dictionary<string, string> Lists = new()

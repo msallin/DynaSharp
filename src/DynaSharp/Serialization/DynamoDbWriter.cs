@@ -343,6 +343,15 @@ public readonly ref struct DynamoDbWriter
     /// <returns>The writer.</returns>
     internal static DynamoDbWriter ForDisplay(Utf8JsonWriter json) => new(json) { IsForDisplay = true };
 
+    /// <summary>Writes a number value, <c>{"N":"..."}</c>, from text that is a number already, such as a number of plain JSON, sent unchanged.</summary>
+    /// <param name="utf8Text">The number as UTF-8, which needs no escaping.</param>
+    internal void WriteNumber(ReadOnlySpan<byte> utf8Text)
+    {
+        Json.WriteStartObject();
+        Json.WriteString(NumberDescriptor, utf8Text);
+        Json.WriteEndObject();
+    }
+
     private static void WritePlain(PooledByteBuffer direct, ReadOnlySpan<byte> start, string value)
     {
         direct.Append(start);
