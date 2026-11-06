@@ -593,6 +593,8 @@ Branch `feat/table-checks`, approved by the owner from the backlog of the update
 
 - [x] **`DynamoDbClientOptions.ForEmulator(Uri serviceUrl, string region)`**, and the XML docs and the guide (`getting-started.md`, `testing.md`, `migrating.md`) say that DynamoDB Local without `-sharedDb` keeps one database per access key and region, so a tool of another region or other keys sees other tables.
 - Decision: an overload, not an optional parameter: `ForEmulator(Uri)` shipped in 0.3.0, and `ForEmulator(Uri, string? region = null)` would remove that signature (`RS0017`) and break a compiled caller. The one-argument form calls the overload with `us-east-1`. A `string`, as the owner asked, not an `AwsRegion`: the call reads as the region a tool prints, and `AwsRegion.FromName` checks it. Its `ArgumentException` is rethrown with `ParamName` `region` and the same text, so the exception names the parameter of this method, not `name`. The keys stay `local`: other keys are a `with` of `Credentials`, and nobody asked for them. No telemetry: it only fills options.
+- [x] **Docs: CA2016 and `ToListAsync`.** `queries.md` says, beside the paragraph on `ItemsAsync` and `ToListAsync`, that CA2016 under `AnalysisMode=All` asks for the token on `ToListAsync` too, and that passing it there is harmless and silences the rule.
+- Decision: a sentence, not a `DiagnosticSuppressor`. A suppressor would have to prove that the receiver of a LINQ terminal is a DynaSharp terminal that took a token, for a rule whose fix costs nothing: `ItemsAsync` returns an `IAsyncEnumerable<T>` whose `GetAsyncEnumerator(token)` links the token of the enumeration with its own (`[EnumeratorCancellation]`), so the second token cancels the same reading. The readers of `PagedRead`, `FanOutRead` and `ParallelScan` are async iterators with `[EnumeratorCancellation]`, for which the compiler links the two tokens.
 
 ### R11 - 0.3.0 keys and coordination
 
@@ -1071,7 +1073,7 @@ From the update of the apps to 0.2.0-local.3
 - [ ] C# union types: once C# unions are released and Stryker/Roslyn can parse them, let `Mixed<...>` opt into the union pattern so a `switch` over a mixed read or stream is exhaustive; until then `Mixed` stays a small, stable struct with one case per type, `Is` and `Match`.
 
 From the update of the apps to 0.3.0
-- [ ] CA2016 against "pass the token once": `ItemsAsync(ct).ToListAsync()` with a token in scope reports CA2016 (forward the token), so under `AnalysisMode=All` the advice of `queries.md` cannot be followed (lps keeps `ToListAsync(ct)`). A `DiagnosticSuppressor` for CA2016 on a LINQ terminal over a DynaSharp terminal that took the token, or a sentence in `queries.md`.
+- [x] CA2016 against "pass the token once": `ItemsAsync(ct).ToListAsync()` with a token in scope reports CA2016 (forward the token), so under `AnalysisMode=All` the advice of `queries.md` cannot be followed (lps keeps `ToListAsync(ct)`). A `DiagnosticSuppressor` for CA2016 on a LINQ terminal over a DynaSharp terminal that took the token, or a sentence in `queries.md`. Done: the sentence, see R12.
 - [x] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region. Done: both, the region as an overload `ForEmulator(url, region)`, see R12.
 
 ## Decisions
