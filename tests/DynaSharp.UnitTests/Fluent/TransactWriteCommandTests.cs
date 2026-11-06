@@ -118,7 +118,7 @@ public sealed class TransactWriteCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        _ = client.TransactWrite().Delete(customers, "a", "b").Unique(customers, Customer.Keys.Of("alice"), out var taken).Token("t").ToRequestJson();
+        _ = client.TransactWrite().Delete(customers, Customer.Keys.Of("a")).Unique(customers, Customer.Keys.Of("alice"), out var taken).Token("t").ToRequestJson();
 
         // Assert
         await Assert.That(taken.Index).IsEqualTo(1);

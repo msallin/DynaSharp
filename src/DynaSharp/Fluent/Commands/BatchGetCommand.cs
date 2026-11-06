@@ -55,21 +55,6 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
 
     internal CommandHandle Handle => new(_state, _version, Operation, _table);
 
-    /// <summary>Adds a key.</summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
-    /// <returns>The command, which replaces this one.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public BatchGetCommand<T> Key(AttributeValue partitionKey, AttributeValue sortKey = default)
-    {
-        var state = Enter();
-        var table = state.Table;
-        table.CheckKey(partitionKey, sortKey);
-        state.Actions.Add(table, state.Body.WrittenCount);
-        state.WriteKeyObject(table, partitionKey, sortKey);
-        return new(state, table);
-    }
-
     /// <summary>Adds a key built by the generator, such as <c>Order.Keys.Of(customerId, number)</c>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
@@ -210,6 +195,8 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchGetOperation<T>, BatchGetResult<T>>(Prepare());
 
+    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+
     private static void AddKey<TKey>(CommandState state, TKey key)
         where TKey : IKey<T>
     {
@@ -221,8 +208,6 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
         key.WriteKey(new DynamoDbWriter(json));
         state.EndKey();
     }
-
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
 
     private CommandState Prepare()
     {

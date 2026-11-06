@@ -165,7 +165,7 @@ commandHandler.Enqueue(StubResponse.Json("""{"Items":[],"Count":0,"ScannedCount"
 commandHandler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"v-1"},"visits":{"N":"1"}}],"Count":1,"ScannedCount":1,"LastEvaluatedKey":{"pk":{"S":"v-1"}}}"""));
 commandHandler.Enqueue(StubResponse.Json("""{"Items":[{"pk":{"S":"v-2"},"visits":{"N":"2"}}],"Count":1,"ScannedCount":1}"""));
 var followed = new List<Visitor>();
-await foreach (var visitor in visitors.Query("v", default).Filter($"{Attr("visits")} > {0}").Project("visits").Limit(1).ItemsAsync())
+await foreach (var visitor in visitors.Query(new PartitionKey<Visitor>("v"), default).Filter($"{Attr("visits")} > {0}").Project("visits").Limit(1).ItemsAsync())
 {
     followed.Add(visitor);
 }
@@ -646,7 +646,7 @@ using var fakeClient = fake.CreateClient();
 var fakeVisitors = fakeClient.Table<Visitor>("Visitors");
 await fakeVisitors.Put(new Visitor("v-1", 1)).SendAsync();
 
-var fakeQueried = await fakeVisitors.Query("v-1").ItemsAsync().ToListAsync();
+var fakeQueried = await fakeVisitors.Query(new PartitionKey<Visitor>("v-1")).ItemsAsync().ToListAsync();
 Check(fakeQueried is [{ Id: "v-1", Visits: 1 }], "the fake answers a Put and a Query");
 var fakeVisits = await fakeVisitors.Update(new Visitor.Key("v-1")).Add("visits", 1).Return(Attr<int>("visits")).SendAsync();
 Check(fakeVisits == 2, "the fake answers an Update");

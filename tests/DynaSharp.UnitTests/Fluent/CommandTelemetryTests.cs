@@ -453,7 +453,7 @@ public sealed class CommandTelemetryTests
         {
             try
             {
-                await client.Table<TenantInvoice>("Users").Get("TENANT#acme", "INV#2026-09#000002").SendAsync();
+                await client.Table<TenantInvoice>("Users").Get(TenantInvoice.Keys.Of("acme", "2026-09", 2)).SendAsync();
             }
             catch (DynamoDbMappingException)
             {

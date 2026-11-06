@@ -83,7 +83,7 @@ public sealed class OmitEmptySparseIndexTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<BlankListing>("Shop").Update("a").Set(BlankListing.Attrs.Code, string.Empty).ToRequestJson();
+        var json = client.Table<BlankListing>("Shop").Update(BlankListing.Keys.Of("a")).Set(BlankListing.Attrs.Code, string.Empty).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -99,7 +99,7 @@ public sealed class OmitEmptySparseIndexTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<BlankListing>("Shop").Update("a").SetIfNotNull(BlankListing.Attrs.Code, string.Empty).ToRequestJson();
+        var json = client.Table<BlankListing>("Shop").Update(BlankListing.Keys.Of("a")).SetIfNotNull(BlankListing.Attrs.Code, string.Empty).ToRequestJson();
 
         // Assert
         await Assert.That(json).DoesNotContain("Code");
@@ -114,7 +114,7 @@ public sealed class OmitEmptySparseIndexTests
         var listings = client.Table<BlankListing>("Shop");
 
         // Act
-        var failure = TestClient.Catch(() => _ = listings.Update("a").SetIfNotExists(BlankListing.Attrs.Code, string.Empty));
+        var failure = TestClient.Catch(() => _ = listings.Update(BlankListing.Keys.Of("a")).SetIfNotExists(BlankListing.Attrs.Code, string.Empty));
 
         // Assert
         await Assert.That(failure is ArgumentException { ParamName: "value" }).IsTrue();

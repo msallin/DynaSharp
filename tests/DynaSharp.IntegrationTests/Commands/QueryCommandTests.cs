@@ -495,7 +495,7 @@ public sealed class QueryCommandTests(Backend backend)
         await sandbox.Shop.Put(new Item { ["pk"] = "USER#alice", ["sk"] = "ORDER#2", ["_type"] = "ORDER" }).SendAsync();
 
         // Act
-        var page = await profiles.Query("USER#alice").PageAsync();
+        var page = await profiles.Query(new PartitionKey<Profile>("USER#alice")).PageAsync();
 
         // Assert (the others were read and paid for, which is the point of ScannedCount)
         await Assert.That((page.Items.Single(), page.Count, page.ScannedCount)).IsEqualTo((new Profile("alice", "Alice", 3), 1, 3));
@@ -512,7 +512,7 @@ public sealed class QueryCommandTests(Backend backend)
         await profiles.Put(new Profile("alice", "Alice")).SendAsync();
 
         // Act
-        var items = await Read.ToListAsync(profiles.Query("USER#alice").Limit(1).ItemsAsync());
+        var items = await Read.ToListAsync(profiles.Query(new PartitionKey<Profile>("USER#alice")).Limit(1).ItemsAsync());
 
         // Assert
         await Assert.That(items.Single().FullName).IsEqualTo("Alice");
@@ -527,7 +527,7 @@ public sealed class QueryCommandTests(Backend backend)
         await profiles.Put(new Profile("alice", "Alice", 3)).SendAsync();
 
         // Act
-        var items = await Read.ToListAsync(profiles.Query("USER#alice").Project("id", "fullName").ItemsAsync());
+        var items = await Read.ToListAsync(profiles.Query(new PartitionKey<Profile>("USER#alice")).Project("id", "fullName").ItemsAsync());
 
         // Assert
         await Assert.That(items.Single()).IsEqualTo(new Profile("alice", "Alice"));
@@ -542,7 +542,7 @@ public sealed class QueryCommandTests(Backend backend)
         await profiles.Put(new Profile("alice", "Alice", 3)).SendAsync();
 
         // Act
-        var items = await Read.ToListAsync(profiles.Query("USER#alice").Project("id", "pk", "sk", "_type", "fullName").ItemsAsync());
+        var items = await Read.ToListAsync(profiles.Query(new PartitionKey<Profile>("USER#alice")).Project("id", "pk", "sk", "_type", "fullName").ItemsAsync());
 
         // Assert
         await Assert.That(items.Count).IsEqualTo(1);
@@ -572,7 +572,7 @@ public sealed class QueryCommandTests(Backend backend)
         await sandbox.Shop.Put(new Item { ["pk"] = "USER#alice", ["sk"] = "ORDER#1", ["_type"] = "ORDER" }).SendAsync();
 
         // Act
-        var count = await sandbox.Shop.Of<Profile>().Query("USER#alice").CountAsync();
+        var count = await sandbox.Shop.Of<Profile>().Query(new PartitionKey<Profile>("USER#alice")).CountAsync();
 
         // Assert
         await Assert.That(count).IsEqualTo(1);

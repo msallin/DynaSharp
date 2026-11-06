@@ -721,7 +721,7 @@ public sealed class ExpressionAnalyzerTests
     public async Task Analyze_BareNameOnATransactionStep_HasNoEntityToCheck()
     {
         // Arrange
-        var source = AnalyzerRun.Member(OrderFields + """public static void Run(DynamoDbClient client) { client.TransactWrite().Update(orders, "a").Set($"Nope = {1}"); }""");
+        var source = AnalyzerRun.Member(OrderFields + """public static void Run(DynamoDbClient client) { client.TransactWrite().Update(orders, Order.Keys.Of("a", "b")).Set($"Nope = {1}"); }""");
 
         // Act
         var report = await WithOrders.ReportAsync(source);

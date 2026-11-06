@@ -105,7 +105,7 @@ public sealed class WriteRulesUpdateTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var act = () => tickets.Update("a", "b").Set("Note", "x").ToRequestJson();
+        var act = () => tickets.Update(Ticket.Keys.Of("a", Day)).Set("Note", "x").ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();
@@ -200,7 +200,7 @@ public sealed class WriteRulesUpdateTests
         var orders = client.Table<KeyedOrder>("Shop");
 
         // Act
-        var act = () => orders.Delete("a", "b").IfVersion(1).ToRequestJson();
+        var act = () => orders.Delete(KeyedOrder.Keys.Of(Guid.Empty, DateTimeOffset.UnixEpoch, Guid.Empty)).IfVersion(1).ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();
@@ -229,7 +229,7 @@ public sealed class WriteRulesUpdateTests
         var outsideTheEntity = "x";
 
         // Act
-        var json = client.Table<KeyedOrder>("Shop").Update("a", "b").Set(outsideTheEntity, 1).ToRequestJson();
+        var json = client.Table<KeyedOrder>("Shop").Update(KeyedOrder.Keys.Of(Guid.Empty, DateTimeOffset.UnixEpoch, Guid.Empty)).Set(outsideTheEntity, 1).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("UpdateExpression");

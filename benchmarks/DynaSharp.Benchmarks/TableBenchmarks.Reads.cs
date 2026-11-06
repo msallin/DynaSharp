@@ -14,6 +14,8 @@ public partial class TableBenchmarks
 
     private static readonly AttributeValue[] FourPartitions = ["SHARD#0", "SHARD#1", "SHARD#2", "SHARD#3"];
 
+    private static readonly PartitionKey<BenchOrder>[] FourOrderPartitions = [BenchOrder.Keys.Pk.Of("SHARD#0"), BenchOrder.Keys.Pk.Of("SHARD#1"), BenchOrder.Keys.Pk.Of("SHARD#2"), BenchOrder.Keys.Pk.Of("SHARD#3")];
+
     private CannedHandler _oneTypeHandler = null!;
     private CannedHandler _mixedHandler = null!;
     private CannedHandler _fanOutHandler = null!;
@@ -30,7 +32,7 @@ public partial class TableBenchmarks
     public async Task<int> Mixed_OneType()
     {
         var count = 0;
-        await foreach (var unused in _mixedOrders.Query(PartitionKey).ItemsAsync())
+        await foreach (var unused in _mixedOrders.Query(BenchOrder.Keys.Pk.Of(PartitionKey)).ItemsAsync())
         {
             count++;
         }
@@ -56,7 +58,7 @@ public partial class TableBenchmarks
     public async Task<int> FanOut_FourQueriesInARow()
     {
         var count = 0;
-        foreach (var partition in FourPartitions)
+        foreach (var partition in FourOrderPartitions)
         {
             await foreach (var unused in _fanOutOrders.Query(partition).ItemsAsync())
             {
@@ -72,7 +74,7 @@ public partial class TableBenchmarks
     public async Task<int> FanOut_Typed()
     {
         var count = 0;
-        await foreach (var unused in _fanOutOrders.Query(FourPartitions).ItemsAsync())
+        await foreach (var unused in _fanOutOrders.Query(FourOrderPartitions).ItemsAsync())
         {
             count++;
         }
@@ -95,7 +97,7 @@ public partial class TableBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("FanOut")]
-    public async Task<int> FanOut_PageOf25() => (await _fanOutOrders.Query(FourPartitions).Limit(ItemsOfAPartition).PageAsync(ItemsOfAPartition)).Count;
+    public async Task<int> FanOut_PageOf25() => (await _fanOutOrders.Query(FourOrderPartitions).Limit(ItemsOfAPartition).PageAsync(ItemsOfAPartition)).Count;
 
     private static string Page(int items, Func<int, string> item)
     {

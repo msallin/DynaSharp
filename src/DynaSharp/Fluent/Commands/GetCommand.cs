@@ -190,7 +190,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     public ValueTask<T?> ItemAsync(CancellationToken cancellationToken = default) =>
         Prepare().SendAsync<GetValueOperation<T>, T?>(cancellationToken);
 
-    /// <summary>Lets <c>await</c> send the command, for <c>await table.Get(pk, sk)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
+    /// <summary>Lets <c>await</c> send the command, for <c>await shop.Get(pk, sk)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ValueTaskAwaiter<GetResult<T>> GetAwaiter() => SendAsync().GetAwaiter();

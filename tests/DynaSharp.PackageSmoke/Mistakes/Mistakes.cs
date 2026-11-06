@@ -43,7 +43,7 @@ public static class Code
 
     public static IAsyncEnumerable<Shipment> Dyna208() => Shipments.Scan().Project("Weight").ItemsAsync();
 
-    public static string Dyna209() => Shipments.Get("a").Select(Shipment.Attrs.Id).ToRequestJson();
+    public static string Dyna209() => Shipments.Get(Shipment.Keys.Of("a")).Select(Shipment.Attrs.Id).ToRequestJson();
 
     public static void Dyna210() => Shop.Update("a").If($"{"status"} = {"open"}");
 
@@ -58,7 +58,7 @@ public static class Code
 
     public static void Dyna220() => Shop.Scan().Filter($"status = {"open"}");
 
-    public static string Dyna221() => Shipments.Query("SHIPMENT#a").Filter(Shipment.Attrs.Id.Eq("a")).ToRequestJson();
+    public static string Dyna221() => Shipments.Query(Shipment.Keys.Pk.Of("a")).Filter(Shipment.Attrs.Id.Eq("a")).ToRequestJson();
 
     public static string Dyna223() => Orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Total, 1m).Add(Order.Attrs.Total, 2m).ToRequestJson();
 
@@ -68,7 +68,7 @@ public static class Code
 
     public static void Dyna215() => Invoices.Scan().Filter(Order.Attrs.Total.Gt(1m));
 
-    public static void Dyna216() => Orders.Update("a").If($"contains({Order.Attrs.Total}, {1})");
+    public static void Dyna216() => Orders.Update(Order.Keys.Of("a")).If($"contains({Order.Attrs.Total}, {1})");
 
     public static Task Dyna217(DynamoDbClient client) => client.RetryOnConflictAsync(ct => new ValueTask<int>(client.RetryOnConflictAsync(_ => new ValueTask<int>(1), ct)));
 
@@ -79,6 +79,8 @@ public static class Code
     }
 
     public static void Dyna230() => Orders.Get(Shipment.Keys.Of("a"));
+
+    public static void Dyna230StoredValues() => Shipments.Get("a");
 
     public static void Dyna231() => _ = Shop.Of<Note>();
 

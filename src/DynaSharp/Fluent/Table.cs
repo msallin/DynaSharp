@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using DynaSharp.Fluent;
 using DynaSharp.Http;
 using DynaSharp.Mapping;
@@ -26,9 +25,13 @@ namespace DynaSharp;
 /// </example>
 /// <remarks>
 /// <para>
-/// <b>Every method starts a command,</b> which is sent with <c>SendAsync</c> or one of its siblings such as <c>ItemAsync</c>: <c>await shop.Get("USER#1", "PROFILE").Consistent().SendAsync(ct);</c>.
+/// <b>Every method starts a command,</b> which is sent with <c>SendAsync</c> or one of its siblings such as <c>ItemAsync</c>: <c>await orders.Get(Order.Keys.Of("alice", 1)).Consistent().SendAsync(ct);</c>.
 /// Each verb is the DynamoDB operation of that name, with its semantics: <see cref="Put"/> replaces a whole item, <c>Update</c> creates an item
 /// that does not exist unless told otherwise, and nothing is read before it is written.
+/// </para>
+/// <para>
+/// <b>A table of an entity takes the keys its generator built,</b> <c>Order.Keys.Of(...)</c> and <c>Order.Keys.Pk.Of(...)</c>, which format the values the way the item stores them. The values of a
+/// key as they are stored, such as <c>shop.Get("USER#1", "PROFILE")</c>, go to a table without a schema, which <c>client.Table(name, partitionKey, sortKey)</c> opens, see <see cref="TableExtensions"/>.
 /// </para>
 /// <para>
 /// <b>Hold it in a field.</b> A table holds what never changes; it is immutable and thread-safe. It makes no request of its own, so opening a table that does not exist succeeds, and
@@ -98,17 +101,6 @@ public sealed partial class Table<T>
     public Index<T> Index(string name, string partitionKey, string? sortKey = null) => new(this, name, partitionKey, sortKey);
 
     /// <summary>
-    /// Starts a <c>GetItem</c> of one item by its key. End the chain with <see cref="GetCommand{T}.ItemAsync"/> or <see cref="GetCommand{T}.SendAsync"/>; a missing item is not an error, and
-    /// the read is eventually consistent unless <see cref="GetCommand{T}.Consistent"/> says otherwise.
-    /// </summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public GetCommand<T> Get(AttributeValue partitionKey, AttributeValue sortKey = default) =>
-        new(Model.Begin(partitionKey, sortKey), Model);
-
-    /// <summary>
     /// Starts a <c>GetItem</c> by a key the generator built, such as <c>customers.Get(Customer.Keys.Of("alice"))</c>. End the chain with <see cref="GetCommand{T}.ItemAsync"/> or
     /// <see cref="GetCommand{T}.SendAsync"/>; a missing item is not an error.
     /// </summary>
@@ -136,30 +128,14 @@ public sealed partial class Table<T>
     }
 
     /// <summary>
-    /// Starts an update of one item by its key. It creates the item if none has the key, unless <see cref="UpdateCommand{T}.IfExists"/> says otherwise, so an update of an entity with a
-    /// discriminator gives a new item its discriminator, see <see cref="UpdateCommand{T}"/>.
+    /// Starts an <c>UpdateItem</c> by a key the generator built, such as <c>orders.Update(Order.Keys.Of(customerId, number))</c>. It creates the item if none has the key, unless
+    /// <see cref="UpdateCommand{T}.IfExists"/> says otherwise, so an update of an entity with a discriminator gives a new item its discriminator, see <see cref="UpdateCommand{T}"/>.
     /// </summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public UpdateCommand<T> Update(AttributeValue partitionKey, AttributeValue sortKey = default) =>
-        new(WriteRules.ExpectUpdate(Model.Begin(partitionKey, sortKey)), Model);
-
-    /// <summary>Starts an <c>UpdateItem</c> by a key the generator built, such as <c>orders.Update(Order.Keys.Of(customerId, number))</c>. See <see cref="Update(AttributeValue, AttributeValue)"/>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
     public UpdateCommand<T> Update<TKey>(TKey key)
         where TKey : IKey<T> => new(WriteRules.ExpectUpdate(BeginWithKey(key), key), Model);
-
-    /// <summary>Starts a delete of one item by its key. Deleting what does not exist is no error unless <see cref="DeleteCommand{T}.IfExists"/> asks for one.</summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public DeleteCommand<T> Delete(AttributeValue partitionKey, AttributeValue sortKey = default) =>
-        new(WriteRules.ExpectVersion(Model.Begin(partitionKey, sortKey)), Model);
 
     /// <summary>Starts a delete of one item by a generated key. Deleting what does not exist is no error unless <see cref="DeleteCommand{T}.IfExists"/> asks for one.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
@@ -167,16 +143,6 @@ public sealed partial class Table<T>
     /// <returns>The command.</returns>
     public DeleteCommand<T> Delete<TKey>(TKey key)
         where TKey : IKey<T> => new(WriteRules.ExpectVersion(BeginWithKey(key)), Model);
-
-    /// <summary>
-    /// Starts a query of one partition: <c>await foreach (var order in orders.Query(pk, SortKeyCondition.BeginsWith("ORDER#")).ItemsAsync(ct))</c>. A query of a table of an entity
-    /// reads that entity, even from a partition that holds several types, see <see cref="QueryCommand{T}"/>.
-    /// </summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The condition on the sort key, or the default value to read the whole partition.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the table has none.</exception>
-    public QueryCommand<T> Query(AttributeValue partitionKey, SortKeyCondition sortKey = default) => new(Model.BeginQuery(partitionKey, sortKey), Model);
 
     /// <summary>
     /// Starts a <c>Query</c> for the one item of a key, which is a <c>Get</c> that can take a filter: <c>orders.Query(Order.Keys.Of(id, day)).Filter(open).ItemAsync(ct)</c>.
@@ -194,37 +160,6 @@ public sealed partial class Table<T>
         Argument.ThrowIfNull(key);
         return new(Model.BeginKeyQuery(key), Model);
     }
-
-    /// <summary>
-    /// Starts a query of several partitions, merged by sort key, for write shards and time buckets: <c>orders.Query(shards, SortKeyCondition.Ge(from)).ItemsAsync(ct)</c>. It costs at least one
-    /// read per partition, see <see cref="FanOutQueryCommand{T}"/>.
-    /// </summary>
-    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
-    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is empty or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
-    public FanOutQueryCommand<T> Query(IEnumerable<AttributeValue> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Model);
-
-    /// <summary>Starts a query of several partitions by their string keys, which is <see cref="Query(IEnumerable{AttributeValue}, SortKeyCondition)"/> for write shards: <c>orders.Query(["SHARD#0", "SHARD#1"])</c>.</summary>
-    /// <param name="partitionKeys">The partitions, read here and not kept. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
-    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
-    public FanOutQueryCommand<T> Query(scoped ReadOnlySpan<string> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Model);
-
-    /// <summary>
-    /// Starts a query of several partitions by string keys that are computed, which is <see cref="Query(IEnumerable{AttributeValue}, SortKeyCondition)"/> for a list of shards:
-    /// <c>orders.Query(Enumerable.Range(0, 8).Select(static shard => Order.Keys.Pk.Format(shard)))</c>.
-    /// </summary>
-    /// <remarks>This overload yields to every other, so a call binds to it only when no other applies. That takes C# 13: a compiler below it ignores the priority, and a <c>string[]</c> needs <c>AsSpan()</c> there.</remarks>
-    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
-    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
-    /// <returns>The command.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
-    [OverloadResolutionPriority(-1)]
-    public FanOutQueryCommand<T> Query(IEnumerable<string> partitionKeys, SortKeyCondition sortKey = default) => FanOutQueryCommand<T>.Start(partitionKeys, sortKey, Model, Model);
 
     /// <summary>Starts a scan of the whole table, which charges for every item in it, see <see cref="ScanCommand{T}"/>. A scan of a table of an entity gives that entity's items.</summary>
     /// <returns>The command.</returns>
@@ -301,7 +236,7 @@ public sealed partial class Table<T>
     public CreateTableCommand CreateTable() => new(Model, typeof(T).ToString());
 
     /// <summary>
-    /// Deletes this table and <b>all the items in it</b> (<c>DeleteTable</c>), which cannot be undone except from a backup. To delete one item, see <see cref="Delete(AttributeValue, AttributeValue)"/>.
+    /// Deletes this table and <b>all the items in it</b> (<c>DeleteTable</c>), which cannot be undone except from a backup. To delete one item, see <see cref="Delete{TKey}(TKey)"/>.
     /// </summary>
     /// <remarks>
     /// <para>

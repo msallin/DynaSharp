@@ -94,7 +94,7 @@ public sealed class KeyInputChangesTemplateTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Purchase>("Shop").Update("a", 1).IgnoreVersion().Set(Purchase.Attrs.Status, Status.Closed).ToRequestJson();
+        var json = client.Table<Purchase>("Shop").Update(new StoredKey<Purchase>("a", 1)).IgnoreVersion().Set(Purchase.Attrs.Status, Status.Closed).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -268,7 +268,7 @@ public sealed class KeyInputChangesTemplateTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<WideKey>("Shop").Update("x")
+        var json = client.Table<WideKey>("Shop").Update(new StoredKey<WideKey>("x"))
             .Set(WideKey.Attrs.F, "6").Set(WideKey.Attrs.E, "5").Set(WideKey.Attrs.D, "4").Set(WideKey.Attrs.C, "3").Set(WideKey.Attrs.B, "2").Set(WideKey.Attrs.A, "1").ToRequestJson();
 
         // Assert
@@ -286,7 +286,7 @@ public sealed class KeyInputChangesTemplateTests
         var wide = client.Table<WideKey>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => wide.Update("x").Set(WideKey.Attrs.G, "7").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => wide.Update(new StoredKey<WideKey>("x")).Set(WideKey.Attrs.G, "7").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("and not Secret,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set all");
@@ -316,7 +316,7 @@ public sealed class KeyInputChangesTemplateTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<HandTemplated>("Shop").Update("x").Set(HandTemplated.Tag, "a").ToRequestJson();
+        var json = client.Table<HandTemplated>("Shop").Update(new StoredKey<HandTemplated>("x")).Set(HandTemplated.Tag, "a").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

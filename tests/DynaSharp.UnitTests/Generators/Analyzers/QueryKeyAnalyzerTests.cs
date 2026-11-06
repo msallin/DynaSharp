@@ -139,16 +139,16 @@ public sealed class QueryKeyAnalyzerTests
     [Test]
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter([|Order.Attrs.UserId|].Eq("u"))""", "UserId", "pk", Missed)]
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Limit(1).Filter([|Order.Attrs.PlacedAt|].Gt(now))""", "PlacedAt", "sk", Missed)]
-    [Arguments("""orders.Query("u").Filter($"{[|Order.Attrs.UserId|]} = {"u"}")""", "UserId", "pk", Missed)]
-    [Arguments("""orders.Query("u").Filter(Attr([|"UserId"|]).Eq("u"))""", "UserId", "pk", Missed)]
-    [Arguments("""orders.Query("u").Filter(Attr([|"pk"|]).Exists())""", "pk", "pk", Rejected)]
-    [Arguments("""orders.Query(["u", "v"]).Filter([|Order.Attrs.UserId|].Eq("u"))""", "UserId", "pk", Missed)]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m").Filter([|Order.Attrs.Channel|].Eq("web"))""", "Channel", "bymarketpk", "")]
-    [Arguments("""orders.Index("ByMarket", "bymarketpk", "bymarketsk").Query("m").Filter([|Order.Attrs.Market|].Eq("eu"))""", "Market", "bymarketpk", "")]
-    [Arguments("""orders.Index(Order.Indexes.ByReference).Query("r").Filter([|Order.Attrs.Reference|].Eq("r"))""", "Reference", "Reference", Rejected)]
-    [Arguments("""tickets.Query("c").Filter([|Ticket.Attrs.Seq|].Gt(1))""", "Seq", "Seq", Rejected)]
-    [Arguments("""tickets.Query("c").Filter([|Ticket.Attrs.Code|].Eq("c"))""", "Code", "Code", Rejected)]
-    [Arguments("""orders.Query("u").Filter([|Order.Attrs.UserId|].Eq("a").Or(Order.Attrs.UserId.Eq("b")))""", "UserId", "pk", Missed)]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter($"{[|Order.Attrs.UserId|]} = {"u"}")""", "UserId", "pk", Missed)]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr([|"UserId"|]).Eq("u"))""", "UserId", "pk", Missed)]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr([|"pk"|]).Exists())""", "pk", "pk", Rejected)]
+    [Arguments("""orders.Query([Order.Keys.Pk.Of("u"), Order.Keys.Pk.Of("v")]).Filter([|Order.Attrs.UserId|].Eq("u"))""", "UserId", "pk", Missed)]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter([|Order.Attrs.Channel|].Eq("web"))""", "Channel", "bymarketpk", "")]
+    [Arguments("""orders.Index("ByMarket", "bymarketpk", "bymarketsk").Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter([|Order.Attrs.Market|].Eq("eu"))""", "Market", "bymarketpk", "")]
+    [Arguments("""orders.Index(Order.Indexes.ByReference).Query(Order.Keys.ByReferencePk.Of("r")).Filter([|Order.Attrs.Reference|].Eq("r"))""", "Reference", "Reference", Rejected)]
+    [Arguments("""tickets.Query(Ticket.Keys.Pk.Of("c")).Filter([|Ticket.Attrs.Seq|].Gt(1))""", "Seq", "Seq", Rejected)]
+    [Arguments("""tickets.Query(Ticket.Keys.Pk.Of("c")).Filter([|Ticket.Attrs.Code|].Eq("c"))""", "Code", "Code", Rejected)]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter([|Order.Attrs.UserId|].Eq("a").Or(Order.Attrs.UserId.Eq("b")))""", "UserId", "pk", Missed)]
     public async Task Analyze_FilterOnWhatTheKeyConditionDecides_Warns(string chain, string name, string key, string why)
     {
         // Arrange
@@ -162,9 +162,9 @@ public sealed class QueryKeyAnalyzerTests
     }
 
     [Test]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m").Filter([|Order.Attrs.PlacedOn|].Gt(now))""", "PlacedOn", "bymarketsk")]
-    [Arguments("""summaries.Query("MONTH#2026-01").Filter([|Summary.Attrs.Month|].Gt(now))""", "Month", "pk")]
-    [Arguments("""samples.Query("SAMPLE#m").Filter([|Sample.Attrs.At|].Gt(now))""", "At", "sk")]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter([|Order.Attrs.PlacedOn|].Gt(now))""", "PlacedOn", "bymarketsk")]
+    [Arguments("""summaries.Query(Summary.Keys.Pk.Of(now)).Filter([|Summary.Attrs.Month|].Gt(now))""", "Month", "pk")]
+    [Arguments("""samples.Query(Sample.Keys.Pk.Of("m")).Filter([|Sample.Attrs.At|].Gt(now))""", "At", "sk")]
     public async Task Analyze_FilterOnWhatAKeyHoldsInPart_IsInfo(string chain, string name, string key)
     {
         // Arrange (a month in the key and a day in the filter: the filter is finer than the key, which is correct)
@@ -180,21 +180,21 @@ public sealed class QueryKeyAnalyzerTests
     [Test]
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Order.Attrs.Total.Gt(1m))""")]
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Order.Attrs.OrderId.Eq("o"))""")]
-    [Arguments("""orders.Query("u").Filter(Order.Attrs.ShipTo.At(Address.Attrs.UserId).Eq("u"))""")]
-    [Arguments("""orders.Query("u").Filter(Attr("Note").Exists())""")]
-    [Arguments("""orders.Query("u").Filter(Attr("nothing").Exists())""")]
-    [Arguments("""orders.Query("u").Filter(Attr("a..b").Exists())""")]
-    [Arguments("""orders.Query("u").Filter(Attr<int>("Total").Eq(1).And(new Attr("Note").Exists()))""")]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Order.Attrs.ShipTo.At(Address.Attrs.UserId).Eq("u"))""")]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr("Note").Exists())""")]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr("nothing").Exists())""")]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr("a..b").Exists())""")]
+    [Arguments("""orders.Query(Order.Keys.Pk.Of("u")).Filter(Attr<int>("Total").Eq(1).And(new Attr("Note").Exists()))""")]
     [Arguments("""orders.Scan().Filter(Order.Attrs.UserId.Eq("u"))""")]
-    [Arguments("""byMarket.Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m").Filter(Order.Attrs.UserId.Eq("u"))""")]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m").Filter(Order.Attrs.OrderId.Eq("o"))""")]
-    [Arguments("""orders.Index("Nope").Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
-    [Arguments("""orders.Index(Name()).Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
-    [Arguments("""orders.Index("ByMarket", Name()).Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
-    [Arguments("""orders.Index("ByMarket", "bymarketpk", Name()).Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
-    [Arguments("""orders.Index("ByMarket", "bymarketpk").Query("m").Filter(Order.Attrs.PlacedOn.Gt(now))""")]
-    [Arguments("""orders.Index("Other", "otherpk", "othersk").Query("m").Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""byMarket.Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter(Order.Attrs.UserId.Eq("u"))""")]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter(Order.Attrs.OrderId.Eq("o"))""")]
+    [Arguments("""orders.Index("Nope").Query(new PartitionKey<Order>("m")).Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""orders.Index(Name()).Query(new PartitionKey<Order>("m")).Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""orders.Index("ByMarket", Name()).Query(new PartitionKey<Order>("m")).Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""orders.Index("ByMarket", "bymarketpk", Name()).Query(new PartitionKey<Order>("m")).Filter(Order.Attrs.Market.Eq("eu"))""")]
+    [Arguments("""orders.Index("ByMarket", "bymarketpk").Query(Order.Keys.ByMarketPk.Of("m", "web")).Filter(Order.Attrs.PlacedOn.Gt(now))""")]
+    [Arguments("""orders.Index("Other", "otherpk", "othersk").Query(new PartitionKey<Order>("m")).Filter(Order.Attrs.Market.Eq("eu"))""")]
     [Arguments("""shop.Query("a").Filter(Attr("pk").Exists())""")]
     [Arguments("""shop.Query("a").Of<Order, Ticket>().Filter(Order.Attrs.UserId.Eq("u"))""")]
     [Arguments("""default(QueryCommand<Order>).Filter(Order.Attrs.UserId.Eq("u"))""")]
@@ -231,8 +231,8 @@ public sealed class QueryKeyAnalyzerTests
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(new[] { "u" }.Select([|Order.Keys.Pk.Of|]))""", "Order.Keys.Pk", "pk", "the index ByMarket", "bymarketpk", "it throws ArgumentException. Use Order.Keys.ByMarketPk.")]
     [Arguments("""orders.Index("Other", "otherpk").Query([|Order.Keys.Pk.Of("u")|])""", "Order.Keys.Pk", "pk", "the index Other", "otherpk", "it throws ArgumentException.")]
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("eu", "web"), [|Order.Keys.Sk.BeginsWith()|])""", "Order.Keys.Sk", "sk", "the index ByMarket", "bymarketsk", "DynamoDB compares that attribute with text made for another key and finds the wrong items. Use Order.Keys.ByMarketSk.")]
-    [Arguments("""orders.Index("Other", "otherpk", "othersk").Query("o", [|Order.Keys.Sk.BeginsWith()|])""", "Order.Keys.Sk", "sk", "the index Other", "othersk", "DynamoDB compares that attribute with text made for another key and finds the wrong items.")]
-    [Arguments("""orders.Index(Order.Indexes.ByReference).Query("r", [|Order.Keys.Sk.BeginsWith()|])""", "Order.Keys.Sk", "sk", "the index ByReference", "no sort key", "it throws ArgumentException. Leave out the condition on the sort key.")]
+    [Arguments("""orders.Index("Other", "otherpk", "othersk").Query(new PartitionKey<Order>("o"), [|Order.Keys.Sk.BeginsWith()|])""", "Order.Keys.Sk", "sk", "the index Other", "othersk", "DynamoDB compares that attribute with text made for another key and finds the wrong items.")]
+    [Arguments("""orders.Index(Order.Indexes.ByReference).Query(Order.Keys.ByReferencePk.Of("r"), [|Order.Keys.Sk.BeginsWith()|])""", "Order.Keys.Sk", "sk", "the index ByReference", "no sort key", "it throws ArgumentException. Leave out the condition on the sort key.")]
     public async Task Analyze_KeyOfAnotherAttribute_Warns(string chain, string builder, string attribute, string read, string reads, string reason)
     {
         // Arrange
@@ -249,20 +249,20 @@ public sealed class QueryKeyAnalyzerTests
     [Arguments("""orders.Query(Order.Keys.Pk.Of("u"), Order.Keys.Sk.BeginsWith())""")]
 
     // A plain sort key of one property under another attribute holds the same value.
-    [Arguments("""passes.Query("c", Ticket.Keys.Sk.Gt(1))""")]
+    [Arguments("""passes.Query(Pass.Keys.Pk.Of("c"), Ticket.Keys.Sk.Gt(1))""")]
 
     // ORDER#{PlacedAt}#{OrderId} of the table and ORDER#{PlacedAt:ticks}#{OrderId} of ByUser are one template in two spellings.
     [Arguments("""orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.Sk.BeginsWith())""")]
     [Arguments("""orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.ByUserSk.BeginsWith())""")]
     [Arguments("""orders.Index(Order.Indexes.ByTotal).Query(Order.Keys.Pk.Of("u"), Order.Keys.ByTotalSk.Gt(1m))""")]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.Pk.Format("u"))""")]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(new PartitionKey<Order>(Order.Keys.Pk.Format("u")))""")]
     [Arguments("""orders.Index("Other", "pk", "sk").Query(Order.Keys.Pk.Of("u"), Order.Keys.Sk.BeginsWith())""")]
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Fake.Keys.Pk.Of())""")]
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Keys.Pk.Of())""")]
     [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Part.Keys.Pk.Of())""")]
     [Arguments("""byMarket.Query(Order.Keys.Pk.Of("u"))""")]
     [Arguments("""shop.Query(Order.Keys.Pk.Of("u"))""")]
-    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query("m", default)""")]
+    [Arguments("""orders.Index(Order.Indexes.ByMarket).Query(Order.Keys.ByMarketPk.Of("m", "web"), default)""")]
     public async Task Analyze_KeyOfTheAttributeThatIsReadOrThatCannotBeKnown_ReportsNothing(string chain)
     {
         // Arrange (an index whose sort key has the template of the table under another attribute takes the same text, and a local index has the partition key of the table)

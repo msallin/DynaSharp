@@ -17,7 +17,7 @@ public sealed class ShardedLatestTests(Backend backend)
 
     private static readonly DateTimeOffset Noon = new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private static IEnumerable<string> AllShards => Enumerable.Range(0, Shards).Select(static shard => Activity.Keys.Gsi1Pk.Format(shard));
+    private static IEnumerable<PartitionKey<Activity>> AllShards => Enumerable.Range(0, Shards).Select(static shard => Activity.Keys.Gsi1Pk.Of(shard));
 
     [Test]
     public async Task PageAsync_Descending_GivesTheNewestAcrossAllUsers()

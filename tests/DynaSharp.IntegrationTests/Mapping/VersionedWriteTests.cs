@@ -497,8 +497,8 @@ public sealed class VersionedWriteTests(Backend backend)
 
         // Act
         await shop.Tickets.Update(Key).Set(Ticket.Attrs.State, OrderStatus.Shipped).IfVersion(1).SendAsync();
-        var pending = await Read.ToListAsync(byState.Query(Ticket.Keys.Gsi1Pk.Format(OrderStatus.Pending)).ItemsAsync());
-        var shipped = await Read.ToListAsync(byState.Query(Ticket.Keys.Gsi1Pk.Format(OrderStatus.Shipped)).ItemsAsync());
+        var pending = await Read.ToListAsync(byState.Query(Ticket.Keys.Gsi1Pk.Of(OrderStatus.Pending)).ItemsAsync());
+        var shipped = await Read.ToListAsync(byState.Query(Ticket.Keys.Gsi1Pk.Of(OrderStatus.Shipped)).ItemsAsync());
 
         // Assert
         await Assert.That((pending.Count, shipped.Single().State)).IsEqualTo((0, OrderStatus.Shipped));
@@ -514,7 +514,7 @@ public sealed class VersionedWriteTests(Backend backend)
 
         // Act
         await shop.Tickets.Update(Key).Set(Ticket.Attrs.Owner, "ann").Set(Ticket.Attrs.Due, Day).IfVersion(1).SendAsync();
-        var found = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Format("ann")).ItemsAsync());
+        var found = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Of("ann")).ItemsAsync());
 
         // Assert
         await Assert.That(found.Single().Due).IsEqualTo(Day);
@@ -547,7 +547,7 @@ public sealed class VersionedWriteTests(Backend backend)
 
         // Act
         await shop.Tickets.Update(Key).Set("Owner", "ann").Set("gsi2pk", Ticket.Keys.Gsi2Pk.Format("ann")).IgnoreVersion().SendAsync();
-        var found = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Format("ann")).ItemsAsync());
+        var found = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Of("ann")).ItemsAsync());
 
         // Assert
         await Assert.That(found).IsEmpty();
@@ -564,7 +564,7 @@ public sealed class VersionedWriteTests(Backend backend)
 
         // Act
         await shop.Claims.Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "hal").SendAsync();
-        var found = await Read.ToListAsync(byHandler.Query(Claim.Keys.Gsi2Pk.Format("hal")).ItemsAsync());
+        var found = await Read.ToListAsync(byHandler.Query(Claim.Keys.Gsi2Pk.Of("hal")).ItemsAsync());
 
         // Assert
         await Assert.That(found.Single().Id).IsEqualTo("c1");
@@ -593,11 +593,11 @@ public sealed class VersionedWriteTests(Backend backend)
         await using var shop = await ShopSandbox.StartAsync(backend);
         await shop.Tickets.Put(NewTicket with { Owner = "ann", Due = Day }).SendAsync();
         var byOwner = shop.Tickets.Index(Ticket.Indexes.Gsi2);
-        var before = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Format("ann")).ItemsAsync());
+        var before = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Of("ann")).ItemsAsync());
 
         // Act
         await shop.Tickets.Update(Key).Remove(Ticket.Attrs.Owner).IfVersion(1).SendAsync();
-        var after = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Format("ann")).ItemsAsync());
+        var after = await Read.ToListAsync(byOwner.Query(Ticket.Keys.Gsi2Pk.Of("ann")).ItemsAsync());
         var stored = (await shop.Shop.Get(Ticket.Keys.Pk.Format("t1"), Ticket.Keys.Sk.Format()).Consistent().SendAsync()).Item!;
 
         // Assert

@@ -95,7 +95,7 @@ public sealed class KeyInputChangesSiblingTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => _ = client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Delete(tickets, "a", "b"));
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Delete(tickets, new StoredKey<Ticket>("a", "b")));
 
         // Assert
         await Assert.That(failure.Message).Contains("byownersk");
@@ -202,7 +202,7 @@ public sealed class KeyInputChangesSiblingTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Claim>("Shop").Update("CLAIM#c1").Set(Claim.Attrs.Handler, "h").ToRequestJson();
+        var json = client.Table<Claim>("Shop").Update(Claim.Keys.Of("c1")).Set(Claim.Attrs.Handler, "h").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -219,7 +219,7 @@ public sealed class KeyInputChangesSiblingTests
         var claims = client.Table<Claim>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update("OTHER#c1").Set(Claim.Attrs.Handler, "h").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => claims.Update(new StoredKey<Claim>("OTHER#c1")).Set(Claim.Attrs.Handler, "h").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("does not produce bycasesk,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set what");
@@ -233,7 +233,7 @@ public sealed class KeyInputChangesSiblingTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<OtherSlot>("Shop").Update("ROOM#r1", "DAY#2026-11-02").Set(OtherSlot.Attrs.Owner, "ann").ToRequestJson();
+        var json = client.Table<OtherSlot>("Shop").Update(new StoredKey<OtherSlot>("ROOM#r1", "DAY#2026-11-02")).Set(OtherSlot.Attrs.Owner, "ann").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -284,7 +284,7 @@ public sealed class KeyInputChangesSiblingTests
         var keyInput = PlainDevice.Attrs.Serial;
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => devices.Update("d1").Set(PlainDevice.Attrs.Rack, "r").Set(keyInput, "d2").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => devices.Update(new StoredKey<PlainDevice>("d1")).Set(PlainDevice.Attrs.Rack, "r").Set(keyInput, "d2").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot update a key");
@@ -298,7 +298,7 @@ public sealed class KeyInputChangesSiblingTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<PlainDevice>("Shop").Update("d1").Set(PlainDevice.Attrs.Rack, "r").ToRequestJson();
+        var json = client.Table<PlainDevice>("Shop").Update(new StoredKey<PlainDevice>("d1")).Set(PlainDevice.Attrs.Rack, "r").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -330,7 +330,7 @@ public sealed class KeyInputChangesSiblingTests
         var table = client.Table<HandSparse>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => table.Update("x").Set(HandSparse.Tag, "a").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => table.Update(new StoredKey<HandSparse>("x")).Set(HandSparse.Tag, "a").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("does not produce other,");
@@ -360,7 +360,7 @@ public sealed class KeyInputChangesSiblingTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<PlainDevice>("Shop").Update("d1").Set(PlainDevice.Attrs.Shelf, "s").ToRequestJson();
+        var json = client.Table<PlainDevice>("Shop").Update(new StoredKey<PlainDevice>("d1")).Set(PlainDevice.Attrs.Shelf, "s").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -392,7 +392,7 @@ public sealed class KeyInputChangesSiblingTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<NickName>("Shop").Update("x").Set(NickName.Attrs.Nick, "n").Set(NickName.Attrs.Age, 30).ToRequestJson();
+        var json = client.Table<NickName>("Shop").Update(new StoredKey<NickName>("x")).Set(NickName.Attrs.Nick, "n").Set(NickName.Attrs.Age, 30).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -409,7 +409,7 @@ public sealed class KeyInputChangesSiblingTests
         var sales = client.Table<GatedSale>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => sales.Update("x").Set(GatedSale.Attrs.Tenant, "t").Set(GatedSale.Attrs.Seller, "s").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => sales.Update(new StoredKey<GatedSale>("x")).Set(GatedSale.Attrs.Tenant, "t").Set(GatedSale.Attrs.Seller, "s").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("sparse index ByBuyer").And.Contains("does not produce bybuyersk,");

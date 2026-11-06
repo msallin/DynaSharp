@@ -219,9 +219,9 @@ public sealed partial class CommandVectorTests
             .Project("status", "order", "address.city")
             .ToRequestJson(),
         [("Query", "TwoFilters")] = client => Shop(client).Query("CUSTOMER#alice").Filter(Attr("a").Eq(1)).Filter($"size({Attr("tags")}) < {10}").ToRequestJson(),
-        [("Query", "Entity")] = client => client.Table<Customer>("Shop").Query("CUSTOMER#alice", SortKeyCondition.BeginsWith("P")).Filter(Customer.Attrs.FullName.Eq("Alice")).ToRequestJson(),
-        [("Query", "EntityProjection")] = client => client.Table<Customer>("Shop").Query("CUSTOMER#alice").Project("fullName").ToRequestJson(),
-        [("Query", "EntityIndexProjection")] = client => client.Table<Customer>("Shop").Index("ByName").Query("Alice").Project("email").ToRequestJson(),
+        [("Query", "Entity")] = client => client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("alice"), SortKeyCondition.BeginsWith("P")).Filter(Customer.Attrs.FullName.Eq("Alice")).ToRequestJson(),
+        [("Query", "EntityProjection")] = client => client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("alice")).Project("fullName").ToRequestJson(),
+        [("Query", "EntityIndexProjection")] = client => client.Table<Customer>("Shop").Index("ByName").Query(Customer.Keys.ByNamePk.Of("Alice")).Project("email").ToRequestJson(),
         [("Scan", "Entity")] = client => client.Table<Customer>("Shop").Scan().Filter(Customer.Attrs.OrderCount.Gt(0)).ToRequestJson(),
         [("Scan", "Interpolated")] = client => Shop(client).Scan().Filter($"begins_with({Attr("sk")}, {"ORDER#"}) AND {Attr("amount")} > {100}").Project("sk", "amount").ToRequestJson(),
     };

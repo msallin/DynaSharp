@@ -140,7 +140,7 @@ public sealed class KeyInputChangesRemovalTests
         var purchases = client.Table<Purchase>("Shop");
 
         // Act
-        var act = () => purchases.Update("a", 1).IgnoreVersion().Remove(Purchase.Attrs.Status).ToRequestJson();
+        var act = () => purchases.Update(new StoredKey<Purchase>("a", 1)).IgnoreVersion().Remove(Purchase.Attrs.Status).ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();

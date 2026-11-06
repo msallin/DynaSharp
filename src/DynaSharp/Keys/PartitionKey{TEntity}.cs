@@ -10,8 +10,8 @@ namespace DynaSharp;
 /// </summary>
 /// <remarks>
 /// <para>
-/// It does not convert to <see cref="AttributeValue"/> on its own, because a conversion would let the key of another entity through the overload that takes one. <see cref="Value"/> is
-/// the explicit way out, and the <see cref="AttributeValue"/> overloads of <c>Query</c> stay as the escape hatch.
+/// <b>No conversion.</b> It does not convert to <see cref="AttributeValue"/> on its own: a table of an entity takes no key given as its stored values, which would skip the template, so a key
+/// of another entity would have a way through. <see cref="Value"/> is the explicit way out, and a table without a schema, <c>client.Table(name, partitionKey, sortKey)</c>, takes the values.
 /// </para>
 /// <para>
 /// The entity is all the type knows, so the partition key of a table and the one of its index have one type: the compiler does not tell them apart. The key remembers the attribute it was built

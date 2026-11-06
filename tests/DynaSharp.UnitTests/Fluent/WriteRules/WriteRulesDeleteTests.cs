@@ -61,7 +61,7 @@ public sealed class WriteRulesDeleteTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var act = () => tickets.Delete("a", "b").ToRequestJson();
+        var act = () => tickets.Delete(Ticket.Keys.Of("a", Day)).ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();

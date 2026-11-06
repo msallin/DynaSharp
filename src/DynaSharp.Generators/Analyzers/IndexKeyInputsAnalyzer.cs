@@ -101,7 +101,7 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
             // The verb of a table and of a transaction step: no other method of the library is called Update and returns an update.
             if (call.TargetMethod.Name == UpdateVerb)
             {
-                var entity = (UpdatePathAnalyzer.IsStepVerb(call) ? call.TargetMethod.TypeArguments[1] : type.TypeArguments[0]) as INamedTypeSymbol;
+                var entity = (UpdatePathAnalyzer.IsStepVerb(call) ? DynaSharpTypes.TableTypeOf(call.TargetMethod) : type.TypeArguments[0]) as INamedTypeSymbol;
                 return entity is not null && models.ModelOf(entity) is { Entity: { } model } typeModel ? Actions(calls, entity, typeModel, model, models) : null;
             }
 

@@ -426,7 +426,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     public ValueTask<WriteResult<T>> TrySendAsync(CancellationToken cancellationToken = default) =>
         Enter().Settle().TrySendAsync<UpdateOperation<T>, WriteResult<T>>(cancellationToken);
 
-    /// <summary>Lets <c>await</c> send the command, for <c>await table.Update(pk, sk).Set("a", 1)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
+    /// <summary>Lets <c>await</c> send the command, for <c>await shop.Update(pk, sk).Set("a", 1)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ValueTaskAwaiter<WriteResult<T>> GetAwaiter() => SendAsync().GetAwaiter();

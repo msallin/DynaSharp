@@ -356,7 +356,7 @@ public sealed class OmitEmptyCollectionTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Tray>("Shop").Query("TRAY#t1").Filter(Tray.Attrs.Tags.Eq([])).ToRequestJson();
+        var json = client.Table<Tray>("Shop").Query(Tray.Keys.Pk.Of("t1")).Filter(Tray.Attrs.Tags.Eq([])).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

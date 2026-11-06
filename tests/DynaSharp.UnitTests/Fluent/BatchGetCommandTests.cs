@@ -109,11 +109,11 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").BatchGet().Key("a", "b").Project(Customer.Attrs.FullName).ToRequestJson();
+        var json = client.Table<Customer>("Shop").BatchGet().Key(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(
-            """{"RequestItems":{"Shop":{"Keys":[{"pk":{"S":"a"},"sk":{"S":"b"}}],"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}}}""");
+            """{"RequestItems":{"Shop":{"Keys":[{"pk":{"S":"CUSTOMER#a"},"sk":{"S":"PROFILE"}}],"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}}}""");
     }
 
     [Test]
@@ -124,7 +124,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table<Customer>("Shop").BatchGet().Key("a", "b").Project(Customer.Attrs.FullName).SendAsync();
+        await client.Table<Customer>("Shop").BatchGet().Key(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).SendAsync();
 
         // Assert
         await Assert.That(handler.Requests.Single().BodyText).Contains("""#n0, #n1, #n2, #n3""");

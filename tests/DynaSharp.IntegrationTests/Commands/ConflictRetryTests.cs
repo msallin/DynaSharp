@@ -100,7 +100,7 @@ public sealed class ConflictRetryTests(Backend backend)
                 return count;
             },
             maxAttempts: Writers));
-        var stored = await entries.Query(TallyEntry.Keys.Pk.Format()).Consistent().CountAsync();
+        var stored = await entries.Query(TallyEntry.Keys.Pk.Of()).Consistent().CountAsync();
 
         // Assert
         await Assert.That((results, stored)).IsEqualTo((OnePerWriter, Writers));

@@ -100,8 +100,8 @@ public sealed class SelectTests(Backend backend)
         var sk = Customer.Keys.Sk.Format();
 
         // Act
-        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await orders.Get(pk, sk).Consistent().Select(Order.Attrs.Quantity).SendAsync());
-        var typed = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await orders.Get(pk, sk).Consistent().ItemAsync());
+        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await orders.Get(new StoredKey<Order>(pk, sk)).Consistent().Select(Order.Attrs.Quantity).SendAsync());
+        var typed = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await orders.Get(new StoredKey<Order>(pk, sk)).Consistent().ItemAsync());
 
         // Assert
         await Assert.That((selected.Message, selected.AttributeName)).IsEqualTo((typed.Message, typed.AttributeName));
@@ -114,8 +114,8 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Consistent().Select(Order.Attrs.Total).ValuesAsync());
-        var names = await Read.ToListAsync(shop.Customers.Query(Customer.Keys.Pk.Format("alice")).Consistent().Select(Customer.Attrs.Name).ValuesAsync());
+        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Of("alice")).Consistent().Select(Order.Attrs.Total).ValuesAsync());
+        var names = await Read.ToListAsync(shop.Customers.Query(Customer.Keys.Pk.Of("alice")).Consistent().Select(Customer.Attrs.Name).ValuesAsync());
 
         // Assert
         await Assert.That((totals.Count, totals.Sum(), names.Single())).IsEqualTo((2, 19.5m, "Alice"));
@@ -128,7 +128,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var json = shop.Orders.Query(Order.Keys.Pk.Format("alice")).Select(Order.Attrs.Total).ToRequestJson();
+        var json = shop.Orders.Query(Order.Keys.Pk.Of("alice")).Select(Order.Attrs.Total).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n2\"");
@@ -141,7 +141,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Format("alice")).Filter(Order.Attrs.Quantity.Gt(1)).Descending().Consistent().Select(Order.Attrs.Total).ValuesAsync());
+        var totals = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Of("alice")).Filter(Order.Attrs.Quantity.Gt(1)).Descending().Consistent().Select(Order.Attrs.Total).ValuesAsync());
 
         // Assert
         await Assert.That(totals.Single()).IsEqualTo(7m);
@@ -154,7 +154,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var newest = await shop.Orders.Query(Order.Keys.Pk.Format("alice")).Descending().Limit(1).Consistent().Select(Order.Attrs.Total).ValueAsync();
+        var newest = await shop.Orders.Query(Order.Keys.Pk.Of("alice")).Descending().Limit(1).Consistent().Select(Order.Attrs.Total).ValueAsync();
 
         // Assert
         await Assert.That((newest.Found, newest.Value)).IsEqualTo((true, 7m));
@@ -167,7 +167,7 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var none = await shop.Orders.Query(Order.Keys.Pk.Format("nobody")).Select(Order.Attrs.Total).ValueAsync();
+        var none = await shop.Orders.Query(Order.Keys.Pk.Of("nobody")).Select(Order.Attrs.Total).ValueAsync();
 
         // Assert
         await Assert.That(none.Found).IsFalse();
@@ -180,8 +180,8 @@ public sealed class SelectTests(Backend backend)
         await using var shop = await SeededAsync();
 
         // Act
-        var first = await shop.Orders.Query(Order.Keys.Pk.Format("alice")).Limit(1).Consistent().Select(Order.Attrs.Total).PageAsync();
-        var second = await shop.Orders.Query(Order.Keys.Pk.Format("alice")).Limit(2).Consistent().Select(Order.Attrs.Total).PageAsync(first.Next);
+        var first = await shop.Orders.Query(Order.Keys.Pk.Of("alice")).Limit(1).Consistent().Select(Order.Attrs.Total).PageAsync();
+        var second = await shop.Orders.Query(Order.Keys.Pk.Of("alice")).Limit(2).Consistent().Select(Order.Attrs.Total).PageAsync(first.Next);
 
         // Assert
         await Assert.That((first.Items.Single(), first.HasMore, second.Items.Single())).IsEqualTo((12.5m, true, 7m));
@@ -234,7 +234,7 @@ public sealed class SelectTests(Backend backend)
         var byType = shop.Customers.Index(ShopSandbox.ByType, "_type", "sk");
 
         // Act
-        var names = await Read.ToListAsync(byType.Query("CUSTOMER").Select(Customer.Attrs.Name).ValuesAsync());
+        var names = await Read.ToListAsync(byType.QueryByDiscriminator().Select(Customer.Attrs.Name).ValuesAsync());
 
         // Assert
         await Assert.That(names.Single()).IsEqualTo("Alice");
@@ -248,8 +248,8 @@ public sealed class SelectTests(Backend backend)
         var byType = shop.Customers.Index(ShopSandbox.ByType, "_type", "sk");
 
         // Act
-        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query("ORDER").Select(Customer.Attrs.OrderCount).ValuesAsync()));
-        var typed = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query("ORDER").ItemsAsync()));
+        var selected = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query(new PartitionKey<Customer>("ORDER")).Select(Customer.Attrs.OrderCount).ValuesAsync()));
+        var typed = await Items.FailureOfAsync<DynamoDbMappingException>(async () => await Read.ToListAsync(byType.Query(new PartitionKey<Customer>("ORDER")).ItemsAsync()));
 
         // Assert
         await Assert.That((selected.Message, selected.AttributeName)).IsEqualTo((typed.Message, typed.AttributeName));

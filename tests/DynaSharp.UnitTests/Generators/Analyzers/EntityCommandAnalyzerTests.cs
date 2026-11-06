@@ -34,7 +34,13 @@ public sealed class EntityCommandAnalyzerTests
         }
 
         [DynamoDbDocument]
-        public partial record Address(string Street);
+        public partial record Address(string Street)
+        {
+            public readonly struct Key : IKey<Address>
+            {
+                public void WriteKey(DynamoDbWriter writer) { }
+            }
+        }
 
         [DynamoDbEntity]
         [Discriminator("CUSTOMER")]
@@ -148,6 +154,11 @@ public sealed class EntityCommandAnalyzerTests
 
             static Hand IDynamoDbDocument<Hand>.ReadAttributes(ref DynamoDbReader reader) => new();
 
+            public readonly struct Key : IKey<Hand>
+            {
+                public void WriteKey(DynamoDbWriter writer) { }
+            }
+
             public static class Attrs
             {
                 public static Attr<string, StringConverter> X => new("x");
@@ -230,8 +241,8 @@ public sealed class EntityCommandAnalyzerTests
     [Arguments("""_ = client.TransactWrite().Update(shop, "a").Set(DeviceEvent.Attrs.At, now);""")]
     [Arguments("""var handle = DeviceEvent.Attrs.At; _ = events.Update(key).Set(handle, now);""")]
     [Arguments("""UpdateStep step = default; _ = step.Set(DeviceEvent.Attrs.At, now);""")]
-    [Arguments("""_ = addresses.Update("a").Set(Address.Attrs.Street, "s");""")]
-    [Arguments("""_ = hands.Update("a").Set(Hand.Attrs.X, "s");""")]
+    [Arguments("""_ = addresses.Update(default(Address.Key)).Set(Address.Attrs.Street, "s");""")]
+    [Arguments("""_ = hands.Update(default(Hand.Key)).Set(Hand.Attrs.X, "s");""")]
     public async Task Analyze_WriteThatIsNoInputOfTheTableKey_ReportsNothing(string statement)
     {
         // Arrange
@@ -572,11 +583,11 @@ public sealed class EntityCommandAnalyzerTests
     [Arguments("""_ = locks.BatchWrite().[|Put|](held).ToRequestJson();""")]
     [Arguments("""_ = locks.BatchWrite().[|PutAll|]([held]).ToRequestJson();""")]
     [Arguments("""_ = locks.BatchWrite().[|Delete|](lockKey).ToRequestJson();""")]
-    [Arguments("""_ = locks.BatchWrite().[|Delete|]("a").ToRequestJson();""")]
+    [Arguments("""_ = locks.BatchWrite().[|Delete|](Locked.Keys.Of("a")).ToRequestJson();""")]
     [Arguments("""_ = locks.BatchWrite().[|DeleteAll|]([lockKey]).ToRequestJson();""")]
     [Arguments("""_ = shop.BatchWrite().Put(new Item()).[|Put|](locks, held).ToRequestJson();""")]
     [Arguments("""_ = shop.BatchWrite().[|Delete|](locks, lockKey).ToRequestJson();""")]
-    [Arguments("""_ = shop.BatchWrite().[|Delete|](locks, "a").ToRequestJson();""")]
+    [Arguments("""_ = shop.BatchWrite().[|Delete|](locks, Locked.Keys.Of("a")).ToRequestJson();""")]
     [Arguments("""_ = locks.BatchWrite().[|Put|](held).Put(held).Delete(lockKey).ToRequestJson();""")]
     [Arguments("""_ = locks.BatchWrite().ReturnCapacity().[|Put|](held).ToRequestJson();""")]
     [Arguments("""_ = Locks().BatchWrite().[|Put|](held).ToRequestJson();""")]

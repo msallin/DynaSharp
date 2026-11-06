@@ -498,7 +498,7 @@ public sealed class OmitEmptyAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Slip>("Shop").Query("SLIP#s1").Filter(Slip.Attrs.Note.Eq(string.Empty)).ToRequestJson();
+        var json = client.Table<Slip>("Shop").Query(Slip.Keys.Pk.Of("s1")).Filter(Slip.Attrs.Note.Eq(string.Empty)).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

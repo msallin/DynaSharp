@@ -77,11 +77,11 @@ public sealed class GeohashProximityTests(Backend backend)
             for (var column = -1; column <= 1; column++)
             {
                 var wrapped = ((longitude + (column * CellWidth) + 540) % 360) - 180;
-                cells.Add(Place.Keys.Pk.Format(Encode(Math.Clamp(latitude + (row * CellHeight), -90, 90), wrapped)));
+                cells.Add(Encode(Math.Clamp(latitude + (row * CellHeight), -90, 90), wrapped));
             }
         }
 
-        return await places.Query(cells).ItemsAsync().ToListAsync();
+        return await places.Query(cells.Select(Place.Keys.Pk.Of)).ItemsAsync().ToListAsync();
     }
 
     // Bits of longitude and latitude in turn, each halving the range, five to a character. Input: 57.64911, 10.40744. Output: u4pr.

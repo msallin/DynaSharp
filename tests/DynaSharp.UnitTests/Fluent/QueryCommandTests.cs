@@ -256,7 +256,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Session>("Sessions").Query("a").Project(Attr("x")).ToRequestJson();
+        var json = client.Table<Session>("Sessions").Query(Session.Keys.Pk.Of("a")).Project(Attr("x")).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ExpressionAttributeNames\":{\"#n0\":\"id\",\"#n1\":\"x\"}").And.Contains("\"ProjectionExpression\":\"#n1, #n0\"");
@@ -270,7 +270,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Tenant>("Tenants").Query("a").Project(Attr("x")).ToRequestJson();
+        var json = client.Table<Tenant>("Tenants").Query(Tenant.Keys.Pk.Of("a")).Project(Attr("x")).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n2, #n1, #n0\"").And.Contains("\"#n1\":\"kind\"");
@@ -284,7 +284,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query("a").Project("pk", "_type", "fullName", "sk").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).Project("pk", "_type", "fullName", "sk").ToRequestJson();
 
         // Assert (a path that is named twice is an error at DynamoDB)
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n0, #n1, #n2, #n3\"");
@@ -298,7 +298,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query("a").Project("pk.part", "_type[0]", "sk").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).Project("pk.part", "_type[0]", "sk").ToRequestJson();
 
         // Assert (DynamoDB rejects two paths that overlap)
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n0.#n2, #n1[0], #n3\"");
@@ -312,7 +312,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query("a").Filter(Attr("fullName").Eq("x")).Project("fullName").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).Filter(Attr("fullName").Eq("x")).Project("fullName").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"ProjectionExpression\":\"#n2, #n1, #n0, #n3\"");
@@ -326,7 +326,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query("a").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).DoesNotContain("ProjectionExpression");
@@ -340,7 +340,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query("a").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("\"FilterExpression\":\"#n1 = :v1\"").And.Contains("\"#n1\":\"_type\"").And.Contains("\":v1\":{\"S\":\"CUSTOMER\"}");
@@ -354,7 +354,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Session>("Sessions").Query("a").ToRequestJson();
+        var json = client.Table<Session>("Sessions").Query(Session.Keys.Pk.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).DoesNotContain("FilterExpression");
@@ -368,7 +368,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Index("ByType", "_type", "sk").Query("CUSTOMER").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Index("ByType", "_type", "sk").QueryByDiscriminator().ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByType","KeyConditionExpression":"#n0 = :v0","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -382,10 +382,10 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Index("ByPartition", "pk", "_type").Query("a", SortKeyCondition.Eq("CUSTOMER")).ToRequestJson();
+        var json = client.Table<Customer>("Shop").Index("ByPartition", "pk", "_type").Query(Customer.Keys.Pk.Of("a"), SortKeyCondition.Eq("CUSTOMER")).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByPartition","KeyConditionExpression":"#n0 = :v0 AND #n1 = :v1","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"CUSTOMER"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","IndexName":"ByPartition","KeyConditionExpression":"#n0 = :v0 AND #n1 = :v1","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER#a"},":v1":{"S":"CUSTOMER"}}}""");
     }
 
     [Test]
@@ -410,7 +410,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Index("ByEmail").Query("a@b.ch").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Index("ByEmail").Query(Customer.Keys.ByEmailPk.Of("a@b.ch")).ToRequestJson();
 
         // Assert
         await Assert.That(json).StartsWith("""{"TableName":"Shop","IndexName":"ByEmail","KeyCondition""").And.Contains("\"FilterExpression\":\"#n1 = :v1\"");
@@ -455,7 +455,7 @@ public sealed class QueryCommandTests
 
         // Act
         var byKey = customers.Query(Customer.Keys.Of("alice")).ToRequestJson();
-        var byCondition = customers.Query("CUSTOMER#alice", SortKeyCondition.Eq("PROFILE")).ToRequestJson();
+        var byCondition = customers.Query(Customer.Keys.Pk.Of("alice"), SortKeyCondition.Eq("PROFILE")).ToRequestJson();
 
         // Assert
         await Assert.That(byKey).IsEqualTo(byCondition);
@@ -675,7 +675,7 @@ public sealed class QueryCommandTests
 
         // Act
 #pragma warning disable DYNA208 // No item comes back, and what goes out is what this test is about.
-        await client.Table<Customer>("Shop").Query("a").Project(Attr("email")).ItemAsync();
+        await client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).Project(Attr("email")).ItemAsync();
 #pragma warning restore DYNA208
 
         // Assert
@@ -693,7 +693,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var session = await client.Table<Session>("Sessions").Query("s").ItemAsync();
+        var session = await client.Table<Session>("Sessions").Query(Session.Keys.Pk.Of("s")).ItemAsync();
 
         // Assert
         await Assert.That(session).IsEqualTo(default(Session));
@@ -1427,7 +1427,7 @@ public sealed class QueryCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => customers.Query("a").ItemsAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => customers.Query(Customer.Keys.Pk.Of("a")).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure.ErrorCode).IsEqualTo("UnrecognizedResponse");
@@ -1442,7 +1442,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var items = await client.Table<Customer>("Shop").Query("CUSTOMER#alice").ItemsAsync().ToListAsync();
+        var items = await client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("alice")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(items.Single()).IsEqualTo(new Customer("alice", "Alice", 3));
@@ -1457,7 +1457,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var items = await client.Table<Session>("Sessions").Query("s").ItemsAsync().ToListAsync();
+        var items = await client.Table<Session>("Sessions").Query(Session.Keys.Pk.Of("s")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(string.Join(",", items.Select(static session => session.Id))).IsEqualTo("s-1,s-2");
@@ -1473,7 +1473,7 @@ public sealed class QueryCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(() => customers.Query("a").ItemsAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(() => customers.Query(Customer.Keys.Pk.Of("a")).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure.AttributeName).IsEqualTo("_type");
@@ -1816,7 +1816,7 @@ public sealed class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table<Customer>("Shop").Query("a").CountAsync();
+        await client.Table<Customer>("Shop").Query(Customer.Keys.Pk.Of("a")).CountAsync();
 
         // Assert
         await Assert.That(handler.Requests.Single().BodyText).Contains("\"FilterExpression\":\"#n1 = :v1\"");

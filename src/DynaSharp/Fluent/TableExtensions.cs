@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Serialization;
@@ -6,9 +7,27 @@ using DynaSharp.Serialization;
 namespace DynaSharp;
 
 /// <summary>
-/// What only some tables can do. These are extension methods so that the rest does not compile: a table of an entity has no attribute-by-attribute
-/// <c>Put()</c>, because it would write an item without its discriminator, and a table without a schema has no key inside an item.
+/// What only some tables can do. These are extension methods so that the rest does not compile: a table of an entity takes no key given as its values, which would skip its
+/// key template, and has no attribute-by-attribute <c>Put()</c>, which would write an item without its discriminator; a table without a schema has no key inside an item.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>The values of a key go to <see cref="Item"/>.</b> <c>shop.Get("CUSTOMER#1", "PROFILE")</c> sends the values as they are written. On a table of an entity, <c>customers.Get("1")</c> would
+/// miss the item the entity stores under <c>CUSTOMER#1</c>, so it does not compile there: such a table takes <c>Customer.Keys.Of("1")</c>, see
+/// <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA230</see>. A table without a schema has no template, so it takes the values, and
+/// <see cref="Table{T}.Of{TOther}"/> turns it into a table of an entity.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// var shop = client.Table("Shop", "pk", "sk");
+/// Item? profile = await shop.Get("CUSTOMER#1", "PROFILE").ItemAsync(ct);
+/// await foreach (var item in shop.Query("CUSTOMER#1", SortKeyCondition.BeginsWith("ORDER#")).ItemsAsync(ct))
+/// {
+///     Console.WriteLine(item["sk"]);
+/// }
+/// </code>
+/// </example>
 public static class TableExtensions
 {
     /// <summary>
@@ -89,8 +108,233 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Starts a query of one partition by a typed key: <c>orders.Query(Order.Keys.Pk.Of(id), Order.Keys.Sk.BeginsWith())</c>. The key of another entity is a compile error, which is what this
-    /// has over <see cref="Table{T}.Query(AttributeValue, SortKeyCondition)"/>. It is an extension method so that no call that binds to a member can change: this applies only when none does.
+    /// Starts a <c>GetItem</c> of one item of a table without a schema by the values of its key: <c>shop.Get("CUSTOMER#1", "PROFILE")</c>. A missing item is not an error, and the read is
+    /// eventually consistent unless <see cref="GetCommand{T}.Consistent"/> says otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <b>As written.</b> The values go out as they are. A table of an entity takes the key its generator built instead, <c>customers.Get(Customer.Keys.Of("1"))</c>, which formats them as
+    /// the entity stores them.
+    /// </remarks>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    public static GetCommand<Item> Get(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        var model = table.Model;
+        return new(model.Begin(partitionKey, sortKey), model);
+    }
+
+    /// <summary>
+    /// Starts an <c>UpdateItem</c> of one item of a table without a schema by the values of its key. It creates the item if none has the key, unless
+    /// <see cref="UpdateCommand{T}.IfExists"/> says otherwise.
+    /// </summary>
+    /// <inheritdoc cref="Get(Table{Item}, AttributeValue, AttributeValue)" path="/remarks"/>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    public static UpdateCommand<Item> Update(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        var model = table.Model;
+        return new(WriteRules.ExpectUpdate(model.Begin(partitionKey, sortKey)), model);
+    }
+
+    /// <summary>
+    /// Starts a <c>DeleteItem</c> of one item of a table without a schema by the values of its key. Deleting what does not exist is no error unless
+    /// <see cref="DeleteCommand{T}.IfExists"/> asks for one.
+    /// </summary>
+    /// <inheritdoc cref="Get(Table{Item}, AttributeValue, AttributeValue)" path="/remarks"/>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    public static DeleteCommand<Item> Delete(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        var model = table.Model;
+        return new(WriteRules.ExpectVersion(model.Begin(partitionKey, sortKey)), model);
+    }
+
+    /// <summary>
+    /// Starts a query of one partition of a table without a schema by the value of its partition key: <c>shop.Query("CUSTOMER#1", SortKeyCondition.BeginsWith("ORDER#"))</c>. Read it as
+    /// several entities with <c>Of&lt;Customer, Order&gt;()</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>As written.</b> The value goes out as it is. A table of an entity takes the partition key its generator built instead, <c>orders.Query(Order.Keys.Pk.Of("1"))</c>, which formats it
+    /// as the entity stores it.
+    /// </remarks>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The condition on the sort key, or the default value to read the whole partition.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the table has none.</exception>
+    public static QueryCommand<Item> Query(this Table<Item> table, AttributeValue partitionKey, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return QueryOf<Item>(table.Model, partitionKey, sortKey);
+    }
+
+    /// <summary>
+    /// Starts a query of several partitions of a table without a schema, merged by sort key, for write shards and time buckets. It costs at least one read per partition, see
+    /// <see cref="FanOutQueryCommand{T}"/>.
+    /// </summary>
+    /// <inheritdoc cref="Query(Table{Item}, AttributeValue, SortKeyCondition)" path="/remarks"/>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> or <paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is empty or occurs twice, which the message places by position, or there is a condition on a sort key and the table has none.</exception>
+    public static FanOutQueryCommand<Item> Query(this Table<Item> table, IEnumerable<AttributeValue> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, table.Model, table.Model);
+    }
+
+    /// <summary>Starts a query of several partitions of a table without a schema by their string keys: <c>shop.Query(["SHARD#0", "SHARD#1"])</c>. It costs at least one read per partition.</summary>
+    /// <inheritdoc cref="Query(Table{Item}, AttributeValue, SortKeyCondition)" path="/remarks"/>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKeys">The partitions, read here and not kept. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
+    public static FanOutQueryCommand<Item> Query(this Table<Item> table, scoped ReadOnlySpan<string> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, table.Model, table.Model);
+    }
+
+    /// <summary>
+    /// Starts a query of several partitions of a table without a schema by string keys that are computed: <c>shop.Query(Enumerable.Range(0, 8).Select(static shard => $"SHARD#{shard}"))</c>.
+    /// It costs at least one read per partition.
+    /// </summary>
+    /// <remarks>
+    /// <b>Last choice.</b> This overload yields to every other, so a call binds to it only when no other applies. That takes C# 13: a compiler below it ignores the priority, and a
+    /// <c>string[]</c> needs <c>AsSpan()</c> there.
+    /// </remarks>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> or <paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and there is no sort key.</exception>
+    [OverloadResolutionPriority(-1)]
+    public static FanOutQueryCommand<Item> Query(this Table<Item> table, IEnumerable<string> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, table.Model, table.Model);
+    }
+
+    /// <summary>
+    /// Starts a query of one partition of an index of a table without a schema by the value of its partition key: <c>shop.Index("GSI1", "gsi1pk", "gsi1sk").Query("STATUS#open")</c>. See
+    /// <see cref="DynaSharp.Index{T}"/> for what is different about reading an index.
+    /// </summary>
+    /// <remarks>
+    /// <b>As written.</b> The value goes out as it is. An index of an entity takes the partition key its generator built instead, <c>byStatus.Query(Order.Keys.ByStatusPk.Of(status))</c>.
+    /// </remarks>
+    /// <param name="index">The index.</param>
+    /// <param name="partitionKey">The partition key of the index as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The condition on the sort key of the index, or the default value to read the whole partition.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="index"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the index has none.</exception>
+    public static QueryCommand<Item> Query(this Index<Item> index, AttributeValue partitionKey, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        return QueryOf<Item>(index.Model, partitionKey, sortKey);
+    }
+
+    /// <summary>
+    /// Starts a query of several partitions of an index of a table without a schema, merged by the sort key of the index: the read of a sharded index. It costs at least one read per
+    /// partition.
+    /// </summary>
+    /// <inheritdoc cref="Query(Index{Item}, AttributeValue, SortKeyCondition)" path="/remarks"/>
+    /// <param name="index">The index.</param>
+    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="index"/> or <paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is empty or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
+    public static FanOutQueryCommand<Item> Query(this Index<Item> index, IEnumerable<AttributeValue> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, index.Model, index.Table.Model);
+    }
+
+    /// <summary>Starts a query of several partitions of an index of a table without a schema by their string keys, such as <c>["SHARD#0", "SHARD#1"]</c>. It costs at least one read per partition.</summary>
+    /// <inheritdoc cref="Query(Index{Item}, AttributeValue, SortKeyCondition)" path="/remarks"/>
+    /// <param name="index">The index.</param>
+    /// <param name="partitionKeys">The partitions, read here and not kept. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="index"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
+    public static FanOutQueryCommand<Item> Query(this Index<Item> index, scoped ReadOnlySpan<string> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, index.Model, index.Table.Model);
+    }
+
+    /// <summary>Starts a query of several partitions of an index of a table without a schema by string keys that are computed. It costs at least one read per partition.</summary>
+    /// <inheritdoc cref="Query(Table{Item}, IEnumerable{string}, SortKeyCondition)" path="/remarks"/>
+    /// <param name="index">The index.</param>
+    /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
+    /// <param name="sortKey">The condition on the sort key of the index, the same for all partitions, or the default value to read them whole.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="index"/> or <paramref name="partitionKeys"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A partition key is <see langword="null"/>, empty or occurs twice, which the message places by position, or there is a condition on a sort key and the index has none.</exception>
+    [OverloadResolutionPriority(-1)]
+    public static FanOutQueryCommand<Item> Query(this Index<Item> index, IEnumerable<string> partitionKeys, SortKeyCondition sortKey = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        return FanOutQueryCommand<Item>.Start(partitionKeys, sortKey, index.Model, index.Table.Model);
+    }
+
+    /// <summary>Adds a key to a batch get of a table without a schema, by its values.</summary>
+    /// <inheritdoc cref="Get(Table{Item}, AttributeValue, AttributeValue)" path="/remarks"/>
+    /// <param name="command">The command.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    public static BatchGetCommand<Item> Key(this BatchGetCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
+    {
+        var state = command.Enter();
+        var table = state.Table;
+        table.CheckKey(partitionKey, sortKey);
+        state.Actions.Add(table, state.Body.WrittenCount);
+        state.WriteKeyObject(table, partitionKey, sortKey);
+        return new(state, table);
+    }
+
+    /// <summary>Adds a delete to a batch of a table without a schema, by the values of the key. Deleting what does not exist is no error.</summary>
+    /// <inheritdoc cref="Get(Table{Item}, AttributeValue, AttributeValue)" path="/remarks"/>
+    /// <param name="command">The command.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    public static BatchWriteCommand<Item> Delete(this BatchWriteCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
+    {
+        var state = command.Enter();
+        BatchWriteOperation.AddDelete(state, state.Table, partitionKey, sortKey);
+        return new(state, state.Table);
+    }
+
+    /// <summary>
+    /// Starts a query of one partition by a typed key: <c>orders.Query(Order.Keys.Pk.Of(id), Order.Keys.Sk.BeginsWith())</c>. The key of another entity is a compile error, and the key is
+    /// formatted as the entity stores it.
     /// </summary>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="table">The table.</param>
@@ -103,7 +347,7 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(table);
         ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
-        return table.Query(partitionKey.Key, sortKey);
+        return QueryOf<T>(table.Model, partitionKey.Key, sortKey);
     }
 
     /// <summary>Starts a query of one partition of a table without a schema, by the key of any entity, for a mixed read: <c>shop.Query(Order.Keys.Pk.Of(id)).Of&lt;Customer, Order&gt;()</c>.</summary>
@@ -117,11 +361,11 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(table);
-        ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name);
-        return table.Query(partitionKey.Key, sortKey);
+        ThrowIfOtherAttribute(partitionKey, table.PartitionKeyName, table.Name, schemaless: true);
+        return QueryOf<Item>(table.Model, partitionKey.Key, sortKey);
     }
 
-    /// <summary>Starts a query of several partitions by typed keys, merged by sort key: <c>orders.Query(shards.Select(Order.Keys.Pk.Of))</c>. See <see cref="Table{T}.Query(IEnumerable{AttributeValue}, SortKeyCondition)"/>.</summary>
+    /// <summary>Starts a query of several partitions by typed keys, merged by sort key: <c>orders.Query(shards.Select(Order.Keys.Pk.Of))</c>. It costs at least one read per partition, see <see cref="FanOutQueryCommand{T}"/>.</summary>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="table">The table.</param>
     /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
@@ -133,10 +377,10 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(KeysOf(partitionKeys, table.PartitionKeyName, table.Name), sortKey);
+        return FanOutQueryCommand<T>.Start(KeysOf(partitionKeys, table.PartitionKeyName, table.Name), sortKey, table.Model, table.Model);
     }
 
-    /// <summary>Starts a query of several partitions of a table without a schema, by the keys of any entity. See <see cref="Table{T}.Query(IEnumerable{AttributeValue}, SortKeyCondition)"/>.</summary>
+    /// <summary>Starts a query of several partitions of a table without a schema, by the keys of any entity. It costs at least one read per partition, see <see cref="FanOutQueryCommand{T}"/>.</summary>
     /// <typeparam name="TEntity">The entity the keys belong to.</typeparam>
     /// <param name="table">The table.</param>
     /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
@@ -148,12 +392,12 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(table);
-        return table.Query(KeysOf(partitionKeys, table.PartitionKeyName, table.Name), sortKey);
+        return FanOutQueryCommand<Item>.Start(KeysOf(partitionKeys, table.PartitionKeyName, table.Name, schemaless: true), sortKey, table.Model, table.Model);
     }
 
     /// <summary>
     /// Starts a query of one partition of an index by a typed key: <c>byStatus.Query(Order.Keys.ByStatusPk.Of(status))</c>. The key of another entity is a compile error. The partition key of the
-    /// table is of the same type, so that one fails here, see <see cref="PartitionKey{TEntity}"/>, unless the index has that attribute as well. See <see cref="Index{T}.Query(AttributeValue, SortKeyCondition)"/>
+    /// table is of the same type, so that one fails here, see <see cref="PartitionKey{TEntity}"/>, unless the index has that attribute as well. See <see cref="DynaSharp.Index{T}"/>
     /// for what is different about reading an index.
     /// </summary>
     /// <typeparam name="T">The entity.</typeparam>
@@ -167,10 +411,10 @@ public static class TableExtensions
     {
         ArgumentNullException.ThrowIfNull(index);
         ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
-        return index.Query(partitionKey.Key, sortKey);
+        return QueryOf<T>(index.Model, partitionKey.Key, sortKey);
     }
 
-    /// <summary>Starts a query of one partition of an index without a schema, by the key of any entity, for a mixed read. See <see cref="Index{T}.Query(AttributeValue, SortKeyCondition)"/>.</summary>
+    /// <summary>Starts a query of one partition of an index without a schema, by the key of any entity, for a mixed read. See <see cref="DynaSharp.Index{T}"/> for what is different about reading an index.</summary>
     /// <typeparam name="TEntity">The entity the key belongs to.</typeparam>
     /// <param name="index">The index.</param>
     /// <param name="partitionKey">The partition key of the index.</param>
@@ -181,11 +425,11 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(index);
-        ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name);
-        return index.Query(partitionKey.Key, sortKey);
+        ThrowIfOtherAttribute(partitionKey, index.PartitionKeyName, index.Name, schemaless: true);
+        return QueryOf<Item>(index.Model, partitionKey.Key, sortKey);
     }
 
-    /// <summary>Starts a query of several partitions of an index by typed keys, merged by the sort key of the index. See <see cref="Index{T}.Query(IEnumerable{AttributeValue}, SortKeyCondition)"/>.</summary>
+    /// <summary>Starts a query of several partitions of an index by typed keys, merged by the sort key of the index. It costs at least one read per partition, see <see cref="FanOutQueryCommand{T}"/>.</summary>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="index">The index.</param>
     /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
@@ -197,10 +441,10 @@ public static class TableExtensions
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(KeysOf(partitionKeys, index.PartitionKeyName, index.Name), sortKey);
+        return FanOutQueryCommand<T>.Start(KeysOf(partitionKeys, index.PartitionKeyName, index.Name), sortKey, index.Model, index.Table.Model);
     }
 
-    /// <summary>Starts a query of several partitions of an index without a schema, by the keys of any entity. See <see cref="Index{T}.Query(IEnumerable{AttributeValue}, SortKeyCondition)"/>.</summary>
+    /// <summary>Starts a query of several partitions of an index without a schema, by the keys of any entity. It costs at least one read per partition, see <see cref="FanOutQueryCommand{T}"/>.</summary>
     /// <typeparam name="TEntity">The entity the keys belong to.</typeparam>
     /// <param name="index">The index.</param>
     /// <param name="partitionKeys">The partitions, enumerated once, here. Their order breaks ties between equal sort keys. With none, the read gives nothing and sends nothing.</param>
@@ -212,7 +456,35 @@ public static class TableExtensions
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(index);
-        return index.Query(KeysOf(partitionKeys, index.PartitionKeyName, index.Name), sortKey);
+        return FanOutQueryCommand<Item>.Start(KeysOf(partitionKeys, index.PartitionKeyName, index.Name, schemaless: true), sortKey, index.Model, index.Table.Model);
+    }
+
+    /// <summary>
+    /// Starts a query of an index keyed by the discriminator of the entity, whose partition holds every item of it: <c>orders.Index("ByType", "_type", "sk").QueryByDiscriminator()</c>.
+    /// No generated builder makes that key, because the discriminator is no property.
+    /// </summary>
+    /// <remarks>
+    /// <b>Keyed by the discriminator.</b> The partition key of the index has to be the attribute of the discriminator, else this throws <see cref="ArgumentException"/>, as a key of another
+    /// attribute does. DynamoDB refuses a filter on a key, so the key condition decides which items are read, see <see cref="DynaSharp.Index{T}"/>.
+    /// </remarks>
+    /// <typeparam name="T">The entity.</typeparam>
+    /// <param name="index">The index.</param>
+    /// <param name="sortKey">The condition on the sort key of the index, or the default value to read the whole partition.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="index"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> has no discriminator.</exception>
+    /// <exception cref="ArgumentException">The partition key of the index is another attribute, or there is a condition on a sort key and the index has none.</exception>
+    public static QueryCommand<T> QueryByDiscriminator<T>(this Index<T> index, SortKeyCondition sortKey = default)
+        where T : IDynamoDbEntity<T>
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        var info = T.Info;
+        if (info.Discriminator is not { } discriminator)
+        {
+            throw new InvalidOperationException($"{typeof(T)} has no discriminator, so no index is keyed by it.");
+        }
+
+        return index.Query(new PartitionKey<T>(discriminator, info.DiscriminatorAttributeName), sortKey);
     }
 
     /// <summary>Starts a get of the item under the key of an entity, which is how a reload reads.</summary>
@@ -398,6 +670,9 @@ public static class TableExtensions
         return new(state, state.Table);
     }
 
+    private static QueryCommand<T> QueryOf<T>(TableModel read, AttributeValue partitionKey, SortKeyCondition sortKey)
+        where T : IDynamoDbDocument<T> => new(read.BeginQuery(partitionKey, sortKey), read);
+
     private static DynamoDbIndexInfo IndexOf<TEntity>(string name)
         where TEntity : IDynamoDbEntity<TEntity>
     {
@@ -412,14 +687,14 @@ public static class TableExtensions
         throw new ArgumentException($"{typeof(TEntity)} declares no index \"{name}\".", nameof(name));
     }
 
-    private static AttributeValue[] KeysOf<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys, string attributeName, string readName)
+    private static AttributeValue[] KeysOf<TEntity>(IEnumerable<PartitionKey<TEntity>> partitionKeys, string attributeName, string readName, bool schemaless = false)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         ArgumentNullException.ThrowIfNull(partitionKeys);
         var keys = new List<AttributeValue>();
         foreach (var key in partitionKeys)
         {
-            ThrowIfOtherAttribute(key, attributeName, readName);
+            ThrowIfOtherAttribute(key, attributeName, readName, schemaless);
             keys.Add(key.Key);
         }
 
@@ -427,26 +702,35 @@ public static class TableExtensions
     }
 
     // The table and index of a key have one type, so this is the check the compiler cannot make, and a key of the wrong attribute would come back empty without a word from DynamoDB.
-    private static void ThrowIfOtherAttribute<TEntity>(PartitionKey<TEntity> partitionKey, string attributeName, string readName)
+    private static void ThrowIfOtherAttribute<TEntity>(PartitionKey<TEntity> partitionKey, string attributeName, string readName, bool schemaless = false)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         if (partitionKey.AttributeName is { } builtFor && builtFor != attributeName)
         {
             throw new ArgumentException(
-                $"This key was built for the attribute {builtFor}, and a query of {readName} reads {attributeName}, so it would find nothing. {BuilderOf<TEntity>(attributeName)}",
+                $"This key was built for the attribute {builtFor}, and a query of {readName} reads {attributeName}, so it would find nothing. {BuilderOf<TEntity>(attributeName, schemaless)}",
                 nameof(partitionKey));
         }
     }
 
-    // Generated keys have the names of the model, so the name of a builder comes from the entity.
-    private static string BuilderOf<TEntity>(string attributeName)
+    // Generated keys have the names of the model, so the name of a builder comes from the entity. An attribute no builder makes is the discriminator, which has a key of its own, or
+    // one the entity does not declare: a table without a schema takes its value, and an entity needs the index declared.
+    private static string BuilderOf<TEntity>(string attributeName, bool schemaless)
         where TEntity : IDynamoDbEntity<TEntity>
     {
         var info = TEntity.Info;
         var builder = attributeName == info.PartitionKeyName ? "Pk" : info.Indexes.FirstOrDefault(index => index.PartitionKeyName == attributeName)?.PartitionKeyBuilder;
-        return builder is null
-            ? "Pass the value of that attribute as an AttributeValue."
-            : $"Use {typeof(TEntity)}.Keys.{builder}.Of(...).";
+        if (builder is not null)
+        {
+            return $"Use {typeof(TEntity)}.Keys.{builder}.Of(...).";
+        }
+
+        if (attributeName == info.DiscriminatorAttributeName && info.Discriminator is not null)
+        {
+            return "Use QueryByDiscriminator() of the index.";
+        }
+
+        return schemaless ? "Pass the value of that attribute as an AttributeValue." : $"Declare the index on {typeof(TEntity)}, which generates the builder of its key.";
     }
 
     private static PutCommand<Item> Attribute<TValue, TConverter>(this PutCommand<Item> command, string name, TValue value)

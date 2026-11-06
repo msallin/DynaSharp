@@ -57,7 +57,7 @@ public sealed class GeneratedAttrsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Handles>("Shop").Update("a", "b").Add(Handles.Attrs.Total, 3L).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Update(Handles.Keys.Of("a", 1)).Add(Handles.Attrs.Total, 3L).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("ADD #n0 :v0");
@@ -72,7 +72,7 @@ public sealed class GeneratedAttrsTests
         var tags = new Attr<HashSet<string>, NullableReferenceHandleConverter<HashSet<string>, HashSetConverter<string, StringSetElement>>>("Tags");
 
         // Act
-        var json = client.Table<Handles>("Shop").Update("a", "b").Add(tags, ["x"]).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Update(Handles.Keys.Of("a", 1)).Add(tags, ["x"]).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("ADD #n0 :v0");
@@ -88,7 +88,7 @@ public sealed class GeneratedAttrsTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var json = client.TransactWrite().Update(table, "a", "b").Add(Handles.Attrs.Total, 3L).Add(tags, ["x"]).IgnoreVersion().ToRequestJson();
+        var json = client.TransactWrite().Update(table, Handles.Keys.Of("a", 1)).Add(Handles.Attrs.Total, 3L).Add(tags, ["x"]).IgnoreVersion().ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("ADD #n0 :v0, #n1 :v1");

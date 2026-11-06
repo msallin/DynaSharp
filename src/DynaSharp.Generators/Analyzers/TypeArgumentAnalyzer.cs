@@ -3,13 +3,16 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
 /// <summary>
 /// DYNA230 to DYNA233: a type argument of the library that does not satisfy its constraint. The compiler answers with CS0311, CS0315 or CS0453, which name an interface
 /// of the library or a nullable value type and say nothing about what to write: <c>orders.Get(Customer.Keys.Of(id))</c> reads "no boxing conversion to IKey&lt;Order&gt;",
-/// <c>Set(User.Attrs.Name, 5)</c> reads "'string' must be a non-nullable value type". This says it in the words of the library.
+/// <c>Set(User.Attrs.Name, 5)</c> reads "'string' must be a non-nullable value type". This says it in the words of the library. DYNA230 also reports a key given as its stored
+/// values on a table or an index of an entity, <c>transports.Get("1")</c>, which skips the key template: such a key goes only with <c>Item</c>, and the compiler answers with
+/// CS0311, CS1501, CS1503 or CS1929, after the overload it measured the call against, so this names the generated builder instead.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -35,6 +38,13 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
+    // What a key of a verb stands for: one item, or the partition of a query.
+    private enum KeyShape
+    {
+        Item,
+        Partition,
+    }
 
     private enum Need
     {
@@ -111,6 +121,12 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (StoredValues(context, invocation, library) is { } stored)
+        {
+            context.ReportDiagnostic(stored);
+            return;
+        }
+
         foreach (var method in info.CandidateSymbols.OfType<IMethodSymbol>())
         {
             if (method.IsGenericMethod && DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) && Infer(context, method, invocation.ArgumentList, library) is { } inferred
@@ -171,6 +187,140 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         };
         return parts is null ? null : Diagnostic.Create(Descriptors.KeyOfAnotherEntity, inferred.ArgumentOf(parameter).Expression.GetLocation(), [Display(key), .. parts]);
     }
+
+    // A key given as the values it is stored as, where the table or index holds an entity: orders.Get("1"), byStatus.Query("open"), Update(orders, "a", "b"), Key("a") of a batch. Those
+    // verbs take such a key only on Item, because on an entity it skips the template, so the call failed to bind, and what the compiler says depends on the overload it measured.
+    // The table is the first argument of a step of a transaction or a batch, else the receiver.
+    // Input:  transports.Get("1") on Table<Transport>
+    // Output: '"1"' is a key given as its stored values, ... Use Transport.Keys.Of("1").
+    private static Diagnostic? StoredValues(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation, Library library)
+    {
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name: IdentifierNameSyntax { Identifier.ValueText: var verb } } access)
+        {
+            return null;
+        }
+
+        var arguments = invocation.ArgumentList.Arguments;
+        var tableArgument = arguments.Count > 0 && TypeOf(context, arguments[0].Expression) is INamedTypeSymbol argument && SymbolEqualityComparer.Default.Equals(argument.OriginalDefinition, library.Table)
+            ? argument
+            : null;
+        var holder = tableArgument ?? TypeOf(context, access.Expression) as INamedTypeSymbol;
+        if (holder is not { IsGenericType: true } || library.ShapeOf(verb, holder, tableArgument is not null) is not { } shape || holder.TypeArguments[0] is not INamedTypeSymbol entity
+            || !entity.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, library.Entity)))
+        {
+            return null;
+        }
+
+        var values = new List<ArgumentSyntax>();
+        var partitions = false;
+        foreach (var value in arguments.Skip(tableArgument is null ? 0 : 1))
+        {
+            var type = TypeOf(context, value.Expression);
+            if (!value.RefKindKeyword.IsKind(SyntaxKind.None) || value.Expression.IsKind(SyntaxKind.DefaultLiteralExpression) || SymbolEqualityComparer.Default.Equals(type, library.SortKeyCondition))
+            {
+                continue;
+            }
+
+            if (library.IsStoredValue(context.SemanticModel.Compilation, type))
+            {
+                values.Add(value);
+            }
+            else if (shape == KeyShape.Partition && values.Count == 0 && library.IsStoredValues(context, value.Expression, type))
+            {
+                values.Add(value);
+                partitions = true;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        if (values.Count == 0)
+        {
+            return null;
+        }
+
+        var span = TextSpan.FromBounds(values[0].Expression.SpanStart, values[values.Count - 1].Expression.Span.End);
+        var kind = library.IsIndex(holder) ? "index" : "table";
+        string[] parts =
+        [
+            string.Join(", ", values.Select(static value => value.Expression.ToString())),
+            partitions ? "a list of partition keys given as their stored values" : "a key given as its stored values",
+            $"this {kind} holds '{entity.Name}', so it takes only the keys of that entity, which apply its key template",
+            Remedy(entity, holder, shape, values, partitions, library),
+        ];
+        return Diagnostic.Create(Descriptors.KeyOfAnotherEntity, Location.Create(invocation.SyntaxTree, span), parts);
+    }
+
+    // What to write instead: the builder the generator made for that key, with the values where they fit its parameters. Order.Keys.Pk.Format("a") as a partition key is
+    // Order.Keys.Pk.Of("a"), and the discriminator of the entity on an index is QueryByDiscriminator(). An entity written by hand has no builder of a partition key, so it gets
+    // a PartitionKey made of the stored value, and without Keys a key of its own.
+    private static string Remedy(INamedTypeSymbol entity, INamedTypeSymbol holder, KeyShape shape, List<ArgumentSyntax> values, bool partitions, Library library)
+    {
+        var each = partitions ? "Build each partition with " : "Use ";
+        var single = partitions ? null : values[0].Expression;
+        if (single is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Format" } format } formatted && shape == KeyShape.Partition)
+        {
+            return $"Use {format.Expression}.Of{formatted.ArgumentList}";
+        }
+
+        if (single is LiteralExpressionSyntax { Token.Value: string text } && library.IsIndex(holder)
+            && AttributeReader.Find(entity, WellKnownNames.DiscriminatorAttribute)?.ConstructorArguments.FirstOrDefault().Value as string == text)
+        {
+            return "Use QueryByDiscriminator() of the index";
+        }
+
+        var builders = shape == KeyShape.Item ? [] : PartitionBuilders(entity, holder, library);
+        if (builders.Count > 1)
+        {
+            return $"Use the builder of the partition key of the index: {string.Join(" or ", builders.Select(other => $"{entity.Name}.Keys.{other.Name}"))}";
+        }
+
+        if (shape == KeyShape.Partition && builders.Count == 0)
+        {
+            return $"{each}new PartitionKey<{entity.Name}>({single?.ToString() ?? "..."})";
+        }
+
+        if (entity.GetTypeMembers("Keys").FirstOrDefault() is not { } keys)
+        {
+            return $"Pass a key that implements IKey<{entity.Name}>";
+        }
+
+        var builder = builders.Count == 1 ? builders[0] : keys;
+        var of = builder.GetMembers("Of").OfType<IMethodSymbol>().FirstOrDefault();
+        return $"{each}{entity.Name}.Keys{(builder.Equals(keys, SymbolEqualityComparer.Default) ? string.Empty : "." + builder.Name)}.Of({ArgumentsOf(of, values, partitions)})";
+    }
+
+    // The builders under Keys whose Of makes a partition key of the read: Pk for a table, and for an index those of the indexes, or Pk where there are none but local ones.
+    private static List<INamedTypeSymbol> PartitionBuilders(INamedTypeSymbol entity, INamedTypeSymbol holder, Library library)
+    {
+        var builders = entity.GetTypeMembers("Keys").SelectMany(static keys => keys.GetTypeMembers())
+            .Where(builder => builder.GetMembers("Of").OfType<IMethodSymbol>().Any(of => SymbolEqualityComparer.Default.Equals(of.ReturnType.OriginalDefinition, library.PartitionKey)))
+            .ToList();
+        var table = builders.Where(static builder => builder.Name == "Pk").ToList();
+        if (!library.IsIndex(holder))
+        {
+            return table;
+        }
+
+        var indexes = builders.Except(table, SymbolEqualityComparer.Default).OfType<INamedTypeSymbol>().ToList();
+        return indexes.Count == 0 ? table : indexes;
+    }
+
+    // The values as written where they fit the parameters of Of, else the names of its parameters.
+    private static string ArgumentsOf(IMethodSymbol? of, List<ArgumentSyntax> values, bool partitions)
+    {
+        if (of is null)
+        {
+            return "...";
+        }
+
+        var texts = partitions || of.Parameters.Length != values.Count ? of.Parameters.Select(static parameter => parameter.Name) : values.Select(static value => value.Expression.ToString());
+        return string.Join(", ", texts);
+    }
+
+    private static ITypeSymbol? TypeOf(SyntaxNodeAnalysisContext context, ExpressionSyntax expression) => context.SemanticModel.GetTypeInfo(expression, context.CancellationToken).Type;
 
     private static Diagnostic AddWithoutNumberOrSet(Inferred inferred)
     {
@@ -310,6 +460,18 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 
         public INamedTypeSymbol Handle { get; private init; } = null!;
 
+        public INamedTypeSymbol AttributeValue { get; private init; } = null!;
+
+        public INamedTypeSymbol SortKeyCondition { get; private init; } = null!;
+
+        public INamedTypeSymbol Table { get; private init; } = null!;
+
+        public INamedTypeSymbol Index { get; private init; } = null!;
+
+        public INamedTypeSymbol BatchGet { get; private init; } = null!;
+
+        public INamedTypeSymbol BatchWrite { get; private init; } = null!;
+
         // A compilation without the library has none of them, and one with it has all.
         public static Library? Of(Compilation compilation) => compilation.GetTypeByMetadataName("DynaSharp.Mapping.IKey`1") is { } key
             ? new()
@@ -322,8 +484,50 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
                 PartitionKey = compilation.GetTypeByMetadataName("DynaSharp.PartitionKey`1")!,
                 Item = compilation.GetTypeByMetadataName("DynaSharp.Item")!,
                 Handle = compilation.GetTypeByMetadataName("DynaSharp.Attr`2")!,
+                AttributeValue = compilation.GetTypeByMetadataName("DynaSharp.AttributeValue")!,
+                SortKeyCondition = compilation.GetTypeByMetadataName("DynaSharp.SortKeyCondition")!,
+                Table = compilation.GetTypeByMetadataName("DynaSharp.Table`1")!,
+                Index = compilation.GetTypeByMetadataName("DynaSharp.Index`1")!,
+                BatchGet = compilation.GetTypeByMetadataName("DynaSharp.BatchGetCommand`1")!,
+                BatchWrite = compilation.GetTypeByMetadataName("DynaSharp.BatchWriteCommand`1")!,
             }
             : null;
+
+        // The verbs that take a key given as its values on Item, by what holds the key: a table or an index as the receiver, a batch of one, or a table as the first argument of a step.
+        public KeyShape? ShapeOf(string verb, INamedTypeSymbol holder, bool tableArgument)
+        {
+            var definition = holder.OriginalDefinition;
+            return verb switch
+            {
+                "Get" or "Update" or "Delete" when tableArgument || SymbolEqualityComparer.Default.Equals(definition, Table) => KeyShape.Item,
+                "Check" when tableArgument => KeyShape.Item,
+                "Query" when !tableArgument && (SymbolEqualityComparer.Default.Equals(definition, Table) || SymbolEqualityComparer.Default.Equals(definition, Index)) => KeyShape.Partition,
+                "Key" when SymbolEqualityComparer.Default.Equals(definition, BatchGet) => KeyShape.Item,
+                "Delete" when SymbolEqualityComparer.Default.Equals(definition, BatchWrite) => KeyShape.Item,
+                _ => null,
+            };
+        }
+
+        public bool IsIndex(INamedTypeSymbol holder) => SymbolEqualityComparer.Default.Equals(holder.OriginalDefinition, Index);
+
+        // A value that converts to AttributeValue: a string, a number, a bool, a byte[], or an AttributeValue itself.
+        public bool IsStoredValue(Compilation compilation, ITypeSymbol? type) =>
+            type is not null and not IErrorTypeSymbol && (SymbolEqualityComparer.Default.Equals(type, AttributeValue) || compilation.ClassifyConversion(type, AttributeValue).IsImplicit);
+
+        // Several of them, for a query of several partitions: ["a", "b"], a string[], a sequence of AttributeValue.
+        public bool IsStoredValues(SyntaxNodeAnalysisContext context, ExpressionSyntax expression, ITypeSymbol? type)
+        {
+            var compilation = context.SemanticModel.Compilation;
+            if (expression is CollectionExpressionSyntax collection)
+            {
+                return collection.Elements.Count > 0 && collection.Elements.All(element => element is ExpressionElementSyntax value && IsStoredValue(compilation, TypeOf(context, value.Expression)));
+            }
+
+            return type is IArrayTypeSymbol array
+                ? IsStoredValue(compilation, array.ElementType)
+                : type is INamedTypeSymbol named && named.AllInterfaces.Add(named).Any(i => (i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T
+                    || i.OriginalDefinition is { Name: "ReadOnlySpan", ContainingNamespace.Name: "System" }) && IsStoredValue(compilation, i.TypeArguments[0]));
+        }
 
         public Need NeedOf(ITypeSymbol constraint)
         {

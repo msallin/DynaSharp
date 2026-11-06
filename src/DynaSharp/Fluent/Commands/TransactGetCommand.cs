@@ -39,39 +39,35 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
 
     internal CommandHandle Handle => new(_state, _version, Operation, _table);
 
-    /// <summary>Adds a get by a key of attribute values.</summary>
-    /// <typeparam name="T">How the item is read.</typeparam>
+    /// <summary>Adds a get on a table without a schema, by the values of the key. A table of an entity takes a generated key instead.</summary>
     /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <param name="slot">What reads the item from the result.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
     /// <exception cref="InvalidOperationException">The transaction holds 100 gets already.</exception>
-    public TransactGetCommand Get<T>(Table<T> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactSlot<T> slot)
-        where T : IDynamoDbDocument<T>
+    public TransactGetCommand Get(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactSlot<Item> slot)
     {
         ArgumentNullException.ThrowIfNull(table);
         var model = table.Model;
         model.CheckKey(partitionKey, sortKey);
         var state = Enter();
-        slot = new TransactSlot<T>(Transaction.AddAction(state, model, "{\"Get\":"u8));
+        slot = new TransactSlot<Item>(Transaction.AddAction(state, model, "{\"Get\":"u8));
         state.WriteKey(partitionKey, sortKey);
         return new(state);
     }
 
-    /// <summary>Adds a get by a partition key, for a table without a sort key. DynamoDB rejects a key without its sort key on a table that has one.</summary>
-    /// <typeparam name="T">How the item is read.</typeparam>
+    /// <summary>Adds a get on a table without a schema and without a sort key, by the value of the partition key. DynamoDB rejects a key without its sort key on a table that has one.</summary>
     /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
     /// <param name="slot">What reads the item from the result.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">The key is empty.</exception>
     /// <exception cref="InvalidOperationException">The transaction holds 100 gets already.</exception>
-    public TransactGetCommand Get<T>(Table<T> table, AttributeValue partitionKey, out TransactSlot<T> slot)
-        where T : IDynamoDbDocument<T> => Get(table, partitionKey, default, out slot);
+    public TransactGetCommand Get(Table<Item> table, AttributeValue partitionKey, out TransactSlot<Item> slot) => Get(table, partitionKey, default, out slot);
 
     /// <summary>Adds a get by a generated key.</summary>
     /// <typeparam name="T">How the item is read.</typeparam>

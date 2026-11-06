@@ -40,7 +40,7 @@ public sealed class UpdateCreatedItemTests(Backend backend)
         await visits.Update(DailyVisits.Keys.Of(Home, Day)).Add(DailyVisits.Attrs.Count, 3L).SendAsync();
 
         // Act
-        var found = await visits.Query(DailyVisits.Keys.Pk.Format(Home)).Consistent().ItemsAsync().ToListAsync();
+        var found = await visits.Query(DailyVisits.Keys.Pk.Of(Home)).Consistent().ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(found.Single()).IsEqualTo(new DailyVisits { Path = Home, Day = Day, Count = 3 });
@@ -88,7 +88,7 @@ public sealed class UpdateCreatedItemTests(Backend backend)
         await visits.Update(DailyVisits.Keys.Of(Home, Day)).Add(DailyVisits.Attrs.Count, 1L).IfExists().SendAsync();
 
         // Assert
-        await Assert.That((await visits.Query(DailyVisits.Keys.Pk.Format(Home)).Consistent().ItemsAsync().ToListAsync()).Single().Count).IsEqualTo(1L);
+        await Assert.That((await visits.Query(DailyVisits.Keys.Pk.Of(Home)).Consistent().ItemsAsync().ToListAsync()).Single().Count).IsEqualTo(1L);
     }
 
     [Test]
@@ -100,7 +100,7 @@ public sealed class UpdateCreatedItemTests(Backend backend)
         var (pk, sk) = (Customer.Keys.Pk.Format("alice"), Customer.Keys.Sk.Format());
 
         // Act
-        await shop.Orders.Update(pk, sk).Add(Order.Attrs.Quantity, 1).SendAsync();
+        await shop.Orders.Update(new StoredKey<Order>(pk, sk)).Add(Order.Attrs.Quantity, 1).SendAsync();
         var stored = await shop.Shop.Get(pk, sk).Consistent().ItemAsync();
 
         // Assert
@@ -204,7 +204,7 @@ public sealed class UpdateCreatedItemTests(Backend backend)
         var notes = sandbox.Shop.Of<SortedByType>();
 
         // Act
-        await notes.Update("a", SortedByType.Discriminator).Set("note", "hello").SendAsync();
+        await notes.Update(new StoredKey<SortedByType>("a", SortedByType.Discriminator)).Set("note", "hello").SendAsync();
         var stored = await sandbox.ReadAsync("a", SortedByType.Discriminator);
 
         // Assert
@@ -220,7 +220,7 @@ public sealed class UpdateCreatedItemTests(Backend backend)
 
         // Act
         await shop.Customers.Update(Customer.Keys.Of("alice")).Set(Customer.Attrs.Name, "Alice").SendAsync();
-        var customers = await byType.Query("CUSTOMER").ItemsAsync().ToListAsync();
+        var customers = await byType.QueryByDiscriminator().ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(customers.Single()).IsEqualTo(new Customer { Id = "alice", Name = "Alice" });

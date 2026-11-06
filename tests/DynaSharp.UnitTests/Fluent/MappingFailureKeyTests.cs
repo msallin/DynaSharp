@@ -41,7 +41,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json($$"""{"Item":{{Poison}}}"""));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Get("TENANT#acme", "INV#2026-09#000002").ItemAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Get(TenantInvoice.Keys.Of("acme", "2026-09", 2)).ItemAsync());
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(PoisonKey);
@@ -56,7 +56,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json(Page));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query("TENANT#acme").PageAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of("acme")).PageAsync());
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(PoisonKey);
@@ -87,7 +87,7 @@ public sealed class MappingFailureKeyTests
         var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await byStatus.Query("x").PageAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await byStatus.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Open)).PageAsync());
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(PoisonKey);
@@ -102,7 +102,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json(Page));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query(["TENANT#acme"]).PageAsync(10));
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query([TenantInvoice.Keys.Pk.Of("acme")]).PageAsync(10));
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(PoisonKey);
@@ -118,7 +118,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json("""{"Responses":{"Billing":[""" + Poison + "]}}"));
 
         // Act
-        var failure = await Assert.ThrowsAsync<BatchGetIncompleteException<TenantInvoice>>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Key("TENANT#acme", "INV#2026-09#000001").Key("TENANT#acme", "INV#2026-09#000002").SendAsync());
+        var failure = await Assert.ThrowsAsync<BatchGetIncompleteException<TenantInvoice>>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Key(TenantInvoice.Keys.Of("acme", "2026-09", 1)).Key(TenantInvoice.Keys.Of("acme", "2026-09", 2)).SendAsync());
 
         // Assert
         await Assert.That((failure!.Items.Count, ((DynamoDbMappingException)failure.InnerException!).Key)).IsEqualTo((1, PoisonKey));
@@ -193,7 +193,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json(Page));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query("TENANT#acme").PageAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of("acme")).PageAsync());
 
         // Assert
         await Assert.That(failure!.Message).DoesNotContain("acme").And.DoesNotContain("Refunded").And.DoesNotContain("INV#");
@@ -208,7 +208,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json($$"""{"Items":[{{Good}}],"Count":1,"ScannedCount":1}"""));
 
         // Act
-        var page = await client.Table<TenantInvoice>("Billing").Query("TENANT#acme").PageAsync();
+        var page = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of("acme")).PageAsync();
 
         // Assert
         await Assert.That(page.Items.Single().Number).IsEqualTo(1);

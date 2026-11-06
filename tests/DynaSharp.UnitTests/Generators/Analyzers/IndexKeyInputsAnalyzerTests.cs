@@ -253,7 +253,7 @@ public sealed class IndexKeyInputsAnalyzerTests
     [Test]
     [Arguments("""seals.Update(sealKey).Set([|Sealed.Attrs.Kind|], "k").ToRequestJson()""", "Sealed", "Seal", "SEAL#{Seal}#{Kind}", "BySeal")]
     [Arguments("""tallies.Update(tallyKey).Set([|Tally.Attrs.Kind|], "k").ToRequestJson()""", "Tally", "Total", "TOTAL#{Total:d6}#{Kind}", "ByTotal")]
-    [Arguments("""badges.Update("b").Set([|Badge.Attrs.Kind|], "k").ToRequestJson()""", "Badge", "Label", "LABEL#{Label}#{Kind}", "ByLabel")]
+    [Arguments("""badges.Update(Badge.Keys.Of("b")).Set([|Badge.Attrs.Kind|], "k").ToRequestJson()""", "Badge", "Label", "LABEL#{Label}#{Kind}", "ByLabel")]
     public async Task Analyze_MissingInputWithoutAHandle_PointsAtAPut(string chain, string entity, string missing, string template, string index)
     {
         // Arrange (a property only a key holds, one its getter computes, and one its getter computes that has an attribute and a handle of its own, which the next Put would undo)
@@ -334,7 +334,7 @@ public sealed class IndexKeyInputsAnalyzerTests
     public async Task Analyze_UpdateOfATypeParameter_IsNotFollowed()
     {
         // Arrange (a generic helper has no model to look at)
-        var source = AnalyzerRun.Member(Fields + """public static string Run<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.Update("a").Set(WorkItem.Attrs.Status, WorkStatus.Closed).ToRequestJson();""");
+        var source = AnalyzerRun.Member(Fields + """public static string Run<T, TKey>(Table<T> table, TKey key) where T : IDynamoDbEntity<T> where TKey : IKey<T> => table.Update(key).Set(WorkItem.Attrs.Status, WorkStatus.Closed).ToRequestJson();""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new IndexKeyInputsAnalyzer());
@@ -377,7 +377,7 @@ public sealed class IndexKeyInputsAnalyzerTests
     public async Task Analyze_SparseIndexWhoseOtherKeyIsTheTextOfAnAttribute_ReportsNothing()
     {
         // Arrange (the update copies Owner into the partition key of the index)
-        var source = AnalyzerRun.Member(Fields + """public static void Run() { _ = copies.Update("c").Set(Copied.Attrs.LiveSince, now).ToRequestJson(); }""");
+        var source = AnalyzerRun.Member(Fields + """public static void Run() { _ = copies.Update(Copied.Keys.Of("c")).Set(Copied.Attrs.LiveSince, now).ToRequestJson(); }""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new IndexKeyInputsAnalyzer());
@@ -387,8 +387,8 @@ public sealed class IndexKeyInputsAnalyzerTests
     }
 
     [Test]
-    [Arguments("""copies.Update("c").Set([|Copied.Attrs.Owner|], "ann").ToRequestJson()""", "Owner", "LiveSince", "LIVE#{LiveSince}", "Live")]
-    [Arguments("""copies.Update("c").Set([|Copied.Attrs.Mark|], "m").ToRequestJson()""", "Mark", "Count", "{Count:d6}", "Counted")]
+    [Arguments("""copies.Update(Copied.Keys.Of("c")).Set([|Copied.Attrs.Owner|], "ann").ToRequestJson()""", "Owner", "LiveSince", "LIVE#{LiveSince}", "Live")]
+    [Arguments("""copies.Update(Copied.Keys.Of("c")).Set([|Copied.Attrs.Mark|], "m").ToRequestJson()""", "Mark", "Count", "{Count:d6}", "Counted")]
     public async Task Analyze_SparseIndexWhoseOtherKeyIsNoTextOfAnAttribute_ReportsTheOtherKey(string chain, string set, string missing, string key, string index)
     {
         // Arrange (a literal before the time, and a number padded to six digits, are other text than the attribute holds)
@@ -402,8 +402,8 @@ public sealed class IndexKeyInputsAnalyzerTests
     }
 
     [Test]
-    [Arguments("""halves.Update("h").Set([|Half.Attrs.Tag|], "t").ToRequestJson()""", "Tag", "Mark", "{Mark}")]
-    [Arguments("""halves.Update("h").Set([|Half.Attrs.Mark|], "m").ToRequestJson()""", "Mark", "Tag", "H#{Tag}")]
+    [Arguments("""halves.Update(Half.Keys.Of("h")).Set([|Half.Attrs.Tag|], "t").ToRequestJson()""", "Tag", "Mark", "{Mark}")]
+    [Arguments("""halves.Update(Half.Keys.Of("h")).Set([|Half.Attrs.Mark|], "m").ToRequestJson()""", "Mark", "Tag", "H#{Tag}")]
     public async Task Analyze_SparseIndexWithAPlainKey_ReportsTheOtherKey(string chain, string set, string missing, string key)
     {
         // Arrange (a plain key of an index is the attribute of its property, and the update has to set it like any other input)

@@ -86,7 +86,7 @@ public sealed class ProjectDefaultsTests(Backend backend)
         await bookings.Put(new Booking { BookingId = "b1", CheckIn = Noon, RoomNumber = "101", BookedAt = Noon }).SendAsync();
 
         // Act
-        var found = await bookings.Index(Booking.Indexes.ByRoom).Query(Booking.Keys.ByRoomPk.Format("101")).ItemsAsync().ToListAsync();
+        var found = await bookings.Index(Booking.Indexes.ByRoom).Query(Booking.Keys.ByRoomPk.Of("101")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That((found.Single().BookingId, found.Single().CheckIn, found.Single().BookedAt)).IsEqualTo(("b1", Noon, Noon));

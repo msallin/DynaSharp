@@ -57,6 +57,56 @@ public sealed class TypeArgumentAnalyzerTests
         {
         }
 
+        [DynamoDbEntity]
+        [Discriminator("TICKET")]
+        [PartitionKey("TICKET#{Id}")]
+        [SortKey("AT#{Day}")]
+        [GlobalIndexKey("ByState", PartitionKey = "STATE#{State}")]
+        [GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}")]
+        public partial class Ticket
+        {
+            public required string Id { get; init; }
+
+            public required string Day { get; init; }
+
+            public string State { get; init; } = "open";
+
+            public string Owner { get; init; } = "ann";
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("INVOICE")]
+        [PartitionKey("TENANT#{Tenant}")]
+        [GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}")]
+        public partial class Invoice
+        {
+            public required string Tenant { get; init; }
+
+            public string Status { get; init; } = "open";
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("VISIT")]
+        public partial class Visit
+        {
+            [PartitionKey]
+            public required string Room { get; init; }
+
+            [SortKey]
+            public required int Seq { get; init; }
+        }
+
+        public sealed class Hand : IDynamoDbEntity<Hand>
+        {
+        }
+
+        public sealed class HandKeys : IDynamoDbEntity<HandKeys>
+        {
+            public static class Keys
+            {
+            }
+        }
+
         """;
 
     private const string Run = "public static void Run(DynamoDbClient client, Table<Order> orders)\n{\n";
@@ -83,6 +133,50 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""orders.BatchGet().Keys([|new Customer.Keys.PrimaryKey[1]|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""orders.BatchWrite().DeleteAll([|new List<Customer.Keys.PrimaryKey>()|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     public async Task Analyze_KeyThatDoesNotFitTheTable_ReportsTheKey(string statement, string message)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(Run + statement + "\n}");
+
+        // Act
+        var report = await Fixture.ReportWithAsync(source, new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA230 Error: " + message));
+    }
+
+    [Test]
+    [Arguments("""orders.Get([|"1"|]);""", """'"1"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("1").""")]
+    [Arguments("""orders.Update([|"1"|]);""", """'"1"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("1").""")]
+    [Arguments("""orders.Delete([|"a", "b"|]);""", """'"a", "b"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of(id).""")]
+    [Arguments("""orders.Get([|1|]);""", """'1' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of(1).""")]
+    [Arguments("""orders.Get([|default(AttributeValue)|]);""", """'default(AttributeValue)' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of(default(AttributeValue)).""")]
+    [Arguments("""orders.Get([|"1"|], default);""", """'"1"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("1").""")]
+    [Arguments("""orders.Query([|"alice"|]);""", """'"alice"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Pk.Of("alice").""")]
+    [Arguments("""orders.Query([|"alice"|], SortKeyCondition.BeginsWith("x"));""", """'"alice"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Pk.Of("alice").""")]
+    [Arguments("""orders.Query([|Order.Keys.Pk.Format("a")|]);""", """'Order.Keys.Pk.Format("a")' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Pk.Of("a").""")]
+    [Arguments("""orders.Query([|["a", "b"]|]);""", """'["a", "b"]' is a list of partition keys given as their stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Build each partition with Order.Keys.Pk.Of(id).""")]
+    [Arguments("""orders.Query([|new[] { "a" }|]);""", """'new[] { "a" }' is a list of partition keys given as their stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Build each partition with Order.Keys.Pk.Of(id).""")]
+    [Arguments("""orders.Query([|new List<string>()|]);""", """'new List<string>()' is a list of partition keys given as their stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Build each partition with Order.Keys.Pk.Of(id).""")]
+    [Arguments("""ReadOnlySpan<string> names = default; orders.Query([|names|]);""", """'names' is a list of partition keys given as their stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Build each partition with Order.Keys.Pk.Of(id).""")]
+    [Arguments("""client.Table<Invoice>("x").Index(Invoice.Indexes.ByStatus).Query([|"open"|]);""", """'"open"' is a key given as its stored values, and this index holds 'Invoice', so it takes only the keys of that entity, which apply its key template. Use Invoice.Keys.ByStatusPk.Of("open").""")]
+    [Arguments("""client.Table<Ticket>("x").Index(Ticket.Indexes.ByState).Query([|"open"|]);""", """'"open"' is a key given as its stored values, and this index holds 'Ticket', so it takes only the keys of that entity, which apply its key template. Use the builder of the partition key of the index: Ticket.Keys.ByStatePk or Ticket.Keys.ByOwnerPk.""")]
+    [Arguments("""orders.Index("ByName", "name").Query([|"a"|]);""", """'"a"' is a key given as its stored values, and this index holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Pk.Of("a").""")]
+    [Arguments("""client.TransactWrite().Update(orders, [|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""client.TransactWrite().Put(orders, new Order { Id = "a", Name = "b" }).Check(orders, [|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""client.TransactWrite().Delete(client.Table<Ticket>("x"), [|"a", "b"|], out _);""", """'"a", "b"' is a key given as its stored values, and this table holds 'Ticket', so it takes only the keys of that entity, which apply its key template. Use Ticket.Keys.Of("a", "b").""")]
+    [Arguments("""client.TransactGet().Get(orders, [|"a"|], out _);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""orders.BatchGet().Key([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""orders.BatchWrite().Delete([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""shop.BatchWrite().Delete(orders, [|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""client.Table<Hand>("x").Get([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Hand', so it takes only the keys of that entity, which apply its key template. Pass a key that implements IKey<Hand>.""")]
+    [Arguments("""client.Table<Hand>("x").Query([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Hand', so it takes only the keys of that entity, which apply its key template. Use new PartitionKey<Hand>("a").""")]
+    [Arguments("""client.Table<Hand>("x").Query([|["a"]|]);""", """'["a"]' is a list of partition keys given as their stored values, and this table holds 'Hand', so it takes only the keys of that entity, which apply its key template. Build each partition with new PartitionKey<Hand>(...).""")]
+    [Arguments("""client.Table<HandKeys>("x").Get([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'HandKeys', so it takes only the keys of that entity, which apply its key template. Use HandKeys.Keys.Of(...).""")]
+    [Arguments("""client.Table<Visit>("x").Query([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Visit', so it takes only the keys of that entity, which apply its key template. Use Visit.Keys.Pk.Of("a").""")]
+    [Arguments("""client.Table<Ticket>("x").Index("ByType", "_type", "sk").Query([|"TICKET"|]);""", """'"TICKET"' is a key given as its stored values, and this index holds 'Ticket', so it takes only the keys of that entity, which apply its key template. Use QueryByDiscriminator() of the index.""")]
+    [Arguments("""client.Table<Hand>("x").Index("ByX", "x").Query([|"a"|]);""", """'"a"' is a key given as its stored values, and this index holds 'Hand', so it takes only the keys of that entity, which apply its key template. Use new PartitionKey<Hand>("a").""")]
+    [Arguments("""client.Table<LegacyRecord>("x").Index("ByX", "x").Query([|"a"|]);""", """'"a"' is a key given as its stored values, and this index holds 'LegacyRecord', so it takes only the keys of that entity, which apply its key template. Use LegacyRecord.Keys.Pk.Of("a").""")]
+    public async Task Analyze_KeyGivenAsItsStoredValues_ReportsTheBuilder(string statement, string message)
     {
         // Arrange
         var source = AnalyzerRun.Member(Run + statement + "\n}");
@@ -189,6 +283,18 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""orders.Update(Order.Keys.Of("a")).Set("x", 1, 2);""")]
     [Arguments("""orders.Undefined(Customer.Keys.Of("a"));""")]
     [Arguments("""Console.WriteLine(Customer.Keys.Of("a"), 1, 2);""")]
+    [Arguments("""Nope("a");""")]
+    [Arguments("""orders.Get();""")]
+    [Arguments("""orders.Put("a");""")]
+    [Arguments("""orders.Check("a");""")]
+    [Arguments("""client.TransactWrite().Query(orders, "a");""")]
+    [Arguments("""orders.Query([], 1);""")]
+    [Arguments("""orders.Query([.. new[] { "a" }]);""")]
+    [Arguments("""orders.Query(new List<Guid>(), SortKeyCondition.Ge("a"));""")]
+    [Arguments("""orders.Query("a", Guid.Empty);""")]
+    [Arguments("""orders.Get(nope);""")]
+    [Arguments("""orders.Query([Guid.Empty]);""")]
+    [Arguments("""orders.Query(null, 1);""")]
     public async Task Analyze_WhatTheConstraintsTakeOrTheCompilerExplains_ReportsNothing(string statement)
     {
         // Arrange
@@ -204,6 +310,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Test]
     [Arguments("public static void Run<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.Get(Customer.Keys.Of(\"a\"));")]
     [Arguments("public static void Run<TKey>(Table<Order> orders, TKey key) => orders.Get(key);")]
+    [Arguments("public static void Run<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.Get(\"a\");")]
     public async Task Analyze_GenericHelper_ReportsNothing(string member)
     {
         // Arrange: a type parameter of the consumer's own says nothing about what the call needs.
@@ -232,6 +339,11 @@ public sealed class TypeArgumentAnalyzerTests
 
     [Test]
     [Arguments("""orders.Get(Customer.Keys.Of("a"));""", "CS0315")]
+    [Arguments("""orders.Get("1");""", "CS0311")]
+    [Arguments("""orders.Get(1);""", "CS0315")]
+    [Arguments("""orders.Query("a", SortKeyCondition.Ge("b"));""", "CS1501")]
+    [Arguments("""orders.Index("x", "y").Query("a");""", "CS1929")]
+    [Arguments("""client.TransactWrite().Update(orders, "a", "b");""", "CS1503")]
     [Arguments("""client.Table<Plain>("x");""", "CS0311")]
     [Arguments("""client.Table<Item>("x");""", "CS0311")]
     [Arguments("""orders.Update(Order.Keys.Of("a")).Set(Order.Attrs.Name, 5);""", "CS0453")]

@@ -29,7 +29,7 @@ public sealed class KeyInputChangesTableKeyTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<TenantInvoice>("Billing").Update("TENANT#acme", "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson();
+        var json = client.Table<TenantInvoice>("Billing").Update(new StoredKey<TenantInvoice>("TENANT#acme", "INV#2026-09#000002")).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -45,7 +45,7 @@ public sealed class KeyInputChangesTableKeyTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<BothKeysInput>("Shop").Update("A#a", "B#b").Set(BothKeysInput.Attrs.Mark, "m").ToRequestJson();
+        var json = client.Table<BothKeysInput>("Shop").Update(new StoredKey<BothKeysInput>("A#a", "B#b")).Set(BothKeysInput.Attrs.Mark, "m").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -78,7 +78,7 @@ public sealed class KeyInputChangesTableKeyTests
         var invoices = client.Table<TenantInvoice>("Billing");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update("OTHER#acme", "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(new StoredKey<TenantInvoice>("OTHER#acme", "INV#2026-09#000002")).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
 
         // Assert (setting the tenant would be the error of the table key, so the message cannot say that)
         await Assert.That(failure.Message).Contains("and not TenantId,").And.Contains("Use a Put of the changed entity, or a raw path").And.DoesNotContain("Set all");
@@ -93,7 +93,7 @@ public sealed class KeyInputChangesTableKeyTests
         var slots = client.Table<DaySlot>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update("ROOM#r1").Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update(new StoredKey<DaySlot>("ROOM#r1")).Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
@@ -108,7 +108,7 @@ public sealed class KeyInputChangesTableKeyTests
         var invoices = client.Table<TenantInvoice>("Billing");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(1, "INV#2026-09#000002").Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => invoices.Update(new StoredKey<TenantInvoice>(1, "INV#2026-09#000002")).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid).ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
@@ -125,7 +125,7 @@ public sealed class KeyInputChangesTableKeyTests
         // Act
         var json = client.TransactWrite()
             .Update(invoices, TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, InvoiceState.Paid)
-            .Update(invoices, "TENANT#globex", "INV#2026-10#000003").Set(TenantInvoice.Attrs.Status, InvoiceState.Open)
+            .Update(invoices, new StoredKey<TenantInvoice>("TENANT#globex", "INV#2026-10#000003")).Set(TenantInvoice.Attrs.Status, InvoiceState.Open)
             .Token("t").ToRequestJson();
 
         // Assert
@@ -140,7 +140,7 @@ public sealed class KeyInputChangesTableKeyTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<NumberedCounter>("Shop").Update(7).Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson();
+        var json = client.Table<NumberedCounter>("Shop").Update(NumberedCounter.Keys.Of(7)).Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -173,7 +173,7 @@ public sealed class KeyInputChangesTableKeyTests
         var counters = client.Table<NumberedCounter>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update("seven").Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => counters.Update(new StoredKey<NumberedCounter>("seven")).Set(NumberedCounter.Attrs.Kind, "hits").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
@@ -203,7 +203,7 @@ public sealed class KeyInputChangesTableKeyTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<RoomSlot>("Shop").Update("ROOM#r1", "AT#2026-11-02T10:00").Set(RoomSlot.Attrs.Owner, "ann").ToRequestJson();
+        var json = client.Table<RoomSlot>("Shop").Update(new StoredKey<RoomSlot>("ROOM#r1", "AT#2026-11-02T10:00")).Set(RoomSlot.Attrs.Owner, "ann").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -255,7 +255,7 @@ public sealed class KeyInputChangesTableKeyTests
         var slots = client.Table<DaySlot>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update("ROOM#r1", "DAY#2026-11-02").Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => slots.Update(new StoredKey<DaySlot>("ROOM#r1", "DAY#2026-11-02")).Set(DaySlot.Attrs.Owner, "ann").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("Use a Put of the changed entity, or a raw path");
@@ -273,7 +273,7 @@ public sealed class KeyInputChangesTableKeyTests
         // Act
         var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite()
             .Update(slots, DaySlot.Keys.Of("r1", start)).Set(DaySlot.Attrs.Owner, "ann")
-            .Update(slots, "ROOM#r2", "DAY#2026-11-02").Set(DaySlot.Attrs.Owner, "bob")
+            .Update(slots, new StoredKey<DaySlot>("ROOM#r2", "DAY#2026-11-02")).Set(DaySlot.Attrs.Owner, "bob")
             .Token("t").ToRequestJson());
 
         // Assert

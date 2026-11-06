@@ -363,10 +363,10 @@ public sealed class ProjectionAnalyzerTests
     // Constant paths and handles, on every read that has Select, and the terminals that read items.
     [Arguments("""_ = orders.Get(key).[|Project|]("Status", "PlacedAt").SendAsync();""", "Total", "Order")]
     [Arguments("""_ = orders.Get(key).[|Project|]("Status", "PlacedAt").ItemAsync();""", "Total", "Order")]
-    [Arguments("""_ = orders.Query("a").[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
-    [Arguments("""_ = orders.Query("a").[|Project|]("sum").ItemAsync();""", "Status", "Order")]
-    [Arguments("""_ = orders.Query("a").[|Project|]("sum").PageAsync();""", "Status", "Order")]
-    [Arguments("""_ = orders.Query("a").[|Project|]("sum").PagesAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).[|Project|]("sum").ItemAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).[|Project|]("sum").PageAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).[|Project|]("sum").PagesAsync();""", "Status", "Order")]
     [Arguments("""_ = orders.Scan().[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
     [Arguments("""_ = orders.Scan().[|Project|]("sum").Parallel(2).ItemsAsync();""", "Status", "Order")]
     [Arguments("""_ = orders.Scan().[|Project|](Order.Attrs.Total).ItemsAsync();""", "Status", "Order")]
@@ -386,10 +386,10 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Scan().Filter(Attr("a").Exists()).[|Project|]("sum").Limit(1).ItemsAsync();""", "Status", "Order")]
 
     // A key of an index is not in a read of the table, and a key that loses what it holds restores nothing, on any read.
-    [Arguments("""_ = orders.Query("a").[|Project|]("sum", "PlacedAt").ItemsAsync();""", "Status", "Order")]
-    [Arguments("""_ = byStatus.Query("a").[|Project|]("sum").ItemsAsync();""", "PlacedAt", "Order")]
-    [Arguments("""_ = events.Query("a").[|Project|]("Id").ItemsAsync();""", "At", "Event")]
-    [Arguments("""_ = sdkReadings.Query("a").[|Project|]("Value").ItemsAsync();""", "At", "SdkReading")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).[|Project|]("sum", "PlacedAt").ItemsAsync();""", "Status", "Order")]
+    [Arguments("""_ = byStatus.Query(Order.Keys.ByStatusPk.Of("a")).[|Project|]("sum").ItemsAsync();""", "PlacedAt", "Order")]
+    [Arguments("""_ = events.Query(Event.Keys.Pk.Of(default)).[|Project|]("Id").ItemsAsync();""", "At", "Event")]
+    [Arguments("""_ = sdkReadings.Query(SdkReading.Keys.Pk.Of("a")).[|Project|]("Value").ItemsAsync();""", "At", "SdkReading")]
     [Arguments("""_ = trips.Scan().[|Project|]("Page").ItemsAsync();""", "Driver", "Trip")]
 
     // The name of a [KeyOnly] property is no attribute, and a parameter of a constructor counts as a required member does.
@@ -411,7 +411,7 @@ public sealed class ProjectionAnalyzerTests
 
     [Test]
     [Arguments("""_ = orders.BatchGet().Key(key).[|Project|]("sum").SendAsync();""", "Status", "Order")]
-    [Arguments("""_ = orders.Query(["a", "b"]).[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.Query([Order.Keys.Pk.Of("a"), Order.Keys.Pk.Of("b")]).[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
     [Arguments("""_ = shop.Query("a").Of<Device, Parcel>().[|Project|]("Vendor").ItemsAsync();""", "Carrier", "Parcel")]
     [Arguments("""_ = shop.Scan().Of<Parcel, Device>().[|Project|]("Vendor").ItemsAsync();""", "Carrier", "Parcel")]
     public async Task Project_ReadWithoutSelect_SaysOnlyToIncludeIt(string statement, string member, string type)
@@ -442,23 +442,23 @@ public sealed class ProjectionAnalyzerTests
     [Test]
 
     // Everything a read needs is there, by name, by a renamed attribute, or by a handle.
-    [Arguments("""_ = orders.Query("a").Project("Status", "PlacedAt", "sum").ItemsAsync();""")]
-    [Arguments("""_ = orders.Query("a").Project(Order.Attrs.Status, Order.Attrs.PlacedAt, Order.Attrs.Total).ItemsAsync();""")]
-    [Arguments("""_ = orders.Query("a").Project("Status").Project(Order.Attrs.PlacedAt).Project("sum").ItemsAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("Status", "PlacedAt", "sum").ItemsAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project(Order.Attrs.Status, Order.Attrs.PlacedAt, Order.Attrs.Total).ItemsAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("Status").Project(Order.Attrs.PlacedAt).Project("sum").ItemsAsync();""")]
     [Arguments("""_ = orders.Get(key).Project("Status", "PlacedAt", "sum").ItemAsync();""")]
     [Arguments("""_ = orders.BatchGet().Key(key).Project("Status", "PlacedAt", "sum").SendAsync();""")]
-    [Arguments("""_ = orders.Query(["a"]).Project("Status", "PlacedAt", "sum").ItemsAsync();""")]
+    [Arguments("""_ = orders.Query([Order.Keys.Pk.Of("a")]).Project("Status", "PlacedAt", "sum").ItemsAsync();""")]
 
     // A nested path keeps the member at its top.
     [Arguments("""_ = devices.Scan().Project("Vendor.Name").ItemsAsync();""")]
     [Arguments("""_ = devices.Scan().Project("Vendor[0]").ItemsAsync();""")]
 
     // Not named and still there: a key the read adds, what such a key restores, and a key that is named.
-    [Arguments("""_ = visits.Query("a").Project("Page").ItemsAsync();""")]
-    [Arguments("""_ = readings.Query("a").Project("Value").ItemsAsync();""")]
+    [Arguments("""_ = visits.Query(Visit.Keys.Pk.Of("a")).Project("Page").ItemsAsync();""")]
+    [Arguments("""_ = readings.Query(Reading.Keys.Pk.Of("a")).Project("Value").ItemsAsync();""")]
     [Arguments("""_ = devices.Scan().Project("Vendor").ItemsAsync();""")]
     [Arguments("""_ = parcels.Scan().Project("Carrier").ItemsAsync();""")]
-    [Arguments("""_ = byStatus.Query("a").Project("PlacedAt", "sum").ItemsAsync();""")]
+    [Arguments("""_ = byStatus.Query(Order.Keys.ByStatusPk.Of("a")).Project("PlacedAt", "sum").ItemsAsync();""")]
     [Arguments("""_ = orders.Scan().Project("gsi1pk", "PlacedAt", "sum").ItemsAsync();""")]
 
     // A read of several types that has what each needs, also on an index, whose keys it adds.
@@ -488,18 +488,18 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Scan().Project(Hand.Attrs.X).ItemsAsync();""")]
 
     // A chain that goes on somewhere else, or came from somewhere else.
-    [Arguments("""var query = orders.Query("a").Project("sum"); query = query.Project("Status"); _ = query.ItemsAsync();""")]
-    [Arguments("""var query = orders.Query("a"); _ = query.Project("sum").ItemsAsync();""")]
-    [Arguments("""Take(orders.Query("a").Project("sum"));""")]
-    [Arguments("""_ = Helper(orders.Query("a")).Project("sum").ItemsAsync();""")]
-    [Arguments("""_ = Helper(orders.Query("a").Project("sum")).ItemsAsync();""")]
-    [Arguments("""_ = orders.Query("a").Project("sum").Audited().ItemsAsync();""")]
-    [Arguments("""_ = orders.Query("a").Audited().Project("sum").ItemsAsync();""")]
+    [Arguments("""var query = orders.Query(Order.Keys.Pk.Of("a")).Project("sum"); query = query.Project("Status"); _ = query.ItemsAsync();""")]
+    [Arguments("""var query = orders.Query(Order.Keys.Pk.Of("a")); _ = query.Project("sum").ItemsAsync();""")]
+    [Arguments("""Take(orders.Query(Order.Keys.Pk.Of("a")).Project("sum"));""")]
+    [Arguments("""_ = Helper(orders.Query(Order.Keys.Pk.Of("a"))).Project("sum").ItemsAsync();""")]
+    [Arguments("""_ = Helper(orders.Query(Order.Keys.Pk.Of("a")).Project("sum")).ItemsAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("sum").Audited().ItemsAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Audited().Project("sum").ItemsAsync();""")]
 
     // No item is read, or no entity.
-    [Arguments("""_ = orders.Query("a").Project("sum").ToRequestJson();""")]
-    [Arguments("""_ = orders.Query("a").Project("sum").CountAsync();""")]
-    [Arguments("""_ = orders.Query("a").Project("sum").Select(Order.Attrs.Lines).ValuesAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("sum").ToRequestJson();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("sum").CountAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("sum").Select(Order.Attrs.Lines).ValuesAsync();""")]
 
     // What the read gets along without: a required member that is nullable reads as null and a required set as empty, and what is computed or ignored is not read.
     [Arguments("""_ = devices.Scan().Project("Vendor").Project("Slot").ItemsAsync();""")]
@@ -535,14 +535,14 @@ public sealed class ProjectionAnalyzerTests
     [Test]
 
     // Every write of the library stores the version, and an item without one throws a message that names VersionMissing.Allow, which beats the silent 0 of a read of the entity.
-    [Arguments("""_ = ledgers.Get("a").Select(Ledger.Attrs.Revision).SendAsync();""")]
-    [Arguments("""_ = ledgers.Query("a").Select(Ledger.Attrs.Revision).ValuesAsync();""")]
+    [Arguments("""_ = ledgers.Get(Ledger.Keys.Of("a")).Select(Ledger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = ledgers.Query(Ledger.Keys.Pk.Of("a")).Select(Ledger.Attrs.Revision).ValuesAsync();""")]
     [Arguments("""_ = ledgers.Scan().Select(Ledger.Attrs.Revision).ValuesAsync();""")]
-    [Arguments("""_ = defaultedLedgers.Get("a").Select(DefaultedLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = defaultedLedgers.Get(DefaultedLedger.Keys.Of("a")).Select(DefaultedLedger.Attrs.Revision).SendAsync();""")]
 
     // A version that a read of the entity needs as well.
-    [Arguments("""_ = strictLedgers.Get("a").Select(StrictLedger.Attrs.Revision).SendAsync();""")]
-    [Arguments("""_ = positionalLedgers.Get("a").Select(PositionalLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = strictLedgers.Get(StrictLedger.Keys.Of("a")).Select(StrictLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = positionalLedgers.Get(PositionalLedger.Keys.Of("a")).Select(PositionalLedger.Attrs.Revision).SendAsync();""")]
     public async Task Select_PlainVersion_ReportsNothing(string statement)
     {
         // Arrange
@@ -556,8 +556,8 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
-    [Arguments("""_ = adoptedLedgers.Get("a").Select(AdoptedLedger.Attrs.Revision).SendAsync();""")]
-    [Arguments("""_ = adoptedLedgers.Query("a").Select(AdoptedLedger.Attrs.Revision).ValuesAsync();""")]
+    [Arguments("""_ = adoptedLedgers.Get(AdoptedLedger.Keys.Of("a")).Select(AdoptedLedger.Attrs.Revision).SendAsync();""")]
+    [Arguments("""_ = adoptedLedgers.Query(AdoptedLedger.Keys.Pk.Of("a")).Select(AdoptedLedger.Attrs.Revision).ValuesAsync();""")]
     [Arguments("""_ = adoptedLedgers.Scan().Select(AdoptedLedger.Attrs.Revision).ValuesAsync();""")]
     public async Task Select_VersionThatAllowsAnItemWithoutOne_ReportsNothing(string statement)
     {
@@ -575,7 +575,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Project_ConvertedNameOfARequiredMember_ReportsNothing()
     {
         // Arrange
-        var source = Named("""_ = bills.Query("a").Project("total_due").ItemsAsync();""");
+        var source = Named("""_ = bills.Query(Bill.Keys.Pk.Of("a")).Project("total_due").ItemsAsync();""");
 
         // Act
         var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -588,7 +588,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Project_DeclaredNameOfARequiredMember_Reports()
     {
         // Arrange (under a naming the declared name reads another attribute, so the member is left out)
-        var source = Named("""_ = bills.Query("a").[|Project|]("TotalDue").ItemsAsync();""");
+        var source = Named("""_ = bills.Query(Bill.Keys.Pk.Of("a")).[|Project|]("TotalDue").ItemsAsync();""");
 
         // Act
         var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -598,8 +598,8 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
-    [Arguments("""_ = omitters.Get("a").Select([|Omitter.Attrs.Title|]).SendAsync();""", "Title")]
-    [Arguments("""_ = omitters.Query("a").Select([|Omitter.Attrs.Lines|]).ValuesAsync();""", "Lines")]
+    [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select([|Omitter.Attrs.Title|]).SendAsync();""", "Title")]
+    [Arguments("""_ = omitters.Query(Omitter.Keys.Pk.Of("a")).Select([|Omitter.Attrs.Lines|]).ValuesAsync();""", "Lines")]
     public async Task Select_PropertyThatOmitEmptyLeavesOut_Reports(string statement, string property)
     {
         // Arrange
@@ -613,9 +613,9 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
-    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Note).SendAsync();""")]
-    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Labels).SendAsync();""")]
-    [Arguments("""_ = omitters.Get("a").Select(Omitter.Attrs.Plain).SendAsync();""")]
+    [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Note).SendAsync();""")]
+    [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Labels).SendAsync();""")]
+    [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Plain).SendAsync();""")]
     public async Task Select_PropertyWithAnAnswerForAMissingAttribute_ReportsNothing(string statement)
     {
         // Arrange (a nullable property reads null and a set an empty set, and the last one is always written)
@@ -632,7 +632,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Select_PropertyWhoseConverterCountsAValueAsMissing_Reports()
     {
         // Arrange
-        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Title|]).SendAsync();""");
+        var source = Source("""_ = counted.Get(Counted.Keys.Of("a")).Select([|Counted.Attrs.Title|]).SendAsync();""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -645,7 +645,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Select_PropertyOfAnEnumThatCountsAnUnknownNameAsMissing_Reports()
     {
         // Arrange (the generated converter answers for itself, with no [DynamoDbConverter] to find)
-        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Mood|]).SendAsync();""");
+        var source = Source("""_ = counted.Get(Counted.Keys.Of("a")).Select([|Counted.Attrs.Mood|]).SendAsync();""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -658,7 +658,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Select_OmitEmptyWhoseConverterCountsAValueAsMissing_ReportsTheOmission()
     {
         // Arrange (one report, and the first reason is what a write of the entity does every day)
-        var source = Source("""_ = counted.Get("a").Select([|Counted.Attrs.Both|]).SendAsync();""");
+        var source = Source("""_ = counted.Get(Counted.Keys.Of("a")).Select([|Counted.Attrs.Both|]).SendAsync();""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -670,19 +670,19 @@ public sealed class ProjectionAnalyzerTests
     [Test]
 
     // Null is what a missing attribute reads as.
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Note).SendAsync();""")]
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.MaybeMood).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.Note).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.MaybeMood).SendAsync();""")]
 
     // A read of the entity throws for a required member as well.
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Kept).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.Kept).SendAsync();""")]
 
     // A converter with an answer for a missing attribute gives Select a value, implicitly, explicitly, for a property that [OmitEmpty] leaves out and for an input of the table key.
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Answered).SendAsync();""")]
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Left).SendAsync();""")]
-    [Arguments("""_ = counted.Get("a").Select(Counted.Attrs.Id).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.Answered).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.Left).SendAsync();""")]
+    [Arguments("""_ = counted.Get(Counted.Keys.Of("a")).Select(Counted.Attrs.Id).SendAsync();""")]
 
     // A plain key is read for what it is.
-    [Arguments("""_ = countedKeys.Get("a").Select(CountedKey.Attrs.Id).SendAsync();""")]
+    [Arguments("""_ = countedKeys.Get(CountedKey.Keys.Of("a")).Select(CountedKey.Attrs.Id).SendAsync();""")]
     public async Task Select_PropertyWhoseConverterCountsAValueAsMissing_ReportsNothingWhereTheReadsAgree(string statement)
     {
         // Arrange
@@ -699,7 +699,7 @@ public sealed class ProjectionAnalyzerTests
     public async Task Project_RequiredVersionThatAllowsAnItemWithoutOne_ReportsNothing()
     {
         // Arrange (a read gives 0 for it, as it does for an item without one)
-        var source = Source("""_ = adoptedLedgers.Query("a").Project("Id").ItemsAsync();""");
+        var source = Source("""_ = adoptedLedgers.Query(AdoptedLedger.Keys.Pk.Of("a")).Project("Id").ItemsAsync();""");
 
         // Act
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
@@ -710,9 +710,9 @@ public sealed class ProjectionAnalyzerTests
 
     [Test]
     [Arguments("""_ = orders.Get(key).Select([|Order.Attrs.UserId|]).SendAsync();""", "UserId", "Order", "pk")]
-    [Arguments("""_ = orders.Query("a").Select([|Order.Attrs.OrderId|]).ValuesAsync();""", "OrderId", "Order", "sk")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Select([|Order.Attrs.OrderId|]).ValuesAsync();""", "OrderId", "Order", "sk")]
     [Arguments("""_ = routes.Scan().Select([|Route.Attrs.Id|]).ValuesAsync();""", "Id", "Route", "pk")]
-    [Arguments("""_ = readings.Query("a").Select([|Reading.Attrs.At|]).ValuesAsync();""", "At", "Reading", "sk")]
+    [Arguments("""_ = readings.Query(Reading.Keys.Pk.Of("a")).Select([|Reading.Attrs.At|]).ValuesAsync();""", "At", "Reading", "sk")]
     public async Task Select_KeyInputOfTheTable_Reports(string statement, string property, string type, string key)
     {
         // Arrange
@@ -730,11 +730,11 @@ public sealed class ProjectionAnalyzerTests
     // An attribute that every item has: a plain property, a plain key, and a nullable input, whose missing attribute means null.
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.Total).SendAsync();""")]
     [Arguments("""_ = devices.Scan().Select(Device.Attrs.Serial).ValuesAsync();""")]
-    [Arguments("""_ = orders.Query("a").Select(Order.Attrs.Note).ValuesAsync();""")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Select(Order.Attrs.Note).ValuesAsync();""")]
 
     // A key that loses what it holds restores nothing for a read of the entity either.
     [Arguments("""_ = orders.Get(key).Select(Order.Attrs.PlacedAt).SendAsync();""")]
-    [Arguments("""_ = sdkReadings.Query("a").Select(SdkReading.Attrs.At).ValuesAsync();""")]
+    [Arguments("""_ = sdkReadings.Query(SdkReading.Keys.Pk.Of("a")).Select(SdkReading.Attrs.At).ValuesAsync();""")]
 
     // An input of an index is an attribute that an update sets, on a table with a sort key and on one without.
     [Arguments("""_ = orders.Scan().Select(Order.Attrs.Status).ValuesAsync();""")]

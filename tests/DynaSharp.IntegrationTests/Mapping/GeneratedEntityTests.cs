@@ -185,7 +185,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await shipments.Put(Full with { Number = "valid", ExpiresAt = now.AddSeconds(1) }).SendAsync();
 
         // Act
-        var valid = await shipments.Query("alice").Filter(Shipment.Attrs.ExpiresAt.Gt(now)).ItemsAsync().ToListAsync();
+        var valid = await shipments.Query(Shipment.Keys.Pk.Of("alice")).Filter(Shipment.Attrs.ExpiresAt.Gt(now)).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(valid.Select(shipment => shipment.Number)).IsEquivalentTo(["valid"]);
@@ -272,7 +272,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await PutMovementsAsync(movements);
 
         // Act
-        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01")).ItemsAsync().ToListAsync();
+        var read = await movements.Query(Movement.Keys.Pk.Of("KB-01")).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(movement => movement.Delta).ToArray()).IsEquivalentTo(Deltas.Order(), CollectionOrdering.Matching);
@@ -287,7 +287,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await PutMovementsAsync(movements);
 
         // Act
-        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKeyCondition.Between(Movement.Keys.Sk.Prefix(-100), Movement.Keys.Sk.UpperBound(-1))).ItemsAsync().ToListAsync();
+        var read = await movements.Query(Movement.Keys.Pk.Of("KB-01"), SortKeyCondition.Between(Movement.Keys.Sk.Prefix(-100), Movement.Keys.Sk.UpperBound(-1))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(movement => movement.Delta).ToArray()).IsEquivalentTo(Deltas.Where(delta => delta is >= -100 and <= -1).Order(), CollectionOrdering.Matching);
@@ -302,7 +302,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         await PutMovementsAsync(movements);
 
         // Act
-        var read = await movements.Query(Movement.Keys.Pk.Format("KB-01"), SortKeyCondition.BeginsWith(Movement.Keys.Sk.Prefix(-1))).ItemsAsync().ToListAsync();
+        var read = await movements.Query(Movement.Keys.Pk.Of("KB-01"), SortKeyCondition.BeginsWith(Movement.Keys.Sk.Prefix(-1))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(movement => movement.Delta)).IsEquivalentTo([-1]);
@@ -322,7 +322,7 @@ public sealed class GeneratedEntityTests(Backend backend)
         }
 
         // Act
-        var read = await scores.Index("ByPoints").Query("chess", SortKeyCondition.Between(AttributeValue.FromNumber(-5), AttributeValue.FromNumber(9))).ItemsAsync().ToListAsync();
+        var read = await scores.Index("ByPoints").Query(Score.Keys.ByPointsPk.Of("chess"), SortKeyCondition.Between(AttributeValue.FromNumber(-5), AttributeValue.FromNumber(9))).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(read.Select(score => score.Points).ToArray()).IsEquivalentTo([-2, 0, 9], CollectionOrdering.Matching);

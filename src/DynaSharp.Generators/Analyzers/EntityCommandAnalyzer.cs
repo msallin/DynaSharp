@@ -48,8 +48,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private const string BatchWriteCommand = "BatchWriteCommand";
 
-    private const string TableParameter = "table";
-
     // The writes of BatchWriteCommand<T>, each of which settles a version that a batch cannot carry.
     private static readonly HashSet<string> BatchWrites = ["Put", "PutAll", "Delete", "DeleteAll"];
 
@@ -249,11 +247,11 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(Descriptors.VersionedBatchWrite, name.GetLocation(), entity.Name));
     }
 
-    // Put<TOther>(Table<TOther> table, TOther item) and the deletes on another table write to the table of their first type argument, the others to the table of the batch.
+    // Put<TOther>(Table<TOther> table, TOther item) and the deletes on another table write to the table they take, the others to the table of the batch.
     private static INamedTypeSymbol? VersionedEntityOfBatchWrite(IInvocationOperation invocation, ModelCatalog models)
     {
         var method = invocation.TargetMethod;
-        var entity = method.Parameters.Any(static parameter => parameter.Name == TableParameter) ? method.TypeArguments[0] : method.ContainingType.TypeArguments[0];
+        var entity = DynaSharpTypes.TableTypeOf(method) ?? method.ContainingType.TypeArguments[0];
         return entity is INamedTypeSymbol named && models.ModelOf(named)?.Entity?.VersionProperty is not null ? named : null;
     }
 
@@ -364,7 +362,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     // A method of the library with one of these names is an instance or an extension method, so there is a receiver.
     private static INamedTypeSymbol? EntityOf(IInvocationOperation invocation, string verb) => EntityOfCommand(ReceiverOf(invocation)!, verb);
 
-    // The verb has the table as its second type argument: Update<TChain, T>(chain, table, ...).
+    // The verb takes the table: Update<TChain, T, TKey>(chain, table, key), and Update<TChain>(chain, Table<Item> table, ...) for a table without a schema.
     private static INamedTypeSymbol? EntityOfStep(IOperation step, string verb)
     {
         var type = step.Type;
@@ -372,7 +370,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         {
             if (invocation.TargetMethod is { ContainingType.Name: StepVerbs } method && method.Name == verb)
             {
-                return method.TypeArguments[1] as INamedTypeSymbol;
+                return DynaSharpTypes.TableTypeOf(method) as INamedTypeSymbol;
             }
 
             step = ReceiverOf(invocation)!;

@@ -34,7 +34,7 @@ await foreach (Item order in shop.Query("CUSTOMER#alice", SortKeyCondition.Begin
 
 `shop` is `client.Table("Shop", "pk", "sk")`. What differs from a typed table:
 
-- **Keys** are `AttributeValue`, so a string or a number converts. An empty string, empty binary or a sort key on a table opened without one throws `ArgumentException` at the call. A `PartitionKey<T>` of any entity fits `Query` too: `shop.Query(Order.Keys.Pk.Of("alice"))`.
+- **Keys** are `AttributeValue`, so a string or a number converts. An empty string, empty binary or a sort key on a table opened without one throws `ArgumentException` at the call. A `PartitionKey<T>` of any entity fits `Query` too: `shop.Query(Order.Keys.Pk.Of("alice"))`. Only a table without a model takes the values of a key: a table of an entity takes the keys its generator builds, `Order.Keys.Of(...)`, because the values as stored would skip its key template, and `orders.Get("alice", "ORDER#000001")` does not compile, see [DYNA230](diagnostics.md#commands).
 - **Paths** are strings: names joined by dots, with list indexes in brackets, `"Lines[0].Sku"`. Every name becomes a placeholder, so a reserved word needs no care. A name in the text of an interpolated expression goes to DynamoDB as it is, which is why `Attr("pk")` stands in the hole above.
 - **Values** are `AttributeValue`, which converts from `string`, `bool`, `int`, `long`, `double`, `decimal`, `byte[]` and `char`. The `FromXxx` factories and `AttributeValue.Null` make the rest: sets, lists, maps, and numbers of other types.
 - **No checks of a model.** A write is what it says: no `_type`, no version, no key template. `Put()` with `.With(name, value)` builds an item attribute by attribute, and exists on `Table<Item>` only.

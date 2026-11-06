@@ -104,34 +104,30 @@ public static class TransactWriteExtensions
         return new PutStep(state).IfNotExists();
     }
 
-    /// <summary>Adds an update by a key of attribute values. It creates the item if none has the key, unless <see cref="IfExists"/> says otherwise.</summary>
+    /// <summary>Adds an update on a table without a schema, by the values of the key. It creates the item if none has the key, unless <see cref="IfExists"/> says otherwise.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static UpdateStep Update<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey = default)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out _)));
+    public static UpdateStep Update<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out _)));
 
-    /// <summary>Adds an update by a key of attribute values, and hands out its marker.</summary>
+    /// <summary>Adds an update on a table without a schema, by the values of the key, and hands out its marker.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static UpdateStep Update<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out marker)));
+    public static UpdateStep Update<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out marker)));
 
     /// <summary>Adds an update by a generated key. It creates the item if none has the key, unless <see cref="IfExists"/> says otherwise.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
@@ -162,34 +158,30 @@ public static class TransactWriteExtensions
         where T : IDynamoDbDocument<T>
         where TKey : IKey<T> => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, key, out marker), key));
 
-    /// <summary>Adds a delete by a key of attribute values. Deleting what does not exist is no failure unless <see cref="IfExists"/> asks for one.</summary>
+    /// <summary>Adds a delete on a table without a schema, by the values of the key. Deleting what does not exist is no failure unless <see cref="IfExists"/> asks for one.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static ConditionStep Delete<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey = default)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out _)));
+    public static ConditionStep Delete<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out _)));
 
-    /// <summary>Adds a delete by a key of attribute values, and hands out its marker.</summary>
+    /// <summary>Adds a delete on a table without a schema, by the values of the key, and hands out its marker.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static ConditionStep Delete<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out marker)));
+    public static ConditionStep Delete<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out marker)));
 
     /// <summary>Adds a delete by a generated key. Deleting what does not exist is no failure unless <see cref="IfExists"/> asks for one.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
@@ -221,36 +213,32 @@ public static class TransactWriteExtensions
         where TKey : IKey<T> => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, key, out marker)));
 
     /// <summary>
-    /// Adds a condition check by a key of attribute values: an item that takes part in the transaction without being written, which is how a write depends on
+    /// Adds a condition check on a table without a schema, by the values of the key: an item that takes part in the transaction without being written, which is how a write depends on
     /// another item. The step needs a condition, and it costs a write like any other action.
     /// </summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static ConditionStep Check<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey = default)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out _));
+    public static ConditionStep Check<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out _));
 
-    /// <summary>Adds a condition check by a key of attribute values, and hands out its marker.</summary>
+    /// <summary>Adds a condition check on a table without a schema, by the values of the key, and hands out its marker.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
-    /// <typeparam name="T">The type of the table.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
-    /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="table">The table, one without a schema. A table of an entity takes a generated key instead.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static ConditionStep Check<TChain, T>(this TChain chain, Table<T> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T> => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out marker));
+    public static ConditionStep Check<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out marker));
 
     /// <summary>Adds a condition check by a generated key: an item that takes part in the transaction without being written. The step needs a condition.</summary>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
@@ -417,9 +405,8 @@ public static class TransactWriteExtensions
         return state.RenderJson();
     }
 
-    private static CommandState AddAction<TChain, T>(TChain chain, Table<T> table, ReadOnlySpan<byte> kind, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
+    private static CommandState AddAction<TChain>(TChain chain, Table<Item> table, ReadOnlySpan<byte> kind, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct
-        where T : IDynamoDbDocument<T>
     {
         ArgumentNullException.ThrowIfNull(table);
         var model = table.Model;

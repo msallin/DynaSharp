@@ -12,7 +12,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// </summary>
 public sealed class DiscriminatorWriteTests
 {
-    private const string Start = """{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}}""";
+    private const string Start = """{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#a"},"sk":{"S":"PROFILE"}}""";
 
     private const string Name = "_type";
 
@@ -23,7 +23,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -36,7 +36,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set("city", "Bern").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set("city", "Bern").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"city","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Bern"},":v1":{"S":"CUSTOMER"}}}""");
@@ -49,7 +49,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Add("n", 1).Remove("old").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Add("n", 1).Remove("old").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n2 = if_not_exists(#n2, :v1) REMOVE #n1 ADD #n0 :v0","ExpressionAttributeNames":{"#n0":"n","#n1":"old","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"CUSTOMER"}}}""");
@@ -62,7 +62,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set("kind", "CUSTOMER").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set("kind", "CUSTOMER").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v0)","ExpressionAttributeNames":{"#n0":"kind","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -75,7 +75,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").If(Attr(Name).NotExists()).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).If(Attr(Name).NotExists()).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ConditionExpression":"attribute_not_exists(#n0)","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -88,7 +88,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").IfExists().ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).IfExists().ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0)","ConditionExpression":"attribute_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -101,7 +101,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Client.Table<Tenant>("Shop").Update("a").ToRequestJson();
+        var json = fixture.Client.Table<Tenant>("Shop").Update(Tenant.Keys.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"}},"UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ExpressionAttributeNames":{"#n0":"kind"},"ExpressionAttributeValues":{":v0":{"S":"TENANT"}}}""");
@@ -114,7 +114,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Client.Table<TypeKeyed>("Shop").Update("a", "NOTE").ToRequestJson();
+        var json = fixture.Client.Table<TypeKeyed>("Shop").Update(new StoredKey<TypeKeyed>("a", "NOTE")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"NOTE"}}}""");
@@ -128,7 +128,7 @@ public sealed class DiscriminatorWriteTests
         var path = "city";
 
         // Act
-        var json = fixture.Client.Table<OptedOut>("Shop").Update("a").Set(path, "Bern").ToRequestJson();
+        var json = fixture.Client.Table<OptedOut>("Shop").Update(OptedOut.Keys.Of("a")).Set(path, "Bern").ToRequestJson();
 
         // Assert
         await Assert.That(json).DoesNotContain("_type");
@@ -154,7 +154,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Delete("a", "b").ToRequestJson();
+        var json = fixture.Customers.Delete(Customer.Keys.Of("a")).ToRequestJson();
 
         // Assert
         await Assert.That(json).DoesNotContain("_type");
@@ -167,7 +167,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Add("n", 1).Return(Attr<int>("n")).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Add("n", 1).Return(Attr<int>("n")).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n1 = if_not_exists(#n1, :v1) ADD #n0 :v0","ExpressionAttributeNames":{"#n0":"n","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"CUSTOMER"}},"ReturnValues":"UPDATED_NEW"}""");
@@ -183,19 +183,19 @@ public sealed class DiscriminatorWriteTests
 
         // Act
         var json = fixture.Client.TransactWrite().Token("t")
-            .Update(customers, "a", "b")
+            .Update(customers, Customer.Keys.Of("a"))
             .Update(shop, "c", "d").Set("x", 1)
-            .Delete(customers, "e", "f")
-            .Update(customers, "g", "h").Set("y", 1)
+            .Delete(customers, Customer.Keys.Of("e"))
+            .Update(customers, Customer.Keys.Of("g")).Set("y", 1)
             .ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(
             """{"TransactItems":[""" +
-            """{"Update":{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}},"UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}},""" +
+            """{"Update":{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#a"},"sk":{"S":"PROFILE"}},"UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}},""" +
             """{"Update":{"TableName":"Other","Key":{"pk":{"S":"c"},"sk":{"S":"d"}},"UpdateExpression":"SET #n0 = :v0","ExpressionAttributeNames":{"#n0":"x"},"ExpressionAttributeValues":{":v0":{"N":"1"}}}},""" +
-            """{"Delete":{"TableName":"Shop","Key":{"pk":{"S":"e"},"sk":{"S":"f"}}}},""" +
-            """{"Update":{"TableName":"Shop","Key":{"pk":{"S":"g"},"sk":{"S":"h"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"y","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"CUSTOMER"}}}}""" +
+            """{"Delete":{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#e"},"sk":{"S":"PROFILE"}}}},""" +
+            """{"Update":{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#g"},"sk":{"S":"PROFILE"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"y","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"CUSTOMER"}}}}""" +
             """],"ClientRequestToken":"t"}""");
     }
 
@@ -206,7 +206,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set(Name, "OTHER").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set(Name, "OTHER").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = :v0","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"OTHER"}}}""");
@@ -219,7 +219,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").SetIfNotExists(Name, "CUSTOMER").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).SetIfNotExists(Name, "CUSTOMER").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = if_not_exists(#n0, :v0)","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"CUSTOMER"}}}""");
@@ -232,7 +232,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Remove(Name).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Remove(Name).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"REMOVE #n0","ExpressionAttributeNames":{"#n0":"_type"}}""");
@@ -245,7 +245,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Add(Name, 1).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Add(Name, 1).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"ADD #n0 :v0","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"}}}""");
@@ -258,7 +258,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Delete(Name, AttributeValue.FromStringSet(["x"])).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Delete(Name, AttributeValue.FromStringSet(["x"])).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"DELETE #n0 :v0","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"SS":["x"]}}}""");
@@ -271,7 +271,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set("_type.inner", 1).ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set("_type.inner", 1).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0.#n1 = :v0","ExpressionAttributeNames":{"#n0":"_type","#n1":"inner"},"ExpressionAttributeValues":{":v0":{"N":"1"}}}""");
@@ -284,7 +284,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set($"{Attr(Name)} = {"OTHER"}").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"{Attr(Name)} = {"OTHER"}").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET #n0 = :v0","ExpressionAttributeNames":{"#n0":"_type"},"ExpressionAttributeValues":{":v0":{"S":"OTHER"}}}""");
@@ -297,7 +297,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set($"_type = {"OTHER"}").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"_type = {"OTHER"}").ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET _type = :v0","ExpressionAttributeValues":{":v0":{"S":"OTHER"}}}""");
@@ -310,7 +310,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set($"{Attr("n")} = if_not_exists({Attr("m")}, {1}), {Attr(Name)} = {2}").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"{Attr("n")} = if_not_exists({Attr("m")}, {1}), {Attr(Name)} = {2}").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -325,7 +325,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set($"{Attr("n")} = if_not_exists({Attr(Name)}, {1}), {Attr("m")} = {2}").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"{Attr("n")} = if_not_exists({Attr(Name)}, {1}), {Attr("m")} = {2}").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -340,7 +340,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").Set($"{Attr("copy")} = {Attr(Name)}").ToRequestJson();
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"{Attr("copy")} = {Attr(Name)}").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -355,7 +355,7 @@ public sealed class DiscriminatorWriteTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Customers.Update("a", "b").If(Attr("first").Exists()).If(Attr(Name).Exists())
+        var json = fixture.Customers.Update(Customer.Keys.Of("a")).If(Attr("first").Exists()).If(Attr(Name).Exists())
             .Set("a2", 1).Set("a3", 1).Set("a4", 1).Set("a5", 1).Set("a6", 1).Set("a7", 1).Set("a8", 1).Set("a9", 1).Set("a10", 1).Set("a11", 1).Set("_type2", 1)
             .ToRequestJson();
 

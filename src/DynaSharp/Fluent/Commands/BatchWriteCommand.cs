@@ -116,18 +116,6 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
         return new(state, state.Table);
     }
 
-    /// <summary>Adds a delete. Deleting what does not exist is no error.</summary>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
-    /// <returns>The command, which replaces this one.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public BatchWriteCommand<T> Delete(AttributeValue partitionKey, AttributeValue sortKey = default)
-    {
-        var state = Enter();
-        BatchWriteOperation.AddDelete(state, state.Table, partitionKey, sortKey);
-        return new(state, state.Table);
-    }
-
     /// <summary>Adds a delete by a generated key. Deleting what does not exist is no error.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
@@ -164,16 +152,14 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
         return new(state, state.Table);
     }
 
-    /// <summary>Adds a delete on another table.</summary>
-    /// <typeparam name="TOther">The type of the table.</typeparam>
+    /// <summary>Adds a delete on another table, one without a schema, by the values of the key. A table of an entity takes a generated key instead.</summary>
     /// <param name="table">The table.</param>
-    /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
-    /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public BatchWriteCommand<T> Delete<TOther>(Table<TOther> table, AttributeValue partitionKey, AttributeValue sortKey = default)
-        where TOther : IDynamoDbDocument<TOther>
+    public BatchWriteCommand<T> Delete(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);
         var state = Enter();
@@ -295,5 +281,5 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchWriteOperation, BatchWriteResult>(Enter().Settle());
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
 }

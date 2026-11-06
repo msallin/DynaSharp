@@ -13,7 +13,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// </summary>
 public sealed class OnMappingFailureTests
 {
-    private const string Tenant = "TENANT#acme";
+    private const string TenantId = "acme";
 
     [Test]
     public async Task ItemsAsync_QueryWithoutTheClause_EndsAtTheItemThatDoesNotFit()
@@ -24,7 +24,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Invoice("acme", 1), Poison("acme", 2), Invoice("acme", 3)]));
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query(Tenant).ItemsAsync().ToListAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(KeyOf("acme", 2));
@@ -40,7 +40,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), failures.Single().Key, failures.Single().AttributeName)).IsEqualTo(("1,3", KeyOf("acme", 2), "Status"));
@@ -56,7 +56,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), failures.Single().Key)).IsEqualTo(("2", KeyOf("acme", 1)));
@@ -72,7 +72,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), string.Join(",", failures.Select(static failure => failure.Key!.GetString("sk"))))).IsEqualTo(("1,4", "INV#2026-09#000002,INV#2026-09#000003,INV#2026-09#000005"));
@@ -88,7 +88,7 @@ public sealed class OnMappingFailureTests
         var calls = 0;
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(_ => calls++).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(_ => calls++).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), calls)).IsEqualTo(("1,2", 0));
@@ -105,7 +105,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), string.Join(",", failures.Select(static failure => failure.Key!.GetString("sk"))))).IsEqualTo(("2", "INV#2026-09#000001,INV#2026-09#000003"));
@@ -121,7 +121,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Invoice("acme", 3), Invoice("acme", 4)]));
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(static _ => { }).ItemsAsync().Take(2).Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).ItemsAsync().Take(2).Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), handler.Requests.Count)).IsEqualTo(("1,3", 2));
@@ -136,7 +136,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Invoice("acme", 1), Poison("acme", 2)], next: true));
 
         // Act
-        var page = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(static _ => { }).PageAsync();
+        var page = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).PageAsync();
 
         // Assert (the token is the LastEvaluatedKey, which lies past the skipped item)
         await Assert.That((page.Items.Count, page.Count, page.ScannedCount, page.Next.ToKey()!.GetString("sk")))
@@ -153,7 +153,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var pages = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).PagesAsync().ToListAsync();
+        var pages = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).PagesAsync().ToListAsync();
 
         // Assert
         await Assert.That((pages.Single().Items.Single().Number, failures.Count)).IsEqualTo((2, 1));
@@ -169,7 +169,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Invoice("acme", 2)]));
 
         // Act
-        var invoice = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(static _ => { }).ItemAsync();
+        var invoice = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).ItemAsync();
 
         // Assert
         await Assert.That(invoice!.Number).IsEqualTo(2);
@@ -186,7 +186,7 @@ public sealed class OnMappingFailureTests
 
         // Act
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(static _ => throw new InvalidOperationException("Stop here.")).ItemsAsync().ToListAsync());
+            await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => throw new InvalidOperationException("Stop here.")).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That((failure!.Message, handler.Requests.Count)).IsEqualTo(("Stop here.", 1));
@@ -202,7 +202,7 @@ public sealed class OnMappingFailureTests
         var (first, second) = (0, 0);
 
         // Act
-        await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(_ => first++).OnMappingFailure(_ => second++).ItemsAsync().ToListAsync();
+        await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(_ => first++).OnMappingFailure(_ => second++).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That((first, second)).IsEqualTo((0, 1));
@@ -217,10 +217,10 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Poison("acme", 1)]));
         handler.Enqueue(Page([Poison("acme", 1)]));
         var invoices = client.Table<TenantInvoice>("Billing");
-        await invoices.Query(Tenant).OnMappingFailure(static _ => { }).ItemsAsync().ToListAsync();
+        await invoices.Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).ItemsAsync().ToListAsync();
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await invoices.Query(Tenant).ItemsAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await invoices.Query(TenantInvoice.Keys.Pk.Of(TenantId)).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure.Key).IsEqualTo(KeyOf("acme", 1));
@@ -237,9 +237,9 @@ public sealed class OnMappingFailureTests
         // Act
         var failures = new[]
         {
-            TestClient.Catch(() => invoices.Query(Tenant).OnMappingFailure(null!).ToRequestJson()),
+            TestClient.Catch(() => invoices.Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(null!).ToRequestJson()),
             TestClient.Catch(() => invoices.Scan().OnMappingFailure(null!).ToRequestJson()),
-            TestClient.Catch(() => invoices.Query([Tenant]).OnMappingFailure(null!).ToRequestJson()),
+            TestClient.Catch(() => invoices.Query([TenantInvoice.Keys.Pk.Of(TenantId)]).OnMappingFailure(null!).ToRequestJson()),
         };
 
         // Assert
@@ -255,10 +255,10 @@ public sealed class OnMappingFailureTests
         var invoices = client.Table<TenantInvoice>("Billing");
 
         // Act
-        var json = invoices.Query(Tenant).OnMappingFailure(static _ => { }).ToRequestJson();
+        var json = invoices.Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(invoices.Query(Tenant).ToRequestJson());
+        await Assert.That(json).IsEqualTo(invoices.Query(TenantInvoice.Keys.Pk.Of(TenantId)).ToRequestJson());
     }
 
     [Test]
@@ -288,7 +288,7 @@ public sealed class OnMappingFailureTests
         var byStatus = client.Table<TenantInvoice>("Billing").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        await byStatus.Query("TENANT#acme#STATUS#Open").OnMappingFailure(failures.Add).ItemsAsync().ToListAsync();
+        await byStatus.Query(TenantInvoice.Keys.ByStatusPk.Of("acme", InvoiceState.Open)).OnMappingFailure(failures.Add).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(failures.Single().Key).IsEqualTo(KeyOf("acme", 1));
@@ -319,7 +319,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(failures.Add).Select(TenantInvoice.Attrs.DueDate).ValuesAsync().Select(static day => day.Day).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(failures.Add).Select(TenantInvoice.Attrs.DueDate).ValuesAsync().Select(static day => day.Day).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), failures.Single().AttributeName, failures.Single().Key)).IsEqualTo(("1,3", "DueDate", (Item?)null));
@@ -334,7 +334,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(StubResponse.Json("""{"Items":[{"Note":{"S":"x"}},{"DueDate":{"S":"2026-09-02"}}],"Count":2,"ScannedCount":2}"""));
 
         // Act
-        var first = await client.Table<TenantInvoice>("Billing").Query(Tenant).OnMappingFailure(static _ => { }).Select(TenantInvoice.Attrs.DueDate).ValueAsync();
+        var first = await client.Table<TenantInvoice>("Billing").Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).Select(TenantInvoice.Attrs.DueDate).ValueAsync();
 
         // Assert
         await Assert.That(first.Value).IsEqualTo(new DateOnly(2026, 9, 2));
@@ -351,7 +351,7 @@ public sealed class OnMappingFailureTests
         var failures = new List<DynamoDbMappingException>();
 
         // Act
-        var numbers = await client.Table<TenantInvoice>("Billing").Query(["TENANT#a", "TENANT#b"]).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
+        var numbers = await client.Table<TenantInvoice>("Billing").Query([TenantInvoice.Keys.Pk.Of("a"), TenantInvoice.Keys.Pk.Of("b")]).OnMappingFailure(failures.Add).ItemsAsync().Select(static invoice => invoice.Number).ToListAsync();
 
         // Assert
         await Assert.That((string.Join(",", numbers), failures.Single().Key)).IsEqualTo(("1,3,5", KeyOf("a", 2)));
@@ -370,10 +370,10 @@ public sealed class OnMappingFailureTests
         using var client = TestClient.Create(handler);
         var failures = new List<DynamoDbMappingException>();
         var invoices = client.Table<TenantInvoice>("Billing");
-        var first = await invoices.Query(["TENANT#a", "TENANT#b"]).OnMappingFailure(failures.Add).PageAsync(2);
+        var first = await invoices.Query([TenantInvoice.Keys.Pk.Of("a"), TenantInvoice.Keys.Pk.Of("b")]).OnMappingFailure(failures.Add).PageAsync(2);
 
         // Act
-        var second = await invoices.Query(["TENANT#a", "TENANT#b"]).OnMappingFailure(failures.Add).PageAsync(2, ContinuationToken.Parse(first.Next.ToString()));
+        var second = await invoices.Query([TenantInvoice.Keys.Pk.Of("a"), TenantInvoice.Keys.Pk.Of("b")]).OnMappingFailure(failures.Add).PageAsync(2, ContinuationToken.Parse(first.Next.ToString()));
 
         // Assert
         await Assert.That((Numbers(first), first.Count, Numbers(second), failures.Single().AttributeName)).IsEqualTo(("1,3", 2, "5", "sk"));
@@ -430,7 +430,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Poison("acme", 1), Invoice("acme", 2), Poison("acme", 3)]));
 
         // Act
-        await client.Table<TenantInvoice>(table).Query(Tenant).OnMappingFailure(static _ => { }).ItemsAsync().ToListAsync();
+        await client.Table<TenantInvoice>(table).Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => { }).ItemsAsync().ToListAsync();
 
         // Assert (no key and no value, only what the other counters carry)
         await Assert.That((counters.All.Count, counters.All[0].Unit, counters.All[0].TagText)).IsEqualTo((
@@ -450,7 +450,7 @@ public sealed class OnMappingFailureTests
         handler.Enqueue(Page([Poison("acme", 1)]));
 
         // Act
-        await TestClient.CaptureAsync<InvalidOperationException>(async () => await client.Table<TenantInvoice>(table).Query(Tenant).OnMappingFailure(static _ => throw new InvalidOperationException()).ItemsAsync().ToListAsync());
+        await TestClient.CaptureAsync<InvalidOperationException>(async () => await client.Table<TenantInvoice>(table).Query(TenantInvoice.Keys.Pk.Of(TenantId)).OnMappingFailure(static _ => throw new InvalidOperationException()).ItemsAsync().ToListAsync());
 
         // Assert
         await Assert.That(counters.All.Count).IsEqualTo(0);

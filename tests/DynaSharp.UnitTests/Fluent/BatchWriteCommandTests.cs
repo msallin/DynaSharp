@@ -118,7 +118,7 @@ public sealed class BatchWriteCommandTests
         await customers.BatchWrite()
             .Put(new Customer("a", "Alice"))
             .Delete(Customer.Keys.Of("b"))
-            .Delete("CUSTOMER#c", "PROFILE")
+            .Delete(Customer.Keys.Of("c"))
             .SendAsync();
 
         // Assert

@@ -16,7 +16,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<GatedSale>("Shop").Update("x").Set(GatedSale.Attrs.Tenant, "t").Set(GatedSale.Attrs.Seller, "s").Set(GatedSale.Attrs.Buyer, "b").ToRequestJson();
+        var json = client.Table<GatedSale>("Shop").Update(new StoredKey<GatedSale>("x")).Set(GatedSale.Attrs.Tenant, "t").Set(GatedSale.Attrs.Seller, "s").Set(GatedSale.Attrs.Buyer, "b").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -32,7 +32,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<GatedSale>("Shop").Update("x").Remove(GatedSale.Attrs.Seller).ToRequestJson();
+        var json = client.Table<GatedSale>("Shop").Update(new StoredKey<GatedSale>("x")).Remove(GatedSale.Attrs.Seller).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -48,7 +48,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<GatedSale>("Shop").Update("x").Remove(GatedSale.Attrs.Seller).Remove(GatedSale.Attrs.Buyer).ToRequestJson();
+        var json = client.Table<GatedSale>("Shop").Update(new StoredKey<GatedSale>("x")).Remove(GatedSale.Attrs.Seller).Remove(GatedSale.Attrs.Buyer).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -64,7 +64,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<LooseGate>("Shop").Update("x").Remove(LooseGate.Attrs.Note).ToRequestJson();
+        var json = client.Table<LooseGate>("Shop").Update(new StoredKey<LooseGate>("x")).Remove(LooseGate.Attrs.Note).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -80,7 +80,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<HalfPlain>("Shop").Update("x").Set(HalfPlain.Attrs.Mark, "m").Set(HalfPlain.Attrs.Tag, "t").ToRequestJson();
+        var json = client.Table<HalfPlain>("Shop").Update(new StoredKey<HalfPlain>("x")).Set(HalfPlain.Attrs.Mark, "m").Set(HalfPlain.Attrs.Tag, "t").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -97,7 +97,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         var halves = client.Table<HalfPlain>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => halves.Update("x").Set(HalfPlain.Attrs.Mark, "m").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => halves.Update(new StoredKey<HalfPlain>("x")).Set(HalfPlain.Attrs.Mark, "m").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("does not produce halfpk,");
@@ -112,7 +112,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         var halves = client.Table<HalfPlain>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => halves.Update("x").Set(HalfPlain.Attrs.Tag, "t").ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => halves.Update(new StoredKey<HalfPlain>("x")).Set(HalfPlain.Attrs.Tag, "t").ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).IsEqualTo(
@@ -129,7 +129,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<HalfPlain>("Shop").Update("x").Remove(HalfPlain.Attrs.Mark).ToRequestJson();
+        var json = client.Table<HalfPlain>("Shop").Update(new StoredKey<HalfPlain>("x")).Remove(HalfPlain.Attrs.Mark).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""
@@ -145,7 +145,7 @@ public sealed class KeyInputChangesSharedAttributeTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<HalfPlain>("Shop").Update("x").Remove(HalfPlain.Attrs.Tag).ToRequestJson();
+        var json = client.Table<HalfPlain>("Shop").Update(new StoredKey<HalfPlain>("x")).Remove(HalfPlain.Attrs.Tag).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

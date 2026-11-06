@@ -153,7 +153,7 @@ public sealed class WriteRulesTransactionTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var json = client.TransactWrite().Check(tickets, Ticket.Keys.Of("t1", Day)).IfExists().Check(tickets, "a", "b").IfExists().Token("t").ToRequestJson();
+        var json = client.TransactWrite().Check(tickets, Ticket.Keys.Of("t1", Day)).IfExists().Check(tickets, Ticket.Keys.Of("a", Day)).IfExists().Token("t").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("ConditionCheck");
@@ -181,7 +181,7 @@ public sealed class WriteRulesTransactionTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.TransactWrite().Delete(client.Table<Ticket>("Shop"), "a", "b").IgnoreVersion().Token("t").ToRequestJson();
+        var json = client.TransactWrite().Delete(client.Table<Ticket>("Shop"), Ticket.Keys.Of("a", Day)).IgnoreVersion().Token("t").ToRequestJson();
 
         // Assert
         await Assert.That(json.Contains("Condition", StringComparison.Ordinal)).IsFalse();
@@ -196,7 +196,7 @@ public sealed class WriteRulesTransactionTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var act = () => client.TransactWrite().Update(tickets, "a", "b").Set("Note", "x").ToRequestJson();
+        var act = () => client.TransactWrite().Update(tickets, Ticket.Keys.Of("a", Day)).Set("Note", "x").ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();

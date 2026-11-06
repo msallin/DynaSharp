@@ -21,6 +21,18 @@ internal static class DynaSharpTypes
         return current.Name == RootNamespace;
     }
 
+    /// <summary>
+    /// The type that the table parameter of a method of the library holds: <c>Order</c> for <c>Update(chain, Table&lt;Order&gt; table, key)</c>, and <c>Item</c> for a step that takes the values
+    /// of a key, which only a table without a schema takes.
+    /// </summary>
+    /// <param name="method">The method.</param>
+    /// <returns>The type, or null for a method without a parameter named <c>table</c>.</returns>
+    public static ITypeSymbol? TableTypeOf(IMethodSymbol method)
+    {
+        var table = method.Parameters.FirstOrDefault(static parameter => parameter.Name == "table");
+        return table is null ? null : ((INamedTypeSymbol)table.Type).TypeArguments[0];
+    }
+
     /// <summary>Whether a value is a ref struct of the library: a command, a step, a handler, a reader or a writer.</summary>
     /// <param name="type">The type of the value, if it has one.</param>
     /// <returns>Whether the value has the limits of a DynaSharp ref struct.</returns>

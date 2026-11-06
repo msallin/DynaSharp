@@ -49,7 +49,7 @@ internal sealed class SubscriberDirectory(DynamoDbClient client)
         {
             await client.TransactWrite()
                 .Unique(_claims, new EmailClaim(email, subscriber.Id), out claim).ReturnOldOnFailure()
-                .Delete(_claims, subscriber.Email)
+                .Delete(_claims, EmailClaim.Keys.Of(subscriber.Email))
                 .Update(_subscribers, new SubscriberKey(subscriber.Id)).Set(Email, email).IfExists()
                 .SendAsync();
             return null;

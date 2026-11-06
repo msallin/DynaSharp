@@ -41,7 +41,7 @@ public sealed class StoreKeyInputsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<UserOrder>("Shop").Update("USER#alice", "ORDER#" + OrderId).Set(UserOrder.Attrs.Lines, 3).IgnoreVersion().StoreKeyInputs().ToRequestJson();
+        var json = client.Table<UserOrder>("Shop").Update(new StoredKey<UserOrder>("USER#alice", "ORDER#" + OrderId)).Set(UserOrder.Attrs.Lines, 3).IgnoreVersion().StoreKeyInputs().ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(PurchaseBody);
@@ -98,7 +98,7 @@ public sealed class StoreKeyInputsTests
         var days = client.Table<MeterDay>("Shop");
 
         // Act
-        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await days.Update("METER#m1", "2026-11-02#0007").Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().SendAsync());
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await days.Update(new StoredKey<MeterDay>("METER#m1", "2026-11-02#0007")).Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().SendAsync());
 
         // Assert
         await Assert.That((failure!.Message, handler.Requests.Count)).IsEqualTo(("StoreKeyInputs cannot restore At from the text of the key template {At:yyyy-MM-dd}#{Seq:d4}, which cuts it off. Pass a generated key (Keys.Of), or put the entity.", 0));
@@ -113,7 +113,7 @@ public sealed class StoreKeyInputsTests
         var summaries = client.Table<DaySummary>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => summaries.Update("S#s1", "2026-11-02#0007").Set(DaySummary.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => summaries.Update(new StoredKey<DaySummary>("S#s1", "2026-11-02#0007")).Set(DaySummary.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot restore At from the text of the key template {At:yyyy-MM-dd}#{Seq:d4}");
@@ -141,7 +141,7 @@ public sealed class StoreKeyInputsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<TrackPoint>("Shop").Update("D#2026-11-02", TrackPoint.Keys.Sk.Format(At, "p1")).Set(TrackPoint.Attrs.Note, "n").StoreKeyInputs().ToRequestJson();
+        var json = client.Table<TrackPoint>("Shop").Update(new StoredKey<TrackPoint>("D#2026-11-02", TrackPoint.Keys.Sk.Format(At, "p1"))).Set(TrackPoint.Attrs.Note, "n").StoreKeyInputs().ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains(""""#n1":"At","#n2":"Id"""").And.Contains(""":v1":{"S":"2026-11-02T13:45:30.0000000Z"},":v2":{"S":"p1"}""");
@@ -187,7 +187,7 @@ public sealed class StoreKeyInputsTests
         var days = client.Table<MeterDay>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => days.Update(partitionKey, sortKey).Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => days.Update(new StoredKey<MeterDay>(partitionKey, sortKey)).Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).IsEqualTo($"The key does not fit the key template {template} of DynaSharp.UnitTests.Fluent.MeterDay, so StoreKeyInputs cannot read its inputs.");
@@ -202,7 +202,7 @@ public sealed class StoreKeyInputsTests
         var days = client.Table<MeterDay>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => days.Update("METER#m1").Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => days.Update(new StoredKey<MeterDay>("METER#m1")).Set(MeterDay.Attrs.Note, "n").StoreKeyInputs().ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("The key does not fit the key template {At:yyyy-MM-dd}#{Seq:d4}");
@@ -217,7 +217,7 @@ public sealed class StoreKeyInputsTests
         var purchases = client.Table<UserOrder>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => purchases.Update(1, "ORDER#" + OrderId).IgnoreVersion().StoreKeyInputs().ToRequestJson());
+        var failure = Assert.Throws<InvalidOperationException>(() => purchases.Update(new StoredKey<UserOrder>(1, "ORDER#" + OrderId)).IgnoreVersion().StoreKeyInputs().ToRequestJson());
 
         // Assert
         await Assert.That(failure.Message).Contains("The key does not fit the key template USER#{UserId}");
@@ -246,7 +246,7 @@ public sealed class StoreKeyInputsTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<RawSlot>("Shop").Update("slot#a#b").Set(RawSlot.Attrs.Note, "n").StoreKeyInputs().ToRequestJson();
+        var json = client.Table<RawSlot>("Shop").Update(new StoredKey<RawSlot>("slot#a#b")).Set(RawSlot.Attrs.Note, "n").StoreKeyInputs().ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains(""":v1":{"S":"a#b"}""");
@@ -414,7 +414,7 @@ public sealed class StoreKeyInputsTests
         var days = client.Table<MeterDay>("Shop");
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => _ = client.TransactWrite().Update(days, "METER#m1", "2026-11-02#0007").StoreKeyInputs().Put(days, new MeterDay { Meter = "m", At = At, Seq = 1 }));
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = client.TransactWrite().Update(days, new StoredKey<MeterDay>("METER#m1", "2026-11-02#0007")).StoreKeyInputs().Put(days, new MeterDay { Meter = "m", At = At, Seq = 1 }));
 
         // Assert
         await Assert.That(failure.Message).Contains("cannot restore At");

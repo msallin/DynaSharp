@@ -38,6 +38,68 @@ public sealed class QueryKeyCheckTests
     }
 
     [Test]
+    public async Task Query_TableKeyOnAnIndexKeyedByTheDiscriminator_ThrowsNamingTheKeyOfTheDiscriminator()
+    {
+        // Arrange (an index the entity does not declare, whose partition key is the discriminator)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byType = client.Table<Customer>("Shop").Index("ByType", "_type", "sk");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = byType.Query(Customer.Keys.Pk.Of("a")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Use QueryByDiscriminator() of the index.");
+    }
+
+    [Test]
+    public async Task Query_TableKeyOnAnIndexTheEntityDoesNotDeclare_ThrowsNamingTheDeclaration()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byCity = client.Table<Customer>("Shop").Index("ByCity", "city");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = byCity.Query(Customer.Keys.Pk.Of("a")));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("Declare the index on DynaSharp.UnitTests.Fluent.Customer");
+    }
+
+    [Test]
+    public async Task QueryByDiscriminator_IndexKeyedByIt_SendsTheDiscriminator()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byType = client.Table<Customer>("Shop").Index("ByType", "_type", "sk");
+
+        // Act
+        var json = byType.QueryByDiscriminator().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("""
+            ":v0":{"S":"CUSTOMER"}
+            """);
+    }
+
+    [Test]
+    public async Task QueryByDiscriminator_EntityWithoutOne_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byType = client.Table<Session>("Shop").Index("ByType", "_type");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byType.QueryByDiscriminator());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("has no discriminator");
+    }
+
+    [Test]
     public async Task Query_KeyOnAPlainIndexKey_ThrowsNamingItsBuilder()
     {
         // Arrange (the sort key of a sparse index can be plain, and a partition key of an index too)

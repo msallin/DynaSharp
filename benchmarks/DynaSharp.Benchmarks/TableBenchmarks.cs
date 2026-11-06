@@ -310,7 +310,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_Typed()
     {
         var count = 0;
-        await foreach (var unused in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var unused in _lastPageTyped.Query(BenchOrder.Keys.Pk.Of(PartitionKey), global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             count++;
         }
@@ -336,7 +336,7 @@ public partial class TableBenchmarks
     public async Task<int> Query_TypedReadThree()
     {
         var length = 0;
-        await foreach (var order in _lastPageTyped.Query(PartitionKey, global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
+        await foreach (var order in _lastPageTyped.Query(BenchOrder.Keys.Pk.Of(PartitionKey), global::DynaSharp.SortKeyCondition.BeginsWith("ORDER#")).Limit(QueryPageSize).ItemsAsync())
         {
             length += order.Currency.Length + order.Sk.Length + (int)order.Total;
         }

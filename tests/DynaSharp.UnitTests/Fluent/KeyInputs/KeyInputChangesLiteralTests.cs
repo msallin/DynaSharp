@@ -220,7 +220,7 @@ public sealed class KeyInputChangesLiteralTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<HandLiteral>("Shop").Update("x").Set("a", 1).ToRequestJson();
+        var json = client.Table<HandLiteral>("Shop").Update(new StoredKey<HandLiteral>("x")).Set("a", 1).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"x"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"a","#n1":"written"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"FIXED"}}}""");

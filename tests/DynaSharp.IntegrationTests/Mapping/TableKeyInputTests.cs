@@ -29,21 +29,6 @@ public sealed class TableKeyInputTests(Backend backend)
     }
 
     [Test]
-    public async Task Update_StatusTransitionOnRawKeyStrings_MovesTheItemBetweenIndexPartitions()
-    {
-        // Arrange
-        await using var sandbox = await ShopSandbox.StartAsync(backend);
-        var invoices = sandbox.Shop.Of<TenantInvoice>();
-        await invoices.Put(Open).SendAsync();
-
-        // Act
-        await invoices.Update(TenantInvoice.Keys.Pk.Format("acme"), TenantInvoice.Keys.Sk.Format("2026-09", 2)).Set(TenantInvoice.Attrs.Status, TenantInvoiceStatus.Paid).SendAsync();
-
-        // Assert
-        await Assert.That(await PartitionsAsync(invoices)).IsEqualTo((0, 1));
-    }
-
-    [Test]
     public async Task TransactWrite_StatusTransition_MovesTheItemBetweenIndexPartitions()
     {
         // Arrange
@@ -53,21 +38,6 @@ public sealed class TableKeyInputTests(Backend backend)
 
         // Act
         await sandbox.Client.TransactWrite().Update(invoices, TenantInvoice.Keys.Of("acme", "2026-09", 2)).Set(TenantInvoice.Attrs.Status, TenantInvoiceStatus.Paid).SendAsync();
-
-        // Assert
-        await Assert.That(await PartitionsAsync(invoices)).IsEqualTo((0, 1));
-    }
-
-    [Test]
-    public async Task TransactWrite_StatusTransitionOnRawKeyStrings_MovesTheItemBetweenIndexPartitions()
-    {
-        // Arrange
-        await using var sandbox = await ShopSandbox.StartAsync(backend);
-        var invoices = sandbox.Shop.Of<TenantInvoice>();
-        await invoices.Put(Open).SendAsync();
-
-        // Act
-        await sandbox.Client.TransactWrite().Update(invoices, TenantInvoice.Keys.Pk.Format("acme"), TenantInvoice.Keys.Sk.Format("2026-09", 2)).Set(TenantInvoice.Attrs.Status, TenantInvoiceStatus.Paid).SendAsync();
 
         // Assert
         await Assert.That(await PartitionsAsync(invoices)).IsEqualTo((0, 1));

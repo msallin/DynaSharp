@@ -35,10 +35,10 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Handles>("Shop").Get("a", "b").Consistent().Select(Handles.Attrs.Count).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Consistent().Select(Handles.Attrs.Count).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}},"ConsistentRead":true,"ProjectionExpression":"#n0, #n1","ExpressionAttributeNames":{"#n0":"Count","#n1":"_type"}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"HANDLES#a"},"sk":{"S":"SLOT#001"}},"ConsistentRead":true,"ProjectionExpression":"#n0, #n1","ExpressionAttributeNames":{"#n0":"Count","#n1":"_type"}}""");
     }
 
     [Test]
@@ -49,10 +49,10 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<OwnedThing>("Shop").Get("a").Select(OwnedThing.Attrs.Owner).ToRequestJson();
+        var json = client.Table<OwnedThing>("Shop").Get(OwnedThing.Keys.Of("a")).Select(OwnedThing.Attrs.Owner).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"}},"ProjectionExpression":"#n0","ExpressionAttributeNames":{"#n0":"owner"}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"THING#a"}},"ProjectionExpression":"#n0","ExpressionAttributeNames":{"#n0":"owner"}}""");
     }
 
     [Test]
@@ -77,10 +77,10 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Handles>("Shop").Get("a", "b").Select(new Attr<string, StringConverter>("_type")).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(new Attr<string, StringConverter>("_type")).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}},"ProjectionExpression":"#n0","ExpressionAttributeNames":{"#n0":"_type"}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"HANDLES#a"},"sk":{"S":"SLOT#001"}},"ProjectionExpression":"#n0","ExpressionAttributeNames":{"#n0":"_type"}}""");
     }
 
     [Test]
@@ -91,11 +91,11 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Handles>("Shop").Query("a").Limit(5).Select(Handles.Attrs.Count).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Limit(5).Select(Handles.Attrs.Count).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(
-            """{"TableName":"Shop","Limit":5,"KeyConditionExpression":"#n0 = :v0","FilterExpression":"#n1 = :v1","ProjectionExpression":"#n2","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type","#n2":"Count"},"ExpressionAttributeValues":{":v0":{"S":"a"},":v1":{"S":"HANDLES"}}}""");
+            """{"TableName":"Shop","Limit":5,"KeyConditionExpression":"#n0 = :v0","FilterExpression":"#n1 = :v1","ProjectionExpression":"#n2","ExpressionAttributeNames":{"#n0":"pk","#n1":"_type","#n2":"Count"},"ExpressionAttributeValues":{":v0":{"S":"HANDLES#a"},":v1":{"S":"HANDLES"}}}""");
     }
 
     [Test]
@@ -106,7 +106,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Handles>("Shop").Index("ByType", "_type", "sk").Query("HANDLES").Select(Handles.Attrs.Count).ToRequestJson();
+        var json = client.Table<Handles>("Shop").Index("ByType", "_type", "sk").QueryByDiscriminator().Select(Handles.Attrs.Count).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(
@@ -239,7 +239,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").ReturnCapacity().Select(Handles.Attrs.Count).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).ReturnCapacity().Select(Handles.Attrs.Count).SendAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value, result.ConsumedCapacity?.CapacityUnits)).IsEqualTo((true, 7, 0.5));
@@ -253,7 +253,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Count).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsEqualTo(7);
@@ -267,7 +267,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Count);
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count);
 
         // Assert
         await Assert.That(result.Value).IsEqualTo(7);
@@ -281,7 +281,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Count).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync();
 
         // Assert
         await Assert.That(result.Found).IsFalse();
@@ -293,7 +293,7 @@ public sealed class SelectCommandTests
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json("{}"));
         using var client = TestClient.Create(handler);
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Count).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync();
 
         // Act
         var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => Task.FromResult(result.Value));
@@ -311,10 +311,10 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Count).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync());
 
         // Assert
-        await Assert.That((failure.AttributeName, failure.EntityType, failure.Key?["pk"].AsString())).IsEqualTo(("Count", "Handles", "a"));
+        await Assert.That((failure.AttributeName, failure.EntityType, failure.Key?["pk"].AsString())).IsEqualTo(("Count", "Handles", "HANDLES#a"));
     }
 
     [Test]
@@ -325,7 +325,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Total).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Total).SendAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value)).IsEqualTo((true, (long?)null));
@@ -368,7 +368,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Total).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Total).SendAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value)).IsEqualTo((true, (long?)null));
@@ -382,7 +382,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Nickname).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Nickname).SendAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value)).IsEqualTo((true, (string?)null));
@@ -397,8 +397,8 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var total = await table.Get("a", "b").Select(Handles.Attrs.Total).SendAsync();
-        var nickname = await table.Get("a", "b").Select(Handles.Attrs.Nickname).SendAsync();
+        var total = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Total).SendAsync();
+        var nickname = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Nickname).SendAsync();
 
         // Assert
         await Assert.That((total.Value, nickname.Value)).IsEqualTo((7L, "n"));
@@ -412,7 +412,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Total).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Total).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsNull();
@@ -427,7 +427,7 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Count).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync());
 
         // Assert
         await Assert.That((failure.AttributeName, failure.EntityType)).IsEqualTo(("Count", "Handles"));
@@ -442,7 +442,7 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Count).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync());
 
         // Assert
         await Assert.That(failure.AttributeName).IsEqualTo("Count");
@@ -459,8 +459,8 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var selected = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Count).SendAsync());
-        var typed = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").SendAsync());
+        var selected = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync());
+        var typed = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).SendAsync());
 
         // Assert
         await Assert.That((selected.Message, selected.AttributeName, selected.EntityType, selected.Key?["sk"].AsString())).IsEqualTo((typed.Message, typed.AttributeName, typed.EntityType, typed.Key?["sk"].AsString()));
@@ -474,7 +474,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Count).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsEqualTo(7);
@@ -489,7 +489,7 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Count).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).SendAsync());
 
         // Assert
         await Assert.That(failure.AttributeName).IsEqualTo("_type");
@@ -503,7 +503,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(new Attr<string, StringConverter>("_type")).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(new Attr<string, StringConverter>("_type")).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsEqualTo("HANDLES");
@@ -517,7 +517,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Home.At(PostalAddress.Attrs.City)).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Home.At(PostalAddress.Attrs.City)).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsEqualTo("Bern");
@@ -535,7 +535,7 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get("a", "b").Select(Handles.Attrs.Home.At(PostalAddress.Attrs.City)).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Home.At(PostalAddress.Attrs.City)).SendAsync());
 
         // Assert
         await Assert.That(failure.AttributeName).IsEqualTo("Home.City");
@@ -549,7 +549,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Home.At(PostalAddress.Attrs.Street)).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Home.At(PostalAddress.Attrs.Street)).SendAsync();
 
         // Assert
         await Assert.That(result.Value).IsNull();
@@ -563,7 +563,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Get("a", "b").Select(Handles.Attrs.Home).SendAsync();
+        var result = await client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Home).SendAsync();
 
         // Assert
         await Assert.That(result.Value?.City).IsEqualTo("Bern");
@@ -578,8 +578,8 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var plan = await table.Get("a", "b").Select(Handles.Attrs.Plan).SendAsync();
-        var previous = await table.Get("a", "b").Select(Handles.Attrs.PreviousPlan).SendAsync();
+        var plan = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Plan).SendAsync();
+        var previous = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.PreviousPlan).SendAsync();
 
         // Assert
         await Assert.That((plan.Value, previous.Value)).IsEqualTo((Plan.Pro, Plan.Free));
@@ -594,9 +594,9 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var tags = await table.Get("a", "b").Select(Handles.Attrs.Tags).SendAsync();
-        var scores = await table.Get("a", "b").Select(Handles.Attrs.Scores).SendAsync();
-        var array = await table.Get("a", "b").Select(new Attr<string[], SetArrayConverter<string, StringSetElement>>("Array")).SendAsync();
+        var tags = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Tags).SendAsync();
+        var scores = await table.Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Scores).SendAsync();
+        var array = await table.Get(Handles.Keys.Of("a", 1)).Select(new Attr<string[], SetArrayConverter<string, StringSetElement>>("Array")).SendAsync();
 
         // Assert
         await Assert.That((tags.Value.Count, scores.Value.Count, array.Value.Length)).IsEqualTo((0, 0, 0));
@@ -606,15 +606,15 @@ public sealed class SelectCommandTests
     public async Task SendAsync_HandleWithOmitEmpty_FollowsTheNullableProperty()
     {
         // Arrange (an empty string is left out by a write, and one that is stored stays what it is)
-        using var handler = new StubHandler(request => request.BodyText.Contains("\"a\"", StringComparison.Ordinal)
+        using var handler = new StubHandler(request => request.BodyText.Contains("\"SLIP#a\"", StringComparison.Ordinal)
             ? StubResponse.Json("""{"Item":{"Note":{"S":""}}}""")
             : StubResponse.Json("""{"Item":{}}"""));
         using var client = TestClient.Create(handler);
         var slips = client.Table<Slip>("Shop");
 
         // Act
-        var stored = await slips.Get("a").Select(Slip.Attrs.Note).SendAsync();
-        var left = await slips.Get("b").Select(Slip.Attrs.Note).SendAsync();
+        var stored = await slips.Get(Slip.Keys.Of("a")).Select(Slip.Attrs.Note).SendAsync();
+        var left = await slips.Get(Slip.Keys.Of("b")).Select(Slip.Attrs.Note).SendAsync();
 
         // Assert
         await Assert.That((stored.Value, left.Value)).IsEqualTo((string.Empty, (string?)null));
@@ -664,7 +664,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync();
+        var values = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That(values).IsEquivalentTo([1, 1, 2]);
@@ -678,7 +678,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var values = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Total).ValuesAsync().ToListAsync();
+        var values = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Total).ValuesAsync().ToListAsync();
 
         // Assert
         await Assert.That(values).IsEquivalentTo([1L, (long?)null]);
@@ -692,7 +692,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var page = await client.Table<Handles>("Shop").Query("a").ReturnCapacity().Select(Handles.Attrs.Count).PageAsync();
+        var page = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).ReturnCapacity().Select(Handles.Attrs.Count).PageAsync();
 
         // Assert
         await Assert.That((page.Items[0], page.Count, page.ScannedCount, page.HasMore, page.ConsumedCapacity?.CapacityUnits)).IsEqualTo((1, 1, 4, true, 2.5));
@@ -707,7 +707,7 @@ public sealed class SelectCommandTests
         var after = ContinuationToken.FromKey(new Dictionary<string, AttributeValue> { ["pk"] = "a" });
 
         // Act
-        await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).PageAsync(after);
+        await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).PageAsync(after);
 
         // Assert
         await Assert.That(handler.Requests.Single().BodyText).Contains("ExclusiveStartKey");
@@ -722,7 +722,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var pages = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).PagesAsync().ToListAsync();
+        var pages = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).PagesAsync().ToListAsync();
 
         // Assert
         await Assert.That(pages.Select(static page => page.Count)).IsEquivalentTo([0, 2]);
@@ -737,7 +737,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValueAsync();
+        var result = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).ValueAsync();
 
         // Assert
         await Assert.That((result.Found, result.Value, handler.Requests.Count)).IsEqualTo((true, 1, 2));
@@ -751,7 +751,7 @@ public sealed class SelectCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Handles>("Shop").Query("a").Select(Handles.Attrs.Count).ValueAsync();
+        var result = await client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).ValueAsync();
 
         // Assert
         await Assert.That(result.Found).IsFalse();
@@ -766,7 +766,7 @@ public sealed class SelectCommandTests
         var table = client.Table<Handles>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Query("a").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await table.Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
 
         // Assert
         await Assert.That((failure.AttributeName, failure.Key)).IsEqualTo(("Count", (Item?)null));
@@ -781,7 +781,7 @@ public sealed class SelectCommandTests
         var index = client.Table<Handles>("Shop").Index("ByType", "_type", "sk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await index.Query("ORDER").Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await index.QueryByDiscriminator().Select(Handles.Attrs.Count).ValuesAsync().ToListAsync());
 
         // Assert
         await Assert.That(failure.Message).Contains("ORDER");

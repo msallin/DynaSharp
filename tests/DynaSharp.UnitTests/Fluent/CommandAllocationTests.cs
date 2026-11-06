@@ -122,7 +122,7 @@ public sealed class CommandAllocationTests
         var plain = client.Table<PlainKeys>("Shop");
 
         // Act (a string stored as it is has nothing to format, as a prefix of BeginsWith has not)
-        var allocated = Measure(plain, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, PlainKeys.Keys.Sk.Between("a", "b")).Handle));
+        var allocated = Measure(plain, static table => CommandHelpers.FinishAndRelease(table.Query(PlainKeys.Keys.Pk.Of(PartitionKey), PlainKeys.Keys.Sk.Between("a", "b")).Handle));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -131,14 +131,15 @@ public sealed class CommandAllocationTests
     [Test]
     public async Task Build_QueryWithARangeThatIsMade_AllocatesNothing()
     {
-        // Arrange (its bounds are made before, as the text of a BeginsWith(value) is: what is formatted costs what Format costs)
+        // Arrange (its bounds and the key are made before, as the text of a BeginsWith(value) is: what is formatted costs what Format costs)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var orders = client.Table<KeyedOrder>("Shop");
         var range = KeyedOrder.Keys.Sk.Between(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
+        var partition = KeyedOrder.Keys.Pk.Of(Guid.Empty);
 
         // Act
-        var allocated = Measure(orders, table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, range).Handle));
+        var allocated = Measure(orders, table => CommandHelpers.FinishAndRelease(table.Query(partition, range).Handle));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -545,7 +546,7 @@ public sealed class CommandAllocationTests
         var handles = client.Table<Handles>("Shop");
 
         // Act
-        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Get(PartitionKey, SortKey).Consistent().Select(Handles.Attrs.Total).Handle));
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Get(Handles.Keys.Of("a", 1)).Consistent().Select(Handles.Attrs.Total).Handle));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -558,9 +559,10 @@ public sealed class CommandAllocationTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var handles = client.Table<Handles>("Shop");
+        var partition = Handles.Keys.Pk.Of("a");
 
-        // Act
-        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey).Limit(5).Select(Handles.Attrs.Nickname).Handle));
+        // Act (the key is made before: its text is what Of costs)
+        var allocated = Measure(handles, table => CommandHelpers.FinishAndRelease(table.Query(partition).Limit(5).Select(Handles.Attrs.Nickname).Handle));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -588,7 +590,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Get(PartitionKey, SortKey).Select(Handles.Attrs.Count).Handle.State!;
+        var state = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).Handle.State!;
         var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}},"Count":{"N":"7"}}}""");
 
         // Act
@@ -608,7 +610,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Get(PartitionKey, SortKey).Select(new Attr<int, DynaSharp.Serialization.NumberConverter<int>>("Home.Count")).Handle.State!;
+        var state = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(new Attr<int, DynaSharp.Serialization.NumberConverter<int>>("Home.Count")).Handle.State!;
         var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}}}}""");
 
         // Act
@@ -629,7 +631,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Query(PartitionKey).Select(Handles.Attrs.Count).Handle.State!;
+        var state = client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).Handle.State!;
         var json = Encoding.UTF8.GetBytes("""{"Items":[{"Count":{"N":"1"}},{"Count":{"N":"2"}}],"Count":2,"ScannedCount":2}""");
         var array = Measure(2, static length => new int[length].Length);
 
@@ -715,7 +717,7 @@ public sealed class CommandAllocationTests
         var index = client.Table<Customer>("Shop").Index("ByName");
 
         // Act
-        var allocated = Measure(index, static table => CommandHelpers.FinishAndRelease(table.Query(PartitionKey, global::DynaSharp.SortKeyCondition.Gt("a")).Filter(Customer.Attrs.OrderCount.Gt(1)).Project("email")));
+        var allocated = Measure(index, static table => CommandHelpers.FinishAndRelease(table.Query(Customer.Keys.ByNamePk.Of("Alice"), global::DynaSharp.SortKeyCondition.Gt("a")).Filter(Customer.Attrs.OrderCount.Gt(1)).Project("email")));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -807,7 +809,7 @@ public sealed class CommandAllocationTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act (a handle of an entity with templates that feeds no key)
-        var allocated = Measure(tickets, static table => CommandHelpers.FinishAndRelease(table.Update(PartitionKey, SortKey).IfVersion(3).Set(Ticket.Attrs.Note, "n").Add(Ticket.Attrs.Votes, 1)));
+        var allocated = Measure(tickets, static table => CommandHelpers.FinishAndRelease(table.Update(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).IfVersion(3).Set(Ticket.Attrs.Note, "n").Add(Ticket.Attrs.Votes, 1)));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -824,7 +826,7 @@ public sealed class CommandAllocationTests
         // Act (what is settled at the terminal, for a version and for a key)
         var allocated = Measure(tickets, static table =>
         {
-            var state = ((CommandHandle)table.Update(PartitionKey, SortKey).IfVersion(3)).State!.Settle();
+            var state = ((CommandHandle)table.Update(Ticket.Keys.Of("t1", new DateOnly(2026, 10, 31))).IfVersion(3)).State!.Settle();
             var version = state.Version;
             var length = state.Finish().Count;
             state.Release(version);

@@ -17,7 +17,7 @@ public sealed class LeaderboardTests(Backend backend)
     private const int Shards = 3;
     private const string Chess = "chess";
 
-    private static IEnumerable<string> Board => Enumerable.Range(0, Shards).Select(static shard => PlayerScore.Keys.Gsi1Pk.Format(Chess, shard));
+    private static IEnumerable<PartitionKey<PlayerScore>> Board => Enumerable.Range(0, Shards).Select(static shard => PlayerScore.Keys.Gsi1Pk.Of(Chess, shard));
 
     [Test]
     public async Task PageAsync_Descending_GivesTheTopAcrossTheShards()

@@ -20,7 +20,7 @@ public sealed class DiscriminatorKeyTests(Backend backend)
         var byType = shop.Customers.Index(ShopSandbox.ByType, "_type", "sk");
 
         // Act
-        var customers = await Read.ToListAsync(byType.Query("CUSTOMER").ItemsAsync());
+        var customers = await Read.ToListAsync(byType.QueryByDiscriminator().ItemsAsync());
 
         // Assert
         await Assert.That(customers.Single().Id).IsEqualTo("alice");
@@ -34,7 +34,7 @@ public sealed class DiscriminatorKeyTests(Backend backend)
         var byType = shop.Orders.Index(ShopSandbox.ByPartitionAndType, "pk", "_type");
 
         // Act
-        var orders = await Read.ToListAsync(byType.Query(Order.Keys.Pk.Format("alice"), SortKeyCondition.Eq("ORDER")).ItemsAsync());
+        var orders = await Read.ToListAsync(byType.Query(Order.Keys.Pk.Of("alice"), SortKeyCondition.Eq("ORDER")).ItemsAsync());
 
         // Assert
         await Assert.That(orders.Single().CustomerId).IsEqualTo("alice");

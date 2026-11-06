@@ -48,7 +48,7 @@ public sealed class WriteRulesBatchTests
         var tickets = client.Table<Ticket>("Shop");
 
         // Act
-        var act = () => tickets.BatchWrite().Delete("a", "b").ToRequestJson();
+        var act = () => tickets.BatchWrite().Delete(Ticket.Keys.Of("a", Day)).ToRequestJson();
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>();
@@ -92,7 +92,7 @@ public sealed class WriteRulesBatchTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Ticket>("Shop").BatchWrite().IgnoreVersion().Put(Held(3)).Delete("a", "b").ToRequestJson();
+        var json = client.Table<Ticket>("Shop").BatchWrite().IgnoreVersion().Put(Held(3)).Delete(Ticket.Keys.Of("a", Day)).ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("DeleteRequest");

@@ -15,7 +15,7 @@ public sealed class ShardedCounterTests(Backend backend)
     private const int Shards = 4;
     private const string Post = "post-1";
 
-    private static IEnumerable<string> AllShards => Enumerable.Range(0, Shards).Select(static shard => LikeShard.Keys.Pk.Format(Post, shard));
+    private static IEnumerable<PartitionKey<LikeShard>> AllShards => Enumerable.Range(0, Shards).Select(static shard => LikeShard.Keys.Pk.Of(Post, shard));
 
     [Test]
     public async Task TotalAsync_ConcurrentIncrementsOnRandomShards_SumsThemAll()

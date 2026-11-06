@@ -70,7 +70,7 @@ public sealed partial class UpdateCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Purchase>("Shop").Update("a", 1).IgnoreVersion().Set(Purchase.Attrs.ShipTo, null!).ToRequestJson();
+        var json = client.Table<Purchase>("Shop").Update(Purchase.Keys.Of("a", 1)).IgnoreVersion().Set(Purchase.Attrs.ShipTo, null!).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0) REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"PURCHASE"}}}""");
@@ -277,7 +277,7 @@ public sealed partial class UpdateCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.TransactWrite().Update(client.Table<Purchase>("Shop"), "a", 1).IgnoreVersion().Set(Purchase.Attrs.ShipTo, null!).Token("t").ToRequestJson();
+        var json = client.TransactWrite().Update(client.Table<Purchase>("Shop"), Purchase.Keys.Of("a", 1)).IgnoreVersion().Set(Purchase.Attrs.ShipTo, null!).Token("t").ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

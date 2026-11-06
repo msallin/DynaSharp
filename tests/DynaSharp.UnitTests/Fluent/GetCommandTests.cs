@@ -82,10 +82,10 @@ public sealed class GetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Get("a", "b").Project(Customer.Attrs.FullName).ToRequestJson();
+        var json = client.Table<Customer>("Shop").Get(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}},"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#a"},"sk":{"S":"PROFILE"}},"ProjectionExpression":"#n0, #n1, #n2, #n3","ExpressionAttributeNames":{"#n0":"fullName","#n1":"_type","#n2":"pk","#n3":"sk"}}""");
     }
 
     [Test]
@@ -96,10 +96,10 @@ public sealed class GetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Get("a", "b").ToRequestJson();
+        var json = client.Table<Customer>("Shop").Get(Customer.Keys.Of("a")).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"CUSTOMER#a"},"sk":{"S":"PROFILE"}}}""");
     }
 
     [Test]
@@ -112,7 +112,7 @@ public sealed class GetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await client.Table<Customer>("Shop").Get("a", "b").Project(Customer.Attrs.FullName).ItemAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await client.Table<Customer>("Shop").Get(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).ItemAsync());
 
         // Assert
         await Assert.That(failure.AttributeName).IsEqualTo("_type");
@@ -224,7 +224,7 @@ public sealed class GetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table<Session>("Sessions").Get("s").SendAsync();
+        var result = await client.Table<Session>("Sessions").Get(Session.Keys.Of("s")).SendAsync();
 
         // Assert
         await Assert.That(result.Found).IsFalse();
@@ -295,7 +295,7 @@ public sealed class GetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var session = await client.Table<Session>("Sessions").Get("s").ItemAsync();
+        var session = await client.Table<Session>("Sessions").Get(Session.Keys.Of("s")).ItemAsync();
 
         // Assert
         await Assert.That(session).IsEqualTo(default(Session));

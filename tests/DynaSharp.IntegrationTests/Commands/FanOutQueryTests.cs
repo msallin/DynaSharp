@@ -425,7 +425,7 @@ public sealed class FanOutQueryTests(Backend backend)
         }
 
         await shop.Customers.Put(new Customer { Id = "s0", Name = "Not an order" }).SendAsync();
-        var shards = new AttributeValue[] { Order.Keys.Pk.Format("s0"), Order.Keys.Pk.Format("s1") };
+        PartitionKey<Order>[] shards = [Order.Keys.Pk.Of("s0"), Order.Keys.Pk.Of("s1")];
 
         // Act
         var orders = await Read.ToListAsync(shop.Orders.Query(shards, SortKeyCondition.BeginsWith(Order.Keys.Sk.Prefix())).Descending().ItemsAsync());

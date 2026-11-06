@@ -14,7 +14,7 @@ public sealed class ConsistentReadTests
         var byStatus = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query("a").Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query(TenantInvoice.Keys.ByStatusPk.Of("a", InvoiceState.Open)).Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("ByStatus").And.Contains("global secondary index");
@@ -44,7 +44,7 @@ public sealed class ConsistentReadTests
         var byStatus = client.Table<TenantInvoice>("Shop").Index(TenantInvoice.Indexes.ByStatus);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query(["a", "b"]).Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = byStatus.Query([TenantInvoice.Keys.ByStatusPk.Of("a", InvoiceState.Open), TenantInvoice.Keys.ByStatusPk.Of("b", InvoiceState.Open)]).Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -89,7 +89,7 @@ public sealed class ConsistentReadTests
         var index = client.Table<LabeledNote>("Shop").Index(LabeledNote.Indexes.OnPartition);
 
         // Act
-        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query("a").Consistent());
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query(LabeledNote.Keys.OnPartitionPk.Of("a")).Consistent());
 
         // Assert
         await Assert.That(failure.Message).Contains("global secondary index");
@@ -119,7 +119,7 @@ public sealed class ConsistentReadTests
         var byTitle = client.Table<Ticket>("Shop").Index(Ticket.Indexes.ByTitle);
 
         // Act
-        var json = byTitle.Query("a").Consistent().ToRequestJson();
+        var json = byTitle.Query(Ticket.Keys.Pk.Of("a")).Consistent().ToRequestJson();
 
         // Assert
         await Assert.That(json).Contains("""

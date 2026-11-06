@@ -18,7 +18,7 @@ public sealed class WriteShardingTests(Backend backend)
 
     private static readonly DateTimeOffset Noon = new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private static IEnumerable<string> AllShards => Enumerable.Range(0, Shards).Select(static shard => Vote.Keys.Pk.Format(Poll, shard));
+    private static IEnumerable<PartitionKey<Vote>> AllShards => Enumerable.Range(0, Shards).Select(static shard => Vote.Keys.Pk.Of(Poll, shard));
 
     [Test]
     public async Task Query_FanOutOverRandomShards_MergesConcurrentWritesInTimeOrder()

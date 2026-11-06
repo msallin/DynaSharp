@@ -13,6 +13,8 @@ public sealed class FanOutQueryCommandTests
 {
     private static readonly AttributeValue[] TwoPartitions = ["p0", "p1"];
 
+    private static readonly PartitionKey<Customer>[] TwoCustomers = [Customer.Keys.Pk.Of("p0"), Customer.Keys.Pk.Of("p1")];
+
     private static readonly AttributeValue[] NoPartitions = [];
 
     [Test]
@@ -156,11 +158,11 @@ public sealed class FanOutQueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").Query(TwoPartitions, SortKeyCondition.Ge("x"))
+        var json = client.Table<Customer>("Shop").Query(TwoCustomers, SortKeyCondition.Ge("x"))
             .Filter($"{Attr("a")} > {1}").Filter(Attr("b").Exists()).NotDeleted().Project(Attr("c")).Project(Attr("d")).Limit(5).Descending().Consistent().MaxConcurrency(2).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"ScanIndexForward":false,"KeyConditionExpression":"#n0 = :pk AND #n1 >= :v0","FilterExpression":"(#n2 = :v1) AND (#n3 > :v2) AND (attribute_exists(#n4)) AND (attribute_not_exists(#n5))","ProjectionExpression":"#n6, #n7, #n2, #n0, #n1","ExpressionAttributeNames":{"#n0":"pk","#n1":"sk","#n2":"_type","#n3":"a","#n4":"b","#n5":"deletedAt","#n6":"c","#n7":"d"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"CUSTOMER"},":v2":{"N":"1"},":pk":{"S":"p0"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","ConsistentRead":true,"Limit":5,"ScanIndexForward":false,"KeyConditionExpression":"#n0 = :pk AND #n1 >= :v0","FilterExpression":"(#n2 = :v1) AND (#n3 > :v2) AND (attribute_exists(#n4)) AND (attribute_not_exists(#n5))","ProjectionExpression":"#n6, #n7, #n2, #n0, #n1","ExpressionAttributeNames":{"#n0":"pk","#n1":"sk","#n2":"_type","#n3":"a","#n4":"b","#n5":"deletedAt","#n6":"c","#n7":"d"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"CUSTOMER"},":v2":{"N":"1"},":pk":{"S":"CUSTOMER#p0"}}}""");
     }
 
     [Test]
@@ -482,11 +484,11 @@ public sealed class FanOutQueryCommandTests
     public async Task ItemsAsync_Entity_ReadsIt()
     {
         // Arrange
-        using var handler = new StubHandler(request => StubResponse.Json("{\"Items\":[{\"pk\":{\"S\":\"CUSTOMER#" + PartitionOf(request) + "\"},\"sk\":{\"S\":\"PROFILE\"},\"fullName\":{\"S\":\"Alice\"}}]}"));
+        using var handler = new StubHandler(request => StubResponse.Json("{\"Items\":[{\"pk\":{\"S\":\"" + PartitionOf(request) + "\"},\"sk\":{\"S\":\"PROFILE\"},\"fullName\":{\"S\":\"Alice\"}}]}"));
         using var client = TestClient.Create(handler);
 
         // Act
-        var customers = await client.Table<Customer>("Shop").Query(TwoPartitions).ItemsAsync().ToListAsync();
+        var customers = await client.Table<Customer>("Shop").Query(TwoCustomers).ItemsAsync().ToListAsync();
 
         // Assert
         await Assert.That(string.Join(",", customers.Select(static customer => customer.Id))).IsEqualTo("p0,p1");
