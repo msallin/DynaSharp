@@ -228,7 +228,7 @@ silence. Case folding and normalization are never applied: ElectroDB's default l
   are left to DynamoDB to reject.
 - `Format`, `Prefix` at every depth, `UpperBound`, `Of`, `Keys.Of` and `Parse` validate alike, at the call. Violations throw
   `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value, so a key built from user input
-  fails as a bad argument. `TryOf` returns `false` for exactly those values, without an exception.
+  fails as a bad argument. `TryOf` returns `null` for exactly those values, without an exception.
 - `Parse(x)` succeeds exactly when `Format(Parse(x)) == x`: exact widths, lowercase Guids, defined enum names, no delimiter
   in a segment.
 

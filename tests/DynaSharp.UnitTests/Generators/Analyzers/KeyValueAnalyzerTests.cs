@@ -120,8 +120,8 @@ public sealed class KeyValueAnalyzerTests
     [Arguments("""Order.Keys.Of("a", "l", "c#d")""")]
     [Arguments("""Order.Keys.Of(args[0], args[1], args[2])""")]
     [Arguments("""Order.Keys.Of(Text.Other, Text.Empty, "c")""")]
-    [Arguments("""Order.Keys.TryOf("a#1", "l", "c", out _)""")]
-    [Arguments("""Order.Keys.Pk.TryOf("a#1", out _)""")]
+    [Arguments("""Order.Keys.TryOf("a#1", "l", "c")""")]
+    [Arguments("""Order.Keys.Pk.TryOf("a#1")""")]
     [Arguments("""Order.Keys.Pk.Parse("ORDER#a")""")]
     [Arguments("""Order.Keys.Pk.TryParse("ORDER#a", out _)""")]
     [Arguments("""Order.Keys.Pk.Write(null!, "a#1")""")]
@@ -139,7 +139,7 @@ public sealed class KeyValueAnalyzerTests
     [Arguments("""string.Concat("a#1", "")""")]
     public async Task Analyze_CallThatCanHoldTheValue_ReportsNothing(string call)
     {
-        // Arrange (a raw value takes the delimiter, a plain key and a template of one placeholder have none, TryOf answers false, Parse takes a whole key, and the rest is not a generated builder)
+        // Arrange (a raw value takes the delimiter, a plain key and a template of one placeholder have none, TryOf answers null, Parse takes a whole key, and the rest is not a generated builder)
         var source = Run(call);
 
         // Act

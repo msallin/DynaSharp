@@ -12,7 +12,7 @@ namespace DynaSharp.Generators;
 /// </summary>
 /// <remarks>
 /// Only a constructor without a <c>DateTimeKind</c> is reported, and only where it stands right there: a value in a variable, <c>default</c>, <c>DateTime.Parse</c>, a property with a converter of its
-/// own and a value given to a handle in <c>Set</c> or a condition are not followed. A <c>TryOf</c> of a key builder gives false for such a value instead of throwing, and a <c>DateTimeOffset</c> takes
+/// own and a value given to a handle in <c>Set</c> or a condition are not followed. A <c>TryOf</c> of a key builder gives null for such a value instead of throwing, and a <c>DateTimeOffset</c> takes
 /// it for local time, so neither is reported.
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

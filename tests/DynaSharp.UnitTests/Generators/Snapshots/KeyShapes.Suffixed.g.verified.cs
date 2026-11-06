@@ -147,20 +147,7 @@ partial class Suffixed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Suffixed
             return new PrimaryKey(name);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
-        public static bool TryOf(string name, out PrimaryKey key)
-        {
-            if (Sk.Check(false, name))
-            {
-                key = new PrimaryKey(name);
-                return true;
-            }
-
-            key = default;
-            return false;
-        }
-
-        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static PrimaryKey? TryOf(string name) => Sk.Check(false, name) ? new PrimaryKey(name) : null;
 
         /// <summary>The primary key of <c>Suffixed</c>, which holds the values of the key and costs no string until it is written.</summary>

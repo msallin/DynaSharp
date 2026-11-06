@@ -65,7 +65,7 @@ public partial record Appointment
 - **Other templates.** `DYNA120` warns when the same property is strict in another template, which goes on refusing the value.
 - **`[KeyOnly]`.** A `Put` stores an input of a template as an attribute too, so without it every item a `Put` writes gets an extra `Key`, and an `Update` writes none. `[KeyOnly]` is for items that do not hold the attribute: on an adopted table whose items hold it, a `Put` drops it, and that loses data. With `[KeyOnly]`, `Key` has no handle, so a condition or a filter cannot name it.
 - **What `raw` still refuses.** It lifts the delimiter check and nothing else. An empty value, a character below U+0020, U+10FFFF and a lone surrogate still throw `KeyFormatException`, on a write and through `Keys.Of` on a read.
-- **A value from outside.** `Keys.TryOf` is the tool for it, and it answers for the key of the table only: with a strict index it returns true, and the `Put` throws.
+- **A value from outside.** `Keys.TryOf` is the tool for it, and it answers for the key of the table only: with a strict index it returns the key, and the `Put` throws.
 - **Stored keys.** A stored key that holds such a value, or that does not fit the template, gives `DynamoDbMappingException` on a read, because `Key` is restored from it. A read of many items ends at the first such key, with nothing of its page, unless `OnMappingFailure` skips it, see [Queries](queries.md#skip-items-that-fail-to-map).
 
 A plain key is the better choice when one entity has keys of several shapes, or when a value must miss and not throw. It takes what is stored as it is, so a `Get` of a value nobody stored gives null. An empty string stays DynamoDB's to reject.

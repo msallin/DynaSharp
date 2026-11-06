@@ -19,10 +19,10 @@ public class KeyBenchmarks
     public BenchKeyed.Keys.PrimaryKey Of() => BenchKeyed.Keys.Of(Tenant, User, Order);
 
     [Benchmark]
-    public bool TryOf() => BenchKeyed.Keys.TryOf(Tenant, User, Order, out _);
+    public BenchKeyed.Keys.PrimaryKey? TryOf() => BenchKeyed.Keys.TryOf(Tenant, User, Order);
 
     [Benchmark]
-    public bool TryOf_Rejected() => BenchKeyed.Keys.TryOf(Tenant, User, "a#b", out _);
+    public BenchKeyed.Keys.PrimaryKey? TryOf_Rejected() => BenchKeyed.Keys.TryOf(Tenant, User, "a#b");
 
     [Benchmark]
     public string Format() => BenchKeyed.Keys.Pk.Format(Tenant, User);
