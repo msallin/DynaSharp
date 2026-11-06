@@ -41,9 +41,8 @@ internal static class ShapeChecks
         check(KeyedMember.Keys.Sk.Prefix("eu") == "REGION#eu#CITY#" && KeyedMember.Keys.Sk.PrefixPartial("eu", "zu") == "REGION#eu#CITY#zu", "strings have partial prefixes");
 #pragma warning disable DYNA122 // The values are ones that the key refuses, on purpose.
         check(Throws<KeyFormatException>(() => KeyedMember.Keys.Pk.Format("a#b", "c")), "a delimiter in a value throws");
-        check(KeyedMember.Keys.Pk.TryOf("a", "c", out var memberKey) && memberKey.Value == KeyedMember.Keys.Pk.Format("a", "c") && !KeyedMember.Keys.Pk.TryOf("a#b", "c", out _), "TryOf answers without an exception");
-        check(Throws<KeyFormatException>(() => KeyedMember.Keys.Of("a#b", "c", "eu", "zu")) && !KeyedMember.Keys.TryOf("a#b", "c", "eu", "zu", out _), "Keys.Of checks at the call");
-        check(KeyedMember.Keys.Pk.TryOf("a", "c") is { } nullableKey && nullableKey.Value == KeyedMember.Keys.Pk.Format("a", "c") && KeyedMember.Keys.TryOf("a#b", "c", "eu", "zu") is null, "TryOf without an out parameter gives the key or null");
+        check(KeyedMember.Keys.Pk.TryOf("a", "c") is { } memberKey && memberKey.Value == KeyedMember.Keys.Pk.Format("a", "c") && KeyedMember.Keys.Pk.TryOf("a#b", "c") is null, "TryOf gives the key or null, without an exception");
+        check(Throws<KeyFormatException>(() => KeyedMember.Keys.Of("a#b", "c", "eu", "zu")) && KeyedMember.Keys.TryOf("a#b", "c", "eu", "zu") is null, "Keys.Of checks at the call");
 #pragma warning restore DYNA122
         check(Suffixed.Keys.Sk.Format("x") == "A-x#B" && Suffixed.Keys.Sk.Parse("A-x#B").Name == "x", "a literal may follow the last placeholder");
         check(Adjacent.Keys.Sk.Parse("007abc") == new Adjacent.Keys.SkParts(7, "abc"), "a fixed width needs no delimiter");

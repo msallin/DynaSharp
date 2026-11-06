@@ -212,11 +212,11 @@ public sealed partial class KeysEmitterTests
     }
 
     [Test]
-    [Arguments("string", "Pk", "string id")]
-    [Arguments("int", "Pk", "int id")]
-    [Arguments("decimal", "Pk", "decimal id")]
-    [Arguments("global::System.DateTime", "Pk", "global::System.DateTime id")]
-    public async Task Emit_PartitionKeyThatCanRejectAValue_HasTryOf(string type, string builder, string signature)
+    [Arguments("string", "string id")]
+    [Arguments("int", "int id")]
+    [Arguments("decimal", "decimal id")]
+    [Arguments("global::System.DateTime", "global::System.DateTime id")]
+    public async Task Emit_PartitionKeyThatCanRejectAValue_HasTryOf(string type, string signature)
     {
         // Arrange
         var source = $$"""
@@ -229,12 +229,12 @@ public sealed partial class KeysEmitterTests
 
         // Assert
         await Assert.That(body)
-            .Contains($"public static bool TryOf({signature}, out PrimaryKey key)")
-            .And.Contains($"public static bool TryOf({signature}, out global::DynaSharp.PartitionKey<global::Shop.E> key)");
+            .Contains($"public static PrimaryKey? TryOf({signature}) => Pk.Check(false, id) ? new PrimaryKey(id) : null;")
+            .And.Contains($"public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf({signature})");
     }
 
     [Test]
-    public async Task Emit_PartitionKeyThatCanRejectAValue_HasTryOfThatReturnsTheKeyOrNull()
+    public async Task Emit_PartitionKeyThatCanRejectAValue_HasOneTryOfThatReturnsTheKeyOrNull()
     {
         // Arrange
         const string Source = """
@@ -245,27 +245,8 @@ public sealed partial class KeysEmitterTests
         // Act
         var body = Body(Analysis.Model(Source, "global::Shop.E"));
 
-        // Assert
-        await Assert.That(body)
-            .Contains("public static PrimaryKey? TryOf(string id) => Pk.Check(false, id) ? new PrimaryKey(id) : null;")
-            .And.Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string id) => TryOf(id, out var key) ? key : null;")
-            .And.Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string owner) => TryOf(owner, out var key) ? key : null;");
-    }
-
-    [Test]
-    public async Task Emit_PlaceholderCalledKey_TryOfThatReturnsTheKeyOrNullNamesItsLocalApart()
-    {
-        // Arrange
-        const string Source = """
-            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Key}")]
-            public partial class E { public required string Key { get; set; } }
-            """;
-
-        // Act
-        var body = Body(Analysis.Model(Source, "global::Shop.E"));
-
-        // Assert
-        await Assert.That(body).Contains("public static global::DynaSharp.PartitionKey<global::Shop.E>? TryOf(string key) => TryOf(key, out var key_) ? key_ : null;");
+        // Assert (Keys.TryOf, Pk.TryOf and the TryOf of the index, none with an out parameter)
+        await Assert.That(body.Split("TryOf(").Length == 4 && !body.Contains("out global::DynaSharp.PartitionKey", StringComparison.Ordinal) && body.Contains("return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::Shop.E>(__key.ToString(), ", StringComparison.Ordinal)).IsTrue();
     }
 
     [Test]
@@ -329,7 +310,7 @@ public sealed partial class KeysEmitterTests
         var body = Body(Analysis.Model(Source, "global::Shop.E"));
 
         // Assert
-        await Assert.That(body).Contains("public static bool TryOf(string id, string name, out PrimaryKey key)").And.Contains("if (Sk.Check(false, name))");
+        await Assert.That(body).Contains("public static PrimaryKey? TryOf(string id, string name) => Sk.Check(false, name) ? new PrimaryKey(id, name) : null;");
     }
 
     [Test]
@@ -345,7 +326,7 @@ public sealed partial class KeysEmitterTests
         var body = Body(Analysis.Model(Source, "global::Shop.E"));
 
         // Assert
-        await Assert.That(body).Contains("if (Pk.Check(false, id) && Sk.Check(false, id, name))");
+        await Assert.That(body).Contains("=> Pk.Check(false, id) && Sk.Check(false, id, name) ? new PrimaryKey(id, name) : null;");
     }
 
     [Test]

@@ -212,20 +212,7 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
             return new PrimaryKey(room, at, seq);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
-        public static bool TryOf(string room, global::System.DateTimeOffset at, int seq, out PrimaryKey key)
-        {
-            if (Sk.Check(false, at, seq, room))
-            {
-                key = new PrimaryKey(room, at, seq);
-                return true;
-            }
-
-            key = default;
-            return false;
-        }
-
-        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static PrimaryKey? TryOf(string room, global::System.DateTimeOffset at, int seq) => Sk.Check(false, at, seq, room) ? new PrimaryKey(room, at, seq) : null;
 
         /// <summary>The primary key of <c>Stamp</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -668,30 +655,20 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.Stamp> Of(string room) => new global::DynaSharp.PartitionKey<global::KeyShapes.Stamp>(Format(room), "byroompk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(string room, out global::DynaSharp.PartitionKey<global::KeyShapes.Stamp> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.Stamp>? TryOf(string room)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, room);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.Stamp>(__key.ToString(), "byroompk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::KeyShapes.Stamp>(__key.ToString(), "byroompk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.Stamp>? TryOf(string room) => TryOf(room, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

@@ -203,20 +203,7 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
             return new PrimaryKey(id);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
-        public static bool TryOf(string id, out PrimaryKey key)
-        {
-            if (Pk.Check(false, id))
-            {
-                key = new PrimaryKey(id);
-                return true;
-            }
-
-            key = default;
-            return false;
-        }
-
-        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static PrimaryKey? TryOf(string id) => Pk.Check(false, id) ? new PrimaryKey(id) : null;
 
         /// <summary>The primary key of <c>Note</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -273,30 +260,20 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string id) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(id), "pk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(string id, out global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>? TryOf(string id)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, id);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(__key.ToString(), "pk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(__key.ToString(), "pk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>? TryOf(string id) => TryOf(id, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -422,30 +399,20 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.Versioned.Note
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> Of(string owner) => new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(Format(owner), "byownerpk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(string owner, out global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>? TryOf(string owner)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, owner);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(__key.ToString(), "byownerpk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>(__key.ToString(), "byownerpk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::Shapes.Versioned.Note>? TryOf(string owner) => TryOf(owner, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

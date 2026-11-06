@@ -163,20 +163,7 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
             return new PrimaryKey(code, name);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
-        public static bool TryOf(int code, string name, out PrimaryKey key)
-        {
-            if (Sk.Check(false, code, name))
-            {
-                key = new PrimaryKey(code, name);
-                return true;
-            }
-
-            key = default;
-            return false;
-        }
-
-        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static PrimaryKey? TryOf(int code, string name) => Sk.Check(false, code, name) ? new PrimaryKey(code, name) : null;
 
         /// <summary>The primary key of <c>Adjacent</c>, which holds the values of the key and costs no string until it is written.</summary>

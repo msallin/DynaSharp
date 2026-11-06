@@ -157,21 +157,7 @@ internal static class KeysEmitter
         code.Line($"return {creation};");
         code.Close();
         code.Blank();
-        var result = Names.Free("key", inputs.Select(static input => input.Parameter));
-        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>");
-        code.Line($"public static bool TryOf({signature}, out PrimaryKey {result})");
-        code.Open();
-        code.Line($"if ({string.Join(" && ", checkedKeys.Select(key => Check(type, key, "false")))})");
-        code.Open();
-        code.Line($"{result} = {creation};");
-        code.Line("return true;");
-        code.Close();
-        code.Blank();
-        code.Line($"{result} = default;");
-        code.Line("return false;");
-        code.Close();
-        code.Blank();
-        code.Line("/// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>");
+        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>");
         code.Line($"public static PrimaryKey? TryOf({signature}) => {string.Join(" && ", checkedKeys.Select(key => Check(type, key, "false")))} ? {creation} : null;");
         code.Blank();
     }

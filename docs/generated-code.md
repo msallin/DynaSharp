@@ -38,23 +38,26 @@ Index<Order> placed = orders.Index(Order.Indexes.ByStatus);             // the i
 
 `Of` checks the values, as `Format` does, and throws `KeyFormatException` for one that cannot be part of the key: empty, holding a delimiter of its template, or outside its format, such as `-1` or `1000000` under `{Number:d6}`. The exception names the placeholder and template, never the value.
 
-`TryOf(..., out key)` is the same check without an exception, for a value from outside. It exists only where the table key can refuse a value: `Guid`, `DateOnly` and `DateTimeOffset` fit every template, so a key of those alone has none. It checks the table key only; an index template can still refuse the value when a `Put` writes it. The `out` parameter is `key`, or `key_` when a placeholder is called `Key`. A key of literals alone, such as `[SortKey("PROFILE")]` beside `[PartitionKey("CONFIG")]`, is `Keys.Of()` without parameters.
-
-```csharp
-if (!Order.Keys.TryOf(after, 1, out var first))
-{
-    Console.WriteLine("Not a customer id.");
-}
-```
-
-`TryOf(...)` without the `out` parameter is the same check, and returns the key, or `null` for a value that `Of` throws for, so a read of a value from outside is one expression with `is { } key`:
+`TryOf(...)` is the same check without an exception, for a value from outside: it returns the key, or `null` for a value that `Of` throws for, so a read of a value from outside is one expression with `is { } key`. It exists only where the table key can refuse a value: `Guid`, `DateOnly` and `DateTimeOffset` fit every template, so a key of those alone has none. It checks the table key only; an index template can still refuse the value when a `Put` writes it. A key of literals alone, such as `[SortKey("PROFILE")]` beside `[PartitionKey("CONFIG")]`, is `Keys.Of()` without parameters.
 
 ```csharp
 Order? placed = Order.Keys.TryOf(after, 1) is { } key ? await orders.Get(key).ItemAsync(ct) : null;
 Order? latest = Order.Keys.Pk.TryOf(after) is { } partition ? await orders.Query(partition).Descending().ItemAsync(ct) : null;
 ```
 
-The key is a nullable struct, so the `null` costs nothing. Both forms are generated together, on `Keys` and on every partition key builder that has a `TryOf`; a sort key builder makes conditions and has neither.
+A method that stops at a value that does not fit returns early:
+
+```csharp
+if (Order.Keys.TryOf(after, 1) is not { } first)
+{
+    Console.WriteLine("Not a customer id.");
+    return;
+}
+
+Order? found = await orders.Get(first).ItemAsync(ct);
+```
+
+The key is a nullable struct, so the `null` costs nothing. `Keys` and every partition key builder that can refuse a value have a `TryOf`; a sort key builder makes conditions and has none.
 
 ### Builders
 
@@ -75,8 +78,7 @@ The index part is the index name in Pascal case: `orders-by_date` gives `OrdersB
 |---|---|---|
 | `Format(values)` | Always | The key as stored: `Pk.Format("alice")` is `CUSTOMER#alice` |
 | `Of(values)` | Always | A `PartitionKey<Order>` for `Query`, bound to the attribute it was built for: a table key in a query of `ByStatus` throws `ArgumentException` naming the builder to use |
-| `TryOf(values, out key)` | Where the template can refuse a value | `false` instead of `KeyFormatException`, at the cost of `Of` |
-| `TryOf(values)` | Where `TryOf(values, out key)` is | The key, or `null` where that one gives `false`, for `is { } key` |
+| `TryOf(values)` | Where the template can refuse a value | The key, or `null` instead of `KeyFormatException`, for `is { } key`, at the cost of `Of` |
 | `Parse(text)`, `Parse(utf8)`, `TryParse(text, out parts)`, `TryParse(utf8, out parts)` | Always | `PkParts`, a record struct with a property per placeholder. `Parse` succeeds exactly when `Format` of the result gives the text back |
 
 ### A sort key of a template

@@ -8,7 +8,7 @@ namespace DynaSharp.Generators;
 /// <summary>
 /// DYNA122: a constant string for a placeholder of a generated key builder that <c>KeyWriter</c> always turns away, because it is empty or holds a delimiter of the template, as in
 /// <c>Order.Keys.Of("a#1")</c> with <c>[PartitionKey("ORDER#{Id}")]</c>. Any constant expression counts, a <c>const</c> or a concatenation of them as well, and <c>string.Empty</c>. A raw placeholder takes delimiters, so there only
-/// empty counts. <c>TryOf</c>, which answers false and does not throw, and <c>Parse</c>, which takes the whole text of a key, are not looked at.
+/// empty counts. <c>TryOf</c>, which answers null and does not throw, and <c>Parse</c>, which takes the whole text of a key, are not looked at.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class KeyValueAnalyzer : DiagnosticAnalyzer

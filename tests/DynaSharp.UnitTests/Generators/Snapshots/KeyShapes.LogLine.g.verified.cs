@@ -317,20 +317,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             return new PrimaryKey(stream, day, at, sequence);
         }
 
-        /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
-        public static bool TryOf(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence, out PrimaryKey key)
-        {
-            if (Pk.Check(false, stream) && Sk.Check(false, day, at, sequence))
-            {
-                key = new PrimaryKey(stream, day, at, sequence);
-                return true;
-            }
-
-            key = default;
-            return false;
-        }
-
-        /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs no string, and answers for the key of the table only.</summary>
+        /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs no string. It answers for the key of the table only: a template of an index can refuse the same value at a <c>Put</c>.</summary>
         public static PrimaryKey? TryOf(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence) => Pk.Check(false, stream) && Sk.Check(false, day, at, sequence) ? new PrimaryKey(stream, day, at, sequence) : null;
 
         /// <summary>The primary key of <c>LogLine</c>, which holds the values of the key and costs no string until it is written.</summary>
@@ -421,30 +408,20 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string stream) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(stream), "pk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(string stream, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(string stream)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, stream);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "pk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "pk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(string stream) => TryOf(stream, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -898,30 +875,20 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(string owner) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(owner), "byownerpk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(string owner, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(string owner)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, owner);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "byownerpk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "byownerpk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(string owner) => TryOf(owner, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>
@@ -1198,30 +1165,20 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             /// <exception cref="global::DynaSharp.KeyFormatException">A value cannot be part of a key: it is empty, holds a delimiter, or does not fit its format.</exception>
             public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> Of(global::System.DateTime when) => new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(Format(when), "bywhenpk");
 
-            /// <summary>Does what <c>Of</c> does and returns <see langword="false"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
-            public static bool TryOf(global::System.DateTime when, out global::DynaSharp.PartitionKey<global::KeyShapes.LogLine> key)
+            /// <summary>Does what <c>Of</c> does and returns <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>
+            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(global::System.DateTime when)
             {
                 var __key = new global::DynaSharp.Keys.KeyWriter(stackalloc byte[BufferLength], false);
                 try
                 {
                     Encode(ref __key, when);
-                    if (__key.IsInvalid)
-                    {
-                        key = default;
-                        return false;
-                    }
-
-                    key = new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "bywhenpk");
-                    return true;
+                    return __key.IsInvalid ? null : new global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>(__key.ToString(), "bywhenpk");
                 }
                 finally
                 {
                     __key.Dispose();
                 }
             }
-
-            /// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword="null"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>
-            public static global::DynaSharp.PartitionKey<global::KeyShapes.LogLine>? TryOf(global::System.DateTime when) => TryOf(when, out var key) ? key : null;
 
             /// <summary>Parses a key. It succeeds exactly when <c>Format</c> of the result gives the text back.</summary>
             /// <exception cref="global::DynaSharp.KeyFormatException">The text is not a key of this template.</exception>

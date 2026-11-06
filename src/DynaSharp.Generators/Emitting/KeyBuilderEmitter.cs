@@ -155,25 +155,14 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     // One pass over the values, as Of makes in Format: the text it checks is the text of the key.
     private void EmitTryOf(string partitionKey)
     {
-        var result = Names.Free("key", _placeholders.Select(static placeholder => placeholder.ParameterName));
-        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"false\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>");
-        code.Line($"public static bool TryOf({Signature(_placeholders)}, out {partitionKey} {result})");
+        code.Line("/// <summary>Does what <c>Of</c> does and returns <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. Nothing is thrown on the way, and it costs what <c>Of</c> costs.</summary>");
+        code.Line($"public static {partitionKey}? TryOf({Signature(_placeholders)})");
         code.Open();
         OpenWriter(Buffer, "false");
         code.Line(EncodeCall());
-        code.Line($"if ({Local}.IsInvalid)");
-        code.Open();
-        code.Line($"{result} = default;");
-        code.Line("return false;");
-        code.Close();
-        code.Blank();
-        code.Line($"{result} = new {partitionKey}({Local}.ToString(), {CodeText.Literal(key.AttributeName)});");
-        code.Line("return true;");
+        code.Line($"return {Local}.IsInvalid ? null : new {partitionKey}({Local}.ToString(), {CodeText.Literal(key.AttributeName)});");
         CloseWriter();
         code.Close();
-        code.Blank();
-        code.Line("/// <summary>Does what <c>TryOf(..., out key)</c> does and returns the key, or <see langword=\"null\"/> for a value that <c>Of</c> throws <c>KeyFormatException</c> for, for <c>is { } key</c>. It costs what <c>Of</c> costs.</summary>");
-        code.Line($"public static {partitionKey}? TryOf({Signature(_placeholders)}) => TryOf({Arguments(_placeholders)}, out var {result}) ? {result} : null;");
         code.Blank();
     }
 
