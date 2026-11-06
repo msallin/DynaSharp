@@ -95,7 +95,8 @@ public partial record Order
 
 /// <summary>
 /// A cart, in the partition of its customer. Two browser tabs can edit it at the same time, and the last write would silently undo the other one. With a [Version] property a write of
-/// a cart that changed since it was read fails instead. DynamoDB deletes an abandoned one some time after ExpiresAt, which it reads as a number of seconds, so the converter stores it as one.
+/// a cart that changed since it was read fails instead. DynamoDB deletes an abandoned one some time after ExpiresAt, which it reads as a number of seconds, so the converter stores it as one, and [TimeToLive] makes CreateTable()
+/// turn time to live on for it.
 /// </summary>
 [DynamoDbEntity]
 [Discriminator("CART")]
@@ -107,6 +108,7 @@ public partial record Cart
 
     public IReadOnlyList<OrderLine> Lines { get; init; } = [];
 
+    [TimeToLive]
     [DynamoDbConverter(typeof(EpochSecondsConverter))]
     public DateTimeOffset? ExpiresAt { get; init; }
 

@@ -56,7 +56,7 @@ Up to 100 writes, or up to 100 reads, as one step: all of them or none, at twice
 
 ## Time to live (TTL)
 
-A number attribute that holds a time in seconds since 1970. Once that time has passed, DynamoDB deletes the item, some time later and at no cost. `Cart.ExpiresAt` uses `EpochSecondsConverter` for it, and `.TimeToLive(...)` turns it on, see [Creating a table](tables.md#creating-a-table).
+A number attribute that holds a time in seconds since 1970. Once that time has passed, DynamoDB deletes the item, some time later and at no cost. `Cart.ExpiresAt` uses `EpochSecondsConverter` for it, and its `[TimeToLive]` makes `CreateTable()` turn time to live on, see [Time to live](entities.md#time-to-live).
 
 ## Stream
 

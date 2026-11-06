@@ -31,7 +31,8 @@ Output.Section("1. Creating the table, and the one call that drops to DynaSharp.
 // names every entity of this project, as Including<Product>() and the others would one by one; the generator writes it because the
 // five share one pair of keys, so a sixth one cannot be forgotten here. Key names, indexes and attribute types come from the entities,
 // so nothing here repeats them. Billing is on demand and an index holds all attributes, unless told otherwise. Two entities that
-// disagree about a key throw here, before any request. ToRequest gives what this would send, for what it does not model, such as tags.
+// disagree about a key throw here, before any request. [TimeToLive] on Cart.ExpiresAt turns time to live on as well, after the wait.
+// ToRequest gives what this would send, for what it does not model, such as tags.
 try
 {
     var creation = await orders.CreateTable()
@@ -49,16 +50,10 @@ catch (HttpRequestException exception)
 }
 
 // Below the tables sits the request API: every DynamoDB operation as a request and a response that mirror the service, as extension
-// methods that "using DynaSharp.Requests" brings in. It is there for what the tables do not model, and this is what it looks like.
-// Time to live is such a thing: DynamoDB deletes an abandoned cart some time after Cart.ExpiresAt, once the table is told to.
-var expiry = await client.UpdateTimeToLiveAsync(
-    new UpdateTimeToLiveRequest
-    {
-        TableName = tableName,
-        TimeToLiveSpecification = new() { Enabled = true, AttributeName = Cart.Attrs.ExpiresAt.Path },
-    },
-    ct);
-Output.Say($"Items expire by the attribute {expiry.TimeToLiveSpecification!.AttributeName}");
+// methods that "using DynaSharp.Requests" brings in. It is there for what the tables do not model, and this is what it looks like:
+// DescribeTimeToLive, which says what the create turned on, so that DynamoDB deletes an abandoned cart some time after Cart.ExpiresAt.
+var expiry = await client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = tableName }, ct);
+Output.Say($"Items expire by the attribute {expiry.TimeToLiveDescription?.AttributeName}");
 
 // ------------------------------------------------------------------------------------------------------------------------
 Output.Section("2. BatchWrite: filling the catalog");
