@@ -725,12 +725,27 @@ Check(await locks.GetStateAsync("smoke") == new LockState(true, null, LockTable.
 Check(await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30)) is null && refused.IsCompletedSuccessfully, "a test sees a contender turned away");
 await locks.SimulateDeleteAsync("smoke");
 long? ledWith = null;
-await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, (lease, _) =>
+var currentInTerm = false;
+await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, async (lease, stop) =>
 {
     ledWith = lease.FencingToken;
-    return Task.CompletedTask;
+    currentInTerm = ReferenceEquals(await Task.Run(static () => Lease.Current), lease);
+    await fakeClient.TransactWrite().IsHeld().Put(fakeClient.Table("Locks", "pk"), new Item { ["pk"] = "REPORT-2" }).SendAsync(stop);
 });
 Check(ledWith == 1, "a leader runs its term on a typed table, with the token started again after the delete");
+Check(currentInTerm && Lease.Current is null, "Lease.Current is the lease of the term, inside it only");
+Check(fake.Get("Locks", new Item { ["pk"] = "REPORT-2" }) is not null, "IsHeld() checks the current lease");
+var noCurrent = false;
+try
+{
+    _ = fakeClient.TransactWrite().IsHeld().ToRequestJson();
+}
+catch (InvalidOperationException)
+{
+    noCurrent = true;
+}
+
+Check(noCurrent, "IsHeld() throws outside a term");
 
 foreach (var failure in failures)
 {

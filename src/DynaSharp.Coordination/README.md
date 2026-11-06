@@ -26,6 +26,6 @@ await locks.RunAsLeaderAsync("order-sweeper", TimeSpan.FromSeconds(30), async (l
 }, ct);
 ```
 
-One process at a time runs the work. When its lease is lost, the work is stopped and another process takes over. The processes that wait read the lock item and do not write it while the leader renews, so they cause no failed conditional writes.
+One process at a time runs the work. When its lease is lost, the work is stopped and another process takes over. Code deep in the work fences its writes with `IsHeld()`, which checks `Lease.Current`, the lease of the term it runs in, without the lease passed down to it. The processes that wait read the lock item and do not write it while the leader renews, so they cause no failed conditional writes.
 
 The guide is at [msallin.github.io/DynaSharp/coordination.html](https://msallin.github.io/DynaSharp/coordination.html): the item a lock writes, a holder label for operators, expiry of lock items, clocks and takeover, fencing, a `BackgroundService` that leads for as long as it runs, the spans, metrics and logs, and the helpers of `DynaSharp.Coordination.Testing` that let a test hold, release or delete a lock as another process would, read its state, and see a contender turned away.

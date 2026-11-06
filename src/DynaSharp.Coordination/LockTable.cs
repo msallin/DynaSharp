@@ -197,6 +197,10 @@ public sealed class LockTable
     /// Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
     /// happen then take <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, or the <see cref="Lease.FencingToken"/> to a system that checks it.
     /// </para>
+    /// <para>
+    /// During a term <see cref="Lease.Current"/> is the lease of the term, for the work and what it starts, so code deep in the work fences its writes with
+    /// <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain)"/> without the lease passed down to it.
+    /// </para>
     /// </remarks>
     /// <param name="name">The name of the lock.</param>
     /// <param name="leaseDuration">How long a lease lasts without a renewal, from <see cref="MinLeaseDuration"/> to <see cref="MaxLeaseDuration"/>. It is also about how long the work of a leader that crashed stays undone.</param>
