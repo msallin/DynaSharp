@@ -365,8 +365,14 @@ internal sealed class DynamoDbPipeline : IDisposable
             }
 
             await ReadBodyAsync(response, buffers.Response, token).ConfigureAwait(false);
-            return response.IsSuccessStatusCode
-                ? Parse<TCall, TResponse>(in call, buffers.Response, response, prepared.TableName)
+            if (response.IsSuccessStatusCode)
+            {
+                return Parse<TCall, TResponse>(in call, buffers.Response, response, prepared.TableName);
+            }
+
+            // A failure the call takes as its answer is no failure from here on: no exception, no error on the span or the metric, and no retry.
+            return call.TryReadFailure(buffers.Response.WrittenSpan, out var answer)
+                ? answer
                 : throw MapError(response, buffers.Response, signedAt, credentials, call.OperationName, prepared.TableName);
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)

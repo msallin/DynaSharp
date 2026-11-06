@@ -42,6 +42,12 @@ internal readonly struct ActionCall<TOperation, TResponse>(CommandState state, i
 
     public TResponse ReadResponse(ReadOnlySpan<byte> utf8Json) => TOperation.ReadResponse(utf8Json, state);
 
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out TResponse response)
+    {
+        response = default!;
+        return false;
+    }
+
     public void SetActivityTags(Activity activity)
     {
         var scan = TableScan.Collecting();

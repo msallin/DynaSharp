@@ -64,6 +64,9 @@ internal static class TelemetryNames
     public const string ShardRecords = "dynasharp.stream.record_count";
     public const string ShardRetries = "dynasharp.stream.retry_count";
 
+    // A write of TrySendAsync whose condition failed, the library's own attribute: the span is no error then, so this is what tells it apart.
+    public const string ConditionMet = "dynasharp.condition_met";
+
     // Value of error.type when an attempt timed out.
     public const string TimeoutErrorType = "timeout";
 }

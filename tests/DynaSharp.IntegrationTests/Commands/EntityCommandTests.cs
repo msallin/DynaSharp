@@ -252,6 +252,52 @@ public sealed class EntityCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task TrySendAsync_ConditionFailed_ReturnsTheItemTheConditionSaw()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+        await profiles.Put(new Profile("alice", "Alice", 3)).SendAsync();
+
+        // Act
+        var result = await profiles.Put(new Profile("alice", "Other")).IfNotExists().ReturnOldOnFailure().TrySendAsync();
+
+        // Assert
+        await Assert.That((result.ConditionMet, result.Item)).IsEqualTo((false, new Profile("alice", "Alice", 3)));
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionFailed_WritesNothing()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+        await profiles.Put(new Profile("alice", "Alice", 3)).SendAsync();
+
+        // Act
+        await profiles.Delete(Profile.Keys.Of("alice")).If(Profile.Attrs.OrderCount.Eq(0)).TrySendAsync();
+        var stored = await profiles.Get(Profile.Keys.Of("alice")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That(stored).IsEqualTo(new Profile("alice", "Alice", 3));
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionHeld_Writes()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+
+        // Act
+        var result = await profiles.Put(new Profile("alice", "Alice", 1)).IfNotExists().ReturnOldOnFailure().TrySendAsync();
+        var stored = await profiles.Get(Profile.Keys.Of("alice")).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((result.ConditionMet, result.HasItem, stored)).IsEqualTo((true, false, new Profile("alice", "Alice", 1)));
+    }
+
+    [Test]
     public async Task Update_NestedDocument_StoresAMapAndReadsItBack()
     {
         // Arrange

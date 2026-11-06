@@ -41,6 +41,12 @@ internal readonly struct RawCall(string operation, ReadOnlyMemory<byte> requestJ
     // be told from a wrong one.
     public byte[] ReadResponse(ReadOnlySpan<byte> utf8Json) => utf8Json.ToArray();
 
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out byte[] response)
+    {
+        response = null!;
+        return false;
+    }
+
     public void SetActivityTags(Activity activity)
     {
     }

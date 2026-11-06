@@ -683,6 +683,11 @@ catch (ConditionalCheckFailedException)
 }
 
 Check(movedBack, "NotExistsOrLt refuses an older version");
+var oldNews = await passes.Update(Pass.Keys.Of("p-1")).Set(Pass.Attrs.Seq, 1L).If(Pass.Attrs.Seq.NotExistsOrLt(1L)).ReturnOldOnFailure().TrySendAsync();
+Check(oldNews is { ConditionMet: false, HasItem: true, Item.Seq: 2, Version: null }, "TrySendAsync returns a failed condition with the item it saw");
+var applied = await passes.Update(Pass.Keys.Of("p-2")).Set(Pass.Attrs.Seq, 1L).If(Pass.Attrs.Seq.NotExistsOrLt(1L)).TrySendAsync();
+Check(applied.ConditionMet, "TrySendAsync returns a write whose condition held");
+await passes.Delete(Pass.Keys.Of("p-2")).TrySendAsync();
 Check(fake.ExpireItems() == 1, "CreateTable<T> of the fake turns time to live on for [TimeToLive]");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) is { Region.Name: "us-east-1", Credentials: StaticCredentialsProvider }, "ForEmulator sets a region and static keys");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2") is { Region.Name: "eu-central-2", Credentials: StaticCredentialsProvider }, "ForEmulator takes another region");

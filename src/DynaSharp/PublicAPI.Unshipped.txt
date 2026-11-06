@@ -22,3 +22,7 @@ override DynaSharp.TableDrift.GetHashCode() -> int
 override DynaSharp.TableDrift.ToString() -> string!
 static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
+DynaSharp.DeleteCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
+DynaSharp.PutCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
+DynaSharp.UpdateCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
+DynaSharp.WriteResult<T>.ConditionMet.get -> bool

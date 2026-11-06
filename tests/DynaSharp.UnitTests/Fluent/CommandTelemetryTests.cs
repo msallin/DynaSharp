@@ -636,6 +636,70 @@ public sealed class CommandTelemetryTests
         await Assert.That((entry.Level, entry.Message.Contains("BatchWriteItem on table Users", StringComparison.Ordinal), entry.Message.Contains("secret", StringComparison.Ordinal))).IsEqualTo((Microsoft.Extensions.Logging.LogLevel.Warning, true, false));
     }
 
+    [Test]
+    public async Task TrySendAsync_ConditionFailed_LeavesTheStatusUnset()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+
+        // Act
+        var span = await RunAsync(handler, async client => await client.Table("Users", "pk").Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync());
+
+        // Assert
+        await Assert.That((span.Status, span.GetTagItem("error.type"))).IsEqualTo((ActivityStatusCode.Unset, null));
+    }
+
+    [Test]
+    [Arguments("PutItem")]
+    [Arguments("UpdateItem")]
+    [Arguments("DeleteItem")]
+    public async Task TrySendAsync_ConditionFailed_TagsThatTheConditionWasNotMet(string operation)
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+
+        // Act
+        var span = await RunAsync(handler, async client =>
+        {
+            var users = client.Table("Users", "pk");
+            _ = operation switch
+            {
+                "PutItem" => await users.Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync(),
+                "UpdateItem" => await users.Update("a").Set("n", 1).IfExists().TrySendAsync(),
+                _ => await users.Delete("a").IfExists().TrySendAsync(),
+            };
+        });
+
+        // Assert
+        await Assert.That((span.OperationName, span.GetTagItem("dynasharp.condition_met"))).IsEqualTo(("DynamoDB." + operation, (object?)false));
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionHeld_HasNoConditionTag()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+
+        // Act
+        var span = await RunAsync(handler, async client => await client.Table("Users", "pk").Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync());
+
+        // Assert
+        await Assert.That(span.GetTagItem("dynasharp.condition_met")).IsNull();
+    }
+
+    [Test]
+    public async Task SendAsync_ConditionFailed_MarksTheSpanAsFailed()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+
+        // Act
+        var span = await RunAsync(handler, async client => await TestClient.CaptureAsync<ConditionalCheckFailedException>(async () => await client.Table("Users", "pk").Put(new Item { ["pk"] = "a" }).IfNotExists().SendAsync()));
+
+        // Assert
+        await Assert.That((span.Status, span.GetTagItem("error.type"), span.GetTagItem("dynasharp.condition_met"))).IsEqualTo((ActivityStatusCode.Error, (object?)"ConditionalCheckFailedException", null));
+    }
+
     private static ValueTask<BatchWriteResult> SendEachAsync(Table<Item> table, List<string> ids, Table<Item>? other = null)
     {
         var command = table.BatchWrite().ReturnCapacity();

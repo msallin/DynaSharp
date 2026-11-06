@@ -265,4 +265,20 @@ public sealed class MetricTests
         // Assert
         await Assert.That(string.Join(',', capture.Single().Tags.Values)).DoesNotContain("SECRET");
     }
+
+    [Test]
+    public async Task TrySendAsync_ConditionFailed_RecordsTheDurationWithoutAnError()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed());
+        var table = UniqueTable();
+        using var capture = MeasurementCapture<double>.ForTable(table, TelemetryNames.DurationMetric);
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table(table, "pk").Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync();
+
+        // Assert
+        await Assert.That(capture.Single().Tags.ContainsKey("error.type")).IsFalse();
+    }
 }

@@ -73,7 +73,8 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
 | `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
 | `Get(...).Select(handle).SendAsync(ct)`, `Query(...).Select(handle).ValueAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found; `GetValueOrDefault()` and `GetValueOrDefault(fallback)`, which do not |
-| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, and `StoredVersion`, the same without the null; `ConsumedCapacity` and `ItemCollectionMetrics` |
+| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, and `StoredVersion`, the same without the null; `ConsumedCapacity` and `ItemCollectionMetrics`; `ConditionMet`, always true |
+| `Put`, `Update`, `Delete` with `TrySendAsync(ct)` | `WriteResult<T>` | The same, or for a condition that did not hold `ConditionMet` false, with `Item` what the condition saw if `ReturnOldOnFailure()` asked for it, and no `Version`, capacity or metrics |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
 | `BatchWrite()`, `BatchGet()` | `BatchWriteResult`, `BatchGetResult<T>` | `Written` or `Items`, `Requests` and `ConsumedCapacity` |
@@ -118,6 +119,22 @@ catch (ConditionalCheckFailedException exception)
     Console.WriteLine(exception.Item!.To<Product>().Price);
 }
 ```
+
+Where a failed condition is routine rather than an error, `TrySendAsync` returns it instead of throwing: `ConditionMet` is false, nothing was written, and with `ReturnOldOnFailure()` `Item` is what the condition saw, read as the entity. Every other error throws as from `SendAsync`, and the request is the same.
+
+```csharp
+var result = await products.Update(Product.Keys.Of("KB-01"))
+    .Set(Product.Attrs.Price, 79.00m)
+    .If(Product.Attrs.Price.Eq(95.00m))
+    .ReturnOldOnFailure()
+    .TrySendAsync(ct);
+if (!result.ConditionMet)
+{
+    Console.WriteLine(result.Item?.Price);
+}
+```
+
+`ReturnOld()` and `ReturnNew()` give nothing for a failed condition; only `ReturnOldOnFailure()` does. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync` and no error on the span. A retry of the client after a lost response can fail against its own first attempt, which looks the same as a second delivery of the change, see [Where a retry applies a write twice](errors.md#where-a-retry-applies-a-write-twice). `TrySendAsync` is on `Put`, `Update` and `Delete`, not on `Return(handle)` or a transaction.
 
 `ConditionalCheckFailedException.Key` says which item it was, as it is stored. It is for code that does not hold the key, such as a wrapper around a write it was handed. No message and no log of the client contains it.
 

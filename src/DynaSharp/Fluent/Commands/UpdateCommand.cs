@@ -327,8 +327,8 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     public ReturnCommand<AttributeValue, AttributeValueConverter> Return(Attr attribute) => Returning<AttributeValue, AttributeValueConverter>(attribute.Path);
 
     /// <summary>
-    /// Puts the existing item on <see cref="ConditionalCheckFailedException.Item"/> when a condition fails, which saves a read to find out why. It
-    /// costs no extra capacity.
+    /// Puts the existing item on <see cref="ConditionalCheckFailedException.Item"/> when a condition fails, or on <see cref="WriteResult{T}.Item"/> with <see cref="TrySendAsync"/>, which saves a read
+    /// to find out why. It costs no extra capacity.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public UpdateCommand<T> ReturnOldOnFailure()
@@ -381,6 +381,40 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<WriteResult<T>> SendAsync(CancellationToken cancellationToken = default) =>
         Enter().Settle().SendAsync<UpdateOperation<T>, WriteResult<T>>(cancellationToken);
+
+    /// <summary>
+    /// Sends the command as <see cref="SendAsync"/> does, and takes a failed condition as an answer instead of throwing <see cref="ConditionalCheckFailedException"/>: <see cref="WriteResult{T}.ConditionMet"/>
+    /// is then <see langword="false"/>, nothing was written, and with <see cref="ReturnOldOnFailure"/> <see cref="WriteResult{T}.Item"/> is the item the condition saw. It is for a write whose failed
+    /// condition is routine, such as an event that is old news, which then costs no exception.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The request is the one <see cref="SendAsync"/> sends, and every other error throws as there. <see cref="ReturnOldOnFailure"/> stays a choice: without it a failed condition gives no item.
+    /// <see cref="ReturnOld"/> or <see cref="ReturnNew"/> gives nothing on a failed condition, because DynamoDB returns nothing then.
+    /// </para>
+    /// <para>
+    /// A retry of the client after a lost response meets what its first attempt wrote, and a condition that rules out the write's own result then fails. That is the same answer a second delivery of the same
+    /// change gets, and on the wire the two cannot be told apart, so <see cref="WriteResult{T}.ConditionMet"/> does not say which. Compare the item of <see cref="ReturnOldOnFailure"/> with what the update sent:
+    /// the same version or time means that the change is stored, by this call or an earlier one.
+    /// </para>
+    /// <para>
+    /// Inside <c>RetryOnConflictAsync</c> a failed condition of this method is no conflict, so the delegate does not run again. The span of a failed condition is no error, and carries
+    /// <c>dynasharp.condition_met</c> = <see langword="false"/>.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The result. Await it once.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <see cref="IfExists"/> without <see cref="VersionMissing.Allow"/>, or a change by handle cannot
+    /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbMappingException">The returned item, or the item a failed condition saw, cannot be read as <typeparamref name="T"/>. The write has happened only in the first case.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<WriteResult<T>> TrySendAsync(CancellationToken cancellationToken = default) =>
+        Enter().Settle().TrySendAsync<UpdateOperation<T>, WriteResult<T>>(cancellationToken);
 
     /// <summary>Lets <c>await</c> send the command, for <c>await table.Update(pk, sk).Set("a", 1)</c>. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>

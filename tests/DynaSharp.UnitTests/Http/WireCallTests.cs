@@ -457,6 +457,12 @@ public sealed class WireCallTests
         // The body is not copied: the buffers of the call stay untouched.
         public ArraySegment<byte> WriteBody(CallBuffers buffers) => state.Body;
 
+        public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out string response)
+        {
+            response = string.Empty;
+            return false;
+        }
+
         public string ReadResponse(ReadOnlySpan<byte> utf8Json)
         {
             if (state.ParseResponse)

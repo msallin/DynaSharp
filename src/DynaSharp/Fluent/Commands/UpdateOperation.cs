@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
@@ -12,4 +13,8 @@ internal readonly struct UpdateOperation<T> : ICommandOperation<WriteResult<T>>
     public static string Name => UpdateItemOperation.Name;
 
     public static WriteResult<T> ReadResponse(ref DynamoDbReader reader, CommandState state) => WriteResponse.Read<T>(ref reader, state);
+
+    public static bool TryReadFailure(ReadOnlySpan<byte> utf8Json, CommandState state, out WriteResult<T> response) => WriteResponse.TryReadFailure(utf8Json, state, out response);
+
+    public static void SetResponseTags(Activity activity, WriteResult<T> response) => WriteResponse.SetResponseTags(activity, response);
 }

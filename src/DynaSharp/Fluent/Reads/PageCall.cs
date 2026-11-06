@@ -41,6 +41,12 @@ internal readonly struct PageCall<TOperation, T>(CommandState state) : IWireCall
         return page;
     }
 
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out PageData<T> response)
+    {
+        response = default!;
+        return false;
+    }
+
     public void SetActivityTags(Activity activity) => TOperation.SetActivityTags(activity, state);
 
     public void SetResponseTags(Activity activity, PageData<T> response) => TOperation.SetResponseTags(activity, response);

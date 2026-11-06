@@ -4,7 +4,7 @@ using static DynaSharp.Expr;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-public sealed class UpdateCommandTests
+public sealed partial class UpdateCommandTests
 {
     private const string Start = """{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"S":"b"}}""";
 
