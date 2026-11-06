@@ -71,3 +71,8 @@ DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.Ca
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+*REMOVED*static DynaSharp.TransactWriteExtensions.ToRequestJson<TChain>(this TChain chain) -> string!
+DynaSharp.ConditionStep.ToRequestJson() -> string!
+DynaSharp.PutStep.ToRequestJson() -> string!
+DynaSharp.TransactWriteCommand.ToRequestJson() -> string!
+DynaSharp.UpdateStep.ToRequestJson() -> string!

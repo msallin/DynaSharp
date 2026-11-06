@@ -310,6 +310,9 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         return new(state);
     }
 
+    /// <inheritdoc cref="TransactWriteCommand.ToRequestJson"/>
+    public string ToRequestJson() => TransactWriteExtensions.RenderJson(Enter());
+
     private UpdateStep Adding<TValue, TConverter>(string path, TValue value)
         where TConverter : IDynamoDbConverter<TValue>
     {

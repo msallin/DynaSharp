@@ -213,8 +213,6 @@ string body = create.ToRequestJson();
 await create.SendAsync(ct);
 ```
 
-On a type without `ToRequestJson`, the compiler answers `CS0311` and names `TransactWriteExtensions.ToRequestJson<TChain>`: that is the method of a transaction, which C# offers on every type and rejects only then.
-
 ## Helpers that return a command
 
 A method of your own may build part of a command and return it for the caller to finish and send. That is supported, with the rules of any command, because a command is a `ref struct` over pooled state that the client lends it:

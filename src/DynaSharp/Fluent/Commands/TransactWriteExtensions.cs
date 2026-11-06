@@ -399,23 +399,11 @@ public static class TransactWriteExtensions
     public static ValueTaskAwaiter<TransactWriteResult> GetAwaiter<TChain>(this TChain chain)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => chain.SendAsync().GetAwaiter();
 
-    /// <summary>
-    /// Renders the body this transaction would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests
-    /// and debugging. The text contains the items and a generated token that nothing ever sends.
-    /// </summary>
-    /// <remarks>
-    /// C# offers an extension method over a type parameter on every type and checks the constraint only after picking it, so on a type without a <c>ToRequestJson</c> of its own this one is
-    /// the candidate, and the compiler answers <c>CS0311</c>, naming <c>TransactWriteExtensions.ToRequestJson&lt;TChain&gt;</c>. The error means that the type has no <c>ToRequestJson</c>, as
-    /// <see cref="ParallelScanCommand{T}"/>, which sends one request per segment, has none. Every other command has one of its own, which wins over this one.
-    /// </remarks>
-    /// <typeparam name="TChain">The type of the command or step.</typeparam>
-    /// <param name="chain">The command or step.</param>
+    /// <summary>Ends a transaction and renders its body, for <c>ToRequestJson</c> of the command and of each step.</summary>
+    /// <param name="state">The state of the command, entered.</param>
     /// <returns>The request body.</returns>
-    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has no action, which DynamoDB would reject.</exception>
-    public static string ToRequestJson<TChain>(this TChain chain)
-        where TChain : ITransactWriteChain<TChain>, allows ref struct
+    internal static string RenderJson(CommandState state)
     {
-        var state = chain.Enter();
         TransactWriteOperation.End(state);
         return state.RenderJson();
     }
