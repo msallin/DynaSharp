@@ -492,7 +492,7 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, on `WriteResult<T>.Item` with `TrySendAsync`, or through `ItemFor` in a transaction |
 | `StoreKeyInputs()` | Update of an entity and `UpdateStep`: stores the inputs of the key of the table as attributes, section 8. On a `Table<Item>` it does not compile, and on a step of one it throws `InvalidOperationException` |
 
-`WriteResult<T>` has `ConditionMet`, `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`, a `long?` that is null for a write that stored no version, and `StoredVersion`, that `long` for code that knows it stored one (a put or an `IfVersion(n)` update of a `[Version]` entity), which throws `InvalidOperationException` where `Version` is null.
+`WriteResult<T>` has `ConditionMet`, `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`, a `long?` that is null for a write that stored no version: a delete, an update with `IgnoreVersion()`, a type without `[Version]`, and a `TrySendAsync` whose condition did not hold. One nullable member and no non-null twin: whether a write stores a version depends on the chain and on the answer, which no type can say, so code that knows writes `Version!.Value`.
 
 ```csharp
 var result = await matches.Update(LiveMatch.Keys.Of(id)).Set(LiveMatch.Attrs.ScoreAt, at)
@@ -502,7 +502,7 @@ if (!result.ConditionMet) { /* old news, or stored already: compare result.Item!
 
 `TrySendAsync` on `PutCommand<T>`, `UpdateCommand<T>` and `DeleteCommand<T>` sends what `SendAsync` sends and takes a `ConditionalCheckFailedException` as its answer: `ConditionMet` is false, and
 `Item` and `HasItem` hold the item the condition saw when `ReturnOldOnFailure()` asked for it, read with the entity's reader, so an item that does not fit throws `DynamoDbMappingException`.
-`Version`, `ConsumedCapacity` and `ItemCollectionMetrics` are null then, and `StoredVersion` throws with a message that says why. `ConditionMet` is true on every result of `SendAsync`, and on the
+`Version`, `ConsumedCapacity` and `ItemCollectionMetrics` are null then. `ConditionMet` is true on every result of `SendAsync`, and on the
 default value. Every other error throws as from `SendAsync`. `ReturnOldOnFailure()` stays a choice, and `ReturnOld()` and `ReturnNew()` give nothing for a failed condition. `ReturnCommand<,>`
 and transactions have no `TrySendAsync`. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync`, no error on the span, which gets `dynasharp.condition_met` = `false`,
 and no `error.type` on the duration. After a lost response the retry of the client fails against its own first attempt; that is the same on the wire as a second delivery of the change, and the

@@ -345,7 +345,6 @@ var vouchers = users.Of<Voucher>();
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var putVoucher = await vouchers.Put(new Voucher { Id = "v-1", Revision = 2 }).SendAsync();
 Check(putVoucher.Version == 3 && commandHandler.Requests[^1].BodyText.Contains("\"Revision\":{\"N\":\"3\"}", StringComparison.Ordinal), "Put stores the next version");
-Check(putVoucher.StoredVersion == 3, "StoredVersion gives the stored version without the null");
 
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var importedVoucher = await vouchers.Put(new Voucher { Id = "v-1", Revision = 2 }).IgnoreVersion().SendAsync();

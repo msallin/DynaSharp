@@ -73,7 +73,7 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
 | `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
 | `Get(...).Select(handle).SendAsync(ct)`, `Query(...).Select(handle).ValueAsync(ct)` | `SelectResult<TValue>` | `Found` and `Value`, which throws when no item was found; `GetValueOrDefault()` and `GetValueOrDefault(fallback)`, which do not |
-| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, and `StoredVersion`, the same without the null; `ConsumedCapacity` and `ItemCollectionMetrics`; `ConditionMet`, always true |
+| `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, or null; `ConsumedCapacity` and `ItemCollectionMetrics`; `ConditionMet`, always true |
 | `Put`, `Update`, `Delete` with `TrySendAsync(ct)` | `WriteResult<T>` | The same, or for a condition that did not hold `ConditionMet` false, with `Item` what the condition saw if `ReturnOldOnFailure()` asked for it, and no `Version`, capacity or metrics |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
@@ -165,10 +165,10 @@ var saved = await carts.Update(Cart.Keys.Of("bob"))
     .IfVersion(seen.Revision)
     .SendAsync(ct);
 
-long next = saved.StoredVersion;
+long next = saved.Version!.Value;
 ```
 
-The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null for a write that stored none (a delete, an update with `IgnoreVersion()`). `StoredVersion` is the same number as a `long`, for a put or an `IfVersion(n)` update that always stores one, and throws `InvalidOperationException` where there is none.
+The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null for a write that stored none (a delete, an update with `IgnoreVersion()`, a `TrySendAsync` whose condition did not hold). A put of a `[Version]` entity and an `IfVersion(n)` update sent with `SendAsync` always store one, so `!.Value` is safe there; elsewhere `saved.Version is { } next` asks.
 
 ## Retry on a conflict
 
