@@ -26,7 +26,15 @@ A client for an emulator names it in `ServiceUrl`. It still needs a region and c
 using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
 ```
 
-The rest is a `with`, as in `DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }`. The values are the same on every call, which matters to DynamoDB Local without `-sharedDb`: it keeps one database per access key and region, so a second program, or the AWS CLI, sees the tables only with the same ones.
+The rest is a `with`, as in `DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }`.
+
+DynamoDB Local started without `-sharedDb` keeps one database per access key and region. A tool or a program that uses another region or other keys sees other tables, and none that this client created: the AWS CLI with the region of its profile, for one. `ForEmulator` uses the same values on every call, so two programs that both use it meet. A tool takes `us-east-1` and the keys `local` and `local` too, or the client takes the region of the tool:
+
+```csharp
+var options = DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2");
+```
+
+The compose file starts DynamoDB Local with `-sharedDb`, one database for all of them.
 
 The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000`, `AWS_REGION` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set, `new DynamoDbClient()` goes to the emulator, and the same build goes to AWS where they are not set. An option that is set wins over its variable.
 

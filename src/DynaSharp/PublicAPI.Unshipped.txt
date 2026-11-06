@@ -138,3 +138,4 @@ DynaSharp.Mapping.TimeToLiveAttribute
 DynaSharp.Mapping.TimeToLiveAttribute.TimeToLiveAttribute() -> void
 DynaSharp.CreateTableCommand.Timeout(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
 static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl) -> DynaSharp.DynamoDbClientOptions!
+static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl, string! region) -> DynaSharp.DynamoDbClientOptions!

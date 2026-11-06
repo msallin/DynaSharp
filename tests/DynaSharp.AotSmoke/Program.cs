@@ -685,6 +685,7 @@ catch (ConditionalCheckFailedException)
 Check(movedBack, "NotExistsOrLt refuses an older version");
 Check(fake.ExpireItems() == 1, "CreateTable<T> of the fake turns time to live on for [TimeToLive]");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) is { Region.Name: "us-east-1", Credentials: StaticCredentialsProvider }, "ForEmulator sets a region and static keys");
+Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2") is { Region.Name: "eu-central-2", Credentials: StaticCredentialsProvider }, "ForEmulator takes another region");
 
 // DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, the release, the options, the helpers
 // for tests, and a term of a leader.

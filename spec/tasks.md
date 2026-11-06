@@ -587,6 +587,13 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R12 - table checks and the emulator region (after 0.3.0)
+
+Branch `feat/table-checks`, approved by the owner from the backlog of the update of the apps to 0.3.0. All additive to 0.3.0: no shipped signature changes. `PublicAPI.Shipped.txt` still ends at 0.1.0, because the releases of 0.2.0 and 0.3.0 did not move their lines; the additions go to `PublicAPI.Unshipped.txt` after them, and moving the shipped ones is left to the next release.
+
+- [x] **`DynamoDbClientOptions.ForEmulator(Uri serviceUrl, string region)`**, and the XML docs and the guide (`getting-started.md`, `testing.md`, `migrating.md`) say that DynamoDB Local without `-sharedDb` keeps one database per access key and region, so a tool of another region or other keys sees other tables.
+- Decision: an overload, not an optional parameter: `ForEmulator(Uri)` shipped in 0.3.0, and `ForEmulator(Uri, string? region = null)` would remove that signature (`RS0017`) and break a compiled caller. The one-argument form calls the overload with `us-east-1`. A `string`, as the owner asked, not an `AwsRegion`: the call reads as the region a tool prints, and `AwsRegion.FromName` checks it. Its `ArgumentException` is rethrown with `ParamName` `region` and the same text, so the exception names the parameter of this method, not `name`. The keys stay `local`: other keys are a `with` of `Credentials`, and nobody asked for them. No telemetry: it only fills options.
+
 ### R11 - 0.3.0 keys and coordination
 
 Branch `feat/030-keys-locks`, approved by the owner from the backlog of the app migrations (lps-label-print-server, socce-cockpit, yats). All additive.
@@ -1065,7 +1072,7 @@ From the update of the apps to 0.2.0-local.3
 
 From the update of the apps to 0.3.0
 - [ ] CA2016 against "pass the token once": `ItemsAsync(ct).ToListAsync()` with a token in scope reports CA2016 (forward the token), so under `AnalysisMode=All` the advice of `queries.md` cannot be followed (lps keeps `ToListAsync(ct)`). A `DiagnosticSuppressor` for CA2016 on a LINQ terminal over a DynaSharp terminal that took the token, or a sentence in `queries.md`.
-- [ ] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region.
+- [x] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region. Done: both, the region as an overload `ForEmulator(url, region)`, see R12.
 
 ## Decisions
 

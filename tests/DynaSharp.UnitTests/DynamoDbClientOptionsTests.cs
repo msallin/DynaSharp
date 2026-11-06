@@ -155,6 +155,79 @@ public sealed class DynamoDbClientOptionsTests
     }
 
     [Test]
+    public async Task ForEmulator_UrlAndRegion_SetsThatRegionAndOtherwiseWhatTheOneArgumentFormSets()
+    {
+        // Arrange (DynamoDB Local without -sharedDb keeps a database per region, so a tool of another region needs the client in it)
+        var url = new Uri("http://localhost:8000");
+
+        // Act
+        var options = DynamoDbClientOptions.ForEmulator(url, "eu-central-2");
+
+        // Assert
+        await Assert.That((options.Region?.Name, options with { Region = null, Credentials = null }, options.Credentials?.GetType()))
+            .IsEqualTo(((string?)"eu-central-2", DynamoDbClientOptions.ForEmulator(url) with { Region = null, Credentials = null }, typeof(StaticCredentialsProvider)));
+    }
+
+    [Test]
+    public async Task ForEmulator_UrlAndRegion_SignsInThatRegionWithTheStaticKeys()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        var options = DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-west-3") with { HttpHandler = handler };
+        using var client = new DynamoDbClient(options, static _ => null, null, null);
+
+        // Act
+        await client.GetItemAsync(TestClient.GetItem());
+
+        // Assert
+        var authorization = handler.Requests.Single().Headers["Authorization"];
+        await Assert.That(authorization.Contains("Credential=local/", StringComparison.Ordinal) && authorization.Contains("/eu-west-3/dynamodb/", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task ForEmulator_NullUrlAndARegion_ThrowsNamingTheUrl()
+    {
+        // Arrange
+        Uri? url = null;
+
+        // Act
+        var failure = TestClient.Catch(() => DynamoDbClientOptions.ForEmulator(url!, "us-east-1"));
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("serviceUrl");
+    }
+
+    [Test]
+    public async Task ForEmulator_NullRegion_ThrowsNamingIt()
+    {
+        // Arrange
+        string? region = null;
+
+        // Act
+        var failure = TestClient.Catch(() => DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), region!));
+
+        // Assert
+        await Assert.That((failure.GetType(), ((ArgumentException)failure).ParamName)).IsEqualTo((typeof(ArgumentNullException), (string?)"region"));
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("EU-CENTRAL-2")]
+    [Arguments("-eu")]
+    [Arguments("eu central")]
+    public async Task ForEmulator_RegionThatIsNoRegionName_ThrowsNamingIt(string region)
+    {
+        // Arrange (the rules of AwsRegion.FromName, with the parameter of this method in the exception)
+        var url = new Uri("http://localhost:8000");
+
+        // Act
+        var failure = TestClient.Catch(() => DynamoDbClientOptions.ForEmulator(url, region));
+
+        // Assert
+        await Assert.That((failure.GetType(), ((ArgumentException)failure).ParamName)).IsEqualTo((typeof(ArgumentException), (string?)"region"));
+    }
+
+    [Test]
     public async Task With_ChangedMaxAttempts_ChangesOnlyMaxAttempts()
     {
         // Arrange
