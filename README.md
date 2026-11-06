@@ -234,7 +234,7 @@ The exact SDK is pinned in `global.json`.
 dotnet tool restore
 dotnet build DynaSharp.slnx
 dotnet test --project tests/DynaSharp.UnitTests
-dotnet test --project tests/DynaSharp.IntegrationTests   # needs Docker
+dotnet test --project tests/DynaSharp.IntegrationTests   # the in-memory fake; DYNASHARP_BACKENDS=all adds the emulators, in Docker
 dotnet stryker                                           # mutation testing
 ```
 
