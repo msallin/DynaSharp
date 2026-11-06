@@ -13,7 +13,7 @@
 - Keep it simple. No speculative abstractions, no duplicated logic. Hide internals: `internal` by default, public API only on purpose.
 - Small, cohesive modules (signing, HTTP pipeline, serialization, mapping, fluent API) with narrow interfaces between them.
 - Public API: complete XML docs that explain behavior, edge cases and DynamoDB semantics, not restate the signature.
-- A change of the public surface of `DynaSharp`, `DynaSharp.Testing` or `DynaSharp.Coordination` updates `PublicAPI.Unshipped.txt` in that project, in the same commit. `RS0016` and `RS0017` fail the build otherwise. `PublicAPI.Shipped.txt` holds what a release has shipped: a release moves the lines there.
+- A change of the public surface of `DynaSharp`, `DynaSharp.Testing` or `DynaSharp.Coordination` updates `PublicAPI.Unshipped.txt` in that project, in the same commit. `RS0016` and `RS0017` fail the build otherwise. `PublicAPI.Shipped.txt` holds what a release has shipped: before a release, `build/ship-public-api.sh` moves the lines there, committed as `chore`; the release workflow refuses to run while an Unshipped file holds a line.
 - Comments only for non-obvious things (protocol quirks, performance tricks, why something is not done the obvious way).
 - Performance matters: pooled buffers, `Span<T>`, UTF-8 end to end, no LINQ or closures on hot paths. Measure with the benchmarks before and after.
 - No unsafe code: no `unsafe`, `Unsafe`, `MemoryMarshal`, `CollectionsMarshal` (enforced by `src/BannedSymbols.txt`).

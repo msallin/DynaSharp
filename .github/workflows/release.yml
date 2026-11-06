@@ -41,6 +41,11 @@ jobs:
           green=$(gh run list --repo "${{ github.repository }}" --workflow ci.yml --commit "${{ github.sha }}" --event push --status success --json databaseId --jq length)
           if [ "$green" = 0 ]; then echo "::error::No green CI run of a push for ${{ github.sha }}; wait for it, then run the release again."; exit 1; fi
 
+      # The PublicAPI analyzers guard only what Shipped holds, so a release ships its API first: build/ship-public-api.sh moves the
+      # lines, committed as chore before the release.
+      - name: Require the public API to be marked as shipped
+        run: ./build/ship-public-api.sh --check
+
       - name: Compute next version
         id: version
         run: echo "version=$(./build/next-version.sh)" >> "$GITHUB_OUTPUT"
