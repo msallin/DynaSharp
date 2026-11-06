@@ -10,6 +10,7 @@
 - `README.md` is the overview for users: intro, installation, a short getting started, a few examples, API levels, design principles, benchmarks. Plans and status of work stay out of it, its examples must compile, and its numbers come from a benchmark run. The full guide is in `docs/`, published with DocFX (`docs/docfx.json`, `.github/workflows/docs.yml`) at https://msallin.github.io/DynaSharp/, whose home page is the README. Its examples compile too, and a link between pages is relative (`tables.md#adding-an-index`), so that it works on the site and on GitHub. The README ships in the package, so it links to the site with absolute URLs.
 
 ## Principles
+- Below 1.0, breaking changes are allowed in every release and preferred over technical debt: choose the right design, not the one that keeps a shipped signature. Mark a break `feat!:`/`fix!:` and say in the commit body what to change (see `spec/requirements.md`).
 - Keep it simple. No speculative abstractions, no duplicated logic. Hide internals: `internal` by default, public API only on purpose.
 - Small, cohesive modules (signing, HTTP pipeline, serialization, mapping, fluent API) with narrow interfaces between them.
 - Public API: complete XML docs that explain behavior, edge cases and DynamoDB semantics, not restate the signature.

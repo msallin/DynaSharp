@@ -74,6 +74,8 @@ Fix:
 
 ### Non-functional
 
+- **Until 1.0, do it right rather than compatible.** Every release below 1.0 may break the public API, behaviour, the severity of an analyzer and, where the right design needs it, what an entity writes to a table. A design is chosen for what is right, not for what keeps a shipped signature: no second overload, renamed twin or workaround that exists only because the first version shipped. A break is a `feat!:` or `fix!:` commit, says in its body what to change, and goes into the release notes; a change to stored data also says how to migrate. From 1.0 on, Semantic Versioning holds in full.
+
 - Target `net11.0` only. SDK pinned in `global.json` without roll-forward.
 - Native AOT compatible; trimming-safe. No reflection, no runtime code generation.
 - No unsafe code (`unsafe`, `Unsafe`, `MemoryMarshal`, `CollectionsMarshal`, `Marshal`, `NativeMemory`, `GCHandle`).
