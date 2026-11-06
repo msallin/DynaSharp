@@ -141,13 +141,16 @@ internal static class TableAdministration
     /// <param name="table">The table.</param>
     /// <param name="attributeName">The attribute.</param>
     /// <param name="cancellationToken">Cancels the calls.</param>
-    /// <returns><see langword="true"/> if this call turned time to live on; <see langword="false"/> if it was on, or turning on, already, also when another instance got there first.</returns>
+    /// <returns>
+    /// Whether this call turned time to live on, which it did not if it was on, or turning on, already, also when another instance got there first; and the attribute it is on instead, if it is on for another one,
+    /// which this call leaves as it is.
+    /// </returns>
     /// <exception cref="ValidationException">DynamoDB refused, and that was not because another instance got there first.</exception>
-    public static async ValueTask<bool> EnsureTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
+    public static async ValueTask<TimeToLiveOutcome> EnsureTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
     {
-        if (await TimeToLiveIsOnAsync(table, attributeName, cancellationToken).ConfigureAwait(false))
+        if (await LookAtTimeToLiveAsync(table, attributeName, cancellationToken).ConfigureAwait(false) is { } found)
         {
-            return false;
+            return found;
         }
 
         ValidationException rejected;
@@ -155,7 +158,7 @@ internal static class TableAdministration
         {
             var request = new UpdateTimeToLiveRequest { TableName = table.Name, TimeToLiveSpecification = new TimeToLiveSpecification { Enabled = true, AttributeName = attributeName } };
             await table.Core.ExecuteAsync<UpdateTimeToLiveOperation, UpdateTimeToLiveRequest, UpdateTimeToLiveResponse>(request, cancellationToken).ConfigureAwait(false);
-            return true;
+            return new TimeToLiveOutcome(TurnedOn: true, OtherAttribute: null);
         }
         catch (ValidationException exception)
         {
@@ -163,20 +166,24 @@ internal static class TableAdministration
         }
 
         // Outside the catch: a throw after an await in one has a branch of the compiler that nothing can take.
-        if (!await TimeToLiveIsOnAsync(table, attributeName, cancellationToken).ConfigureAwait(false))
+        var again = await LookAtTimeToLiveAsync(table, attributeName, cancellationToken).ConfigureAwait(false);
+        if (again is null)
         {
             ExceptionDispatchInfo.Throw(rejected);
         }
 
-        return false;
+        return again.Value;
     }
 
-    private static async ValueTask<bool> TimeToLiveIsOnAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
+    // Time to live on another attribute is left alone: turning it to this one means off, an hour, and on, which DynamoDB refuses in one step anyway.
+    private static async ValueTask<TimeToLiveOutcome?> LookAtTimeToLiveAsync(TableModel table, string attributeName, CancellationToken cancellationToken)
     {
         var response = await table.Core
             .ExecuteAsync<DescribeTimeToLiveOperation, DescribeTimeToLiveRequest, DescribeTimeToLiveResponse>(new DescribeTimeToLiveRequest { TableName = table.Name }, cancellationToken)
             .ConfigureAwait(false);
-        return response.TimeToLiveDescription is { TimeToLiveStatus: TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling } description && description.AttributeName == attributeName;
+        return response.TimeToLiveDescription is { TimeToLiveStatus: TimeToLiveStatus.Enabled or TimeToLiveStatus.Enabling, AttributeName: { } name }
+            ? new TimeToLiveOutcome(TurnedOn: false, OtherAttribute: name == attributeName ? null : name)
+            : null;
     }
 
     // What a response says of an index comes first, because a status says more than a name that is missing.
@@ -218,6 +225,11 @@ internal static class TableAdministration
 
     // The service model requires no member of these responses. A description that says nothing has the status Unknown, so a wait goes on, and a caller is spared a null DynamoDB does not send in practice.
     private static TableDescription NoDescription(TableModel table) => new() { TableName = table.Name };
+
+    /// <summary>What <see cref="EnsureTimeToLiveAsync"/> found or did.</summary>
+    /// <param name="TurnedOn">Whether its <c>UpdateTimeToLive</c> was accepted.</param>
+    /// <param name="OtherAttribute">The attribute time to live is on for instead of the one asked for, or <see langword="null"/>.</param>
+    public readonly record struct TimeToLiveOutcome(bool TurnedOn, string? OtherAttribute);
 
     /// <summary>The index that holds a wait up.</summary>
     /// <param name="Name">Its name.</param>

@@ -7,7 +7,7 @@ using static DynaSharp.UnitTests.Http.RetryTestSupport;
 namespace DynaSharp.UnitTests.Fluent;
 
 /// <summary>The expected bodies are written by hand from the entities in <c>SchemaEntities.cs</c>; <see cref="CommandVectorTests"/> holds them against botocore.</summary>
-public sealed class CreateTableCommandTests
+public sealed partial class CreateTableCommandTests
 {
     private const string Created = """{"TableDescription":{"TableName":"Shop","TableStatus":"CREATING"}}""";
     private const string Active = """{"Table":{"TableName":"Shop","TableStatus":"ACTIVE"}}""";
@@ -1714,22 +1714,43 @@ public sealed class CreateTableCommandTests
     }
 
     [Test]
-    public async Task SendAsync_TimeToLiveOnAnotherAttribute_SurfacesTheErrorOfDynamoDb()
+    public async Task SendAsync_TimeToLiveOnAnotherAttribute_ReportsItAndSendsNoUpdate()
     {
-        // Arrange (only DynamoDB knows why, so it gets to say so)
+        // Arrange (turning it to another attribute takes two changes an hour apart, which is not this command's to decide)
         using var handler = new StubHandler();
         handler.Enqueue(StubResponse.Json(Active));
         handler.Enqueue(StubResponse.Json(TimeToLive("ENABLED", "other")));
-        handler.Enqueue(StubResponse.DynamoDbError("ValidationException", "TimeToLive is active on a different AttributeName"));
-        handler.Enqueue(StubResponse.Json(TimeToLive("ENABLED", "other")));
         using var client = TestClient.Create(handler, new ManualTimeProvider());
-        var command = client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await command.SendAsync());
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
 
         // Assert
-        await Assert.That((failure.Message.Contains("different AttributeName", StringComparison.Ordinal), failure.OperationName)).IsEqualTo((true, (string?)"UpdateTimeToLive"));
+        await Assert.That((Operations(handler), result.TimeToLiveEnabled, result.Drift.Single())).IsEqualTo((
+            "DescribeTable,DescribeTimeToLive",
+            false,
+            new TableDrift(
+                TableDriftKind.TimeToLiveDiffers,
+                null,
+                "The table Shop has time to live on the attribute other, and the command asks for expires, so items are not expired by expires. A table has time to live on one attribute: turning it to another is UpdateTimeToLive to off, and to on with the new name once DynamoDB takes a change again, within an hour.")));
+    }
+
+    [Test]
+    public async Task SendAsync_TimeToLiveThatAnotherInstanceTurnedOnForAnotherAttribute_ReportsIt()
+    {
+        // Arrange (both found it off, and the other one won with another attribute)
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Active));
+        handler.Enqueue(StubResponse.Json(Disabled));
+        handler.Enqueue(StubResponse.DynamoDbError("ValidationException", "TimeToLive is active on a different AttributeName"));
+        handler.Enqueue(StubResponse.Json(TimeToLive("ENABLING", "other")));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var result = await client.Table("Shop", "pk").CreateTable().IfNotExists().TimeToLive("expires").SendAsync();
+
+        // Assert
+        await Assert.That((result.TimeToLiveEnabled, result.Drift.Single().Kind)).IsEqualTo((false, TableDriftKind.TimeToLiveDiffers));
     }
 
     [Test]

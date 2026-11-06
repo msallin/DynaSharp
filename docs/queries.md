@@ -33,7 +33,7 @@ var firstTen = orders.Query(Order.Keys.Pk.Of("alice"))
     .Take(10);
 ```
 
-`ItemsAsync(ct)` streams page by page: it asks for the next page only once the items of the one before are taken, so a `break` or a `Take(n)` reads no more pages, and memory holds one page. `ToListAsync()` of `System.Linq` takes every page, so it belongs on a read whose size is bounded, such as one partition of a few items or a `Take(n)`. The token goes to `ItemsAsync` once, which hands it to every page it reads: `ItemsAsync(ct).ToListAsync()`, since passing it again to `ToListAsync` changes nothing.
+`ItemsAsync(ct)` streams page by page: it asks for the next page only once the items of the one before are taken, so a `break` or a `Take(n)` reads no more pages, and memory holds one page. `ToListAsync()` of `System.Linq` takes every page, so it belongs on a read whose size is bounded, such as one partition of a few items or a `Take(n)`. The token goes to `ItemsAsync` once, which hands it to every page it reads: `ItemsAsync(ct).ToListAsync()`, since passing it again to `ToListAsync` changes nothing. Under `AnalysisMode=All`, CA2016 asks to forward the token to `ToListAsync` as well; passing it there too is harmless, because the enumerator links it with the one `ItemsAsync` took, and it silences the rule.
 
 ## Sort key conditions
 

@@ -111,12 +111,129 @@ internal sealed class TableSchema
         };
     }
 
+    /// <summary>
+    /// Compares a table that exists with the union, as <see cref="CreateTableCommand.IfNotExists"/> says: a key of other names or types throws, and an index that is missing or has other keys is drift. Only what both sides
+    /// know is compared: a type of <see cref="ScalarAttributeType.Unknown"/> here, or an attribute the description does not define, matches any, and a description without a key schema, which DynamoDB always sends, is not
+    /// compared at all. What the table has beyond the union is none of its business.
+    /// </summary>
+    /// <param name="tableName">The table, as the messages name it.</param>
+    /// <param name="found">Its description.</param>
+    /// <returns>The drift of the indexes, in the order they were declared.</returns>
+    /// <exception cref="InvalidOperationException">The key of the table has other attribute names, a sort key where the union has none or none where it has one, or another type.</exception>
+    public List<TableDrift> Check(string tableName, TableDescription found)
+    {
+        List<TableDrift> drift = [];
+        if (found.KeySchema.Count == 0)
+        {
+            return drift;
+        }
+
+        var types = found.AttributeDefinitions;
+        var (partitionKey, sortKey) = (KeyOf(found.KeySchema, KeyType.Hash), KeyOf(found.KeySchema, KeyType.Range));
+        if (!Matches(_partitionKey, _sortKey, partitionKey, sortKey, types))
+        {
+            throw new InvalidOperationException(
+                $"The table {tableName} exists with the {DescribeKey(partitionKey, TypeIn(types, partitionKey), sortKey, TypeIn(types, sortKey))}, and this command expects the {DescribeKey(_partitionKey, _sortKey)}. "
+                + "Every read and write of these entities would fail with a ValidationException, and DynamoDB does not change the key of a table: give them a table of their own, or create a new one and move the items.");
+        }
+
+        foreach (var (index, _) in _indexes)
+        {
+            var (isLocal, keySchema) = FindIndex(found, index.IndexName);
+            var declared = $"{(index.IsLocal ? "local" : "global")} index {index.IndexName} over the {DescribeKey(index.PartitionKeyName, index.SortKeyName)}";
+            if (keySchema is null)
+            {
+                var missing = index.IsLocal
+                    ? $"The table {tableName} lacks the {declared}. A local index exists only if the table was created with it, so queries of it fail until the items move to a new table that has it."
+                    : $"The table {tableName} lacks the {declared}. Queries of it fail until UpdateTable adds it.";
+                drift.Add(new TableDrift(TableDriftKind.IndexMissing, index.IndexName, missing));
+                continue;
+            }
+
+            var (indexPartitionKey, indexSortKey) = (KeyOf(keySchema, KeyType.Hash), KeyOf(keySchema, KeyType.Range));
+            if (isLocal != index.IsLocal || !Matches(index.PartitionKeyName, index.SortKeyName, indexPartitionKey, indexSortKey, types))
+            {
+                var has = DescribeKey(indexPartitionKey, TypeIn(types, indexPartitionKey), indexSortKey, TypeIn(types, indexSortKey));
+                var differs = $"The table {tableName} has the index {index.IndexName} as a {(isLocal ? "local" : "global")} index over the {has}, and the entities declare a {declared}. Queries of it read other attributes than they expect, or fail.";
+                drift.Add(new TableDrift(TableDriftKind.IndexDiffers, index.IndexName, differs));
+            }
+        }
+
+        return drift;
+    }
+
+    private static string? KeyOf(IReadOnlyList<KeySchemaElement> keySchema, KeyType keyType)
+    {
+        foreach (var element in keySchema)
+        {
+            if (element.KeyType == keyType)
+            {
+                return element.AttributeName;
+            }
+        }
+
+        return null;
+    }
+
+    private static ScalarAttributeType TypeIn(IReadOnlyList<AttributeDefinition> definitions, string? name)
+    {
+        foreach (var definition in definitions)
+        {
+            if (definition.AttributeName == name)
+            {
+                return definition.AttributeType;
+            }
+        }
+
+        return ScalarAttributeType.Unknown;
+    }
+
+    private static (bool IsLocal, IReadOnlyList<KeySchemaElement>? KeySchema) FindIndex(TableDescription found, string name)
+    {
+        foreach (var index in found.GlobalSecondaryIndexes)
+        {
+            if (index.IndexName == name)
+            {
+                return (false, index.KeySchema);
+            }
+        }
+
+        foreach (var index in found.LocalSecondaryIndexes)
+        {
+            if (index.IndexName == name)
+            {
+                return (true, index.KeySchema);
+            }
+        }
+
+        return (false, null);
+    }
+
+    private static bool Matches(ScalarAttributeType expected, ScalarAttributeType found) => expected == ScalarAttributeType.Unknown || found == ScalarAttributeType.Unknown || expected == found;
+
+    private static string DescribeKey(string? partitionKey, ScalarAttributeType partitionKeyType, string? sortKey, ScalarAttributeType sortKeyType) =>
+        sortKey is null
+            ? $"partition key {partitionKey}{DescribeType(partitionKeyType)} and no sort key"
+            : $"partition key {partitionKey}{DescribeType(partitionKeyType)} and sort key {sortKey}{DescribeType(sortKeyType)}";
+
+    private static string DescribeType(ScalarAttributeType type) => type == ScalarAttributeType.Unknown ? string.Empty : $" ({type})";
+
     private static List<KeySchemaElement> KeySchema(string partitionKey, string? sortKey) =>
         sortKey is null ? [new KeySchemaElement(partitionKey, KeyType.Hash)] : [new KeySchemaElement(partitionKey, KeyType.Hash), new KeySchemaElement(sortKey, KeyType.Range)];
 
     private static string Describe(string partitionKey, string? sortKey) => sortKey is null ? $"({partitionKey})" : $"({partitionKey}, {sortKey})";
 
     private static string Describe(DynamoDbIndexInfo index) => $"{(index.IsLocal ? "local" : "global")} over {Describe(index.PartitionKeyName, index.SortKeyName)}";
+
+    private bool Matches(string partitionKey, string? sortKey, string? foundPartitionKey, string? foundSortKey, IReadOnlyList<AttributeDefinition> types) =>
+        partitionKey == foundPartitionKey && sortKey == foundSortKey
+        && Matches(TypeOf(partitionKey), TypeIn(types, foundPartitionKey))
+        && (sortKey is null || Matches(TypeOf(sortKey), TypeIn(types, foundSortKey)));
+
+    private string DescribeKey(string partitionKey, string? sortKey) => DescribeKey(partitionKey, TypeOf(partitionKey), sortKey, sortKey is null ? ScalarAttributeType.Unknown : TypeOf(sortKey));
+
+    // Every key attribute of the union is defined, by the constructor or by Add.
+    private ScalarAttributeType TypeOf(string name) => _attributes.Find(attribute => attribute.Name == name).Type;
 
     private void Define(string name, ScalarAttributeType type, string declaredBy)
     {

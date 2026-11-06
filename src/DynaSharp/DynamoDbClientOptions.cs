@@ -186,21 +186,54 @@ public sealed record DynamoDbClientOptions
     /// <c>local</c>, so that nothing is read from the environment for them. Every request is signed, and an emulator checks neither, so any values do: <c>new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")))</c>.
     /// </summary>
     /// <remarks>
-    /// The options are a record, so the rest is a <c>with</c>: <c>DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }</c>. The region and the keys are the same on every call, which matters to DynamoDB Local without
-    /// <c>-sharedDb</c>: it keeps one database per access key and region, so two programs that meet in one table use the same values, and a tool such as the AWS CLI that looks at the tables takes them too.
-    /// A <see cref="Streams.DynamoDbStreamsClient"/> made from these options reads the streams of the same emulator. An http URL whose host is not <c>localhost</c> or a loopback address logs the warning that
-    /// <see cref="ServiceUrl"/> describes. For real DynamoDB, leave this out and let the environment decide.
+    /// <para>
+    /// The options are a record, so the rest is a <c>with</c>: <c>DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }</c>. A <see cref="Streams.DynamoDbStreamsClient"/> made from these options reads the
+    /// streams of the same emulator. An http URL whose host is not <c>localhost</c> or a loopback address logs the warning that <see cref="ServiceUrl"/> describes. For real DynamoDB, leave this out and let the environment decide.
+    /// </para>
+    /// <para>
+    /// <b>The region and the keys pick the tables.</b> DynamoDB Local started without <c>-sharedDb</c> keeps one database per access key and region, so a program or a tool that uses another region or other keys
+    /// sees other tables, and none of those this client created: the AWS CLI with the region of the profile, for one, or a second program with its own values. The values here are the same on every call, so two programs
+    /// that both use this method meet; a tool takes <c>us-east-1</c> and the keys <c>local</c> and <c>local</c> too, or the client takes the region of the tool with <see cref="ForEmulator(Uri, string)"/>. DynamoDB Local with
+    /// <c>-sharedDb</c>, as the compose file of the repository starts it, keeps one database for all of them.
+    /// </para>
     /// </remarks>
     /// <param name="serviceUrl">The address of the emulator, for example <c>http://localhost:8000</c>, with the rules of <see cref="ServiceUrl"/>, which the client checks when it is created.</param>
     /// <returns>The options.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="serviceUrl"/> is <see langword="null"/>.</exception>
-    public static DynamoDbClientOptions ForEmulator(Uri serviceUrl)
+    public static DynamoDbClientOptions ForEmulator(Uri serviceUrl) => ForEmulator(serviceUrl, EmulatorRegion);
+
+    /// <summary>
+    /// Creates options for an emulator at <paramref name="serviceUrl"/> in a region of choice, as <see cref="ForEmulator(Uri)"/> does with <c>us-east-1</c>: <see cref="ServiceUrl"/>, the region and the static credentials
+    /// <c>local</c> and <c>local</c>. It is for DynamoDB Local without <c>-sharedDb</c>, which keeps one database per access key and region, when a tool or another program that looks at the same tables uses another region,
+    /// such as the AWS CLI with the region of its profile: <c>DynamoDbClientOptions.ForEmulator(url, "eu-central-2")</c>.
+    /// </summary>
+    /// <remarks>
+    /// The emulator checks the region no more than the keys, so the region only says which database of DynamoDB Local the requests reach. The keys stay <c>local</c> and <c>local</c>; other keys are a <c>with</c>
+    /// of <see cref="Credentials"/>.
+    /// </remarks>
+    /// <param name="serviceUrl">The address of the emulator, for example <c>http://localhost:8000</c>, with the rules of <see cref="ServiceUrl"/>, which the client checks when it is created.</param>
+    /// <param name="region">The name of the region, for example <c>eu-central-2</c>, with the rules of <see cref="AwsRegion.FromName"/>.</param>
+    /// <returns>The options.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceUrl"/> or <paramref name="region"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="region"/> is empty or no region name: anything but lowercase ASCII letters, digits and inner hyphens.</exception>
+    public static DynamoDbClientOptions ForEmulator(Uri serviceUrl, string region)
     {
         ArgumentNullException.ThrowIfNull(serviceUrl);
+        ArgumentException.ThrowIfNullOrEmpty(region);
+        AwsRegion name;
+        try
+        {
+            name = AwsRegion.FromName(region);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new ArgumentException($"'{region}' is not a valid AWS region name. Expected lowercase letters, digits and inner hyphens, for example 'eu-central-2'.", nameof(region), exception);
+        }
+
         return new DynamoDbClientOptions
         {
             ServiceUrl = serviceUrl,
-            Region = AwsRegion.FromName(EmulatorRegion),
+            Region = name,
             Credentials = new StaticCredentialsProvider(EmulatorKey, EmulatorKey),
         };
     }

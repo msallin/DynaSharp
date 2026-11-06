@@ -195,6 +195,11 @@ internal sealed class ClientCore : IDisposable
     /// <param name="retries">How many times the shard was tried again.</param>
     public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => _pipeline.LogShardRecovered(shardId, elapsed, retries);
 
+    /// <summary>Logs the drift of a table that a create found, see <see cref="DynamoDbPipeline.LogTableDrift"/>.</summary>
+    /// <param name="tableName">The table.</param>
+    /// <param name="drift">The differences.</param>
+    public void LogTableDrift(string tableName, IReadOnlyList<TableDrift> drift) => _pipeline.LogTableDrift(tableName, drift);
+
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

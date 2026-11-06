@@ -47,4 +47,7 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 13, Level = LogLevel.Information, Message = "DynamoDB Streams shard {ShardId} is read again, {Elapsed} after it failed and after {Retries} retries.")]
     public static partial void ShardRecovered(ILogger logger, string shardId, TimeSpan elapsed, int retries);
+
+    [LoggerMessage(EventId = 14, Level = LogLevel.Warning, Message = "DynamoDB table {Table} does not match what CreateTable() declares ({Count} in CreateTableResult.Drift), and is left as it is: {Drift}")]
+    public static partial void TableDrift(ILogger logger, string table, int count, string drift);
 }
