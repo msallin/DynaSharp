@@ -67,7 +67,9 @@ DynaSharp.AttributeValue.AsStringSet() -> System.Collections.Generic.IReadOnlyLi
 DynaSharp.AttributeValue.AttributeValue() -> void
 DynaSharp.AttributeValue.Equals(DynaSharp.AttributeValue other) -> bool
 DynaSharp.AttributeValue.IsNull.get -> bool
+DynaSharp.AttributeValue.ToJson() -> System.Text.Json.JsonElement
 DynaSharp.AttributeValue.Type.get -> DynaSharp.AttributeType
+DynaSharp.AttributeValue.WriteJson(System.Text.Json.Utf8JsonWriter! writer) -> void
 DynaSharp.AwsRegion
 DynaSharp.AwsRegion.<Clone>$() -> DynaSharp.AwsRegion!
 DynaSharp.AwsRegion.DynamoDbEndpoint.get -> System.Uri!
@@ -78,7 +80,6 @@ DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.BatchGetCommand() -> void
 DynaSharp.BatchGetCommand<T>.Consistent() -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.BatchGetResult<T>>
-DynaSharp.BatchGetCommand<T>.Key(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.Key<TKey>(TKey key) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.Keys<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.MaxAttempts(int attempts) -> DynaSharp.BatchGetCommand<T>
@@ -103,10 +104,9 @@ DynaSharp.BatchIncompleteException.UnprocessedItems.get -> System.Collections.Ge
 DynaSharp.BatchIncompleteException.Written.get -> int
 DynaSharp.BatchWriteCommand<T>
 DynaSharp.BatchWriteCommand<T>.BatchWriteCommand() -> void
-DynaSharp.BatchWriteCommand<T>.Delete(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<T>
+DynaSharp.BatchWriteCommand<T>.Delete(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<T>
 DynaSharp.BatchWriteCommand<T>.Delete<TKey>(TKey key) -> DynaSharp.BatchWriteCommand<T>
 DynaSharp.BatchWriteCommand<T>.Delete<TOther, TKey>(DynaSharp.Table<TOther>! table, TKey key) -> DynaSharp.BatchWriteCommand<T>
-DynaSharp.BatchWriteCommand<T>.Delete<TOther>(DynaSharp.Table<TOther>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<T>
 DynaSharp.BatchWriteCommand<T>.DeleteAll<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchWriteCommand<T>
 DynaSharp.BatchWriteCommand<T>.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.BatchWriteResult>
 DynaSharp.BatchWriteCommand<T>.IgnoreVersion() -> DynaSharp.BatchWriteCommand<T>
@@ -298,6 +298,7 @@ DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threadi
 DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<T>!
 DynaSharp.DynamoDbClient.SendRawAsync(string! operation, System.ReadOnlyMemory<byte> requestJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
 DynaSharp.DynamoDbClient.Table(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Table<DynaSharp.Item!>!
+DynaSharp.DynamoDbClient.Table<T>() -> DynaSharp.Table<T>!
 DynaSharp.DynamoDbClient.Table<T>(string! name) -> DynaSharp.Table<T>!
 DynaSharp.DynamoDbClient.TransactGet() -> DynaSharp.TransactGetCommand
 DynaSharp.DynamoDbClient.TransactWrite() -> DynaSharp.TransactWriteCommand
@@ -319,6 +320,8 @@ DynaSharp.DynamoDbClientOptions.Region.get -> DynaSharp.AwsRegion?
 DynaSharp.DynamoDbClientOptions.Region.init -> void
 DynaSharp.DynamoDbClientOptions.ServiceUrl.get -> System.Uri?
 DynaSharp.DynamoDbClientOptions.ServiceUrl.init -> void
+DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string!>?
+DynaSharp.DynamoDbClientOptions.TableNaming.init -> void
 DynaSharp.DynamoDbClientOptions.TimeProvider.get -> System.TimeProvider!
 DynaSharp.DynamoDbClientOptions.TimeProvider.init -> void
 DynaSharp.DynamoDbClientOptions.TokenSigner.get -> DynaSharp.ContinuationTokenSigner?
@@ -454,10 +457,6 @@ DynaSharp.IdempotentParameterMismatchException.IdempotentParameterMismatchExcept
 DynaSharp.Index<T>
 DynaSharp.Index<T>.Name.get -> string!
 DynaSharp.Index<T>.PartitionKeyName.get -> string!
-DynaSharp.Index<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
-DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-DynaSharp.Index<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-DynaSharp.Index<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.Index<T>.Scan() -> DynaSharp.ScanCommand<T>
 DynaSharp.Index<T>.SortKeyName.get -> string?
 DynaSharp.Index<T>.Table.get -> DynaSharp.Table<T>!
@@ -598,10 +597,14 @@ DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.get -> DynaSharp.Mapping.Attr
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.Naming.set -> void
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.get -> bool
 DynaSharp.Mapping.DynamoDbDefaultsAttribute.OmitEmpty.set -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Table.get -> string?
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Table.set -> void
 DynaSharp.Mapping.DynamoDbDocumentAttribute
 DynaSharp.Mapping.DynamoDbDocumentAttribute.DynamoDbDocumentAttribute() -> void
 DynaSharp.Mapping.DynamoDbEntityAttribute
 DynaSharp.Mapping.DynamoDbEntityAttribute.DynamoDbEntityAttribute() -> void
+DynaSharp.Mapping.DynamoDbEntityAttribute.Table.get -> string?
+DynaSharp.Mapping.DynamoDbEntityAttribute.Table.set -> void
 DynaSharp.Mapping.DynamoDbEntityInfo
 DynaSharp.Mapping.DynamoDbEntityInfo.Discriminator.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.DiscriminatorAttributeName.get -> string!
@@ -612,6 +615,8 @@ DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyName.get -> string!
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
+DynaSharp.Mapping.DynamoDbEntityInfo.TableName.get -> string?
+DynaSharp.Mapping.DynamoDbEntityInfo.TableName.init -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionAttributeName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionMissing.get -> DynaSharp.Mapping.VersionMissing
@@ -1930,6 +1935,8 @@ DynaSharp.Serialization.IDynamoDbSetElementConverter<T>
 DynaSharp.Serialization.IDynamoDbSetElementConverter<T>.ReadElement(ref DynaSharp.Serialization.DynamoDbReader reader) -> T
 DynaSharp.Serialization.IDynamoDbSetElementConverter<T>.SetType.get -> DynaSharp.AttributeType
 DynaSharp.Serialization.IDynamoDbSetElementConverter<T>.WriteElement(DynaSharp.Serialization.DynamoDbWriter writer, T value) -> void
+DynaSharp.Serialization.JsonElementConverter
+DynaSharp.Serialization.JsonElementConverter.JsonElementConverter() -> void
 DynaSharp.Serialization.ListConverter<T, TConverter>
 DynaSharp.Serialization.ListConverter<T, TConverter>.ListConverter() -> void
 DynaSharp.Serialization.MutableListConverter<T, TConverter>
@@ -2275,21 +2282,15 @@ DynaSharp.Table<T>.BatchGet() -> DynaSharp.BatchGetCommand<T>
 DynaSharp.Table<T>.BatchWrite() -> DynaSharp.BatchWriteCommand<T>
 DynaSharp.Table<T>.Client.get -> DynaSharp.DynamoDbClient!
 DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
-DynaSharp.Table<T>.Delete(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.DeleteCommand<T>
 DynaSharp.Table<T>.Delete<TKey>(TKey key) -> DynaSharp.DeleteCommand<T>
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.DescribeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
-DynaSharp.Table<T>.Get(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.GetCommand<T>
 DynaSharp.Table<T>.Get<TKey>(TKey key) -> DynaSharp.GetCommand<T>
 DynaSharp.Table<T>.Index(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Index<T>!
 DynaSharp.Table<T>.Name.get -> string!
 DynaSharp.Table<T>.Of<TOther>() -> DynaSharp.Table<TOther>!
 DynaSharp.Table<T>.PartitionKeyName.get -> string!
 DynaSharp.Table<T>.Put(T item) -> DynaSharp.PutCommand<T>
-DynaSharp.Table<T>.Query(DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
-DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-DynaSharp.Table<T>.Query(System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-DynaSharp.Table<T>.Query(scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.Table<T>.Query<TKey>(TKey key) -> DynaSharp.QueryCommand<T>
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3, T4>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
@@ -2304,7 +2305,6 @@ DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threadi
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.Scan() -> DynaSharp.ScanCommand<T>
 DynaSharp.Table<T>.SortKeyName.get -> string?
-DynaSharp.Table<T>.Update(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateCommand<T>
 DynaSharp.Table<T>.Update<TKey>(TKey key) -> DynaSharp.UpdateCommand<T>
 DynaSharp.Table<T>.WaitUntilActiveAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.WaitUntilActiveAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
@@ -2343,9 +2343,9 @@ DynaSharp.TableStatus.Updating = 2 -> DynaSharp.TableStatus
 DynaSharp.ThrottlingException
 DynaSharp.ThrottlingException.ThrottlingException(string! message, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
 DynaSharp.TransactGetCommand
+DynaSharp.TransactGetCommand.Get(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactSlot<DynaSharp.Item!> slot) -> DynaSharp.TransactGetCommand
+DynaSharp.TransactGetCommand.Get(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, out DynaSharp.TransactSlot<DynaSharp.Item!> slot) -> DynaSharp.TransactGetCommand
 DynaSharp.TransactGetCommand.Get<T, TKey>(DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactSlot<T> slot) -> DynaSharp.TransactGetCommand
-DynaSharp.TransactGetCommand.Get<T>(DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactSlot<T> slot) -> DynaSharp.TransactGetCommand
-DynaSharp.TransactGetCommand.Get<T>(DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, out DynaSharp.TransactSlot<T> slot) -> DynaSharp.TransactGetCommand
 DynaSharp.TransactGetCommand.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.TransactGetResult!>
 DynaSharp.TransactGetCommand.MaxAttempts(int attempts) -> DynaSharp.TransactGetCommand
 DynaSharp.TransactGetCommand.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.TransactGetCommand
@@ -2840,6 +2840,8 @@ static DynaSharp.AttrExtensions.Contains<T, TElement>(this DynaSharp.Attr<T[]!, 
 static DynaSharp.AttributeValue.FromBinary(System.ReadOnlySpan<byte> value) -> DynaSharp.AttributeValue
 static DynaSharp.AttributeValue.FromBinarySet(System.Collections.Generic.IEnumerable<byte[]!>! values) -> DynaSharp.AttributeValue
 static DynaSharp.AttributeValue.FromBool(bool value) -> DynaSharp.AttributeValue
+static DynaSharp.AttributeValue.FromJson(System.ReadOnlySpan<byte> utf8Json) -> DynaSharp.AttributeValue
+static DynaSharp.AttributeValue.FromJson(System.Text.Json.JsonElement json) -> DynaSharp.AttributeValue
 static DynaSharp.AttributeValue.FromList(System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! values) -> DynaSharp.AttributeValue
 static DynaSharp.AttributeValue.FromMap(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, DynaSharp.AttributeValue>>! values) -> DynaSharp.AttributeValue
 static DynaSharp.AttributeValue.FromNumber(string! value) -> DynaSharp.AttributeValue
@@ -3125,6 +3127,8 @@ static DynaSharp.Serialization.GuidSetElement.WriteElement(DynaSharp.Serializati
 static DynaSharp.Serialization.HashSetConverter<T, TElement>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.Collections.Generic.HashSet<T>!
 static DynaSharp.Serialization.HashSetConverter<T, TElement>.TryReadMissing(out System.Collections.Generic.HashSet<T>! value) -> bool
 static DynaSharp.Serialization.HashSetConverter<T, TElement>.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.Collections.Generic.HashSet<T>! value) -> void
+static DynaSharp.Serialization.JsonElementConverter.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.Text.Json.JsonElement
+static DynaSharp.Serialization.JsonElementConverter.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.Text.Json.JsonElement value) -> void
 static DynaSharp.Serialization.ListConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.Collections.Generic.List<T>!
 static DynaSharp.Serialization.ListConverter<T, TConverter>.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.Collections.Generic.List<T>! value) -> void
 static DynaSharp.Serialization.MutableListConverter<T, TConverter>.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.Collections.Generic.IList<T>!
@@ -3246,7 +3250,10 @@ static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaShar
 static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
 static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
+static DynaSharp.TableExtensions.Delete(this DynaSharp.BatchWriteCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Delete(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.DeleteCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
+static DynaSharp.TableExtensions.Get(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.GetCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Get<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.GetCommand<T>
 static DynaSharp.TableExtensions.IfVersion<T>(this DynaSharp.DeleteCommand<T> command, long version) -> DynaSharp.DeleteCommand<T>
 static DynaSharp.TableExtensions.IfVersion<T>(this DynaSharp.UpdateCommand<T> command, long version) -> DynaSharp.UpdateCommand<T>
@@ -3255,7 +3262,16 @@ static DynaSharp.TableExtensions.IgnoreVersion<T>(this DynaSharp.PutCommand<T> c
 static DynaSharp.TableExtensions.IgnoreVersion<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
 static DynaSharp.TableExtensions.Index<T>(this DynaSharp.Table<T>! table, string! name) -> DynaSharp.Index<T>!
 static DynaSharp.TableExtensions.Index<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, string! name) -> DynaSharp.Index<DynaSharp.Item!>!
+static DynaSharp.TableExtensions.Key(this DynaSharp.BatchGetCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Put(this DynaSharp.Table<DynaSharp.Item!>! table) -> DynaSharp.PutCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
 static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
 static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
@@ -3264,18 +3280,20 @@ static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.I
 static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.TableExtensions.QueryByDiscriminator<T>(this DynaSharp.Index<T>! index, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
 static DynaSharp.TableExtensions.StoreKeyInputs<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
+static DynaSharp.TableExtensions.Update(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.With(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, DynaSharp.AttributeValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.With<TNumber>(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, TNumber value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.TableExtensions.With<TValue, TConverter>(this DynaSharp.PutCommand<DynaSharp.Item!> command, DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.TransactWriteExtensions.Check<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.Check<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
-static DynaSharp.TransactWriteExtensions.Check<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.ConditionStep
-static DynaSharp.TransactWriteExtensions.Check<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
+static DynaSharp.TransactWriteExtensions.Check<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.ConditionStep
+static DynaSharp.TransactWriteExtensions.Check<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.Delete<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.Delete<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
-static DynaSharp.TransactWriteExtensions.Delete<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.ConditionStep
-static DynaSharp.TransactWriteExtensions.Delete<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
+static DynaSharp.TransactWriteExtensions.Delete<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.ConditionStep
+static DynaSharp.TransactWriteExtensions.Delete<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.GetAwaiter<TChain>(this TChain chain) -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.TransactWriteResult>
 static DynaSharp.TransactWriteExtensions.IfExists<TStep>(this TStep step) -> TStep
 static DynaSharp.TransactWriteExtensions.IfNotExists<TStep>(this TStep step) -> TStep
@@ -3290,8 +3308,8 @@ static DynaSharp.TransactWriteExtensions.Unique<TChain, T, TKey>(this TChain cha
 static DynaSharp.TransactWriteExtensions.Unique<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, T item, out DynaSharp.TransactMarker marker) -> DynaSharp.PutStep
 static DynaSharp.TransactWriteExtensions.Update<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key) -> DynaSharp.UpdateStep
 static DynaSharp.TransactWriteExtensions.Update<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactMarker marker) -> DynaSharp.UpdateStep
-static DynaSharp.TransactWriteExtensions.Update<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateStep
-static DynaSharp.TransactWriteExtensions.Update<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.UpdateStep
+static DynaSharp.TransactWriteExtensions.Update<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateStep
+static DynaSharp.TransactWriteExtensions.Update<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.TransactMarker marker) -> DynaSharp.UpdateStep
 static DynaSharp.TransactionActionFailure.operator !=(DynaSharp.TransactionActionFailure left, DynaSharp.TransactionActionFailure right) -> bool
 static DynaSharp.TransactionActionFailure.operator ==(DynaSharp.TransactionActionFailure left, DynaSharp.TransactionActionFailure right) -> bool
 static DynaSharp.UpdateCommand<T>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.UpdateCommand<T> command) -> DynaSharp.Expressions.CommandHandle

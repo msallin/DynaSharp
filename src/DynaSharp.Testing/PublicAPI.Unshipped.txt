@@ -1,5 +1,1 @@
 #nullable enable
-DynaSharp.Testing.FakeDynamoDb.CreateTable<T>() -> DynaSharp.Requests.TableDescription!
-DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Item! key) -> T?
-DynaSharp.Testing.FakeDynamoDb.Items<T>() -> System.Collections.Generic.IReadOnlyList<T>!
-DynaSharp.Testing.FakeDynamoDb.Put<T>(T entity) -> void

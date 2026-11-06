@@ -116,3 +116,13 @@ Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 DYNA037 | DynaSharp.Mapping | Info | No IncludingAll() for the entities of this assembly
 DYNA038 | DynaSharp.Mapping | Error | Type has a name the generated class DynamoDbEntities needs
+
+## Release 0.5.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA039 | DynaSharp.Mapping | Error | Table name is invalid
+DYNA040 | DynaSharp.Mapping | Warning | Entities of one table with other keys
+DYNA238 | DynaSharp.Commands | Error | Entity declares no table
