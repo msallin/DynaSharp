@@ -53,7 +53,7 @@ The client throws these itself:
 
 | Exception | When | Carries |
 |---|---|---|
-| `TimeoutException` | An attempt ran past `AttemptTimeout`. Retried; surfaces after the last attempt | |
+| `TimeoutException` | An attempt ran past `AttemptTimeout`. Retried; surfaces after the last attempt. Also a `CreateTable()` that ran past its `Timeout(...)`, see [A table that exists](tables.md#a-table-that-exists), which is not retried | The message of the `CreateTable()` names the table and the step |
 | `HttpRequestException` | The network failed. Retried, except a response above 64 MB, whose `HttpRequestError` is `ConfigurationLimitExceeded` | |
 | `OperationCanceledException` | The caller's `CancellationToken` was cancelled. Never retried | |
 | `CredentialsUnavailableException` | No credentials source applies, or one that applies is broken. Never retried. See [When credentials fail](credentials.md#when-credentials-fail) | |
