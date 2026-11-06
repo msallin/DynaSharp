@@ -100,3 +100,4 @@ Enums: []
 HidesInheritedKeys: False
 HidesInheritedAttrs: False
 HidesInheritedIndexes: False
+Reach: Public

@@ -10,7 +10,7 @@ namespace DynaSharp.UnitTests.Generators;
 /// </summary>
 public sealed class IncrementalityTests
 {
-    private const string Reused = "Entities: Unchanged; Documents: Unchanged; Models: Cached; Diagnostics: ; output: Cached";
+    private const string Reused = "Entities: Unchanged; Documents: Unchanged; Models: Cached; Diagnostics: ; Registry: Cached; output: Cached";
 
     private const string Status = """
         namespace Shop
@@ -196,8 +196,8 @@ public sealed class IncrementalityTests
         // Act
         var run = driver.RunGenerators(edited).GetRunResult().Results[0];
 
-        // Assert
-        await Assert.That((ReasonsOf(run, TrackingNames.Entities), ReasonsOf(run, TrackingNames.Documents), ReasonsOf(run, TrackingNames.Models), OutputReasons(run))).IsEqualTo(("Modified", "Modified", "Modified", "Modified"));
+        // Assert (the names of the keys stay, so IncludingAll() stays as it was)
+        await Assert.That((ReasonsOf(run, TrackingNames.Entities), ReasonsOf(run, TrackingNames.Documents), ReasonsOf(run, TrackingNames.Models), OutputReasons(run))).IsEqualTo(("Modified", "Modified", "Modified", "Cached, Modified"));
     }
 
     [Test]

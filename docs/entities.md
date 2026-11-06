@@ -141,6 +141,24 @@ With `Sparse = true`, an item with a null input writes no key of that index, so 
 public partial record Parcel(string Id, string? TrackingNumber);
 ```
 
+A string that other code fills with `""` for "none" gets an `[OmitEmpty]` of its own, which makes an empty value count as null here as well: the attribute is left out and so is every key of the index, where without the attribute the write throws `KeyFormatException`, because DynamoDB refuses an empty string in a key.
+
+```csharp
+[GlobalIndexKey("ByCoupon", PartitionKey = "COUPON#{Coupon}", Sparse = true)]
+public partial record Booking
+{
+    public required string Id { get; init; }
+
+    [OmitEmpty]
+    public string Coupon { get; init; } = "";
+}
+```
+
+- **Only on the property.** `[OmitEmpty]` on the type and `OmitEmpty = true` in `[assembly: DynamoDbDefaults]` pass over an input of a key, so that a default does not turn a key that throws for `""` into an item that silently stays out of an index.
+- **Only for sparse indexes.** The string feeds no key of the table and no key of an index without `Sparse = true`, where `[OmitEmpty]` is `DYNA030`.
+- **Reads.** An item without the attribute reads as the initial value: `""` above, null for a `string?`. A non-nullable `required` string has nothing to read back, and is `DYNA030` too.
+- **Updates.** `Set(Booking.Attrs.Coupon, "")` is a `Remove`, which takes the item out of the index, `SetIfNotNull` with `""` adds nothing, and `SetIfNotExists` throws `ArgumentException` for it. `Booking.Keys.ByCouponPk.Of("")` still throws `KeyFormatException`: a key built by hand is no write that can leave it out.
+
 An update that sets one key of a sparse index writes the other too, building it from the values it has, or throws naming the `Set` to add. A key that is one bare placeholder over a string, `Guid`, `DateOnly`, `ticks` timestamp or enum by name, such as `PartitionKey = "{Owner}"`, is the text of its attribute, so the update copies it from the item (`SET byownerpk = Owner`) and needs no value. An item without the attribute fails that update with `ValidationException`.
 
 ## Local indexes

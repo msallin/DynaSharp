@@ -453,6 +453,7 @@ internal sealed class ModelBuilder
             _enums.ToEquatableArray(),
             _kind == MappedKind.Entity && TypeRules.HidesKeys(_type),
             TypeRules.HidesAttrs(_type),
-            _kind == MappedKind.Entity && TypeRules.HidesIndexes(_type));
+            _kind == MappedKind.Entity && TypeRules.HidesIndexes(_type),
+            Types.Effective(_type));
     }
 }

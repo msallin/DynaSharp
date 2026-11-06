@@ -38,6 +38,8 @@ internal sealed class EntityKeyBuilder(
 
     private readonly List<KeyModel> _keys = [];
 
+    private readonly List<KeyModel> _sparseKeys = [];
+
     private readonly List<(KeyTemplate Template, Spot Spot, IReadOnlyCollection<string> Fallbacks)> _templates = [];
 
     public EntityModel? Build(DiscriminatorInfo discriminator)
@@ -127,6 +129,7 @@ internal sealed class EntityKeyBuilder(
             inner.ToDisplayString(),
             KeyInputCatalog.Classify(inner, enums),
             isNullable,
+            property.OmitsEmptyByItsOwnAttribute,
             property.IsComputed,
             property.ComputedFrom is not null,
             Types.Effective(inner) >= Types.Effective(type));
@@ -145,7 +148,7 @@ internal sealed class EntityKeyBuilder(
         var names = templates
             .SelectMany(static template => template?.Segments ?? default)
             .OfType<PlaceholderSegment>()
-            .Where(static placeholder => placeholder.InputIsNullable)
+            .Where(static placeholder => placeholder.InputCanBeAbsent)
             .Select(static placeholder => placeholder.Property)
             .Distinct();
         return new EquatableArray<string>([.. names]);
@@ -166,7 +169,7 @@ internal sealed class EntityKeyBuilder(
     {
         var inputs = _keys.SelectMany(static key => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Select(static placeholder => placeholder.Property)).ToList();
         inputs.AddRange(_keys.Select(static key => key.PlainProperty).OfType<string>());
-        foreach (var property in properties.Where(property => inputs.Contains(property.Name) && EmptyDefault.IsForgettable(property, type)))
+        foreach (var property in properties.Where(property => inputs.Contains(property.Name) && !property.OmitsEmpty && EmptyDefault.IsForgettable(property, type)))
         {
             bag.Report(Descriptors.EmptyDefaultOfKey, property.Spot, property.Name);
         }
@@ -499,11 +502,16 @@ internal sealed class EntityKeyBuilder(
         var plainInputs = ownKeys
             .Select(static key => key?.PlainProperty)
             .OfType<string>()
-            .Where(property => Types.Unwrap(_stored[property].Type).IsNullable);
+            .Where(property => Types.Unwrap(_stored[property].Type).IsNullable || _stored[property].OmitsEmptyByItsOwnAttribute);
         var all = new EquatableArray<string>([.. inputs.Concat(plainInputs).Distinct()]);
         if (sparse && all.Count == 0)
         {
             bag.Report(Descriptors.SparseWithoutNullableInput, Spot.Of(attribute, typeSpot), name);
+        }
+
+        if (sparse)
+        {
+            _sparseKeys.AddRange(ownKeys.OfType<KeyModel>());
         }
 
         return new IndexModel(name, partition, sort, sparse, isLocal, all);
@@ -619,19 +627,29 @@ internal sealed class EntityKeyBuilder(
     }
 
     // A key must not be empty, and one that leaves out an input is no key, so on a type the attribute passes over a property that feeds one, and on the property it is a mistake. A converter
-    // decides by value, at run time, where nothing can report it, so its answer goes the way of the attribute on a type.
+    // decides by value, at run time, where nothing can report it, so its answer goes the way of the attribute on a type. The exception is a string with an attribute of its own that feeds
+    // only keys of sparse indexes: an empty value is left out as null is, and so is the index, which the gates of the write test the same way.
     private void KeepKeysFromOmitting()
     {
         foreach (var property in properties.Where(FeedsKey))
         {
-            property.OmitsEmpty = false;
             property.Resolved = property.Resolved?.AlwaysWritten();
+            if (property.OmitsEmptyByItsOwnAttribute && FeedsOnlySparseKeys(property))
+            {
+                continue;
+            }
+
+            property.OmitsEmpty = false;
             if (property.OmitEmpty is { } attribute && AttributeReader.IsEnabled(attribute) && property.CanBeEmpty)
             {
-                bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key");
+                bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out");
             }
         }
     }
+
+    private bool FeedsOnlySparseKeys(PropertyFacts property) =>
+        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property.Name))
+            .All(_sparseKeys.Contains);
 
     // A property that is a key has only the converter to go by. A read that took it for missing would give an entity with another key, which the next Put writes somewhere else.
     private void KeepKeysFromMissing()

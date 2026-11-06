@@ -44,10 +44,10 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Keep one, or name the closed type without its `?`.
 - **Not reported.** Nothing else fails with it: a type that would use it takes the first default or the built-in.
 
-`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
+`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
 
-- **Fix.** Remove the attribute, move the property out of the keys, make it nullable, or give it a default.
-- **Not reported.** `[OmitEmpty]` on a type skips such properties by itself, and they stay written; `[OmitEmpty(false)]` is not reported either.
+- **Fix.** Remove the attribute, move the property out of the keys, make the index `Sparse = true`, make the property nullable, or give it a default.
+- **Not reported.** A stored string that feeds nothing but keys of sparse indexes: there an empty value leaves out the attribute and the keys of its indexes, see [Sparse indexes](entities.md#sparse-indexes). `[OmitEmpty]` on a type skips the inputs of keys by itself, sparse or not, and they stay written; `[OmitEmpty(false)]` is not reported either.
 
 `DYNA031` (warning): an entity property whose type is an entity too, or a list, set, dictionary or array of one, such as `public Customer Buyer { get; init; }` on an `Order`. It is stored as a map carrying the customer's keys, index keys and discriminator, which no read of an order takes and no index sees.
 
@@ -79,6 +79,16 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type.
 - **Not reported.** A custom converter that implements `IAddableConverter`, which says that it writes a number, whatever it holds. Two entities of one table that name different attributes, which `CreateTable().Including<T>()` finds at run time and throws `ArgumentException` for. On a document it is `DYNA012`.
 
+`DYNA037` (info): the generator writes no [`IncludingAll()`](tables.md#creating-a-table) for the entities of this assembly, for the reason the message gives. Either they declare the keys of more than one table, such as `pk` and `sk` on `Order` and `id` on `Session`, which `Including<T>` would throw `ArgumentException` for on any one table, or an entity is nested in a type that hides it, such as a `private` record inside a test class, which a class outside that type cannot name. Reported once per compilation, on no file.
+
+- **Fix.** Nothing has to change: name the entities of each table with `Including<T>()`. For `IncludingAll()`, keep the entities of one table in an assembly of their own, or make a hidden one `internal`.
+- **Not reported.** An assembly without entities. A suppression goes into `.editorconfig` (`dotnet_diagnostic.DYNA037.severity = none`), since there is no line for a `#pragma`.
+
+`DYNA038`: a type of the assembly has the name the generated class `DynamoDbEntities` needs: the class itself in the namespace named after the assembly, such as `Shop.DynamoDbEntities` in an assembly `Shop`, or a part of that namespace, such as a class `Shop` in the global namespace. C# allows no namespace and type of one name, so the class is not generated.
+
+- **Fix.** Rename the type, or the assembly (`AssemblyName` in the project file).
+- **Not reported.** An assembly for which no `IncludingAll()` would be generated, see `DYNA037`.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.
@@ -95,7 +105,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 | `DYNA107` | A nullable property in a key that is not sparse | Make the index `Sparse`, or the property required |
 | `DYNA108` (warning) | A number without a fixed width in a sort key, so `10` sorts before `9` | Use `d<w>` or `n<i>`, or `plain` if the order does not matter |
 | `DYNA109` | `[KeyOnly]` that cannot work, as the message says | Hold the value in a key without loss, or store it |
-| `DYNA110` (warning) | A sparse index whose inputs are all required, so it holds every item | Remove `Sparse`, or make an input nullable |
+| `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own |
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
 | `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>` |

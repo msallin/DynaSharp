@@ -190,6 +190,7 @@ var featured = articles.Index(Article.Indexes.Gsi2).Query(Article.Keys.Gsi2Pk.Of
 Caveats:
 
 - A `Set` of null of one input takes the item out, as a `Remove` does.
+- A state that other code writes as `""`, not as null, takes `[OmitEmpty]` on its string, such as `[OmitEmpty] public string Plan { get; init; } = "";`: an empty value is then left out like null, with the keys of the index, where without it a `Put` throws `KeyFormatException`. Only an attribute on the property does that, see [Sparse indexes](entities.md#sparse-indexes).
 - A constant partition key is one index partition, with its limits. A list that many items enter needs [write sharding](patterns-keys.md#write-sharding).
 
 ## Queue over a sparse index

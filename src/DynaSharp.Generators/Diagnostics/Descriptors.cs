@@ -201,6 +201,24 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor InvalidTimeToLive = new(
         "DYNA036", "[TimeToLive] is not valid here", "[TimeToLive] on '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor NoIncludingAll = new(
+        "DYNA037",
+        "No IncludingAll() for the entities of this assembly",
+        "No IncludingAll() is generated for the entities of this assembly: {0}. Name the entities of a table with Including<T>().",
+        Mapping,
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor NamedLikeEntitiesClass = new(
+        "DYNA038",
+        "Type has a name the generated class DynamoDbEntities needs",
+        "Type '{0}' has the name '{1}', which the generated class DynamoDbEntities of this assembly needs for itself or for its namespace, the name of the assembly. Rename the type.",
+        Mapping,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -246,7 +264,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor SparseWithoutNullableInput = new(
         "DYNA110",
         "Sparse index without nullable inputs",
-        "Index '{0}' is Sparse, but all its inputs are non-nullable, so every item is indexed",
+        "Index '{0}' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed",
         KeyGrammar,
         DiagnosticSeverity.Warning,
         true,
@@ -677,7 +695,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

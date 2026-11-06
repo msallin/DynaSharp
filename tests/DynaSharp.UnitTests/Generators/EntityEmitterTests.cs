@@ -17,8 +17,8 @@ public sealed class EntityEmitterTests
         // Arrange, Act
         var result = GeneratorRun.Generate(EmitterShapes.All[shape], new DynaSharpGenerator(), LanguageVersion.Latest);
 
-        // Assert
-        foreach (var source in result.Results[0].GeneratedSources)
+        // Assert (IncludingAll() is the same for every shape, and EntitiesEmitterTests has its own snapshots)
+        foreach (var source in result.Results[0].GeneratedSources.Where(static source => source.HintName != EntitiesEmitter.HintName))
         {
             SnapshotComparer.Verify($"{shape}.{source.HintName.Replace(".g.cs", ".g", StringComparison.Ordinal)}", source.SourceText.ToString());
         }

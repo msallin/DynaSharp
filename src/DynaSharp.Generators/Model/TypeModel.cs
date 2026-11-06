@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+
 namespace DynaSharp.Generators;
 
 /// <summary>Everything the emitters need to know about one entity or document.</summary>
@@ -15,6 +17,7 @@ namespace DynaSharp.Generators;
 /// <param name="HidesInheritedKeys">Whether <c>Keys</c> needs <c>new</c>, because a base type has a member of that name.</param>
 /// <param name="HidesInheritedAttrs">Whether <c>Attrs</c> needs <c>new</c>, because a base type has a member of that name.</param>
 /// <param name="HidesInheritedIndexes">Whether <c>Indexes</c> needs <c>new</c>, because a base type has a member of that name.</param>
+/// <param name="Reach">The accessibility the type really has, through the types around it, which decides who can name it outside the type.</param>
 internal sealed record TypeModel(
     string? Namespace,
     string Name,
@@ -29,7 +32,8 @@ internal sealed record TypeModel(
     EquatableArray<EnumModel> Enums,
     bool HidesInheritedKeys,
     bool HidesInheritedAttrs,
-    bool HidesInheritedIndexes)
+    bool HidesInheritedIndexes,
+    Accessibility Reach)
 {
     /// <summary>Gets the property a model refers to by <see cref="PropertyModel.Name"/>.</summary>
     /// <param name="name">The name.</param>

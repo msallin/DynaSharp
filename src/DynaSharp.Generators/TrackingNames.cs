@@ -13,4 +13,6 @@ internal static class TrackingNames
     public const string Models = nameof(Models);
 
     public const string Diagnostics = nameof(Diagnostics);
+
+    public const string Registry = nameof(Registry);
 }

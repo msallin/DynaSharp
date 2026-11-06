@@ -103,7 +103,7 @@ internal static class KeyTemplateBinder
             problems.Add(new KeyProblem(Descriptors.NumberWithoutFixedFormat, [input.Property]));
         }
 
-        return new PlaceholderSegment(input.Property, input.ParameterName, input.ValueType, binding.Encoding, input.IsNullable);
+        return new PlaceholderSegment(input.Property, input.ParameterName, input.ValueType, binding.Encoding, input.IsNullable || input.OmitsEmpty);
     }
 
     // A placeholder that fell back to its default has an error already, and the width of the default says nothing about the one the format meant.

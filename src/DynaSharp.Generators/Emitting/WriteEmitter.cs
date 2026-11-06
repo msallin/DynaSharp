@@ -48,7 +48,7 @@ internal static class WriteEmitter
         var variables = new VariableNames();
         if (type.Entity is not null)
         {
-            EmitKeyAttributes(code, type.Entity, variables);
+            EmitKeyAttributes(code, type, type.Entity, variables);
         }
 
         foreach (var property in type.Properties)
@@ -110,7 +110,7 @@ internal static class WriteEmitter
     private static List<KeyModel> WithOwnAttribute(params KeyModel?[] keys) =>
         [.. keys.OfType<KeyModel>().Where(static key => key is { PlainProperty: null, SharesAttribute: false })];
 
-    private static void EmitKeyAttributes(IndentedCode code, EntityModel entity, VariableNames variables)
+    private static void EmitKeyAttributes(IndentedCode code, TypeModel type, EntityModel entity, VariableNames variables)
     {
         foreach (var key in WithOwnAttribute(entity.PartitionKey, entity.SortKey))
         {
@@ -119,7 +119,7 @@ internal static class WriteEmitter
 
         foreach (var index in entity.Indexes)
         {
-            EmitIndex(code, index, variables);
+            EmitIndex(code, type, index, variables);
         }
 
         if (entity.Discriminator is { } discriminator)
@@ -129,20 +129,20 @@ internal static class WriteEmitter
         }
     }
 
-    private static void EmitIndex(IndentedCode code, IndexModel index, VariableNames variables)
+    private static void EmitIndex(IndentedCode code, TypeModel type, IndexModel index, VariableNames variables)
     {
         // A local index shares the partition key of the table, which is written already.
         var written = WithOwnAttribute(index.IsLocal ? null : index.PartitionKey, index.SortKey);
         foreach (var key in written.Where(static key => key.Gates.Count > 0))
         {
-            EmitSharedKey(code, key, variables);
+            EmitSharedKey(code, type, key, variables);
         }
 
         var keys = written.Where(static key => key.Gates.Count == 0).ToList();
         var inputs = index.Sparse && keys.Count > 0 ? index.NullableInputs.ToDictionary(static input => input, _ => variables.Next()) : [];
         if (inputs.Count > 0)
         {
-            var conditions = inputs.Select(static input => $"entity.{Names.Identifier(input.Key)} is {{ }} {input.Value}");
+            var conditions = inputs.Select(input => $"entity.{Names.Identifier(input.Key)} is {Present(type, input.Key)} {input.Value}");
             code.Line($"if ({string.Join(" && ", conditions)})");
             code.Open();
         }
@@ -160,17 +160,17 @@ internal static class WriteEmitter
 
     // The inputs of the key are in every gate, so they are what binds the values. Anything left of a gate is another index's business, and only tested:
     // if (entity.Nick is { } __v0 && ((entity.Age is not null) || (entity.City is not null)))
-    private static void EmitSharedKey(IndentedCode code, KeyModel key, VariableNames variables)
+    private static void EmitSharedKey(IndentedCode code, TypeModel type, KeyModel key, VariableNames variables)
     {
         var inputs = key.Template!.Segments
             .OfType<PlaceholderSegment>()
-            .Where(static placeholder => placeholder.InputIsNullable)
+            .Where(static placeholder => placeholder.InputCanBeAbsent)
             .ToDictionary(static placeholder => placeholder.Property, _ => variables.Next());
         var alternatives = key.Gates.Select(gate => gate.Where(input => !inputs.ContainsKey(input)).ToList()).ToList();
-        var conditions = inputs.Select(static input => $"entity.{Names.Identifier(input.Key)} is {{ }} {input.Value}").ToList();
+        var conditions = inputs.Select(input => $"entity.{Names.Identifier(input.Key)} is {Present(type, input.Key)} {input.Value}").ToList();
         if (alternatives.TrueForAll(static gate => gate.Count > 0))
         {
-            conditions.Add($"({string.Join(" || ", alternatives.Select(static gate => $"({string.Join(" && ", gate.Select(static input => $"entity.{Names.Identifier(input)} is not null"))})"))})");
+            conditions.Add($"({string.Join(" || ", alternatives.Select(gate => $"({string.Join(" && ", gate.Select(input => $"entity.{Names.Identifier(input)} {Tested(type, input)}"))})"))})");
         }
 
         if (conditions.Count == 0)
@@ -184,6 +184,14 @@ internal static class WriteEmitter
         EmitTemplateKey(code, key, inputs);
         code.Close();
     }
+
+    // A string with [OmitEmpty] of its own is left out when it is empty, so its gate is the condition that writes its attribute. Null is absent for every other input, also one that has no attribute.
+    private static bool OmitsEmpty(TypeModel type, string input) =>
+        type.Properties.Any(property => property.Name == input && property.Write == WriteCondition.WhenNotEmptyLength);
+
+    private static string Present(TypeModel type, string input) => OmitsEmpty(type, input) ? "{ Length: > 0 }" : "{ }";
+
+    private static string Tested(TypeModel type, string input) => OmitsEmpty(type, input) ? "is { Length: > 0 }" : "is not null";
 
     private static void EmitTemplateKey(IndentedCode code, KeyModel key, Dictionary<string, string> inputs)
     {

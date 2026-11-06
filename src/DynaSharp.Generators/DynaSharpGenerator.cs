@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -31,6 +32,19 @@ public sealed class DynaSharpGenerator : IIncrementalGenerator
         {
             context.RegisterSourceOutput(models.Combine(clashes), static (output, input) => EntityEmitter.Emit(output, input.Left!, HintNames.Of(input.Left!, input.Right)));
         }
+
+        // IncludingAll() of the assembly: all entities at once, beside a name of the assembly that changes only with the project. Both are values, so an edit that changes no entity reruns nothing.
+        var registry = entities
+            .Select(static (type, _) => RegistryBuilder.Entry(type!))
+            .Collect()
+            .Combine(context.CompilationProvider.Select(static (compilation, _) => RegistryBuilder.Home(compilation)))
+            .Select(static (input, _) => RegistryBuilder.Build(input.Left, input.Right))
+            .WithTrackingName(TrackingNames.Registry);
+        context.RegisterSourceOutput(registry, static (output, built) => EntitiesEmitter.Emit(output, built.Class));
+        var registryProblems = registry.SelectMany(static (built, _) => built.Diagnostics.Count > 0 ? [built.Diagnostics] : ImmutableArray<EquatableArray<DiagnosticInfo>>.Empty);
+        context.RegisterSourceOutput(
+            registryProblems.Combine(context.CompilationProvider),
+            static (output, input) => DiagnosticReporter.Report(output, input.Left, input.Right));
     }
 
     private static IncrementalValuesProvider<TypeModel?> Models(IncrementalGeneratorInitializationContext context, string attributeName, MappedKind kind, string trackingName)
