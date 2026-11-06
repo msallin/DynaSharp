@@ -29,7 +29,7 @@ using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri(
 
 The rest is a `with`, as in `DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }`.
 
-DynamoDB Local started without `-sharedDb` keeps one database per access key and region. A tool or a program that uses another region or other keys sees other tables, and none that this client created: the AWS CLI with the region of its profile, for one. `ForEmulator` uses the same values on every call, so two programs that both use it meet. A tool takes `us-east-1` and the keys `local` and `local` too, or the client takes the region of the tool:
+DynamoDB Local started without `-sharedDb` keeps one database per access key and region. A tool or a program that uses another region or other keys sees other tables, and none that this client created: the AWS CLI with the region of its profile, for one. `ForEmulator` uses the same values on every call, so two programs that both use it meet. A tool takes `us-east-1` and the keys `local` and `local` too, or the client takes the region of the tool with the second parameter:
 
 ```csharp
 var options = DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2");

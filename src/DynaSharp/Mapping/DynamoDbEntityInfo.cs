@@ -17,6 +17,7 @@ namespace DynaSharp.Mapping;
 /// <param name="partitionKeyType">How the partition key is stored. <see cref="ScalarAttributeType.Unknown"/> says nothing, which creating a table reads as a string unless another entity knows better.</param>
 /// <param name="sortKeyType">How the sort key is stored, with <see cref="ScalarAttributeType.Unknown"/> if there is none or it does not say.</param>
 /// <param name="versionMissing">What an item without the version attribute means, see <see cref="VersionAttribute.Missing"/>.</param>
+/// <param name="timeToLiveAttributeName">The attribute of time to live, which <see cref="TimeToLiveAttribute"/> marks, or <see langword="null"/> if the type has none.</param>
 /// <remarks>Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package. A type written by hand that makes one has to follow the package.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class DynamoDbEntityInfo(
@@ -29,7 +30,8 @@ public sealed class DynamoDbEntityInfo(
     IReadOnlyList<DynamoDbKeyTemplate>? keyTemplates = null,
     ScalarAttributeType partitionKeyType = ScalarAttributeType.Unknown,
     ScalarAttributeType sortKeyType = ScalarAttributeType.Unknown,
-    VersionMissing versionMissing = VersionMissing.Reject)
+    VersionMissing versionMissing = VersionMissing.Reject,
+    string? timeToLiveAttributeName = null)
 {
     /// <summary>The attribute that holds the discriminator unless a type names another one.</summary>
     public const string DefaultDiscriminatorAttributeName = "_type";
@@ -68,5 +70,5 @@ public sealed class DynamoDbEntityInfo(
     public IReadOnlyList<DynamoDbKeyTemplate> KeyTemplates { get; } = keyTemplates ?? [];
 
     /// <summary>Gets the attribute of time to live, which <see cref="TimeToLiveAttribute"/> marks and <c>CreateTable()</c> turns on, or <see langword="null"/> if the type has none.</summary>
-    public string? TimeToLiveAttributeName { get; init; }
+    public string? TimeToLiveAttributeName { get; } = timeToLiveAttributeName;
 }

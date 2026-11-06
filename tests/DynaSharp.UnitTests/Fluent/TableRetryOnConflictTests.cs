@@ -27,6 +27,38 @@ internal sealed class TableRetryOnConflictTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_Token_ReachesTheRunsOfEveryShape()
+    {
+        // Arrange (the token goes positionally after the delegate, to the form without retryOn and maxAttempts)
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        List<CancellationToken> seen = [];
+        using var client = TestClient.Create(new StubHandler());
+        var shop = client.Table("Shop", "pk");
+
+        ValueTask<int> Counted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return new(1);
+        }
+
+        ValueTask Noted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return ValueTask.CompletedTask;
+        }
+
+        // Act
+        await shop.RetryOnConflictAsync(ct => Counted(ct), token);
+        await shop.RetryOnConflictAsync(ct => Noted(ct), token);
+        await shop.RetryOnConflictAsync((_, ct) => Counted(ct), token);
+        await shop.RetryOnConflictAsync((_, ct) => Noted(ct), token);
+
+        // Assert
+        await Assert.That(seen.Count == 4 && seen.All(ct => ct == token)).IsTrue();
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_NeverGetsThrough_RunsFiveTimes()
     {
         // Arrange
@@ -62,7 +94,7 @@ internal sealed class TableRetryOnConflictTests
                 await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
                 return 7;
             },
-            maxAttempts));
+            maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(maxAttempts);
@@ -174,7 +206,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => new ValueTask<int>(1), 0));
+        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => new ValueTask<int>(1), maxAttempts: 0));
 
         // Assert
         await Assert.That(((ArgumentOutOfRangeException)failure).ParamName).IsEqualTo("maxAttempts");
@@ -189,7 +221,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => ValueTask.CompletedTask, 0));
+        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => ValueTask.CompletedTask, maxAttempts: 0));
 
         // Assert
         await Assert.That(((ArgumentOutOfRangeException)failure).ParamName).IsEqualTo("maxAttempts");

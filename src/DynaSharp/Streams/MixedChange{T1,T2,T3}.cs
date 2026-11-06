@@ -8,7 +8,8 @@ namespace DynaSharp.Streams;
 /// <c>change.Is(out Change&lt;Customer&gt;? customer)</c>, or handle every case with <c>Match</c>, which is what stays correct when a type is added.
 /// </summary>
 /// <remarks>
-/// It has the shape of <see cref="Mixed{T1, T2, T3}"/>, which cannot hold a change: its types must be entities, so that a mixed read can read them. The default value holds nothing,
+/// It is to <see cref="Change{T}"/> what <see cref="Mixed{T1, T2, T3}"/> of a mixed read is to an entity, with the same members. That one is a document, which a read fills and <see cref="Item.From{T}"/> writes;
+/// this one holds a change, which is neither. The default value holds nothing,
 /// and <c>Match</c> throws on it; a typed reading never gives one. A test builds one with the constructor of its type.
 /// </remarks>
 /// <typeparam name="T1">The first type.</typeparam>

@@ -234,6 +234,6 @@ public sealed class ConflictRetryTelemetryTests
     private static Task<WriteResult<Item>> PutAsync(DynamoDbClient client, string table, int maxAttempts = 5)
     {
         var shop = client.Table(table, "pk");
-        return client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey, ["secret"] = "value-5d1a3e9b" }).IfNotExists().SendAsync(ct), maxAttempts);
+        return client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey, ["secret"] = "value-5d1a3e9b" }).IfNotExists().SendAsync(ct), maxAttempts: maxAttempts);
     }
 }

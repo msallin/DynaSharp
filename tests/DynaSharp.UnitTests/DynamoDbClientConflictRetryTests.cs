@@ -318,7 +318,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -335,7 +335,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -349,7 +349,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync, int.MaxValue);
+        var result = await client.RetryOnConflictAsync(script.RunAsync, maxAttempts: int.MaxValue);
 
         // Assert
         await Assert.That(result).IsEqualTo(2);
@@ -366,7 +366,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts));
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -380,7 +380,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -583,6 +583,35 @@ internal sealed class DynamoDbClientConflictRetryTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_RunNumberAndAToken_GiveTheTokenToTheRunsOfBothShapes()
+    {
+        // Arrange (the token goes positionally after the delegate, to the form without retryOn and maxAttempts)
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        List<CancellationToken> seen = [];
+        using var client = NewClient();
+
+        ValueTask<int> Counted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return new(1);
+        }
+
+        ValueTask Noted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return ValueTask.CompletedTask;
+        }
+
+        // Act
+        await client.RetryOnConflictAsync((_, ct) => Counted(ct), token);
+        await client.RetryOnConflictAsync((_, ct) => Noted(ct), token);
+
+        // Assert
+        await Assert.That(seen.Count == 2 && seen.All(ct => ct == token)).IsTrue();
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_MaxAttemptsAndToken_GiveTheTokenToTheRuns()
     {
         // Arrange
@@ -599,7 +628,7 @@ internal sealed class DynamoDbClientConflictRetryTests
                 return ValueTask.CompletedTask;
             },
             maxAttempts: 8,
-            token);
+            cancellationToken: token);
 
         // Assert
         await Assert.That(seen == token).IsTrue();

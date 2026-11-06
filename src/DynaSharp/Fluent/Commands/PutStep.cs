@@ -92,5 +92,8 @@ public readonly ref struct PutStep : ITransactWriteStep<PutStep>
         return new(state);
     }
 
+    /// <inheritdoc cref="TransactWriteCommand.ToRequestJson"/>
+    public string ToRequestJson() => TransactWriteExtensions.RenderJson(Enter());
+
     private CommandState Enter() => CommandState.Enter(_state, _version, TransactWriteExtensions.Operation, _table);
 }

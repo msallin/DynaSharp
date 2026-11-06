@@ -59,5 +59,13 @@ public readonly ref struct TransactWriteCommand : ITransactWriteChain<TransactWr
         return new(state);
     }
 
+    /// <summary>
+    /// Renders the body this transaction would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests
+    /// and debugging. The text contains the items and a generated token that nothing ever sends.
+    /// </summary>
+    /// <returns>The request body.</returns>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or it has no action, which DynamoDB would reject.</exception>
+    public string ToRequestJson() => TransactWriteExtensions.RenderJson(Enter());
+
     private CommandState Enter() => CommandState.Enter(_state, _version, TransactWriteExtensions.Operation, _table);
 }

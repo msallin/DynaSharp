@@ -106,6 +106,8 @@ public sealed class CompileGuardTests
     [Arguments("""await shop.Scan().Parallel(8).PageAsync();""", "CS1061")]
     [Arguments("""await shop.Scan().Parallel(8).PageAsync(default, default);""", "CS1061")]
     [Arguments("""shop.Scan().Parallel(8).PagesAsync();""", "CS1061")]
+    [Arguments("""shop.Scan().Parallel(8).ToRequestJson();""", "CS1061")]
+    [Arguments("""_ = new DynamoDbClientOptions().ToRequestJson();""", "CS1061")]
     [Arguments("""await shop.Scan().Parallel(8).CountAsync();""", "CS1061")]
     [Arguments("""shop.Scan().Parallel(8).Filter(Attr("x").Exists());""", "CS1061")]
     [Arguments("""shop.Scan().Parallel(8).Limit(1);""", "CS1061")]

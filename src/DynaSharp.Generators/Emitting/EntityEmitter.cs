@@ -104,10 +104,13 @@ internal static class EntityEmitter
             code.Line("versionMissing: __Map.VersionMissing.Allow,");
         }
 
-        // The attribute of time to live came after the constructor shipped, so it is a property of the info.
-        var end = entity.TimeToLiveAttribute is { } timeToLive ? $") {{ TimeToLiveAttributeName = {CodeText.Literal(timeToLive)} }};" : ");";
+        if (entity.TimeToLiveAttribute is { } timeToLive)
+        {
+            code.Line($"timeToLiveAttributeName: {CodeText.Literal(timeToLive)},");
+        }
+
         var templates = KeyTemplateEmitter.Lines(type, entity);
-        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? end : ",")}");
+        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? ");" : ",")}");
         if (templates.Count > 0)
         {
             code.Line("keyTemplates: new __Map.DynamoDbKeyTemplate[]");
@@ -117,7 +120,7 @@ internal static class EntityEmitter
                 code.Line($"{template},");
             }
 
-            code.Close("}" + end);
+            code.Close("});");
         }
 
         code.Outdent();
