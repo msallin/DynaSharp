@@ -1,1 +1,5 @@
 #nullable enable
+DynaSharp.AttributeValue.ToJson() -> System.Text.Json.JsonElement
+DynaSharp.AttributeValue.WriteJson(System.Text.Json.Utf8JsonWriter! writer) -> void
+static DynaSharp.AttributeValue.FromJson(System.ReadOnlySpan<byte> utf8Json) -> DynaSharp.AttributeValue
+static DynaSharp.AttributeValue.FromJson(System.Text.Json.JsonElement json) -> DynaSharp.AttributeValue
