@@ -847,10 +847,11 @@ type is read. `onMappingFailure` is `OnMappingFailure` of a query: null throws, 
 `dynasharp.client.operation.skipped_items` with `db.operation.name` `GetRecords`, the table and the streams server; only the change that fails is skipped. No new span, metric or log.
 Unlike a query's, the callback also gets the `ShardChangeRecord` of the change, so a log of the skip names it by `ShardId` and `SequenceNumber`, which the reading holds anyway; the
 docs say the record carries the images and is not logged whole.
-The name is not `ReadStreamAsync`: `orders.ReadStreamAsync(...)` of a `Table<Order>` already gives records, and a typed overload of the same name and arity cannot exist beside it.
+The names say what comes back: `ReadStreamAsync` of a table gives the records of its stream, as `DynamoDbStreamsClient.ReadStreamAsync` does by ARN, on any table, and `ReadChangesAsync` gives typed changes. A typed `ReadStreamAsync<T>` would make the same call raw on a `Table<Item>` and typed on a `Table<Order>`, and leave a reader of a typed table that keeps shard positions without its raw reading; `ChangeRecord.As<T>()` types one record of it.
 
-`MixedChange<T1, T2>` to `<T1, T2, T3, T4>` is a readonly struct with `Is(out Change<Tn>? change)` per type and `Match` with functions and with actions, the shape of `Mixed<...>`, which
-cannot hold a change, because its types must be entities that a mixed read can read. Its default value holds nothing, `Is` answers false and `Match` throws `InvalidOperationException`.
+`MixedChange<T1, T2>` to `<T1, T2, T3, T4>` is a readonly struct with `Is(out Change<Tn>? change)` per type and `Match` with functions and with actions, the shape of `Mixed<...>`: it is
+to `Change<T>` what `Mixed<...>` is to an entity. Not one union for both: `Mixed<...>` is a document, which the reads of a query fill through `IDynamoDbDocument` (`QueryCommand<Mixed<...>>`,
+`Page<...>`, `ParallelScanCommand<Mixed<...>>`), holding an entity unboxed in a field per type, and which `Item.From` writes; a change is neither read nor written as an item. Its default value holds nothing, `Is` answers false and `Match` throws `InvalidOperationException`.
 A public constructor per type, `new MixedChange<T1, T2>(Change<T1>)` and `(Change<T2>)`, `ArgumentNullException` for null, lets a test build the input of code that handles a reading;
 the type of the argument picks it, and two equal types make the call ambiguous, which a reading rejects too (`ArgumentException`). `Mixed<...>` of a query has none.
 
