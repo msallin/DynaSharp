@@ -134,7 +134,7 @@ DYNA106 | Error | DynaSharp.Keys | Placeholders cannot be told apart | '{0}' is 
 DYNA107 | Error | DynaSharp.Keys | Nullable input in a key | Nullable '{0}' is used in a key that is not Sparse
 DYNA108 | Warning | DynaSharp.Keys | Number without a fixed format in a sort key | Number '{0}' has no fixed format in a sort key, so 10 sorts before 9. Use d<w> or n<i>, or {{{0}:plain}}.
 DYNA109 | Error | DynaSharp.Keys | [KeyOnly] is not valid here | [KeyOnly] on '{0}' is invalid: {1}
-DYNA110 | Warning | DynaSharp.Keys | Sparse index without nullable inputs | Index '{0}' is Sparse, but all its inputs are non-nullable, so every item is indexed
+DYNA110 | Warning | DynaSharp.Keys | Sparse index without nullable inputs | Index '{0}' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed
 DYNA111 | Error | DynaSharp.Keys | Property is repeated in a key template | Property '{0}' appears twice in a key template
 DYNA112 | Error | DynaSharp.Keys | Key on the wrong target | A template belongs on the type, a plain key on a property
 DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.

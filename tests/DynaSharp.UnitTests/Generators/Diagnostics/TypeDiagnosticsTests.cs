@@ -187,7 +187,7 @@ public sealed class TypeDiagnosticsTests
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it feeds a key"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Id' is not valid: it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out"));
     }
 
     [Test]
@@ -220,29 +220,63 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
-    public async Task Build_OmitEmptyOnAPropertyInATemplate_ReportsDyna030()
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}")""")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "{Owner}", PartitionKeyAttributeName = "Owner")""")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "O#{Owner}", PartitionKeyAttributeName = "o2")""")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true), SortKey("O#{Owner}")""")]
+    public async Task Build_OmitEmptyOnAnInputOfAKeyThatIsNotSparse_ReportsDyna030(string keys)
     {
-        // Arrange
-        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)] public partial class E { public string Id { get; set; } = ""; [[|OmitEmpty|]] public string? Owner { get; set; } }""";
+        // Arrange (a key of the table or of an index that is not sparse cannot be left out)
+        var source = $$"""[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), {{keys}}] public partial class E { public string Id { get; set; } = "id"; [[|OmitEmpty|]] public string Owner { get; set; } = "none"; }""";
 
         // Act
-        var report = Analysis.Report(Source);
+        var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out"));
     }
 
     [Test]
-    public async Task Build_OmitEmptyOnAPlainKeyOfAnIndex_ReportsDyna030()
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)""", "public string Owner { get; set; } = \"\";")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)""", "public string? Owner { get; set; }")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "{Owner}", PartitionKeyAttributeName = "Owner", Sparse = true)""", "public string Owner { get; set; } = \"\";")]
+    [Arguments("""GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", SortKey = "{At}", Sparse = true), LocalIndexKey("LSI1", "O#{Owner}", Sparse = true), GlobalIndexKey("GSI2", PartitionKey = "{Id}", PartitionKeyAttributeName = "Id")""", "public string Owner { get; set; } = \"\";")]
+    public async Task Build_OmitEmptyOnAStringThatFeedsOnlySparseIndexes_ReportsNothing(string keys, string owner)
     {
-        // Arrange
-        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "{Owner}", PartitionKeyAttributeName = "Owner", Sparse = true)] public partial class E { public string Id { get; set; } = ""; [[|OmitEmpty|]] public string? Owner { get; set; } }""";
+        // Arrange (an empty value is left out as null is, and so is the index; DYNA110 and DYNA117 have nothing to say either)
+        var source = $$"""[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), SortKey("E"), {{keys}}] public partial class E { public string Id { get; set; } = "id"; public DateTimeOffset? At { get; set; } [OmitEmpty] {{owner}} }""";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOnARequiredStringThatFeedsOnlyASparseIndex_ReportsDyna030()
+    {
+        // Arrange (the attribute an empty value leaves out is one a read cannot do without)
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)] public partial class E { public string Id { get; set; } = "id"; [[|OmitEmpty|]] public required string Owner { get; set; } }""";
 
         // Act
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: a read throws without it, so an empty value could not be read back"));
+    }
+
+    [Test]
+    public async Task Build_OmitEmptyOfTheTypeOnAStringThatFeedsASparseIndex_ReportsDyna110()
+    {
+        // Arrange (only an attribute on the property makes an empty value gate the index, so the index stays as it was)
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), [|GlobalIndexKey("GSI1", PartitionKey = "O#{Owner}", Sparse = true)|], OmitEmpty] public partial class E { public string Id { get; set; } = "id"; public string Owner { get; set; } = "none"; }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA110 Warning: Index 'GSI1' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed"));
     }
 
     [Test]
@@ -255,7 +289,7 @@ public sealed class TypeDiagnosticsTests
         var report = Analysis.Report(Source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA030 Error: [OmitEmpty] on 'Owner' is not valid: it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out"));
     }
 
     [Test]

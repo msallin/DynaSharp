@@ -93,6 +93,32 @@ public partial record GatedSale
     public string? Buyer { get; init; }
 }
 
+/// <summary>
+/// Sparse indexes gated by an empty string as by null: each input is a string with an [OmitEmpty] of its own that feeds no key but those of sparse indexes. ByCode has a gate of its own, and the
+/// shared attribute of BySeller and ByBuyer has its own input and the inputs of the two sort keys as alternatives.
+/// </summary>
+[DynamoDbEntity]
+[Discriminator("LISTING")]
+[PartitionKey("{Id}")]
+[GlobalIndexKey("ByCode", PartitionKey = "CODE#{Code}", Sparse = true)]
+[GlobalIndexKey("BySeller", PartitionKey = "TENANT#{Tenant}", PartitionKeyAttributeName = "shared", SortKey = "SELLER#{Seller}", Sparse = true)]
+[GlobalIndexKey("ByBuyer", PartitionKey = "TENANT#{Tenant}", PartitionKeyAttributeName = "shared", SortKey = "BUYER#{Buyer}", Sparse = true)]
+public partial record BlankListing
+{
+    public required string Id { get; init; }
+
+    [OmitEmpty]
+    public string Code { get; init; } = string.Empty;
+
+    [OmitEmpty]
+    public string? Tenant { get; init; }
+
+    [OmitEmpty]
+    public string Seller { get; init; } = string.Empty;
+
+    public string? Buyer { get; init; }
+}
+
 /// <summary>A shared attribute whose own input is nullable, and an index that needs no more than that input.</summary>
 [DynamoDbEntity]
 [Discriminator("NICK")]

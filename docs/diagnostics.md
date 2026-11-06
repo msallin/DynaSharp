@@ -44,10 +44,10 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Keep one, or name the closed type without its `?`.
 - **Not reported.** Nothing else fails with it: a type that would use it takes the first default or the built-in.
 
-`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
+`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
 
-- **Fix.** Remove the attribute, move the property out of the keys, make it nullable, or give it a default.
-- **Not reported.** `[OmitEmpty]` on a type skips such properties by itself, and they stay written; `[OmitEmpty(false)]` is not reported either.
+- **Fix.** Remove the attribute, move the property out of the keys, make the index `Sparse = true`, make the property nullable, or give it a default.
+- **Not reported.** A stored string that feeds nothing but keys of sparse indexes: there an empty value leaves out the attribute and the keys of its indexes, see [Sparse indexes](entities.md#sparse-indexes). `[OmitEmpty]` on a type skips the inputs of keys by itself, sparse or not, and they stay written; `[OmitEmpty(false)]` is not reported either.
 
 `DYNA031` (warning): an entity property whose type is an entity too, or a list, set, dictionary or array of one, such as `public Customer Buyer { get; init; }` on an `Order`. It is stored as a map carrying the customer's keys, index keys and discriminator, which no read of an order takes and no index sees.
 
@@ -105,7 +105,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 | `DYNA107` | A nullable property in a key that is not sparse | Make the index `Sparse`, or the property required |
 | `DYNA108` (warning) | A number without a fixed width in a sort key, so `10` sorts before `9` | Use `d<w>` or `n<i>`, or `plain` if the order does not matter |
 | `DYNA109` | `[KeyOnly]` that cannot work, as the message says | Hold the value in a key without loss, or store it |
-| `DYNA110` (warning) | A sparse index whose inputs are all required, so it holds every item | Remove `Sparse`, or make an input nullable |
+| `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own |
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
 | `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>` |

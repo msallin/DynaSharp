@@ -330,7 +330,7 @@ Entity: EntityModel
             CanReject: False
             FixedWidth: 36
             IsLossless: True
-          InputIsNullable: False
+          InputCanBeAbsent: False
       Delimiters: #
       StackBufferLength: 41
       CanReject: False
@@ -358,7 +358,7 @@ Entity: EntityModel
             CanReject: False
             IsBucket: False
             FixedWidth: 28
-          InputIsNullable: False
+          InputCanBeAbsent: False
         - LiteralSegment
           Text: #
         - PlaceholderSegment
@@ -369,7 +369,7 @@ Entity: EntityModel
             CanReject: False
             FixedWidth: 36
             IsLossless: True
-          InputIsNullable: False
+          InputCanBeAbsent: False
       Delimiters: #
       StackBufferLength: 71
       CanReject: False
@@ -398,7 +398,7 @@ Entity: EntityModel
                 FixedWidth: 0
                 IsLossless: True
                 CanReject: True
-              InputIsNullable: False
+              InputCanBeAbsent: False
           Delimiters: #
           StackBufferLength: 256
           CanReject: True
@@ -423,7 +423,7 @@ Entity: EntityModel
                 FixedWidth: 14
                 IsLossless: True
                 CanReject: True
-              InputIsNullable: False
+              InputCanBeAbsent: False
           Delimiters: 
           StackBufferLength: 14
           CanReject: True
@@ -452,7 +452,7 @@ Entity: EntityModel
                 CanReject: False
                 FixedWidth: 36
                 IsLossless: True
-              InputIsNullable: True
+              InputCanBeAbsent: True
           Delimiters: #
           StackBufferLength: 42
           CanReject: False
@@ -478,7 +478,7 @@ Entity: EntityModel
                 CanReject: False
                 IsBucket: False
                 FixedWidth: 28
-              InputIsNullable: True
+              InputCanBeAbsent: True
           Delimiters: 
           StackBufferLength: 28
           CanReject: False

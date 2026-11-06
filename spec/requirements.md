@@ -253,7 +253,8 @@ Interaction with indexes and discriminators:
   depend on parsing. `[KeyOnly]` on such a property stores it only in the key and restores it by parsing, which saves bytes
   and needs at least one key holding it losslessly (a timestamp in `ticks`).
 - Sparse: if any input of any template of a sparse index is null, none of that index's key attributes is written, because
-  one alone would be stored uselessly. An update setting such an input to null emits `REMOVE` for all of them, never a
+  one alone would be stored uselessly. A string with an `[OmitEmpty]` of its own that feeds only sparse keys counts `""` as
+  null here too. An update setting such an input to null emits `REMOVE` for all of them, never a
   `NULL` value, which DynamoDB rejects on an index key.
 - Overloaded indexes work because several entity types declare different templates over the same attribute names.
 - Updates (M3): an update that sets a template input must also set the derived key attribute, or the index silently goes

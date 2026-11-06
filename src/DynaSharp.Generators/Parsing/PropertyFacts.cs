@@ -66,6 +66,13 @@ internal sealed class PropertyFacts(IPropertySymbol symbol, bool isSettable, Spo
     /// <summary>Gets a value indicating whether the property is a string or a collection, nullable or not, which is what <c>[OmitEmpty]</c> applies to.</summary>
     public bool CanBeEmpty => Types.Unwrap(Type).Inner is var inner && (inner.SpecialType == SpecialType.System_String || ConverterResolver.ElementOf(inner) is not null);
 
+    /// <summary>
+    /// Gets a value indicating whether the property is a string that leaves out an empty value by an <c>[OmitEmpty]</c> of its own, which is what lets it gate a sparse index as null does. A default of the type or
+    /// of the assembly does not count: it must not turn a key that throws for an empty value into an item silently left out of an index.
+    /// </summary>
+    public bool OmitsEmptyByItsOwnAttribute =>
+        OmitsEmpty && OmitEmpty is { } attribute && AttributeReader.IsEnabled(attribute) && Types.Unwrap(Type).Inner.SpecialType == SpecialType.System_String;
+
     public bool IsComputed => !isSettable && Parameter is null;
 
     /// <summary>Gets a value indicating whether the property has an attribute of its own in the item.</summary>

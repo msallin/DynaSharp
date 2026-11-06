@@ -264,7 +264,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor SparseWithoutNullableInput = new(
         "DYNA110",
         "Sparse index without nullable inputs",
-        "Index '{0}' is Sparse, but all its inputs are non-nullable, so every item is indexed",
+        "Index '{0}' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed",
         KeyGrammar,
         DiagnosticSeverity.Warning,
         true,

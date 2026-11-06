@@ -556,7 +556,7 @@ public sealed class KeyDiagnosticsTests
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA110 Warning: Index 'GSI1' is Sparse, but all its inputs are non-nullable, so every item is indexed"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA110 Warning: Index 'GSI1' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed"));
     }
 
     [Test]

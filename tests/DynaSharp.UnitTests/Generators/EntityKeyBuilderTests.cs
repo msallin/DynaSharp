@@ -401,7 +401,7 @@ public sealed class EntityKeyBuilderTests
         var segment = (PlaceholderSegment)Analysis.Model(Source, "global::Shop.E").Entity!.Indexes[0].PartitionKey.Template!.Segments[1];
 
         // Assert
-        await Assert.That((segment.ValueType, segment.ParameterName, segment.InputIsNullable, segment.Property)).IsEqualTo(("global::System.Guid", "tracking", true, "Tracking"));
+        await Assert.That((segment.ValueType, segment.ParameterName, segment.InputCanBeAbsent, segment.Property)).IsEqualTo(("global::System.Guid", "tracking", true, "Tracking"));
     }
 
     [Test]
