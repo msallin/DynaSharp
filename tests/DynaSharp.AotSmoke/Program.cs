@@ -667,6 +667,16 @@ catch (InternalServerErrorException)
 fake.ThrowIfFailuresLeft();
 Check(plannedFailure && fake.Items("Visitors").Count == 0, "a failure planned on the fake fails the next request of its operation, which writes nothing");
 
+// JSON of a contract as a native map: a JsonElement property, a filter by a path inside it, and the bridge of AttributeValue.
+fake.CreateTable<Shipment>("Shipments");
+var shipments = fakeClient.Table<Shipment>("Shipments");
+var label = new ShipmentLabel("Bern", 12345678901234567890.25m, null);
+await shipments.Put(new Shipment { Id = "s-1", Label = System.Text.Json.JsonSerializer.SerializeToElement(label, ShipmentJson.Default.ShipmentLabel) }).SendAsync();
+var heavy = await shipments.Scan().Filter(Attr("Label.weight").Gt(1000)).ItemsAsync().ToListAsync();
+Check(heavy is [{ Id: "s-1" }] && System.Text.Json.JsonSerializer.Deserialize(heavy[0].Label, ShipmentJson.Default.ShipmentLabel) == label, "a JsonElement property is a map that a filter reaches into, and reads back");
+var bridged = AttributeValue.FromJson("""{"a":[1.50,null],"b":null}"""u8);
+Check(bridged.ToString() == """{"M":{"a":{"L":[{"N":"1.50"},{"NULL":true}]}}}""" && bridged.ToJson().GetRawText() == """{"a":[1.50,null]}""", "AttributeValue converts from and to JSON");
+
 // Time to live from the entity, the guard of a write that must not move back, and the options of an emulator.
 fake.CreateTable<Pass>("Passes");
 var passes = fakeClient.Table<Pass>("Passes");

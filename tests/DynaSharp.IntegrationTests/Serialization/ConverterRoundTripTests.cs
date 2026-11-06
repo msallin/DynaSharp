@@ -289,6 +289,29 @@ public sealed class ConverterRoundTripTests(Backend backend)
     }
 
     [Test]
+    public async Task JsonElements_StoreAsTheNativeValueOfTheirJson()
+    {
+        // Arrange (DynamoDB keeps a number in a canonical form, which JsonElement.DeepEquals compares by value)
+        var document = JsonElement.Parse("""{"s":"x","n":1.50,"t":true,"skipped":null,"l":["a",2,null,{"deep":[]}],"m":{}}""");
+        var cases = new[]
+        {
+            ConverterCase.Of<JsonElement, JsonElementConverter>(
+                "json-object",
+                document,
+                """{"M":{"s":{"S":"x"},"n":{"N":"1.5"},"t":{"BOOL":true},"l":{"L":[{"S":"a"},{"N":"2"},{"NULL":true},{"M":{"deep":{"L":[]}}}]},"m":{"M":{}}}}""",
+                static (stored, read) => JsonElement.DeepEquals(JsonElement.Parse("""{"s":"x","n":1.5,"t":true,"l":["a",2,null,{"deep":[]}],"m":{}}"""), read) && stored.ValueKind == JsonValueKind.Object),
+            ConverterCase.Of<JsonElement, JsonElementConverter>("json-string", JsonElement.Parse("\"2026-11-06T10:00:00+01:00\""), """{"S":"2026-11-06T10:00:00+01:00"}""", JsonElement.DeepEquals),
+            ConverterCase.Of<JsonElement, JsonElementConverter>("json-null", JsonElement.Parse("null"), """{"NULL":true}""", JsonElement.DeepEquals),
+        };
+
+        // Act
+        var problems = await StoreAndCompareAsync(cases);
+
+        // Assert
+        await Assert.That(problems).IsEqualTo(string.Empty);
+    }
+
+    [Test]
     public async Task AttributeValues_StoreAsTheirOwnType()
     {
         // Arrange: a value of every type, nested, read from the JSON that describes it

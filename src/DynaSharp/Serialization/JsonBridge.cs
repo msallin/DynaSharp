@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace DynaSharp.Serialization;
 
 /// <summary>
-/// Converts between plain JSON and DynamoDB attribute values, for <see cref="AttributeValue.FromJson(ReadOnlySpan{byte})"/> and <see cref="AttributeValue.WriteJson"/>.
-/// Both directions go through the wire format: JSON in is written with a <see cref="DynamoDbWriter"/>, and JSON out is read with a
+/// Converts between plain JSON and DynamoDB attribute values, for <see cref="AttributeValue.FromJson(ReadOnlySpan{byte})"/>, <see cref="AttributeValue.WriteJson"/> and
+/// <see cref="JsonElementConverter"/>. Both directions go through the wire format: JSON in is written with a <see cref="DynamoDbWriter"/>, and JSON out is read with a
 /// <see cref="DynamoDbReader"/>, so this holds only what JSON and DynamoDB disagree on.
 /// </summary>
 /// <remarks>

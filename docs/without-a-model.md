@@ -94,6 +94,8 @@ Item? weight = await shop.Get("PARCEL#p1", "LABEL").Project("Label.weight").Item
 - **The levels count from the value.** DynamoDB counts from the attribute, so a value put inside another map has fewer levels to spare.
 - **Back to JSON, one way only.** `ToJson()` and `WriteJson(writer)` write a string set and a number set as an array, and binary as the base64 text of the bytes, which come back as strings. JSON has neither sets nor binary, so `FromJson` makes neither. A `NULL` in a map is written as null.
 
+An entity holds such a document in a property of type `JsonElement`, with no conversion code, see [JSON of a contract](entities.md#json-of-a-contract).
+
 ## Between an Item and an entity
 
 `Item.From(entity)` copies an entity into an item, with its keys and its discriminator, through the generated code. `item.To<T>()` reads an item as an entity, with every rule of a typed read. Together they reach an API that takes attributes, and they read what an untyped call returned:
