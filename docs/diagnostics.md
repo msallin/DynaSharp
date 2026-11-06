@@ -39,12 +39,12 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Give one another value. Entities that never share a table are fine, hence a warning: suppress it there.
 - **Not reported.** A type in another assembly. The rule needs every type of the compilation, so an IDE shows it only with full solution analysis; a build always does.
 
-`DYNA029`: an `[assembly: DynamoDbDefaultConverter]` that cannot work: a second default for a type, a nullable type (a default for the type covers its nullable form), or an open generic type (a default is for one closed type). Reported once, on the attribute, whether a type uses it or not.
+`DYNA029` (error): an `[assembly: DynamoDbDefaultConverter]` that cannot work: a second default for a type, a nullable type (a default for the type covers its nullable form), or an open generic type (a default is for one closed type). Reported once, on the attribute, whether a type uses it or not.
 
 - **Fix.** Keep one, or name the closed type without its `?`.
 - **Not reported.** Nothing else fails with it: a type that would use it takes the first default or the built-in.
 
-`DYNA030`: `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
+`DYNA030` (error): `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
 
 - **Fix.** Remove the attribute, move the property out of the keys, make the index `Sparse = true`, make the property nullable, or give it a default.
 - **Not reported.** A stored string that feeds nothing but keys of sparse indexes: there an empty value leaves out the attribute and the keys of its indexes, see [Sparse indexes](entities.md#sparse-indexes). `[OmitEmpty]` on a type skips the inputs of keys by itself, sparse or not, and they stay written; `[OmitEmpty(false)]` is not reported either.
@@ -74,7 +74,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Remove the initializer, or make the default of the parameter null, so that a missing attribute reads as null. Where the value is what a missing attribute should mean, make the property non-nullable.
 - **Not reported.** `= null`, `= default` and `= null!`, a property that is not nullable, not stored or computed, and a value that a constructor body assigns. A base type in a compiled assembly, which shows no initializer.
 
-`DYNA036`: `[TimeToLive]` on a property that DynamoDB cannot read as an expiry, or on a second property of the type. DynamoDB deletes by a number of seconds since 1970 and ignores an item that holds anything else, so `[TimeToLive] public DateTimeOffset ExpiresAt { get; init; }`, which is stored as an ISO 8601 string, would never expire. A property that is not stored, such as one with `[DynamoDbIgnore]` or a getter alone, holds no expiry, and a table has time to live on one attribute.
+`DYNA036` (error): `[TimeToLive]` on a property that DynamoDB cannot read as an expiry, or on a second property of the type. DynamoDB deletes by a number of seconds since 1970 and ignores an item that holds anything else, so `[TimeToLive] public DateTimeOffset ExpiresAt { get; init; }`, which is stored as an ISO 8601 string, would never expire. A property that is not stored, such as one with `[DynamoDbIgnore]` or a getter alone, holds no expiry, and a table has time to live on one attribute.
 
 - **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type.
 - **Not reported.** A custom converter that implements `IAddableConverter`, which says that it writes a number, whatever it holds. Two entities of one table that name different attributes, which `CreateTable().Including<T>()` finds at run time and throws `ArgumentException` for. On a document it is `DYNA012`.
@@ -84,7 +84,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Nothing has to change: name the entities of each table with `Including<T>()`. For `IncludingAll()`, keep the entities of one table in an assembly of their own, or make a hidden one `internal`.
 - **Not reported.** An assembly without entities. A suppression goes into `.editorconfig` (`dotnet_diagnostic.DYNA037.severity = none`), since there is no line for a `#pragma`.
 
-`DYNA038`: a type of the assembly has the name the generated class `DynamoDbEntities` needs: the class itself in the namespace named after the assembly, such as `Shop.DynamoDbEntities` in an assembly `Shop`, or a part of that namespace, such as a class `Shop` in the global namespace. C# allows no namespace and type of one name, so the class is not generated.
+`DYNA038` (error): a type of the assembly has the name the generated class `DynamoDbEntities` needs: the class itself in the namespace named after the assembly, such as `Shop.DynamoDbEntities` in an assembly `Shop`, or a part of that namespace, such as a class `Shop` in the global namespace. C# allows no namespace and type of one name, so the class is not generated.
 
 - **Fix.** Rename the type, or the assembly (`AssemblyName` in the project file).
 - **Not reported.** An assembly for which no `IncludingAll()` would be generated, see `DYNA037`.
@@ -122,11 +122,11 @@ The source generator reports these on key templates. The grammar is under [Key g
 - **Fix.** Make it `required`, or set it in a constructor.
 - **Not reported.** Only a default that cannot be a key counts: `""`, `string.Empty`, `null!`, `default!`, and for a binary key `[]` and `Array.Empty<byte>()`. A default such as `"main"` or `Guid.NewGuid().ToString()` is a key, and a property that is `required`, computed, nullable, without initializer, or mentioned by a constructor is not reported.
 
-`DYNA118`: a `raw` placeholder that does not end the template, such as `{Key:raw}#{Id}` or `{Key:raw}#x`. A raw value keeps its delimiters, so `Parse` and a read take everything to the end of the key, and anything behind it could not be read back.
+`DYNA118` (error): a `raw` placeholder that does not end the template, such as `{Key:raw}#{Id}` or `{Key:raw}#x`. A raw value keeps its delimiters, so `Parse` and a read take everything to the end of the key, and anything behind it could not be read back.
 
 - **Fix.** Move the placeholder to the end, or remove `raw`, which makes a value with a delimiter throw `KeyFormatException`.
 
-`DYNA119`: a `[ComputedFrom]` that cannot work, as the message says. It belongs on a computed property a key template uses, and names at least one property of the same type, each once.
+`DYNA119` (error): a `[ComputedFrom]` that cannot work, as the message says. It belongs on a computed property a key template uses, and names at least one property of the same type, each once.
 
 - **Fix.** Name properties with their own attribute: not computed, `[DynamoDbIgnore]` or `[KeyOnly]`, and not the `[Version]`, which an update moves without a handle, so nothing would see the change.
 - **Not reported.** A `[ComputedFrom]` on a document, which is `DYNA012`.
