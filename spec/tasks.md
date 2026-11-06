@@ -1138,7 +1138,7 @@ From the update of the apps to 0.3.0
 - [x] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region. Done: both, the region as an overload `ForEmulator(url, region)`, see R12.
 
 Owner's decisions of 2026-11-06
-- [ ] Stryker cycle before 0.4.0: the `coordination` shard (never run), and the core, generators and testing shards that hit the six-hour job limit in run 41671331841 (split them so each fits). Break at 90 %.
+- [ ] Stryker cycle before the next release (0.4.0 shipped without it, owner's decision of 2026-11-06): the `coordination` shard (never run), and the core, generators and testing shards that hit the six-hour job limit in run 41671331841 (split them so each fits). Break at 90 %.
 - [ ] Real DynamoDB: run `StreamTests.GetShardIterator_AtTheStartingSequenceNumberOfAShard_ReadsFromItsFirstRecord` with `DYNASHARP_BACKENDS=aws` (`real-aws.yml`), which decides whether the 23-hour age rule of child shards (R6) can read every child at its starting sequence number instead.
 - [ ] `lease.MakeCurrent()`: a scope that makes a lease from `TryAcquireAsync` or `AcquireAsync` the `Lease.Current`, if a service asks; today such a lease is passed explicitly.
 - [ ] `docfx metadata` warns "Duplicate type parameter 'T1'/'T2' found in comments" (8 times) while processing DynaSharp, probably for the mixed readings (`ReadChangesAsync<T1, T2…>`, `MixedChange`); `docs.yml` applies `--warningsAsErrors` only to `docfx build`.
