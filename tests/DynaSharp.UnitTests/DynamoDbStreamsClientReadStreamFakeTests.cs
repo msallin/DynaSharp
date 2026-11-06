@@ -173,26 +173,36 @@ public sealed class DynamoDbStreamsClientReadStreamFakeTests
             .Select(static item => item.Key + ":" + string.Join(">", item.Select(static change => change.Record.DynamoDb!.NewImage!["v"].AsNumber()))));
 
     // Moves the clock to the next wait of the reading, but only once as many waits as the test names are armed: the reader of an open shard waits again at
-    // once, on the thread that moved the clock, and would otherwise run the clock away from a reader that the pool has not run yet.
+    // once, on the thread that moved the clock, and would otherwise run the clock away from a reader that the pool has not run yet. Armed waits do not mean that
+    // nothing else is left to run, though: the consumer of the reading, and its stop once it has taken its records, are on the pool and arm no timer, so the
+    // clock can run to the limit in a few real milliseconds while they wait for a thread. So the limit stops the clock instead of failing the test: a reading
+    // that needs no more time ends, and one that does never ends and fails after a real wait.
     private static async Task RunOnTheClockAsync(Task reading, ManualTimeProvider time, TimeSpan limit, int waiting)
     {
         var moved = TimeSpan.Zero;
         while (!reading.IsCompleted)
         {
-            if (time.ArmedTimers >= waiting && time.NextDueIn is { } dueIn)
+            if (time.ArmedTimers >= waiting && time.NextDueIn is { } next)
             {
-                moved += dueIn;
-                if (moved > limit)
+                var dueIn = next < TimeSpan.Zero ? TimeSpan.Zero : next;
+                if (moved + dueIn > limit)
                 {
-                    throw new TimeoutException("The reading did not end on the clock.");
+                    break;
                 }
 
-                time.Advance(dueIn < TimeSpan.Zero ? TimeSpan.Zero : dueIn);
+                moved += dueIn;
+                time.Advance(dueIn);
             }
             else
             {
                 await Task.Yield();
             }
+        }
+
+        await reading.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        if (!reading.IsCompleted)
+        {
+            throw new TimeoutException("The reading did not end on the clock.");
         }
     }
 }
