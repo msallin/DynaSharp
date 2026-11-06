@@ -98,3 +98,12 @@ DYNA234 | DynaSharp.Commands | Error | Method of the items called on a read
 DYNA235 | DynaSharp.Commands | Error | IfVersion on a Put
 DYNA236 | DynaSharp.Commands | Warning | Batch of an entity with a version
 DYNA237 | DynaSharp.Commands | Warning | DateTime without a kind
+
+## Release 0.3.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA036 | DynaSharp.Mapping | Error | [TimeToLive] is not valid here
+DYNA123 | DynaSharp.Keys | Info | Raw table key input without [KeyOnly]
