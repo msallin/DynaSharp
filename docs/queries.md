@@ -90,7 +90,14 @@ An index is read through its own type, which has no writes:
 var placed = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed), Order.Keys.ByStatusSk.Ge(since));
 ```
 
-`byStatus` is `orders.Index(Order.Indexes.ByStatus)`, see [Tables](tables.md#opening-a-table).
+`byStatus` is `orders.Index(Order.Indexes.ByStatus)`, see [Tables](tables.md#opening-a-table). A query names the index in `Index(...)` and again in its key builder, `Keys.ByStatusPk`, and DynaSharp does not infer one from the other. Keep the index in a field, opened once beside the table, and the index is named once in the code that queries it:
+
+```csharp
+var byStatus = orders.Index(Order.Indexes.ByStatus);
+var shipped = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Shipped)).ItemsAsync(ct);
+```
+
+A key built for another index or for the table does not fit, and the query throws `ArgumentException` at the call, before a request, naming the builder to use: `byStatus.Query(Order.Keys.Pk.Of("alice"))` says that the key was built for `pk`, that a query of `ByStatus` reads `bystatuspk`, and to use `Order.Keys.ByStatusPk.Of(...)`. `DYNA224` reports it in the build only where `Index(...)` is in the chain of the query, not for an index kept in a field, so for `byStatus` the call is where it shows, the first time it runs.
 
 ## Scan
 
