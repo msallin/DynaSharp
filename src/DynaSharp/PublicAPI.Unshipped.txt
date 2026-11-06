@@ -1,5 +1,6 @@
 #nullable enable
-static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl, string! region) -> DynaSharp.DynamoDbClientOptions!
+*REMOVED*static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl) -> DynaSharp.DynamoDbClientOptions!
+static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl, string! region = "us-east-1") -> DynaSharp.DynamoDbClientOptions!
 DynaSharp.CreateTableResult.Drift.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>!
 DynaSharp.TableDrift
 DynaSharp.TableDrift.<Clone>$() -> DynaSharp.TableDrift!

@@ -587,6 +587,12 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R15 - 0.4.0 without compatibility shapes
+
+Branch `refactor/040-compat-debt`, from the backlog item "Revisit what was shaped only to keep a shipped signature" and the owner's decision of 2026-11-06: below 1.0 a design is chosen for being right, and a shape that existed only because its first version shipped goes. Each item was decided on its own; where the shape stays, the reason that is left is written down, so the next review does not reopen it. Every break is a `!` commit whose body says what to change.
+
+- [x] **`ForEmulator(serviceUrl, region = "us-east-1")`**, one method instead of `ForEmulator(Uri)` and `ForEmulator(Uri, string)`. R12 chose an overload only because the one-argument signature had shipped in 0.3.0. An optional parameter is the natural shape of one call with a default, and IntelliSense shows the default. Source compatible: every call compiles as before; a compiled caller of the one-argument form needs a rebuild. The two test classes of the overloads became one, and a null URL names `serviceUrl` in either form.
+
 ### R14 - 0.4.0 generator
 
 Branch `feat/040-generator`, from the design review of the 0.4.0 backlog, approved by the owner. Additive: no shipped signature changes, and no new runtime API.

@@ -142,20 +142,20 @@ public sealed class DynamoDbClientOptionsTests
     }
 
     [Test]
-    public async Task ForEmulator_NullUrl_Throws()
+    public async Task ForEmulator_NullUrl_ThrowsNamingIt()
     {
         // Arrange
         Uri? url = null;
 
         // Act
-        var act = () => DynamoDbClientOptions.ForEmulator(url!);
+        var failure = TestClient.Catch(() => DynamoDbClientOptions.ForEmulator(url!));
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+        await Assert.That((failure.GetType(), ((ArgumentException)failure).ParamName)).IsEqualTo((typeof(ArgumentNullException), (string?)"serviceUrl"));
     }
 
     [Test]
-    public async Task ForEmulator_UrlAndRegion_SetsThatRegionAndOtherwiseWhatTheOneArgumentFormSets()
+    public async Task ForEmulator_UrlAndRegion_SetsThatRegionAndOtherwiseWhatTheDefaultSets()
     {
         // Arrange (DynamoDB Local without -sharedDb keeps a database per region, so a tool of another region needs the client in it)
         var url = new Uri("http://localhost:8000");
@@ -182,19 +182,6 @@ public sealed class DynamoDbClientOptionsTests
         // Assert
         var authorization = handler.Requests.Single().Headers["Authorization"];
         await Assert.That(authorization.Contains("Credential=local/", StringComparison.Ordinal) && authorization.Contains("/eu-west-3/dynamodb/", StringComparison.Ordinal)).IsTrue();
-    }
-
-    [Test]
-    public async Task ForEmulator_NullUrlAndARegion_ThrowsNamingTheUrl()
-    {
-        // Arrange
-        Uri? url = null;
-
-        // Act
-        var failure = TestClient.Catch(() => DynamoDbClientOptions.ForEmulator(url!, "us-east-1"));
-
-        // Assert
-        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("serviceUrl");
     }
 
     [Test]
