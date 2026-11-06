@@ -4,8 +4,8 @@ The public API as shipped, and the contract for changing it. A change to the pub
 change of contract goes through the lead. The key grammar is in `requirements.md`, the compile-time rules in `../docs/diagnostics.md`, the internals
 in `architecture.md`. The XML docs say what each member does in detail; this file says what the surface is and which rules hold across it.
 
-The surface itself is tracked by `Microsoft.CodeAnalysis.PublicApiAnalyzers`, build time only, on `DynaSharp` and `DynaSharp.Testing`: `PublicAPI.Shipped.txt`
-in each project holds what is released, a change goes into `PublicAPI.Unshipped.txt`, and `RS0016` and `RS0017` fail a build that does not say so.
+The surface itself is tracked by `Microsoft.CodeAnalysis.PublicApiAnalyzers`, build time only, on `DynaSharp`, `DynaSharp.Testing` and `DynaSharp.Coordination`: `PublicAPI.Shipped.txt`
+in each project holds what is released, a change goes into `PublicAPI.Unshipped.txt`, and `RS0016` and `RS0017` fail a build that does not say so. Before a release, `build/ship-public-api.sh` moves the lines to Shipped, and the release workflow refuses to run while any are left.
 
 Examples use this model.
 
