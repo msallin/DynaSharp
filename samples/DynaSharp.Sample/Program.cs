@@ -27,14 +27,15 @@ var byTracking = orders.Index(Order.Indexes.ByTracking);
 // ------------------------------------------------------------------------------------------------------------------------
 Output.Section("1. Creating the table, and the one call that drops to DynaSharp.Requests");
 
-// One table holds all five types, so no single entity describes it: its indexes are the union of what they declare, and Including
-// names the others. Key names, indexes and attribute types come from the entities, so nothing here repeats them. Billing is on
-// demand and an index holds all attributes, unless told otherwise. Two entities that disagree about a key throw here, before any
-// request. ToRequest gives what this would send, for what it does not model, such as tags.
+// One table holds all five types, so no single entity describes it: its indexes are the union of what they declare. IncludingAll
+// names every entity of this project, as Including<Product>() and the others would one by one; the generator writes it because the
+// five share one pair of keys, so a sixth one cannot be forgotten here. Key names, indexes and attribute types come from the entities,
+// so nothing here repeats them. Billing is on demand and an index holds all attributes, unless told otherwise. Two entities that
+// disagree about a key throw here, before any request. ToRequest gives what this would send, for what it does not model, such as tags.
 try
 {
     var creation = await orders.CreateTable()
-        .Including<Product>().Including<Customer>().Including<Cart>().Including<EmailClaim>()
+        .IncludingAll()
         .WaitUntilActive()
         .SendAsync(ct);
     var description = creation.Table;

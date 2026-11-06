@@ -163,7 +163,7 @@ public sealed class ProjectDefaultsTests
             """);
 
         // Act
-        var generated = GeneratorRun.Run(source, new DynaSharpGenerator(), Microsoft.CodeAnalysis.CSharp.LanguageVersion.Latest).Result.GeneratedTrees.Single().ToString();
+        var generated = GeneratorRun.Run(source, new DynaSharpGenerator(), Microsoft.CodeAnalysis.CSharp.LanguageVersion.Latest).Result.GeneratedTrees.Single(static tree => tree.FilePath.EndsWith("Shop.E.g.cs", StringComparison.Ordinal)).ToString();
 
         // Assert
         await Assert.That(generated).Contains("""new __Map.DynamoDbKeyInput("OwnerName", "owner_name")""");

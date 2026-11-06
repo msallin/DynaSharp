@@ -50,6 +50,24 @@ Without an `Including`, such a table has string keys and no index. Either start 
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 
+### Every entity of an assembly
+
+An entity left out of the chain is an index left out of the table, and with `IfNotExists()` an index that [the drift report](#a-table-that-exists) cannot show, because it compares the table with the entities the chain names. So the generator writes `IncludingAll()` for each assembly whose entities all have the keys of one table: an `Including<T>()` of every `[DynamoDbEntity]` of the assembly, in the order of their full names, a direct call per type with nothing looked up at run time. It lives in a class `DynamoDbEntities` in the namespace named after the assembly, here `DynaSharp.Sample`, which code in that namespace or below finds without a `using`. The [sample](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/Program.cs) creates its table with it:
+
+```text
+await orders.CreateTable()
+    .IncludingAll()
+    .IfNotExists()
+    .WaitUntilActive()
+    .SendAsync(ct);
+```
+
+- **Which assemblies get it.** Only one whose entities share one pair of key names, which `Including<T>` demands. Entities of more than one table, or an entity nested in a `private` type, give no `IncludingAll()`, and the info diagnostic [`DYNA037`](diagnostics.md#entities) says why; name the entities of each table with `Including<T>` there. Two tables whose keys have the same names cannot be told apart, so their entities are one set: keep them in different assemblies, or list them.
+- **Public or internal.** The class is `public` when every entity is, so that code of another assembly can create the table, and `internal` otherwise. Two assemblies have two classes in two namespaces; with both namespaces in scope, call the one you mean as a method, `DynaSharp.Sample.DynamoDbEntities.IncludingAll(orders.CreateTable())`.
+- **The name.** A type of the assembly named `DynamoDbEntities` in that namespace, or named like a part of the namespace, is the error [`DYNA038`](diagnostics.md#entities). A name that is no namespace becomes one: `My-App` gives `My_App`.
+
+The example blocks of this page are compiled beside entities of other tables, so this one is plain text; the sample compiles it.
+
 ## A table that exists
 
 A program that creates its table at the start can keep doing so over a table that exists:

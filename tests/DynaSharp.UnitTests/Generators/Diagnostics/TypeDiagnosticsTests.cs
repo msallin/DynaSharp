@@ -1096,7 +1096,7 @@ public sealed class TypeDiagnosticsTests
         var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        await Assert.That((string.Join(", ", output.Problems), output.Result.GeneratedTrees.Length)).IsEqualTo((string.Empty, 1));
+        await Assert.That((string.Join(", ", output.Problems), output.Result.GeneratedTrees.Count(static tree => !tree.FilePath.EndsWith(EntitiesEmitter.HintName, StringComparison.Ordinal)))).IsEqualTo((string.Empty, 1));
     }
 
     [Test]

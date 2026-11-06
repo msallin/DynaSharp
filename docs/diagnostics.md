@@ -79,6 +79,16 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type.
 - **Not reported.** A custom converter that implements `IAddableConverter`, which says that it writes a number, whatever it holds. Two entities of one table that name different attributes, which `CreateTable().Including<T>()` finds at run time and throws `ArgumentException` for. On a document it is `DYNA012`.
 
+`DYNA037` (info): the generator writes no [`IncludingAll()`](tables.md#creating-a-table) for the entities of this assembly, for the reason the message gives. Either they declare the keys of more than one table, such as `pk` and `sk` on `Order` and `id` on `Session`, which `Including<T>` would throw `ArgumentException` for on any one table, or an entity is nested in a type that hides it, such as a `private` record inside a test class, which a class outside that type cannot name. Reported once per compilation, on no file.
+
+- **Fix.** Nothing has to change: name the entities of each table with `Including<T>()`. For `IncludingAll()`, keep the entities of one table in an assembly of their own, or make a hidden one `internal`.
+- **Not reported.** An assembly without entities. A suppression goes into `.editorconfig` (`dotnet_diagnostic.DYNA037.severity = none`), since there is no line for a `#pragma`.
+
+`DYNA038`: a type of the assembly has the name the generated class `DynamoDbEntities` needs: the class itself in the namespace named after the assembly, such as `Shop.DynamoDbEntities` in an assembly `Shop`, or a part of that namespace, such as a class `Shop` in the global namespace. C# allows no namespace and type of one name, so the class is not generated.
+
+- **Fix.** Rename the type, or the assembly (`AssemblyName` in the project file).
+- **Not reported.** An assembly for which no `IncludingAll()` would be generated, see `DYNA037`.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.

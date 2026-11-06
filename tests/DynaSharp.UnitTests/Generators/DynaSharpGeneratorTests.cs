@@ -90,7 +90,7 @@ public sealed class DynaSharpGeneratorTests
         var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        await Assert.That((string.Join(", ", output.Problems), Hints(output))).IsEqualTo((string.Empty, "Shop.ORDER.0.g.cs, Shop.Order.1.g.cs"));
+        await Assert.That((string.Join(", ", output.Problems), Hints(output))).IsEqualTo((string.Empty, "DynaSharp-DynamoDbEntities.g.cs, Shop.ORDER.0.g.cs, Shop.Order.1.g.cs"));
     }
 
     [Test]
@@ -100,7 +100,7 @@ public sealed class DynaSharpGeneratorTests
         var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        await Assert.That(Hints(output)).IsEqualTo("Shop.Address.g.cs, Shop.Order.g.cs");
+        await Assert.That(Hints(output)).IsEqualTo("DynaSharp-DynamoDbEntities.g.cs, Shop.Address.g.cs, Shop.Order.g.cs");
     }
 
     [Test]

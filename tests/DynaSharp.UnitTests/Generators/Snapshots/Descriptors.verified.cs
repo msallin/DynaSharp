@@ -91,6 +91,8 @@ DYNA235 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA236 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA237 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA036 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA037 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA038 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -184,3 +186,5 @@ DYNA235 | Error | DynaSharp.Commands | IfVersion on a Put | {0}. {1}.
 DYNA236 | Warning | DynaSharp.Commands | Batch of an entity with a version | '{0}' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.
 DYNA237 | Warning | DynaSharp.Commands | DateTime without a kind | '{0}' is a DateTime of kind Unspecified, which names no instant, so {1}. Pass DateTimeKind.Utc, as in new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc), or use DateOnly for a date.
 DYNA036 | Error | DynaSharp.Mapping | [TimeToLive] is not valid here | [TimeToLive] on '{0}' is not valid: {1}
+DYNA037 | Info | DynaSharp.Mapping | No IncludingAll() for the entities of this assembly | No IncludingAll() is generated for the entities of this assembly: {0}. Name the entities of a table with Including<T>().
+DYNA038 | Error | DynaSharp.Mapping | Type has a name the generated class DynamoDbEntities needs | Type '{0}' has the name '{1}', which the generated class DynamoDbEntities of this assembly needs for itself or for its namespace, the name of the assembly. Rename the type.

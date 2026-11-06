@@ -587,6 +587,16 @@ Branch `m4/m5-credentials`. botocore 1.42 (`credentials.py`, `tokens.py`, `utils
 
 ## M4 and later
 
+### R14 - 0.4.0 generator
+
+Branch `feat/040-generator`, from the design review of the 0.4.0 backlog, approved by the owner. Additive: no shipped signature changes, and no new runtime API.
+
+- [x] **`IncludingAll()` per assembly.** The generator writes `DynamoDbEntities.IncludingAll(this CreateTableCommand)` in the namespace named after the assembly, an `Including<T>()` of every entity, so that `shop.CreateTable().IncludingAll()` cannot forget one. Why: the drift report of `IfNotExists()` compares the table only with the entities the chain names, so a forgotten entity's index is invisible, and lps-label-print-server guarded it with a reflection test. The sample creates its table with it; `tables.md` (Every entity of an assembly), `generated-code.md` and the Testing README say how.
+- Decision: generated code, not a runtime registry: a direct `Including<T>()` per type is AOT-safe and needs no reflection, and `DynaSharp` gains no type. One `Collect()` beside the clashes of hint names, combined with the assembly name over `CompilationProvider`; both are values, so an edit that changes no entity reruns nothing (`IncrementalityTests`: `Registry: Cached`). Ordinal order of the full names, so the file does not move with the order of the files.
+- Decision: only where it cannot be wrong at compile time. Entities with more than one pair of key names, which `Including<T>` throws for (`DYNA225`), get no class and one `DYNA037` (info, no location, `.editorconfig` to silence it), as does an entity nested in a `private` or `protected` type, which a class outside it cannot name: test projects nest entities in test classes. Leaving such an entity out silently would defeat the point. Other disagreements (an attribute type, an index declared twice differently, time to live) still throw at run time, as the hand-written chain does. Two tables whose keys have the same names cannot be told apart, a documented limit.
+- Decision: `public` when every entity is effectively public, so that a service whose model lives in a library creates the table from another assembly, `internal` otherwise. A library with the public API analyzers lists the new public class, as it lists the generated members of its public entities. With two such namespaces in scope the call is ambiguous; calling it as a static method picks one.
+- Decision: the name `DynamoDbEntities` in that namespace is reserved. A type of the assembly with that metadata name, or with the name of a part of the namespace (CS0101 either way), is `DYNA038` (error, on the type), and no class is generated; it is reported only where a class would be. The hint name `DynaSharp-DynamoDbEntities.g.cs` has a dash, which no hint name of a type has, so it cannot clash case-insensitively. The shape snapshots leave the file out; `EntitiesEmitterTests` has its own, and runs the generated code against the fake.
+
 ### R12 - table checks and the emulator region (after 0.3.0)
 
 Branch `feat/table-checks`, approved by the owner from the backlog of the update of the apps to 0.3.0. All additive to 0.3.0: no shipped signature changes. The releases of 0.2.0 and 0.3.0 had not moved their lines to `PublicAPI.Shipped.txt`; a `chore` commit moved the lines of the 0.3.0 tag afterwards, and `build/ship-public-api.sh` with a check in the release workflow keeps it from happening again.
@@ -1044,7 +1054,7 @@ Writes
 
 Table setup
 - [x] `IfNotExists()` on an existing table silently ignores an index or time to live a new entity adds: report the drift in `CreateTableResult`, or an ensure mode. Done: `CreateTableResult.Drift`, and a key that differs throws, see R12.
-- [ ] A registry of the entities of an assembly that `Including` can take, so a forgotten entity cannot drop its indexes (lps-label-print-server guards it with a reflection test).
+- [x] A registry of the entities of an assembly that `Including` can take, so a forgotten entity cannot drop its indexes (lps-label-print-server guards it with a reflection test). Done: the generated `IncludingAll()`, see R14.
 - [x] `Table<Item>.CreateTable().Including<...>()` in `tables.md`, which shows only a typed start. Done in 0.3.0, see R10.
 - [x] A timeout for the whole `CreateTable` chain that names the table, instead of a linked token and a shorter wait. Done in 0.3.0: `CreateTableCommand.Timeout`, see R10.
 - [x] An emulator helper for the options (`ServiceUrl` plus static credentials), which services copy. Done in 0.3.0: `DynamoDbClientOptions.ForEmulator`, see R10.
