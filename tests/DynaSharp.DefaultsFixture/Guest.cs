@@ -3,7 +3,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.DefaultsFixture;
 
 /// <summary>An entity with a plain key, so the attribute of the key derives from its property, and a discriminator of its own, which wins over the default.</summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "guests")]
 [Discriminator("GUEST")]
 public sealed partial record Guest
 {

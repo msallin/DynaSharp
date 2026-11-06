@@ -7,3 +7,12 @@ static DynaSharp.AttributeValue.FromJson(System.ReadOnlySpan<byte> utf8Json) -> 
 static DynaSharp.AttributeValue.FromJson(System.Text.Json.JsonElement json) -> DynaSharp.AttributeValue
 static DynaSharp.Serialization.JsonElementConverter.Read(ref DynaSharp.Serialization.DynamoDbReader reader, DynaSharp.AttributeType type) -> System.Text.Json.JsonElement
 static DynaSharp.Serialization.JsonElementConverter.Write(DynaSharp.Serialization.DynamoDbWriter writer, System.Text.Json.JsonElement value) -> void
+DynaSharp.DynamoDbClient.Table<T>() -> DynaSharp.Table<T>!
+DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string!>?
+DynaSharp.DynamoDbClientOptions.TableNaming.init -> void
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Table.get -> string?
+DynaSharp.Mapping.DynamoDbDefaultsAttribute.Table.set -> void
+DynaSharp.Mapping.DynamoDbEntityAttribute.Table.get -> string?
+DynaSharp.Mapping.DynamoDbEntityAttribute.Table.set -> void
+DynaSharp.Mapping.DynamoDbEntityInfo.TableName.get -> string?
+DynaSharp.Mapping.DynamoDbEntityInfo.TableName.init -> void

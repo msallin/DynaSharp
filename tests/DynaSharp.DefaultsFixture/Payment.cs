@@ -4,7 +4,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.DefaultsFixture;
 
 /// <summary>An entity whose <see cref="bool"/>, <see cref="DateTime"/> and <see cref="Guid"/> take the opt-in converters of the library through defaults of the assembly, as a table the AWS SDK wrote holds them.</summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "payments")]
 public sealed partial record Payment
 {
     [PartitionKey]

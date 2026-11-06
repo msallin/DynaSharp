@@ -180,6 +180,22 @@ public sealed record DynamoDbClientOptions
     public ContinuationTokenSigner? TokenSigner { get; init; }
 
     /// <summary>
+    /// Gets the function that turns the table an entity declares into the table the client opens, such as <c>name => $"{environment}-{name}"</c>. When <see langword="null"/>, a declared name is used as it is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Only declared names.</b> <see cref="DynamoDbClient.Table{T}()"/> passes the name of <see cref="Mapping.DynamoDbEntityAttribute.Table"/>, or of <see cref="Mapping.DynamoDbDefaultsAttribute.Table"/>,
+    /// through it on every call. An explicit name, as in <see cref="DynamoDbClient.Table{T}(string)"/> and <see cref="DynamoDbClient.Table(string, string, string?)"/>, is used exactly as given, so
+    /// it can be an ARN, or a table of a test.
+    /// </para>
+    /// <para>
+    /// <b>A name or an exception.</b> The result may be a name or an ARN, which the client does not check: DynamoDB rejects one it does not know with the first command. A result that is
+    /// <see langword="null"/> or empty makes <see cref="DynamoDbClient.Table{T}()"/> throw <see cref="InvalidOperationException"/>, and an exception of the function reaches the caller as it is.
+    /// </para>
+    /// </remarks>
+    public Func<string, string>? TableNaming { get; init; }
+
+    /// <summary>
     /// Creates options for an emulator, such as DynamoDB Local or Dynoxide, at <paramref name="serviceUrl"/>: <see cref="ServiceUrl"/>, the region, <c>us-east-1</c> unless <paramref name="region"/> names
     /// another, and the static credentials <c>local</c> and <c>local</c>, so that nothing is read from the environment for them. Every request is signed, and an emulator checks neither the region nor the keys,
     /// so any values do: <c>new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")))</c>.
@@ -236,7 +252,8 @@ public sealed record DynamoDbClientOptions
             .Append(", MaxAttempts = ").Append(MaxAttempts)
             .Append(", TimeProvider = ").Append(TimeProvider?.GetType())
             .Append(", LoggerFactory = ").Append(LoggerFactory?.GetType())
-            .Append(", TokenSigner = ").Append(TokenSigner?.GetType());
+            .Append(", TokenSigner = ").Append(TokenSigner?.GetType())
+            .Append(", TableNaming = ").Append(TableNaming?.GetType());
         return true;
     }
 }

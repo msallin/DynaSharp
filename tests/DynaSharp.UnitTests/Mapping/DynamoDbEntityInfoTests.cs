@@ -33,6 +33,26 @@ public sealed class DynamoDbEntityInfoTests
     }
 
     [Test]
+    public async Task TableName_NotSet_IsNull()
+    {
+        // Arrange, Act
+        var info = new DynamoDbEntityInfo(null, "pk", null, []);
+
+        // Assert
+        await Assert.That(info.TableName).IsNull();
+    }
+
+    [Test]
+    public async Task TableName_Set_KeepsIt()
+    {
+        // Arrange, Act
+        var info = new DynamoDbEntityInfo(null, "pk", null, []) { TableName = "orders" };
+
+        // Assert
+        await Assert.That(info.TableName).IsEqualTo("orders");
+    }
+
+    [Test]
     public async Task Constructor_NoKeyTypes_SaysNothingAboutThem()
     {
         // Arrange, Act

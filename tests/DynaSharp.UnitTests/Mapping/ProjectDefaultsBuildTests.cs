@@ -43,6 +43,20 @@ public sealed class ProjectDefaultsBuildTests
     }
 
     [Test]
+    public async Task Table_EntityWithoutATableOfItsOwnAndOneWithIt_OpensTheTableOfTheAssemblyAndItsOwn()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var names = (client.Table<Booking>().Name, client.Table<Guest>().Name);
+
+        // Assert
+        await Assert.That(names).IsEqualTo(("bookings", "guests"));
+    }
+
+    [Test]
     public async Task ToRequestJson_GetOfAPlainKey_NamesItsConvertedAttribute()
     {
         // Arrange

@@ -526,7 +526,7 @@ public sealed class DynamoDbClientTests
         var text = options.ToString();
 
         // Assert
-        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = , ServiceUrl = , Credentials = , HttpHandler = , AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = , LoggerFactory = , TokenSigner =  }");
+        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = , ServiceUrl = , Credentials = , HttpHandler = , AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = , LoggerFactory = , TokenSigner = , TableNaming =  }");
     }
 
     [Test]
@@ -541,13 +541,14 @@ public sealed class DynamoDbClientTests
             HttpHandler = handler,
             LoggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance,
             TokenSigner = new ContinuationTokenSigner(new byte[ContinuationTokenSigner.MinKeyLength]),
+            TableNaming = static name => name,
         };
 
         // Act
         var text = options.ToString();
 
         // Assert
-        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = us-west-2, ServiceUrl = , Credentials = DynaSharp.Credentials.StaticCredentialsProvider, HttpHandler = DynaSharp.Testing.StubHandler, AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = System.TimeProvider+SystemTimeProvider, LoggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory, TokenSigner = DynaSharp.ContinuationTokenSigner }");
+        await Assert.That(text).IsEqualTo("DynamoDbClientOptions { Region = us-west-2, ServiceUrl = , Credentials = DynaSharp.Credentials.StaticCredentialsProvider, HttpHandler = DynaSharp.Testing.StubHandler, AttemptTimeout = 00:00:30, MaxAttempts = 4, TimeProvider = System.TimeProvider+SystemTimeProvider, LoggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory, TokenSigner = DynaSharp.ContinuationTokenSigner, TableNaming = System.Func`2[System.String,System.String] }");
     }
 
     [Test]

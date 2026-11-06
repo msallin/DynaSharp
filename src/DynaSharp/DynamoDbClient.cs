@@ -15,7 +15,7 @@ namespace DynaSharp;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A table is the primary API: <c>client.Table("Shop", "pk", "sk")</c> gives a <see cref="Table{T}"/>, whose methods are the DynamoDB
+/// A table is the primary API: <c>client.Table("Shop", "pk", "sk")</c> gives a <see cref="DynaSharp.Table{T}"/>, whose methods are the DynamoDB
 /// operations on items. The request API, with one method per DynamoDB operation that takes and returns the request and response records, is in the
 /// <c>DynaSharp.Requests</c> namespace: add <c>using DynaSharp.Requests;</c> and see <see cref="Requests.DynamoDbRequests"/>, which also
 /// describes how errors, retries and telemetry behave.
@@ -152,6 +152,54 @@ public sealed class DynamoDbClient : IDisposable
     }
 
     /// <summary>
+    /// Opens the table an entity declares, through <see cref="DynamoDbEntityAttribute.Table"/> or <see cref="DynamoDbDefaultsAttribute.Table"/>, as <see cref="DynamoDbClientOptions.TableNaming"/> names it.
+    /// It makes no request, so a table that does not exist shows up with the first command.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Declared, then named.</b> The declaration of the entity wins over the default of its assembly, and <see cref="DynamoDbClientOptions.TableNaming"/>, if set, turns the result into the name
+    /// the client opens, such as <c>dev-orders</c> for <c>orders</c>. <see cref="Table{T}(string)"/> skips both and opens the name it is given.
+    /// </para>
+    /// <para>
+    /// <b>Hold the result.</b> The table is immutable and thread-safe, so a field or a singleton keeps it. Every call runs <see cref="DynamoDbClientOptions.TableNaming"/> again.
+    /// </para>
+    /// <para>
+    /// <b>No declaration.</b> An entity of the compilation that declares no table is <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA238</see> at the call, and an entity
+    /// from elsewhere throws here.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <returns>The table.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table, or <see cref="DynamoDbClientOptions.TableNaming"/> returned <see langword="null"/> or an empty name.</exception>
+    /// <example>
+    /// <code>
+    /// [assembly: DynamoDbDefaults(Table = "appdata")]
+    ///
+    /// var client = new DynamoDbClient(new DynamoDbClientOptions { TableNaming = name => $"{environment}-{name}" });
+    /// var orders = client.Table&lt;Order&gt;();        // "dev-appdata" for the environment "dev"
+    /// var scratch = client.Table&lt;Order&gt;("test-1"); // "test-1", as given
+    /// </code>
+    /// </example>
+    public Table<T> Table<T>()
+        where T : IDynamoDbEntity<T>
+    {
+        var declared = DeclaredTable.Of<T>();
+        if (Core.Options.TableNaming is not { } naming)
+        {
+            return CreateTable<T>(Core, declared);
+        }
+
+        var name = naming(declared);
+        if (string.IsNullOrEmpty(name))
+        {
+            throw new InvalidOperationException(
+                $"TableNaming of the client returned {(name is null ? "null" : "an empty name")} for the table '{declared}' that {typeof(T)} declares. Return the name of a table, or leave TableNaming null to open '{declared}' itself.");
+        }
+
+        return CreateTable<T>(Core, name);
+    }
+
+    /// <summary>
     /// Starts a transaction of writes (<c>TransactWriteItems</c>): up to 100 puts, updates, deletes and condition checks on any tables, which take effect
     /// together or not at all. See <see cref="TransactWriteCommand"/>.
     /// </summary>
@@ -167,7 +215,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <summary>
     /// Reads the definition and state of a table by its name (DynamoDB <c>DescribeTable</c>): status, key schema, indexes and approximate counts, which DynamoDB updates about every six hours. It is
     /// <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> for the usual call, with no request to build and no <c>using DynaSharp.Requests;</c>, and it returns
-    /// what that returns. A <see cref="Table{T}"/> at hand has <see cref="Table{T}.DescribeAsync"/>.
+    /// what that returns. A <see cref="DynaSharp.Table{T}"/> at hand has <see cref="DynaSharp.Table{T}.DescribeAsync"/>.
     /// </summary>
     /// <remarks>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</remarks>
     /// <param name="tableName">The table name, or its ARN.</param>
@@ -243,7 +291,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <summary>
     /// Runs a read-modify-write, and runs it again when it loses to another writer: 5 runs in all, with a wait between them, and the failure of the last run is rethrown. Nothing in the library does that by itself, and this is how a
     /// caller asks for it, here or on a
-    /// <see cref="Table{T}"/>, which needs no client at hand for it. A run has lost
+    /// <see cref="DynaSharp.Table{T}"/>, which needs no client at hand for it. A run has lost
     /// when it throws a <see cref="ConditionalCheckFailedException"/>, a <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> whose reasons include
     /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>. That is <see cref="ConflictKind.Any"/>, and the overload that takes a <see cref="ConflictKind"/> runs again on one of them only,
     /// for a run whose failed condition is its answer, and takes another number of runs, see <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/>.

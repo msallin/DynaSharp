@@ -10,4 +10,7 @@ namespace DynaSharp.Generators;
 /// <param name="Arguments">The message arguments.</param>
 /// <param name="FilePath">The path of the tree.</param>
 /// <param name="Span">The span in that tree.</param>
-internal sealed record DiagnosticInfo(string Id, EquatableArray<string> Arguments, string FilePath, TextSpan Span);
+/// <param name="Type">
+/// The metadata name of a type of the compilation whose <c>[DynamoDbEntity]</c> is the place, for a value that cannot know a place: one of all the entities, which would change with every edit that moves one. Null otherwise.
+/// </param>
+internal sealed record DiagnosticInfo(string Id, EquatableArray<string> Arguments, string FilePath, TextSpan Span, string? Type = null);

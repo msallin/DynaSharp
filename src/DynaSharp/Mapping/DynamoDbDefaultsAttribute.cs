@@ -46,4 +46,17 @@ public sealed class DynamoDbDefaultsAttribute : Attribute
     /// cannot do without, as <see cref="OmitEmptyAttribute"/> says. An empty list then reads back as null or as the initial value, and <c>[OmitEmpty(false)]</c> takes it back for a property or a type.
     /// </summary>
     public bool OmitEmpty { get; set; }
+
+    /// <summary>
+    /// Gets or sets the table of every entity of the assembly that declares none with <see cref="DynamoDbEntityAttribute.Table"/>, for a service whose entities share one table.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The entity wins.</b> <c>[DynamoDbEntity(Table = "sessions")]</c> puts one entity into a table of its own, and an explicit name of <see cref="DynamoDbClient.Table{T}(string)"/> wins over both.
+    /// </para>
+    /// <para>
+    /// <b>The rules are those of the entity.</b> The name is checked as <see cref="DynamoDbEntityAttribute.Table"/> says, and the entities that end up in the table must agree on the names of their keys.
+    /// </para>
+    /// </remarks>
+    public string? Table { get; set; }
 }

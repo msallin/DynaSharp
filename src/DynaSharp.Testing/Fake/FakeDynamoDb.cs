@@ -180,6 +180,22 @@ public sealed partial class FakeDynamoDb
     }
 
     /// <summary>
+    /// Creates the table an entity declares, as <see cref="CreateTable{T}(string)"/> does under that name: <see cref="DynamoDbEntityAttribute.Table"/>, or the default of its assembly.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The name as declared.</b> The fake knows no <see cref="DynamoDbClientOptions.TableNaming"/>, so a client of the fake whose options set one opens another table: such a test passes the
+    /// name it expects to <see cref="CreateTable{T}(string)"/>.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <returns>The description.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceInUseException">A table of that name exists.</exception>
+    public TableDescription CreateTable<T>()
+        where T : IDynamoDbEntity<T> => CreateTable<T>(DeclaredTable.Of<T>());
+
+    /// <summary>
     /// Creates a table without a model, on demand, whose keys are strings: the table of <c>client.Table(name, partitionKey, sortKey)</c>, such as the table
     /// of a <c>LockTable</c> of <c>DynaSharp.Coordination</c>. A table with keys of other types, indexes or a stream takes <see cref="CreateTable(CreateTableRequest)"/>.
     /// </summary>

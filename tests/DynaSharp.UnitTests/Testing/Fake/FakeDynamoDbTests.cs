@@ -475,6 +475,56 @@ public sealed class FakeDynamoDbTests
     }
 
     [Test]
+    public async Task CreateTableOfT_WithoutAName_CreatesTheTableTheEntityDeclares()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var table = fake.CreateTable<Patron>();
+
+        // Assert
+        await Assert.That((table.TableName, fake.TableNames.Single())).IsEqualTo(("patrons", "patrons"));
+    }
+
+    [Test]
+    public async Task PutOfT_WithoutAName_GetOfTAndItemsOfTReadItBackFromTheDeclaredTable()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        var patron = new Patron("p-1", "Ada");
+
+        // Act
+        fake.Put(patron);
+
+        // Assert
+        await Assert.That((fake.Get<Patron>(new Item { ["pk"] = "p-1" }), fake.Items<Patron>().Single(), fake.Items("patrons").Count)).IsEqualTo((patron, patron, 1));
+    }
+
+    [Test]
+    public async Task DirectApiWithoutAName_EntityWithoutATable_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        var subscriber = new Subscriber("s-1", "a@example.com");
+
+        // Act (what DYNA238 reports at compile time is what this test checks at run time)
+#pragma warning disable DYNA238
+        Action[] calls =
+        [
+            () => fake.CreateTable<Subscriber>(),
+            () => fake.Put(subscriber),
+            () => fake.Get<Subscriber>(new Item { ["pk"] = "s-1" }),
+            () => fake.Items<Subscriber>(),
+        ];
+#pragma warning restore DYNA238
+
+        // Assert
+        await Assert.That(calls.Count(call => Throws<InvalidOperationException>(call))).IsEqualTo(calls.Length);
+    }
+
+    [Test]
     public async Task CreateClient_CommandsOfATable_CreateWaitPutAndGetThroughTheFake()
     {
         // Arrange: what a service does at start-up and on a request, through the commands of a table.
