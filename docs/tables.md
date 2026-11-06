@@ -46,7 +46,7 @@ await shop.CreateTable()
 
 Without an `Including`, such a table has string keys and no index. Either start gives the same table for the same entities.
 
-`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream. An entity with a [`[TimeToLive]`](entities.md#time-to-live) property needs no `.TimeToLive(...)`: `CreateTable()` turns time to live on for it, and so does an `Including` of it, while `.TimeToLive(...)` replaces what the entities declare. Two entities that declare different attributes throw `ArgumentException` at `Including`, since a table has time to live on one.
+`.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive("ExpiresAt")` for an attribute that no entity declares go on the same chain. [Streams](streams.md) says how to read the stream. An entity with a [`[TimeToLive]`](entities.md#time-to-live) property needs no `.TimeToLive(...)`: `CreateTable()` turns time to live on for it, and so does an `Including` of it, while `.TimeToLive(...)` replaces what the entities declare. Two entities that declare different attributes throw `ArgumentException` at `Including`, since a table has time to live on one.
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 

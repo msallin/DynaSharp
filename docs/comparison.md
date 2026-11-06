@@ -25,8 +25,9 @@ The versions compared are AWSSDK.DynamoDBv2 4.0.109 with AWSSDK.Core 4.0.102.12,
 | Projection | `Project(...)`, `Select(attribute)` | Attribute names in the operation config of the document model | Typed, also into a type of its own |
 | Values back from a write | `ReturnNew()`, `ReturnOld()`, `ReturnOldOnFailure()` | Not in the context; in the document model | Yes |
 | Creating a table from the model | `CreateTable()`, with the indexes the entities declare | No, the low-level client only | No |
-| DynamoDB Streams | `DynamoDbStreamsClient`, in the package | A client in another package | No |
-| Time to live in seconds | `EpochSecondsConverter` | `StoreAsEpochLong` | No built-in converter |
+| DynamoDB Streams | `DynamoDbStreamsClient`, in the package, with the changes of a table as entities | A client in another package | No |
+| Locks and leader election | `DynaSharp.Coordination`, a package of its own, with fencing tokens | No | No |
+| Time to live in seconds | `EpochSecondsConverter`, and `[TimeToLive]`, which `CreateTable()` turns on | `StoreAsEpochLong` | No built-in converter |
 | Credentials | Environment, web identity (IRSA), profiles with keys, assume role, SSO and `credential_process`, ECS and EKS Pod Identity, EC2 | The same; SSO and assume role need further AWS packages at run time | Keys you pass, or a provider of your own; the chain of the AWS SDK through the package EfficientDynamoDb.Credentials.AWSSDK, from its docs |
 | Retries | Attempts and a timeout per attempt for the client, attempts per command | Standard and adaptive retry modes, number of retries | A strategy per kind of error |
 | Telemetry | `ActivitySource` and `Meter` named `DynaSharp`, logs through `ILoggerFactory` | An SDK telemetry provider, no-op unless one is set | None |
@@ -47,5 +48,5 @@ What the other two have, or what you may look for, and DynaSharp does not do:
 - **MFA in a profile.** A profile with `mfa_serial` fails, because the code of the device would be needed at every refresh. See [Assume a role](credentials.md#assume-a-role).
 - **PartiQL, DAX and vector search.** The AWS SDK has PartiQL on its low-level client and `SearchVectorsAsync` on the context.
 - **Every control-plane operation as a type.** The request API covers 17 operations, the item operations and table administration such as `CreateTable`, `UpdateTable` and time to live. Backups, exports, tags and global tables go through `SendRawAsync` with the JSON of the operation, see [API levels](api-levels.md).
-- **A non-throwing mode.** A failure is an exception; EfficientDynamoDb can return a result with the error instead.
+- **A non-throwing mode.** A failure is an exception, except a condition that did not hold for `TrySendAsync`, which is an answer, see [Conditions](commands.md#conditions); EfficientDynamoDb can return a result with any error instead.
 - **Change tracking.** There is no `SaveChanges`: a command writes what it names, see [Migrating](migrating.md).

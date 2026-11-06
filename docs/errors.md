@@ -53,7 +53,7 @@ The client throws these itself:
 
 | Exception | When | Carries |
 |---|---|---|
-| `TimeoutException` | An attempt ran past `AttemptTimeout`. Retried; surfaces after the last attempt | |
+| `TimeoutException` | An attempt ran past `AttemptTimeout`. Retried; surfaces after the last attempt. Also a `CreateTable()` that ran past its `Timeout(...)`, see [A table that exists](tables.md#a-table-that-exists), which is not retried | The message of the `CreateTable()` names the table and the step |
 | `HttpRequestException` | The network failed. Retried, except a response above 64 MB, whose `HttpRequestError` is `ConfigurationLimitExceeded` | |
 | `OperationCanceledException` | The caller's `CancellationToken` was cancelled. Never retried | |
 | `CredentialsUnavailableException` | No credentials source applies, or one that applies is broken. Never retried. See [When credentials fail](credentials.md#when-credentials-fail) | |
@@ -148,13 +148,15 @@ A role needs the IAM action of each operation a call sends, on the ARN of each t
 | `TransactWrite()` | Each step's action: `dynamodb:PutItem` for `Put` and `Unique`, `dynamodb:UpdateItem`, `dynamodb:DeleteItem`, `dynamodb:ConditionCheckItem` for `Check`. None for the transaction itself |
 | `TransactGet()` | `dynamodb:GetItem` |
 | `CreateTable()` | `dynamodb:CreateTable` and `dynamodb:DescribeTable`. With `IfNotExists()`, an existing table takes `dynamodb:DescribeTable` alone |
-| `CreateTable().TimeToLive(...)` | Also `dynamodb:DescribeTimeToLive`, and `dynamodb:UpdateTimeToLive` while time to live is not on yet |
+| `CreateTable().TimeToLive(...)`, or `CreateTable()` of an entity with `[TimeToLive]` | Also `dynamodb:DescribeTimeToLive`, and `dynamodb:UpdateTimeToLive` while time to live is not on yet |
 | `WaitUntilActive()`, `WaitUntilActiveAsync`, `DescribeAsync`, `client.DescribeTableAsync` | `dynamodb:DescribeTable` |
 | `client.UpdateTableAsync`, for an index or a stream on an existing table | `dynamodb:UpdateTable` |
 | `client.DeleteTableAsync` | `dynamodb:DeleteTable` |
 | `ToRequest()` of `CreateTable()` with `Tags`, sent by `client.CreateTableAsync` | Also `dynamodb:TagResource` |
 | `ListStreamsAsync` of `DynamoDbStreamsClient` | `dynamodb:ListStreams`, on `*` |
-| `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync` | `dynamodb:DescribeStream`, `dynamodb:GetShardIterator`, `dynamodb:GetRecords`, on `table/Shop/stream/*` |
+| `DescribeStreamAsync`, `GetShardIteratorAsync`, `GetRecordsAsync`, `ReadShardAsync`, `ReadStreamAsync` | `dynamodb:DescribeStream`, `dynamodb:GetShardIterator`, `dynamodb:GetRecords`, on `table/Shop/stream/*` |
+| `ReadStreamAsync` and `ReadChangesAsync` of a table | Also `dynamodb:DescribeTable`, on the table |
+| A `LockTable` of `DynaSharp.Coordination` | `dynamodb:GetItem` and `dynamodb:UpdateItem`, and `dynamodb:ConditionCheckItem` for `IsHeld` in a transaction |
 | Any other request API method, `SendRawAsync` | `dynamodb:` plus the operation name, on what it names |
 
 An index has its own ARN, so a policy on the table alone lets no query read an index. A shop role that reads and writes items and indexes and creates the table at start:

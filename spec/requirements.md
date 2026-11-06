@@ -30,8 +30,9 @@ Fix:
   Operations: GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan, BatchGetItem, BatchWriteItem,
   TransactGetItems, TransactWriteItems, DescribeTable, ListTables, CreateTable, UpdateTable, DeleteTable, DescribeTimeToLive,
   UpdateTimeToLive.
-- **Streams**: low-level API only: ListStreams, DescribeStream, GetShardIterator, GetRecords (separate host
-  `streams.dynamodb.<region>`, signing service `dynamodb`).
+- **Streams**: the low-level API, ListStreams, DescribeStream, GetShardIterator, GetRecords (separate host
+  `streams.dynamodb.<region>`, signing service `dynamodb`), on top of it the reading of one shard or of a whole
+  stream in one process, and the changes of a table typed as its entities.
 - **Entity mapping**: source generator for `[DynamoDbEntity]` partial types, keys via attributes, built-in converters
   for common .NET types, custom converters, compile-time diagnostics.
 - **High-level fluent API**: `client.Table<TEntity>()`; conditions, update expressions, query/scan with pagination,
@@ -100,7 +101,7 @@ One assembly `DynaSharp`; internal by default.
 |---|---|
 | `DynaSharp` | `DynamoDbClient` (construction and `Dispose`), `DynamoDbClientOptions`, `AwsRegion`, all exceptions, `AttributeValue`, `AttributeType`, and the types a `Table<T>` user has to name (`ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`) |
 | `DynaSharp.Requests` | every `XxxRequest`/`XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
-| `DynaSharp.Streams` | `DynamoDbStreamsClient` with its request and response records, structure types and enums |
+| `DynaSharp.Streams` | `DynamoDbStreamsClient` with its request and response records, structure types and enums, `TableStreamExtensions`, and the typed changes `Change<T>` and `MixedChange<...>` |
 | `DynaSharp.Credentials` | `AwsCredentials`, `ICredentialsProvider`, providers |
 | `DynaSharp.Serialization` | `DynamoDbReader`, `DynamoDbWriter`, `IDynamoDbConverter<T>` (generator- and custom-converter-facing) |
 
@@ -288,7 +289,7 @@ against the emulators, which check the ordering claim against something other th
   BannedApiAnalyzers forbid unsafe code and reflection in `src/`.
 - Tests: TUnit on Microsoft.Testing.Platform. Naming `{Type}Tests` / `Method_Scenario_ExpectedResult`, AAA, FIRST.
 - Gates: 100 % line and branch coverage on `src/`; Stryker mutation score >= 90 % (MTP runner, preview).
-- Test layers: unit; in-memory integration (stub/recording handler, later the fake); container integration;
+- Test layers: unit; in-memory integration (stub and recording handler, the fake); container integration;
   scenario tests across backends. Integration and scenario tests are written once and parametrized by backend:
   the in-memory fake (default locally, no Docker), Dynoxide and DynamoDB Local (in the PR pipeline, with the fake),
   real AWS (`DYNASHARP_BACKENDS=aws`, manual, through `.github/workflows/real-aws.yml`).

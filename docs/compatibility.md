@@ -11,11 +11,11 @@ The version follows [Semantic Versioning](https://semver.org/) and comes from th
 
 ## The public API
 
-The public surface of each package is listed in its `PublicAPI.Shipped.txt`, [for DynaSharp](https://github.com/msallin/DynaSharp/blob/main/src/DynaSharp/PublicAPI.Shipped.txt) and [for DynaSharp.Testing](https://github.com/msallin/DynaSharp/blob/main/src/DynaSharp.Testing/PublicAPI.Shipped.txt). That list is the contract: a change to a line of it is a breaking change, so it comes in a minor release only, and the build of DynaSharp fails on a change to the surface that the lists do not record.
+The public surface of each package is listed in its `PublicAPI.Shipped.txt`, [for DynaSharp](https://github.com/msallin/DynaSharp/blob/main/src/DynaSharp/PublicAPI.Shipped.txt), [for DynaSharp.Testing](https://github.com/msallin/DynaSharp/blob/main/src/DynaSharp.Testing/PublicAPI.Shipped.txt) and [for DynaSharp.Coordination](https://github.com/msallin/DynaSharp/blob/main/src/DynaSharp.Coordination/PublicAPI.Shipped.txt). That list is the contract: a change to a line of it is a breaking change, so it comes in a minor release only, and the build of DynaSharp fails on a change to the surface that the lists do not record.
 
 ## Analyzers
 
-The analyzers of the package may report more in a later release, in a patch release too: a fix that closes a gap finds code that it missed before, and that code can now show a warning. A build that treats warnings as errors then fails until the code is fixed or the rule is set to a lower severity in `.editorconfig`. To keep that rare, a rule that is new after 0.1.0 starts at Info, which never fails a build. [Diagnostics](diagnostics.md) lists every rule with its severity.
+The analyzers of the package may report more in a later release, in a patch release too: a fix that closes a gap finds code that it missed before, and that code can now show a warning. A build that treats warnings as errors then fails until the code is fixed or the rule is set to a lower severity in `.editorconfig`. To keep that rare, a rule that is new after 0.1.0 starts at Info, which never fails a build, unless what it reports cannot work: `DYNA036` is an error on a `[TimeToLive]`, which came with that attribute, and `DYNA038` on a type that has the name the generated class `DynamoDbEntities` needs, since C# does not take the two side by side. [Diagnostics](diagnostics.md) lists every rule with its severity.
 
 ## Data on disk
 

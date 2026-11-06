@@ -55,4 +55,4 @@ A distributed lock needs more than a conditional write: a heartbeat, a wait on a
 
 ## Not in DynaSharp
 
-Rollups through DynamoDB Streams run in a consumer such as a Lambda function, outside the client.
+Rollups through DynamoDB Streams need a consumer that keeps its position and shares the shards among processes, such as a Lambda function. [`ReadChangesAsync`](streams.md#typed-changes) reads the changes in one process, and is no such consumer.
