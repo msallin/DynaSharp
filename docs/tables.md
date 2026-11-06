@@ -4,20 +4,99 @@ Open a table once and keep it. `CreateTable()` creates it from what its entities
 
 ## Opening a table
 
-Opening makes no request. Each entity on a table opens it under its own type, and `client.Table(name, "pk", "sk")` opens it without a model, as a `Table<Item>` that names its keys. These are the tables of [the shop](getting-started.md#the-shop).
+Opening makes no request. An entity declares the table it lives in, and `client.Table<T>()` opens it under the type of the entity; `client.Table(name, "pk", "sk")` opens a table without a model, as a `Table<Item>` that names its keys. These are the tables of [the shop](getting-started.md#the-shop), whose entities declare `Shop`:
 
 ```csharp
-var orders = client.Table<Order>("Shop");
-var customers = client.Table<Customer>("Shop");
+var orders = client.Table<Order>();
+var customers = client.Table<Customer>();
 var shop = client.Table("Shop", "pk", "sk");
 var carts = shop.Of<Cart>();
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
 
-`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
+`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It keeps the name of the table it is called on, whatever `T` declares. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
 
 > [!NOTE]
 > `DYNA221` and `DYNA224` check a query against the keys of what it reads only when `Index(...)` is in the chain of the query. They pass over a query of an index kept in a field or a variable, such as `byStatus`. See [Commands](diagnostics.md#commands) on the diagnostics page.
+
+### Declaring the table
+
+`[DynamoDbEntity(Table = "...")]` names the table of an entity. The entities of one table name it alike, so a single-table model keeps the name in one constant:
+
+```csharp
+using DynaSharp;
+using DynaSharp.Mapping;
+
+public static class Ledger
+{
+    public const string Table = "Ledger";
+}
+
+[DynamoDbEntity(Table = Ledger.Table)]
+[Discriminator("LEDGER_ACCOUNT")]
+[PartitionKey("ACCOUNT#{Id}")]
+[SortKey("PROFILE")]
+public partial record LedgerAccount
+{
+    public required string Id { get; init; }
+    public required string Owner { get; init; }
+}
+
+[DynamoDbEntity(Table = Ledger.Table)]
+[Discriminator("LEDGER_ENTRY")]
+[PartitionKey("ACCOUNT#{AccountId}")]
+[SortKey("ENTRY#{At}")]
+public partial record LedgerEntry
+{
+    public required string AccountId { get; init; }
+    public required DateTimeOffset At { get; init; }
+    public required decimal Amount { get; init; }
+}
+
+public static class LedgerTables
+{
+    public static (Table<LedgerAccount> Accounts, Table<LedgerEntry> Entries) Open(DynamoDbClient client) =>
+        (client.Table<LedgerAccount>(), client.Table<LedgerEntry>());
+}
+```
+
+A service whose entities all live in one table says it once, for every entity of its assembly, and an entity with a table of its own still names it:
+
+```text
+[assembly: DynamoDbDefaults(Table = "Ledger")]
+
+[DynamoDbEntity(Table = "Sessions")]
+public partial record Session { ... }
+```
+
+The example blocks of this guide are compiled together, and [Project defaults](entities.md#project-defaults) holds their assembly attribute, so this one is plain text.
+
+- **What the generator checks.** A name DynamoDB would refuse, empty, outside 3 to 255 characters, or with a character other than `a-z`, `A-Z`, `0-9`, `_`, `-` and `.`, is the error [`DYNA039`](diagnostics.md#entities). Two entities of one table whose keys have other names are the warning [`DYNA040`](diagnostics.md#entities), since a table has one key schema.
+- **No declaration.** `client.Table<T>()` of an entity that declares no table, on itself or through its assembly, is the error [`DYNA238`](diagnostics.md#commands), and an entity from elsewhere throws `InvalidOperationException` there, naming both ways to fix it.
+
+### A table per environment
+
+Accounts that hold several environments tell their tables apart by name. `TableNaming` of the options turns a declared name into the one the client opens, on every `Table<T>()`:
+
+```csharp
+var environment = Environment.GetEnvironmentVariable("STAGE") ?? "dev";
+using var staged = new DynamoDbClient(new DynamoDbClientOptions
+{
+    TableNaming = name => $"{environment}-{name}",
+});
+
+var accounts = staged.Table<LedgerAccount>(); // dev-Ledger
+```
+
+It applies only to declared names. A function that returns null or an empty name makes `Table<T>()` throw `InvalidOperationException`; any other result is opened as it is, so it can be an ARN, and DynamoDB answers a table it does not know with the first command.
+
+### An explicit name
+
+`client.Table<T>(name)` opens the table it is given, exactly: `TableNaming` does not touch it, and it can be the ARN of a table in another account. It is the override for a table the declaration does not know, and what a test uses for a table of its own per run:
+
+```csharp
+var scratch = client.Table<LedgerAccount>($"Ledger-{Guid.NewGuid():N}");
+```
 
 ## Creating a table
 
@@ -152,13 +231,13 @@ await orders.CreateTable()
 
 ## One table per entity
 
-Single-table design is a choice, not a requirement. An entity can have a table of its own, opened, created and read the same way. Its keys need no prefix, since nothing else lives in the table, and `[Discriminator(OptOut = true)]` leaves out `_type`, which a table of one type does not need: a `Query` or a `Scan` of the entity then reads every item without filtering on it. Keep the discriminator if the table may take a second type later.
+Single-table design is a choice, not a requirement. An entity can have a table of its own, declared, opened, created and read the same way. Its keys need no prefix, since nothing else lives in the table, and `[Discriminator(OptOut = true)]` leaves out `_type`, which a table of one type does not need: a `Query` or a `Scan` of the entity then reads every item without filtering on it. Keep the discriminator if the table may take a second type later.
 
 ```csharp
 using DynaSharp;
 using DynaSharp.Mapping;
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Wallets")]
 [Discriminator(OptOut = true)]
 [PartitionKey("{Id}")]
 public partial record Wallet
@@ -167,7 +246,7 @@ public partial record Wallet
     public required decimal Balance { get; init; }
 }
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Deposits")]
 [Discriminator(OptOut = true)]
 [PartitionKey("{WalletId}")]
 [SortKey("{At}")]
@@ -182,8 +261,8 @@ public static class Deposits
 {
     public static async Task BookAsync(DynamoDbClient client, Deposit deposit, CancellationToken ct)
     {
-        var wallets = client.Table<Wallet>("Wallets");
-        var deposits = client.Table<Deposit>("Deposits");
+        var wallets = client.Table<Wallet>();
+        var deposits = client.Table<Deposit>();
 
         await wallets.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
         await deposits.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);

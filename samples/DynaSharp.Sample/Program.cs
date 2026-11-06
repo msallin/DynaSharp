@@ -14,7 +14,8 @@ using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
 var ct = timeout.Token;
 
 // A table is a small immutable object: open it once and keep it. These are five views of one table, and an index is read through
-// a type of its own that has no writes. Opening makes no request. Every run works in a table of its own, so runs cannot collide.
+// a type of its own that has no writes. Opening makes no request. Every entity declares the table Shop, which client.Table<Order>()
+// opens; here every run works in a table of its own, so runs cannot collide, and the name passed in wins over the declared one.
 var tableName = $"Shop-{Guid.NewGuid():N}"[..13];
 var products = client.Table<Product>(tableName);
 var customers = client.Table<Customer>(tableName);
