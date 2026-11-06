@@ -1067,6 +1067,10 @@ From the update of the apps to 0.3.0
 - [ ] CA2016 against "pass the token once": `ItemsAsync(ct).ToListAsync()` with a token in scope reports CA2016 (forward the token), so under `AnalysisMode=All` the advice of `queries.md` cannot be followed (lps keeps `ToListAsync(ct)`). A `DiagnosticSuppressor` for CA2016 on a LINQ terminal over a DynaSharp terminal that took the token, or a sentence in `queries.md`.
 - [ ] `ForEmulator` fixes `us-east-1`: DynamoDB Local without `-sharedDb` keeps one database per key and region, so a tool that uses the configured region does not see the same tables. Say so in the XML docs and the guide, or take an optional region.
 
+Owner's decisions of 2026-11-06
+- [ ] Stryker cycle before 0.4.0: the `coordination` shard (never run), and the core, generators and testing shards that hit the six-hour job limit in run 41671331841 (split them so each fits). Break at 90 %.
+- [ ] Real DynamoDB: run `StreamTests.GetShardIterator_AtTheStartingSequenceNumberOfAShard_ReadsFromItsFirstRecord` with `DYNASHARP_BACKENDS=aws` (`real-aws.yml`), which decides whether the 23-hour age rule of child shards (R6) can read every child at its starting sequence number instead.
+
 ## Decisions
 
 | Date | Decision |
