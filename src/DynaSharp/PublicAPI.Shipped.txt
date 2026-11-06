@@ -154,6 +154,7 @@ DynaSharp.ConditionStep.If<TCondition>(TCondition condition) -> DynaSharp.Condit
 DynaSharp.ConditionStep.IfVersion(long version) -> DynaSharp.ConditionStep
 DynaSharp.ConditionStep.IgnoreVersion() -> DynaSharp.ConditionStep
 DynaSharp.ConditionStep.MaxAttempts(int attempts) -> DynaSharp.ConditionStep
+DynaSharp.ConditionStep.ToRequestJson() -> string!
 DynaSharp.ConditionalCheckFailedException
 DynaSharp.ConditionalCheckFailedException.ConditionalCheckFailedException(string! message, DynaSharp.Item? item = null, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
 DynaSharp.ConditionalCheckFailedException.Item.get -> DynaSharp.Item?
@@ -203,6 +204,7 @@ DynaSharp.CreateTableCommand.WaitUntilActive() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.WaitUntilActive(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableResult
 DynaSharp.CreateTableResult.Created.get -> bool
+DynaSharp.CreateTableResult.Drift.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>!
 DynaSharp.CreateTableResult.Table.get -> DynaSharp.Requests.TableDescription!
 DynaSharp.CreateTableResult.TimeToLiveEnabled.get -> bool
 DynaSharp.Credentials.AssumeRoleCredentialsProvider
@@ -279,24 +281,21 @@ DynaSharp.DeleteCommand<T>.ReturnOld() -> DynaSharp.DeleteCommand<T>
 DynaSharp.DeleteCommand<T>.ReturnOldOnFailure() -> DynaSharp.DeleteCommand<T>
 DynaSharp.DeleteCommand<T>.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.DeleteCommand<T>.ToRequestJson() -> string!
+DynaSharp.DeleteCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.DynamoDbClient
 DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
 DynaSharp.DynamoDbClient.Dispose() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient(DynaSharp.DynamoDbClientOptions! options) -> void
 DynaSharp.DynamoDbClient.Options.get -> DynaSharp.DynamoDbClientOptions!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<T>!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<T>!
 DynaSharp.DynamoDbClient.SendRawAsync(string! operation, System.ReadOnlyMemory<byte> requestJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
 DynaSharp.DynamoDbClient.Table(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Table<DynaSharp.Item!>!
 DynaSharp.DynamoDbClient.Table<T>(string! name) -> DynaSharp.Table<T>!
@@ -606,7 +605,7 @@ DynaSharp.Mapping.DynamoDbEntityAttribute.DynamoDbEntityAttribute() -> void
 DynaSharp.Mapping.DynamoDbEntityInfo
 DynaSharp.Mapping.DynamoDbEntityInfo.Discriminator.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.DiscriminatorAttributeName.get -> string!
-DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Mapping.VersionMissing versionMissing = DynaSharp.Mapping.VersionMissing.Reject) -> void
+DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Mapping.VersionMissing versionMissing = DynaSharp.Mapping.VersionMissing.Reject, string? timeToLiveAttributeName = null) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.Indexes.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.KeyTemplates.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyName.get -> string!
@@ -614,7 +613,6 @@ DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.get -> string?
-DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.init -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionAttributeName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionMissing.get -> DynaSharp.Mapping.VersionMissing
 DynaSharp.Mapping.DynamoDbEnumAttribute
@@ -896,12 +894,14 @@ DynaSharp.PutCommand<T>.ReturnOld() -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.ReturnOldOnFailure() -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.PutCommand<T>.ToRequestJson() -> string!
+DynaSharp.PutCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.PutStep
 DynaSharp.PutStep.If(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.PutStep
 DynaSharp.PutStep.If<TCondition>(TCondition condition) -> DynaSharp.PutStep
 DynaSharp.PutStep.IgnoreVersion() -> DynaSharp.PutStep
 DynaSharp.PutStep.MaxAttempts(int attempts) -> DynaSharp.PutStep
 DynaSharp.PutStep.PutStep() -> void
+DynaSharp.PutStep.ToRequestJson() -> string!
 DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.Consistent() -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.CountAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
@@ -2294,24 +2294,36 @@ DynaSharp.Table<T>.Query<TKey>(TKey key) -> DynaSharp.QueryCommand<T>
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3, T4>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2>>!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn, int maxAttempts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.Scan() -> DynaSharp.ScanCommand<T>
 DynaSharp.Table<T>.SortKeyName.get -> string?
 DynaSharp.Table<T>.Update(DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateCommand<T>
 DynaSharp.Table<T>.Update<TKey>(TKey key) -> DynaSharp.UpdateCommand<T>
 DynaSharp.Table<T>.WaitUntilActiveAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.WaitUntilActiveAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.TableDrift
+DynaSharp.TableDrift.<Clone>$() -> DynaSharp.TableDrift!
+DynaSharp.TableDrift.Deconstruct(out DynaSharp.TableDriftKind Kind, out string? IndexName, out string! Description) -> void
+DynaSharp.TableDrift.Description.get -> string!
+DynaSharp.TableDrift.Description.init -> void
+DynaSharp.TableDrift.Equals(DynaSharp.TableDrift? other) -> bool
+DynaSharp.TableDrift.IndexName.get -> string?
+DynaSharp.TableDrift.IndexName.init -> void
+DynaSharp.TableDrift.Kind.get -> DynaSharp.TableDriftKind
+DynaSharp.TableDrift.Kind.init -> void
+DynaSharp.TableDrift.TableDrift(DynaSharp.TableDriftKind Kind, string? IndexName, string! Description) -> void
+DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.IndexDiffers = 1 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.IndexMissing = 0 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.StreamDiffers = 3 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.TimeToLiveDiffers = 2 -> DynaSharp.TableDriftKind
 DynaSharp.TableExtensions
 DynaSharp.TableNotActiveException
 DynaSharp.TableNotActiveException.LastStatus.get -> DynaSharp.TableStatus?
@@ -2349,6 +2361,7 @@ DynaSharp.TransactSlot<T>
 DynaSharp.TransactSlot<T>.TransactSlot() -> void
 DynaSharp.TransactWriteCommand
 DynaSharp.TransactWriteCommand.MaxAttempts(int attempts) -> DynaSharp.TransactWriteCommand
+DynaSharp.TransactWriteCommand.ToRequestJson() -> string!
 DynaSharp.TransactWriteCommand.TransactWriteCommand() -> void
 DynaSharp.TransactWriteExtensions
 DynaSharp.TransactWriteResult
@@ -2419,6 +2432,7 @@ DynaSharp.UpdateCommand<T>.SetIfNotExists<TNumber>(string! path, TNumber value) 
 DynaSharp.UpdateCommand<T>.SetIfNotExists<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.UpdateCommand<T>
 DynaSharp.UpdateCommand<T>.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> DynaSharp.UpdateCommand<T>
 DynaSharp.UpdateCommand<T>.ToRequestJson() -> string!
+DynaSharp.UpdateCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.UpdateCommand<T>.UpdateCommand() -> void
 DynaSharp.UpdateStep
 DynaSharp.UpdateStep.Add(string! path, DynaSharp.AttributeValue value) -> DynaSharp.UpdateStep
@@ -2444,6 +2458,7 @@ DynaSharp.UpdateStep.SetIfNotExists<TNumber>(string! path, TNumber value) -> Dyn
 DynaSharp.UpdateStep.SetIfNotExists<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.UpdateStep
 DynaSharp.UpdateStep.SetIfNotNull<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute, TValue? value) -> DynaSharp.UpdateStep
 DynaSharp.UpdateStep.StoreKeyInputs() -> DynaSharp.UpdateStep
+DynaSharp.UpdateStep.ToRequestJson() -> string!
 DynaSharp.UpdateStep.UpdateStep() -> void
 DynaSharp.ValidationException
 DynaSharp.ValidationException.ExpressionNames.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
@@ -2451,11 +2466,11 @@ DynaSharp.ValidationException.ExpressionValueTypes.get -> System.Collections.Gen
 DynaSharp.ValidationException.Expressions.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 DynaSharp.ValidationException.ValidationException(string! message, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
 DynaSharp.WriteResult<T>
+DynaSharp.WriteResult<T>.ConditionMet.get -> bool
 DynaSharp.WriteResult<T>.ConsumedCapacity.get -> DynaSharp.ConsumedCapacity?
 DynaSharp.WriteResult<T>.HasItem.get -> bool
 DynaSharp.WriteResult<T>.Item.get -> T?
 DynaSharp.WriteResult<T>.ItemCollectionMetrics.get -> DynaSharp.ItemCollectionMetrics?
-DynaSharp.WriteResult<T>.StoredVersion.get -> long
 DynaSharp.WriteResult<T>.Version.get -> long?
 DynaSharp.WriteResult<T>.WriteResult() -> void
 abstract DynaSharp.Condition.Render(ref DynaSharp.Expressions.ExpressionSink sink) -> void
@@ -2762,6 +2777,9 @@ override DynaSharp.Streams.StreamRecord.ToString() -> string!
 override DynaSharp.Streams.StreamSummary.Equals(object? obj) -> bool
 override DynaSharp.Streams.StreamSummary.GetHashCode() -> int
 override DynaSharp.Streams.StreamSummary.ToString() -> string!
+override DynaSharp.TableDrift.Equals(object? obj) -> bool
+override DynaSharp.TableDrift.GetHashCode() -> int
+override DynaSharp.TableDrift.ToString() -> string!
 override DynaSharp.TransactionActionFailure.GetHashCode() -> int
 override DynaSharp.TransactionCanceledException.Message.get -> string!
 override DynaSharp.ValidationException.Message.get -> string!
@@ -2864,7 +2882,7 @@ static DynaSharp.ContinuationToken.TryParse(string? text, out DynaSharp.Continua
 static DynaSharp.ContinuationToken.operator !=(DynaSharp.ContinuationToken left, DynaSharp.ContinuationToken right) -> bool
 static DynaSharp.ContinuationToken.operator ==(DynaSharp.ContinuationToken left, DynaSharp.ContinuationToken right) -> bool
 static DynaSharp.DeleteCommand<T>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.DeleteCommand<T> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl) -> DynaSharp.DynamoDbClientOptions!
+static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl, string! region = "us-east-1") -> DynaSharp.DynamoDbClientOptions!
 static DynaSharp.DynamoDbClientOptions.operator !=(DynaSharp.DynamoDbClientOptions? left, DynaSharp.DynamoDbClientOptions? right) -> bool
 static DynaSharp.DynamoDbClientOptions.operator ==(DynaSharp.DynamoDbClientOptions? left, DynaSharp.DynamoDbClientOptions? right) -> bool
 static DynaSharp.DynamoDbMappingException.IsConversionFailure(System.Exception! exception) -> bool
@@ -3226,6 +3244,8 @@ static DynaSharp.Streams.StreamSummary.operator !=(DynaSharp.Streams.StreamSumma
 static DynaSharp.Streams.StreamSummary.operator ==(DynaSharp.Streams.StreamSummary? left, DynaSharp.Streams.StreamSummary? right) -> bool
 static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.Change<T>!>!
 static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
+static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
+static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
 static DynaSharp.TableExtensions.Get<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.GetCommand<T>
 static DynaSharp.TableExtensions.IfVersion<T>(this DynaSharp.DeleteCommand<T> command, long version) -> DynaSharp.DeleteCommand<T>
@@ -3265,7 +3285,6 @@ static DynaSharp.TransactWriteExtensions.ReturnCapacity<TChain>(this TChain chai
 static DynaSharp.TransactWriteExtensions.ReturnMetrics<TChain>(this TChain chain) -> TChain
 static DynaSharp.TransactWriteExtensions.ReturnOldOnFailure<TStep>(this TStep step) -> TStep
 static DynaSharp.TransactWriteExtensions.SendAsync<TChain>(this TChain chain, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.TransactWriteResult>
-static DynaSharp.TransactWriteExtensions.ToRequestJson<TChain>(this TChain chain) -> string!
 static DynaSharp.TransactWriteExtensions.Token<TChain>(this TChain chain, string! token) -> TChain
 static DynaSharp.TransactWriteExtensions.Unique<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactMarker marker) -> DynaSharp.PutStep
 static DynaSharp.TransactWriteExtensions.Unique<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, T item, out DynaSharp.TransactMarker marker) -> DynaSharp.PutStep

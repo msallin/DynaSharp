@@ -107,3 +107,12 @@ Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 DYNA036 | DynaSharp.Mapping | Error | [TimeToLive] is not valid here
 DYNA123 | DynaSharp.Keys | Info | Raw table key input without [KeyOnly]
+
+## Release 0.4.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA037 | DynaSharp.Mapping | Info | No IncludingAll() for the entities of this assembly
+DYNA038 | DynaSharp.Mapping | Error | Type has a name the generated class DynamoDbEntities needs

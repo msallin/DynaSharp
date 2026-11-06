@@ -5,5 +5,3 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-DYNA037 | DynaSharp.Mapping | Info | No IncludingAll() for the entities of this assembly
-DYNA038 | DynaSharp.Mapping | Error | Type has a name the generated class DynamoDbEntities needs

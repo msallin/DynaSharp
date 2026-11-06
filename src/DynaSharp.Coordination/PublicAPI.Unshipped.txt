@@ -1,4 +1,1 @@
 #nullable enable
-static DynaSharp.Coordination.Lease.Current.get -> DynaSharp.Coordination.Lease?
-static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain) -> DynaSharp.ConditionStep
-static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
