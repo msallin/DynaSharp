@@ -41,7 +41,7 @@ Declare a `partial` type and say how it maps. The generator writes the code that
 ```csharp
 using DynaSharp.Mapping;
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Shop")]
 [Discriminator("ORDER")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("ORDER#{Number:d6}")]
@@ -53,10 +53,10 @@ public partial record Order
 }
 ```
 
-Open a table once and keep it, create it if it is not there, and send commands. Every chain ends in the terminal that sends it.
+Open the table the entity declares once and keep it, create it if it is not there, and send commands. Every chain ends in the terminal that sends it.
 
 ```csharp
-var orders = client.Table<Order>("Shop");
+var orders = client.Table<Order>();
 await orders.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 
 await orders.Put(order).IfNotExists().SendAsync(ct);

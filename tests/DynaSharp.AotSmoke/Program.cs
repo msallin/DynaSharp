@@ -483,6 +483,8 @@ using var helperClient = StubClient.Create(helperHandler);
 helperHandler.Enqueue(StubResponse.Table<Memo>("Memos"));
 var activeMemos = await helperClient.Table<Memo>("Memos").WaitUntilActiveAsync(TimeSpan.Zero);
 Check(activeMemos.TableStatus == TableStatus.Active, "StubResponse.Table<T> ends a wait");
+using var namingClient = new DynamoDbClient(helperClient.Options with { TableNaming = static name => "dev-" + name });
+Check(helperClient.Table<Memo>().Name == "Memos" && namingClient.Table<Memo>().Name == "dev-Memos", "Table<T>() opens the declared table, through TableNaming");
 
 helperHandler.Enqueue(new StubResponse());
 await helperClient.Table("Users", "pk").Update("user-1").Set("visits", 1).If(Attr("version").Eq(3)).SendAsync();

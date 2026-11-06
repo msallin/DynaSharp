@@ -5,7 +5,7 @@ namespace DynaSharp.Mapping;
 /// <summary>
 /// A document with a primary key, which is what can stand on its own in a table. A nested document such as an address has no key, so
 /// it implements <see cref="IDynamoDbDocument{TSelf}"/> only, and <see cref="Table{T}.Of{TOther}"/> and
-/// <see cref="DynamoDbClient.Table{T}"/> do not take it.
+/// <see cref="DynamoDbClient.Table{T}(string)"/> do not take it.
 /// </summary>
 /// <typeparam name="TSelf">The implementing type.</typeparam>
 public interface IDynamoDbEntity<TSelf> : IDynamoDbDocument<TSelf>

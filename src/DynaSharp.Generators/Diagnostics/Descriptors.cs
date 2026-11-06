@@ -219,6 +219,18 @@ internal static class Descriptors
         true,
         helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor InvalidTableName = new(
+        "DYNA039", "Table name is invalid", "The table name '{0}' is not valid: {1}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor TableKeysDiffer = new(
+        "DYNA040",
+        "Entities of one table with other keys",
+        "'{0}' is in the table '{1}' with the keys {2}, and '{3}' is in it with {4}. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -684,6 +696,15 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor NoDeclaredTable = new(
+        "DYNA238",
+        "Entity declares no table",
+        "'{0}' declares no table, so {1} without the name of a table throws InvalidOperationException. Declare one with [DynamoDbEntity(Table = \"...\")] on the type or [assembly: DynamoDbDefaults(Table = \"...\")], or pass the name of the table.",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -695,7 +716,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

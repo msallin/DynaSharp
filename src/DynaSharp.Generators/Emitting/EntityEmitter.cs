@@ -109,8 +109,10 @@ internal static class EntityEmitter
             code.Line($"timeToLiveAttributeName: {CodeText.Literal(timeToLive)},");
         }
 
+        // The table is a property, so that an entity without one keeps the code it had.
+        var end = entity.TableName is { } table ? $") {{ TableName = {CodeText.Literal(table)} }};" : ");";
         var templates = KeyTemplateEmitter.Lines(type, entity);
-        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? ");" : ",")}");
+        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? end : ",")}");
         if (templates.Count > 0)
         {
             code.Line("keyTemplates: new __Map.DynamoDbKeyTemplate[]");
@@ -120,7 +122,7 @@ internal static class EntityEmitter
                 code.Line($"{template},");
             }
 
-            code.Close("});");
+            code.Close("}" + end);
         }
 
         code.Outdent();

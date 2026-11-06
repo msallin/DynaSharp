@@ -53,6 +53,8 @@ internal static class WellKnownNames
 
     public const string AttributeNameArgument = "AttributeName";
 
+    public const string TableArgument = "Table";
+
     public const string VersionMissingArgument = "Missing";
 
     /// <summary>The number of <c>VersionMissing.Allow</c>, which is all a generator sees of an enum on an attribute.</summary>

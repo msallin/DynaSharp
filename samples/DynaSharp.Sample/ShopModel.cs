@@ -22,13 +22,20 @@ public enum OrderStatus
     Shipped,
 }
 
+// The table all of it lives in. Every entity declares it, so client.Table<Order>() opens it, and a name passed to client.Table<Order>(name)
+// wins, which is what the tour does to get a table of its own per run.
+public static class ShopTable
+{
+    public const string Name = "Shop";
+}
+
 [DynamoDbDocument]
 public partial record Address(string Street, string City, string Zip);
 
 [DynamoDbDocument]
 public partial record OrderLine(string Sku, int Quantity, decimal UnitPrice);
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("PRODUCT")]
 [PartitionKey("PRODUCT#{Sku}")]
 [SortKey("DETAILS")]
@@ -45,7 +52,7 @@ public partial record Product
     public HashSet<string> Categories { get; init; } = [];
 }
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("CUSTOMER")]
 [PartitionKey("CUSTOMER#{Id}")]
 [SortKey("PROFILE")]
@@ -70,7 +77,7 @@ public partial record Customer
 /// An order, in the partition of its customer. ByStatus answers "which orders are in this state, oldest first?". ByTracking answers "whose
 /// parcel is this?", and it is sparse: an order without a tracking number writes no key for it, so the index holds shipped orders only.
 /// </summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("ORDER")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("ORDER#{Number:d6}")]
@@ -98,7 +105,7 @@ public partial record Order
 /// a cart that changed since it was read fails instead. DynamoDB deletes an abandoned one some time after ExpiresAt, which it reads as a number of seconds, so the converter stores it as one, and [TimeToLive] makes CreateTable()
 /// turn time to live on for it.
 /// </summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("CART")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("CART")]
@@ -117,7 +124,7 @@ public partial record Cart
 }
 
 /// <summary>DynamoDB enforces uniqueness only for a primary key, so a value that must be unique gets an item whose key is that value.</summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("EMAIL")]
 [PartitionKey("EMAIL#{Email}")]
 [SortKey("CLAIM")]

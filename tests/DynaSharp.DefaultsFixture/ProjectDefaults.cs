@@ -2,7 +2,7 @@ using DynaSharp.DefaultsFixture;
 using DynaSharp.Mapping;
 using DynaSharp.Serialization;
 
-[assembly: DynamoDbDefaults(Naming = AttributeNaming.SnakeCase, DiscriminatorOptOut = true, OmitEmpty = true)]
+[assembly: DynamoDbDefaults(Naming = AttributeNaming.SnakeCase, DiscriminatorOptOut = true, OmitEmpty = true, Table = "bookings")]
 [assembly: DynamoDbDefaultConverter(typeof(DateTimeOffset), typeof(StoredTimestampConverter))]
 [assembly: DynamoDbDefaultConverter(typeof(RoomState), typeof(LenientRoomStateConverter))]
 [assembly: DynamoDbDefaultConverter(typeof(bool), typeof(BoolAsNumberConverter))]

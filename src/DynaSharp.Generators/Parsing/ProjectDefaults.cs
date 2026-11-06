@@ -27,6 +27,11 @@ internal sealed class ProjectDefaults
             _naming = (NamingPolicy)AttributeReader.Number(defaults, NamingArgument);
             DiscriminatorOptOut = AttributeReader.Flag(defaults, DiscriminatorOptOutArgument);
             OmitEmpty = AttributeReader.Flag(defaults, OmitEmptyArgument);
+            Table = AttributeReader.Named(defaults, WellKnownNames.TableArgument);
+            if (Table is not null && TableNames.Problem(Table) is { } problem)
+            {
+                _bag.Report(Descriptors.InvalidTableName, Spot.Argument(defaults, WellKnownNames.TableArgument, default), Table, problem);
+            }
         }
 
         foreach (var attribute in AttributeReader.FindAll(assembly, WellKnownNames.DefaultConverterAttribute))
@@ -40,6 +45,9 @@ internal sealed class ProjectDefaults
 
     /// <summary>Gets a value indicating whether a type without <c>[OmitEmpty]</c> behaves as if it had it.</summary>
     public bool OmitEmpty { get; }
+
+    /// <summary>Gets the table of an entity that declares none, or null.</summary>
+    public string? Table { get; }
 
     public static ProjectDefaults Of(IAssemblySymbol assembly) => new(assembly);
 

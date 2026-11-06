@@ -58,7 +58,7 @@ public static class Program
     {
         using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
 
-        var todos = client.Table<TodoItem>("Todos");
+        var todos = client.Table<TodoItem>();
         await todos.CreateTable().IfNotExists().WaitUntilActive().SendAsync();
 
         await todos.Put(new TodoItem { UserId = "alice", Number = 1, Title = "Buy milk" }).SendAsync();
@@ -74,7 +74,7 @@ public static class Program
     }
 }
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Todos")]
 [Discriminator("TODO")]
 [PartitionKey("USER#{UserId}")]
 [SortKey("TODO#{Number:d6}")]
@@ -93,7 +93,7 @@ public partial record TodoItem
 What happens:
 
 - **The entity.** `TodoItem` is `partial`, and the source generator writes the code that reads and writes it as an [item](glossary.md#item), plus `Keys`, which builds its keys, and `Attrs`, a typed handle per [attribute](glossary.md#attribute). The [partition key](glossary.md#partition-key) of both items is `USER#alice`, and the [sort key](glossary.md#sort-key) is `TODO#000001` and `TODO#000002`, so they sit in one partition in the order of their numbers. `_type` holds `TODO`, which tells them apart from other types in the same table. [Entities and keys](entities.md) has the rest.
-- **The table.** Opening a table makes no request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
+- **The table.** `Table = "Todos"` declares the table the entity lives in, and `client.Table<TodoItem>()` opens it; `client.Table<TodoItem>("Todos-test")` opens another, as given. Opening a table makes no request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
 - **The commands.** Every chain ends in the terminal that sends it. A `Put` replaces the whole item, `ItemAsync` gives null when there is none, and `ItemsAsync` follows the pages of the `Query` for you. The terminals take a `CancellationToken`. [Reading and writing](commands.md) and [Queries and scans](queries.md) go on from here.
 
 ## Configure the client
@@ -121,19 +121,19 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 });
 ```
 
-`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging. A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
+`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging, and `TableNaming` turns the table an entity declares into the one of an environment, such as `dev-Shop`, see [A table per environment](tables.md#a-table-per-environment). A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
 
 ## The shop
 
-The rest of the guide uses a small online shop, all of it in one table named `Shop`. Its types are in [`ShopModel.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/ShopModel.cs) of the sample: `Product`, `Customer`, `Order`, `Cart` and `EmailClaim`, with `Address` and `OrderLine` as documents inside them. Where a page uses `orders`, `customers` or `shop`, they are these:
+The rest of the guide uses a small online shop, all of it in one table named `Shop`. Its types are in [`ShopModel.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/ShopModel.cs) of the sample: `Product`, `Customer`, `Order`, `Cart` and `EmailClaim`, with `Address` and `OrderLine` as documents inside them. Each declares the table with `[DynamoDbEntity(Table = ShopTable.Name)]`, a constant of the model that holds `"Shop"`. Where a page uses `orders`, `customers` or `shop`, they are these:
 
 ```csharp
-var products = client.Table<Product>("Shop");
-var customers = client.Table<Customer>("Shop");
-var orders = client.Table<Order>("Shop");
-var carts = client.Table<Cart>("Shop");
-var emails = client.Table<EmailClaim>("Shop");
-var shop = client.Table("Shop", "pk", "sk");
+var products = client.Table<Product>();
+var customers = client.Table<Customer>();
+var orders = client.Table<Order>();
+var carts = client.Table<Cart>();
+var emails = client.Table<EmailClaim>();
+var shop = client.Table(ShopTable.Name, "pk", "sk");
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
 
@@ -176,9 +176,9 @@ using Microsoft.Extensions.Logging;
 
 public sealed class ShopTables(DynamoDbClient client)
 {
-    public Table<Order> Orders { get; } = client.Table<Order>("Shop");
+    public Table<Order> Orders { get; } = client.Table<Order>();
 
-    public Table<Customer> Customers { get; } = client.Table<Customer>("Shop");
+    public Table<Customer> Customers { get; } = client.Table<Customer>();
 }
 
 public sealed class CreateShopTable(ShopTables tables) : IHostedService

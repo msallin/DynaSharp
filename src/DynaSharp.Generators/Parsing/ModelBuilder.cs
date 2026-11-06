@@ -237,7 +237,13 @@ internal sealed class ModelBuilder
         }
 
         ReadOmitEmpty(properties);
-        var entity = discriminator is null ? null : new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator);
+        EntityModel? entity = null;
+        if (discriminator is not null)
+        {
+            var tableName = ReadTableName();
+            entity = new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator) is { } built ? built with { TableName = tableName } : null;
+        }
+
         KeepWhatAReadNeeds(properties);
         ReportUnknownNamesThatThrow(properties, entity);
         return _bag.HasErrors ? null : Compose(properties, constructor, entity);
@@ -292,6 +298,23 @@ internal sealed class ModelBuilder
         }
 
         return new DiscriminatorInfo(value, name);
+    }
+
+    // DYNA039 for the name of the type. The default of the assembly is checked once, by ProjectDefaults.
+    private string? ReadTableName()
+    {
+        if (TableNames.OnType(_type) is not { } name)
+        {
+            return _defaults.Table;
+        }
+
+        if (TableNames.Problem(name) is { } problem)
+        {
+            var attribute = AttributeReader.Find(_type, WellKnownNames.EntityAttribute)!;
+            _bag.Report(Descriptors.InvalidTableName, Spot.Argument(attribute, WellKnownNames.TableArgument, _spot), name, problem);
+        }
+
+        return name;
     }
 
     private void RejectEntityAttributes(List<PropertyFacts> properties)

@@ -54,6 +54,26 @@ public sealed class AnalyzerListTests
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', refused));
     }
 
+    [Test]
+    public async Task Members_OfDeclaredTableAnalyzer_AreTheMembersThatTakeAnEntityAndNoName()
+    {
+        // Arrange
+        Type[] types = [typeof(DynamoDbClient), typeof(DynaSharp.Testing.FakeDynamoDb)];
+        var opening = types.SelectMany(static type => type.GetMethods()
+            .Where(static method => method.IsGenericMethodDefinition && method.GetGenericArguments() is [var argument]
+                && argument.GetGenericParameterConstraints().Any(static constraint => constraint.IsGenericType && constraint.GetGenericTypeDefinition() == typeof(DynaSharp.Mapping.IDynamoDbEntity<>))
+                && !method.GetParameters().Any(static parameter => parameter.ParameterType == typeof(string)))
+            .Select(method => $"{type.FullName}.{method.Name}"))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal);
+
+        // Act
+        var list = DeclaredTableAnalyzer.Members.SelectMany(static pair => pair.Value.Select(name => $"{pair.Key}.{name}")).Order(StringComparer.Ordinal);
+
+        // Assert
+        await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', opening));
+    }
+
     private static IEnumerable<MethodInfo> HandleWrites() => typeof(IUpdatable<>).GetMethods().Where(IsByHandle);
 
     private static bool IsByHandle(MethodInfo method) =>

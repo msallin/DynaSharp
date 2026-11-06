@@ -3,7 +3,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.AotSmoke;
 
 /// <summary>A generated entity with <see cref="OmitEmptyAttribute"/>: a handle whose converter wraps another through a type parameter, which AOT has to keep.</summary>
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Memos")]
 [Discriminator("MEMO")]
 [PartitionKey("MEMO#{Id}")]
 [OmitEmpty]

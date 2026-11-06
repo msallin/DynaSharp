@@ -494,6 +494,7 @@ Entity: EntityModel
   VersionProperty: Revision
   ComputedInputs: []
   TimeToLiveAttribute: null
+  TableName: null
 Enums: 
   - EnumModel
     FullName: global::Shop.OrderStatus

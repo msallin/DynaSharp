@@ -91,17 +91,19 @@ Keywords, functions and spacing stay as sent, and a placeholder missing from the
 
 ```csharp
 var fake = new FakeDynamoDb();
-fake.CreateTable<Customer>("Shop");
+fake.CreateTable<Customer>();
 using var client = fake.CreateClient();
 
-await client.Table<Customer>("Shop").Put(customer).SendAsync(ct);
+await client.Table<Customer>().Put(customer).SendAsync(ct);
 
-var stored = fake.Get<Customer>("Shop", StubResponse.KeyOf(Customer.Keys.Of("alice")));
+var stored = fake.Get<Customer>(StubResponse.KeyOf(Customer.Keys.Of("alice")));
 ```
 
-Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)`, `fake.CreateTable<T>(name)`, which declares the entity's keys and indexes as its `CreateTable()` would, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
+Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)`, `fake.CreateTable<T>()`, which creates the table the entity declares with its keys and indexes as its `CreateTable()` would, `fake.CreateTable<T>(name)`, the same under another name, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
 
 A table of several entities is best created the way the application creates it, through a client of the fake. Where the application calls `CreateTable().IncludingAll()`, the method the generator writes for an assembly whose entities share the keys of one table, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity of that assembly, see [Every entity of an assembly](https://msallin.github.io/DynaSharp/tables.html#every-entity-of-an-assembly). `fake.CreateTable<T>(name)` declares one entity, and the test project's own `IncludingAll()` names the test project's entities, not the application's.
+
+The forms without a table name, `CreateTable<T>()`, `Put(entity)`, `Get<T>(key)` and `Items<T>()`, use the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or the default of its assembly, and throw `InvalidOperationException` for an entity that declares none. They take the name as declared: the fake knows no `TableNaming`, so a test whose client sets one, or that wants a table of its own, passes the name, as in `fake.CreateTable<Customer>("dev-Shop")`.
 
 `Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `DeleteTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
@@ -109,11 +111,11 @@ On a table of several entities, `Items<T>` gives the items of `T` and skips the 
 
 ```csharp
 var fake = new FakeDynamoDb();
-fake.CreateTable<Customer>("Shop");
-fake.Put("Shop", customer);
-fake.Put("Shop", order);
+fake.CreateTable<Customer>();
+fake.Put(customer);
+fake.Put(order);
 
-IReadOnlyList<Customer> stored = fake.Items<Customer>("Shop");
+IReadOnlyList<Customer> stored = fake.Items<Customer>();
 ```
 
 An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and so does `Get<T>` for an item of another entity on that key. [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) has the rules.

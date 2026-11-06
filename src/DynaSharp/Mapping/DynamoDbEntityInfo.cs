@@ -71,4 +71,10 @@ public sealed class DynamoDbEntityInfo(
 
     /// <summary>Gets the attribute of time to live, which <see cref="TimeToLiveAttribute"/> marks and <c>CreateTable()</c> turns on, or <see langword="null"/> if the type has none.</summary>
     public string? TimeToLiveAttributeName { get; } = timeToLiveAttributeName;
+
+    /// <summary>Gets the table the entity declares, through <see cref="DynamoDbEntityAttribute.Table"/> or the default of its assembly, or <see langword="null"/> if it declares none.</summary>
+    /// <remarks>
+    /// <para><b>As declared.</b> <see cref="DynamoDbClient.Table{T}()"/> passes it through <see cref="DynamoDbClientOptions.TableNaming"/> before it opens the table.</para>
+    /// </remarks>
+    public string? TableName { get; init; }
 }

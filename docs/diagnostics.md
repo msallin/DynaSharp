@@ -89,6 +89,16 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Rename the type, or the assembly (`AssemblyName` in the project file).
 - **Not reported.** An assembly for which no `IncludingAll()` would be generated, see `DYNA037`.
 
+`DYNA039` (error): a table name that DynamoDB would reject, in `[DynamoDbEntity(Table = "...")]` or `[assembly: DynamoDbDefaults(Table = "...")]`: an empty name, one shorter than 3 or longer than 255 characters, or one with a character other than `a-z`, `A-Z`, `0-9`, `_`, `-` and `.`, such as `"app data"`. The entity generates no code; a bad default is reported once, on the attribute of the assembly.
+
+- **Fix.** Write the name as the table has it. A prefix for an environment, such as `dev-`, belongs in [`TableNaming`](tables.md#a-table-per-environment), not in the declaration.
+- **Not reported.** `Table = null`, which declares nothing, and a name passed to `client.Table<T>(name)`, which can be an ARN and which DynamoDB checks.
+
+`DYNA040` (warning): two entities of the compilation are in one table, by their own `Table` or by the default of the assembly, and name their keys differently, such as `pk` and `sk` on `Cart` and `id` on `Session` under `[assembly: DynamoDbDefaults(Table = "appdata")]`. A table has one key schema, so the commands of one of them fail on DynamoDB with a `ValidationException`. Reported on the `[DynamoDbEntity]` of each entity whose keys differ from those most entities of the table have (on a tie, those of the entity first by name), naming one that has them.
+
+- **Fix.** Give the entities the same names of their keys, with `AttributeName`, or give one a table of its own: `[DynamoDbEntity(Table = "sessions")]`.
+- **Not reported.** An entity without a declared table, an entity of another assembly, and the types of a key, which the names alone do not show.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.
@@ -303,6 +313,11 @@ Not reported:
 
 - **Fix.** Pass `DateTimeKind.Utc`, as in `new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)`, or use a `DateOnly` for a date, which has no kind and is written as `yyyy-MM-dd`.
 - **Not reported.** The rule looks at the constructor where it stands: a time in a variable, `default`, `DateTime.MinValue` and `DateTime.Parse(...)` are not followed, and neither is a time given to a handle, in `Set` or a condition. A property with a converter of your own, which decides for itself, a `DateTimeOffset`, which takes such a time for local time, and `TryOf` of a key builder, which gives null for it instead of throwing, are correct.
+
+`DYNA238` (error) reports `client.Table<Order>()` for an entity that declares no table, neither with `[DynamoDbEntity(Table = "...")]` nor through `[assembly: DynamoDbDefaults(Table = "...")]` of its assembly. The call compiles and throws `InvalidOperationException`. The same goes for the members of the fake of `DynaSharp.Testing` that take no table name: `CreateTable<T>()`, `Put(entity)`, `Get<T>(key)` and `Items<T>()`.
+
+- **Fix.** Declare the table on the entity or for its assembly, see [Declaring the table](tables.md#declaring-the-table), or pass the name: `client.Table<Order>("orders")`.
+- **Not reported.** A type parameter, and a type without `[DynamoDbEntity]`, such as one written by hand, whose `Info` says its table in code.
 
 ## Expressions
 

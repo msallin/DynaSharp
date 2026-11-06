@@ -9,7 +9,7 @@ Declare a `partial` type and say how it maps.
 ```csharp
 using DynaSharp.Mapping;
 
-[DynamoDbEntity]
+[DynamoDbEntity(Table = "Shop")]
 [Discriminator("ORDER")]
 [PartitionKey("CUSTOMER#{CustomerId}")]
 [SortKey("ORDER#{Number:d6}")]
@@ -24,7 +24,7 @@ public partial record Order
 }
 ```
 
-`{Number:d6}` pads to six digits, so keys sort by number. A timestamp in a template is in UTC. A bare `{PlacedAt}` means `ticks`, seven fraction digits like the attribute: the only format that keeps the whole value, so a key built from a value read back finds its item and a read can restore the property from the key. Others truncate. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
+`Table = "Shop"` declares the table the entity lives in, which `client.Table<Order>()` opens, and `client.Table<Order>(name)` opens another table, as given; [Declaring the table](tables.md#declaring-the-table) has the rest. `{Number:d6}` pads to six digits, so keys sort by number. A timestamp in a template is in UTC. A bare `{PlacedAt}` means `ticks`, seven fraction digits like the attribute: the only format that keeps the whole value, so a key built from a value read back finds its item and a read can restore the property from the key. Others truncate. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
 
 | Where | Text |
 |---|---|
@@ -157,7 +157,7 @@ using DynaSharp.Mapping;
 [assembly: DynamoDbDefaults(Naming = AttributeNaming.CamelCase, OmitEmpty = true)]
 ```
 
-`DiscriminatorOptOut = true` lets an entity without `[Discriminator]` go without one, for tables other code wrote or a [table of one entity](tables.md#one-table-per-entity), see [Items without a discriminator](adopting.md#items-without-a-discriminator). `[assembly: DynamoDbDefaultConverter]` gives a type a converter for the whole project, see [Converters](#converters).
+`Table = "Shop"` is the table of every entity of the project that declares none of its own, for a service on one table, see [Declaring the table](tables.md#declaring-the-table). `DiscriminatorOptOut = true` lets an entity without `[Discriminator]` go without one, for tables other code wrote or a [table of one entity](tables.md#one-table-per-entity), see [Items without a discriminator](adopting.md#items-without-a-discriminator). `[assembly: DynamoDbDefaultConverter]` gives a type a converter for the whole project, see [Converters](#converters).
 
 An attribute on a type or property still wins. A stored attribute is named after its property, so changing `Naming` or renaming a property renames stored attributes: the rename compiles, items written before keep the old name, and a read finds the new one missing. Give a property whose name may change a `[DynamoDbAttribute]`. `pk`, `sk` and `_type` stay as they are.
 

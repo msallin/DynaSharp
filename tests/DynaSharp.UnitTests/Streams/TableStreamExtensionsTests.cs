@@ -355,7 +355,7 @@ public sealed class TableStreamExtensionsTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
-            $"The stream of the table Shop has the view {view}, and a typed reading needs NewAndOldImages: without the old image a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.",
+            $"The stream of the table Shop has the view {view}, and a typed read needs NewAndOldImages: without the old image a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.",
             StringComparison.Ordinal);
     }
 

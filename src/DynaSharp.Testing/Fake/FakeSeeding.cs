@@ -66,4 +66,35 @@ public sealed partial class FakeDynamoDb
         var attribute = info.DiscriminatorAttributeName;
         return [.. items.Where(item => item.TryGetValue(attribute, out var value) && value.Type == AttributeType.String && value.AsString() == discriminator).Select(static item => item.To<T>())];
     }
+
+    /// <summary>Puts an entity into the table it declares, as <see cref="Put{T}(string, T)"/> does.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <param name="entity">The entity.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="entity"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">DynamoDB would reject the item.</exception>
+    public void Put<T>(T entity)
+        where T : IDynamoDbEntity<T> => Put(DeclaredTable.Of<T>(), entity);
+
+    /// <summary>Gets an item by its key from the table the entity declares, as <see cref="Get{T}(string, Item)"/> does.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <param name="key">The key attributes, such as <c>StubResponse.KeyOf(Customer.Keys.Of("alice"))</c>.</param>
+    /// <returns>The entity, or the default of <typeparamref name="T"/> if there is no item: <see langword="null"/> for a class.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
+    /// <exception cref="DynamoDbMappingException">The item is not one the entity can read, also when it is of another entity.</exception>
+    public T? Get<T>(Item key)
+        where T : IDynamoDbEntity<T> => Get<T>(DeclaredTable.Of<T>(), key);
+
+    /// <summary>Gets the items of the entity from the table it declares, as <see cref="Items{T}(string)"/> does.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <returns>The entities, a snapshot.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="DynamoDbMappingException">An item of the entity, or with a type without a discriminator any item, is not one the type can read.</exception>
+    public IReadOnlyList<T> Items<T>()
+        where T : IDynamoDbEntity<T> => Items<T>(DeclaredTable.Of<T>());
 }
