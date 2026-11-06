@@ -224,7 +224,7 @@ Inside DynaSharp, by API level, in bytes:
 
 ## Compatibility
 
-A patch release fixes and does not break, and a minor release can break the public API, with release notes. What an entity writes to a table stays the same in every release. Analyzers may report more in a later release, and a rule that is new after 0.1.0 starts at Info. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
+A patch release fixes and does not break, and a minor release can break the public API, with release notes. What an entity writes to a table stays the same in every release. Analyzers may report more in a later release, and a rule that is new after 0.1.0 starts at Info, unless what it reports cannot work. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
 
 ## Building
 
