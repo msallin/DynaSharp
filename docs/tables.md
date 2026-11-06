@@ -48,7 +48,7 @@ Without an `Including`, such a table has string keys and no index. Either start 
 
 `.Stream(StreamViewType.NewImage)` for a table it creates and `.TimeToLive(Cart.Attrs.ExpiresAt)` go on the same chain. [Streams](streams.md) says how to read the stream. An entity with a [`[TimeToLive]`](entities.md#time-to-live) property needs no `.TimeToLive(...)`: `CreateTable()` turns time to live on for it, and so does an `Including` of it, while `.TimeToLive(...)` replaces what the entities declare. Two entities that declare different attributes throw `ArgumentException` at `Including`, since a table has time to live on one.
 
-The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, and `TimeToLiveEnabled` whether this call turned time to live on.
+The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 
 ## A table that exists
 
@@ -59,12 +59,30 @@ var invoices = client.Table<Invoice>("Invoices");
 await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 ```
 
-`IfNotExists()` describes the table first, and a table it finds ends the create there.
+`IfNotExists()` describes the table first, and a table it finds ends the create there. It then checks that table against what the command declares, from the description it already has, so the check costs no call.
 
 - **Permissions.** Over a table that exists, a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable`, and no failed call shows in CloudTrail. Creating the table takes both.
-- **Changes.** It compares no schemas, and it changes nothing about a table it finds unless time to live is asked for, by `TimeToLive` on the chain or a `[TimeToLive]` of an entity, which goes on and takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`.
+- **A key that differs throws.** Another partition or sort key attribute, a sort key on one side only, or a key attribute of another type where both sides know it, is an `InvalidOperationException` that names the table, the key the command expects and the key it found, before any wait or time to live. Every read and write of the entities would fail on that table with a `ValidationException`, and DynamoDB cannot change the key of a table, so a deploy should stop there: give the entities a table of their own, or create a new one and move the items. A table opened without a model, `client.Table(name, "pk", "sk")`, knows its key names and not their types, so only the names count.
+- **Drift is reported.** What lets part of the code work does not throw: an index the entities declare that the table lacks, or has with other keys or as the other kind, time to live on another attribute than the one asked for, and, with `.Stream(...)` on the chain, a stream that is off or of another view. Each is a `TableDrift` in `result.Drift`, with its `Kind`, the `IndexName` where it is about an index, and a `Description` that names what the command expects and what the table has. The client also logs them once as a warning (event 14, see [Observability](observability.md#logs)).
+- **Changes.** The command changes nothing about a table it finds unless time to live is asked for, by `TimeToLive` on the chain or a `[TimeToLive]` of an entity. Time to live that is off is turned on, which takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive` and is no drift. Time to live on another attribute is left on, since moving it takes two changes an hour apart, and is drift.
+- **What is not drift.** An index, an attribute, a stream or time to live that the table has and the command does not ask for: other code may use them.
 - **The wait.** `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it fails within seconds with a `TableNotActiveException` that names the index. [Adding an index](#adding-an-index) says how to add it.
 - **Timeouts.** `WaitUntilActive(timeout)` bounds the wait and nothing else: not the calls before it, and not `TimeToLive` after it. `Timeout(timeout)` bounds the whole command, see below.
+
+A program acts on drift where it can, and says so where it cannot:
+
+```csharp
+var result = await orders.CreateTable().Including<Customer>().IfNotExists().SendAsync(ct);
+
+foreach (var drift in result.Drift)
+{
+    Console.Error.WriteLine($"{drift.Kind}: {drift.Description}");
+}
+
+var missing = result.Drift.Where(drift => drift.Kind == TableDriftKind.IndexMissing).Select(drift => drift.IndexName).ToList();
+```
+
+A missing global index goes in with `UpdateTable`, see [Adding an index](#adding-an-index). A local index exists only if the table was created with it, so one that is missing, and an index with other keys, which `UpdateTable` would have to delete and create again, need a decision: a new table, or a deleted and recreated global index while the code that queries it waits. A stream goes on with `StreamSpecification` of `UpdateTable`, and time to live moves with `UpdateTimeToLive`, off and then on for the new attribute. A test that pins the schema asserts that `Drift` is empty.
 
 A program that must not hang at its start gives the whole command a bound:
 

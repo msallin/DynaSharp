@@ -686,6 +686,20 @@ Check(movedBack, "NotExistsOrLt refuses an older version");
 Check(fake.ExpireItems() == 1, "CreateTable<T> of the fake turns time to live on for [TimeToLive]");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) is { Region.Name: "us-east-1", Credentials: StaticCredentialsProvider }, "ForEmulator sets a region and static keys");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2") is { Region.Name: "eu-central-2", Credentials: StaticCredentialsProvider }, "ForEmulator takes another region");
+var passesAgain = await passes.CreateTable().IfNotExists().SendAsync();
+Check(passesAgain is { Created: false, Drift.Count: 0 }, "IfNotExists over the table of the entity reports no drift");
+fake.CreateTable("OldLocks", "Resource");
+var otherKey = false;
+try
+{
+    await fakeClient.Table<Pass>("OldLocks").CreateTable().IfNotExists().SendAsync();
+}
+catch (InvalidOperationException failure) when (failure.Message.StartsWith("The table OldLocks exists with the partition key Resource", StringComparison.Ordinal))
+{
+    otherKey = true;
+}
+
+Check(otherKey, "IfNotExists throws over a table of another key");
 
 // DynaSharp.Coordination: a lease with its heartbeat timer and fencing token, a transaction that checks it, the release, the options, the helpers
 // for tests, and a term of a leader.

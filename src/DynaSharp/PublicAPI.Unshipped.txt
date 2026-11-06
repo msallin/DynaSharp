@@ -139,3 +139,25 @@ DynaSharp.Mapping.TimeToLiveAttribute.TimeToLiveAttribute() -> void
 DynaSharp.CreateTableCommand.Timeout(System.TimeSpan timeout) -> DynaSharp.CreateTableCommand!
 static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl) -> DynaSharp.DynamoDbClientOptions!
 static DynaSharp.DynamoDbClientOptions.ForEmulator(System.Uri! serviceUrl, string! region) -> DynaSharp.DynamoDbClientOptions!
+DynaSharp.CreateTableResult.Drift.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>!
+DynaSharp.TableDrift
+DynaSharp.TableDrift.<Clone>$() -> DynaSharp.TableDrift!
+DynaSharp.TableDrift.Deconstruct(out DynaSharp.TableDriftKind Kind, out string? IndexName, out string! Description) -> void
+DynaSharp.TableDrift.Description.get -> string!
+DynaSharp.TableDrift.Description.init -> void
+DynaSharp.TableDrift.Equals(DynaSharp.TableDrift? other) -> bool
+DynaSharp.TableDrift.IndexName.get -> string?
+DynaSharp.TableDrift.IndexName.init -> void
+DynaSharp.TableDrift.Kind.get -> DynaSharp.TableDriftKind
+DynaSharp.TableDrift.Kind.init -> void
+DynaSharp.TableDrift.TableDrift(DynaSharp.TableDriftKind Kind, string? IndexName, string! Description) -> void
+DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.IndexDiffers = 1 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.IndexMissing = 0 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.StreamDiffers = 3 -> DynaSharp.TableDriftKind
+DynaSharp.TableDriftKind.TimeToLiveDiffers = 2 -> DynaSharp.TableDriftKind
+override DynaSharp.TableDrift.Equals(object? obj) -> bool
+override DynaSharp.TableDrift.GetHashCode() -> int
+override DynaSharp.TableDrift.ToString() -> string!
+static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
+static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool

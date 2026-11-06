@@ -129,8 +129,8 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Gives the table a stream, which <see cref="ToRequest"/> shows. It applies to a table this command creates: with <see cref="IfNotExists"/>, the stream of a table that exists stays untouched, also when it has none or
-    /// another view, and nothing says so. Change that with <c>UpdateTable</c> in <c>DynaSharp.Requests</c>.
+    /// Gives the table a stream, which <see cref="ToRequest"/> shows. It applies to a table this command creates: with <see cref="IfNotExists"/>, the stream of a table that exists stays untouched, and one that is off or
+    /// of another view is a <see cref="TableDriftKind.StreamDiffers"/> in <see cref="CreateTableResult.Drift"/>. Change it with <c>UpdateTable</c> in <c>DynaSharp.Requests</c>.
     /// </summary>
     /// <param name="view">What a record of the stream holds.</param>
     /// <returns>This command.</returns>
@@ -158,11 +158,12 @@ public sealed class CreateTableCommand
     /// that exists calls this after it added the index.
     /// </para>
     /// <para>
-    /// Then <c>DescribeTimeToLive</c> looks, and <c>ENABLED</c> or <c>ENABLING</c> on this attribute ends it. Anything else sends <c>UpdateTimeToLive</c>, which DynamoDB answers with a
-    /// <see cref="ValidationException"/> for time to live that is on already, and for a second change within the hour that a change takes. Instances of a program start together, so that can mean that another one got
-    /// there first: the command looks again and takes it for success if time to live is now on for this attribute. Otherwise that exception surfaces, and that is what time to live on another attribute comes to:
-    /// DynamoDB says what is wrong, and turning it off and on again with the new name is a decision this command does not take. <see cref="CreateTableResult.TimeToLiveEnabled"/> is <see langword="true"/> only
-    /// after an update DynamoDB accepted.
+    /// Then <c>DescribeTimeToLive</c> looks, and <c>ENABLED</c> or <c>ENABLING</c> on this attribute ends it. <c>ENABLED</c> or <c>ENABLING</c> on another attribute ends it too, and changes nothing: it is a
+    /// <see cref="TableDriftKind.TimeToLiveDiffers"/> in <see cref="CreateTableResult.Drift"/>, since turning it off and on again with the new name is a decision this command does not take, and one that DynamoDB
+    /// spreads over two changes. Anything else, time to live off for one, sends <c>UpdateTimeToLive</c>, which turns it on, on a table that exists too. DynamoDB answers that with a <see cref="ValidationException"/>
+    /// for time to live that is on already, and for a second change within the hour that a change takes. Instances of a program start together, so that can mean that another one got there first: the command looks
+    /// again and takes it for success if time to live is now on, for this attribute or, as drift, for another. Otherwise that exception surfaces. <see cref="CreateTableResult.TimeToLiveEnabled"/> is
+    /// <see langword="true"/> only after an update DynamoDB accepted.
     /// </para>
     /// <para>
     /// <b>Permissions.</b> It takes <c>dynamodb:DescribeTimeToLive</c> on every call, <c>dynamodb:UpdateTimeToLive</c> when time to live is not on yet, and <c>dynamodb:DescribeTable</c> for the wait.
@@ -229,12 +230,21 @@ public sealed class CreateTableCommand
 
     /// <summary>
     /// Treats a table that exists as success: <c>DescribeTable</c> goes first, and a table it finds ends the create there, with its description and without a <c>CreateTable</c>, which is what makes a create at the start
-    /// of a program safe to repeat. <see cref="TimeToLive(string)"/> on the chain still goes on, and can change the table.
+    /// of a program safe to repeat. The table it finds is checked against what the command declares. <see cref="TimeToLive(string)"/> on the chain still goes on, and can change the table.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// It <b>does not compare schemas</b>: a table of this name with other keys or indexes is success too, and a table that is still being created is success with that status. Reads and writes then fail, or find the
-    /// indexes missing, and a <see cref="WaitUntilActive()"/> fails over a table that lacks a global index this command declares. <see cref="CreateTableResult.Created"/> says whether the table was found. The indexes and the <see cref="Stream"/> of this command reach only a table it creates.
+    /// <b>What it checks.</b> The description it already has holds the schema, so the check takes no call. A key of the table that differs from the key of the command throws an <see cref="InvalidOperationException"/>
+    /// that names the table, the key it expects and the key it found, before any wait or time to live: another partition or sort key attribute, a sort key the command has and the table lacks or the other way round,
+    /// or a key attribute of another type where both sides know it. That table fails every read and write of the entities with a <see cref="ValidationException"/>, and DynamoDB cannot change the key of a table,
+    /// so a deploy should stop there. A table opened without an entity, <c>client.Table(name, "pk", "sk")</c>, knows its key names and not their types, so only the names count.
+    /// </para>
+    /// <para>
+    /// What lets part of the code work is no exception, but <see cref="CreateTableResult.Drift"/>, which the command also logs once as a warning: an index the entities declare that the table lacks, or has with other keys
+    /// or as the other kind, time to live on another attribute than the one asked for, and, with <see cref="Stream"/> on the chain, a stream that is off or of another view. The command changes none of it, as the indexes
+    /// and the stream of a command reach only a table it creates: a global index goes in with <c>UpdateTable</c>, and a local one only with a new table. What the table has beyond the command, such as an index or
+    /// time to live it does not ask for, is no drift, since other code may use it. A table that is still being created is success with that status. A <see cref="WaitUntilActive()"/> still fails over a table that
+    /// lacks a global index this command declares. <see cref="CreateTableResult.Created"/> says whether the table was found.
     /// </para>
     /// <para>
     /// <b>Permissions.</b> A table that exists takes <c>dynamodb:DescribeTable</c> alone, unless <see cref="TimeToLive(string)"/> adds its own, so a role that may not create tables gets through, and no failed call shows in CloudTrail or in error metrics. Creating a table takes
@@ -289,13 +299,18 @@ public sealed class CreateTableCommand
     /// <param name="cancellationToken">Cancels the call, and the wait. A table DynamoDB accepted stays accepted, so a cancelled wait leaves a table behind.</param>
     /// <returns>
     /// The table and what this call did: <see cref="CreateTableResult.Table"/> is the new description, the active one with <see cref="WaitUntilActive()"/>, or the existing one with <see cref="IfNotExists"/>, which is
-    /// what the first look found; <see cref="CreateTableResult.Created"/> and <see cref="CreateTableResult.TimeToLiveEnabled"/> say whether this call created the table and turned time to live on.
+    /// what the first look found; <see cref="CreateTableResult.Created"/> and <see cref="CreateTableResult.TimeToLiveEnabled"/> say whether this call created the table and turned time to live on, and
+    /// <see cref="CreateTableResult.Drift"/> how a table it found differs from what it declares.
     /// </returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ResourceInUseException">A table of that name exists and <see cref="IfNotExists"/> was not called, or it is being deleted, which <see cref="IfNotExists"/> does not cover.</exception>
     /// <exception cref="AccessDeniedException">The role lacks a permission of the calls this makes, which <see cref="IfNotExists"/> lists.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
-    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes, or time to live cannot be turned on, as when it is on for another attribute.</exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes, or time to live cannot be turned on, as within the hour after a change of it.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="IfNotExists"/> found a table whose key differs from the key of the command, in attribute names, in having a sort key or in a type that both know. The message names the table, the expected and the found
+    /// key. Nothing waits and nothing changes then.
+    /// </exception>
     /// <exception cref="TableNotActiveException">
     /// The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, or the table did not list a global index this command declares, which ends the wait early.
     /// </exception>
@@ -342,6 +357,9 @@ public sealed class CreateTableCommand
         var existing = await FindExistingAsync(cancellationToken).ConfigureAwait(false);
         progress?.At("creating the table");
         var (description, created) = existing is null ? await CreateAsync(cancellationToken).ConfigureAwait(false) : (existing, false);
+
+        // A table this call created is what it declares. One it found is compared before anything waits for it or changes it, so a key that does not fit throws first.
+        var drift = created ? [] : Check(description!);
         var declared = _schema.GlobalIndexNames;
         var timeToLive = _timeToLive ?? _schema.TimeToLiveAttributeName;
         var timeout = _activeTimeout ?? (timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
@@ -354,9 +372,43 @@ public sealed class CreateTableCommand
         }
 
         progress?.At("turning time to live on");
-        var timeToLiveEnabled = timeToLive is { } attributeName && await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
+        var timeToLiveEnabled = false;
+        if (timeToLive is { } attributeName)
+        {
+            var outcome = await TableAdministration.EnsureTimeToLiveAsync(_table, attributeName, cancellationToken).ConfigureAwait(false);
+            timeToLiveEnabled = outcome.TurnedOn;
+            if (outcome.OtherAttribute is { } other)
+            {
+                var differs = $"The table {_table.Name} has time to live on the attribute {other}, and the command asks for {attributeName}, so items are not expired by {attributeName}. "
+                    + "A table has time to live on one attribute: turning it to another is UpdateTimeToLive to off, and to on with the new name once DynamoDB takes a change again, within an hour.";
+                drift.Add(new TableDrift(TableDriftKind.TimeToLiveDiffers, null, differs));
+            }
+        }
+
+        if (drift.Count > 0)
+        {
+            _table.Core.LogTableDrift(_table.Name, drift);
+        }
+
         progress?.At("describing the table");
-        return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled);
+        return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled, drift);
+    }
+
+    // The stream is compared only where the chain asks for one, and only with a description that holds a key schema, which TableSchema.Check says.
+    private List<TableDrift> Check(TableDescription found)
+    {
+        var drift = _schema.Check(_table.Name, found);
+        if (_stream is { } view && found.KeySchema.Count > 0)
+        {
+            var current = found.StreamSpecification is { StreamEnabled: true } stream ? stream.StreamViewType : (StreamViewType?)null;
+            if (current != view)
+            {
+                var has = current is { } other ? $"a stream of {other}" : "no stream";
+                drift.Add(new TableDrift(TableDriftKind.StreamDiffers, null, $"The table {_table.Name} has {has}, and the command asks for one of {view}. UpdateTable with a StreamSpecification changes it."));
+            }
+        }
+
+        return drift;
     }
 
     // The description is null only for a response without one. Created is false for a table another process created first.

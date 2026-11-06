@@ -151,9 +151,9 @@ public sealed class CreateTableCommandTests(Backend backend)
     }
 
     [Test]
-    public async Task SendAsync_IfNotExistsAndTheTableExists_ReturnsItAsItIs()
+    public async Task SendAsync_IfNotExistsAndTheTableExists_ReturnsItAsItIsAndReportsTheIndexesItLacks()
     {
-        // Arrange (it does not compare schemas: the table stays what it was, without the index the second command asks for)
+        // Arrange (the table stays what it was, without the indexes the second command asks for, which the result lists)
         await using var sandbox = await Sandbox.StartAsync(backend);
         var shop = sandbox.Client.Table(Tables.UniqueName(), "pk", "sk");
         await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
@@ -162,7 +162,26 @@ public sealed class CreateTableCommandTests(Backend backend)
         var result = await Tables.SendAsync(shop.CreateTable().Including<Shopper>().IfNotExists());
 
         // Assert
-        await Assert.That((result.Table.TableName, result.Table.GlobalSecondaryIndexes.Count, result.Created)).IsEqualTo((shop.Name, 0, false));
+        await Assert.That((result.Table.TableName, result.Table.GlobalSecondaryIndexes.Count, result.Created, string.Join(",", result.Drift.Select(static drift => $"{drift.Kind}:{drift.IndexName}"))))
+            .IsEqualTo((shop.Name, 0, false, "IndexMissing:GSI1,IndexMissing:ByEmail"));
+    }
+
+    [Test]
+    public async Task SendAsync_IfNotExistsOverATableWithAnotherKey_ThrowsNamingBothKeysAndChangesNothing()
+    {
+        // Arrange (a table created with the partition key Resource, which code that writes pk and sk meets)
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var locks = sandbox.Client.Table(Tables.UniqueName(), "Resource");
+        await sandbox.CreateTableAsync(locks, locks.CreateTable().WaitUntilActive());
+        using var log = new OperationLog(sandbox.Emulator);
+        using var client = new DynamoDbClient(sandbox.Emulator.CreateOptions() with { HttpHandler = log });
+
+        // Act
+        var failure = await Items.FailureOfAsync<InvalidOperationException>(async () => await Tables.SendAsync(client.Table<Shopper>(locks.Name).CreateTable().IfNotExists().WaitUntilActive().TimeToLive("expires")));
+
+        // Assert
+        await Assert.That((failure.Message.StartsWith($"The table {locks.Name} exists with the partition key Resource (String) and no sort key, and this command expects the partition key pk (String) and sort key sk (String).", StringComparison.Ordinal), log.Operations))
+            .IsEqualTo((true, "DescribeTable"));
     }
 
     [Test]
@@ -410,7 +429,7 @@ public sealed class CreateTableCommandTests(Backend backend)
     }
 
     [Test]
-    public async Task SendAsync_TimeToLiveOnAnotherAttribute_SurfacesWhatDynamoDbSays()
+    public async Task SendAsync_TimeToLiveOnAnotherAttribute_ReportsItAndLeavesItOn()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -418,10 +437,10 @@ public sealed class CreateTableCommandTests(Backend backend)
         await sandbox.CreateTableAsync(shop, shop.CreateTable().TimeToLive("expires"));
 
         // Act
-        var failure = await Items.FailureOfAsync<ValidationException>(async () => await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive("other")));
+        var result = await Tables.SendAsync(shop.CreateTable().IfNotExists().TimeToLive("other"));
 
         // Assert
-        await Assert.That((failure.OperationName, (await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName)).IsEqualTo(((string?)"UpdateTimeToLive", (string?)"expires"));
+        await Assert.That((result.Drift.Single().Kind, result.TimeToLiveEnabled, (await DescribeTimeToLiveAsync(sandbox, shop))!.AttributeName)).IsEqualTo((TableDriftKind.TimeToLiveDiffers, false, (string?)"expires"));
     }
 
     [Test]

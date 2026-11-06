@@ -78,7 +78,7 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
 | `BatchWrite()`, `BatchGet()` | `BatchWriteResult`, `BatchGetResult<T>` | `Written` or `Items`, `Requests` and `ConsumedCapacity` |
 | `TransactWrite()`, `TransactGet()` | `TransactWriteResult`, `TransactGetResult` | `ConsumedCapacity`, and `Read(slot)` of a get, which gives a `GetResult<T>` |
-| `CreateTable()` | `CreateTableResult` | `Table`, `Created` and `TimeToLiveEnabled` |
+| `CreateTable()` | `CreateTableResult` | `Table`, `Created`, `TimeToLiveEnabled` and `Drift` |
 
 `ConsumedCapacity` is null, or empty, unless `ReturnCapacity()` asked for it. Whether a delete removed anything is a question for `ReturnOld()`:
 
