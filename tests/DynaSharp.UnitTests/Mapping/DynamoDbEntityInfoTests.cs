@@ -55,6 +55,16 @@ public sealed class DynamoDbEntityInfoTests
     }
 
     [Test]
+    public async Task Constructor_TimeToLive_KeepsItAndDefaultsToNone()
+    {
+        // Arrange, Act
+        var (with, without) = (new DynamoDbEntityInfo(null, "pk", null, [], timeToLiveAttributeName: "expiresAt"), new DynamoDbEntityInfo(null, "pk", null, []));
+
+        // Assert
+        await Assert.That((with.TimeToLiveAttributeName, without.TimeToLiveAttributeName)).IsEqualTo(((string?)"expiresAt", (string?)null));
+    }
+
+    [Test]
     public async Task Info_GeneratedEntity_NamesTheTypesOfItsKeysAndItsLocalIndexes()
     {
         // Arrange, Act
