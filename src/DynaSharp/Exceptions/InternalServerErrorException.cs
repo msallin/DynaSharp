@@ -3,8 +3,13 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// DynamoDB failed internally. Retried automatically before it surfaces.
+/// DynamoDB failed internally (HTTP 500). The client has retried it, so this reaches the caller when every attempt failed.
 /// </summary>
+/// <remarks>
+/// <see cref="DynamoDbException.IsTransient"/> is <see langword="true"/>: try later, after a wait. A write may have been applied before the response was lost, as
+/// <see cref="DynamoDbClientOptions.MaxAttempts"/> describes. A proxy that answers 502, 503 or 504 with a page that is no DynamoDB response surfaces as a plain
+/// <see cref="DynamoDbException"/> with the code <c>UnrecognizedResponse</c>, retried the same way.
+/// </remarks>
 public sealed class InternalServerErrorException : DynamoDbException
 {
     /// <summary>

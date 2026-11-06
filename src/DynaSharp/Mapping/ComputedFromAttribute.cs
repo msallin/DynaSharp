@@ -16,14 +16,26 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// Each name is a property of the same type with an attribute of its own: not computed, not <see cref="DynamoDbIgnoreAttribute"/> and not <see cref="KeyOnlyAttribute"/>, and not the
-/// <see cref="VersionAttribute"/>, which every write moves without a handle. One level only, and a named property may feed another key. The build reports what breaks this as <c>DYNA119</c>,
-/// and a write that will throw as <c>DYNA219</c>.
+/// <see cref="VersionAttribute"/>, which every write moves without a handle. One level only, and a named property may feed another key. The build reports what breaks this as <see href="https://msallin.github.io/DynaSharp/diagnostics.html#key-templates">DYNA119</see>,
+/// and a write that will throw as <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA219</see>.
 /// </para>
 /// </remarks>
 /// <example>
 /// <code>
-/// [ComputedFrom(nameof(Arrival))]
-/// public DateOnly ArrivalDay => DateOnly.FromDateTime(Arrival.UtcDateTime);
+/// [DynamoDbEntity]
+/// [Discriminator("VISIT")]
+/// [PartitionKey("STORE#{StoreId}")]
+/// [SortKey("AT#{Arrival}")]
+/// [GlobalIndexKey("ByDay", PartitionKey = "DAY#{ArrivalDay}", SortKey = "{Arrival}")]
+/// public partial record StoreCheckin
+/// {
+///     public required string StoreId { get; init; }
+///
+///     public required DateTimeOffset Arrival { get; init; }
+///
+///     [ComputedFrom(nameof(Arrival))]
+///     public DateOnly ArrivalDay => DateOnly.FromDateTime(Arrival.UtcDateTime);
+/// }
 /// </code>
 /// </example>
 /// <param name="properties">The names of the properties, for which <c>nameof</c> is the way to write them.</param>

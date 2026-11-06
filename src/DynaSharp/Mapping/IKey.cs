@@ -4,9 +4,9 @@ using DynaSharp.Serialization;
 namespace DynaSharp.Mapping;
 
 /// <summary>
-/// A primary key that writes itself. Generated key structs implement it through <see cref="IKey{TEntity}"/>, and they hold what the key is
-/// made of rather than the text of the key, so a key costs no string until it is written. A generated <c>Keys.Of</c> has checked the values by then.
+/// A primary key of an item, as the generated <c>Keys.Of(...)</c> of an entity builds it. Pass it to <c>Get</c>, <c>Update</c>, <c>Delete</c> and <c>Query</c> of the table of that entity.
 /// </summary>
+/// <remarks>A key holds the values it was made from, which <c>Keys.Of</c> has checked, and writes them in the format of the template when the command is sent.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public interface IKey
 {

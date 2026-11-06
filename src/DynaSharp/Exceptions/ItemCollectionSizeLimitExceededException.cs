@@ -3,8 +3,12 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// An item collection of a table with local secondary indexes exceeds 10 GB.
+/// An item collection, all the items with one partition key value, exceeds the 10 GB that a table with a local secondary index allows. Not retried: data must go first.
 /// </summary>
+/// <remarks>
+/// A table without a local secondary index has no such limit. <see cref="DynamoDbException.IsTransient"/> is <see langword="false"/>. <c>ReturnMetrics()</c> on a write asks for the size
+/// estimate of the collection, so that a service can see the limit coming.
+/// </remarks>
 public sealed class ItemCollectionSizeLimitExceededException : DynamoDbException
 {
     /// <summary>

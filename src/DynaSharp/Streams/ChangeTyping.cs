@@ -4,7 +4,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.Streams;
 
 /// <summary>
-/// The types a typed stream reading tells apart, and how it makes what it gives of one of them. A typed reading is one loop over the records, generic over this, so the
+/// The types a typed stream reading tells apart, and how it makes what it gives of one of them. A typed read is one loop over the records, generic over this, so the
 /// one-type and the mixed readings share it with no delegate per record.
 /// </summary>
 /// <typeparam name="TOut">What the reading gives: a <see cref="Change{T}"/> or a <see cref="MixedChange{T1, T2}"/>.</typeparam>

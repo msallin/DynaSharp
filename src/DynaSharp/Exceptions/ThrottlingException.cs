@@ -3,8 +3,9 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// Control-plane requests (for example <c>CreateTable</c>) arrive too fast. Retried automatically before it surfaces.
+/// Control-plane requests, such as <c>CreateTable</c> or <c>DescribeTable</c>, arrive too fast. The client has retried it with backoff, so this reaches the caller when the throttling went on.
 /// </summary>
+/// <remarks><see cref="DynamoDbException.IsTransient"/> is <see langword="true"/>: wait and try again, and poll a table less often.</remarks>
 public sealed class ThrottlingException : DynamoDbException
 {
     /// <summary>

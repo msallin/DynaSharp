@@ -54,11 +54,13 @@ public static class TransactWriteExtensions
     }
 
     /// <summary>
-    /// Adds a put that exists to make something unique. DynamoDB enforces uniqueness only for a primary key, so a value that must be unique, such as an email
-    /// address, gets an item of its own, whose key is that value: <c>.Unique(markers, new EmailMarker(email, id), out var taken)</c>. It is a put with
-    /// <c>attribute_not_exists</c> on the partition key, so the transaction is cancelled if the item exists, and <see cref="TransactionCanceledException.ReasonFor"/>
-    /// with the marker says that this was the reason. <see cref="ReturnOldOnFailure"/> also says who holds the value.
+    /// Adds a put of a claim item that makes a value unique, such as an email address: <c>.Unique(emails, new EmailClaim(email, id), out var taken)</c>. The transaction is cancelled if the
+    /// item exists.
     /// </summary>
+    /// <remarks>
+    /// DynamoDB enforces uniqueness only for a primary key, so a value that must be unique gets an item of its own, whose key is that value. It is a put with <c>attribute_not_exists</c> on
+    /// the partition key, and <see cref="TransactionCanceledException.ReasonFor"/> with the marker says that this was the reason. <see cref="ReturnOldOnFailure"/> also says who holds the value.
+    /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
     /// <typeparam name="T">The type of the marker item.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
@@ -72,11 +74,13 @@ public static class TransactWriteExtensions
         where T : IDynamoDbDocument<T> => Put(chain, table, item, out marker).IfNotExists();
 
     /// <summary>
-    /// Adds a put of a marker item that consists of a key and nothing else, for a value that must be unique and has nothing to say beyond that:
-    /// <c>.Unique(markers, EmailMarker.Keys.Of(email), out var taken)</c>. It is a put with <c>attribute_not_exists</c> on the partition key, so the transaction is cancelled if the
-    /// item exists, and <see cref="TransactionCanceledException.ReasonFor"/> with the marker says that this was the reason. The item has no discriminator, so a typed read of it fails;
-    /// it is there to exist, and to be deleted by its key.
+    /// Adds a put of a claim item that consists of a key and nothing else, for a value that must be unique and has nothing to say beyond that:
+    /// <c>.Unique(emails, EmailClaim.Keys.Of(email), out var taken)</c>. The transaction is cancelled if the item exists.
     /// </summary>
+    /// <remarks>
+    /// It is a put with <c>attribute_not_exists</c> on the partition key, and <see cref="TransactionCanceledException.ReasonFor"/> with the marker says that this was the reason. The item has no
+    /// discriminator, so a typed read of it fails; it is there to exist, and to be deleted by its key.
+    /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
     /// <typeparam name="T">The type of the table.</typeparam>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
@@ -278,10 +282,13 @@ public static class TransactWriteExtensions
         where TKey : IKey<T> => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, key, out marker));
 
     /// <summary>
-    /// Sets the idempotency token of the transaction, in place of the one <see cref="SendAsync{TChain}"/> generates. A generated token is made once per send, and the client's own retries of that send carry it unchanged,
-    /// so a lost response does not apply the transaction twice. A retry of your own builds and sends the transaction again, which generates a new token: for that, set one that stays the same, such as the
-    /// id of the business operation. For 10 minutes DynamoDB answers a repeat with the outcome of the first and does not do it again.
+    /// Sets the idempotency token of the transaction, in place of the one <see cref="SendAsync{TChain}"/> generates, so that a retry of your own does not apply the transaction twice.
     /// </summary>
+    /// <remarks>
+    /// A generated token is made once per send, and the client's own retries of that send carry it unchanged, so a lost response does not apply the transaction twice. A retry of your own
+    /// builds and sends the transaction again, which generates a new token: for that, set one that stays the same, such as the id of the business operation. For 10 minutes DynamoDB
+    /// answers a repeat with the outcome of the first and does not do it again.
+    /// </remarks>
     /// <typeparam name="TChain">The type of the command or step.</typeparam>
     /// <param name="chain">The command or step, which this replaces.</param>
     /// <param name="token">The token, of 1 to 36 characters, which DynamoDB checks.</param>
@@ -322,10 +329,12 @@ public static class TransactWriteExtensions
     }
 
     /// <summary>
-    /// Makes this action depend on no item having its key (<c>attribute_not_exists</c> on the partition key of its table). Otherwise the whole transaction is
-    /// cancelled. The table is the one of the action, so it takes no argument. An entity with a <see cref="Mapping.VersionAttribute"/> must then hold version 0, whose condition is this one and renders once: the next verb or the terminal throws
-    /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called, because no item can lack its key and hold a version.
+    /// Makes this action depend on no item having its key (<c>attribute_not_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled.
     /// </summary>
+    /// <remarks>
+    /// An entity with a <see cref="Mapping.VersionAttribute"/> must then hold version 0, whose condition is this one and renders once: the next action or <c>SendAsync</c> throws
+    /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called, because no item can lack its key and hold a version.
+    /// </remarks>
     /// <typeparam name="TStep">The type of the step.</typeparam>
     /// <param name="step">The step, which this replaces.</param>
     /// <returns>The step.</returns>
@@ -339,7 +348,7 @@ public static class TransactWriteExtensions
 
     /// <summary>
     /// Makes this action depend on an item having its key (<c>attribute_exists</c> on the partition key of its table). Otherwise the whole transaction is cancelled. Version 0 says that no item has the key, so with
-    /// it the next verb or the terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of an entity back. With <see cref="Mapping.VersionMissing.Allow"/>, version 0 asks for an
+    /// it the next action or <c>SendAsync</c> throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of an entity back. With <see cref="Mapping.VersionMissing.Allow"/>, version 0 asks for an
     /// item that reads as 0 besides.
     /// </summary>
     /// <typeparam name="TStep">The type of the step.</typeparam>

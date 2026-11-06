@@ -36,7 +36,7 @@ namespace DynaSharp.Testing;
 /// await File.WriteAllTextAsync(tokenFile, "a-token");
 ///
 /// var provider = new WebIdentityCredentialsProvider(tokenFile, "arn:aws:iam::123456789012:role/orders", sts.Endpoint);
-/// using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = region, Credentials = provider, HttpHandler = stub });
+/// using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("us-east-1"), Credentials = provider, HttpHandler = stub });
 /// // ... call the code under test, then:
 /// var token = sts.Requests[0].WebIdentityToken;
 /// </code>

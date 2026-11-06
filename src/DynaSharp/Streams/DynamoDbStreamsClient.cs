@@ -509,7 +509,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
         }
     }
 
-    /// <summary>Counts a change that a typed reading of a table skipped because its type could not read it, under the call that brought the record.</summary>
+    /// <summary>Counts a change that a typed read of a table skipped because its type could not read it, under the call that brought the record.</summary>
     /// <param name="tableName">The table.</param>
     internal void CountSkippedItem(string tableName) => _core.CountSkippedItem(GetRecordsOperation.Name, tableName);
 

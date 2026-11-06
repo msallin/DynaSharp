@@ -3,14 +3,14 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// The request is invalid, for example a malformed expression or a key that does not match the schema. Not retryable.
+/// DynamoDB rejected the request: a malformed expression, a key that does not match the schema, an empty key, an item over 400 KB. Not retried: the request must change.
 /// </summary>
 /// <remarks>
 /// A command of the table API writes every attribute name and value as a placeholder, so the message of the service talks about <c>#n2</c>
 /// and <c>:v3</c>. For such a failure <see cref="Expressions"/>, <see cref="ExpressionNames"/> and <see cref="ExpressionValueTypes"/>
 /// say what those stand for, and <see cref="Exception.Message"/> gains one line with the same content. Values are never included, only
 /// their types, so the exception is as safe to log as any other. A request of the request API has none of this: its caller wrote the
-/// expressions.
+/// expressions. <see cref="DynamoDbException.IsTransient"/> is <see langword="false"/>.
 /// </remarks>
 public sealed class ValidationException : DynamoDbException
 {

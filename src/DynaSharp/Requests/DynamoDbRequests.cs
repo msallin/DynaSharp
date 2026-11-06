@@ -715,7 +715,7 @@ public static class DynamoDbRequests
     /// Updating a table is asynchronous. While the table is <see cref="TableStatus.Updating"/> (and while a new index is
     /// <see cref="IndexStatus.Creating"/>) DynamoDB rejects further structural changes with <see cref="ResourceInUseException"/>:
     /// poll <see cref="DescribeTableAsync"/> with a delay of a second or more until the table is <see cref="TableStatus.Active"/>
-    /// again. Reads and writes keep working meanwhile. A new global secondary index is allocated and then filled from the table, which takes
+    /// again. Reads and writes keep working meanwhile. A new global secondary index is provisioned and then filled from the table, which takes
     /// minutes on an empty table and hours on a large one, and the table cannot be deleted until it is done; it can be queried when its <see cref="GlobalSecondaryIndexDescription.IndexStatus"/> is
     /// <see cref="IndexStatus.Active"/>.
     /// </para>

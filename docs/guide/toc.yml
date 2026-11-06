@@ -60,6 +60,8 @@
     href: ../api-levels.md
   - name: Design principles
     href: ../design-principles.md
+  - name: How it is built
+    href: ../design.md
   - name: Compatibility
     href: ../compatibility.md
   - name: Performance

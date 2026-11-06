@@ -7,6 +7,17 @@ namespace DynaSharp.Streams;
 /// A change of an item of one entity, read from the images of a stream record: what <see cref="ChangeRecord.As{T}"/> and <c>ReadChangesAsync</c> of
 /// <see cref="TableStreamExtensions"/> give.
 /// </summary>
+/// <example>
+/// <code>
+/// await foreach (Change&lt;Order&gt; change in orders.ReadChangesAsync(streams, ShardIteratorType.Latest, cancellationToken: ct))
+/// {
+///     if (change.Kind == OperationType.Insert)
+///     {
+///         Console.WriteLine(change.After!.Number);
+///     }
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// A stream cannot be filtered at its source, so a table that holds several entities streams all of them, and the type is decided here, from the images: an image is a
@@ -16,7 +27,7 @@ namespace DynaSharp.Streams;
 /// <para>
 /// <see cref="Kind"/> is what happened to the <typeparamref name="T"/>, which is not always the kind of the record: an item whose discriminator changes at one key, an
 /// <c>ORDER</c> that becomes an <c>INVOICE</c> in one <c>MODIFY</c>, is an order removed and an invoice inserted, so the change of the order has <see cref="OperationType.Remove"/> and that
-/// of the invoice <see cref="OperationType.Insert"/>, both with the sequence number of the record. A typed reading gives the removal first.
+/// of the invoice <see cref="OperationType.Insert"/>, both with the sequence number of the record. A typed read gives the removal first.
 /// </para>
 /// <para>
 /// What can be typed depends on the view of the stream. <see cref="StreamViewType.NewAndOldImages"/> types every change. <see cref="StreamViewType.NewImage"/> has no

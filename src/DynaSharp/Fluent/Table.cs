@@ -9,20 +9,30 @@ using DynaSharp.Requests;
 namespace DynaSharp;
 
 /// <summary>
-/// A DynamoDB table, and the entry to everything that reads and writes it. <c>Table&lt;Item&gt;</c> is the table without a schema and
-/// <c>Table&lt;Order&gt;</c> the same table seen as a mapped entity. They are one engine: <typeparamref name="T"/> decides only how an item is
-/// written and read.
+/// A DynamoDB table, and the entry to everything that reads and writes it: <c>Table&lt;Order&gt;</c> reads and writes the entity <c>Order</c>,
+/// <c>Table&lt;Item&gt;</c> the same table without a schema.
 /// </summary>
+/// <example>
+/// <code>
+/// var orders = client.Table&lt;Order&gt;("Shop");
+///
+/// await orders.Put(order).IfNotExists().SendAsync(ct);
+/// Order? found = await orders.Get(Order.Keys.Of("alice", 1)).ItemAsync(ct);
+/// await foreach (var open in orders.Query(Order.Keys.Pk.Of("alice")).Filter(Order.Attrs.Status.Eq(OrderStatus.Placed)).ItemsAsync(ct))
+/// {
+///     Console.WriteLine(open.Number);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
-/// Every method starts a command, which is sent with <c>SendAsync</c>: <c>await shop.Get("USER#1", "PROFILE").Consistent().SendAsync(ct);</c>. Each
-/// verb is the DynamoDB operation of that name, with its semantics: <see cref="Put"/> replaces a whole item, <c>Update</c> creates an item
+/// <b>Every method starts a command,</b> which is sent with <c>SendAsync</c> or one of its siblings such as <c>ItemAsync</c>: <c>await shop.Get("USER#1", "PROFILE").Consistent().SendAsync(ct);</c>.
+/// Each verb is the DynamoDB operation of that name, with its semantics: <see cref="Put"/> replaces a whole item, <c>Update</c> creates an item
 /// that does not exist unless told otherwise, and nothing is read before it is written.
 /// </para>
 /// <para>
-/// A table is a small object that holds what never changes, so hold it in a field; it is immutable and thread-safe. It makes no request of its
-/// own, so opening a table that does not exist succeeds, and the first command fails. The table is sealed and has no interface: the test seam
-/// is the <see cref="HttpMessageHandler"/> of the client, which tests the serialization too.
+/// <b>Hold it in a field.</b> A table holds what never changes; it is immutable and thread-safe. It makes no request of its own, so opening a table that does not exist succeeds, and
+/// the first command fails. The table is sealed and has no interface: the test seam is the <see cref="HttpMessageHandler"/> of the client, which tests the serialization too.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">How items are written and read.</typeparam>
@@ -60,9 +70,9 @@ public sealed partial class Table<T>
     internal TableModel Model { get; }
 
     /// <summary>
-    /// Gets the same table as seen by an entity type, as a single table holds several types. The key names come from the entity. The result is
-    /// cached per type, so calling this inline costs a dictionary lookup and no allocation.
+    /// Views this table as another entity type, for a single table that holds several types: <c>shop.Of&lt;Order&gt;().Get(key)</c>.
     /// </summary>
+    /// <remarks>Key names, indexes and the discriminator come from <typeparamref name="TOther"/>. The view is created once per type and shared, so it is fine to call this inline.</remarks>
     /// <typeparam name="TOther">The entity. A nested document has no key, so it does not fit here, which the constraint enforces.</typeparam>
     /// <returns>The table.</returns>
     public Table<TOther> Of<TOther>()
@@ -87,7 +97,10 @@ public sealed partial class Table<T>
     /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="partitionKey"/> is <see langword="null"/> or empty.</exception>
     public Index<T> Index(string name, string partitionKey, string? sortKey = null) => new(this, name, partitionKey, sortKey);
 
-    /// <summary>Starts a get of one item by its key.</summary>
+    /// <summary>
+    /// Starts a <c>GetItem</c> of one item by its key. End the chain with <see cref="GetCommand{T}.ItemAsync"/> or <see cref="GetCommand{T}.SendAsync"/>; a missing item is not an error, and
+    /// the read is eventually consistent unless <see cref="GetCommand{T}.Consistent"/> says otherwise.
+    /// </summary>
     /// <param name="partitionKey">The partition key. Strings and binary values must not be empty.</param>
     /// <param name="sortKey">The sort key, which a table with a sort key needs.</param>
     /// <returns>The command.</returns>
@@ -95,7 +108,10 @@ public sealed partial class Table<T>
     public GetCommand<T> Get(AttributeValue partitionKey, AttributeValue sortKey = default) =>
         new(Model.Begin(partitionKey, sortKey), Model);
 
-    /// <summary>Starts a get of one item by a generated key, which costs no string: <c>customers.Get(Customer.Keys.Of("alice"))</c>.</summary>
+    /// <summary>
+    /// Starts a <c>GetItem</c> by a key the generator built, such as <c>customers.Get(Customer.Keys.Of("alice"))</c>. End the chain with <see cref="GetCommand{T}.ItemAsync"/> or
+    /// <see cref="GetCommand{T}.SendAsync"/>; a missing item is not an error.
+    /// </summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
@@ -130,7 +146,7 @@ public sealed partial class Table<T>
     public UpdateCommand<T> Update(AttributeValue partitionKey, AttributeValue sortKey = default) =>
         new(WriteRules.ExpectUpdate(Model.Begin(partitionKey, sortKey)), Model);
 
-    /// <summary>Starts an update of one item by a generated key, which is <see cref="Update(AttributeValue, AttributeValue)"/> at the cost of no string.</summary>
+    /// <summary>Starts an <c>UpdateItem</c> by a key the generator built, such as <c>orders.Update(Order.Keys.Of(customerId, number))</c>. See <see cref="Update(AttributeValue, AttributeValue)"/>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
@@ -163,11 +179,11 @@ public sealed partial class Table<T>
     public QueryCommand<T> Query(AttributeValue partitionKey, SortKeyCondition sortKey = default) => new(Model.BeginQuery(partitionKey, sortKey), Model);
 
     /// <summary>
-    /// Starts a query by what <see cref="Get{TKey}(TKey)"/> takes: <c>orders.Query(Order.Keys.Of(id, day)).Filter(open).ItemAsync(ct)</c>. It queries the partition key, with <c>Eq</c> on the sort key if the
-    /// key has one, so it finds at most one item, and what it has over a <c>Get</c> is a filter. A read of an entity filters on its discriminator, so an item of another type under the key is no match, where a
-    /// <c>Get</c> would fail on it.
+    /// Starts a <c>Query</c> for the one item of a key, which is a <c>Get</c> that can take a filter: <c>orders.Query(Order.Keys.Of(id, day)).Filter(open).ItemAsync(ct)</c>.
     /// </summary>
-    /// <remarks>A generated key costs no string for this. A partition key such as <c>Order.Keys.Pk.Of(id)</c> is no key of an item, and goes to the overloads that take a condition on the sort key.</remarks>
+    /// <remarks>
+    /// It queries the partition key, with <c>Eq</c> on the sort key if the key has one, so it finds at most one item. A read of an entity filters on its discriminator, so an item of another
+    /// type under the key is no match, where a <c>Get</c> would fail on it. A partition key such as <c>Order.Keys.Pk.Of(id)</c> is no key of an item, and goes to the overloads that take a condition on the sort key.</remarks>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command.</returns>
@@ -224,8 +240,8 @@ public sealed partial class Table<T>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
     /// <summary>
-    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, for at most five minutes, which an index that <c>UpdateTable</c> added can take
-    /// longer than, even on a small table. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>.
+    /// Waits for at most five minutes until the table and its global secondary indexes are <c>ACTIVE</c>. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>, which an index
+    /// that <c>UpdateTable</c> added needs, because that takes longer.
     /// </summary>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
@@ -238,30 +254,29 @@ public sealed partial class Table<T>
         TableAdministration.WaitUntilActiveAsync(Model, TableAdministration.DefaultActiveTimeout, cancellationToken);
 
     /// <summary>
-    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, polling <c>DescribeTable</c> at once and then at growing intervals from 100 ms to 5 s, on the
-    /// <see cref="DynamoDbClientOptions.TimeProvider"/> of the client, so a test with a fake clock does not wait.
+    /// Waits until the table and all its global secondary indexes, those its entity declares among them, are <c>ACTIVE</c>, polling <c>DescribeTable</c> at growing intervals from 100 ms to 5 s.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The wait is bounded: the last poll starts at the latest when <paramref name="timeout"/> is up, and then the call throws <see cref="TableNotActiveException"/>, which is a <see cref="TimeoutException"/>
+    /// <b>On the clock of the client.</b> The polls wait on <see cref="DynamoDbClientOptions.TimeProvider"/>, so a test with a fake clock does not wait. The wait is bounded: the last poll starts at the latest when <paramref name="timeout"/> is up, and then the call throws <see cref="TableNotActiveException"/>, which is a <see cref="TimeoutException"/>
     /// with the name of the table and its last status, whatever that status is. A poll
     /// itself takes as long as a call takes, up to <see cref="DynamoDbClientOptions.AttemptTimeout"/> per attempt, so the call can return that much later.
     /// With a timeout of zero it looks once. A <paramref name="cancellationToken"/> on the same timeout races it, and when the token wins the caller gets a bare <see cref="TaskCanceledException"/> or <see cref="OperationCanceledException"/>, with no table and no
     /// index named, so give the wait less time than the token.
     /// </para>
     /// <para>
-    /// A table that does not exist counts as not active yet, because <c>DescribeTable</c> right after <c>CreateTable</c> can miss a new table. So a wrong name shows
+    /// <b>A missing table</b> counts as not active yet, because <c>DescribeTable</c> right after <c>CreateTable</c> can miss a new table. So a wrong name shows
     /// up as a timeout with no <see cref="TableNotActiveException.LastStatus"/>, whose <see cref="Exception.InnerException"/> is the <see cref="ResourceNotFoundException"/>. A status that never turns active, such as
     /// <c>DELETING</c>, runs into the timeout too.
     /// </para>
     /// <para>
-    /// A table reads <c>ACTIVE</c> while an index it was given by <c>UpdateTable</c> backfills, and the index misses items until it is done, so this waits for the indexes too, and
-    /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. DynamoDB first allocates such an index, which takes minutes on any table, often more than five, and then backfills it, which takes as long as the table is large and can take hours.
+    /// <b>An index that was added later.</b> A table reads <c>ACTIVE</c> while an index it was given by <c>UpdateTable</c> backfills, and the index misses items until it is done, so this waits for the indexes too, and
+    /// <see cref="TableNotActiveException.PendingIndex"/> names the one that held it up. DynamoDB first provisions such an index, which takes minutes on any table, often more than five, and then backfills it, which takes as long as the table is large and can take hours.
     /// So that wait needs a longer timeout than the default of five minutes: half an hour for a small table, more for a large one.
     /// Local secondary indexes have no status: they exist from the creation of the table.
     /// </para>
     /// <para>
-    /// An index that was just added may not be listed yet, and what is not listed cannot be seen to be behind. So every global index that the entity declares has to be listed as well, and until then this keeps polling; a
+    /// <b>An index the entity declares</b> that was just added may not be listed yet, and what is not listed cannot be seen to be behind. So every global index that the entity declares has to be listed as well, and until then this keeps polling; a
     /// table that does not have such an index at all runs into the timeout, and the message of the <see cref="TableNotActiveException"/> says that it was not listed. A table opened without an entity declares nothing, so
     /// <c>client.Table(name, "pk", "sk")</c> waits for what the table lists, which is the wait before <c>UpdateTable</c> adds an index, and <see cref="Of{TOther}"/> gives a table that waits for what that entity declares.
     /// </para>
@@ -323,10 +338,10 @@ public sealed partial class Table<T>
     public BatchWriteCommand<T> BatchWrite() => new(Model.BeginActions(), Model);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer: 5 runs in all, with a wait between them, and the failure of the last run is rethrown. Code that holds a table needs no client for it. It is
-    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>, the same loop on the same client, and the remarks there say what a run is, what makes it run again
-    /// and how to write one. Nothing ties a run to this table: it can touch others, and a transaction.
+    /// Runs a read-modify-write and repeats it, up to 5 runs with a short wait between them, when it loses to another writer. It is
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>, whose remarks say what a run is and how to write one.
     /// </summary>
+    /// <remarks>Code that holds a table needs no client for it. Nothing ties a run to this table: it can touch others, and a transaction.</remarks>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>, and it must read what it depends on itself.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
@@ -341,7 +356,7 @@ public sealed partial class Table<T>
 
     /// <summary>
     /// Runs a write up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. It is
-    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/>, the same loop on the same client, and the remarks there say which conflicts to name and how many runs to allow.
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/>, whose remarks say which conflicts to name and how many runs to allow.
     /// </summary>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
@@ -349,7 +364,7 @@ public sealed partial class Table<T>
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -381,7 +396,7 @@ public sealed partial class Table<T>
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -393,11 +408,11 @@ public sealed partial class Table<T>
         ConflictRetry.StartAsync(Model.Core, operation, retryOn, maxAttempts, cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer, as <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> does, with the number of the run: 1 for the first, 2 for the second.
-    /// It is for a value read before the call, which the first run takes and every later run reads again, without a variable that the delegate clears:
-    /// <c>RetryOnConflictAsync(async (run, ct) =&gt; { var current = run == 1 ? scanner : await scanners.Get(key).Consistent().ItemAsync(ct); ... }, ct)</c>.
+    /// Runs a read-modify-write that gets the number of its run, 1 for the first, and repeats it when it loses to another writer, as
+    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> does. See
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{int, CancellationToken, ValueTask{T}}, CancellationToken)"/> for an example.
     /// </summary>
-    /// <remarks>Only the first run may take what was read before: the run after a conflict has lost to a write that this value does not hold, and taking it again fails the same way, which is what <c>DYNA218</c> reports for a version from before the call.</remarks>
+    /// <remarks>Only the first run may take what was read before: the run after a conflict has lost to a write that this value does not hold, and taking it again fails the same way, which is what <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA218</see> reports for a version from before the call.</remarks>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
@@ -411,8 +426,9 @@ public sealed partial class Table<T>
         ConflictRetry.StartAsync(Model.Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, cancellationToken);
 
     /// <summary>
-    /// Runs a write with the number of the run up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{int, CancellationToken, ValueTask{TResult}}, CancellationToken)"/> for the number, and <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, CancellationToken)"/> for the rest.
+    /// Runs a write that gets the number of its run up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
+    /// <see cref="RetryOnConflictAsync{TResult}(Func{int, CancellationToken, ValueTask{TResult}}, CancellationToken)"/> for the number, and
+    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, CancellationToken)"/> for the rest.
     /// </summary>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
@@ -420,7 +436,7 @@ public sealed partial class Table<T>
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -452,7 +468,7 @@ public sealed partial class Table<T>
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>

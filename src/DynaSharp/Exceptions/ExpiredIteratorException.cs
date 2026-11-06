@@ -6,7 +6,8 @@ namespace DynaSharp;
 /// A shard iterator is older than the 15 minutes it is valid for. DynamoDB Streams reports it as <c>ExpiredIteratorException</c>.
 /// </summary>
 /// <remarks>
-/// Not retried by the client: sending the same iterator again fails the same way. Get a new iterator with
+/// Not retried by the client: sending the same iterator again fails the same way. <see cref="Streams.DynamoDbStreamsClient.ReadShardAsync"/> and
+/// <see cref="Streams.DynamoDbStreamsClient.ReadStreamAsync"/> renew an expired iterator by themselves. A loop of your own gets a new iterator with
 /// <c>GetShardIterator</c>, using <see cref="Streams.ShardIteratorType.AfterSequenceNumber"/> and the sequence number of the last
 /// record processed to resume without gaps.
 /// </remarks>

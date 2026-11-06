@@ -11,6 +11,13 @@ namespace DynaSharp;
 /// A <c>PutItem</c> under construction, which replaces the whole item under its key. Chain the options and end with <see cref="SendAsync"/> in one
 /// expression.
 /// </summary>
+/// <example>
+/// <code>
+/// await orders.Put(order).IfNotExists().SendAsync(ct);
+///
+/// var replaced = await orders.Put(order).ReturnOld().SendAsync(ct);
+/// </code>
+/// </example>
 /// <remarks>See <see cref="GetCommand{T}"/> for what a command is and what it cannot do.</remarks>
 /// <typeparam name="T">How the item is written and read.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
@@ -38,9 +45,9 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     public static implicit operator CommandHandle(PutCommand<T> command) => new(command._state, command._version, Operation, command._table);
 
     /// <summary>
-    /// Adds a condition in the grammar of DynamoDB, for what struct conditions do not cover:
-    /// <c>.If($"attribute_exists({Attr("pk")}) AND size({Attr("tags")}) &lt; {10}")</c>. An attribute in a hole stands for its name and anything
-    /// else is a value. The put happens only if the condition holds, and a second condition means both must hold.
+    /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover:
+    /// <c>.If($"attribute_exists({Attr("pk")}) AND size({Attr("tags")}) &lt; {10}")</c>. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value
+    /// for a value. The put happens only if the condition holds, and a second condition means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -68,7 +75,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
 
     /// <summary>
     /// Puts only if no item has this key (<c>attribute_not_exists</c> on the partition key), which turns the replacing put into a create. An entity with a <see cref="VersionAttribute"/> must then
-    /// hold version 0, whose condition is this one and renders once, also with <see cref="VersionMissing.Allow"/>, where this alone says that the key is free. No item can lack its key and hold a version, so the terminal throws
+    /// hold version 0, whose condition is this one and renders once, also with <see cref="VersionMissing.Allow"/>, where this alone says that the key is free. No item can lack its key and hold a version, so <c>SendAsync</c> throws
     /// <see cref="InvalidOperationException"/> for any other, unless <c>IgnoreVersion()</c> was called.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
@@ -82,7 +89,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     /// <summary>
     /// Puts only if an item has this key (<c>attribute_exists</c> on the partition key), which makes it a replacement that creates nothing. With <see cref="VersionMissing.Allow"/>, version 0 asks for an item that reads
     /// as 0 besides. Otherwise an entity with a <see cref="VersionAttribute"/> at version 0 says that no item
-    /// has the key, so the terminal throws <see cref="InvalidOperationException"/> for it, unless <c>IgnoreVersion()</c> was called.
+    /// has the key, so <c>SendAsync</c> throws <see cref="InvalidOperationException"/> for it, unless <c>IgnoreVersion()</c> was called.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public PutCommand<T> IfExists()
@@ -161,7 +168,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     /// <summary>
     /// Sends the command as <see cref="SendAsync"/> does, and takes a failed condition as an answer instead of throwing <see cref="ConditionalCheckFailedException"/>: <see cref="WriteResult{T}.ConditionMet"/>
     /// is then <see langword="false"/>, nothing was written, and with <see cref="ReturnOldOnFailure"/> <see cref="WriteResult{T}.Item"/> is the item the condition saw. It is for a write whose failed
-    /// condition is routine, such as an event that is old news, which then costs no exception.
+    /// condition is routine, such as an event that is old news, and no exception is thrown for it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -195,7 +202,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     public ValueTaskAwaiter<WriteResult<T>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is
     /// meant for tests and debugging. The text contains the item.
     /// </summary>
     /// <returns>The request body.</returns>

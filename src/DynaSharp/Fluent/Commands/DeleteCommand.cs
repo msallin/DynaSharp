@@ -11,6 +11,15 @@ namespace DynaSharp;
 /// A <c>DeleteItem</c> under construction. Deleting what does not exist is no error unless <see cref="IfExists"/> asks for one. Chain the options and
 /// end with <see cref="SendAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var deleted = await orders.Delete(Order.Keys.Of("alice", 1)).ReturnOld().SendAsync(ct);
+/// if (!deleted.HasItem)
+/// {
+///     Console.WriteLine("There was no such order.");
+/// }
+/// </code>
+/// </example>
 /// <remarks>See <see cref="GetCommand{T}"/> for what a command is and what it cannot do.</remarks>
 /// <typeparam name="T">How the returned item is read.</typeparam>
 [DebuggerDisplay("{DebuggerText,nq}")]
@@ -38,8 +47,8 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     public static implicit operator CommandHandle(DeleteCommand<T> command) => new(command._state, command._version, Operation, command._table);
 
     /// <summary>
-    /// Adds a condition in the grammar of DynamoDB, for what struct conditions do not cover. An attribute in a hole stands for its name and anything
-    /// else is a value. The delete happens only if the condition holds, and a second condition means both must hold.
+    /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value
+    /// for a value. The delete happens only if the condition holds, and a second condition means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -67,8 +76,8 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
 
     /// <summary>
     /// Deletes only if an item has this key (<c>attribute_exists</c> on the partition key), so that a missing item fails. With <see cref="VersionMissing.Allow"/>, version 0 asks for an item that reads as 0 besides.
-    /// Otherwise version 0, of an entity or of <c>IfVersion(0)</c>, says that no item has the key, so with it the
-    /// terminal throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of the entity back.
+    /// Otherwise version 0, of an entity or of <c>IfVersion(0)</c>, says that no item has the key, so with it
+    /// <c>SendAsync</c> throws <see cref="InvalidOperationException"/>, unless <c>IgnoreVersion()</c> took the version of the entity back.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
     public DeleteCommand<T> IfExists()
@@ -143,7 +152,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     /// <summary>
     /// Sends the command as <see cref="SendAsync"/> does, and takes a failed condition as an answer instead of throwing <see cref="ConditionalCheckFailedException"/>: <see cref="WriteResult{T}.ConditionMet"/>
     /// is then <see langword="false"/>, nothing was deleted, and with <see cref="ReturnOldOnFailure"/> <see cref="WriteResult{T}.Item"/> is the item the condition saw. It is for a write whose failed
-    /// condition is routine, such as an event that is old news, which then costs no exception.
+    /// condition is routine, such as an event that is old news, and no exception is thrown for it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -177,7 +186,7 @@ public readonly ref struct DeleteCommand<T> : IConditional<DeleteCommand<T>>, IR
     public ValueTaskAwaiter<WriteResult<T>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>

@@ -6,8 +6,7 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="T">The element type.</typeparam>
 /// <typeparam name="TElement">The converter of the elements, which also decides the kind of set.</typeparam>
 /// <remarks>
-/// See <see cref="HashSetConverter{T, TElement}"/> for the rules of sets. A set that is read is a <see cref="HashSet{T}"/>. Writing a
-/// <see cref="HashSet{T}"/> enumerates it directly; any other set goes through the interface's enumerator, which is boxed.
+/// See <see cref="HashSetConverter{T, TElement}"/> for the rules of sets. A set that is read is a <see cref="HashSet{T}"/>.
 /// Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package.
 /// </remarks>
 public readonly struct ReadOnlySetConverter<T, TElement> : IDynamoDbConverter<IReadOnlySet<T>>, IAddableConverter

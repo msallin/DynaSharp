@@ -4,6 +4,20 @@ namespace DynaSharp.Mapping;
 /// Maps a type to a DynamoDB item. The source generator implements the mapping, so the type must be <c>partial</c>, as must its
 /// containing types, and it needs a partition key and a <see cref="DiscriminatorAttribute"/>.
 /// </summary>
+/// <example>
+/// <code>
+/// [DynamoDbEntity]
+/// [Discriminator("PRODUCT")]
+/// [PartitionKey("PRODUCT#{Sku}")]
+/// [SortKey("DETAILS")]
+/// public partial record Product
+/// {
+///     public required string Sku { get; init; }
+///     public required string Name { get; init; }
+///     public required decimal Price { get; init; }
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// Every <c>public</c> instance property that can be read and that has a setter or a matching constructor parameter becomes an
 /// attribute named like the property. Null values are left out of the item. So is an empty set, which DynamoDB cannot store, and a read gives a missing set back as an empty one, so <c>Tags = []</c> round-trips.

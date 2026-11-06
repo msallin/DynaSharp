@@ -13,7 +13,7 @@ public sealed record GlobalSecondaryIndexUpdate
     /// <summary>
     /// Gets the index to create, or <see langword="null"/> if this change is another kind. The key attributes of the index must be
     /// defined in <see cref="UpdateTableRequest.AttributeDefinitions"/> or in the table already. The index is filled from the table
-    /// (<see cref="GlobalSecondaryIndexDescription.Backfilling"/>) after DynamoDB has allocated it, which takes minutes on an empty table and more on one that holds data.
+    /// (<see cref="GlobalSecondaryIndexDescription.Backfilling"/>) after DynamoDB has provisioned it, which takes minutes on an empty table and more on one that holds data.
     /// </summary>
     public GlobalSecondaryIndex? Create { get; init; }
 

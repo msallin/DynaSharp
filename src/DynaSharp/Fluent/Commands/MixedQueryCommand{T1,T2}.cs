@@ -9,7 +9,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Query</c> that reads several entity types of one partition, the adjacency list of a single table: <c>shop.Query(pk).Of&lt;Customer, Order&gt;()</c>. It has the
-/// clauses of <see cref="QueryCommand{T}"/> and its terminals but <c>CountAsync</c>, because a count has nothing to dispatch.
+/// clauses of <see cref="QueryCommand{T}"/> and every way to send it but <c>CountAsync</c>, because a count has nothing to dispatch.
 /// </summary>
 /// <remarks>
 /// <para>

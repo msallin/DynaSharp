@@ -3,8 +3,12 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// Too many concurrent control-plane operations, or a resource quota is reached. Retried automatically before it surfaces.
+/// Too many concurrent control-plane operations, such as tables being created at once, or a resource quota is reached. The client has retried it, so this reaches the caller when every
+/// attempt failed.
 /// </summary>
+/// <remarks>
+/// <see cref="DynamoDbException.IsTransient"/> is <see langword="true"/>: try later, after a wait, or raise the quota in the service quotas of the account when it is one.
+/// </remarks>
 public sealed class LimitExceededException : DynamoDbException
 {
     /// <summary>

@@ -15,7 +15,7 @@ public readonly struct AttributeExists : ICondition
         _exists = exists;
     }
 
-    /// <summary>Puts the condition on the heap, so that it composes with a <see cref="Condition"/>.</summary>
+    /// <summary>Wraps the condition in a <see cref="Condition"/>, so it can be kept in a field or combined with <c>&amp;</c>, <c>|</c> and <c>!</c>.</summary>
     /// <param name="condition">The condition.</param>
     public static implicit operator Condition(AttributeExists condition) => Condition.Of(condition);
 

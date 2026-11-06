@@ -66,7 +66,7 @@ public sealed class DynamoDbEntityInfo(
     /// <summary>Gets what an item without the version attribute means, see <see cref="VersionAttribute.Missing"/>.</summary>
     public VersionMissing VersionMissing { get; } = versionMissing;
 
-    /// <summary>Gets the keys that are made of properties and the keys of literals of an index. Empty if there are none, which is what lets an update skip them at no cost.</summary>
+    /// <summary>Gets the keys that are made of properties and the keys of literals of an index. Empty if there are none.</summary>
     public IReadOnlyList<DynamoDbKeyTemplate> KeyTemplates { get; } = keyTemplates ?? [];
 
     /// <summary>Gets the attribute of time to live, which <see cref="TimeToLiveAttribute"/> marks and <c>CreateTable()</c> turns on, or <see langword="null"/> if the type has none.</summary>

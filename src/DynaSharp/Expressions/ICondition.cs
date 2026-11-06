@@ -3,10 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 namespace DynaSharp.Expressions;
 
 /// <summary>
-/// A condition as a value, which is what <c>If</c> takes. Composition with <c>And</c> and <c>Or</c> builds nested generic structs, so a condition
-/// allocates nothing, at the price of a static type that changes with every step. A condition assembled at run time, or kept in a field,
-/// goes through <see cref="Condition"/>.
+/// A condition as a value, which is what <c>If</c> and <c>Filter</c> take: <c>Order.Attrs.Status.Eq(OrderStatus.Open)</c>, <c>Attr("total").Gt(100)</c>.
 /// </summary>
+/// <remarks>
+/// <c>.And()</c>, <c>.Or()</c> and <c>.Negate()</c> combine conditions into a new struct whose type reflects its parts, so the type changes with every step.
+/// A condition that is kept in a field or assembled at run time goes through <see cref="Condition"/>, whose type stays the same.
+/// </remarks>
 public interface ICondition
 {
     /// <summary>

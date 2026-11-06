@@ -12,6 +12,19 @@ namespace DynaSharp;
 /// A <c>Query</c> under construction: the items of one partition, in the order of the sort key. Chain the options and end with <see cref="ItemsAsync"/>, <see cref="ItemAsync"/>,
 /// <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var bigOrders = orders.Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.BeginsWith())
+///     .Filter(Order.Attrs.Total.Gt(100m))
+///     .Descending()
+///     .ItemsAsync(ct);
+///
+/// await foreach (var order in bigOrders)
+/// {
+///     Console.WriteLine(order.Number);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// DynamoDB answers in pages of at most 1 MB of data read, before any filter. <see cref="ItemsAsync"/> and <see cref="PagesAsync"/> follow them until the end, which
@@ -52,10 +65,13 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     public static implicit operator CommandHandle(QueryCommand<T> command) => command.Handle;
 
     /// <summary>
-    /// Adds a filter in the grammar of DynamoDB, for what struct conditions do not cover. An attribute in a hole stands for its name and anything else is a
-    /// value. DynamoDB applies it after reading, so capacity is charged for every item scanned, not for those returned, and a page can come back empty. A filter
-    /// cannot name a key of the table or index that is read; that is what the key condition is for. A second filter means both must hold.
+    /// Adds a filter in the grammar of DynamoDB, for what the conditions of handles do not cover: <c>.Filter($"size({Attr("tags")}) &lt; {10}")</c>. DynamoDB applies it after reading, so
+    /// capacity is charged for every item read, not for those returned.
     /// </summary>
+    /// <remarks>
+    /// An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value for a value. A page can come back empty. A filter cannot name a key of the table or
+    /// index that is read; that is what the key condition is for. A second filter means both must hold.
+    /// </remarks>
     /// <param name="condition">The condition.</param>
     /// <returns>The command, which replaces this one.</returns>
     public QueryCommand<T> Filter([InterpolatedStringHandlerArgument("")] ExpressionHandler condition)
@@ -101,22 +117,17 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     }
 
     /// <summary>
-    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Query(pk).Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, and only a key condition that stands in for that filter brings the discriminator along, so it saves bandwidth, not capacity: DynamoDB
-    /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
+    /// Reads one attribute of each item instead of the whole entity: <c>await foreach (var total in orders.Query(pk).Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It saves bandwidth, not capacity: DynamoDB charges for whole items.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The chain ends here but for its terminal, as with <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Descending"/>, <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// <b>Over <c>Project</c>.</b> The result is the value and no entity, so a <c>required</c> member cannot be in the way. The attribute is projected and nothing else: the filter on the discriminator keeps
+    /// items of other types away, and only a key condition that stands in for that filter brings the discriminator along.
     /// </para>
     /// <para>
-    /// A missing attribute follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default, and that is where this differs from a read of the entity,
-    /// which leaves a property that is not <c>required</c> at its initial value: an <c>int</c> without its attribute is 0 there and throws here, and so does a <c>[Version]</c> on an item without one, which an <c>Update</c> with <c>IgnoreVersion()</c> creates, with a message that points at <c>VersionMissing.Allow</c>.
-    /// In a nested path the last handle decides, so <c>ShipTo.At(Address.Attrs.City)</c> throws for an item without <c>ShipTo</c> when <c>City</c> cannot be null, which reading <c>ShipTo</c> itself would not.
+    /// <b>Last clause.</b> After <c>Select</c> only the send is left, as after <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Descending"/>, <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
     /// </para>
-    /// <para>
-    /// A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
-    /// the property from it, and this throws, which <c>DYNA209</c> reports.
-    /// </para>
+    /// <inheritdoc cref="GetCommand{T}.Select{TValue, TConverter}(Attr{TValue, TConverter})" path="/remarks/para[position()>1]"/>
     /// </remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
@@ -175,10 +186,12 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     }
 
     /// <summary>
-    /// Asks for a strongly consistent read, which sees every write that succeeded before it and costs twice the capacity. A read is eventually consistent
-    /// otherwise. A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with another
-    /// partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
+    /// Asks for a strongly consistent read, which sees every write that succeeded before it and costs twice the capacity. A read is eventually consistent otherwise.
     /// </summary>
+    /// <remarks>
+    /// A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with another
+    /// partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
+    /// </remarks>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="InvalidOperationException">The index is known to be global.</exception>
     public QueryCommand<T> Consistent()
@@ -224,7 +237,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// </para>
     /// <para>
     /// Only a <see cref="DynamoDbMappingException"/> is skipped: an item of another type in a read keyed by the discriminator, a value a converter cannot read, a missing <c>required</c> attribute,
-    /// a stored key that does not fit its template. It covers every terminal that reads items, also those of a <c>Select</c> after it. A second call replaces the first.
+    /// a stored key that does not fit its template. It covers every way of sending the read that gives items, also those of a <c>Select</c> after it. A second call replaces the first.
     /// </para>
     /// </remarks>
     /// <param name="onFailure">What to do with the failure of a skipped item.</param>
@@ -335,7 +348,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         PagedRead<QueryPageOperation<T>, T>.CountAsync(Enter(), cancellationToken);
 
     /// <summary>
-    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests and debugging.
+    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging.
     /// The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>

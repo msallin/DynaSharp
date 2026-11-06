@@ -1,6 +1,10 @@
-// Compiles the C# blocks of pages of this repository, the READMEs and docs/*.md, against the projects, and fails on an error, which names the
-// page and its line. All pages given go into one compilation, so a type or an [assembly: ...] attribute is declared on one page only.
-// Usage: dotnet run build/ReadmeCheck.cs -- <page.md> [<page.md> ...]
+// Compiles the C# blocks of pages of this repository, the READMEs and docs/*.md, and the <example> blocks of the XML docs of the source
+// folders given, against the projects, and fails on an error, which names the page or file and its line. All pages given go into one
+// compilation, so a type or an [assembly: ...] attribute is declared on one page only.
+// Usage: dotnet run build/ReadmeCheck.cs -- <page.md> [<page.md> ...] [<folder> ...]
+//
+// An <example> of the XML docs holds <code> blocks, which go in as the blocks of a page do, with the entities &lt;, &gt;, &amp; and
+// &quot; unescaped. A <code> block outside an <example> is an illustration and is not compiled.
 //
 // A block goes in as it stands on the page, and this adds only what the page leaves out. The types of the page are those of the sample, and the
 // names it introduces as it goes, such as client, orders and ct, are the fields of the class Page below. That leaves four kinds of block:
@@ -75,7 +79,20 @@ var pageMethods = new StringBuilder();
 var blocks = 0;
 foreach (var readme in readmes)
 {
-    AddBlocksOf(readme);
+    if (Directory.Exists(readme))
+    {
+        foreach (var file in Directory.EnumerateFiles(readme, "*.cs", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            if (!file.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(static part => part is "obj" or "bin"))
+            {
+                AddExamplesOf(file);
+            }
+        }
+    }
+    else
+    {
+        AddBlocksOf(readme);
+    }
 }
 
 // Inside this namespace a type of the sample wins over one of a block, which is how Order stays the sample's while Invoice comes from its block.
@@ -128,6 +145,47 @@ void AddBlocksOf(string readme)
 
         var end = Array.IndexOf(page, Fence, index);
         var block = page[(index + 1)..end];
+        var line = index + 2;
+        var id = string.Create(CultureInfo.InvariantCulture, $"{prefix}_{line}");
+        blocks++;
+        index = end;
+        AddBlock(block, line, id, source);
+    }
+}
+
+void AddExamplesOf(string file)
+{
+    var source = Path.GetRelativePath(output, file).Replace('\\', '/');
+    var prefix = string.Concat(Path.GetRelativePath(root, file).Select(static c => char.IsAsciiLetterOrDigit(c) ? c : '_'));
+    var lines = File.ReadAllLines(file);
+    var inExample = false;
+    for (var index = 0; index < lines.Length; index++)
+    {
+        var text = DocText(lines[index]);
+        if (text is null)
+        {
+            inExample = false;
+            continue;
+        }
+
+        inExample = text switch
+        {
+            "<example>" => true,
+            "</example>" => false,
+            _ => inExample,
+        };
+        if (!inExample || text != "<code>")
+        {
+            continue;
+        }
+
+        var end = index + 1;
+        while (DocText(lines[end]) != "</code>")
+        {
+            end++;
+        }
+
+        var block = lines[(index + 1)..end].Select(static line => Unescape(DocText(line) ?? string.Empty)).ToArray();
         var line = index + 2;
         var id = string.Create(CultureInfo.InvariantCulture, $"{prefix}_{line}");
         blocks++;
@@ -191,6 +249,22 @@ static string RepositoryOf(string file)
 
     return folder;
 }
+
+// The text of a /// line without the marker and the one space after it, or null for a line that is no doc comment.
+static string? DocText(string line)
+{
+    var trimmed = line.TrimStart();
+    if (!trimmed.StartsWith("///", StringComparison.Ordinal))
+    {
+        return null;
+    }
+
+    var text = trimmed[3..];
+    return text.Length > 0 && text[0] == ' ' ? text[1..] : text;
+}
+
+static string Unescape(string text) =>
+    text.Replace("&lt;", "<", StringComparison.Ordinal).Replace("&gt;", ">", StringComparison.Ordinal).Replace("&quot;", "\"", StringComparison.Ordinal).Replace("&amp;", "&", StringComparison.Ordinal);
 
 static bool IsUsing(string line) => line.StartsWith("using ", StringComparison.Ordinal) && !line.StartsWith("using var ", StringComparison.Ordinal);
 

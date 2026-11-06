@@ -45,7 +45,7 @@ public sealed class GlobalIndexKeyAttribute : Attribute
     /// null, none of the index's key attributes is written, because one alone would be stored uselessly. Nullable inputs require this.
     /// </summary>
     /// <remarks>
-    /// An item is in an index only with both its keys. So on a sparse index an update that sets one key and does not produce the other throws <see cref="InvalidOperationException"/> at the terminal, naming the other key.
+    /// An item is in an index only with both its keys. So on a sparse index an update that sets one key and does not produce the other throws <see cref="InvalidOperationException"/> when it is sent, naming the other key.
     /// On an index that is not sparse the same update writes the key it can compute and throws nothing: an item that exists keeps its other key, and an item the update creates stays out of the index. An update that can
     /// create an item sets every input of the index, ends in <c>.IfExists()</c>, or is a <c>Put</c>.
     /// </remarks>

@@ -4,9 +4,25 @@ using DynaSharp.Retries;
 namespace DynaSharp;
 
 /// <summary>
-/// An error returned by DynamoDB. Specific errors have derived types; all others surface as this type with their
-/// <see cref="ErrorCode"/>.
+/// An error returned by DynamoDB. Specific errors have derived types; all others surface as this type with their <see cref="ErrorCode"/>. <see cref="IsTransient"/> says whether
+/// trying again later can help.
 /// </summary>
+/// <example>
+/// <code>
+/// try
+/// {
+///     await orders.Put(order).IfNotExists().SendAsync(ct);
+/// }
+/// catch (ConditionalCheckFailedException)
+/// {
+///     Console.WriteLine("The order exists already.");
+/// }
+/// catch (DynamoDbException exception) when (exception.IsTransient)
+/// {
+///     Console.WriteLine("DynamoDB is busy. Try again later.");
+/// }
+/// </code>
+/// </example>
 public class DynamoDbException : Exception
 {
     /// <summary>

@@ -12,6 +12,11 @@ namespace DynaSharp;
 /// <c>shop.BatchWrite().Put(item).Delete(pk, sk).Put(orders, order)</c>. It is not atomic, runs in requests of 25 writes, sends again what DynamoDB left unprocessed, and gives up with a
 /// <see cref="BatchIncompleteException"/>. Chain the writes and end with <see cref="SendAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var written = await products.BatchWrite().PutAll(catalog).SendAsync(ct);
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// <b>Not atomic.</b> Each write succeeds or fails on its own, and when the batch ends early the writes before that stay applied. A batch has no
@@ -75,7 +80,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     }
 
     /// <summary>
-    /// Adds a put of each item, any number of them. The whole batch is written into memory here and now, so the sequence is enumerated once, and nothing is sent until the terminal: an item that
+    /// Adds a put of each item, any number of them. The whole batch is written into memory here and now, so the sequence is enumerated once, and nothing is sent until <c>SendAsync</c>: an item that
     /// fails here leaves nothing written, and it fails the whole batch.
     /// </summary>
     /// <param name="items">The items, which must hold the key attributes.</param>
@@ -139,7 +144,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
 
     /// <summary>
     /// Adds a delete of each generated key, any number of them. Deleting what does not exist is no error. The keys are written here and now, so the sequence is enumerated once, before
-    /// anything is sent. It takes a sequence of a generated key, such as <c>ids.Select(Order.Keys.Of)</c>, without a box, and an <see cref="IEnumerable{T}"/> of <see cref="IKey{TEntity}"/>.
+    /// anything is sent. It takes a sequence of a generated key, such as <c>ids.Select(Order.Keys.Of)</c>, and an <see cref="IEnumerable{T}"/> of <see cref="IKey{TEntity}"/>.
     /// </summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="keys">The keys.</param>
@@ -195,10 +200,14 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     }
 
     /// <summary>
-    /// Lets the batch write entities with a <see cref="VersionAttribute"/> as they are. A batch cannot carry a condition, so the version of what it writes is not checked and does
-    /// not advance, and without this <see cref="SendAsync"/> throws <see cref="InvalidOperationException"/>. It holds for the whole batch, wherever in the chain it stands. Each item is stored with the version its entity holds, so seed at 1 or above: an item stored at 0 reads as 0, which the next checked write takes for
-    /// no item, and fails, unless the entity has <c>[Version(Missing = VersionMissing.Allow)]</c>.
+    /// Lets the batch write entities with a <see cref="VersionAttribute"/> as they are: a batch cannot carry a condition, so without this <see cref="SendAsync"/> throws
+    /// <see cref="InvalidOperationException"/> for such an entity.
     /// </summary>
+    /// <remarks>
+    /// The version of what the batch writes is not checked and does not advance. It holds for the whole batch, wherever in the chain it stands. Each item is stored with the version its
+    /// entity holds, so seed at 1 or above: an item stored at 0 reads as 0, which the next checked write takes for no item, and fails, unless the entity has
+    /// <c>[Version(Missing = VersionMissing.Allow)]</c>.
+    /// </remarks>
     /// <returns>The command, which replaces this one.</returns>
     public BatchWriteCommand<T> IgnoreVersion()
     {
@@ -279,7 +288,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     public ValueTaskAwaiter<BatchWriteResult> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body of the first request this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string,
+    /// Renders the body of the first request this command would send, as DynamoDB JSON, without sending it. It ends the command,
     /// and is meant for tests and debugging. The text contains the items.
     /// </summary>
     /// <returns>The request body.</returns>

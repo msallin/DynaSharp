@@ -6,13 +6,12 @@ namespace DynaSharp.Coordination;
 public static class LeaseTransactExtensions
 {
     /// <summary>
-    /// Adds a condition check on the item of the lock: the transaction commits only if the lock is still held by this lease, with this
-    /// <see cref="Lease.FencingToken"/>. A contender that took the lock over has written its own owner and a higher token, so the transaction of a holder
-    /// that lost its lease, and may not know it yet, is cancelled instead of overwriting the work of the next one.
-    /// For example <c>await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);</c>.
+    /// Adds a condition check on the item of the lock, so that the transaction commits only if the lock is still held by this lease:
+    /// <c>await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);</c>.
     /// </summary>
     /// <remarks>
-    /// The check reads the item at the moment the transaction commits, which is what makes it safe; <see cref="Lease.Ended"/> is only what this process
+    /// <b>Fencing.</b> A contender that took the lock over has written its own owner and a higher <see cref="Lease.FencingToken"/>, so the transaction of a holder that lost its lease, and may
+    /// not know it yet, is cancelled instead of overwriting the work of the next one. The check reads the item at the moment the transaction commits, which is what makes it safe; <see cref="Lease.Ended"/> is only what this process
     /// knows. A transaction that fails it throws <see cref="TransactionCanceledException"/> with <see cref="TransactionFailure.ConditionalCheckFailed"/> for this
     /// step. A lease that ran out on the local clock still passes while nobody has taken the lock over, which is safe, because nobody else holds it.
     /// The lock item must be in a table of the same account and region as the other items of the transaction.

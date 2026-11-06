@@ -12,6 +12,14 @@ namespace DynaSharp;
 /// A DynamoDB item without a schema: attribute names and their values. Everything DynaSharp reads is one of these, and it goes wherever the
 /// API takes attributes, since it is an <see cref="IReadOnlyDictionary{TKey, TValue}"/>.
 /// </summary>
+/// <example>
+/// <code>
+/// await shop.Put(new Item { ["pk"] = "USER#alice", ["sk"] = "PROFILE", ["name"] = "Alice" }).SendAsync(ct);
+///
+/// Item? profile = await shop.Get("USER#alice", "PROFILE").ItemAsync(ct);
+/// string? name = profile?.GetString("name");
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// Build one with an initializer, <c>new Item { ["pk"] = "user-1", ["age"] = 42 }</c>; values convert implicitly, see
@@ -352,8 +360,8 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     /// <c>if (image.Is&lt;Order&gt;()) { var order = image.To&lt;Order&gt;(); }</c>.
     /// </summary>
     /// <remarks>
-    /// It looks at that one attribute and reads nothing else, so it costs no allocation, and an item that says it is a <typeparamref name="T"/> can still fail
-    /// <see cref="To{T}"/> on another attribute. The comparison is ordinal. An item without the attribute, with the DynamoDB null value there or with a value that is no string is
+    /// It looks at that one attribute and reads nothing else, so an item that says it is a <typeparamref name="T"/> can still fail
+    /// <see cref="To{T}"/> on another attribute. The comparison is ordinal. An item without the attribute, with the DynamoDB null value there or with a value that is not a string is
     /// not of the type, as it is of no type to a mixed read.
     /// </remarks>
     /// <typeparam name="T">The entity. One without a discriminator, with <c>[Discriminator(OptOut = true)]</c>, does not compile, because nothing in its items tells them from others.</typeparam>
@@ -362,7 +370,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     public bool Is<T>()
         where T : IDynamoDbDiscriminated<T> => Fluent.MixedSchema.Of<T>.Schema.FindType(this) == 0;
 
-    /// <summary>Gets an enumerator over the attributes, which does not allocate when used on this type directly.</summary>
+    /// <summary>Gets an enumerator over the attributes.</summary>
     /// <returns>The enumerator.</returns>
     public Enumerator GetEnumerator() => new(this);
 

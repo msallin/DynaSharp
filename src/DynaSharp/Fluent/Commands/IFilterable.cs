@@ -3,7 +3,7 @@ using DynaSharp.Expressions;
 namespace DynaSharp;
 
 /// <summary>
-/// A read that takes a filter. It is the way to write a helper that works on queries and scans alike, without a box and without knowing the command:
+/// A read that takes a filter. It is the way to write a helper that works on queries and scans alike, without knowing the command:
 /// <code>
 /// public static TCommand NotDeleted&lt;TCommand&gt;(this TCommand command)
 ///     where TCommand : IFilterable&lt;TCommand&gt;, allows ref struct =>

@@ -26,37 +26,37 @@ public static class AttrExtensions
 
     /// <summary>Checks with <c>begins_with</c> on a binary attribute, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<byte[], BinaryConverter> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a binary attribute, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a nullable binary attribute, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], BinaryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a nullable binary attribute, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<ReadOnlyMemory<byte>, NullableHandleConverter<ReadOnlyMemory<byte>, ReadOnlyMemoryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a binary attribute with <see cref="OmitEmptyAttribute"/>, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 
     /// <summary>Checks with <c>begins_with</c> on a nullable binary attribute with <see cref="OmitEmptyAttribute"/>, which compares bytes.</summary>
     /// <param name="attribute">The attribute.</param>
-    /// <param name="prefix">The prefix, which the condition holds without a copy.</param>
+    /// <param name="prefix">The prefix bytes. The condition keeps a reference to this memory, so do not change it before the command is sent.</param>
     /// <returns>The condition.</returns>
     public static BeginsWith BeginsWith(this Attr<byte[], NullableReferenceHandleConverter<byte[], OmitEmptyCollectionConverter<byte[], byte, BinaryConverter>>> attribute, ReadOnlyMemory<byte> prefix) => new(attribute.Path, prefix);
 

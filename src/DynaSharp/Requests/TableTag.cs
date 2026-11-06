@@ -1,7 +1,7 @@
 namespace DynaSharp.Requests;
 
 /// <summary>
-/// A key-value label attached to a table, for cost allocation and access control.
+/// A key-value label attached to a table, for billing reports and access control.
 /// </summary>
 public sealed record TableTag
 {

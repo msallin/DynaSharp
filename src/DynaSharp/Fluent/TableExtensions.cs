@@ -32,7 +32,7 @@ public static class TableExtensions
     /// </summary>
     /// <param name="command">The command.</param>
     /// <param name="name">The attribute name.</param>
-    /// <param name="value">The value; strings and booleans convert at no cost.</param>
+    /// <param name="value">The value.</param>
     /// <returns>The command, which replaces this one.</returns>
     public static PutCommand<Item> With(this PutCommand<Item> command, string name, AttributeValue value) =>
         command.Attribute<AttributeValue, AttributeValueConverter>(name, value);
@@ -229,13 +229,21 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Starts a delete of the item under the key of an entity. An entity with a <see cref="VersionAttribute"/> gives its version as well, so the delete happens only if the item still has the
-    /// version the entity holds, as with <see cref="IfVersion{T}(DeleteCommand{T}, long)"/>. Version 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition
-    /// key: an entity at 0 deletes nothing, and fails on any item under its key, also on one without a version attribute, which <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> deletes, and which
-    /// <see cref="VersionMissing.Allow"/> deletes at 0, by looking at the version attribute instead, as it deletes one that holds 0. Otherwise sending throws
-    /// <see cref="ConditionalCheckFailedException"/>. <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> gives the check up, and <see cref="IfVersion{T}(DeleteCommand{T}, long)"/> checks another version
-    /// in its place. The other attributes of the entity play no part. It costs nothing for an entity without a version.
+    /// Starts a <c>DeleteItem</c> of the item under the key of an entity. An entity with a <see cref="VersionAttribute"/> gives its version as well, so the delete happens only if the item
+    /// still has that version.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The version check</b> is that of <see cref="IfVersion{T}(DeleteCommand{T}, long)"/>: if the item has another version, sending throws <see cref="ConditionalCheckFailedException"/>.
+    /// <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> gives the check up, and <see cref="IfVersion{T}(DeleteCommand{T}, long)"/> checks another version in its place. The other attributes of
+    /// the entity play no part, and an entity without a version gives only its key.
+    /// </para>
+    /// <para>
+    /// <b>Version 0</b> stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key: an entity at 0 deletes nothing, and fails on any item under its key,
+    /// also on one without a version attribute, which <see cref="IgnoreVersion{T}(DeleteCommand{T})"/> deletes, and which <see cref="VersionMissing.Allow"/> deletes at 0, by looking at the
+    /// version attribute instead, as it deletes one that holds 0.
+    /// </para>
+    /// </remarks>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="table">The table.</param>
     /// <param name="entity">The entity to take the key and the version from.</param>
@@ -250,13 +258,21 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Updates only if the item has this version, and stores the next one, which <see cref="WriteResult{T}.Version"/> returns. A version of 0 stands for an item that does not exist, so it
-    /// renders <c>attribute_not_exists</c> on the partition key and fails on any item under the key, also on one without a version attribute, which <see cref="IgnoreVersion{T}(UpdateCommand{T})"/> writes to. With
-    /// <see cref="VersionMissing.Allow"/> it looks at the version attribute instead, and writes to an item without one or with 0 in it.
-    /// A key does not carry a version, so an update of an entity with a <see cref="VersionAttribute"/> needs this or
-    /// <see cref="IgnoreVersion{T}(UpdateCommand{T})"/>. If the item has another version, sending throws <see cref="ConditionalCheckFailedException"/>, and nothing is read or
-    /// retried by itself: <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> is how to ask for that, around code that reads the version again.
+    /// Updates only if the item has this version, and stores the next one, which <see cref="WriteResult{T}.Version"/> returns. If the item has another version, sending throws
+    /// <see cref="ConditionalCheckFailedException"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Required for a versioned entity.</b> A key does not carry a version, so an update of an entity with a <see cref="VersionAttribute"/> needs this or
+    /// <see cref="IgnoreVersion{T}(UpdateCommand{T})"/>. Nothing is read or retried by itself:
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> is how to ask for that, around code that reads the version again.
+    /// </para>
+    /// <para>
+    /// <b>Version 0</b> stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key and fails on any item under the key, also on one without a version
+    /// attribute, which <see cref="IgnoreVersion{T}(UpdateCommand{T})"/> writes to. With <see cref="VersionMissing.Allow"/> it looks at the version attribute instead, and writes to an item
+    /// without one or with 0 in it.
+    /// </para>
+    /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>
     /// <param name="command">The command.</param>
     /// <param name="version">The version last read.</param>
@@ -273,15 +289,23 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create it: <c>SET #userId = if_not_exists(#userId, :v)</c> per input, after the actions of the update and the
-    /// keys of its indexes and before the discriminator. Without it an item an update created holds the key alone: a read of the entity restores the inputs from the key, and <c>Select</c> of such an input and a filter on it find nothing.
-    /// An item that exists keeps what it has, so this goes with <c>IfExists()</c>, <c>IfNotExists()</c> and a version alike. The value goes through the converter of the property and is the value, not the text of the key, and an
-    /// action of the update on the attribute by a raw path takes precedence. A plain key and a key made of one property over its own attribute are their attribute, and a <see cref="Mapping.KeyOnlyAttribute"/> has none, so
-    /// an entity with nothing else changes nothing here.
+    /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create the item: without it, an item an update created holds the
+    /// key alone.
     /// </summary>
     /// <remarks>
-    /// A template that cuts a value off, such as a timestamp in <c>{At:yyyy-MM-dd}</c>, gives it back only from a generated key, so a key given as strings throws for it when the update ends. It costs an
-    /// <see cref="AttributeValue"/> per input, and an update without it pays nothing.
+    /// <para>
+    /// <b>What is written.</b> <c>SET #userId = if_not_exists(#userId, :v)</c> per input, after the actions of the update and the keys of its indexes and before the discriminator. An item that
+    /// exists keeps what it has, so this goes with <c>IfExists()</c>, <c>IfNotExists()</c> and a version alike. The value goes through the converter of the property and is the value, not the
+    /// text of the key, and an action of the update on the attribute by a path given as a string takes precedence.
+    /// </para>
+    /// <para>
+    /// <b>Why.</b> A read of the entity restores the inputs from the key, but <c>Select</c> of such an input and a filter on it find nothing in an item that holds the key alone. A plain key
+    /// and a key made of one property over its own attribute are their attribute, and a <see cref="Mapping.KeyOnlyAttribute"/> has none, so an entity with nothing else changes nothing here.
+    /// </para>
+    /// <para>
+    /// <b>A key given as strings.</b> A template that cuts a value off, such as a timestamp in <c>{At:yyyy-MM-dd}</c>, gives it back only from a key the generator built, so a key given as
+    /// strings throws for it when the update ends.
+    /// </para>
     /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no key inputs, so it does not compile.</typeparam>
     /// <param name="command">The command.</param>
@@ -334,12 +358,19 @@ public static class TableExtensions
     }
 
     /// <summary>
-    /// Deletes only if the item has this version. Version 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key, and the delete fails on any item under the key. With
-    /// <see cref="VersionMissing.Allow"/> it looks at the version attribute instead, and deletes an item without one or with 0 in it.
-    /// A key does not carry a version, so a delete by a key of an entity with a <see cref="VersionAttribute"/> needs this or
-    /// <see cref="IgnoreVersion{T}(DeleteCommand{T})"/>; a delete of an entity takes the version from it, and this checks another one in its place. If the item has another version, sending throws
-    /// <see cref="ConditionalCheckFailedException"/>; <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats code that reads the version again.
+    /// Deletes only if the item has this version. If the item has another version, sending throws <see cref="ConditionalCheckFailedException"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Required for a versioned entity.</b> A key does not carry a version, so a delete by a key of an entity with a <see cref="VersionAttribute"/> needs this or
+    /// <see cref="IgnoreVersion{T}(DeleteCommand{T})"/>; a delete of an entity takes the version from it, and this checks another one in its place.
+    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats code that reads the version again.
+    /// </para>
+    /// <para>
+    /// <b>Version 0</b> stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key, and the delete fails on any item under the key. With
+    /// <see cref="VersionMissing.Allow"/> it looks at the version attribute instead, and deletes an item without one or with 0 in it.
+    /// </para>
+    /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>
     /// <param name="command">The command.</param>
     /// <param name="version">The version last read.</param>

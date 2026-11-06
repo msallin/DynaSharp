@@ -8,6 +8,15 @@ namespace DynaSharp;
 /// Configures a <see cref="DynamoDbClient"/> or a <see cref="Streams.DynamoDbStreamsClient"/>. Every setting is optional; unset settings
 /// are resolved from the environment the same way the AWS SDKs do.
 /// </summary>
+/// <example>
+/// <code>
+/// using var client = new DynamoDbClient(new DynamoDbClientOptions
+/// {
+///     Region = AwsRegion.FromName("eu-central-2"),
+///     MaxAttempts = 1,
+/// });
+/// </code>
+/// </example>
 /// <remarks>
 /// The options are a record, so a variation of a shared configuration is a <c>with</c> expression, for example
 /// <c>options with { MaxAttempts = 1 }</c> for a client that must not retry its updates. The copy is shallow: it shares the credentials
@@ -20,41 +29,51 @@ public sealed record DynamoDbClientOptions
     private const string EmulatorKey = "local";
 
     /// <summary>
-    /// Gets the region. When <see langword="null"/>, the <c>AWS_REGION</c> and then the <c>AWS_DEFAULT_REGION</c>
-    /// environment variable is used, and then the <c>region</c> setting of the profile selected by <c>AWS_PROFILE</c> (default
-    /// <c>default</c>) in the shared AWS files (<c>~/.aws/config</c>, <c>AWS_CONFIG_FILE</c>). A missing, unreadable or malformed
-    /// file does not fail the client unless no region can be found at all. The region is required even with
-    /// <see cref="ServiceUrl"/>, because it is part of the request signature.
+    /// Gets the region. <see langword="null"/>, the default, takes <c>AWS_REGION</c>, then <c>AWS_DEFAULT_REGION</c>, then the <c>region</c> of the profile in the shared AWS config file.
     /// </summary>
+    /// <remarks>
+    /// The profile is the one <c>AWS_PROFILE</c> selects (default <c>default</c>) in <c>~/.aws/config</c> or <c>AWS_CONFIG_FILE</c>. A missing, unreadable or malformed file does not fail the client
+    /// unless no region can be found at all. The region is required even with <see cref="ServiceUrl"/>, because it is part of the request signature.
+    /// </remarks>
     public AwsRegion? Region { get; init; }
 
     /// <summary>
-    /// Gets an explicit endpoint, for example <c>http://localhost:8000</c> for DynamoDB Local. When <see langword="null"/>,
-    /// the <c>AWS_ENDPOINT_URL_DYNAMODB</c> and then the <c>AWS_ENDPOINT_URL</c> environment variable is used, and
-    /// otherwise the public endpoint of the region (<see cref="AwsRegion.DynamoDbEndpoint"/>). It must be an absolute http or
-    /// https URL without user info, path, query and fragment; the client rejects anything else when it is created.
-    /// Over http the requests, their signatures and the session token travel unencrypted, so for an http endpoint whose host is not
-    /// <c>localhost</c> or a loopback address, such as <c>http://dynamodb-local:8000</c> in docker-compose, the client logs a warning once when it is created.
-    /// A <see cref="Streams.DynamoDbStreamsClient"/> created from the same options uses the same URL (an emulator such as DynamoDB Local
-    /// serves both APIs on one address); without it, it reads <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c>, then
-    /// <c>AWS_ENDPOINT_URL</c>, and otherwise uses <see cref="AwsRegion.DynamoDbStreamsEndpoint"/>.
+    /// Gets an explicit endpoint, for example <c>http://localhost:8000</c> for DynamoDB Local. <see langword="null"/>, the default, takes <c>AWS_ENDPOINT_URL_DYNAMODB</c>, then
+    /// <c>AWS_ENDPOINT_URL</c>, and otherwise the public endpoint of the region.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Shape.</b> An absolute http or https URL without user info, path, query and fragment; the client rejects anything else when it is created. The public endpoint of the region is
+    /// <see cref="AwsRegion.DynamoDbEndpoint"/>.
+    /// </para>
+    /// <para>
+    /// <b>Plain http.</b> Over http the requests, their signatures and the session token travel unencrypted, so for an http endpoint whose host is not <c>localhost</c> or a loopback address,
+    /// such as <c>http://dynamodb-local:8000</c> in docker-compose, the client logs a warning once when it is created.
+    /// </para>
+    /// <para>
+    /// <b>Streams.</b> A <see cref="Streams.DynamoDbStreamsClient"/> created from the same options uses the same URL (an emulator such as DynamoDB Local serves both APIs on one address);
+    /// without it, it reads <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c>, then <c>AWS_ENDPOINT_URL</c>, and otherwise uses <see cref="AwsRegion.DynamoDbStreamsEndpoint"/>.
+    /// </para>
+    /// </remarks>
     public Uri? ServiceUrl { get; init; }
 
     /// <summary>
-    /// Gets the credentials provider. When <see langword="null"/>, the client uses the default chain of the AWS SDKs
-    /// (<see cref="DefaultCredentialsProvider"/>), which takes the first source that has credentials: the
-    /// <c>AWS_ACCESS_KEY_ID</c>, <c>AWS_SECRET_ACCESS_KEY</c> and <c>AWS_SESSION_TOKEN</c> environment variables; the web identity
-    /// token file named by <c>AWS_WEB_IDENTITY_TOKEN_FILE</c>, which is how IAM roles for service accounts work on EKS; the profile
-    /// selected by <c>AWS_PROFILE</c> in the shared credentials and config files; the container credentials endpoint of ECS and
-    /// EKS; the instance metadata service of EC2. Nothing is looked up before the first request, and a source that applies but
-    /// is broken fails the request instead of falling through to the next one. To use one source only, or to turn off the
-    /// network lookups, pass an <see cref="EnvironmentCredentialsProvider"/>, <see cref="WebIdentityCredentialsProvider"/>, <see cref="ProfileCredentialsProvider"/>,
-    /// <see cref="ContainerCredentialsProvider"/>, <see cref="InstanceMetadataCredentialsProvider"/> or
-    /// <see cref="StaticCredentialsProvider"/>.
+    /// Gets the credentials provider. <see langword="null"/>, the default, uses the default chain of the AWS SDKs (<see cref="DefaultCredentialsProvider"/>): environment variables, web
+    /// identity token, shared profile, container endpoint, instance metadata, in that order.
     /// </summary>
     /// <remarks>
-    /// Every client that is created without this setting makes its own <see cref="DefaultCredentialsProvider"/>, with its own
+    /// <para>
+    /// <b>The default chain</b> takes the first source that has credentials: the <c>AWS_ACCESS_KEY_ID</c>, <c>AWS_SECRET_ACCESS_KEY</c> and <c>AWS_SESSION_TOKEN</c> environment variables; the web identity
+    /// token file named by <c>AWS_WEB_IDENTITY_TOKEN_FILE</c>, which is how IAM roles for service accounts work on EKS; the profile selected by <c>AWS_PROFILE</c> in the shared credentials and
+    /// config files; the container credentials endpoint of ECS and EKS; the instance metadata service of EC2. Nothing is looked up before the first request, and a source that applies but
+    /// is broken fails the request instead of falling through to the next one.
+    /// </para>
+    /// <para>
+    /// <b>One source only.</b> To use one source, or to turn off the network lookups, pass an <see cref="EnvironmentCredentialsProvider"/>, <see cref="WebIdentityCredentialsProvider"/>,
+    /// <see cref="ProfileCredentialsProvider"/>, <see cref="ContainerCredentialsProvider"/>, <see cref="InstanceMetadataCredentialsProvider"/> or <see cref="StaticCredentialsProvider"/>.
+    /// </para>
+    /// <para>
+    /// <b>Share one provider.</b> Every client that is created without this setting makes its own <see cref="DefaultCredentialsProvider"/>, with its own
     /// cache of credentials. On Amazon EC2, ECS and EKS that means one set of requests to the metadata service, the container endpoint or STS,
     /// and one refresh before expiry, per client; a <see cref="DynamoDbClient"/> and a <see cref="Streams.DynamoDbStreamsClient"/> already
     /// make two. An application that creates more than one client there should create one provider and pass it in the options of all
@@ -62,22 +81,22 @@ public sealed record DynamoDbClientOptions
     /// does not log, whereas the one a client makes logs to <see cref="LoggerFactory"/>. It also judges the expiry of credentials on the
     /// local clock, whereas the one a client makes uses the clock that the client corrects from the responses of DynamoDB (see
     /// <see cref="MaxAttempts"/>), so that a local clock that is behind does not delay a refresh. The client never disposes a provider it was given.
+    /// </para>
     /// </remarks>
     public ICredentialsProvider? Credentials { get; init; }
 
     /// <summary>
-    /// Gets the HTTP handler that sends requests. This is the seam for tests and for wire inspection. The client does not
-    /// dispose a handler it was given. When <see langword="null"/>, the client creates and owns a pooled
+    /// Gets the HTTP handler that sends the requests, which is the seam for tests and for wire inspection. <see langword="null"/>, the default, makes the client create and own a
     /// <see cref="SocketsHttpHandler"/>.
     /// </summary>
     /// <remarks>
-    /// It carries the requests to DynamoDB, and no others. The providers of credentials have HTTP clients of their own, for the token of <see cref="Credentials.WebIdentityCredentialsProvider"/> and the
+    /// <b>Only the requests to DynamoDB.</b> The client does not dispose a handler it was given. It carries the requests to DynamoDB, and no others. The providers of credentials have HTTP clients of their own, for the token of <see cref="Credentials.WebIdentityCredentialsProvider"/> and the
     /// keys of the container and metadata endpoints, so a client with a stub here still calls the real STS or metadata endpoint when the environment selects that provider. A test sets <see cref="Credentials"/> as well.
     /// <para>
-    /// The content of a request is valid only until its <see cref="HttpMessageHandler.SendAsync(HttpRequestMessage, CancellationToken)"/> returns: it is a view of a pooled
-    /// buffer that goes back to the pool when the call ends, and then holds the body of another call. A handler reads the content before it returns, never after, and sends
-    /// a request once, never twice in parallel, so a hedging handler does not work here. A body read late belongs to another call and fails the signature check of
-    /// DynamoDB. A retry handler is not needed: the client retries by itself (see <see cref="MaxAttempts"/>).
+    /// <b>Read the body before <c>SendAsync</c> returns.</b> The content of a request is valid only until <see cref="HttpMessageHandler.SendAsync(HttpRequestMessage, CancellationToken)"/>
+    /// returns; the client reuses its memory for the next call. A handler reads the content before it returns, never after, and sends a request once, never twice in parallel, so a
+    /// hedging handler does not work here. A body read late belongs to another call and fails the signature check of DynamoDB. A retry handler is not needed: the client retries by
+    /// itself (see <see cref="MaxAttempts"/>).
     /// </para>
     /// </remarks>
     public HttpMessageHandler? HttpHandler { get; init; }
@@ -180,13 +199,17 @@ public sealed record DynamoDbClientOptions
     public ContinuationTokenSigner? TokenSigner { get; init; }
 
     /// <summary>
-    /// Creates options for an emulator, such as DynamoDB Local or Dynoxide, at <paramref name="serviceUrl"/>: <see cref="ServiceUrl"/>, the region, <c>us-east-1</c> unless <paramref name="region"/> names
-    /// another, and the static credentials <c>local</c> and <c>local</c>, so that nothing is read from the environment for them. Every request is signed, and an emulator checks neither the region nor the keys,
-    /// so any values do: <c>new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")))</c>.
+    /// Creates options for an emulator such as DynamoDB Local or Dynoxide: <paramref name="serviceUrl"/> as <see cref="ServiceUrl"/>, the region <c>us-east-1</c> unless
+    /// <paramref name="region"/> names another, and the static credentials <c>local</c> and <c>local</c>, so that nothing is read from the environment.
     /// </summary>
+    /// <example>
+    /// <code>
+    /// using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
+    /// </code>
+    /// </example>
     /// <remarks>
     /// <para>
-    /// The options are a record, so the rest is a <c>with</c>: <c>DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }</c>. A <see cref="Streams.DynamoDbStreamsClient"/> made from these options reads the
+    /// <b>Any region and keys do.</b> Every request is signed, and an emulator checks neither the region nor the keys. The options are a record, so the rest is a <c>with</c>: <c>DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }</c>. A <see cref="Streams.DynamoDbStreamsClient"/> made from these options reads the
     /// streams of the same emulator. An http URL whose host is not <c>localhost</c> or a loopback address logs the warning that <see cref="ServiceUrl"/> describes. For real DynamoDB, leave this out and let the environment decide.
     /// </para>
     /// <para>

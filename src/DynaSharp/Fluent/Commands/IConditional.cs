@@ -3,7 +3,7 @@ using DynaSharp.Expressions;
 namespace DynaSharp;
 
 /// <summary>
-/// A command that takes a condition. It is the way to write a helper that works on all of them, without a box and without knowing the
+/// A command that takes a condition. It is the way to write a helper that works on all of them, without knowing the
 /// command:
 /// <code>
 /// public static TCommand OnlyIfOwned&lt;TCommand&gt;(this TCommand command, string owner)

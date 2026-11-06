@@ -8,9 +8,19 @@ namespace DynaSharp.Coordination;
 /// A held lock: the lease that <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync"/> handed out. It renews itself every third of
 /// its duration until it is disposed or lost, and <see cref="Ended"/> says when it ends. Dispose it to release the lock: <c>await using var lease = ...</c>.
 /// </summary>
+/// <example>
+/// <code>
+/// await using var lease = await locks.AcquireAsync("nightly-report", TimeSpan.FromSeconds(30), ct);
+/// using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct, lease.Ended);
+/// await foreach (var placed in byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed)).ItemsAsync(stop.Token))
+/// {
+///     await client.TransactWrite().IsHeld(lease).Put(orders, placed with { Status = OrderStatus.Shipped }).SendAsync(stop.Token);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
-/// The lease is held from the moment its acquire was sent, for its duration on the monotonic clock of the client, and each renewal extends it by the
+/// <b>Timing.</b> The lease is held from the moment its acquire was sent, for its duration on the monotonic clock of the client, and each renewal extends it by the
 /// duration from the moment that renewal was sent. The heartbeat sends the next renewal a third of the duration after the last one that succeeded was
 /// sent, so a slow answer does not delay the one after it. A contender starts its wait only once it has read the item, after the write, so on the
 /// holder's clock the lease ends before a contender may take it over, whatever offset the clocks of the two machines have. That assumes both clocks run
@@ -18,14 +28,14 @@ namespace DynaSharp.Coordination;
 /// lease ended without knowing it yet. That case is what <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> and <see cref="FencingToken"/> are for.
 /// </para>
 /// <para>
-/// It is lost when a renewal finds another owner in the item (a contender took it over, or someone wrote the item), when it finds the item deleted,
+/// <b>Losing it.</b> It is lost when a renewal finds another owner in the item (a contender took it over, or someone wrote the item), when it finds the item deleted,
 /// which starts the fencing token at 1 again for the next acquire, when DynamoDB answers a renewal with
 /// <see cref="ResourceNotFoundException"/>, and when the lease runs out on the monotonic clock without a renewal that succeeded. A renewal of the heartbeat
 /// that fails with any other error, after the retries of the client, is tried again with a growing wait, up to a sixth of the duration, until one succeeds
 /// or the lease runs out. Losing it is final: acquire the lock again for a new lease.
 /// </para>
 /// <para>
-/// A lease guards only what checks it. Code that writes to DynamoDB adds <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> to the
+/// <b>Fencing.</b> A lease guards only what checks it. Code that writes to DynamoDB adds <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> to the
 /// transaction of the write, and a system outside compares <see cref="FencingToken"/> with the highest one it has seen.
 /// </para>
 /// <para>

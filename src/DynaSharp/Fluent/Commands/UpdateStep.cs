@@ -114,7 +114,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <summary>
     /// Adds a <c>SET</c> action in the grammar of DynamoDB, for what the other forms do not cover, such as arithmetic and <c>list_append</c>:
-    /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An attribute in a hole stands for its name and anything else is a value.
+    /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value for a value.
     /// </summary>
     /// <param name="action">The action.</param>
     /// <returns>The step, which replaces this one.</returns>
@@ -228,7 +228,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     }
 
     /// <summary>
-    /// Adds a condition in the grammar of DynamoDB, for what struct conditions do not cover. An attribute in a hole stands for its name and anything else is
+    /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value for
     /// a value. If it does not hold, the whole transaction is cancelled, and a second condition means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>
@@ -254,12 +254,15 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     }
 
     /// <summary>
-    /// Makes this update depend on the item having this version, and stores the next one. If it has another, the whole transaction is cancelled, and the marker of this action says that this was
-    /// the reason. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. With <see cref="Mapping.VersionMissing.Allow"/> it stands for what reads as 0, an item without a version attribute or with 0 in it, or none. A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or
-    /// <see cref="IgnoreVersion"/>, and the next verb throws <see cref="InvalidOperationException"/> without it. <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/>
-    /// repeats a transaction together with the read of the version.
+    /// Makes this update depend on the item having this version, and stores the next one. If it has another, the whole transaction is cancelled, and the marker of this action says that
+    /// this was the reason.
     /// </summary>
-    /// <param name="version">The version last read.</param>
+    /// <remarks>
+    /// A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or <see cref="IgnoreVersion"/>, and the next action throws
+    /// <see cref="InvalidOperationException"/> without it. <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats a transaction
+    /// together with the read of the version.
+    /// </remarks>
+    /// <param name="version">The version last read. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. With <see cref="Mapping.VersionMissing.Allow"/> it stands for what reads as 0, an item without a version attribute or with 0 in it, or none.</param>
     /// <returns>The step, which replaces this one.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="version"/> is negative, or <see cref="long.MaxValue"/>, which has no next one.</exception>
     /// <exception cref="InvalidOperationException">The table of this action has no <see cref="Mapping.VersionAttribute"/>.</exception>
@@ -272,16 +275,12 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     }
 
     /// <summary>
-    /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create it: <c>SET #userId = if_not_exists(#userId, :v)</c> per input, after the actions of the update and the
-    /// keys of its indexes and before the discriminator. Without it an item an update created holds the key alone: a read of the entity restores the inputs from the key, and <c>Select</c> of such an input and a filter on it find nothing.
-    /// An item that exists keeps what it has, so this goes with <c>IfExists()</c>, <c>IfNotExists()</c> and a version alike. The value goes through the converter of the property and is the value, not the text of the key, and an
-    /// action of the update on the attribute by a raw path takes precedence. A plain key and a key made of one property over its own attribute are their attribute, and a <see cref="Mapping.KeyOnlyAttribute"/> has none, so
-    /// an entity with nothing else changes nothing here.
+    /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create the item: without it, an item an update created holds the
+    /// key alone. See <see cref="TableExtensions.StoreKeyInputs{T}(UpdateCommand{T})"/>.
     /// </summary>
     /// <remarks>
-    /// A template that cuts a value off, such as a timestamp in <c>{At:yyyy-MM-dd}</c>, gives it back only from a generated key, so a key given as strings throws for it when the update ends. It costs an
-    /// <see cref="AttributeValue"/> per input, and an update without it pays nothing.
-    /// It settles with the action, so the next verb is where such a throw comes from.
+    /// <inheritdoc cref="TableExtensions.StoreKeyInputs{T}(UpdateCommand{T})" path="/remarks/para"/>
+    /// <para>In a transaction such a throw comes from the next action, where this action settles.</para>
     /// </remarks>
     /// <returns>The step, which replaces this one.</returns>
     /// <exception cref="InvalidOperationException">The table of this action has no entity.</exception>

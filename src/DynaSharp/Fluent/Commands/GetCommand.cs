@@ -11,12 +11,25 @@ namespace DynaSharp;
 /// <summary>
 /// A <c>GetItem</c> under construction. Chain the options and end with <see cref="ItemAsync"/> or <see cref="SendAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// Order? order = await orders.Get(Order.Keys.Of("alice", 1)).ItemAsync(ct);
+///
+/// var result = await orders.Get(Order.Keys.Of("alice", 1)).Consistent().SendAsync(ct);
+/// if (result.Found)
+/// {
+///     Console.WriteLine(result.Item!.Total);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
-/// A command is a ref struct over pooled state, which is what makes it free of allocation. The compiler therefore keeps it from being stored in
-/// a field, captured in a lambda or kept across an <c>await</c>: compute values first, or put the chain into a method that returns the
-/// command. Every call returns a new handle and uses up the one it was called on, so reusing a command throws
-/// <see cref="InvalidOperationException"/>; to send the same request twice, build it twice.
+/// <b>Build and send in one expression.</b> A command is a <c>ref struct</c>: the compiler keeps it from being stored in a field, captured in a lambda or kept
+/// across an <c>await</c>. Compute values first, or put the chain into a method that returns the command.
+/// </para>
+/// <para>
+/// <b>Each call uses the command up.</b> Every clause returns a new command and the one it was called on is spent, so reusing a command throws
+/// <see cref="InvalidOperationException"/>. To send the same request twice, build it twice.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">How the item is read.</typeparam>
@@ -79,21 +92,24 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     }
 
     /// <summary>
-    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>var total = await orders.Get(key).Select(Order.Attrs.Total).SendAsync(ct);</c>. It projects the attribute, with the discriminator of an entity, which tells the item from an item of another type as a read of the entity does, so it saves bandwidth, not capacity: DynamoDB
-    /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
+    /// Reads one attribute instead of the whole entity: <c>var total = await orders.Get(key).Select(Order.Attrs.Total).SendAsync(ct);</c>. It saves bandwidth, not capacity: DynamoDB charges for the whole item.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The chain ends here but for its terminal, as with <c>Return</c>: <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// <b>Over <c>Project</c>.</b> The result is the value and no entity, so a <c>required</c> member cannot be in the way. The discriminator of an entity is projected too, so an item of another type
+    /// is told apart as a read of the entity does.
     /// </para>
     /// <para>
-    /// A missing attribute follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default, and that is where this differs from a read of the entity,
+    /// <b>Last clause.</b> After <c>Select</c> only the send is left, as after <c>Return</c>: <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// </para>
+    /// <para>
+    /// <b>A missing attribute</b> follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default, and that is where this differs from a read of the entity,
     /// which leaves a property that is not <c>required</c> at its initial value: an <c>int</c> without its attribute is 0 there and throws here, and so does a <c>[Version]</c> on an item without one, which an <c>Update</c> with <c>IgnoreVersion()</c> creates, with a message that points at <c>VersionMissing.Allow</c>.
     /// In a nested path the last handle decides, so <c>ShipTo.At(Address.Attrs.City)</c> throws for an item without <c>ShipTo</c> when <c>City</c> cannot be null, which reading <c>ShipTo</c> itself would not.
     /// </para>
     /// <para>
-    /// A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
-    /// the property from it, and this throws, which <c>DYNA209</c> reports.
+    /// <b>A key input.</b> A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
+    /// the property from it, and this throws, which <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA209</see> reports.
     /// </para>
     /// </remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
@@ -180,7 +196,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     public ValueTaskAwaiter<GetResult<T>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>

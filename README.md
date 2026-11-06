@@ -184,7 +184,7 @@ There is one client and one pipeline, with four ways in. Use the highest level t
 - **Retries are honest.** The docs say where a retry can apply a write twice.
 - **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses.
 
-[Design principles](https://msallin.github.io/DynaSharp/design-principles.html) says what each one means for your code.
+[Design principles](https://msallin.github.io/DynaSharp/design-principles.html) says what each one means for your code, and [How it is built](https://msallin.github.io/DynaSharp/design.html) why the client looks the way it does.
 
 ## Benchmarks
 

@@ -3,8 +3,13 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// The table or index does not exist, or is not yet <c>ACTIVE</c>.
+/// The table or index does not exist, or is not yet <c>ACTIVE</c>. Not retried: check the name and the region, or wait for a new table with
+/// <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/>.
 /// </summary>
+/// <remarks>
+/// <see cref="DynamoDbException.TableName"/> says which table was asked for. A table that was just created can be reported as missing for a moment, which the wait bears with.
+/// <see cref="DynamoDbException.IsTransient"/> is <see langword="false"/>.
+/// </remarks>
 public sealed class ResourceNotFoundException : DynamoDbException
 {
     /// <summary>

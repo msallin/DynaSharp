@@ -16,12 +16,12 @@ namespace DynaSharp.Mapping;
 /// <para>
 /// It is the property that is lenient, not every place the enum is read. An element of a list, a set or a map still throws for a name the enum does not have: dropping it would give a collection that is shorter than
 /// what is stored, which the next <c>Put</c> of the entity writes back, and a list has positions. A plain key still throws, because a read that took it for missing would give an entity with another key, and
-/// <c>Keys.X.Parse</c> of a key template does not change. <c>Select</c> of the handle gives what it gives for a missing attribute: null for a nullable property, and for any other a throw that <c>DYNA209</c>
+/// <c>Keys.X.Parse</c> of a key template does not change. <c>Select</c> of the handle gives what it gives for a missing attribute: null for a nullable property, and for any other a throw that <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA209</see>
 /// reports where it sees the call.
 /// </para>
 /// <para>
 /// It is for the converter that the generator writes. An enum with a <see cref="DynamoDbConverterAttribute"/> of its own has no such converter, a <c>[Flags]</c> enum is stored as a number, which has no unknown
-/// name, and <c>DYNA033</c> reports both. A property with a <see cref="DynamoDbConverterAttribute"/>, or a type with a <see cref="DynamoDbDefaultConverterAttribute"/>, reads through that converter and not through
+/// name, and <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA033</see> reports both. A property with a <see cref="DynamoDbConverterAttribute"/>, or a type with a <see cref="DynamoDbDefaultConverterAttribute"/>, reads through that converter and not through
 /// this.
 /// </para>
 /// </remarks>

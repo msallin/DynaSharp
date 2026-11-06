@@ -45,7 +45,21 @@ namespace DynaSharp.Testing;
 /// clock, for a random time below 20 seconds, so with a fake clock it stops there until the test moves the clock by that much, as the second example does. A wait can round
 /// down to nothing, so a test does not count on one. <c>FakeTimeProvider</c> of <c>Microsoft.Extensions.TimeProvider.Testing</c> is such a clock. A test of what follows a batch that gives up
 /// sets <see cref="BatchWriteCommand{T}.MaxStalledRounds"/> to 1 on the command: the first round that gets nothing done then ends the batch, with no wait and no fake clock.
+/// A batch that DynamoDB takes in two rounds, tested without waiting for the second one, with <c>clock</c> a <c>FakeTimeProvider</c> the client was given:
 /// </para>
+/// <code>
+/// handler.Enqueue(StubResponse.Unprocessed("Orders", StubResponse.Put(order)));
+/// handler.Enqueue(StubResponse.Unprocessed("Orders"));
+///
+/// var import = service.ImportAsync(orders);
+/// while (!import.IsCompleted)
+/// {
+///     clock.Advance(TimeSpan.FromSeconds(20));
+///     await Task.Yield();
+/// }
+///
+/// await import;
+/// </code>
 /// <para>
 /// The handler is thread-safe. The client does not dispose a handler it was given, so a test can keep using it afterwards.
 /// </para>
@@ -59,20 +73,6 @@ namespace DynaSharp.Testing;
 /// using var client = StubClient.Create(handler);
 /// // ... call the code under test, then:
 /// var operations = handler.Requests.Select(request => request.Operation);
-/// </code>
-/// A batch that DynamoDB takes in two rounds, tested without waiting for the second one:
-/// <code>
-/// handler.Enqueue(StubResponse.Unprocessed("Orders", StubResponse.Put(order)));
-/// handler.Enqueue(StubResponse.Unprocessed("Orders"));
-///
-/// var import = service.ImportAsync(orders);
-/// while (!import.IsCompleted)
-/// {
-///     clock.Advance(TimeSpan.FromSeconds(20));
-///     await Task.Yield();
-/// }
-///
-/// await import;
 /// </code>
 /// </example>
 public sealed class StubHandler : HttpMessageHandler

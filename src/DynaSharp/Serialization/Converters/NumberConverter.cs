@@ -16,7 +16,7 @@ namespace DynaSharp.Serialization;
 /// error: a <see cref="double"/> or a <see cref="BigInteger"/> can be outside that range, and the converter does not check.
 /// </para>
 /// <para>
-/// Reading parses the text of the value in place and allocates nothing. Exponent notation is accepted, also for integer types, as long as
+/// Exponent notation is accepted, also for integer types, as long as
 /// the value is integral (<c>1E+2</c> reads as 100).
 /// </para>
 /// <para>

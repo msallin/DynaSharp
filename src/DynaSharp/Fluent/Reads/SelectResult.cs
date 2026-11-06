@@ -21,7 +21,7 @@ public readonly struct SelectResult<TValue>
 
     /// <summary>
     /// Gets the value of the attribute. A read that found no item has none, which is not the same as an item without the attribute, so look at <see cref="Found"/> first: <c>result.Found ? result.Value : fallback</c>,
-    /// which <see cref="GetValueOrDefault(TValue)"/> says in one call. <c>DYNA227</c> reports a read of this in a method that never looks at <see cref="Found"/>.
+    /// which <see cref="GetValueOrDefault(TValue)"/> says in one call. <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA227</see> reports a read of this in a method that never looks at <see cref="Found"/>.
     /// </summary>
     /// <exception cref="InvalidOperationException">There is no item, so there is no value. A default would read like one, so test <see cref="Found"/> first.</exception>
     public TValue Value => Found ? field : throw new InvalidOperationException("The read found no item, so it has no value. Look at Found first.");

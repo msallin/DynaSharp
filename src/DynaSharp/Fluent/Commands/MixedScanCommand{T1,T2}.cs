@@ -9,7 +9,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Scan</c> that reads several entity types of a table or index: <c>shop.Scan().Of&lt;Customer, Order&gt;()</c>. It has the clauses of <see cref="ScanCommand{T}"/> and
-/// its terminals but <c>CountAsync</c>, and <see cref="MixedQueryCommand{T1, T2}"/> says what the mix adds.
+/// every way to send it but <c>CountAsync</c>, and <see cref="MixedQueryCommand{T1, T2}"/> says what the mix adds.
 /// </summary>
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>

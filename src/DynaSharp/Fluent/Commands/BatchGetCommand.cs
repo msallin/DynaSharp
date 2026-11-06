@@ -70,7 +70,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
         return new(state, table);
     }
 
-    /// <summary>Adds a generated key, which costs no string.</summary>
+    /// <summary>Adds a key built by the generator, such as <c>Order.Keys.Of(customerId, number)</c>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="key">The key.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -203,7 +203,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     public ValueTaskAwaiter<BatchGetResult<T>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body of the first request this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string,
+    /// Renders the body of the first request this command would send, as DynamoDB JSON, without sending it. It ends the command,
     /// and is meant for tests and debugging. The text contains the keys.
     /// </summary>
     /// <returns>The request body.</returns>

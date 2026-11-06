@@ -46,7 +46,7 @@ public readonly ref struct PutStep : ITransactWriteStep<PutStep>
     CommandState ITransactWriteChain<PutStep>.Enter() => Enter();
 
     /// <summary>
-    /// Adds a condition in the grammar of DynamoDB, for what struct conditions do not cover. An attribute in a hole stands for its name and anything else is
+    /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value for
     /// a value. If it does not hold, the whole transaction is cancelled, and a second condition means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>

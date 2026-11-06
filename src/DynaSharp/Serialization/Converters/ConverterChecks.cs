@@ -28,8 +28,7 @@ public static class ConverterChecks
     }
 
     /// <summary>
-    /// Reads the attribute value that holds the discriminator of an item and checks it, for the code the source generator emits. Comparing bytes
-    /// costs no string, so a read pays for the name of the other type only when it fails.
+    /// Reads the attribute value that holds the discriminator of an item and checks it, for the code the source generator emits.
     /// </summary>
     /// <param name="reader">The reader, positioned on the attribute name.</param>
     /// <param name="expected">The discriminator of <paramref name="entityType"/>, as UTF-8.</param>

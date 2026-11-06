@@ -8,6 +8,22 @@ namespace DynaSharp;
 /// not at all. The verbs are in <see cref="TransactWriteExtensions"/>, and each returns a step with the clauses of its own action and the verbs of the
 /// next one.
 /// </summary>
+/// <example>
+/// <code>
+/// TransactMarker emailTaken = default;
+/// try
+/// {
+///     await client.TransactWrite()
+///         .Unique(emails, new EmailClaim(customer.Email, customer.Id), out emailTaken).ReturnOldOnFailure()
+///         .Put(customers, customer).IfNotExists()
+///         .SendAsync(ct);
+/// }
+/// catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTaken) == TransactionFailure.ConditionalCheckFailed)
+/// {
+///     Console.WriteLine(exception.ItemFor(emailTaken)!.To&lt;EmailClaim&gt;().CustomerId);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// A step converts to this type, which uses the step up, and that is what makes a loop possible:
@@ -60,7 +76,7 @@ public readonly ref struct TransactWriteCommand : ITransactWriteChain<TransactWr
     }
 
     /// <summary>
-    /// Renders the body this transaction would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests
+    /// Renders the body this transaction would send, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests
     /// and debugging. The text contains the items and a generated token that nothing ever sends.
     /// </summary>
     /// <returns>The request body.</returns>

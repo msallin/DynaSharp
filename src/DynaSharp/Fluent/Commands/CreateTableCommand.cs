@@ -30,7 +30,7 @@ namespace DynaSharp;
 /// <see cref="TimeToLive(string)"/> cover those two. For tags, a storage class or a projection of fewer attributes, take <see cref="ToRequest"/> and send it through <c>DynaSharp.Requests</c>.
 /// </para>
 /// <para>
-/// This is administration and not a hot path, so unlike the commands of items it is an ordinary class: a clause changes the command and returns it, it can be kept and sent again, and it is not thread-safe. A
+/// Unlike the commands on items, this is an ordinary class: a clause changes the command and returns it, it can be kept in a field and sent again, and it is not thread-safe. A
 /// retry repeats the request: when a response was lost, the retry of a table this very call created fails with <see cref="ResourceInUseException"/>, which <see cref="IfNotExists"/> turns into success.
 /// </para>
 /// </remarks>
@@ -104,15 +104,20 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, as <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/> does, with its rules on the timeout.
-    /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active. With <see cref="IfNotExists"/> over a table that exists, an index that <c>UpdateTable</c> added can
-    /// still be <c>CREATING</c>, which takes minutes even on an empty table and often longer than the default of five, so give that wait half an hour or more.
+    /// Makes <see cref="SendAsync"/> wait until the table and its global secondary indexes are <c>ACTIVE</c>, as <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/> does.
+    /// Without this, the table is <c>CREATING</c> when the call returns, and a read or write of it fails until it is active.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// <b>An index added later.</b> With <see cref="IfNotExists"/> over a table that exists, an index that <c>UpdateTable</c> added can still be <c>CREATING</c>, which takes minutes even on an empty
+    /// table and often longer than the default of five, so give that wait half an hour or more.
+    /// </para>
+    /// <para>
     /// Every global index that this command declares, by its entity and by <see cref="Including{TOther}"/>, has to be listed and active, and a local one needs no wait. With <see cref="IfNotExists"/> over an older table that lacks
     /// a declared index, nothing adds the index, so this <b>fails instead of returning</b>, with a <see cref="TableNotActiveException"/> that names it. It does not wait out the timeout for that: an index still not listed at
     /// the fifth look in a row, 1.5 seconds in, ends the wait, because a create lists all its indexes and only an <c>UpdateTable</c> sent before this command adds one. Add the index with <c>UpdateTable</c> in <c>DynaSharp.Requests</c> first.
     /// That needs an active table, which a table opened without an entity waits for, because it declares nothing: <c>client.Table(name, "pk", "sk").WaitUntilActiveAsync()</c>. Then this wait follows the backfill.
+    /// </para>
     /// <para>
     /// The timeout bounds the wait and nothing else, so the calls before it and time to live after it take their own time. <see cref="Timeout(TimeSpan)"/> bounds all of it and names the table when it runs out, where a
     /// <see cref="CancellationToken"/> on a timer gives a bare <see cref="TaskCanceledException"/> or <see cref="OperationCanceledException"/>, with no table and no index named.
@@ -199,10 +204,13 @@ public sealed class CreateTableCommand
     }
 
     /// <summary>
-    /// Bounds the whole of <see cref="SendAsync"/>, every call it makes and every wait: the look of <see cref="IfNotExists"/>, the <c>CreateTable</c> with its retries, the wait of <see cref="WaitUntilActive()"/>, and turning
-    /// time to live on. When the time runs out, the call in flight is cancelled and <see cref="SendAsync"/> throws a <see cref="TimeoutException"/> that names the table, the timeout and the step it was at, where a token
-    /// of the caller on a timer gives a bare <see cref="OperationCanceledException"/>. It is meant for a program that creates its table at the start and must not hang there.
+    /// Bounds the whole of <see cref="SendAsync"/>, every call it makes and every wait, for a program that creates its table at the start and must not hang there. When the time runs out,
+    /// <see cref="SendAsync"/> throws a <see cref="TimeoutException"/> that names the table, the timeout and the step it was at.
     /// </summary>
+    /// <remarks>
+    /// The bound covers the look of <see cref="IfNotExists"/>, the <c>CreateTable</c> with its retries, the wait of <see cref="WaitUntilActive()"/>, and turning time to live on. The call in flight is
+    /// cancelled, where a token of the caller on a timer gives a bare <see cref="OperationCanceledException"/>.
+    /// </remarks>
     /// <remarks>
     /// <para>
     /// The time runs on <see cref="DynamoDbClientOptions.TimeProvider"/> of the client. A table that DynamoDB accepted stays accepted, so a timeout after the create leaves the table behind, and sending the command again with

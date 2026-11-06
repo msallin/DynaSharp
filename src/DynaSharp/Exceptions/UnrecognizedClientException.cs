@@ -3,8 +3,12 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// The access key id or session token is invalid or expired.
+/// The access key id or session token is invalid or expired. Not retried: check the credentials the client was given, see <see cref="DynamoDbClientOptions.Credentials"/>.
 /// </summary>
+/// <remarks>
+/// An expired token of a provider that can refresh it, such as <see cref="Credentials.ContainerCredentialsProvider"/>, is replaced and the request resent once before this surfaces, as
+/// <see cref="DynamoDbClientOptions.MaxAttempts"/> describes. <see cref="DynamoDbException.IsTransient"/> is <see langword="false"/>.
+/// </remarks>
 public sealed class UnrecognizedClientException : DynamoDbException
 {
     /// <summary>

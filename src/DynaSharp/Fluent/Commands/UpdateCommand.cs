@@ -13,6 +13,16 @@ namespace DynaSharp;
 /// An <c>UpdateItem</c> under construction. It changes single attributes, and it creates the item if none has the key, unless <see cref="IfExists"/>
 /// says otherwise. Chain the changes and options in any order and end with <see cref="SendAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var moved = await customers.Update(Customer.Keys.Of("alice"))
+///     .Set(Customer.Attrs.ShipTo.At(Address.Attrs.City), "Bern")
+///     .Add(Customer.Attrs.Interests, ["keyboards"])
+///     .IfExists()
+///     .ReturnNew()
+///     .SendAsync(ct);
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// Every attribute name becomes a placeholder, so reserved words such as <c>status</c> need no care. One attribute can appear in one action of
@@ -116,7 +126,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <summary>
     /// Adds a <c>SET</c> action in the grammar of DynamoDB, for what the other forms do not cover, such as arithmetic and <c>list_append</c>:
-    /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An attribute in a hole stands for its name and anything else is a value.
+    /// <c>.Set($"{Attr("total")} = {Attr("total")} + {5}")</c>. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value for a value.
     /// </summary>
     /// <param name="action">The action.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -233,9 +243,9 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     }
 
     /// <summary>
-    /// Adds a condition in the grammar of DynamoDB, for what struct conditions do not cover:
-    /// <c>.If($"attribute_exists({Attr("pk")}) AND size({Attr("tags")}) &lt; {10}")</c>. An attribute in a hole stands for its name and anything
-    /// else is a value. The update happens only if the condition holds, and a second condition means both must hold.
+    /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover:
+    /// <c>.If($"attribute_exists({Attr("pk")}) AND size({Attr("tags")}) &lt; {10}")</c>. An interpolated <see cref="Attr"/> stands for an attribute name and any other interpolated value
+    /// for a value. The update happens only if the condition holds, and a second condition means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -262,7 +272,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     }
 
     /// <summary>
-    /// Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create. With <c>IfVersion(n)</c> above 0 the terminal throws
+    /// Updates only if no item has this key (<c>attribute_not_exists</c> on the partition key), so that the update can only create. With <c>IfVersion(n)</c> above 0 <c>SendAsync</c> throws
     /// <see cref="InvalidOperationException"/>, because no item can lack its key and hold a version; version 0 is this same condition, which then renders once, also with <see cref="VersionMissing.Allow"/>, where this alone
     /// says that the key is free.
     /// </summary>
@@ -275,7 +285,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     }
 
     /// <summary>
-    /// Updates only if an item has this key (<c>attribute_exists</c> on the partition key), which is how an update stops being an upsert. <c>IfVersion(0)</c> says that no item has the key, so with it the terminal
+    /// Updates only if an item has this key (<c>attribute_exists</c> on the partition key), which is how an update stops being an upsert. <c>IfVersion(0)</c> says that no item has the key, so with it <c>SendAsync</c>
     /// throws <see cref="InvalidOperationException"/>, in either order, unless <see cref="VersionMissing.Allow"/> makes it ask for an item that reads as 0.
     /// </summary>
     /// <returns>The command, which replaces this one.</returns>
@@ -385,7 +395,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     /// <summary>
     /// Sends the command as <see cref="SendAsync"/> does, and takes a failed condition as an answer instead of throwing <see cref="ConditionalCheckFailedException"/>: <see cref="WriteResult{T}.ConditionMet"/>
     /// is then <see langword="false"/>, nothing was written, and with <see cref="ReturnOldOnFailure"/> <see cref="WriteResult{T}.Item"/> is the item the condition saw. It is for a write whose failed
-    /// condition is routine, such as an event that is old news, which then costs no exception.
+    /// condition is routine, such as an event that is old news, and no exception is thrown for it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -422,7 +432,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
     public ValueTaskAwaiter<WriteResult<T>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>

@@ -50,7 +50,7 @@ namespace DynaSharp.Testing;
 /// fake.CreateTable&lt;Customer&gt;("Shop");
 /// using var client = fake.CreateClient();
 ///
-/// await service.RegisterAsync(client, "alice", ct);
+/// await client.Table&lt;Customer&gt;("Shop").Put(customer).SendAsync(ct); // the code under test
 ///
 /// var stored = fake.Get&lt;Customer&gt;("Shop", StubResponse.KeyOf(Customer.Keys.Of("alice")));
 /// </code>

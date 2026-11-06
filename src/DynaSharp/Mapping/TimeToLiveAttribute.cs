@@ -8,7 +8,7 @@ namespace DynaSharp.Mapping;
 /// <para>
 /// DynamoDB reads a number of seconds since 1970-01-01T00:00:00Z and ignores an item whose attribute holds anything else, a string among them, so the property has to be stored as one: a <see cref="DateTimeOffset"/> with
 /// <c>[DynamoDbConverter(typeof(EpochSecondsConverter))]</c>, an integer that holds the seconds, or a converter of the application that is an <see cref="Serialization.IAddableConverter"/>, which says that it writes a
-/// number. Anything else is the error <c>DYNA036</c>, as is a second such property on one entity and one that is not stored, because a table has time to live on one attribute. Nullable is fine: an item
+/// number. Anything else is the error <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA036</see>, as is a second such property on one entity and one that is not stored, because a table has time to live on one attribute. Nullable is fine: an item
 /// without the attribute never expires.
 /// </para>
 /// <para>

@@ -11,6 +11,13 @@ namespace DynaSharp;
 /// <summary>
 /// A single DynamoDB attribute value: string, number, binary, boolean, null, list, map or set.
 /// </summary>
+/// <example>
+/// <code>
+/// var item = new Item { ["pk"] = "USER#alice", ["age"] = 42, ["active"] = true };
+/// AttributeValue tags = AttributeValue.FromStringSet(["keyboards", "mice"]);
+/// AttributeValue settings = AttributeValue.FromJson("""{"theme":"dark","columns":[1,2]}"""u8);
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// This is the representation used by the low-level API (for example <see cref="GetItemRequest.Key"/>) and by <see cref="Item"/>.
@@ -27,8 +34,8 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// Values are immutable: factory methods copy mutable inputs. The collections returned by <see cref="AsList"/>,
-/// <see cref="AsMap"/> and the set accessors are the stored ones, exposed read-only without a copy; callers must not
-/// cast them to mutable types and modify them. Equality is structural (deep) for lists and maps; sets compare without
+/// <see cref="AsMap"/> and the set accessors are the stored collections themselves, read-only: do not cast them to a mutable
+/// type and change them. Equality is structural (deep) for lists and maps; sets compare without
 /// regard to order. A <see langword="default"/> instance has <see cref="AttributeType.None"/> and cannot be sent to
 /// DynamoDB.
 /// </para>
@@ -283,7 +290,10 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     /// <exception cref="ArgumentException">DynamoDB cannot store the JSON, see <see cref="FromJson(JsonElement)"/>, or a string or a name is not valid UTF-8.</exception>
     public static AttributeValue FromJson(ReadOnlySpan<byte> utf8Json) => FromJson(utf8Json, default(JsonReaderOptions), nameof(utf8Json));
 
-    /// <summary>Gets the value as plain JSON, as <see cref="WriteJson"/> writes it.</summary>
+    /// <summary>
+    /// Converts the value to plain JSON: a map becomes an object, a list an array, and a number keeps its text. A set becomes an array and a binary value a base64 string, which
+    /// <see cref="FromJson(JsonElement)"/> does not turn back; see <see cref="WriteJson"/>.
+    /// </summary>
     /// <returns>A JSON element that owns its memory.</returns>
     /// <exception cref="InvalidOperationException">The value is a <see langword="default"/> instance, which has no type.</exception>
     /// <exception cref="FormatException">A number made with <see cref="FromNumber(string)"/> is not in the form of a JSON number.</exception>

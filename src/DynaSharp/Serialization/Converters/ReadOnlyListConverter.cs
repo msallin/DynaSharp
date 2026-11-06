@@ -6,8 +6,7 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="T">The element type.</typeparam>
 /// <typeparam name="TConverter">The converter of the elements.</typeparam>
 /// <remarks>
-/// See <see cref="ArrayConverter{T, TConverter}"/> for what a list may hold. Writing an array or a <see cref="List{T}"/> enumerates it directly
-/// and any other list by index, so no enumerator is boxed. A list that is read is an array of exactly its length, the cheapest read-only list;
+/// See <see cref="ArrayConverter{T, TConverter}"/> for what a list may hold. A list that is read is an array of exactly its length, the cheapest read-only list;
 /// code that casts it back to an array can change it.
 /// Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package. A converter of your own may call it, and then follows the package: build it again with a new version.
 /// </remarks>

@@ -16,7 +16,7 @@ namespace DynaSharp;
 /// name contains a dot cannot be addressed this way.
 /// </para>
 /// <para>
-/// Values convert as <see cref="AttributeValue"/> does, except numbers, which go through without the string a conversion would cost.
+/// Values convert as <see cref="AttributeValue"/> does; a number keeps its .NET type.
 /// </para>
 /// <para>It converts to its path, so it goes wherever a method takes a path as a string.</para>
 /// </remarks>
@@ -146,7 +146,7 @@ public readonly struct Attr
     /// <returns>The condition.</returns>
     public Contains<AttributeValue, AttributeValueConverter> Contains(AttributeValue operand) => new(Path, operand);
 
-    /// <summary>Checks with <c>contains</c> whether a number set or a list holds a number, which goes through without the string a conversion would cost.</summary>
+    /// <summary>Checks with <c>contains</c> whether a number set or a list holds a number.</summary>
     /// <typeparam name="TNumber">The type of the number.</typeparam>
     /// <param name="operand">The number.</param>
     /// <returns>The condition.</returns>

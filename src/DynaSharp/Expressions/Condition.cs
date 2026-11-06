@@ -3,10 +3,18 @@ using DynaSharp.Expressions;
 namespace DynaSharp;
 
 /// <summary>
-/// A condition on the heap, for one that is kept in a field or assembled at run time, where the changing static type of the struct
-/// conditions gets in the way. Struct conditions compose with <c>.And()</c>, <c>.Or()</c> and <c>.Negate()</c>, and <c>a.Eq(1) &amp; b.Gt(2)</c> does not compile: <c>&amp;</c>, <c>|</c> and <c>!</c> need a
-/// <see cref="Condition"/>, which a struct on the other side then converts to, as in <c>.If(Open &amp; Attr("version").Eq(v))</c>. Instances are immutable, so one can be shared between threads and commands.
+/// A condition that can be kept in a field, assembled at run time and combined with <c>&amp;</c>, <c>|</c> and <c>!</c>: <c>Condition.Of(Attr("status").Eq("open"))</c>.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>When to use it.</b> The conditions that <see cref="Attr"/> and the generated <c>Attrs</c> make are structs whose type changes with every <c>.And()</c>, <c>.Or()</c> and
+/// <c>.Negate()</c>, which is awkward for a field or a condition built in a loop. <see cref="Of{T}"/> wraps one in this type, whose type stays the same.
+/// </para>
+/// <para>
+/// <b>Operators.</b> <c>a.Eq(1) &amp; b.Gt(2)</c> does not compile on two structs: <c>&amp;</c>, <c>|</c> and <c>!</c> need a <see cref="Condition"/> on one side, and the struct on the other side
+/// converts, as in <c>.If(Open &amp; Attr("version").Eq(v))</c>. Instances are immutable, so one can be shared between threads and commands.
+/// </para>
+/// </remarks>
 public abstract class Condition : ICondition
 {
     private Condition()
@@ -30,7 +38,7 @@ public abstract class Condition : ICondition
     /// <returns>The opposite.</returns>
     public static Condition operator !(Condition condition) => Of(new Not<Condition>(condition));
 
-    /// <summary>Puts a condition on the heap.</summary>
+    /// <summary>Wraps a condition in a <see cref="Condition"/> object, so it can be kept in a field, assembled at run time or combined with <c>&amp;</c>, <c>|</c> and <c>!</c>.</summary>
     /// <typeparam name="T">The type of the condition.</typeparam>
     /// <param name="condition">The struct condition.</param>
     /// <returns>The condition, in one object.</returns>

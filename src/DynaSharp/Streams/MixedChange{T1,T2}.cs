@@ -4,13 +4,13 @@ using DynaSharp.Mapping;
 namespace DynaSharp.Streams;
 
 /// <summary>
-/// One change of a typed reading of several entities: a <see cref="Change{T}"/> of one of the types, from <c>shop.ReadChangesAsync&lt;Customer, Order&gt;(streams, ...)</c>. Ask with
+/// One change of a typed read of several entities: a <see cref="Change{T}"/> of one of the types, from <c>shop.ReadChangesAsync&lt;Customer, Order&gt;(streams, ...)</c>. Ask with
 /// <c>change.Is(out Change&lt;Customer&gt;? customer)</c>, or handle every case with <c>Match</c>, which is what stays correct when a type is added.
 /// </summary>
 /// <remarks>
 /// It is to <see cref="Change{T}"/> what <see cref="Mixed{T1, T2}"/> of a mixed read is to an entity, with the same members. That one is a document, which a read fills and <see cref="Item.From{T}"/> writes;
 /// this one holds a change, which is neither. The default value holds nothing,
-/// and <c>Match</c> throws on it; a typed reading never gives one. A test builds one with the constructor of its type.
+/// and <c>Match</c> throws on it; a typed read never gives one. A test builds one with the constructor of its type.
 /// </remarks>
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
@@ -23,7 +23,7 @@ public readonly struct MixedChange<T1, T2> : IChangeTypes<MixedChange<T1, T2>>
     private readonly object? _change;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MixedChange{T1, T2}"/> struct that holds a change of the first type, as a typed reading gives it, so that a test of code that
+    /// Initializes a new instance of the <see cref="MixedChange{T1, T2}"/> struct that holds a change of the first type, as a typed read gives it, so that a test of code that
     /// handles the changes of a reading builds its input: <c>new MixedChange&lt;Customer, Order&gt;(new Change&lt;Customer&gt; { Kind = OperationType.Insert, After = customer, Record = new ChangeRecord() })</c>.
     /// </summary>
     /// <remarks>
@@ -38,7 +38,7 @@ public readonly struct MixedChange<T1, T2> : IChangeTypes<MixedChange<T1, T2>>
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MixedChange{T1, T2}"/> struct that holds a change of the second type, as a typed reading gives it, so that a test of code that
+    /// Initializes a new instance of the <see cref="MixedChange{T1, T2}"/> struct that holds a change of the second type, as a typed read gives it, so that a test of code that
     /// handles the changes of a reading builds its input: <c>new MixedChange&lt;Customer, Order&gt;(new Change&lt;Order&gt; { Kind = OperationType.Insert, After = order, Record = new ChangeRecord() })</c>.
     /// </summary>
     /// <remarks>
@@ -128,5 +128,5 @@ public readonly struct MixedChange<T1, T2> : IChangeTypes<MixedChange<T1, T2>>
     }
 
     private static InvalidOperationException Empty() =>
-        new("This MixedChange is a default value, which holds nothing. Changes of a typed reading always hold one of their types.");
+        new("This MixedChange is a default value, which holds nothing. Changes of a typed read always hold one of their types.");
 }

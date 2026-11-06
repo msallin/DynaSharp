@@ -55,7 +55,7 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     public ValueTaskAwaiter<SelectResult<TValue>> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests and debugging. It shows what goes out: the attribute, and the
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging. It shows what goes out: the attribute, and the
     /// discriminator if the entity has one. The text contains the key.
     /// </summary>
     /// <returns>The request body.</returns>

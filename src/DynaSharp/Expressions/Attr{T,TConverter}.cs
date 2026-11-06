@@ -7,7 +7,7 @@ namespace DynaSharp;
 /// <summary>
 /// An attribute with a .NET type and the converter that writes it. The source generator emits one per property (<c>Customer.Attrs.Email</c>),
 /// <see cref="Expr.Attr{T}(string)"/> makes one for a number, and any other can be created by hand. A value of the wrong type is a compile
-/// error. The converter is a type argument because writing a value is then a direct call, with no delegate and no box.
+/// error. The docs call such an attribute a handle: <c>Order.Attrs.Total</c> is the handle of the <c>Total</c> property.
 /// </summary>
 /// <remarks>The path has the syntax described on <see cref="Attr"/>.</remarks>
 /// <typeparam name="T">The .NET type.</typeparam>
@@ -80,10 +80,13 @@ public readonly struct Attr<T, TConverter>
     public AttributeExists NotExists() => new(Path, exists: false);
 
     /// <summary>
-    /// Checks that the attribute is missing or below a value, <c>(attribute_not_exists(a) OR a &lt; :v)</c>, which is <c>NotExists().Or(Lt(value))</c>. It is the guard of a write that must never move an
-    /// item back: <c>.If(Reading.Attrs.Seq.NotExistsOrLt(reading.Seq))</c> stores an event only when the item holds an older one, or none, so an event that arrives late or twice fails the condition.
-    /// An item that does not exist passes, and so does one without the attribute. The DynamoDB null value is an attribute that exists and compares with nothing, so an item that holds it fails.
+    /// Checks that the attribute is missing or below a value, <c>(attribute_not_exists(a) OR a &lt; :v)</c>: the guard of a write that must never move an item back.
     /// </summary>
+    /// <remarks>
+    /// It is <c>NotExists().Or(Lt(value))</c>. <c>.If(Order.Attrs.PlacedAt.NotExistsOrLt(order.PlacedAt))</c> stores an event only when the item holds an older one, or none, so an event that
+    /// arrives late or twice fails the condition. An item that does not exist passes, and so does one without the attribute. The DynamoDB null value is an attribute that exists and compares
+    /// with nothing, so an item that holds it fails.
+    /// </remarks>
     /// <param name="value">The value the stored one has to be below, such as the version or the time of the event that is written.</param>
     /// <returns>The condition.</returns>
     public Or<AttributeExists, Compare<T, TConverter>> NotExistsOrLt(T value) => new(NotExists(), Lt(value));

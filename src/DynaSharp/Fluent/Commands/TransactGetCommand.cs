@@ -137,7 +137,7 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
     public ValueTaskAwaiter<TransactGetResult> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests
     /// and debugging. The text contains the keys.
     /// </summary>
     /// <returns>The request body.</returns>

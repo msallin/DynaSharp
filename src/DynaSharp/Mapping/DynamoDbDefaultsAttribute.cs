@@ -30,14 +30,14 @@ public sealed class DynamoDbDefaultsAttribute : Attribute
     /// </para>
     /// <para>
     /// It does not touch a name that derives from no property: <c>pk</c>, <c>sk</c>, <c>&lt;index&gt;pk</c>, <c>&lt;index&gt;sk</c> and <c>_type</c> are frozen, whatever the naming. Two properties that end up with one name
-    /// are <c>DYNA004</c>, as they would be with one <see cref="DynamoDbAttributeAttribute"/>.
+    /// are <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA004</see>, as they would be with one <see cref="DynamoDbAttributeAttribute"/>.
     /// </para>
     /// </remarks>
     public AttributeNaming Naming { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether an entity without <see cref="DiscriminatorAttribute"/> behaves as if it had <c>[Discriminator(OptOut = true)]</c>, <see cref="DiscriminatorAttribute.OptOut"/>, for a service whose
-    /// tables other tools write, and <c>DYNA020</c> stays away. A <c>[Discriminator("X")]</c> on a type still wins.
+    /// tables other tools write, and <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA020</see> stays away. A <c>[Discriminator("X")]</c> on a type still wins.
     /// </summary>
     public bool DiscriminatorOptOut { get; set; }
 

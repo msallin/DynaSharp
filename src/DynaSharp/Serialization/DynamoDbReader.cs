@@ -124,8 +124,8 @@ public ref struct DynamoDbReader
 
     /// <summary>Gets the attribute name the reader is positioned on as UTF-8, to compare it with known names without creating a string.</summary>
     /// <returns>
-    /// The unescaped name. For a name without escape sequences, which is the normal case, this is a view of the input and allocates nothing; it is
-    /// valid until the reader moves on. A name with escapes (<c>A</c>) is unescaped into a new array.
+    /// The unescaped name. For a name without escape sequences, which is the normal case, this is a view of the input, valid until the
+    /// reader moves on. A name with escapes (<c>A</c>) is unescaped into a new array.
     /// </returns>
     /// <exception cref="InvalidOperationException">The reader is not positioned on an attribute name.</exception>
     public readonly ReadOnlySpan<byte> GetAttributeNameUtf8()
@@ -255,8 +255,8 @@ public ref struct DynamoDbReader
 
     /// <summary>Gets the string of a string value (<c>S</c>) or string set element as UTF-8, to parse or compare it without creating a string.</summary>
     /// <returns>
-    /// The unescaped text. For a string without escape sequences, which is the normal case, this is a view of the input and allocates nothing; it
-    /// is valid until the reader moves on. A string with escapes is unescaped into a new array.
+    /// The unescaped text. For a string without escape sequences, which is the normal case, this is a view of the input, valid until the
+    /// reader moves on. A string with escapes is unescaped into a new array.
     /// </returns>
     /// <exception cref="InvalidOperationException">The reader is not positioned on a JSON string.</exception>
     public readonly ReadOnlySpan<byte> GetStringUtf8()

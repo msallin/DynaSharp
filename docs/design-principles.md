@@ -10,3 +10,5 @@ What DynaSharp holds itself to, and what follows from it for code that uses it.
 - **Keys are data on disk.** Encodings are specified and tested against an independent oracle, because changing one is a migration.
 - **Retries are honest.** A retry can apply a write twice when a response is lost. The docs say where that matters, and `MaxAttempts(1)` is one call away.
 - **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses, behaviour against DynamoDB Local and Dynoxide.
+
+[How it is built](design.md) says what follows from these in the code: why a command is a `ref struct`, why a condition is a struct and a key holds values instead of text.

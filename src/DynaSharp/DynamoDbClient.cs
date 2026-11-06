@@ -10,7 +10,7 @@ using DynaSharp.Requests;
 namespace DynaSharp;
 
 /// <summary>
-/// The client for Amazon DynamoDB: it owns the resolved configuration, the credentials and the pooled HTTP connections that every
+/// The client for Amazon DynamoDB: it owns the resolved configuration, the credentials and the HTTP connections that every
 /// request of the library runs on. The way in is <see cref="Table(string, string, string?)"/> and <see cref="Table{T}(string)"/>.
 /// </summary>
 /// <remarks>
@@ -22,7 +22,7 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// Create one client per application (or per region and credentials) and keep it for the lifetime of the process: it holds
-/// the pooled HTTP connections. Instances are thread-safe, and every operation can run concurrently with others.
+/// the HTTP connections. Instances are thread-safe, and every operation can run concurrently with others.
 /// </para>
 /// <para>
 /// The client is configured through <see cref="DynamoDbClientOptions"/>. Whatever the options leave unset is read from the
@@ -93,17 +93,19 @@ public sealed class DynamoDbClient : IDisposable
     }
 
     /// <summary>
-    /// Gets the options as the client resolved them when it was created: what it really uses, so a region from the environment or a profile and an endpoint from <c>AWS_ENDPOINT_URL</c> are here and not null, and
-    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. The exceptions are the endpoints that belong to the service, see the remarks. Nothing is
-    /// read again, so the environment of today can say something else.
+    /// Gets the options as the client resolved them when it was created: the region, the endpoint and the credentials provider it really uses, also those that came from the environment.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A second client is <c>new DynamoDbClient(client.Options with { MaxAttempts = 1 })</c>. It shares the provider and with it the cached credentials, and a handler the first client was given. A handler the first
+    /// <b>Resolved once.</b> A region from the environment or a profile and an endpoint from <c>AWS_ENDPOINT_URL</c> are here and not <see langword="null"/>, and
+    /// <see cref="DynamoDbClientOptions.Credentials"/> is the provider in use, also the default chain that the client made itself. Nothing is read again, so the environment of today can say something else.
+    /// </para>
+    /// <para>
+    /// <b>A second client.</b> It is <c>new DynamoDbClient(client.Options with { MaxAttempts = 1 })</c>. It shares the provider and with it the cached credentials, and a handler the first client was given. A handler the first
     /// client made stays its own, so <see cref="DynamoDbClientOptions.HttpHandler"/> is <see langword="null"/> there and the second client makes one too, and each outlives the other.
     /// </para>
     /// <para>
-    /// <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or from <c>AWS_ENDPOINT_URL</c>, which a copy keeps. The public endpoint that the client derived from its region, and one
+    /// <b>The endpoint of the service stays out.</b> <see cref="DynamoDbClientOptions.ServiceUrl"/> holds an endpoint that came from the options or from <c>AWS_ENDPOINT_URL</c>, which a copy keeps. The public endpoint that the client derived from its region, and one
     /// from <c>AWS_ENDPOINT_URL_DYNAMODB</c> (or <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c> for a streams client), are in use and still stay <see langword="null"/> here, on purpose: they belong to the service and the region
     /// of this client, not to a copy. So <c>client.Options with { Region = other }</c> goes to the endpoint of the new region, and <c>new DynamoDbStreamsClient(client.Options)</c> gets its own endpoint, also when
     /// <c>AWS_ENDPOINT_URL_DYNAMODB</c> is set.
@@ -165,11 +167,15 @@ public sealed class DynamoDbClient : IDisposable
     public TransactGetCommand TransactGet() => new(Transaction.Start(_transactions));
 
     /// <summary>
-    /// Reads the definition and state of a table by its name (DynamoDB <c>DescribeTable</c>): status, key schema, indexes and approximate counts, which DynamoDB updates about every six hours. It is
-    /// <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> for the usual call, with no request to build and no <c>using DynaSharp.Requests;</c>, and it returns
-    /// what that returns. A <see cref="Table{T}"/> at hand has <see cref="Table{T}.DescribeAsync"/>.
+    /// Reads the definition and state of a table by its name (<c>DescribeTable</c>): status, key schema, indexes and approximate counts, which DynamoDB updates about every six hours.
     /// </summary>
-    /// <remarks>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</remarks>
+    /// <remarks>
+    /// <para>
+    /// It is <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> without a request to build and without <c>using DynaSharp.Requests;</c>, and it returns
+    /// what that returns. A <see cref="Table{T}"/> at hand has <see cref="Table{T}.DescribeAsync"/>.
+    /// </para>
+    /// <para>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</para>
+    /// </remarks>
     /// <param name="tableName">The table name, or its ARN.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The response. <see cref="DescribeTableResponse.Table"/> holds the description, and is <see langword="null"/> only if the response omits it.</returns>
@@ -241,19 +247,15 @@ public sealed class DynamoDbClient : IDisposable
         Core.SendRawAsync(operation, requestJson, cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer: 5 runs in all, with a wait between them, and the failure of the last run is rethrown. Nothing in the library does that by itself, and this is how a
-    /// caller asks for it, here or on a
-    /// <see cref="Table{T}"/>, which needs no client at hand for it. A run has lost
-    /// when it throws a <see cref="ConditionalCheckFailedException"/>, a <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> whose reasons include
-    /// <see cref="TransactionFailure.ConditionalCheckFailed"/> or <see cref="TransactionFailure.TransactionConflict"/>. That is <see cref="ConflictKind.Any"/>, and the overload that takes a <see cref="ConflictKind"/> runs again on one of them only,
-    /// for a run whose failed condition is its answer, and takes another number of runs, see <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/>.
+    /// Runs a read-modify-write and repeats it, up to 5 runs with a short wait between them, when it loses to another writer: a <see cref="ConditionalCheckFailedException"/>, a
+    /// <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> with one of those reasons. The failure of the last run is rethrown.
     /// </summary>
     /// <example>
     /// <code>
-    /// var saved = await client.RetryOnConflictAsync(async ct =>
+    /// var saved = await client.RetryOnConflictAsync(async token =>
     /// {
-    ///     var cart = await carts.Get(key).Consistent().ItemAsync(ct);
-    ///     return await carts.Update(key).Set(Cart.Attrs.Lines, Merge(cart)).IfVersion(cart!.Revision).SendAsync(ct);
+    ///     var cart = await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+    ///     return await carts.Update(Cart.Keys.Of("bob")).Set(Cart.Attrs.Lines, lines).IfVersion(cart!.Revision).SendAsync(token);
     /// }, ct);
     /// </code>
     /// </example>
@@ -262,6 +264,11 @@ public sealed class DynamoDbClient : IDisposable
     /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
     /// <returns>What the run that got through returned.</returns>
     /// <remarks>
+    /// <para>
+    /// <b>No command retries a conflict by itself.</b> This is the loop to ask for it, here or on a <see cref="Table{T}"/>, which needs no client at hand. The overload that takes a
+    /// <see cref="ConflictKind"/> repeats one kind of conflict only, for a run whose failed condition is its answer, and takes another number of runs:
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/>.
+    /// </para>
     /// <para>
     /// <b>Read inside the delegate.</b> Each run starts from nothing, so <paramref name="operation"/> reads, decides and writes. A write built from what was read before this call
     /// carries the same old version in every run, so every run fails the same way and the retry changes nothing. Make it a strongly consistent read, because another read can miss the
@@ -314,24 +321,24 @@ public sealed class DynamoDbClient : IDisposable
         ConflictRetry.StartAsync(Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, cancellationToken);
 
     /// <summary>
-    /// Runs a write up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
-    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> for what a run is and how to write one, which is this with the defaults:
-    /// <c>RetryOnConflictAsync(operation, ConflictKind.TransactionConflict, cancellationToken: ct)</c>, <c>RetryOnConflictAsync(operation, maxAttempts: 10, cancellationToken: ct)</c>.
+    /// Runs a write up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names:
+    /// <c>RetryOnConflictAsync(operation, ConflictKind.TransactionConflict, cancellationToken: ct)</c>. See
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> for what a run is and how to write one.
     /// </summary>
     /// <example>
-    /// A registration whose claims are a transaction: a taken value is the answer, and only a transaction in the way is asked again.
+    /// A registration whose claims are a transaction: a taken email is the answer, and only a transaction in the way is asked again.
     /// <code>
-    /// var outcome = await client.RetryOnConflictAsync(async ct =>
+    /// var registered = await client.RetryOnConflictAsync(async token =>
     /// {
     ///     TransactMarker taken = default;
     ///     try
     ///     {
-    ///         await client.TransactWrite().Unique(emails, claim, out taken).Put(users, user).IfNotExists().SendAsync(ct);
-    ///         return Registration.Done;
+    ///         await client.TransactWrite().Unique(emails, new EmailClaim(customer.Email, customer.Id), out taken).Put(customers, customer).IfNotExists().SendAsync(token);
+    ///         return true;
     ///     }
     ///     catch (TransactionCanceledException exception) when (exception.ReasonFor(taken) == TransactionFailure.ConditionalCheckFailed)
     ///     {
-    ///         return Registration.EmailTaken;
+    ///         return false;
     ///     }
     /// }, ConflictKind.TransactionConflict, cancellationToken: ct);
     /// </code>
@@ -356,7 +363,7 @@ public sealed class DynamoDbClient : IDisposable
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -391,7 +398,7 @@ public sealed class DynamoDbClient : IDisposable
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -403,11 +410,21 @@ public sealed class DynamoDbClient : IDisposable
         ConflictRetry.StartAsync(Core, operation, retryOn, maxAttempts, cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write, and runs it again when it loses to another writer, as <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> does, with the number of the run: 1 for the first, 2 for the second.
-    /// It is for a value read before the call, which the first run takes and every later run reads again, without a variable that the delegate clears:
-    /// <c>RetryOnConflictAsync(async (run, ct) =&gt; { var current = run == 1 ? scanner : await scanners.Get(key).Consistent().ItemAsync(ct); ... }, ct)</c>.
+    /// Runs a read-modify-write that gets the number of its run, 1 for the first, and repeats it when it loses to another writer, as
+    /// <see cref="RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> does.
     /// </summary>
-    /// <remarks>Only the first run may take what was read before: the run after a conflict has lost to a write that this value does not hold, and taking it again fails the same way, which is what <c>DYNA218</c> reports for a version from before the call.</remarks>
+    /// <example>
+    /// A value read before the call, which the first run takes and every later run reads again:
+    /// <code>
+    /// var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(ct);
+    /// await carts.RetryOnConflictAsync(async (run, token) =>
+    /// {
+    ///     var current = run == 1 ? cart : await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+    ///     await carts.Put(current! with { Lines = lines }).SendAsync(token);
+    /// }, ct);
+    /// </code>
+    /// </example>
+    /// <remarks>Only the first run may take what was read before: the run after a conflict has lost to a write that this value does not hold, and taking it again fails the same way, which is what <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA218</see> reports for a version from before the call.</remarks>
     /// <typeparam name="T">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
@@ -430,7 +447,7 @@ public sealed class DynamoDbClient : IDisposable
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
@@ -462,7 +479,7 @@ public sealed class DynamoDbClient : IDisposable
     /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
     /// </param>
     /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once. Name it, <c>cancellationToken: ct</c>, after <paramref name="retryOn"/> alone.</param>
+    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>

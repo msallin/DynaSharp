@@ -3,8 +3,10 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// The table or index is being created, updated or deleted, or already exists.
+/// The table or index is being created, updated or deleted, or already exists. Not retried: wait for the table with <see cref="Table{T}.WaitUntilActiveAsync(CancellationToken)"/>,
+/// or let <see cref="CreateTableCommand.IfNotExists"/> take an existing table as success.
 /// </summary>
+/// <remarks><see cref="DynamoDbException.IsTransient"/> is <see langword="false"/>, although the state passes: a change of a table takes minutes, and polling is the way to wait for it.</remarks>
 public sealed class ResourceInUseException : DynamoDbException
 {
     /// <summary>

@@ -10,7 +10,7 @@ namespace DynaSharp.Mapping;
 /// constructor parameter becomes an attribute of the map, and null values are left out of it. A get-only computed property is not stored, and
 /// its getter computes it again after a read; <see cref="DynamoDbAttributeAttribute"/> on it stores it, written and never read.
 /// </para>
-/// <para>A type is either an entity or a document, never both. An entity can be nested in another entity without this attribute, which <c>DYNA031</c> reports as a warning.</para>
+/// <para>A type is either an entity or a document, never both. An entity can be nested in another entity without this attribute, which <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA031</see> reports as a warning.</para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
 public sealed class DynamoDbDocumentAttribute : Attribute

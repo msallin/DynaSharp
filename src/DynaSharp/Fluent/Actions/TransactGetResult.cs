@@ -6,13 +6,12 @@ using DynaSharp.Serialization;
 namespace DynaSharp;
 
 /// <summary>
-/// What a <see cref="TransactGetCommand"/> returns: one snapshot of all its items. Nothing is parsed until <see cref="Read"/> asks for an item, so an item
-/// that is not needed costs nothing and a type that does not fit fails only where it is read.
+/// What a <see cref="TransactGetCommand"/> returns: one snapshot of all its items, each read on demand with <see cref="Read"/>.
 /// </summary>
 /// <remarks>
-/// The result owns a copy of the response in an ordinary array, which the garbage collector looks after. Nothing in it refers to a pooled buffer, so it
-/// stays valid for as long as it is held, also after the client is disposed, and it can be read from several threads and more than once. Each read
-/// makes a new item. Holding the result holds the whole response, up to 4 MB, so keep the items, not the result, if they live long.
+/// An item is parsed when <see cref="Read"/> asks for it, so a type that does not fit fails only where it is read. The result stays valid for as long as it is held, also
+/// after the client is disposed, and it can be read from several threads and more than once; each read makes a new item. Holding the result holds the whole
+/// response, up to 4 MB, so keep the items, not the result, if they live long.
 /// </remarks>
 public sealed class TransactGetResult
 {

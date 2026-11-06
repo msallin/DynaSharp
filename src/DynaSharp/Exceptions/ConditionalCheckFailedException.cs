@@ -76,7 +76,7 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// <c>Customer.Keys.Pk.Parse(exception.Key!.GetString("pk")!)</c>. A plain key is its input.
     /// </para>
     /// <para>
-    /// It is filled on the failure path only, from the start of the body that was sent up to the key, so a write that gets through pays nothing. After the last run of
+    /// It is taken from the request only when the condition fails. After the last run of
     /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> it is the key of that run.
     /// </para>
     /// </remarks>

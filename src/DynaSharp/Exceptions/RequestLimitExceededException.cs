@@ -3,8 +3,9 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// The account-level throughput quota is exceeded. Retried automatically before it surfaces.
+/// The account-level throughput quota is exceeded. The client has retried it with backoff, so this reaches the caller when the account stayed over its quota.
 /// </summary>
+/// <remarks><see cref="DynamoDbException.IsTransient"/> is <see langword="true"/>: wait and try again, or raise the quota in the service quotas of the account.</remarks>
 public sealed class RequestLimitExceededException : DynamoDbException
 {
     /// <summary>

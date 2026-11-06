@@ -81,8 +81,7 @@ public interface IDynamoDbConverter<T>
     /// <c>SetIfNotNull</c> adds nothing and <c>SetIfNotExists</c> rejects the value with an <see cref="ArgumentException"/>. A raw path writes what it is given. A nullable property asks with a value that is not null.
     /// </para>
     /// <para>
-    /// The default answers <see langword="false"/>. The source generator emits the call only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, so every other property pays nothing, and a
-    /// handle compiles the question away. It is the property that a converter answers for: a property that feeds a key is always written, because a key cannot do without it, and an element of a list or a map is
+    /// The default answers <see langword="false"/>. The source generator emits the call only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly. It is the property that a converter answers for: a property that feeds a key is always written, because a key cannot do without it, and an element of a list or a map is
     /// always written, because a list has positions.
     /// </para>
     /// <para>
@@ -158,17 +157,17 @@ public interface IDynamoDbConverter<T>
     /// <para>
     /// The answer <see langword="true"/> means as if the attribute were not in the item, whatever the property is: it keeps its initial value, and a nullable one does too, so an initializer on a <c>Payload?</c> stays and only one without gives null.
     /// A <c>required</c> one throws <see cref="DynamoDbMappingException"/>, and an input of a key that holds it is restored from that key. <c>Select</c> gives what <see cref="TryReadMissing"/> gives, which is null for a nullable handle, also where a read of the entity keeps
-    /// an initializer, and otherwise a throw that <c>DYNA209</c> reports. <c>Return</c> throws, as it does for a missing attribute. A value that is <c>{"NULL":true}</c> is passed here as <see cref="AttributeType.Null"/>, except on a nullable property, which reads it as null without asking.
+    /// an initializer, and otherwise a throw that <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA209</see> reports. <c>Return</c> throws, as it does for a missing attribute. A value that is <c>{"NULL":true}</c> is passed here as <see cref="AttributeType.Null"/>, except on a nullable property, which reads it as null without asking.
     /// </para>
     /// <para>
     /// The default answers <see langword="false"/>. The source generator emits the question only for a <c>[DynamoDbConverter]</c> or a <c>[DynamoDbDefaultConverter]</c> that implements this, implicitly or explicitly, and for the converter it writes for an enum with
-    /// <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c>, so every other property pays nothing, and a handle compiles the question away. It is the property that a converter answers for: an element of a list, a map or a set is not asked, because a list has positions, and neither is a plain key, because a read that took it for missing would give an entity with another
+    /// <c>[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]</c>. It is the property that a converter answers for: an element of a list, a map or a set is not asked, because a list has positions, and neither is a plain key, because a read that took it for missing would give an entity with another
     /// key. <c>Keys.X.Parse</c> and <see cref="Item"/> do not ask either.
     /// </para>
     /// <para>
     /// The reader stands on the value, as it does for <see cref="Read"/>, and this cannot move it, so <see cref="Read"/> finds the value where it was, and skipping a value that counts as missing is not the converter's job. On an <see langword="in"/> reader the getters work
     /// as they always do, a call that moves a reader compiles and moves a copy that the compiler makes for that one call, and passing it on as <see langword="ref"/> does not compile. So to look inside a list or a map, copy the reader once and walk the copy,
-    /// because a loop over the parameter itself starts over with every call and never ends. A copy is less than 200 bytes on the stack and allocates nothing:
+    /// because a loop over the parameter itself starts over with every call and never ends. A copy is small and cheap:
     /// </para>
     /// <code>
     /// public static bool CountsAsMissing(in DynamoDbReader reader, AttributeType type)

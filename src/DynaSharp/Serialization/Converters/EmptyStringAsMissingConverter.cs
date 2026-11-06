@@ -15,12 +15,11 @@ namespace DynaSharp.Serialization;
 /// empty string with <typeparamref name="TConverter"/>, which may throw. A write never stores <c>""</c> for a value unless <typeparamref name="TConverter"/> does.
 /// </para>
 /// <para>
-/// It passes <see cref="IDynamoDbConverter{T}.IsOmitted"/> on, and not <see cref="IDynamoDbConverter{T}.TryReadMissing"/>: an answer there would tell <c>DYNA209</c> that a
+/// It passes <see cref="IDynamoDbConverter{T}.IsOmitted"/> on, and not <see cref="IDynamoDbConverter{T}.TryReadMissing"/>: an answer there would tell <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA209</see> that a
 /// <c>Select</c> of the property cannot throw, and for a value that is not nullable it throws on an empty string. A nullable property gets null from its wrapper of null, as without this.
 /// </para>
 /// <para>
-/// It costs a property one look at the length of the text before the read, which allocates nothing. Naming a generic converter in an attribute is no <c>CA1000</c>, which is about
-/// declaring one.
+/// Naming a generic converter in an attribute is no <c>CA1000</c>, which is about declaring one.
 /// </para>
 /// </remarks>
 public readonly struct EmptyStringAsMissingConverter<T, TConverter> : IDynamoDbConverter<T>

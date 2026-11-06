@@ -10,7 +10,7 @@ namespace DynaSharp;
 /// handle every case with <see cref="Match{TResult}"/>, which is what stays correct when a type is added.
 /// </summary>
 /// <remarks>
-/// It has a field per type, so an entity that is a struct is not boxed. The default value holds nothing, and <see cref="Match{TResult}"/> throws on it; a mixed read
+/// The default value holds nothing, and <see cref="Match{TResult}"/> throws on it; a mixed read
 /// never gives one. As a document it writes the attributes of the item it holds, so <see cref="Item.From{T}"/> works on it.
 /// </remarks>
 /// <typeparam name="T1">The first type.</typeparam>

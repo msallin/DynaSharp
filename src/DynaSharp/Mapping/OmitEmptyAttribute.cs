@@ -13,7 +13,7 @@ namespace DynaSharp.Mapping;
 /// <para>
 /// Reads do not change. A stored <c>""</c>, written by other code, reads as <c>""</c>, and a missing attribute reads as it always does: a nullable property as <see langword="null"/>, a set as empty, and anything else
 /// keeps its initial value. So an empty value comes back as what the property starts as, which is <see langword="null"/> for a <c>string?</c> and a filled list for a property that starts with one. <c>Select</c> of a
-/// property that is not nullable throws for a missing attribute, which <c>DYNA209</c> points out, unless it is a set.
+/// property that is not nullable throws for a missing attribute, which <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA209</see> points out, unless it is a set.
 /// </para>
 /// <para>
 /// That goes for lists, sets, dictionaries and arrays too, so an empty list does not read back as empty: it reads as <see langword="null"/> or as the initial value. Null and <c>[]</c> can mean different things, such as
@@ -25,10 +25,9 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// A key must not be empty, and a read that cannot do without a value could never read an empty one back, which is a <c>required</c> property that is neither nullable nor a set, and a constructor parameter of the same
-/// kind without a default. On a type and through <see cref="DynamoDbDefaultsAttribute.OmitEmpty"/> such a property stays written, and on a property, as on anything that is no string or collection, this is the error
-/// <c>DYNA030</c>. It is not inherited: a derived type says so again, and a nested type has its own, whether a property that holds it says anything or not.
+/// kind without a default. On a type and through <see cref="DynamoDbDefaultsAttribute.OmitEmpty"/> such a property stays written, and on a property, as on anything that is not a string or a collection, this is the error
+/// <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA030</see>. It is not inherited: a derived type says so again, and a nested type has its own, whether a property that holds it says anything or not.
 /// </para>
-/// <para>A type without this attribute pays nothing for it. On a type with it, the write of an item tests a length or a count, and a handle costs no allocation.</para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
 public sealed class OmitEmptyAttribute : Attribute

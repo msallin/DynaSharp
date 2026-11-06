@@ -61,7 +61,7 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     public ValueTaskAwaiter<TValue> GetAwaiter() => SendAsync().GetAwaiter();
 
     /// <summary>
-    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is
+    /// Renders the body this command would send, as DynamoDB JSON, without sending it. It ends the command, and is
     /// meant for tests and debugging. The text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>

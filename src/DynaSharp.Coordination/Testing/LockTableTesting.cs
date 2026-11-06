@@ -2,13 +2,18 @@ namespace DynaSharp.Coordination.Testing;
 
 /// <summary>
 /// What other processes do to a lock, for tests: hold it, release it, delete its item; and what a test looks at: the state of a lock, and a contender that
-/// was turned away. They read and write the item of the lock through the table of the <see cref="LockTable"/>, as those processes would, so a test sets up
-/// and checks a situation without knowing the format of the item. They work on any table, a <c>FakeDynamoDb</c> or an emulator, and are not meant for a
-/// table in production: they write without a condition.
+/// was turned away.
 /// </summary>
 /// <remarks>
-/// A contender takes a lock over only after it has seen the same holder for a whole lease on its own clock, so a test that wants a takeover holds the lock
+/// <para>
+/// <b>Through the table.</b> They read and write the item of the lock through the table of the <see cref="LockTable"/>, as those processes would, so a test sets up and checks a
+/// situation without knowing the format of the item. They work on any table, a <c>FakeDynamoDb</c> or an emulator, and are not meant for a table in production: they write without a
+/// condition.
+/// </para>
+/// <para>
+/// <b>A takeover in a test.</b> A contender takes a lock over only after it has seen the same holder for a whole lease on its own clock, so a test that wants a takeover holds the lock
 /// with <see cref="SimulateHolderAsync"/>, lets the <see cref="LockTable"/> see it, and then moves the fake clock of the client by the lease.
+/// </para>
 /// </remarks>
 public static class LockTableTesting
 {

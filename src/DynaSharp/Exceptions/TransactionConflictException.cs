@@ -3,8 +3,8 @@ using System.Net;
 namespace DynaSharp;
 
 /// <summary>
-/// A request was rejected because an ongoing transaction includes the item it addresses. Not retried by the client; repeating the
-/// request after the transaction is done succeeds.
+/// A request was rejected because an ongoing transaction includes the item it addresses. Not retried by the client: repeat the request after a short wait, which
+/// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> does.
 /// </summary>
 /// <remarks>
 /// This is the error of single-item operations and reads. A transaction that conflicts with another one is cancelled with a

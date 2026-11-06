@@ -11,26 +11,23 @@ public sealed class LockTableOptions
     public const int MaxHolderLabelLength = 256;
 
     /// <summary>
-    /// Gets a label of this process, such as the name of its pod or host, which every lease of the <see cref="LockTable"/> writes into the item of its lock
-    /// as the attribute <c>holder</c>, and which the logs of the takeover and of the terms of a leader name. It is there for operators who look at a lock
-    /// item and ask who holds it. A release removes it, and an acquire without a label removes the label of the holder before. <see langword="null"/>, the
-    /// default, writes none.
+    /// Gets a label of this process, such as the name of its pod or host, which every lease writes into the item of its lock as the attribute <c>holder</c>, for operators who ask who
+    /// holds it. <see langword="null"/>, the default, writes none.
     /// </summary>
     /// <remarks>
-    /// The label is shown to operators, in the table and in the logs, but never in a metric or on a span. So it must not carry data: no user id, no secret,
+    /// The logs of the takeover and of the terms of a leader name it too. A release removes it, and an acquire without a label removes the label of the holder before. The label is shown to operators, in the table and in the logs, but never in a metric or on a span. So it must not carry data: no user id, no secret,
     /// nothing that is not a name of the process. From 1 to <see cref="MaxHolderLabelLength"/> characters.
     /// </remarks>
     public string? HolderLabel { get; init; }
 
     /// <summary>
-    /// Gets the name of the time to live attribute of the table, or <see langword="null"/>, the default, for lock items that live forever. With a name,
-    /// every write of a lock (acquire, renewal, release) sets that attribute to the wall clock of the process plus <see cref="TimeToLiveRetention"/>, in
-    /// seconds since the epoch, so DynamoDB deletes the item of a lock that nobody has acquired, renewed or released for that long. This is for a table with
-    /// a lock per entity, thousands of items that would otherwise stay forever.
+    /// Gets the name of the time to live attribute of the table, so that DynamoDB deletes the item of a lock that nobody has used for <see cref="TimeToLiveRetention"/>.
+    /// <see langword="null"/>, the default, lets lock items live forever.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Time to live must be turned on for the table, on this attribute; this option only writes it. A lock whose item was deleted starts its fencing token
+    /// <b>What is written.</b> Every write of a lock (acquire, renewal, release) sets that attribute to the wall clock of the process plus <see cref="TimeToLiveRetention"/>, in seconds since
+    /// the epoch. This is for a table with a lock per entity, thousands of items that would otherwise stay forever. Time to live must be turned on for the table, on this attribute; this option only writes it. A lock whose item was deleted starts its fencing token
     /// at 1 again, so a system that keeps the highest token it has seen refuses its holders until the count passes what it saw: fencing across that gap is
     /// not guaranteed. Keep locks whose tokens a system outside DynamoDB checks without it.
     /// </para>

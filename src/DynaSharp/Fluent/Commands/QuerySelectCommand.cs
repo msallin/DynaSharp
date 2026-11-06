@@ -7,7 +7,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Query</c> of one attribute, as <see cref="QueryCommand{T}.Select{TValue, TConverter}(Attr{TValue, TConverter})"/> leaves it. Nothing can be added any more, which the type enforces, so <c>Filter</c>,
-/// <c>Limit</c>, <c>Descending</c> and the other clauses come before <c>Select</c>: what is left are the terminals, which read as those of <see cref="QueryCommand{T}"/> do.
+/// <c>Limit</c>, <c>Descending</c> and the other clauses come before <c>Select</c>: what is left is to send it, with the same methods as <see cref="QueryCommand{T}"/>.
 /// </summary>
 /// <remarks>
 /// An attribute that an item does not have follows the type of the handle: null for a nullable one, an empty set for a set, and otherwise a <see cref="DynamoDbMappingException"/>, which holds no key, because
@@ -91,7 +91,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     public ValueTask<Page<TValue>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
 
     /// <summary>
-    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests and debugging. It shows what goes out, and the text contains the key and the values.
+    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging. It shows what goes out, and the text contains the key and the values.
     /// </summary>
     /// <returns>The request body.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>

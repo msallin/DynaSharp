@@ -12,10 +12,15 @@ namespace DynaSharp;
 /// A <c>Scan</c> under construction: every item of a table or index, in no useful order, at the cost of reading them all. Chain the options and end with
 /// <see cref="ItemsAsync"/>, <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var holders = customers.Scan().Filter(Customer.Attrs.Email.Eq("alice@example.com")).ItemsAsync(ct);
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// A scan is what a query is without its key condition, and <see cref="QueryCommand{T}"/> says how pages and discriminators work. It charges capacity for the
-/// whole table whatever the filter leaves, so a scan on a hot path usually wants to be a query of an index.
+/// whole table whatever the filter leaves, so a scan that runs often is better as a query of an index.
 /// </para>
 /// <para>
 /// To go faster, <see cref="Parallel"/> reads several segments at once and merges them. <see cref="Segment"/> reads one segment, for workers that each own one.
@@ -52,8 +57,8 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     public static implicit operator CommandHandle(ScanCommand<T> command) => command.Handle;
 
     /// <summary>
-    /// Adds a filter in the grammar of DynamoDB, for what struct conditions do not cover. An attribute in a hole stands for its name and anything else is a
-    /// value. DynamoDB applies it after reading, so capacity is charged for every item scanned, not for those returned, and a page can come back empty. A
+    /// Adds a filter in the grammar of DynamoDB, for what the conditions of handles do not cover: <c>.Filter($"size({Attr("tags")}) &lt; {10}")</c>. An interpolated <see cref="Attr"/>
+    /// stands for an attribute name and any other interpolated value for a value. DynamoDB applies it after reading, so capacity is charged for every item scanned, not for those returned, and a page can come back empty. A
     /// second filter means both must hold.
     /// </summary>
     /// <param name="condition">The condition.</param>
@@ -101,22 +106,17 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     }
 
     /// <summary>
-    /// Reads one attribute instead of the entity, for what a service wants from an item more often than the item: <c>await foreach (var total in orders.Scan().Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It projects the attribute and nothing else: the filter on the discriminator keeps items of other types away, so it saves bandwidth, not capacity: DynamoDB
-    /// charges for whole items. The result is the value and no entity, so a <c>required</c> member cannot be in the way, which is what this has over <c>Project</c>.
+    /// Reads one attribute of each item instead of the whole entity: <c>await foreach (var total in orders.Scan().Select(Order.Attrs.Total).ValuesAsync(ct))</c>. It saves bandwidth, not capacity: DynamoDB charges for whole items.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The chain ends here but for its terminal, as with <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Consistent"/>, <see cref="Segment"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// <b>Over <c>Project</c>.</b> The result is the value and no entity, so a <c>required</c> member cannot be in the way. The attribute is projected and nothing else: the filter on the discriminator keeps
+    /// items of other types away.
     /// </para>
     /// <para>
-    /// A missing attribute follows the type of the handle: null for one of a nullable property, an empty set for a set, because DynamoDB has none, and otherwise a <see cref="DynamoDbMappingException"/>. Never a default, and that is where this differs from a read of the entity,
-    /// which leaves a property that is not <c>required</c> at its initial value: an <c>int</c> without its attribute is 0 there and throws here, and so does a <c>[Version]</c> on an item without one, which an <c>Update</c> with <c>IgnoreVersion()</c> creates, with a message that points at <c>VersionMissing.Allow</c>.
-    /// In a nested path the last handle decides, so <c>ShipTo.At(Address.Attrs.City)</c> throws for an item without <c>ShipTo</c> when <c>City</c> cannot be null, which reading <c>ShipTo</c> itself would not.
+    /// <b>Last clause.</b> After <c>Select</c> only the send is left, as after <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Consistent"/>, <see cref="Segment"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
     /// </para>
-    /// <para>
-    /// A <c>[KeyOnly]</c> property has no attribute and no handle. A stored property that a key of the table holds has both, and an item that an update created has only the key: a read of the entity restores
-    /// the property from it, and this throws, which <c>DYNA209</c> reports.
-    /// </para>
+    /// <inheritdoc cref="GetCommand{T}.Select{TValue, TConverter}(Attr{TValue, TConverter})" path="/remarks/para[position()>1]"/>
     /// </remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter of the attribute.</typeparam>
@@ -317,7 +317,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
         PagedRead<ScanPageOperation<T>, T>.CountAsync(Enter(), cancellationToken);
 
     /// <summary>
-    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, allocates one string, and is meant for tests and debugging.
+    /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging.
     /// The text contains the values.
     /// </summary>
     /// <returns>The request body.</returns>

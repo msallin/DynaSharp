@@ -7,7 +7,6 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="TConverter">The converter of the values.</typeparam>
 /// <remarks>
 /// See <see cref="DictionaryConverter{T, TConverter}"/> for the rules of maps. A dictionary that is read is a <see cref="Dictionary{TKey, TValue}"/>.
-/// Writing a <see cref="Dictionary{TKey, TValue}"/> enumerates it directly; any other dictionary goes through the interface's enumerator, which is boxed.
 /// Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package.
 /// </remarks>
 public readonly struct ReadOnlyDictionaryConverter<T, TConverter> : IDynamoDbConverter<IReadOnlyDictionary<string, T>>

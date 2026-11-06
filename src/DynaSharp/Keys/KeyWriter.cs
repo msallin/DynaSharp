@@ -13,9 +13,8 @@ namespace DynaSharp.Keys;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Create it over a stack buffer and pass it by <see langword="ref"/>; the buffer grows into a pooled array when a value does not
-/// fit, and <see cref="Dispose"/> returns that array. Nothing is allocated while the key fits the buffer. Always dispose it
-/// (<c>try</c>/<c>finally</c>) and never copy it: a copy would return the same array twice.
+/// Create it over a stack buffer and pass it by <see langword="ref"/>; it grows when a value does not fit, and <see cref="Dispose"/> releases what it took.
+/// Always dispose it (<c>try</c>/<c>finally</c>) and never copy it: a copy would release the same memory twice.
 /// </para>
 /// <para>
 /// Every <c>placeholder</c> argument is the name of the template placeholder being written. It is only used for the
@@ -352,7 +351,7 @@ public ref struct KeyWriter
     /// <returns>The key.</returns>
     public override readonly string ToString() => Encoding.UTF8.GetString(WrittenSpan);
 
-    /// <summary>Returns the pooled array, if one was rented, and empties the writer. Safe to call twice; the writer must not be used afterwards.</summary>
+    /// <summary>Releases what the writer holds and empties it. Safe to call twice; the writer must not be used afterwards.</summary>
     public void Dispose()
     {
         if (_rented is not null)

@@ -7,15 +7,14 @@ using DynaSharp.Serialization;
 namespace DynaSharp.Expressions;
 
 /// <summary>
-/// Compiles <c>$"{Attr("status")} = {"open"} AND size({Attr("tags")}) &lt; {10}"</c> without a string: the literal parts are expression text as the
-/// DynamoDB documentation writes it, an attribute in a hole becomes a <c>#n</c> placeholder and anything else a <c>:v</c> placeholder.
-/// Every value is written as soon as the compiler reaches its hole, so there is no boxing, no format and no allocation.
+/// Turns an interpolated string such as <c>$"{Attr("status")} = {"open"} AND size({Attr("tags")}) &lt; {10}"</c> into a DynamoDB expression: the literal parts are expression text as the
+/// DynamoDB documentation writes it, an <see cref="Attr"/> in a hole (an interpolated value) becomes a <c>#n</c> name placeholder and any other interpolated value a <c>:v</c> value placeholder.
 /// </summary>
 /// <remarks>
 /// A plain string in a hole is a value, so a forgotten <c>Attr(...)</c> around a name, as in <c>$"{"status"} = {"open"}"</c>, renders
 /// <c>:v0 = :v1</c>. DynamoDB accepts that as a comparison of two values, so an expression that names no attribute throws an
 /// <see cref="ArgumentException"/> here instead. A forgotten <c>Attr(...)</c> on one side of an expression that names another attribute stays
-/// undetected at run time; the analyzer reports the constant case as <c>DYNA210</c>.
+/// undetected at run time; the analyzer reports the constant case as <see href="https://msallin.github.io/DynaSharp/diagnostics.html#expressions">DYNA210</see>.
 /// </remarks>
 [InterpolatedStringHandler]
 [EditorBrowsable(EditorBrowsableState.Never)]
@@ -64,7 +63,7 @@ public readonly ref struct ExpressionHandler
     public void AppendFormatted<T, TConverter>(Arg<T, TConverter> value)
         where TConverter : IDynamoDbConverter<T> => _writer.AppendValue<T, TConverter>(_text, value.Value);
 
-    /// <summary>Appends a value as a placeholder; strings and booleans convert at no cost. The compiler calls this.</summary>
+    /// <summary>Appends a value as a placeholder. The compiler calls this.</summary>
     /// <param name="value">The value.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public void AppendFormatted(AttributeValue value) => _writer.AppendValue<AttributeValue, AttributeValueConverter>(_text, value);

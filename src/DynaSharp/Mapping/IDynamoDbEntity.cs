@@ -23,7 +23,7 @@ public interface IDynamoDbEntity<TSelf> : IDynamoDbDocument<TSelf>
     public static abstract void WriteKey(DynamoDbWriter writer, TSelf entity);
 
     /// <summary>
-    /// Gets the version the entity holds, for a delete that takes it from the entity. A static member keeps it free of a box, also for an entity that is a struct. The generator implements this for a
+    /// Gets the version the entity holds, for a delete that takes it from the entity. The generator implements this for a
     /// type with a <see cref="VersionAttribute"/>; a type written by hand that names a version attribute in its <see cref="DynamoDbEntityInfo"/> implements it too.
     /// </summary>
     /// <param name="entity">The entity.</param>

@@ -126,9 +126,12 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
 
     /// <summary>
     /// Asks for a strongly consistent read of each partition, which sees every write that succeeded before that read started and costs twice the capacity. Partitions are still read
-    /// at different times. A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with
-    /// another partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
+    /// at different times.
     /// </summary>
+    /// <remarks>
+    /// A global secondary index is always eventually consistent, so this throws on one that is known to be global, which is an index opened through its entity or one with
+    /// another partition key than the table, and DynamoDB answers with a <see cref="ValidationException"/> for any other.
+    /// </remarks>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="InvalidOperationException">The index is known to be global.</exception>
     public FanOutQueryCommand<T> Consistent()
@@ -157,7 +160,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <summary>
     /// Asks for the consumed capacity of each call, for the span of that call and the capacity metric. <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/> also adds up its calls in
     /// <see cref="Page{T}.ConsumedCapacity"/>: units add, details add by the name of the index, and a number that a response leaves out counts as zero. That includes pages whose
-    /// items did not make it into the result, so it is what the page cost, and a read again on the next page is charged again. The other terminals have no result to put it on.
+    /// items did not make it into the result, so it is what the page cost, and a read again on the next page is charged again. The other ways of sending it have no result to put it on.
     /// </summary>
     /// <param name="detail">How much detail to return.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -276,8 +279,8 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     public ValueTask<int> CountAsync(CancellationToken cancellationToken = default) => FanOutRead<T>.CountAsync(Enter(), _plan!, cancellationToken);
 
     /// <summary>
-    /// Renders the body of the first page of the first partition, as DynamoDB JSON, without sending it; the other partitions differ only in <c>:pk</c>. It ends the command, allocates
-    /// one string, and is meant for tests and debugging. The text contains the key and the values. With no partitions, <c>:pk</c> has no value.
+    /// Renders the body of the first page of the first partition, as DynamoDB JSON, without sending it; the other partitions differ only in <c>:pk</c>. It ends the command and is
+    /// meant for tests and debugging. The text contains the key and the values. With no partitions, <c>:pk</c> has no value.
     /// </summary>
     /// <returns>The request body.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>

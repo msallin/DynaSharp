@@ -7,15 +7,34 @@ using static DynaSharp.Expr;
 namespace DynaSharp.Coordination;
 
 /// <summary>
-/// Named locks in a DynamoDB table, each held through a <see cref="Lease"/> with a fencing token. The semantics are those of the DynamoDB Lock Client:
-/// a lease has a relative duration and a record version number, its holder renews it, and a contender takes it over only after it has seen the same
-/// record version for a whole lease on its own monotonic clock. No two clocks are ever compared, so the clocks of the machines may be set apart by any
-/// offset; what it assumes is that they run at about the same rate. A host that is suspended, or a virtual machine that freezes, can still hold a lease
-/// that has ended without knowing it, which is what <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> and <see cref="Lease.FencingToken"/> are for.
+/// Named locks in a DynamoDB table, each held through a <see cref="Lease"/> with a fencing token: <see cref="AcquireAsync"/> and <see cref="TryAcquireAsync"/> take one,
+/// <see cref="RunAsLeaderAsync"/> elects a leader.
 /// </summary>
+/// <example>
+/// <code>
+/// var locks = new LockTable(client.Table("Shop", "pk", "sk"));
+///
+/// var lease = await locks.TryAcquireAsync("cache-refresh", TimeSpan.FromSeconds(30), ct);
+/// if (lease is null)
+/// {
+///     return; // Another process holds it; this one tries again on its next round.
+/// }
+///
+/// await using (lease)
+/// {
+///     await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);
+/// }
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
-/// A lock is one item in the table the caller passes, so it fits a single-table design. Its partition key is <c>LOCK#</c> and the name of the lock,
+/// <b>Semantics.</b> They are those of the DynamoDB Lock Client: a lease has a relative duration and a record version number, its holder renews it, and a contender takes it over only
+/// after it has seen the same record version for a whole lease on its own monotonic clock. No two clocks are ever compared, so the clocks of the machines may be set apart by any
+/// offset; what it assumes is that they run at about the same rate. A host that is suspended, or a virtual machine that freezes, can still hold a lease that has ended without
+/// knowing it, which is what <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> and <see cref="Lease.FencingToken"/> are for.
+/// </para>
+/// <para>
+/// <b>The item.</b> A lock is one item in the table the caller passes, so it fits a single-table design. Its partition key is <c>LOCK#</c> and the name of the lock,
 /// its sort key, if the table has one, is <c>LOCK</c>, and both key attributes must be strings. Its attributes are <c>_type</c> (<c>LOCK</c>),
 /// <c>owner</c>, <c>rvn</c>, <c>fence</c> and <c>leaseMs</c>, with <c>holder</c> and a time to live attribute if the <see cref="LockTableOptions"/> ask for
 /// them; the names are fixed. An item at that key with an <c>owner</c> whose attributes are not those,
@@ -24,12 +43,12 @@ namespace DynaSharp.Coordination;
 /// <see cref="LockTableOptions.TimeToLiveAttribute"/> the item has no time to live, and deleting it starts the token at 1 again, which a system that checks the token refuses.
 /// </para>
 /// <para>
-/// It uses the <see cref="DynamoDbClientOptions.TimeProvider"/> of the client of the table for every wait and for the monotonic clock, and its
+/// <b>Clock, logs and retries.</b> It uses the <see cref="DynamoDbClientOptions.TimeProvider"/> of the client of the table for every wait and for the monotonic clock, and its
 /// <see cref="DynamoDbClientOptions.LoggerFactory"/> for the log category <c>DynaSharp.Coordination.LockTable</c>. The requests go through the client
 /// with its retries. It is thread-safe; hold one per table, because it remembers which holders it has seen, which a takeover depends on.
 /// </para>
 /// <para>
-/// The lock table must have a single region that writes. A global table that takes writes in more than one region can grant a lock twice, with the same
+/// <b>One region.</b> The lock table must have a single region that writes. A global table that takes writes in more than one region can grant a lock twice, with the same
 /// fencing token, because each region applies its conditional write before the other one's arrives.
 /// </para>
 /// </remarks>
@@ -94,22 +113,22 @@ public sealed class LockTable
     }
 
     /// <summary>
-    /// Tries to acquire a lock once, without waiting. It succeeds if the lock is free, released, or held by a lease that this <see cref="LockTable"/>
-    /// has seen unchanged for that lease's whole duration, which means its holder stopped renewing it; then it takes the lock over.
+    /// Tries to acquire a lock once, without waiting: <see langword="null"/> if another holder has it. It takes over a lock whose holder stopped renewing it, which this
+    /// <see cref="LockTable"/> knows only after watching it for a whole lease.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A call that finds the lock held remembers the record version of the holder and the time on the monotonic clock, so a later call of the same
+    /// <b>Takeover.</b> It succeeds if the lock is free, released, or held by a lease that this <see cref="LockTable"/> has seen unchanged for that lease's whole duration. A call that finds the lock held remembers the record version of the holder and the time on the monotonic clock, so a later call of the same
     /// <see cref="LockTable"/> takes the lock over once the holder's lease has run out since then without a renewal. Polling this is how a contender waits;
     /// <see cref="AcquireAsync"/> does the polling.
     /// </para>
     /// <para>
-    /// So a takeover needs a <see cref="LockTable"/> that lives longer than a lease. A process that lives shorter, such as a scheduled job, a function or a
+    /// <b>Short-lived processes.</b> A takeover needs a <see cref="LockTable"/> that lives longer than a lease. A process that lives shorter, such as a scheduled job, a function or a
     /// command line tool, never takes over a lock whose holder crashed with this, whatever it waits between its runs: it calls <see cref="AcquireAsync"/>
     /// with a token that cancels after more than one lease, which waits out a crashed holder and gives up on a live one.
     /// </para>
     /// <para>
-    /// A <see cref="LockTable"/> that has not seen the lock held writes at once: one conditional <c>UpdateItem</c> that raises the fencing token with
+    /// <b>Requests.</b> A <see cref="LockTable"/> that has not seen the lock held writes at once: one conditional <c>UpdateItem</c> that raises the fencing token with
     /// <c>ADD</c>, and which returns the item that failed its condition if the lock is held. Once it has seen a holder, it reads the item with a strongly
     /// consistent <c>GetItem</c> first, and writes only if the lock is free or the holder is due for a takeover. So a contender that waits for a live holder
     /// sends reads, and a failed conditional write happens only when contenders race for a lock that is free or due.
@@ -145,17 +164,16 @@ public sealed class LockTable
     }
 
     /// <summary>
-    /// Acquires a lock, waiting as long as it takes. While another holder has the lock it reads the item every third of that holder's lease, or every 10
-    /// seconds if that is sooner, and takes the lock over once the holder has not renewed it for a whole lease, measured on the monotonic clock of the
-    /// client from the first time this saw that record version.
+    /// Acquires a lock, waiting as long as it takes: cancel the token to give up. It takes a lock over once its holder has not renewed it for a whole lease.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The wait sends one strongly consistent <c>GetItem</c> per poll and no write while the holder renews; it writes when it finds the lock free or the
+    /// <b>Polling.</b> While another holder has the lock it reads the item every third of that holder's lease, or every 10 seconds if that is sooner, and takes the lock over once the
+    /// holder has not renewed it for a whole lease, measured on the monotonic clock of the client from the first time this saw that record version. The wait sends one strongly consistent <c>GetItem</c> per poll and no write while the holder renews; it writes when it finds the lock free or the
     /// holder due, see <see cref="TryAcquireAsync"/>.
     /// </para>
     /// <para>
-    /// A process that must not wait for a live holder passes a token that cancels after a little more than one lease: that is long enough to take over the
+    /// <b>Giving up.</b> A process that must not wait for a live holder passes a token that cancels after a little more than one lease: that is long enough to take over the
     /// lock of a holder that crashed, which <see cref="TryAcquireAsync"/> of a short-lived process cannot.
     /// </para>
     /// </remarks>
@@ -176,29 +194,43 @@ public sealed class LockTable
     }
 
     /// <summary>
-    /// Leads on a lock: of all the processes that run this for the same lock, one at a time runs <paramref name="work"/>. It acquires the lock with
-    /// <see cref="AcquireAsync"/>, runs the work while the lease is held, and when the lease is lost, waits for the work to stop and contends again. The
-    /// token the work gets is cancelled when the caller cancels or the lease is lost, so work that honours it stops in time.
+    /// Leads on a lock: of all the processes that run this for the same lock, one at a time runs <paramref name="work"/>, and when its lease is lost another takes over.
     /// </summary>
+    /// <example>
+    /// <code>
+    /// await locks.RunAsLeaderAsync("order-sweeper", TimeSpan.FromSeconds(30), async (lease, stop) =>
+    /// {
+    ///     while (true)
+    ///     {
+    ///         await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(stop);
+    ///         await Task.Delay(TimeSpan.FromMinutes(1), stop);
+    ///     }
+    /// }, ct);
+    /// </code>
+    /// </example>
     /// <remarks>
     /// <para>
-    /// The work ends in one of three ways. If the lease was lost, whatever the work returned or threw, this contends again. If the caller cancelled,
+    /// <b>A term.</b> It acquires the lock with <see cref="AcquireAsync"/>, runs the work while the lease is held, and when the lease is lost, waits for the work to stop and contends again. The
+    /// token the work gets is cancelled when the caller cancels or the lease is lost, so work that honours it stops in time.
+    /// </para>
+    /// <para>
+    /// <b>How the work ends.</b> The work ends in one of three ways. If the lease was lost, whatever the work returned or threw, this contends again. If the caller cancelled,
     /// the lease is released and this throws <see cref="OperationCanceledException"/>, whatever the work returned or threw. If the work returned or threw on its own, the lease is released and this
     /// returns or throws that exception: a leader that is done hands the lock on. A service that should lead for as long as it runs calls this in a loop,
     /// as the guide shows for a <c>BackgroundService</c>.
     /// </para>
     /// <para>
-    /// An acquire that fails with a transient error, a <see cref="DynamoDbException"/> whose <see cref="DynamoDbException.IsTransient"/> is
+    /// <b>Errors of the election.</b> An acquire that fails with a transient error, a <see cref="DynamoDbException"/> whose <see cref="DynamoDbException.IsTransient"/> is
     /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is counted, and
     /// this contends again after a third of the lease. Only the first failure of a row is logged as a warning, and the next try that DynamoDB answers as an information, so an outage
     /// of an hour logs two lines and not one per try. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and this contends again.
     /// </para>
     /// <para>
-    /// Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
+    /// <b>Fencing.</b> Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
     /// happen then take <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, or the <see cref="Lease.FencingToken"/> to a system that checks it.
     /// </para>
     /// <para>
-    /// During a term <see cref="Lease.Current"/> is the lease of the term, for the work and what it starts, so code deep in the work fences its writes with
+    /// <b><see cref="Lease.Current"/>.</b> During a term it is the lease of the term, for the work and what it starts, so code deep in the work fences its writes with
     /// <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain)"/> without the lease passed down to it.
     /// </para>
     /// </remarks>

@@ -7,7 +7,7 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="TConverter">The converter of the elements.</typeparam>
 /// <remarks>
 /// The elements of a DynamoDB list may have different types; this converter reads them all with <typeparamref name="TConverter"/>, so an element
-/// of another type fails the read. An empty list is valid. Reading collects the elements in a pooled array and allocates the result at its exact size.
+/// of another type fails the read. An empty list is valid, and reads as an empty array.
 /// To store an array as a set instead, see <see cref="SetArrayConverter{T, TElement}"/>.
 /// Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package.
 /// </remarks>

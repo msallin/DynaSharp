@@ -30,9 +30,9 @@ namespace DynaSharp.Testing;
 /// </remarks>
 /// <example>
 /// <code>
-/// using var recorder = new RecordingHandler(); // sends to the real service with a pooled SocketsHttpHandler
+/// using var recorder = new RecordingHandler(); // sends to the real service with its own SocketsHttpHandler
 /// using var client = new DynamoDbClient(new DynamoDbClientOptions { HttpHandler = recorder });
-/// await client.GetItemAsync(request);
+/// await client.GetItemAsync(new GetItemRequest { TableName = "Shop", Key = new Item { ["pk"] = "USER#alice", ["sk"] = "PROFILE" } }, ct);
 /// var wire = recorder.Exchanges.Single().Response!.BodyText;
 /// </code>
 /// </example>

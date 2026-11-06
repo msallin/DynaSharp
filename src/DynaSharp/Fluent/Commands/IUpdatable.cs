@@ -67,11 +67,13 @@ public interface IUpdatable<TSelf>
         where TConverter : IDynamoDbConverter<TValue>;
 
     /// <summary>
-    /// Sets an attribute if there is a value, and adds nothing if there is none, which is what an update of optional fields wants: <c>.SetIfNotNull(Customer.Attrs.Email, request.Email)</c>. With a value it is
-    /// <see cref="Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>, with all it says about keys. With <see langword="null"/> the attribute stays as it is, where <c>Set</c> would remove it, and a
-    /// property that feeds a key counts as untouched. On a property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string or collection is no value either.
+    /// Sets an attribute if there is a value, and leaves it as it is if the value is <see langword="null"/>, which is what an update of optional fields wants:
+    /// <c>.SetIfNotNull(Customer.Attrs.Email, request.Email)</c>.
     /// </summary>
-    /// <remarks>An update that ends up with no action is still an <c>UpdateItem</c>: it checks its conditions, creates the item if none has the key, and writes what the entity owes it, such as its discriminator.</remarks>
+    /// <remarks>
+    /// With a value it is <see cref="Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>, with all it says about keys. With <see langword="null"/> the attribute stays as it is, where <c>Set</c> would
+    /// remove it, and a property that feeds a key counts as untouched. On a property with <see cref="Mapping.OmitEmptyAttribute"/> an empty string or collection is no value either.
+    /// An update that ends up with no action is still an <c>UpdateItem</c>: it checks its conditions, creates the item if none has the key, and writes what the entity owes it, such as its discriminator.</remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>
     /// <param name="attribute">The attribute.</param>
@@ -117,10 +119,18 @@ public interface IUpdatable<TSelf>
     public TSelf Add(string path, AttributeValue value);
 
     /// <summary>
-    /// Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set. A negative number subtracts: <c>Add(Product.Attrs.Stock, -quantity)</c> with
-    /// <c>If(Product.Attrs.Stock.Ge(quantity))</c> takes stock without going below zero. A retry of the client after a lost response repeats the addition to a number, except in a transaction, whose attempts carry one
-    /// <c>ClientRequestToken</c>, so DynamoDB applies it once. <c>MaxAttempts(1)</c> makes it at most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a version, makes it exact.
+    /// Adds to a number, or adds elements to a set (<c>ADD</c>). An attribute that does not exist starts from zero or the empty set, and a negative number subtracts.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Taking stock.</b> <c>Add(Product.Attrs.Stock, -quantity)</c> with <c>If(Product.Attrs.Stock.Ge(quantity))</c> takes stock without going below zero.
+    /// </para>
+    /// <para>
+    /// <b>A retry adds twice.</b> A retry of the client after a lost response repeats the addition to a number, except in a transaction, whose attempts carry one <c>ClientRequestToken</c>, so
+    /// DynamoDB applies it once. <c>MaxAttempts(1)</c> makes it at most once, not exact: a lost response then reports a failure after the addition was applied. Only a condition, such as a
+    /// version, makes it exact.
+    /// </para>
+    /// </remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter, of a number or a set: <c>ADD</c> takes nothing else, so an attribute of another type is a compile error.</typeparam>
     /// <param name="attribute">The attribute.</param>

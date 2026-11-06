@@ -67,23 +67,22 @@ public static class TableStreamExtensions
     /// <param name="emptyPageDelay">The wait after an empty page, see <see cref="ReadStreamRequest.EmptyPageDelay"/>, or <see langword="null"/> for its default of one second.</param>
     /// <param name="onJoined">What is called once the reading holds a position in every shard it starts with, see <see cref="ReadStreamRequest.OnJoined"/>, or <see langword="null"/>.</param>
     /// <param name="onMappingFailure">
-    /// What takes a change whose image is of a type and cannot be read as it, which is then left out, or <see langword="null"/> to end the reading with the
-    /// <see cref="DynamoDbMappingException"/>, as <c>OnMappingFailure</c> of a query or scan does; it counts in <c>dynasharp.client.operation.skipped_items</c>. It gets the
-    /// exception and the record with its shard, so a log names the change by <see cref="ShardChangeRecord.ShardId"/> and <see cref="ShardChangeRecord.SequenceNumber"/>. The
-    /// record holds the images, the values of the item: log those two and <see cref="ChangeRecord.EventName"/>, not the record, and its keys only where keys may be logged.
+    /// Called when an image has the discriminator of a type of the read but cannot be read as it; the change is then skipped, and counted in
+    /// <c>dynasharp.client.operation.skipped_items</c>. <see langword="null"/>, the default, ends the read with the <see cref="DynamoDbMappingException"/> instead. Log
+    /// <see cref="ShardChangeRecord.ShardId"/>, <see cref="ShardChangeRecord.SequenceNumber"/> and <see cref="ChangeRecord.EventName"/>, not the record: it holds the values of the item.
     /// </param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The changes of the entity, in the order <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns their records.</returns>
     /// <remarks>
     /// <para>
-    /// The reading is that of <see cref="ReadStreamAsync{T}"/>, with its <c>DescribeTable</c> at the start of each enumeration, and it also checks the view there: it must be
-    /// <see cref="StreamViewType.NewAndOldImages"/>, because without the old image a removal could not be typed and would be missed without a word, and without the new image an
-    /// insert would. Another view throws <see cref="InvalidOperationException"/>; <see cref="ChangeRecord.As{T}"/> types what a record of any view has.
+    /// <b>The view must be <see cref="StreamViewType.NewAndOldImages"/>.</b> The read is that of <see cref="ReadStreamAsync{T}"/>, with its <c>DescribeTable</c> at the start of each
+    /// enumeration, and it also checks the view there: without the old image a removal could not be typed and would be missed without a word, and without the new image an insert would.
+    /// Another view throws <see cref="InvalidOperationException"/>; <see cref="ChangeRecord.As{T}"/> types what a record of any view has.
     /// </para>
     /// <para>
-    /// A stream cannot be filtered at its source, so every change of the table is read and typed here, from the discriminator of its images, and a change of no type of the reading is
-    /// skipped. An item whose type changed at its key gives two changes, the removal of the old type, then the insert of the new one, each when its type is read. Arguments are
-    /// checked at the call, and nothing is requested until the first change is asked for.
+    /// <b>Every change is read.</b> A stream cannot be filtered at its source, so every change of the table is read and typed here, from the discriminator of its images, and a change of no
+    /// type of the read is skipped. An item whose type changed at its key gives two changes, the removal of the old type, then the insert of the new one, each when its type is read.
+    /// Arguments are checked at the call, and nothing is requested until the first change is asked for.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> or <paramref name="streams"/> is <see langword="null"/>.</exception>
@@ -160,7 +159,7 @@ public static class TableStreamExtensions
         if (typed && description.StreamSpecification.StreamViewType != StreamViewType.NewAndOldImages)
         {
             throw new InvalidOperationException(
-                $"The stream of the table {table.Name} has the view {description.StreamSpecification.StreamViewType}, and a typed reading needs NewAndOldImages: without the old image " +
+                $"The stream of the table {table.Name} has the view {description.StreamSpecification.StreamViewType}, and a typed read needs NewAndOldImages: without the old image " +
                 "a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.");
         }
 

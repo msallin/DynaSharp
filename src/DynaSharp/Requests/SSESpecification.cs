@@ -5,7 +5,7 @@ namespace DynaSharp.Requests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every table is encrypted at rest. Without this specification the table uses a key that DynamoDB owns and that costs nothing.
+/// Every table is encrypted at rest. Without this specification the table uses a key that DynamoDB owns, at no charge.
 /// With it, the table is encrypted with an AWS KMS key in your account, which costs a KMS request per access and stops the table from
 /// working if the key becomes inaccessible (see <see cref="TableStatus.InaccessibleEncryptionCredentials"/>).
 /// </para>

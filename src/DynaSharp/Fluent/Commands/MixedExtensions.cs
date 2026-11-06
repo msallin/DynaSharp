@@ -9,10 +9,13 @@ namespace DynaSharp;
 public static class MixedExtensions
 {
     /// <summary>
-    /// Reads the partition as several types: <c>await foreach (var item in shop.Query(pk).Of&lt;Customer, Order&gt;().ItemsAsync(ct))</c>, also on an index of a table without a
-    /// schema. Clauses can come before and after this call. See <see cref="MixedQueryCommand{T1, T2}"/>. The items come in the order of the sort key, as in any query, whatever their type: under <c>CUSTOMER#alice</c>,
-    /// <c>ORDER#...</c> sorts before <c>PROFILE</c>, so <c>Descending()</c> gives the profile first. The order of the type arguments says nothing about the order of the items.
+    /// Reads the partition as several types: <c>await foreach (var item in shop.Query(pk).Of&lt;Customer, Order&gt;().ItemsAsync(ct))</c>. See <see cref="MixedQueryCommand{T1, T2}"/>.
     /// </summary>
+    /// <remarks>
+    /// It works on an index of a table without a schema too, and clauses can come before and after this call. The items come in the order of the sort key, as in any query, whatever their
+    /// type: under <c>CUSTOMER#alice</c>, <c>ORDER#...</c> sorts before <c>PROFILE</c>, so <c>Descending()</c> gives the profile first. The order of the type arguments says nothing about the
+    /// order of the items.
+    /// </remarks>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <param name="command">The query.</param>

@@ -2,7 +2,7 @@ using DynaSharp.Expressions;
 
 namespace DynaSharp;
 
-/// <summary>Composes struct conditions: <c>Attr("a").Eq(1).And(Attr("b").Gt(2))</c>. Nothing is allocated.</summary>
+/// <summary>Combines conditions: <c>Attr("a").Eq(1).And(Attr("b").Gt(2))</c>, <c>.Or(...)</c> and <c>.Negate()</c>.</summary>
 public static class ConditionExtensions
 {
     /// <summary>Makes a condition that holds when both hold.</summary>
