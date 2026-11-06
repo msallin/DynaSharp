@@ -275,7 +275,8 @@ Their type parameter has `allows ref struct`, so a generic helper costs no box. 
 | Command | Terminals |
 |---|---|
 | `GetCommand<T>` | `SendAsync`, `ItemAsync`, `ToRequestJson` |
-| `PutCommand<T>`, `UpdateCommand<T>`, `DeleteCommand<T>`, `ReturnCommand<,>` | `SendAsync`, `ToRequestJson` |
+| `PutCommand<T>`, `UpdateCommand<T>`, `DeleteCommand<T>` | `SendAsync`, `TrySendAsync`, `ToRequestJson` |
+| `ReturnCommand<,>` | `SendAsync`, `ToRequestJson` |
 | `QueryCommand<T>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `GetSelectCommand<,>` | `SendAsync`, `ToRequestJson` |
