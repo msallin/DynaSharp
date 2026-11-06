@@ -1,7 +1,7 @@
 namespace DynaSharp;
 
 /// <summary>
-/// Which lost races <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, CancellationToken)"/> runs its delegate again on. The overloads without it take
+/// Which lost races <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/> runs its delegate again on. Without it, a retry takes
 /// <see cref="Any"/>.
 /// </summary>
 /// <remarks>
