@@ -71,6 +71,9 @@ internal static class Leadership
         {
             using (var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.Ended))
             {
+                // Lease.Current is set for the work and what it starts. This async method keeps the change from its caller anyway; the finally clears it
+                // for the end of the term all the same.
+                Lease.SetCurrent(lease);
                 try
                 {
                     await work(lease, stop.Token).ConfigureAwait(false);
@@ -97,6 +100,7 @@ internal static class Leadership
         }
         finally
         {
+            Lease.SetCurrent(null);
             var end = EndOf(lease, returned, cancellationToken);
             CoordinationLog.TermEnded(locks.Logger, lease.Name, locks.Table.Name, end, locks.Options.HolderLabel);
         }

@@ -132,6 +132,24 @@ internal static class ErrorMapper
             TableName = tableName,
         };
 
+    /// <summary>
+    /// Reads the error code out of <c>__type</c>: <c>ValidationException:http://internal.amazon.com/coral/com.amazon.coral.validate/</c> and
+    /// <c>com.amazon.coral.validate#ValidationException</c> both name <c>ValidationException</c>.
+    /// </summary>
+    /// <param name="type">The value of <c>__type</c>, if the body has one.</param>
+    /// <returns>The code, or an empty string.</returns>
+    internal static string ExtractCode(string? type)
+    {
+        var code = type.AsSpan();
+        var colon = code.IndexOf(':');
+        if (colon >= 0)
+        {
+            code = code[..colon];
+        }
+
+        return code[(code.LastIndexOf('#') + 1)..].ToString();
+    }
+
     // "CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed","Item":{...}},{"Code":"None"}]
     // The entries keep their order: the reason at an index belongs to the action at that index of the request.
     private static ReadOnlyCollection<CancellationReason> ReadCancellationReasons(ref DynamoDbReader reader)
@@ -167,19 +185,5 @@ internal static class ErrorMapper
         }
 
         return reasons.AsReadOnly();
-    }
-
-    // "ValidationException:http://internal.amazon.com/coral/com.amazon.coral.validate/" and
-    // "com.amazon.coral.validate#ValidationException" both name ValidationException.
-    private static string ExtractCode(string? type)
-    {
-        var code = type.AsSpan();
-        var colon = code.IndexOf(':');
-        if (colon >= 0)
-        {
-            code = code[..colon];
-        }
-
-        return code[(code.LastIndexOf('#') + 1)..].ToString();
     }
 }

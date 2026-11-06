@@ -25,7 +25,7 @@ Every error DynamoDB returns is a `DynamoDbException` with `ErrorCode` (without 
 
 | Exception | When | Retried | Carries |
 |---|---|---|---|
-| `ConditionalCheckFailedException` | A write's condition did not hold; nothing was written | No | `Item`, what the condition saw, with `ReturnOldOnFailure()`. `Key`, as stored. `Message` names the condition sent |
+| `ConditionalCheckFailedException` | A write's condition did not hold; nothing was written. `TrySendAsync` returns it as `ConditionMet` false instead, see [Conditions](commands.md#conditions) | No | `Item`, what the condition saw, with `ReturnOldOnFailure()`. `Key`, as stored. `Message` names the condition sent |
 | `TransactionCanceledException` | A transaction was cancelled; none of it took effect | No | `ReasonFor(marker)`, `ItemFor(marker)`, `Failures`, `CancellationReasons`. `Message` names each failed action by position, verb and table |
 | `TransactionConflictException` | A single-item call met an item a transaction holds | No | |
 | `ValidationException` | DynamoDB rejected the request: an expression that does not parse, a key of the wrong type, a range bound above the other | No | For a command, `Expressions`, `ExpressionNames` and `ExpressionValueTypes` say what `#n0` and `:v0` stand for, without values |
@@ -90,9 +90,9 @@ When a response is lost (a timeout, a dropped connection), the write was applied
 
 - **Safe to repeat.** A `Put` without a condition, a `Delete`, a `Set` of a value, `SetIfNotExists`, `Remove`, a set `Add` or `Delete`, and the puts and deletes of a batch.
 - **Applied twice.** `Add` on a number, `list_append` and arithmetic in `SET`, such as `.Set($"{Attr("n")} = {Attr("n")} + {1}")`. A counter counts one too many.
-- **Fails against itself.** A conditional write (`IfNotExists()`, `IfExists()`, `IfVersion(n)`, a `Put` of a `[Version]` entity, your own `If(...)`) meets its own first attempt and throws `ConditionalCheckFailedException` for a write that was applied. Read the item to tell.
+- **Fails against itself.** A conditional write (`IfNotExists()`, `IfExists()`, `IfVersion(n)`, a `Put` of a `[Version]` entity, your own `If(...)`) meets its own first attempt and throws `ConditionalCheckFailedException` for a write that was applied. Read the item to tell, or let `ReturnOldOnFailure()` hand it over and compare it with what the write sent. A second delivery of the same change fails the same way, and nothing on the wire tells the two apart; `TrySendAsync` does not either, it only returns the answer without an exception, see [Events that arrive out of order](patterns-writes.md#events-that-arrive-out-of-order).
 - **Applied once.** A transaction: every attempt of one send carries the same `ClientRequestToken`, and DynamoDB answers a repeat within 10 minutes with the first outcome. `.Token(id)` makes your own retry safe too, across a restart.
-- **Applied again by the helper.** Inside `RetryOnConflictAsync`, a conditional write that fails against itself counts as a conflict, so the delegate runs and writes again.
+- **Applied again by the helper.** Inside `RetryOnConflictAsync`, a conditional write that fails against itself counts as a conflict, so the delegate runs and writes again. A write sent with `TrySendAsync` throws no conflict, so the helper does not run it again for a failed condition.
 
 `.MaxAttempts(1)` makes a write happen at most once, not exactly once: a lost response surfaces as a `TimeoutException` or an `HttpRequestException` after the write was applied. A condition makes it exact, since the second attempt cannot pass it:
 

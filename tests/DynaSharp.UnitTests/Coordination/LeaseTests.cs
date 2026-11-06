@@ -709,6 +709,175 @@ public sealed class LeaseTests
             (LogLevel.Warning, 43, $"Releasing the lease on lock job in table {bench.TableName} failed with ResourceNotFoundException. The lock is free once its lease runs out.", ActivityStatusCode.Error));
     }
 
+    [Test]
+    public async Task Current_OutsideATerm_IsNull()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Act
+        var current = DynaSharp.Coordination.Lease.Current;
+
+        // Assert (a lease that was acquired by hand is never current)
+        await Assert.That(current).IsNull();
+    }
+
+    [Test]
+    public async Task Current_InTheWorkOfALeader_IsItsLease()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        Lease? led = null;
+        Lease? seen = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, (lease, _) =>
+        {
+            led = lease;
+            seen = DynaSharp.Coordination.Lease.Current;
+            return Task.CompletedTask;
+        });
+
+        // Assert
+        await Assert.That(seen).IsSameReferenceAs(led);
+    }
+
+    [Test]
+    public async Task Current_TaskStartedInTheTerm_FlowsIntoIt()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        Lease? led = null;
+        Lease? seen = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, async (lease, _) =>
+        {
+            led = lease;
+            seen = await Task.Run(static () => DynaSharp.Coordination.Lease.Current);
+        });
+
+        // Assert
+        await Assert.That(seen).IsSameReferenceAs(led);
+    }
+
+    [Test]
+    public async Task Current_AfterTheTerm_IsNullForTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await bench.Locks.RunAsLeaderAsync("job", Lease, static (_, _) => Task.CompletedTask);
+
+        // Act
+        var current = DynaSharp.Coordination.Lease.Current;
+
+        // Assert
+        await Assert.That(current).IsNull();
+    }
+
+    [Test]
+    public async Task Current_TaskThatOutlivesTheTerm_KeepsTheEndedLease()
+    {
+        // Arrange (the work starts a task and returns without waiting for it, so the term ends and the lease is released)
+        using var bench = new LockHarness();
+        var termEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<Lease?>? straggler = null;
+        await bench.Locks.RunAsLeaderAsync("job", Lease, (_, _) =>
+        {
+            straggler = Task.Run(async () =>
+            {
+                await termEnded.Task;
+                return DynaSharp.Coordination.Lease.Current;
+            });
+            return Task.CompletedTask;
+        });
+
+        // Act
+        termEnded.SetResult();
+        var kept = await straggler!;
+
+        // Assert
+        await Assert.That(kept!.Ended.IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task Current_NestedLeadership_IsTheInnerLeaseAndThenTheOuterAgain()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        Lease? outer = null;
+        Lease? inner = null;
+        Lease? innerSeen = null;
+        Lease? outerAfter = null;
+
+        Task Inner(Lease lease, CancellationToken stop)
+        {
+            inner = lease;
+            innerSeen = DynaSharp.Coordination.Lease.Current;
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("outer", Lease, async (lease, stop) =>
+        {
+            outer = lease;
+            await bench.Locks.RunAsLeaderAsync("inner", Lease, Inner, stop);
+            outerAfter = DynaSharp.Coordination.Lease.Current;
+        });
+
+        // Assert
+        await Assert.That((ReferenceEquals(innerSeen, inner), ReferenceEquals(outerAfter, outer))).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task Current_UnderSuppressedFlow_IsNull()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        Lease? seen = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, async (lease, _) =>
+        {
+            Task<Lease?> suppressed;
+            using (ExecutionContext.SuppressFlow())
+            {
+                suppressed = Task.Run(static () => DynaSharp.Coordination.Lease.Current);
+            }
+
+            seen = await suppressed;
+        });
+
+        // Assert
+        await Assert.That(seen).IsNull();
+    }
+
+    [Test]
+    public async Task Current_RenewalOfTheHeartbeat_IsNull()
+    {
+        // Arrange (the heartbeat started with the acquire, before the term, and under a suppressed flow)
+        using var bench = new LockHarness();
+        var renewals = new TaskCompletionSource<Lease?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Lease? led = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, async (lease, _) =>
+        {
+            led = lease;
+            bench.Intercept = (request, _) =>
+            {
+                renewals.TrySetResult(DynaSharp.Coordination.Lease.Current);
+                return Task.FromResult<StubResponse?>(null);
+            };
+            await BeatAsync(bench, lease);
+            bench.Intercept = null;
+        });
+
+        // Assert
+        await Assert.That((led is not null, await renewals.Task)).IsEqualTo((true, (Lease?)null));
+    }
+
     // Moves the clock to the next renewal of the heartbeat and waits until it is done.
     private static bool LinksTo(IEnumerable<ActivityLink>? links, ActivityTraceId trace) => links?.Any(link => link.Context.TraceId == trace) == true;
 

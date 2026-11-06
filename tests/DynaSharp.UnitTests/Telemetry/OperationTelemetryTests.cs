@@ -37,6 +37,12 @@ public sealed class OperationTelemetryTests
 
         public ArraySegment<byte> WriteBody(CallBuffers buffers) => default;
 
+        public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out string response)
+        {
+            response = string.Empty;
+            return false;
+        }
+
         public string ReadResponse(ReadOnlySpan<byte> utf8Json) => string.Empty;
 
         public void SetActivityTags(Activity activity)

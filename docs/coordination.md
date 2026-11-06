@@ -164,6 +164,23 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(held) =
 }
 ```
 
+Work of a leader, see [Leader election](#leader-election), does not have to pass the lease down to the code that writes. `IsHeld()` without a lease checks `Lease.Current`, the lease of the term the code runs in:
+
+```csharp
+await client.TransactWrite()
+    .IsHeld()
+    .Put(orders, order)
+    .SendAsync(ct);
+```
+
+`RunAsLeaderAsync` sets `Lease.Current` before it calls the work and clears it when the term ends. It flows as an `AsyncLocal` does: into everything the work calls, awaits or starts with `Task.Run` during the term, and never back to the caller. Where it is null, `IsHeld()` throws `InvalidOperationException` ("No lease is current; pass the lease, or start this work inside RunAsLeaderAsync"):
+
+- Code that started before the term, in a constructor or a `StartAsync`, such as a poller that a hosted service started, does not see it. Start that work inside the work of the leader, or pass the lease.
+- Code under `ExecutionContext.SuppressFlow()`, and the heartbeat of a lease, do not see it.
+- A lease from `TryAcquireAsync` or `AcquireAsync` is never current: pass it to `IsHeld(lease)`.
+
+Work that outlives its term, such as a task the work started and did not wait for, keeps the lease that ended, so `IsHeld()` fails its transaction at DynamoDB, which is the fencing it is there for. A `RunAsLeaderAsync` inside the work of another makes the inner lease current; pass the outer one explicitly. `IsHeld(out marker)` hands out the marker as `IsHeld(lease, out marker)` does.
+
 The lock item must be in the same account and region as the items of the transaction. A system outside DynamoDB, such as a file store or another database, protects itself only if it checks the token: it keeps the highest `FencingToken` it has seen and refuses a write with a lower one. DynaSharp cannot enforce that for it.
 
 The token rises as long as the item of the lock lives. Deleting the item starts it at 1 again, even while a lease holds it, which loses that lease with the reason `deleted`, and restoring the table from a backup or to a point in time brings an older token back: a system that checks the token then refuses every holder until the count passes what it has seen. A global table that takes writes in more than one region can grant a lock twice with the same token, because each region applies its conditional write before the other one's arrives. Keep the lock table to a single region that writes.

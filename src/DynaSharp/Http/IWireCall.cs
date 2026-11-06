@@ -71,6 +71,17 @@ internal interface IWireCall<TResponse>
     public TResponse ReadResponse(ReadOnlySpan<byte> utf8Json);
 
     /// <summary>
+    /// Reads the body of an error response as a result, for the one failure a call asked to take as an answer: a failed condition of <c>TrySendAsync</c>. Called after every attempt
+    /// that answered with an error status, before the error is mapped. A call that tolerates nothing returns <see langword="false"/> at once, and so does one that tolerates a
+    /// failure this body is not. On <see langword="true"/> the pipeline ends the call as a success with no error on the span or the metric, and nothing retries it, which a failed
+    /// condition never was. The bytes are valid only during the call: copy what must stay.
+    /// </summary>
+    /// <param name="utf8Json">The body of the error response.</param>
+    /// <param name="response">The response the failure stands for, when this returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> if the failure is an answer of the call; <see langword="false"/> to map and throw it.</returns>
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out TResponse response);
+
+    /// <summary>
     /// Adds request parameters that are worth a tag on the span. Never add keys, items or attribute values. Must not throw: the
     /// pipeline starts the span before it writes the body, so a throw would leave the span open.
     /// </summary>

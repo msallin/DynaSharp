@@ -683,6 +683,11 @@ catch (ConditionalCheckFailedException)
 }
 
 Check(movedBack, "NotExistsOrLt refuses an older version");
+var oldNews = await passes.Update(Pass.Keys.Of("p-1")).Set(Pass.Attrs.Seq, 1L).If(Pass.Attrs.Seq.NotExistsOrLt(1L)).ReturnOldOnFailure().TrySendAsync();
+Check(oldNews is { ConditionMet: false, HasItem: true, Item.Seq: 2, Version: null }, "TrySendAsync returns a failed condition with the item it saw");
+var applied = await passes.Update(Pass.Keys.Of("p-2")).Set(Pass.Attrs.Seq, 1L).If(Pass.Attrs.Seq.NotExistsOrLt(1L)).TrySendAsync();
+Check(applied.ConditionMet, "TrySendAsync returns a write whose condition held");
+await passes.Delete(Pass.Keys.Of("p-2")).TrySendAsync();
 Check(fake.ExpireItems() == 1, "CreateTable<T> of the fake turns time to live on for [TimeToLive]");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")) is { Region.Name: "us-east-1", Credentials: StaticCredentialsProvider }, "ForEmulator sets a region and static keys");
 Check(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2") is { Region.Name: "eu-central-2", Credentials: StaticCredentialsProvider }, "ForEmulator takes another region");
@@ -720,12 +725,27 @@ Check(await locks.GetStateAsync("smoke") == new LockState(true, null, LockTable.
 Check(await locks.TryAcquireAsync("smoke", TimeSpan.FromSeconds(30)) is null && refused.IsCompletedSuccessfully, "a test sees a contender turned away");
 await locks.SimulateDeleteAsync("smoke");
 long? ledWith = null;
-await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, (lease, _) =>
+var currentInTerm = false;
+await LockTable.For(fakeVisitors).RunAsLeaderAsync("smoke", LockTable.MinLeaseDuration, async (lease, stop) =>
 {
     ledWith = lease.FencingToken;
-    return Task.CompletedTask;
+    currentInTerm = ReferenceEquals(await Task.Run(static () => Lease.Current), lease);
+    await fakeClient.TransactWrite().IsHeld().Put(fakeClient.Table("Locks", "pk"), new Item { ["pk"] = "REPORT-2" }).SendAsync(stop);
 });
 Check(ledWith == 1, "a leader runs its term on a typed table, with the token started again after the delete");
+Check(currentInTerm && Lease.Current is null, "Lease.Current is the lease of the term, inside it only");
+Check(fake.Get("Locks", new Item { ["pk"] = "REPORT-2" }) is not null, "IsHeld() checks the current lease");
+var noCurrent = false;
+try
+{
+    _ = fakeClient.TransactWrite().IsHeld().ToRequestJson();
+}
+catch (InvalidOperationException)
+{
+    noCurrent = true;
+}
+
+Check(noCurrent, "IsHeld() throws outside a term");
 
 foreach (var failure in failures)
 {

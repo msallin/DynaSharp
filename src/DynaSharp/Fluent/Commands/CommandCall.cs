@@ -37,6 +37,8 @@ internal readonly struct CommandCall<TOperation, TResponse>(CommandState state, 
         return TOperation.ReadResponse(ref reader, state);
     }
 
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out TResponse response) => TOperation.TryReadFailure(utf8Json, state, out response);
+
     public void SetActivityTags(Activity activity) => TOperation.SetActivityTags(activity, state);
 
     public void SetResponseTags(Activity activity, TResponse response) => TOperation.SetResponseTags(activity, response);

@@ -197,7 +197,7 @@ Caveats:
 
 ## Events that arrive out of order
 
-An ingest from Kafka, or from any queue that delivers at least once, sees an event late, twice, or after a newer one of the same key. One item per key holds the latest state, and every write carries the version it comes from: a sequence of the producer, or the time of the event. The write holds only where the stored version is older or missing, so the item never moves back, and a failed condition says that the event is old news.
+An ingest from Kafka, or from any queue that delivers at least once, sees an event late, twice, or after a newer one of the same key. One item per key holds the latest state, and every write carries the version it comes from: a sequence of the producer, or the time of the event. The write holds only where the stored version is older or missing, so the item never moves back, and a failed condition says that the event is old news or stored already.
 
 Where events of different kinds change different fields, each group of fields keeps its own version beside it, here the time of the event that set it:
 
@@ -217,30 +217,31 @@ public partial record LiveMatch
 }
 
 public sealed record ScoreChanged(string MatchId, int Home, int Away, DateTimeOffset At);
+
+public enum EventOutcome { Applied, AlreadyStored, Superseded }
 ```
 
-An update sets the fields of its group and their time, on condition that the stored time is older. `NotExistsOrLt(v)` is `NotExists().Or(Lt(v))`: an item that does not exist yet passes, and so does one that has a status and no score yet:
+An update sets the fields of its group and their time, on condition that the stored time is older. `NotExistsOrLt(v)` is `NotExists().Or(Lt(v))`: an item that does not exist yet passes, and so does one that has a status and no score yet. `TrySendAsync` takes the failed condition as an answer instead of an exception, and `ReturnOldOnFailure()` hands over the item the condition saw, so the stored time tells the two kinds of failure apart:
 
 ```csharp
 var matches = shop.Of<LiveMatch>();
 
-async Task<bool> ApplyAsync(ScoreChanged change, CancellationToken token)
+async Task<EventOutcome> ApplyAsync(ScoreChanged change, CancellationToken token)
 {
-    try
+    var result = await matches.Update(LiveMatch.Keys.Of(change.MatchId))
+        .Set(LiveMatch.Attrs.HomeGoals, change.Home)
+        .Set(LiveMatch.Attrs.AwayGoals, change.Away)
+        .Set(LiveMatch.Attrs.ScoreAt, change.At)
+        .If(LiveMatch.Attrs.ScoreAt.NotExistsOrLt(change.At))
+        .ReturnOldOnFailure()
+        .TrySendAsync(token);
+    if (result.ConditionMet)
     {
-        await matches.Update(LiveMatch.Keys.Of(change.MatchId))
-            .Set(LiveMatch.Attrs.HomeGoals, change.Home)
-            .Set(LiveMatch.Attrs.AwayGoals, change.Away)
-            .Set(LiveMatch.Attrs.ScoreAt, change.At)
-            .If(LiveMatch.Attrs.ScoreAt.NotExistsOrLt(change.At))
-            .SendAsync(token);
-        return true;
+        return EventOutcome.Applied;
     }
-    catch (ConditionalCheckFailedException)
-    {
-        // A newer score is stored, or this very event: a duplicate, which the consumer commits like an applied one.
-        return false;
-    }
+
+    // The stored time is not older. The same time: this event is stored, so the consumer commits it as an applied one.
+    return result.Item!.ScoreAt == change.At ? EventOutcome.AlreadyStored : EventOutcome.Superseded;
 }
 ```
 
@@ -249,7 +250,8 @@ A status event is the same update over `Status` and `StatusAt`, so a late score 
 Caveats:
 
 - `Lt`, not `Le`: the same version a second time is a duplicate and writes nothing. `NotExistsOrLe` writes it again, which is harmless for the same state, but cannot tell a duplicate from an applied event.
-- A failed condition is the answer, not a conflict, so the write takes no `RetryOnConflictAsync`, which would run it five times for nothing. It needs no `MaxAttempts(1)` either: a retry of the client after a lost response fails against its own write, and reads as a duplicate, which it is.
+- An equal time is a second delivery of the event, or the client's own retry after a lost response, which meets what its first attempt wrote. The two look the same on the wire, so no client can tell them apart, and both are safe to commit: the event is stored once. That is why the write needs no `MaxAttempts(1)`.
+- A failed condition is the answer, not a conflict, so the write takes no `RetryOnConflictAsync`, which would run it five times for nothing. A failed condition of `TrySendAsync` is no conflict to it anyway, and no error on the span either, see [Observability](observability.md#traces).
 - A version orders only what one source numbers. Times from several producers are as good as their clocks, and offsets of Kafka compare within one partition only, so a key has to stay on one partition, also when partitions are added.
 - One event that changes two groups is two updates, or one with both conditions joined by `And`, and then a newer value of one group blocks the older event for both.
 - A delete would let a late event bring the item back. Keep the item with a deleted flag and the version instead, and let time to live take it later, see [soft delete](https://github.com/msallin/DynaSharp/blob/main/tests/DynaSharp.IntegrationTests/Recipes/SoftDeleteTests.cs).

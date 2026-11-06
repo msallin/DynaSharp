@@ -28,7 +28,7 @@ The locks and leader election of `DynaSharp.Coordination` report to the same sou
 
 ## Traces
 
-Each request is one span of kind `Client`, named after service and operation: `DynamoDB.GetItem`, `DynamoDB Streams.GetRecords`. A retried request is still one span; a query of three pages is three, a batch one per request, and `CreateTable()` one per call it makes, such as `DescribeTable` and `CreateTable`. A failed request sets the status to `Error` without the message, which can quote the request.
+Each request is one span of kind `Client`, named after service and operation: `DynamoDB.GetItem`, `DynamoDB Streams.GetRecords`. A retried request is still one span; a query of three pages is three, a batch one per request, and `CreateTable()` one per call it makes, such as `DescribeTable` and `CreateTable`. A failed request sets the status to `Error` without the message, which can quote the request. A condition that did not hold for `TrySendAsync` is an answer, not a failure: its span keeps the status unset and gets `dynasharp.condition_met`, and its duration has no `error.type`.
 
 | Attribute | On | Value |
 |---|---|---|
@@ -52,6 +52,7 @@ Each request is one span of kind `Client`, named after service and operation: `D
 | `aws.dynamodb.exclusive_start_table`, `aws.dynamodb.table_count` | `ListTables` | Where the page starts, and how many names it returned |
 | `error.type` | A failed request | DynamoDB's error code, `timeout`, or the exception's full type name, such as `System.Net.Http.HttpRequestException` |
 | `db.response.status_code` | A failed request with a code from DynamoDB | The error code it sent |
+| `dynasharp.condition_met` | A `PutItem`, `UpdateItem` or `DeleteItem` of `TrySendAsync` whose condition did not hold | `false` |
 
 ### Reading a stream
 

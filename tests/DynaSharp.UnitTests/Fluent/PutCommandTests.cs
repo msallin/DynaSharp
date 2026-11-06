@@ -3,7 +3,7 @@ using static DynaSharp.Expr;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-public sealed class PutCommandTests
+public sealed partial class PutCommandTests
 {
     [Test]
     public async Task ToRequestJson_Item_WritesItsAttributes()

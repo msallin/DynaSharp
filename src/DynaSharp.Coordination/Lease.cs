@@ -39,6 +39,9 @@ public sealed class Lease : IAsyncDisposable
     // The first wait before a failed renewal of the heartbeat is tried again. It doubles up to a sixth of the duration.
     private static readonly TimeSpan FirstRetry = TimeSpan.FromMilliseconds(100);
 
+    // The lease of the term of RunAsLeaderAsync that the code runs in. An AsyncLocal flows down into what the work starts and never back up to its caller.
+    private static readonly AsyncLocal<Lease?> CurrentLease = new();
+
     [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Ended must stay readable after the lease ended, and a source that was cancelled has no timer left to free.")]
     private readonly CancellationTokenSource _ended;
     private readonly Task _heartbeat;
@@ -71,6 +74,26 @@ public sealed class Lease : IAsyncDisposable
             _heartbeat = Task.Run(() => HeartbeatAsync(first));
         }
     }
+
+    /// <summary>
+    /// Gets the lease of the term of <see cref="LockTable.RunAsLeaderAsync"/> that the calling code runs in, or <see langword="null"/> outside one. It is what
+    /// <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain)"/> checks, so that work deep in a call graph fences its writes without the lease passed down to it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The leader sets it before it calls the work and clears it when the term ends. It flows as an <see cref="AsyncLocal{T}"/> does: into everything the work
+    /// calls, awaits or starts with <see cref="Task.Run(Func{Task})"/> during the term, and never back to the caller of <see cref="LockTable.RunAsLeaderAsync"/>.
+    /// There is no setter: a lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync"/> is passed to
+    /// <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> as it is.
+    /// </para>
+    /// <para>
+    /// Code that started before the term, in a constructor or a <c>StartAsync</c>, or that runs under <see cref="ExecutionContext.SuppressFlow"/>, sees
+    /// <see langword="null"/>, and so does the heartbeat of a lease. Work that outlives its term, such as a task the work started and did not wait for, keeps the lease
+    /// that has ended, and a transaction that checks it fails at DynamoDB, which is the fencing it is for. In a <see cref="LockTable.RunAsLeaderAsync"/> inside the
+    /// work of another, the inner lease is current; pass the outer one explicitly.
+    /// </para>
+    /// </remarks>
+    public static Lease? Current => CurrentLease.Value;
 
     /// <summary>Gets the name of the lock.</summary>
     public string Name { get; }
@@ -173,6 +196,10 @@ public sealed class Lease : IAsyncDisposable
             CoordinationLog.ReleaseFailed(Locks.Logger, Name, Locks.Table.Name, CoordinationTelemetry.ErrorTypeOf(exception));
         }
     }
+
+    /// <summary>Sets <see cref="Current"/> for the code that runs from here in this async flow, which <see cref="Leadership"/> does for a term.</summary>
+    /// <param name="lease">The lease of the term, or <see langword="null"/> when it ends.</param>
+    internal static void SetCurrent(Lease? lease) => CurrentLease.Value = lease;
 
     // Suppresses the flow of the execution context, unless the caller did already, which a second suppression would throw for.
     private static AsyncFlowControl? SuppressFlow() => ExecutionContext.IsFlowSuppressed() ? null : ExecutionContext.SuppressFlow();

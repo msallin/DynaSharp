@@ -145,6 +145,12 @@ internal sealed class CommandState
     /// <summary>Gets or sets what a failed condition returns.</summary>
     public ReturnValuesOnConditionCheckFailure ReturnOnFailure { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether a failed condition is an answer of the write rather than an error, which <c>TrySendAsync</c> sets. The request is the same either way,
+    /// and the pipeline asks <see cref="IWireCall{TResponse}.TryReadFailure"/> about an error response before it throws.
+    /// </summary>
+    public bool ToleratesFailedCondition { get; set; }
+
     /// <summary>Gets or sets where a fan-out keeps the keys of the items of a page, or <see langword="null"/> for a read that does not need them.</summary>
     public FanOutKeys? ItemKeys { get; set; }
 
@@ -480,6 +486,18 @@ internal sealed class CommandState
         where TOperation : ICommandOperation<TResponse> =>
         _core.SendAsync<CommandCall<TOperation, TResponse>, TResponse>(new CommandCall<TOperation, TResponse>(this, _version), cancellationToken);
 
+    /// <summary>Sends a write that takes a failed condition as its answer, see <see cref="ToleratesFailedCondition"/>. Otherwise the same as <see cref="SendAsync{TOperation, TResponse}"/>.</summary>
+    /// <typeparam name="TOperation">The operation.</typeparam>
+    /// <typeparam name="TResponse">What the call returns.</typeparam>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The response, a task that the caller awaits exactly once.</returns>
+    public ValueTask<TResponse> TrySendAsync<TOperation, TResponse>(CancellationToken cancellationToken)
+        where TOperation : ICommandOperation<TResponse>
+    {
+        ToleratesFailedCondition = true;
+        return SendAsync<TOperation, TResponse>(cancellationToken);
+    }
+
     /// <summary>Sends one request of a command of several actions. Who owns the state then is up to the operation, see <see cref="IActionOperation{TResponse}.EndsCommand"/>.</summary>
     /// <typeparam name="TOperation">The operation.</typeparam>
     /// <typeparam name="TResponse">What the call returns.</typeparam>
@@ -520,6 +538,7 @@ internal sealed class CommandState
         MaxStalledRounds = 0;
         ReturnValues = default;
         ReturnOnFailure = default;
+        ToleratesFailedCondition = false;
         ReturnCapacity = default;
         ReturnMetrics = default;
         ReturnPath = null;

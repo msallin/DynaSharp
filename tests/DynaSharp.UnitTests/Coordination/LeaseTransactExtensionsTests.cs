@@ -85,5 +85,98 @@ public sealed class LeaseTransactExtensionsTests
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("lease");
     }
 
+    [Test]
+    public async Task IsHeld_CurrentLease_CommitsTheTransaction()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, async (lease, stop) =>
+            await bench.Client.TransactWrite().IsHeld().Put(bench.Table, Report(lease)).SendAsync(stop));
+
+        // Assert
+        await Assert.That(bench.Fake.Get(bench.TableName, new() { ["pk"] = "REPORT", ["sk"] = "1" })?.GetNumber<long>("fence")).IsEqualTo(1L);
+    }
+
+    [Test]
+    public async Task IsHeld_CurrentLease_ChecksWhatTheExplicitLeaseChecks()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        string? implicitJson = null;
+        string? explicitJson = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, (lease, _) =>
+        {
+            implicitJson = bench.Client.TransactWrite().IsHeld().ToRequestJson();
+            explicitJson = bench.Client.TransactWrite().IsHeld(lease).ToRequestJson();
+            return Task.CompletedTask;
+        });
+
+        // Assert
+        await Assert.That(Without(implicitJson!, "ClientRequestToken")).IsEqualTo(Without(explicitJson!, "ClientRequestToken"));
+    }
+
+    [Test]
+    public async Task IsHeld_CurrentLeaseTakenOver_NamesTheCheckByItsMarker()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        TransactionFailure? reason = null;
+
+        // Act
+        await bench.Locks.RunAsLeaderAsync("job", Lease, async (lease, stop) =>
+        {
+            bench.Steal("job", "thief");
+            TransactMarker held = default;
+            try
+            {
+                await bench.Client.TransactWrite().IsHeld(out held).Put(bench.Table, Report(lease)).SendAsync(stop);
+            }
+            catch (TransactionCanceledException exception)
+            {
+                reason = exception.ReasonFor(held);
+            }
+        });
+
+        // Assert
+        await Assert.That(reason).IsEqualTo(TransactionFailure.ConditionalCheckFailed);
+    }
+
+    [Test]
+    public async Task IsHeld_NoCurrentLease_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+
+        // Act
+        var act = () => { _ = bench.Client.TransactWrite().IsHeld(); };
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("No lease is current; pass the lease, or start this work inside RunAsLeaderAsync.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task IsHeld_NoCurrentLeaseWithAMarker_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+
+        // Act
+        var act = () => { _ = bench.Client.TransactWrite().IsHeld(out _); };
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+    }
+
     private static Item Report(Lease lease) => new() { ["pk"] = "REPORT", ["sk"] = "1", ["fence"] = lease.FencingToken };
+
+    private static string Without(string json, string member)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+        node.Remove(member);
+        return node.ToJsonString();
+    }
 }

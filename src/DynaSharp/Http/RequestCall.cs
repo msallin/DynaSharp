@@ -43,6 +43,12 @@ internal readonly struct RequestCall<TOperation, TRequest, TResponse>(TRequest r
         return TOperation.ReadResponse(ref reader);
     }
 
+    public bool TryReadFailure(ReadOnlySpan<byte> utf8Json, out TResponse response)
+    {
+        response = default!;
+        return false;
+    }
+
     public void SetActivityTags(Activity activity) => TOperation.SetActivityTags(activity, request);
 
     public void SetResponseTags(Activity activity, TResponse response) => TOperation.SetResponseTags(activity, response);

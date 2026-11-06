@@ -19,6 +19,20 @@ internal interface ICommandOperation<TResponse>
     /// <returns>The response.</returns>
     public static abstract TResponse ReadResponse(ref DynamoDbReader reader, CommandState state);
 
+    /// <summary>
+    /// Reads an error response as a result, see <see cref="Http.IWireCall{TResponse}.TryReadFailure"/>. Only a write that <c>TrySendAsync</c> sent takes one, a failed condition, so
+    /// every other operation keeps this, which takes none.
+    /// </summary>
+    /// <param name="utf8Json">The body of the error response.</param>
+    /// <param name="state">The state of the command, which is whole during the call.</param>
+    /// <param name="response">The response the failure stands for, when this returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> if the failure is an answer of the call.</returns>
+    public static virtual bool TryReadFailure(ReadOnlySpan<byte> utf8Json, CommandState state, out TResponse response)
+    {
+        response = default!;
+        return false;
+    }
+
     /// <summary>Adds request parameters that are worth a tag on the span. The same tags as the operation of the request API; never a key or a value.</summary>
     /// <param name="activity">The span, with all data requested.</param>
     /// <param name="state">The state of the command.</param>
