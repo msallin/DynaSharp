@@ -6,13 +6,13 @@ using DynaSharp.IntegrationTests.Support;
 namespace DynaSharp.IntegrationTests.Fidelity;
 
 /// <summary>
-/// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answer differently (<c>spec/tasks.md</c>, R20), asked of real DynamoDB on the raw wire.
-/// Where the AWS documentation states the answer, a test asserts it; where it is silent, the test asserts one of the answers the backends gave, so the first run on real AWS
-/// tells which one holds. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
+/// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, R20), asked of real DynamoDB on the raw wire.
+/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937; where that run left the rule open, the test accepts the answers seen and records which one
+/// came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
 /// </summary>
 /// <remarks>
-/// Only real DynamoDB is asserted. Every other backend sends the same requests, records its answer, and is skipped with the answer in the reason, so a run on the emulators shows
-/// where each one stands without failing. Once real AWS has answered, the answer is the spec of the fake: a test here then pins it, and the fake follows.
+/// Real DynamoDB and the fake are asserted: the answer of DynamoDB is the spec of the fake. An emulator that answers otherwise records its answer and is skipped with it in the reason,
+/// because what it does there is no fault of the code under test; <c>Differential/KnownDivergences</c> names the same quirks for the generated sequences.
 /// </remarks>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
 public sealed class FidelityTests(Backend backend)
@@ -22,9 +22,13 @@ public sealed class FidelityTests(Backend backend)
 
     private const string Canceled = "TransactionCanceledException";
 
+    private const string KeyMismatch = "ValidationError: The provided key element does not match the schema";
+
+    private const string Overflow = "ValidationError: Number overflow. Attempting to store a number with magnitude larger than supported range";
+
     private static readonly Lock ReportLock = new();
 
-    // What each spelling is in plain digits, the form the fake returns.
+    // What each spelling is in plain digits, the form DynamoDB returns it in.
     private static readonly Dictionary<string, string> PlainDigits = new(StringComparer.Ordinal)
     {
         ["1.0"] = "1",
@@ -35,8 +39,7 @@ public sealed class FidelityTests(Backend backend)
         ["1E-130"] = "0." + new string('0', 129) + "1",
     };
 
-    // Question 1. The documentation: "If you submit a request with the same client token but a change in other parameters within the 10-minute idempotency window,
-    // DynamoDB returns an IdempotentParameterMismatch exception." It also says that a repeat returns other capacity, so whether ReturnConsumedCapacity counts is the question.
+    // Question 1: ReturnConsumedCapacity is one of the parameters a token pins, as the documentation says of "a change in other parameters".
     [Test]
     public async Task TransactWriteItems_SameTokenOtherReturnConsumedCapacity_IsAParameterMismatch()
     {
@@ -50,17 +53,15 @@ public sealed class FidelityTests(Backend backend)
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", Request("TOTAL"));
-        var outcome = Outcome(response);
-        Record("1 token with another ReturnConsumedCapacity", outcome, response);
+        var outcome = Record("1 token with another ReturnConsumedCapacity", Outcome(response), response, "IdempotentParameterMismatchException");
 
         // Assert
         await Assert.That(outcome).IsEqualTo("IdempotentParameterMismatchException");
     }
 
-    // Question 2. The documentation lists "an item size becomes too large (larger than 400 KB) ... because of changes made by the transaction" as a cancellation, and also
-    // rejects requests as a whole; which one a put of a too large item is, it does not say.
+    // Question 2: a put of an item over 400 KB fails the whole request, it does not cancel.
     [Test]
-    public async Task TransactWriteItems_PutOver400Kilobytes_FailsTheRequestOrCancels()
+    public async Task TransactWriteItems_PutOver400Kilobytes_FailsTheRequest()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -74,64 +75,60 @@ public sealed class FidelityTests(Backend backend)
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", json);
-        var outcome = Outcome(response);
-        Record("2 put over 400 KB in a transaction", outcome, response);
+        var outcome = Record("2 put over 400 KB in a transaction", Outcome(response), response, "ValidationException");
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", $"{Canceled}[ValidationError,None]");
+        await Assert.That(outcome).IsEqualTo("ValidationException");
     }
 
-    // Question 3, alone. The documentation lists the messages of a ValidationError reason, among them "The document path provided in the update expression is invalid for
-    // update", "The provided expression refers to an attribute that does not exist in the item" and "Number overflow. Attempting to store a number with magnitude larger than
-    // supported range", so those cases are asserted. More than 38 significant digits is not in the list, and is recorded.
+    // Question 3, alone: an update that fails on its item cancels with a ValidationError for it. More than 38 digits is a number overflow, as a magnitude too large is.
     [Test]
-    [Arguments("path into a missing map", "SET m.x = :v", """{":v":{"S":"x"}}""", true)]
-    [Arguments("list_append of a missing list", "SET l = list_append(l, :v)", """{":v":{"L":[{"S":"x"}]}}""", true)]
-    [Arguments("number over the magnitude", "SET n = :big + :big", """{":big":{"N":"9E+125"}}""", true)]
-    [Arguments("number over 38 digits", "SET n = n + :v", """{":v":{"N":"0.1"}}""", false)]
-    public async Task TransactWriteItems_UpdateThatFailsOnItsItem_CancelsWithAValidationError(string name, string update, string values, bool documented)
+    [Arguments("path into a missing map", "SET m.x = :v", """{":v":{"S":"x"}}""", "ValidationError: The document path provided in the update expression is invalid for update")]
+    [Arguments("list_append of a missing list", "SET l = list_append(l, :v)", """{":v":{"L":[{"S":"x"}]}}""", "ValidationError: The provided expression refers to an attribute that does not exist in the item")]
+    [Arguments("number over the magnitude", "SET n = :big + :big", """{":big":{"N":"9E+125"}}""", Overflow)]
+    [Arguments("number over 38 digits", "SET n = n + :v", """{":v":{"N":"0.1"}}""", Overflow)]
+    public async Task TransactWriteItems_UpdateThatFailsOnItsItem_CancelsWithAValidationError(string name, string update, string values, string reason)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await SeedForUpdatesAsync(sandbox);
+        var expected = $"{Canceled}[None, {reason}]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", FailingUpdate(table, "attribute_exists(pk)", update, values));
-        var outcome = Outcome(response);
-        Record($"3 update that fails on its item, alone: {name}", outcome, response);
+        var outcome = Record($"3 update that fails on its item, alone: {name}", Outcome(response), response, expected);
 
         // Assert
-        string[] expected = documented ? [$"{Canceled}[None,ValidationError]"] : ["ValidationException", $"{Canceled}[None,ValidationError]", "OK"];
-        await Assert.That(outcome).IsIn(expected);
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 3, beside an action that fails: is the update still reported, or None because the transaction was cancelled before it?
+    // Question 3, beside an action that fails: the update is still tried and reported, not None.
     [Test]
-    [Arguments("path into a missing map", "SET m.x = :v", """{":v":{"S":"x"}}""")]
-    [Arguments("list_append of a missing list", "SET l = list_append(l, :v)", """{":v":{"L":[{"S":"x"}]}}""")]
-    [Arguments("number over 38 digits", "SET n = n + :v", """{":v":{"N":"0.1"}}""")]
-    public async Task TransactWriteItems_UpdateThatFailsOnItsItemBesideAFailedCondition_IsRecorded(string name, string update, string values)
+    [Arguments("path into a missing map", "SET m.x = :v", """{":v":{"S":"x"}}""", "ValidationError: The document path provided in the update expression is invalid for update")]
+    [Arguments("list_append of a missing list", "SET l = list_append(l, :v)", """{":v":{"L":[{"S":"x"}]}}""", "ValidationError: The provided expression refers to an attribute that does not exist in the item")]
+    [Arguments("number over 38 digits", "SET n = n + :v", """{":v":{"N":"0.1"}}""", Overflow)]
+    public async Task TransactWriteItems_UpdateThatFailsOnItsItemBesideAFailedCondition_CancelsWithBothReasons(string name, string update, string values, string reason)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await SeedForUpdatesAsync(sandbox);
+        var expected = $"{Canceled}[ConditionalCheckFailed: The conditional request failed, {reason}]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", FailingUpdate(table, "attribute_not_exists(pk)", update, values));
-        var outcome = Outcome(response);
-        Record($"3 update that fails on its item, beside a failed condition: {name}", outcome, response);
+        var outcome = Record($"3 update that fails on its item, beside a failed condition: {name}", Outcome(response), response, expected);
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", $"{Canceled}[ConditionalCheckFailed,ValidationError]", $"{Canceled}[ConditionalCheckFailed,None]");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 4. The documentation says that "a user error, such as an invalid data format" cancels both operations, and does not say whether a key off the schema is one.
+    // Question 4: a key off the schema cancels either transaction, with a ValidationError for that action and None for the others.
     [Test]
     [Arguments("TransactWriteItems", "missing sort key", """{"pk":{"S":"a"}}""")]
     [Arguments("TransactWriteItems", "partition key of another type", """{"pk":{"N":"1"},"sk":{"N":"1"}}""")]
     [Arguments("TransactGetItems", "missing sort key", """{"pk":{"S":"a"}}""")]
     [Arguments("TransactGetItems", "partition key of another type", """{"pk":{"N":"1"},"sk":{"N":"1"}}""")]
-    public async Task Transaction_KeyOffTheSchema_FailsTheRequestOrCancels(string operation, string name, string key)
+    public async Task Transaction_KeyOffTheSchema_CancelsWithAValidationError(string operation, string name, string key)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -144,20 +141,19 @@ public sealed class FidelityTests(Backend backend)
                   {"Update":{"TableName":"{{{{{table}}}}}","Key":{{{{{key}}}}},"UpdateExpression":"SET v = :v","ExpressionAttributeValues":{":v":{"S":"x"}}}},
                   {"Put":{"TableName":"{{{{{table}}}}}","Item":{{{{{valid}}}}}}}]}
                 """;
+        var expected = $"{Canceled}[{KeyMismatch}, None]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync(operation, json);
-        var outcome = Outcome(response);
-        Record($"4 {operation} with a key off the schema: {name}", outcome, response);
+        var outcome = Record($"4 {operation} with a key off the schema: {name}", Outcome(response), response, expected);
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", $"{Canceled}[ValidationError,None]", $"{Canceled}[]");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 5. The documentation of UpdateItem says a key attribute cannot be updated, so applying it is wrong; how a transaction refuses it, it does not say. The update is
-    // the second of three actions, so a list of one reason tells itself apart from a list in the order of the actions.
+    // Question 5: an update of a key attribute cancels with a ValidationError for that action, in a list of one reason per action.
     [Test]
-    public async Task TransactWriteItems_UpdateOfAKeyAttribute_FailsTheRequestOrCancels()
+    public async Task TransactWriteItems_UpdateOfAKeyAttribute_CancelsWithAValidationError()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -169,19 +165,19 @@ public sealed class FidelityTests(Backend backend)
               {"Update":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET sk = :sk","ExpressionAttributeValues":{":sk":{"N":"2"}}}},
               {"Put":{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"c"},"sk":{"N":"1"}}}}]}
             """;
+        var expected = $"{Canceled}[None, ValidationError: One or more parameter values were invalid: Cannot update attribute sk. This attribute is part of the key, None]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", json);
-        var outcome = Outcome(response);
-        Record("5 update of a key attribute in a transaction", outcome, response);
+        var outcome = Record("5 update of a key attribute in a transaction", Outcome(response), response, expected);
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", $"{Canceled}[None,ValidationError,None]", $"{Canceled}[ValidationError]");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 6. The documentation rejects duplicate keys in BatchGetItem, and does not say whether two spellings of one number are duplicates.
+    // Question 6: two forms of one number are one key, read once, and no duplicate.
     [Test]
-    public async Task BatchGetItem_KeysThatAreEqualNumbers_IsRecorded()
+    public async Task BatchGetItem_KeysThatAreEqualNumbers_ReturnsTheItemOnce()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -191,58 +187,58 @@ public sealed class FidelityTests(Backend backend)
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("BatchGetItem", json);
-        var outcome = response.StatusCode == HttpStatusCode.OK
+        var answer = response.StatusCode == HttpStatusCode.OK
             ? $"OK, {JsonNode.Parse(response.Body)!["Responses"]![table]!.AsArray().Count} items"
             : Outcome(response);
-        Record("6 BatchGetItem with 1 and 1.0", outcome, response);
+        var outcome = Record("6 BatchGetItem with 1 and 1.0", answer, response, "OK, 1 items");
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", "OK, 1 items", "OK, 2 items");
+        await Assert.That(outcome).IsEqualTo("OK, 1 items");
     }
 
-    // Question 7. The documentation: "Leading and trailing zeroes are trimmed." That holds 1.0 and 01.50 everywhere. The earlier runs on real AWS saw -0 and exponents in
-    // plain digits at the top level (NumberFormatTests); in lists, maps and sets, and for the limits of the range, the answer is recorded: plain digits or the form written.
+    // Question 7: every number comes back in plain digits, at the top, in a list, in a map and in a set, also at the ends of the range.
     [Test]
-    [Arguments("1.0", true, true)]
-    [Arguments("01.50", true, true)]
-    [Arguments("1E+2", true, false)]
-    [Arguments("-0", true, false)]
-    [Arguments("1E+125", false, false)]
-    [Arguments("1E-130", false, false)]
-    public async Task GetItem_StoredNumber_ReturnsItInPlainDigits(string spelling, bool documentedAtTheTop, bool documentedNested)
+    [Arguments("1.0")]
+    [Arguments("01.50")]
+    [Arguments("1E+2")]
+    [Arguments("-0")]
+    [Arguments("1E+125")]
+    [Arguments("1E-130")]
+    public async Task GetItem_StoredNumber_ReturnsItInPlainDigits(string spelling)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         var item = $$$$$"""{"pk":{"S":"n"},"top":{"N":"{{{{{spelling}}}}}"},"list":{"L":[{"N":"{{{{{spelling}}}}}"}]},"map":{"M":{"x":{"N":"{{{{{spelling}}}}}"}}},"set":{"NS":["{{{{{spelling}}}}}"]}}""";
         (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{{{{{item}}}}}}""")).EnsureSuccess();
+        const string Expected = "top=plain digits list=plain digits map=plain digits set=plain digits";
 
         // Act
         var response = (await sandbox.Emulator.Raw.SendAsync("GetItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"n"}},"ConsistentRead":true}""")).EnsureSuccess();
         var stored = JsonNode.Parse(response.Body)!["Item"]!;
-        var returned = new (string Position, bool Documented, string Text)[]
+        var returned = new (string Position, string Text)[]
         {
-            ("top", documentedAtTheTop, stored["top"]!["N"]!.GetValue<string>()),
-            ("list", documentedNested, stored["list"]!["L"]![0]!["N"]!.GetValue<string>()),
-            ("map", documentedNested, stored["map"]!["M"]!["x"]!["N"]!.GetValue<string>()),
-            ("set", documentedNested, stored["set"]!["NS"]![0]!.GetValue<string>()),
+            ("top", stored["top"]!["N"]!.GetValue<string>()),
+            ("list", stored["list"]!["L"]![0]!["N"]!.GetValue<string>()),
+            ("map", stored["map"]!["M"]!["x"]!["N"]!.GetValue<string>()),
+            ("set", stored["set"]!["NS"]![0]!.GetValue<string>()),
         };
         var digits = PlainDigits[spelling];
-        var outcome = string.Join(' ', returned.Select(position => $"{position.Position}={Form(position.Text, digits, spelling)}"));
-        Record($"7 number {spelling}", outcome, response);
+        var answer = string.Join(' ', returned.Select(position => $"{position.Position}={Form(position.Text, digits, spelling)}"));
+        var outcome = Record($"7 number {spelling}", answer, response, Expected);
 
         // Assert
-        var unexpected = returned.Where(position => position.Text != digits && (position.Documented || position.Text != spelling)).Select(static position => $"{position.Position}={position.Text}");
-        await Assert.That(unexpected).IsEmpty();
+        await Assert.That(outcome).IsEqualTo(Expected);
     }
 
-    // Question 8. The documentation lists SIZE among the reserved words, and the API reference names "Size = :myval" as an expression that fails for that reason.
+    // Question 8: a bare size in lower case is a name wherever no parenthesis follows it. Size is reserved: the API reference names "Size = :myval" as an expression that fails.
     [Test]
-    [Arguments("PutItem", "comparison in a condition", """{"ConditionExpression":"size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""")]
-    [Arguments("PutItem", "argument of attribute_not_exists", """{"ConditionExpression":"attribute_not_exists(size)","Item":{"pk":{"S":"a"}}}""")]
-    [Arguments("UpdateItem", "REMOVE", """{"UpdateExpression":"REMOVE size","Key":{"pk":{"S":"a"}}}""")]
-    [Arguments("GetItem", "projection", """{"ProjectionExpression":"size","Key":{"pk":{"S":"a"}}}""")]
-    public async Task Expression_BareSizeAsAnAttributeName_ThrowsValidationException(string operation, string name, string members)
+    [Arguments("PutItem", "comparison in a condition", """{"ConditionExpression":"size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""", "ConditionalCheckFailedException")]
+    [Arguments("PutItem", "argument of attribute_not_exists", """{"ConditionExpression":"attribute_not_exists(size)","Item":{"pk":{"S":"a"}}}""", "OK")]
+    [Arguments("UpdateItem", "REMOVE", """{"UpdateExpression":"REMOVE size","Key":{"pk":{"S":"a"}}}""", "OK")]
+    [Arguments("GetItem", "projection", """{"ProjectionExpression":"size","Key":{"pk":{"S":"a"}}}""", "OK")]
+    [Arguments("PutItem", "Size in a condition", """{"ConditionExpression":"Size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""", "ValidationException")]
+    public async Task Expression_BareSizeAsAnAttributeName_IsAName(string operation, string name, string members, string expected)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -252,82 +248,90 @@ public sealed class FidelityTests(Backend backend)
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync(operation, request.ToJsonString());
-        var outcome = Outcome(response);
-        Record($"8 bare size: {operation} {name}", outcome, response);
+        var outcome = Record($"8 bare size: {operation} {name}", Outcome(response), response, expected);
 
         // Assert
-        await Assert.That(outcome).IsEqualTo("ValidationException");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 9. The documentation of Limit: "If DynamoDB processes the number of items up to the limit ..., it stops the operation and returns the matching values up to
-    // that point, and a key in LastEvaluatedKey", also when nothing follows: neither in the partition, nor in the range of the sort key condition, with items beyond it.
+    // Question 9: a page that Limit ends at the last item of a key condition with a sort key part has no LastEvaluatedKey, also with items of the partition beyond it. With
+    // a condition on the partition key alone, run 42356511937 had the key for one item and Limit 1, and none for two items, Limit 2 and COUNT, so those cases are recorded.
     [Test]
-    [Arguments(1, null, 1, "ALL_ATTRIBUTES")]
-    [Arguments(2, null, 2, "COUNT")]
     [Arguments(1, 1, 1, "ALL_ATTRIBUTES")]
     [Arguments(1, 1, 1, "COUNT")]
     [Arguments(2, 2, 2, "ALL_ATTRIBUTES")]
     [Arguments(3, 2, 2, "ALL_ATTRIBUTES")]
     [Arguments(3, 2, 2, "COUNT")]
-    public async Task Query_LimitEqualToTheItemsLeft_ReturnsALastEvaluatedKey(int items, int? end, int limit, string select)
+    public async Task Query_LimitAtTheLastItemOfTheSortKeyCondition_LeavesOutLastEvaluatedKey(int items, int end, int limit, string select)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
-        var table = await sandbox.CreateTableAsync(new TableSpec(SortKeyType: KeyAttributeType.Number));
-        for (var sk = 1; sk <= items; sk++)
-        {
-            (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"a"},"sk":{"N":"{{{{{sk}}}}}"}}}""")).EnsureSuccess();
-        }
-
-        var condition = end is null ? "pk = :pk" : "pk = :pk AND sk <= :end";
-        var values = end is null ? """{":pk":{"S":"a"}}""" : $$$$$"""{":pk":{"S":"a"},":end":{"N":"{{{{{end}}}}}"}}""";
-        var json = $$$$$"""
-            {"TableName":"{{{{{table}}}}}","KeyConditionExpression":"{{{{{condition}}}}}","ExpressionAttributeValues":{{{{{values}}}}},"Limit":{{{{{limit}}}}},"Select":"{{{{{select}}}}}","ConsistentRead":true}
-            """;
+        var table = await SeedForQueryAsync(sandbox, items);
+        var json = QueryJson(table, "pk = :pk AND sk <= :end", $$$$$"""{":pk":{"S":"a"},":end":{"N":"{{{{{end}}}}}"}}""", limit, select);
 
         // Act
         var response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
-        var outcome = JsonNode.Parse(response.Body)!.AsObject().ContainsKey("LastEvaluatedKey") ? "LastEvaluatedKey present" : "LastEvaluatedKey absent";
-        Record($"9 query of {condition} over {items} items with Limit {limit} and {select}", outcome, response);
+        var outcome = Record($"9 query of sk <= {end} over {items} items with Limit {limit} and {select}", LastKey(response), response, "LastEvaluatedKey absent");
 
         // Assert
-        await Assert.That(outcome).IsEqualTo("LastEvaluatedKey present");
+        await Assert.That(outcome).IsEqualTo("LastEvaluatedKey absent");
     }
 
-    // Question 10, the reason of a ConditionCheck. The documentation prints the message as "The conditional request failed.", in a list where every message ends with a period.
+    // Question 9, the partition key alone: recorded until the rule is clear.
     [Test]
-    public async Task TransactWriteItems_FailedConditionCheck_ReasonMessageIsRecorded()
+    [Arguments(1, 1, "ALL_ATTRIBUTES")]
+    [Arguments(1, 1, "COUNT")]
+    [Arguments(2, 2, "ALL_ATTRIBUTES")]
+    [Arguments(2, 2, "COUNT")]
+    public async Task Query_LimitAtTheLastItemOfThePartition_IsRecorded(int items, int limit, string select)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await SeedForQueryAsync(sandbox, items);
+        var json = QueryJson(table, "pk = :pk", """{":pk":{"S":"a"}}""", limit, select);
+
+        // Act
+        var response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
+        var outcome = Record($"9 query of pk = :pk over {items} items with Limit {limit} and {select}", LastKey(response), response, null);
+
+        // Assert
+        await Assert.That(outcome).IsIn("LastEvaluatedKey present", "LastEvaluatedKey absent");
+    }
+
+    // Question 10: the reason of a failed ConditionCheck has no period at the end.
+    [Test]
+    public async Task TransactWriteItems_FailedConditionCheck_ReasonMessageHasNoPeriod()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         var json = $$$$$"""{"TransactItems":[{"ConditionCheck":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"missing"}},"ConditionExpression":"attribute_exists(pk)"}}]}""";
+        var expected = $"\"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]\", {Canceled}[ConditionalCheckFailed: The conditional request failed]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactWriteItems", json);
-        var reason = JsonNode.Parse(response.Body)!["CancellationReasons"]?[0]?["Message"]?.GetValue<string>();
-        Record("10 message of a failed ConditionCheck", $"\"{reason}\" in \"{Message(response)}\"", response);
+        var outcome = Record("10 message of a failed ConditionCheck", $"\"{Message(response)}\", {Outcome(response)}", response, expected);
 
         // Assert
-        await Assert.That(reason).IsIn("The conditional request failed", "The conditional request failed.");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 10, the cancellation of TransactGetItems: its message and reasons, with the key of another type of question 4.
+    // Question 10: a cancelled TransactGetItems has the message of a cancelled TransactWriteItems, and its reasons.
     [Test]
-    public async Task TransactGetItems_KeyOfAnotherType_MessageAndReasonsAreRecorded()
+    public async Task TransactGetItems_KeyOfAnotherType_CancelsWithTheMessageAndReasons()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var table = await sandbox.CreateTableAsync();
         var json = $$$$$"""{"TransactItems":[{"Get":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"N":"1"}}}},{"Get":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"b"}}}}]}""";
+        var expected = $"\"Transaction cancelled, please refer cancellation reasons for specific reasons [ValidationError, None]\", {Canceled}[{KeyMismatch}, None]";
 
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync("TransactGetItems", json);
-        var reasons = JsonNode.Parse(response.Body)!["CancellationReasons"]?.ToJsonString() ?? "no CancellationReasons";
-        Record("10 message of a cancelled TransactGetItems", $"{response.ErrorCode}: \"{Message(response)}\", {reasons}", response);
+        var outcome = Record("10 message of a cancelled TransactGetItems", $"\"{Message(response)}\", {Outcome(response)}", response, expected);
 
         // Assert
-        await Assert.That(response.ErrorCode).IsIn("ValidationException", Canceled);
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
     // One item for each failing update: a number of 38 digits, and nothing else that the updates reach. The other item is the one the condition check reads.
@@ -339,13 +343,31 @@ public sealed class FidelityTests(Backend backend)
         return table;
     }
 
+    private static async Task<string> SeedForQueryAsync(Sandbox sandbox, int items)
+    {
+        var table = await sandbox.CreateTableAsync(new TableSpec(SortKeyType: KeyAttributeType.Number));
+        for (var sk = 1; sk <= items; sk++)
+        {
+            (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"a"},"sk":{"N":"{{{{{sk}}}}}"}}}""")).EnsureSuccess();
+        }
+
+        return table;
+    }
+
+    private static string QueryJson(string table, string condition, string values, int limit, string select) => $$$$$"""
+        {"TableName":"{{{{{table}}}}}","KeyConditionExpression":"{{{{{condition}}}}}","ExpressionAttributeValues":{{{{{values}}}}},"Limit":{{{{{limit}}}}},"Select":"{{{{{select}}}}}","ConsistentRead":true}
+        """;
+
+    private static string LastKey(RawResponse response) =>
+        JsonNode.Parse(response.Body)!.AsObject().ContainsKey("LastEvaluatedKey") ? "LastEvaluatedKey present" : "LastEvaluatedKey absent";
+
     private static string FailingUpdate(string table, string condition, string update, string values) => $$$$$"""
         {"TransactItems":[
           {"ConditionCheck":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"other"}},"ConditionExpression":"{{{{{condition}}}}}"}},
           {"Update":{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"target"}},"UpdateExpression":"{{{{{update}}}}}","ExpressionAttributeValues":{{{{{values}}}}}}}]}
         """;
 
-    // "OK", the error code, or for a cancelled transaction the codes of its reasons in order: "TransactionCanceledException[None,ValidationError]", "[]" for none.
+    // "OK", the error code, or for a cancelled transaction its reasons in order, each with its message: "TransactionCanceledException[None, ValidationError: ...]", "[]" for none.
     private static string Outcome(RawResponse response)
     {
         if (response.StatusCode == HttpStatusCode.OK)
@@ -360,7 +382,7 @@ public sealed class FidelityTests(Backend backend)
         }
 
         var reasons = JsonNode.Parse(response.Body)!["CancellationReasons"]?.AsArray() ?? [];
-        return $"{Canceled}[{string.Join(',', reasons.Select(static reason => reason!["Code"]!.GetValue<string>()))}]";
+        return $"{Canceled}[{string.Join(", ", reasons.Select(static reason => reason!["Message"] is { } message ? $"{reason["Code"]}: {message}" : $"{reason!["Code"]}"))}]";
     }
 
     // DynamoDB writes "Message" for some errors and "message" for others.
@@ -373,8 +395,9 @@ public sealed class FidelityTests(Backend backend)
     private static string Form(string text, string digits, string spelling) =>
         text == digits ? "plain digits" : text == spelling ? "as written" : text;
 
-    // Writes the answer to the output and the report, and skips the test on every backend but real DynamoDB, which alone is asserted.
-    private void Record(string question, string outcome, RawResponse response)
+    // Writes the answer to the output and the report, and skips the test on an emulator whose answer is not the one of real DynamoDB, or on any emulator for a question that is
+    // only recorded (no expected answer). Real DynamoDB and the fake go on to the assertion.
+    private string Record(string question, string outcome, RawResponse response, string? expected)
     {
         var line = $"{question}: {backend} answers {outcome}";
         TestContext.Current?.Output.WriteLine($"{line}{Environment.NewLine}{response.Body}");
@@ -388,9 +411,11 @@ public sealed class FidelityTests(Backend backend)
             }
         }
 
-        if (backend != Backend.RealAws)
+        if (backend is Backend.Dynoxide or Backend.DynamoDbLocal && (expected is null || outcome != expected))
         {
-            Skip.Test($"{line}. Only real DynamoDB is asserted.");
+            Skip.Test($"{line}. Real DynamoDB answers {expected ?? "this question in more than one way"}.");
         }
+
+        return outcome;
     }
 }
