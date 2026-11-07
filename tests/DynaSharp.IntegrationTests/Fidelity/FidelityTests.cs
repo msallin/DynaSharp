@@ -231,13 +231,14 @@ public sealed class FidelityTests(Backend backend)
         await Assert.That(outcome).IsEqualTo(Expected);
     }
 
-    // Question 8: a bare size in lower case is a name wherever no parenthesis follows it. Size is reserved: the API reference names "Size = :myval" as an expression that fails.
+    // Question 8: a bare size in any case is a name wherever no parenthesis follows it. The API reference names "Size = :myval" as an expression that fails; run 42361778673
+    // evaluated it.
     [Test]
     [Arguments("PutItem", "comparison in a condition", """{"ConditionExpression":"size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""", "ConditionalCheckFailedException")]
     [Arguments("PutItem", "argument of attribute_not_exists", """{"ConditionExpression":"attribute_not_exists(size)","Item":{"pk":{"S":"a"}}}""", "OK")]
     [Arguments("UpdateItem", "REMOVE", """{"UpdateExpression":"REMOVE size","Key":{"pk":{"S":"a"}}}""", "OK")]
     [Arguments("GetItem", "projection", """{"ProjectionExpression":"size","Key":{"pk":{"S":"a"}}}""", "OK")]
-    [Arguments("PutItem", "Size in a condition", """{"ConditionExpression":"Size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("PutItem", "Size in a condition", """{"ConditionExpression":"Size = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Item":{"pk":{"S":"a"}}}""", "ConditionalCheckFailedException")]
     public async Task Expression_BareSizeAsAnAttributeName_IsAName(string operation, string name, string members, string expected)
     {
         // Arrange

@@ -110,8 +110,6 @@ public sealed class ExpressionParserTests
     [Arguments(" \t\r\n", "The expression can not be empty;")]
     [Arguments("status = :v", ReservedKeyword + "; reserved keyword: status")]
     [Arguments("a.Name = :v", ReservedKeyword + "; reserved keyword: Name")]
-    [Arguments("Size = :v", ReservedKeyword + "; reserved keyword: Size")]
-    [Arguments("SIZE = :v", ReservedKeyword + "; reserved keyword: SIZE")]
     [Arguments("#missing = :v", "An expression attribute name used in the document path is not defined; attribute name: #missing")]
     [Arguments("a = :missing", "An expression attribute value used in expression is not defined; attribute value: :missing")]
     [Arguments("unknown(a)", "Invalid function name; function: unknown")]
@@ -213,6 +211,8 @@ public sealed class ExpressionParserTests
     [Arguments("size = :n")]
     [Arguments("attribute_not_exists(size)")]
     [Arguments("size(size) > :n")]
+    [Arguments("Size = :n")]
+    [Arguments("a.SIZE = :n")]
     public async Task ParseCondition_BoundsOrOperandsKnownOnlyOnTheItem_Parses(string expression)
     {
         // Arrange
