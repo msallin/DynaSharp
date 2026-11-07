@@ -65,6 +65,7 @@ internal sealed class DynamoDbPipeline : IDisposable
     private readonly int _maxResponseLength;
     private readonly BoundedPool<CancellationTokenSource> _timeouts = new(TimeoutPoolCapacity);
     private readonly BoundedPool<CallBuffers> _buffers = new(BuffersPoolCapacity);
+    private volatile bool _disposed;
 
     // The limit on the response body is a parameter so that tests can use a small one.
     public DynamoDbPipeline(
@@ -305,6 +306,7 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <summary>Releases the timeout sources that wait to be reused. Calls that are still running dispose theirs as they finish.</summary>
     public void Dispose()
     {
+        _disposed = true;
         foreach (var source in _timeouts.Close())
         {
             source.Dispose();
@@ -383,6 +385,13 @@ internal sealed class DynamoDbPipeline : IDisposable
         catch (OperationCanceledException exception) when (timeout is { IsCancellationRequested: true })
         {
             throw new TimeoutException($"DynamoDB {call.OperationName} did not complete within the attempt timeout of {_attemptTimeout}.", exception);
+        }
+        catch (OperationCanceledException exception) when (!_disposed)
+        {
+            // Neither the caller nor the attempt timeout: a timeout of the HTTP handler, such as SocketsHttpHandler.ConnectTimeout, which
+            // throws a TaskCanceledException around a TimeoutException. A cancellation the caller did not ask for is a timeout to them.
+            // Disposing the client cancels its requests too; that cancellation stays one, and is not retried.
+            throw new TimeoutException($"DynamoDB {call.OperationName} timed out in the HTTP handler: {exception.Message}", exception);
         }
         finally
         {

@@ -53,7 +53,7 @@ The client throws these itself:
 
 | Exception | When | Carries |
 |---|---|---|
-| `TimeoutException` | An attempt ran past `AttemptTimeout`. Retried; surfaces after the last attempt. Also a `CreateTable()` that ran past its `Timeout(...)`, see [A table that exists](tables.md#a-table-that-exists), which is not retried | The message of the `CreateTable()` names the table and the step |
+| `TimeoutException` | An attempt ran past `AttemptTimeout`, or a timeout of the HTTP handler cancelled it, such as `SocketsHttpHandler.ConnectTimeout`. Retried; surfaces after the last attempt. Also a `CreateTable()` that ran past its `Timeout(...)`, see [A table that exists](tables.md#a-table-that-exists), which is not retried | The message of the `CreateTable()` names the table and the step |
 | `HttpRequestException` | The network failed. Retried, except a response above 64 MB, whose `HttpRequestError` is `ConfigurationLimitExceeded` | |
 | `OperationCanceledException` | The caller's `CancellationToken` was cancelled. Never retried | |
 | `CredentialsUnavailableException` | No credentials source applies, or one that applies is broken. Never retried. See [When credentials fail](credentials.md#when-credentials-fail) | |
@@ -114,6 +114,7 @@ await customers.Update(Customer.Keys.Of("alice"))
 ## Timeouts and cancellation
 
 - **`AttemptTimeout`**, 30 seconds by default, bounds one attempt, from looking up the credentials to reading the whole response. It surfaces as `TimeoutException`, never `OperationCanceledException`, and is retried with a fresh timeout per attempt, so a call can take `MaxAttempts * AttemptTimeout` plus the waits. `Timeout.InfiniteTimeSpan` turns it off.
+- **A timeout of the HTTP handler**, such as `ConnectTimeout` of a `SocketsHttpHandler` given as `HttpHandler`, surfaces as `TimeoutException` too, with the handler's `TaskCanceledException` inside, and is retried like `AttemptTimeout`. Every cancellation that the caller's token did not cause counts as such a timeout.
 - **A `CancellationToken`** bounds the whole call, retries and waits included, and surfaces as `OperationCanceledException`, never retried. To bound a call in time, cancel the token after that time.
 
 ```csharp

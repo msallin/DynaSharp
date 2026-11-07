@@ -44,13 +44,9 @@ internal sealed class FailureClassifierTests
             FailureKind.Permanent);
         yield return new("HttpRequestException ResponseEnded", new HttpRequestException(HttpRequestError.ResponseEnded, "The response ended prematurely."), FailureKind.Transient);
 
-        // The timeout of an attempt, and the connect timeout of the HTTP handler (botocore ConnectTimeoutError and ReadTimeoutError,
-        // which also cost more quota).
+        // The timeout of an attempt, and the connect timeout of the HTTP handler, which the pipeline turns into a TimeoutException
+        // (botocore ConnectTimeoutError and ReadTimeoutError, which also cost more quota).
         yield return new("TimeoutException", new TimeoutException("The attempt timed out."), FailureKind.Timeout);
-        yield return new(
-            "HttpRequestException with TimeoutException",
-            new HttpRequestException(HttpRequestError.ConnectionError, "A connection attempt timed out.", new TimeoutException("The connect timeout elapsed.")),
-            FailureKind.Timeout);
         yield return new(
             "HttpRequestException with IOException",
             new HttpRequestException(HttpRequestError.ResponseEnded, "The response ended.", new IOException("The connection was closed.")),

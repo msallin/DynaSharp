@@ -902,9 +902,9 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
-    public async Task SendAsync_CancellationOfNeitherTokenWithATimeout_SurfacesAsItIs()
+    public async Task SendAsync_CancellationOfNeitherTokenWithATimeout_SurfacesAsTheTimeoutOfTheHandler()
     {
-        // Arrange (a handler of the application that gives up by itself is none of the timeout's business)
+        // Arrange (a handler of the application that gives up by itself is none of the command's timeout's business)
         using var handler = new DelegateHandler(static (_, _) => throw new OperationCanceledException("The handler gave up."));
         using var client = TestClient.Create(handler, new ManualTimeProvider(), attemptTimeout: TimeSpan.FromHours(1));
 
@@ -912,7 +912,8 @@ public sealed partial class CreateTableCommandTests
         var failure = await TestClient.CaptureAsync<Exception>(async () => await client.Table("Shop", "pk").CreateTable().Timeout(TimeSpan.FromHours(1)).SendAsync());
 
         // Assert
-        await Assert.That(failure.GetType()).IsEqualTo(typeof(OperationCanceledException));
+        await Assert.That((failure.GetType(), failure.Message))
+            .IsEqualTo((typeof(TimeoutException), "DynamoDB CreateTable timed out in the HTTP handler: The handler gave up."));
     }
 
     [Test]

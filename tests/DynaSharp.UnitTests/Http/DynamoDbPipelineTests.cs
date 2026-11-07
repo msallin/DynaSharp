@@ -961,31 +961,34 @@ public sealed class DynamoDbPipelineTests
     }
 
     [Test]
-    public async Task ExecuteAsync_HandlerCancelsOnItsOwnWithoutAttemptTimeout_ThrowsTheCancellationUnchanged()
+    public async Task ExecuteAsync_HandlerCancelsOnItsOwnWithoutAttemptTimeout_ThrowsTimeoutExceptionAroundTheCancellation()
     {
-        // Arrange (a cancellation that neither the caller nor the timeout caused is none of the pipeline's business)
-        using var handler = new StubHandler(_ => throw new OperationCanceledException("The handler gave up."));
+        // Arrange (a cancellation that neither the caller nor the timeout caused, such as the one of SocketsHttpHandler.ConnectTimeout)
+        var cancellation = new TaskCanceledException("The connection attempt timed out.", new TimeoutException("No connection within 200 ms."));
+        using var handler = new StubHandler(_ => throw cancellation);
         using var client = TestClient.Create(handler, attemptTimeout: Timeout.InfiniteTimeSpan);
 
         // Act
-        var exception = await TestClient.CaptureAsync<OperationCanceledException>(() => client.GetItemAsync(TestClient.GetItem()));
+        var exception = await TestClient.CaptureAsync<TimeoutException>(() => client.GetItemAsync(TestClient.GetItem()));
 
         // Assert
-        await Assert.That(exception.Message).IsEqualTo("The handler gave up.");
+        await Assert.That((exception.InnerException, exception.Message))
+            .IsEqualTo((cancellation, "DynamoDB GetItem timed out in the HTTP handler: The connection attempt timed out."));
     }
 
     [Test]
-    public async Task ExecuteAsync_HandlerCancelsOnItsOwnBeforeTheTimeout_ThrowsTheCancellationUnchanged()
+    public async Task ExecuteAsync_HandlerCancelsOnItsOwnBeforeTheTimeout_ThrowsTimeoutExceptionAroundTheCancellation()
     {
         // Arrange
-        using var handler = new StubHandler(_ => throw new OperationCanceledException("The handler gave up."));
+        var cancellation = new OperationCanceledException("The handler gave up.");
+        using var handler = new StubHandler(_ => throw cancellation);
         using var client = TestClient.Create(handler, new ManualTimeProvider());
 
         // Act
-        var exception = await TestClient.CaptureAsync<OperationCanceledException>(() => client.GetItemAsync(TestClient.GetItem()));
+        var exception = await TestClient.CaptureAsync<TimeoutException>(() => client.GetItemAsync(TestClient.GetItem()));
 
         // Assert
-        await Assert.That(exception.Message).IsEqualTo("The handler gave up.");
+        await Assert.That(exception.InnerException).IsSameReferenceAs(cancellation);
     }
 
     [Test]

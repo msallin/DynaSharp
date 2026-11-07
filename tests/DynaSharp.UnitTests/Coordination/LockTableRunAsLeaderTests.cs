@@ -412,9 +412,10 @@ public sealed class LockTableRunAsLeaderTests
     [Test]
     [Arguments(typeof(TimeoutException))]
     [Arguments(typeof(HttpRequestException))]
+    [Arguments(typeof(TaskCanceledException))]
     public async Task RunAsLeaderAsync_NetworkFailureWhileContending_ContendsAgain(Type failure)
     {
-        // Arrange
+        // Arrange (a TaskCanceledException that the caller did not ask for is what the connect timeout of SocketsHttpHandler throws)
         using var bench = new LockHarness();
         var failed = false;
         bench.Intercept = (_, _) =>
@@ -425,7 +426,12 @@ public sealed class LockTableRunAsLeaderTests
             }
 
             failed = true;
-            throw failure == typeof(TimeoutException) ? new TimeoutException() : new HttpRequestException();
+            Exception exception = failure == typeof(TimeoutException)
+                ? new TimeoutException()
+                : failure == typeof(HttpRequestException)
+                    ? new HttpRequestException()
+                    : new TaskCanceledException("The connection attempt timed out.", new TimeoutException());
+            throw exception;
         };
         var ran = false;
         Task Work(Lease lease, CancellationToken stop)

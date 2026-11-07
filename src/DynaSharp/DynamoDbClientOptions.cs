@@ -104,7 +104,7 @@ public sealed record DynamoDbClientOptions
     /// <summary>
     /// Gets the timeout of a single attempt, from looking up the credentials to reading the whole response, so a slow credentials
     /// provider counts against it. Retries get a fresh timeout each. Defaults to 30 seconds. An attempt that times out surfaces as <see cref="TimeoutException"/>, never as
-    /// <see cref="OperationCanceledException"/>. Use <see cref="Timeout.InfiniteTimeSpan"/> for no timeout; otherwise the value must
+    /// <see cref="OperationCanceledException"/>, and so does a timeout of the <see cref="HttpHandler"/>, such as its connect timeout. Use <see cref="Timeout.InfiniteTimeSpan"/> for no timeout; otherwise the value must
     /// be positive and at most 4294967294 milliseconds (about 49.7 days).
     /// </summary>
     public TimeSpan AttemptTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -122,8 +122,9 @@ public sealed record DynamoDbClientOptions
     /// <see cref="RequestLimitExceededException"/>, <see cref="LimitExceededException"/>, <see cref="TransactionInProgressException"/>),
     /// with <see cref="ReplicatedWriteConflictException"/> or <c>RequestTimeoutException</c>, with HTTP 500, 502, 503 or 504 (including
     /// <see cref="InternalServerErrorException"/> and a proxy answering 503 with a page that is not a DynamoDB response), with a network
-    /// failure (<see cref="HttpRequestException"/>), or when the attempt exceeds <see cref="AttemptTimeout"/>. It never retries a
-    /// cancellation, <see cref="CredentialsUnavailableException"/>, <see cref="ValidationException"/>,
+    /// failure (<see cref="HttpRequestException"/>), or with a <see cref="TimeoutException"/>: the attempt exceeded <see cref="AttemptTimeout"/>, or a timeout of the
+    /// <see cref="HttpHandler"/>, such as <see cref="SocketsHttpHandler.ConnectTimeout"/>, cancelled it. It never retries a
+    /// cancellation by the caller's token, <see cref="CredentialsUnavailableException"/>, <see cref="ValidationException"/>,
     /// <see cref="ConditionalCheckFailedException"/>, <see cref="TransactionCanceledException"/>,
     /// <see cref="TransactionConflictException"/>, <see cref="AccessDeniedException"/>, any other 4xx response or a response body above
     /// 64 MB. After the last attempt the error of that attempt surfaces unchanged.

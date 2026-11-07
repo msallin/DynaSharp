@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using DynaSharp.Credentials;
@@ -159,6 +160,30 @@ public sealed class DynamoDbPipelineRetryTests
 
         // Assert
         await Assert.That(exception.Message).IsEqualTo("Connection refused 3");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_ConnectTimeoutOfTheHandlerOnEveryAttempt_ThrowsTimeoutExceptionAfterTheLastAttempt()
+    {
+        // Arrange (the connect timeout runs on the real clock: a connection that never comes up fails each attempt after 200 ms)
+        var connects = 0;
+        using var handler = new SocketsHttpHandler
+        {
+            ConnectTimeout = TimeSpan.FromMilliseconds(200),
+            ConnectCallback = async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref connects);
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                throw new UnreachableException();
+            },
+        };
+        using var client = CreateClient(handler, maxAttempts: 2, serviceUrl: new Uri("http://dynamodb.test"));
+
+        // Act
+        await TestClient.CaptureAsync<TimeoutException>(() => client.GetItemAsync(TestClient.GetItem()));
+
+        // Assert
+        await Assert.That(connects).IsEqualTo(2);
     }
 
     [Test]
@@ -337,17 +362,17 @@ public sealed class DynamoDbPipelineRetryTests
     }
 
     [Test]
-    public async Task ExecuteAsync_HandlerCancelsOnItsOwn_DoesNotRetry()
+    public async Task ExecuteAsync_HandlerCancelsOnItsOwn_IsRetriedAsATimeout()
     {
-        // Arrange (a cancellation that neither the caller nor the timeout asked for is not a failure of the service)
+        // Arrange (a cancellation that neither the caller nor the attempt timeout asked for is a timeout of the handler)
         using var handler = new StubHandler(_ => throw new OperationCanceledException("The handler gave up."));
         using var client = CreateClient(handler);
 
         // Act
-        await TestClient.CaptureAsync<OperationCanceledException>(() => client.GetItemAsync(TestClient.GetItem()));
+        await TestClient.CaptureAsync<TimeoutException>(() => client.GetItemAsync(TestClient.GetItem()));
 
         // Assert
-        await Assert.That(handler.Requests.Count).IsEqualTo(1);
+        await Assert.That(handler.Requests.Count).IsEqualTo(3);
     }
 
     [Test]

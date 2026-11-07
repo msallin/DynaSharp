@@ -55,10 +55,10 @@ internal static class FailureClassifier
     public static FailureKind Classify(Exception exception) => exception switch
     {
         DynamoDbException dynamoDbException => ClassifyResponse(dynamoDbException.ErrorCode, dynamoDbException.StatusCode),
-        TimeoutException => FailureKind.Timeout,
 
-        // The connect timeout of the HTTP handler surfaces like this. botocore charges it as a timeout (ConnectTimeoutError) too.
-        HttpRequestException { InnerException: TimeoutException } => FailureKind.Timeout,
+        // Also a timeout of the HTTP handler, such as its connect timeout, which the pipeline turns into one. botocore charges it as a
+        // timeout (ConnectTimeoutError) too.
+        TimeoutException => FailureKind.Timeout,
 
         // A limit of the client was exceeded, for example a response body above the ceiling. The same request gets the same response.
         HttpRequestException { HttpRequestError: HttpRequestError.ConfigurationLimitExceeded } => FailureKind.Permanent,
