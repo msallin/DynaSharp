@@ -25,7 +25,7 @@ public static class TableStreamExtensions
     /// until that ends. The table takes <c>dynamodb:DescribeTable</c> for this, besides the permissions of the stream.
     /// </para>
     /// <para>
-    /// The view of the stream is not checked: with <see cref="StreamViewType.KeysOnly"/> a record has no image, and <see cref="Table{T}.DescribeTableAsync"/> tells the view,
+    /// The view of the stream is not checked: with <see cref="StreamViewType.KeysOnly"/> a record has no image, and <see cref="Table{T}.DescribeTableAsync(CancellationToken)"/> tells the view,
     /// <see cref="StreamSpecification.StreamViewType"/>. Arguments are checked at the call, and nothing is requested until the first record is asked for.
     /// </para>
     /// </remarks>

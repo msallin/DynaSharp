@@ -199,6 +199,24 @@ await orders.CreateTable()
 
 `Timeout` covers the look, the create, the wait and time to live, and throws a `TimeoutException` that names the table and the step it was at, where a `CancellationToken` on a timer gives a bare `OperationCanceledException` that names nothing. The bound of the wait still holds inside it, and a wait that runs out first throws its `TableNotActiveException`, which names the index. A table that DynamoDB accepted stays after a timeout, and the next start goes on from there. The token of the caller still cancels as before.
 
+### Describing a table within a time
+
+A health check asks whether the table is there and gives up after a few seconds. `DescribeTableAsync(timeout, ct)` bounds the call on the clock of the client, with its retries, and throws a `TimeoutException` that names the table, where a linked token on a timer of its own gives a bare `OperationCanceledException`:
+
+```csharp
+try
+{
+    var description = await orders.DescribeTableAsync(TimeSpan.FromSeconds(5), ct);
+    Console.WriteLine(description.TableStatus);
+}
+catch (TimeoutException timeout)
+{
+    Console.WriteLine(timeout.Message); // The DescribeTable of Shop did not answer within its timeout of 00:00:05.
+}
+```
+
+`client.DescribeTableAsync(name, timeout, ct)` does the same by name, the deployed one. The token of the caller still cancels with its own `OperationCanceledException`.
+
 ## Adding an index
 
 The indexes and `.Stream(...)` of `CreateTable()` apply only to a table it creates. To add an index to a table that exists, keep this order:

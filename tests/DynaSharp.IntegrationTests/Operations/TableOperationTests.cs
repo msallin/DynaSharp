@@ -9,6 +9,34 @@ namespace DynaSharp.IntegrationTests.Operations;
 public sealed class TableOperationTests(Backend backend)
 {
     [Test]
+    public async Task DescribeTableAsync_WithATimeout_DescribesTheTable()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var name = Tables.UniqueName();
+        await sandbox.CreateTableAsync(Tables.Request(name, TableSpec.PartitionOnly));
+
+        // Act
+        var description = await sandbox.Client.Table(name, "pk").DescribeTableAsync(TimeSpan.FromSeconds(30));
+
+        // Assert
+        await Assert.That(description.TableName).IsEqualTo(name);
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_MissingTableWithATimeout_ThrowsResourceNotFound()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+
+        // Act
+        var failure = await Assert.ThrowsAsync<ResourceNotFoundException>(async () => await sandbox.Client.DescribeTableAsync(Tables.UniqueName(), TimeSpan.FromSeconds(30)));
+
+        // Assert
+        await Assert.That(failure).IsNotNull();
+    }
+
+    [Test]
     public async Task CreateTable_PartitionKeyOnDemand_ReturnsTheDescriptionOfANewTable()
     {
         // Arrange

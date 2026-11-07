@@ -27,3 +27,5 @@ DynaSharp.ScanCommand<T>.Take(int items) -> DynaSharp.ScanCommand<T>
 *REMOVED*DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string!>?
 DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string?>?
 DynaSharp.DynamoDbClient.ResolveTableName(string! declaredName) -> string!
+DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
+DynaSharp.Table<T>.DescribeTableAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>

@@ -175,6 +175,29 @@ public sealed partial class Table<T>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
     /// <summary>
+    /// Reads the description of the table, as <see cref="DescribeTableAsync(CancellationToken)"/> does, within <paramref name="timeout"/>, and throws a <see cref="TimeoutException"/> that names the table when the time
+    /// runs out first: the bound of a health check, <c>await orders.DescribeTableAsync(TimeSpan.FromSeconds(5), ct)</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>On the clock of the client.</b> The time runs on <see cref="DynamoDbClientOptions.TimeProvider"/>, and it bounds the call with its retries; the call in flight is cancelled. A token of the caller still
+    /// cancels as it did, with an <see cref="OperationCanceledException"/> of that token, also when both happen at once, where a token on a timer of its own gives a bare <see cref="OperationCanceledException"/>.
+    /// A <see cref="DynamoDbClientOptions.AttemptTimeout"/> of an attempt is its own and still throws its own <see cref="TimeoutException"/>.
+    /// </para>
+    /// </remarks>
+    /// <param name="timeout">The time for the call, more than zero, or <see cref="Timeout.InfiniteTimeSpan"/> for no bound.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The description. A response without one gives the name of this table and <see cref="TableStatus.Unknown"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, negative other than infinite, or above 4294967294 milliseconds.</exception>
+    /// <exception cref="TimeoutException">The call did not end within <paramref name="timeout"/>, with a message that names the table and the <see cref="OperationCanceledException"/> of the call inside it; or an attempt ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist, or it was created a moment ago: this call is eventually consistent.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<TableDescription> DescribeTableAsync(TimeSpan timeout, CancellationToken cancellationToken = default) =>
+        TableAdministration.DescribeAsync(Model, timeout, cancellationToken);
+
+    /// <summary>
     /// Waits for at most five minutes until the table and its global secondary indexes are <c>ACTIVE</c>. See <see cref="WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>, which an index
     /// that <c>UpdateTable</c> added needs, because that takes longer.
     /// </summary>
@@ -241,7 +264,7 @@ public sealed partial class Table<T>
     /// <remarks>
     /// <para>
     /// The table is gone only some time later, and this call does not wait for that: it returns the description of a table that is normally <see cref="TableStatus.Deleting"/>, and while it is, creating a table
-    /// of that name fails with <see cref="ResourceInUseException"/>. It is gone when <see cref="DescribeTableAsync"/> throws <see cref="ResourceNotFoundException"/>.
+    /// of that name fails with <see cref="ResourceInUseException"/>. It is gone when <see cref="DescribeTableAsync(CancellationToken)"/> throws <see cref="ResourceNotFoundException"/>.
     /// </para>
     /// <para>
     /// A table with deletion protection cannot be deleted. A repeat after a lost response can fail with <see cref="ResourceNotFoundException"/> or <see cref="ResourceInUseException"/>, because the table is

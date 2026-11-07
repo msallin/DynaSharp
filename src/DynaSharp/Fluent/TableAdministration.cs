@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using DynaSharp.Http;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
@@ -14,6 +15,9 @@ internal static class TableAdministration
     /// they span 1.5 seconds.
     /// </summary>
     public const int CatchUpLooks = 5;
+
+    /// <summary>The longest timeout a <see cref="CancellationTokenSource"/> takes: <see cref="uint.MaxValue"/> - 1 milliseconds.</summary>
+    public const double MaxTimeoutMilliseconds = 4294967294;
 
     /// <summary>How long a wait lasts unless a caller says otherwise. A table turns active within minutes. An index that UpdateTable adds can take longer on any table, and the largest restores do too: those know what to pass.</summary>
     public static readonly TimeSpan DefaultActiveTimeout = TimeSpan.FromMinutes(5);
@@ -36,6 +40,67 @@ internal static class TableAdministration
             .ExecuteAsync<DescribeTableOperation, DescribeTableRequest, DescribeTableResponse>(new DescribeTableRequest { TableName = table.Name }, cancellationToken)
             .ConfigureAwait(false);
         return response.Table ?? NoDescription(table);
+    }
+
+    /// <summary>Describes a table within a time on the clock of the client, as <see cref="DescribeWithinAsync"/> does.</summary>
+    /// <param name="table">The table.</param>
+    /// <param name="timeout">The time for the call, with its retries.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The description. For a response without one, see <see cref="NoDescription"/>.</returns>
+    public static async ValueTask<TableDescription> DescribeAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var response = await DescribeWithinAsync(table.Core, table.Name, timeout, cancellationToken).ConfigureAwait(false);
+        return response.Table ?? NoDescription(table);
+    }
+
+    /// <summary>
+    /// Sends a <c>DescribeTable</c> that the time on the clock of the client bounds, with every retry of the call, and turns its running out into a <see cref="TimeoutException"/> that names the table.
+    /// A token of the caller still cancels with an <see cref="OperationCanceledException"/> of that token, also when both happen at once.
+    /// </summary>
+    /// <param name="core">The client.</param>
+    /// <param name="tableName">The table.</param>
+    /// <param name="timeout">The time for the call, more than zero and at most <see cref="MaxTimeoutMilliseconds"/>, or <see cref="Timeout.InfiniteTimeSpan"/> for no bound.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is no bound a timer can hold.</exception>
+    /// <exception cref="TimeoutException">The time ran out first.</exception>
+    public static async Task<DescribeTableResponse> DescribeWithinAsync(ClientCore core, string tableName, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        ThrowIfNoBound(timeout, "DescribeTable");
+        var request = new DescribeTableRequest { TableName = tableName };
+        if (timeout == Timeout.InfiniteTimeSpan)
+        {
+            return await core.ExecuteAsync<DescribeTableOperation, DescribeTableRequest, DescribeTableResponse>(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        using var deadline = new CancellationTokenSource(timeout, core.TimeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        try
+        {
+            return await core.ExecuteAsync<DescribeTableOperation, DescribeTableRequest, DescribeTableResponse>(request, linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (deadline.IsCancellationRequested || cancellationToken.IsCancellationRequested)
+        {
+            // The call saw the linked token, and a caller tells its own cancellation by its own token, which wins when both came.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(exception.Message, exception, cancellationToken);
+            }
+
+            throw new TimeoutException($"The DescribeTable of {tableName} did not answer within its timeout of {timeout}.", exception);
+        }
+    }
+
+    /// <summary>Checks a timeout that a timer of a <see cref="CancellationTokenSource"/> runs: more than zero and at most <see cref="MaxTimeoutMilliseconds"/>, or <see cref="Timeout.InfiniteTimeSpan"/>.</summary>
+    /// <param name="timeout">The timeout.</param>
+    /// <param name="operation">What it bounds, for the message.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, negative other than infinite, or too long.</exception>
+    public static void ThrowIfNoBound(TimeSpan timeout, string operation)
+    {
+        if (timeout != Timeout.InfiniteTimeSpan && (timeout <= TimeSpan.Zero || timeout.TotalMilliseconds > MaxTimeoutMilliseconds))
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, $"The timeout of a {operation} is more than zero and at most {MaxTimeoutMilliseconds} milliseconds, or Timeout.InfiniteTimeSpan for no bound.");
+        }
     }
 
     /// <summary>Logs that a table that <c>CreateTable().IfNotExists()</c> found differs from what the command declares, once per command, since the program that meets it is usually not the one that can fix it.</summary>

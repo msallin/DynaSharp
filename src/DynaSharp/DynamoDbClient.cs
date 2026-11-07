@@ -227,7 +227,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <remarks>
     /// <para>
     /// It is <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> without a request to build and without <c>using DynaSharp.Requests;</c>, and it returns
-    /// what that returns. A <see cref="DynaSharp.Table{T}"/> at hand has <see cref="DynaSharp.Table{T}.DescribeTableAsync"/>.
+    /// what that returns. A <see cref="DynaSharp.Table{T}"/> at hand has <see cref="DynaSharp.Table{T}.DescribeTableAsync(CancellationToken)"/>.
     /// </para>
     /// <para>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="DynaSharp.Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</para>
     /// </remarks>
@@ -250,6 +250,32 @@ public sealed class DynamoDbClient : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(tableName);
         return this.DescribeTableAsync(new DescribeTableRequest { TableName = tableName }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads the definition and state of a table by its name, as <see cref="DescribeTableAsync(string, CancellationToken)"/> does, within <paramref name="timeout"/>, and throws a <see cref="TimeoutException"/> that names
+    /// the table when the time runs out first: the bound of a health check.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="DynaSharp.Table{T}.DescribeTableAsync(TimeSpan, CancellationToken)" path="/remarks/para"/>
+    /// </remarks>
+    /// <param name="tableName">
+    /// The table name as deployed, or its ARN, used exactly as given: <see cref="DynamoDbClientOptions.TableNaming"/> does not apply, so a declared name goes through <see cref="ResolveTableName"/> first.
+    /// </param>
+    /// <param name="timeout">The time for the call, more than zero, or <see cref="Timeout.InfiniteTimeSpan"/> for no bound.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The response. <see cref="DescribeTableResponse.Table"/> holds the description, and is <see langword="null"/> only if the response omits it.</returns>
+    /// <exception cref="ArgumentException"><paramref name="tableName"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, negative other than infinite, or above 4294967294 milliseconds.</exception>
+    /// <exception cref="TimeoutException">The call did not end within <paramref name="timeout"/>, with a message that names the table; or the last attempt ran out of <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public Task<DescribeTableResponse> DescribeTableAsync(string tableName, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(tableName);
+        return TableAdministration.DescribeWithinAsync(Core, tableName, timeout, cancellationToken);
     }
 
     /// <summary>

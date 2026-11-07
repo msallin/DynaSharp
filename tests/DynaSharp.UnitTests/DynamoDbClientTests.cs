@@ -612,6 +612,37 @@ public sealed class DynamoDbClientTests
     }
 
     [Test]
+    public async Task DescribeTableAsync_NameWithATimeout_SendsWhatTheRequestSends()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Table":{"TableName":"Music","TableStatus":"ACTIVE"}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var bounded = await client.DescribeTableAsync("Music", TimeSpan.FromSeconds(5));
+        var byRequest = await client.DescribeTableAsync(new DescribeTableRequest { TableName = "Music" });
+
+        // Assert
+        await Assert.That((bounded, handler.Requests[0].BodyText)).IsEqualTo((byRequest, handler.Requests[1].BodyText));
+    }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task DescribeTableAsync_NoNameWithATimeout_Throws(string? name)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.DescribeTableAsync(name!, TimeSpan.FromSeconds(5)));
+
+        // Assert
+        await Assert.That((failure is ArgumentException, handler.Requests.Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
     public async Task UpdateItemAsync_NullRequest_ThrowsArgumentNullException()
     {
         // Arrange

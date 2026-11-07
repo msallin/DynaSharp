@@ -31,6 +31,110 @@ public sealed class TableAdministrationTests
     }
 
     [Test]
+    [Arguments(5000L)]
+    [Arguments(-1L)]
+    public async Task DescribeTableAsync_TimeoutNotReachedOrInfinite_ReturnsTheDescription(long milliseconds)
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+
+        // Act
+        var description = await client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromMilliseconds(milliseconds));
+
+        // Assert
+        await Assert.That((description.TableStatus, handler.Requests.Single().BodyText)).IsEqualTo((TableStatus.Active, """{"TableName":"Shop"}"""));
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_TimeoutAndAResponseWithoutATable_ReturnsTheNameAndNoStatus()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var description = await client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That((description.TableName, description.TableStatus)).IsEqualTo(("Shop", TableStatus.Unknown));
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_CallThatHangsPastTheTimeout_ThrowsTimeoutThatNamesTheTable()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new DelegateHandler(static async (_, ct) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromHours(1));
+        var describing = client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromSeconds(5)).AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(describing, time, TimeSpan.FromHours(1));
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => describing);
+
+        // Assert
+        await Assert.That((failure.Message, failure.InnerException is OperationCanceledException))
+            .IsEqualTo(("The DescribeTable of Shop did not answer within its timeout of 00:00:05.", true));
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_TokenOfTheCallerBeforeTheTimeout_CancelsAsItDid()
+    {
+        // Arrange
+        using var handler = new DelegateHandler(static async (_, ct) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), attemptTimeout: TimeSpan.FromHours(1));
+        using var caller = new CancellationTokenSource();
+        var describing = client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromHours(1), caller.Token).AsTask();
+
+        // Act
+        await caller.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => describing);
+
+        // Assert
+        await Assert.That(failure.CancellationToken == caller.Token).IsTrue();
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_CancellationOfNeitherTokenWithATimeout_SurfacesAsTheTimeoutOfTheHandler()
+    {
+        // Arrange (a handler of the application that gives up by itself is none of the timeout's business)
+        using var handler = new DelegateHandler(static (_, _) => throw new OperationCanceledException("The handler gave up."));
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), attemptTimeout: TimeSpan.FromHours(1));
+
+        // Act
+        var failure = await TestClient.CaptureAsync<Exception>(async () => await client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromHours(1)));
+
+        // Assert
+        await Assert.That((failure.GetType(), failure.Message)).IsEqualTo((typeof(TimeoutException), "DynamoDB DescribeTable timed out in the HTTP handler: The handler gave up."));
+    }
+
+    [Test]
+    [Arguments(0L)]
+    [Arguments(-2L)]
+    [Arguments(4294967295L)]
+    public async Task DescribeTableAsync_TimeoutOutOfRange_ThrowsBeforeARequest(long milliseconds)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentOutOfRangeException>(async () => await client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.FromMilliseconds(milliseconds)));
+
+        // Assert
+        await Assert.That((failure.ParamName, handler.Requests.Count)).IsEqualTo(("timeout", 0));
+    }
+
+    [Test]
     public async Task DescribeTableAsync_ResponseWithoutATable_ReturnsTheNameAndNoStatus()
     {
         // Arrange (the service model requires nothing of a response)

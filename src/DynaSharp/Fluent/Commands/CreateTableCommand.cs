@@ -36,9 +36,6 @@ namespace DynaSharp;
 /// </remarks>
 public sealed class CreateTableCommand
 {
-    // What a CancellationTokenSource takes: uint.MaxValue - 1 milliseconds.
-    private const double MaxTimeoutMilliseconds = 4294967294;
-
     private readonly TableModel _table;
 
     private readonly TableSchema _schema;
@@ -227,11 +224,7 @@ public sealed class CreateTableCommand
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero, negative other than infinite, or above 4294967294 milliseconds, which this call finds out before a table is created.</exception>
     public CreateTableCommand Timeout(TimeSpan timeout)
     {
-        if (timeout != System.Threading.Timeout.InfiniteTimeSpan && (timeout <= TimeSpan.Zero || timeout.TotalMilliseconds > MaxTimeoutMilliseconds))
-        {
-            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "The timeout of a CreateTable is more than zero and at most 4294967294 milliseconds, or Timeout.InfiniteTimeSpan for no bound.");
-        }
-
+        TableAdministration.ThrowIfNoBound(timeout, "CreateTable");
         _timeout = timeout;
         return this;
     }
