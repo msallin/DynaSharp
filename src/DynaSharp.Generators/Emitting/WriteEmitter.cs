@@ -8,10 +8,9 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal static class WriteEmitter
 {
-    private const string VersionParameter = "__version";
-
     // A DateTime of no kind, and NaN or an infinity, alone or in a list, a dictionary or a set, an empty set in a list or a dictionary, and JSON that DynamoDB cannot store. No name here is the start of the name of another built-in.
-    private static readonly string[] RefusingConverters =
+    // WriteEmitterTests holds the list against the built-in converters of the library.
+    internal static readonly string[] RefusingConverters =
     [
         "global::DynaSharp.Serialization.DateTimeConverter",
         "global::DynaSharp.Serialization.NumberConverter<double>",
@@ -23,6 +22,8 @@ internal static class WriteEmitter
         "global::DynaSharp.Serialization.NonEmptySetConverter<",
         "global::DynaSharp.Serialization.JsonElementConverter",
     ];
+
+    private const string VersionParameter = "__version";
 
     public static void Emit(IndentedCode code, TypeModel type)
     {
@@ -258,8 +259,8 @@ internal static class WriteEmitter
         code.Close();
     }
 
-    // Whether the converter, or one it holds for its elements, is a built-in that refuses a value of its type on write. A new built-in that does goes into RefusingConverters
-    // and into ConverterChecks.IsRefusedValue.
+    // Whether the converter, or one it holds for its elements, is a built-in that refuses a value of its type on write. A new built-in that does goes into RefusingConverters,
+    // which a test enforces, and its exception into ConverterChecks.IsRefusedValue.
     private static bool CanRefuse(string converter) =>
         Array.Exists(RefusingConverters, refusing => converter.IndexOf(refusing, StringComparison.Ordinal) >= 0);
 
