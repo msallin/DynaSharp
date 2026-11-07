@@ -94,14 +94,14 @@ public readonly struct SortKeyCondition
         if (_kind == Kind.BeginsWith)
         {
             text.Append("begins_with("u8);
-            writer.AppendAttributeName(text, sortKeyName);
+            writer.Placeholders.AppendName(text, sortKeyName);
             text.Append(", "u8);
-            writer.AppendValue<AttributeValue, AttributeValueConverter>(text, _first);
+            writer.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(text, _first);
             text.Append((byte)')');
             return;
         }
 
-        writer.AppendAttributeName(text, sortKeyName);
+        writer.Placeholders.AppendName(text, sortKeyName);
         text.Append(_kind switch
         {
             Kind.Equal => " = "u8,
@@ -111,11 +111,11 @@ public readonly struct SortKeyCondition
             Kind.GreaterOrEqual => " >= "u8,
             _ => " BETWEEN "u8,
         });
-        writer.AppendValue<AttributeValue, AttributeValueConverter>(text, _first);
+        writer.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(text, _first);
         if (_kind == Kind.Between)
         {
             text.Append(" AND "u8);
-            writer.AppendValue<AttributeValue, AttributeValueConverter>(text, _second);
+            writer.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(text, _second);
         }
     }
 }

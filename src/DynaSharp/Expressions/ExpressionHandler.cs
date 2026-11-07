@@ -45,7 +45,7 @@ public readonly ref struct ExpressionHandler
     /// <summary>Appends an attribute as placeholders. The compiler calls this.</summary>
     /// <param name="attribute">The attribute.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public void AppendFormatted(Attr attribute) => _writer.AppendPath(_text, attribute.Path);
+    public void AppendFormatted(Attr attribute) => _writer.Placeholders.AppendPath(_text, attribute.Path);
 
     /// <summary>Appends an attribute as placeholders. The compiler calls this.</summary>
     /// <typeparam name="T">The type of the attribute.</typeparam>
@@ -53,7 +53,7 @@ public readonly ref struct ExpressionHandler
     /// <param name="attribute">The attribute.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public void AppendFormatted<T, TConverter>(Attr<T, TConverter> attribute)
-        where TConverter : IDynamoDbConverter<T> => _writer.AppendPath(_text, attribute.Path);
+        where TConverter : IDynamoDbConverter<T> => _writer.Placeholders.AppendPath(_text, attribute.Path);
 
     /// <summary>Appends a value as a placeholder. The compiler calls this.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
@@ -61,17 +61,17 @@ public readonly ref struct ExpressionHandler
     /// <param name="value">The value.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public void AppendFormatted<T, TConverter>(Arg<T, TConverter> value)
-        where TConverter : IDynamoDbConverter<T> => _writer.AppendValue<T, TConverter>(_text, value.Value);
+        where TConverter : IDynamoDbConverter<T> => _writer.Placeholders.AppendValue<T, TConverter>(_text, value.Value);
 
     /// <summary>Appends a value as a placeholder. The compiler calls this.</summary>
     /// <param name="value">The value.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public void AppendFormatted(AttributeValue value) => _writer.AppendValue<AttributeValue, AttributeValueConverter>(_text, value);
+    public void AppendFormatted(AttributeValue value) => _writer.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(_text, value);
 
     /// <summary>Appends a number as a placeholder. The compiler calls this.</summary>
     /// <typeparam name="TNumber">The type of the number.</typeparam>
     /// <param name="value">The number.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public void AppendFormatted<TNumber>(TNumber value)
-        where TNumber : INumberBase<TNumber> => _writer.AppendValue<TNumber, NumberConverter<TNumber>>(_text, value);
+        where TNumber : INumberBase<TNumber> => _writer.Placeholders.AppendValue<TNumber, NumberConverter<TNumber>>(_text, value);
 }

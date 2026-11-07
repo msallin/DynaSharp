@@ -90,7 +90,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     public ScanCommand<T> Project(params ReadOnlySpan<string> paths)
     {
         var state = Enter();
-        state.Expressions.Project(paths);
+        state.Expressions.Projection.Add(paths);
         return new(state, state.Table);
     }
 
@@ -101,7 +101,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     public ScanCommand<T> Project(params ReadOnlySpan<Attr> attributes)
     {
         var state = Enter();
-        state.Expressions.Project(attributes);
+        state.Expressions.Projection.Add(attributes);
         return new(state, state.Table);
     }
 

@@ -8,7 +8,7 @@ namespace DynaSharp.Testing.Fake;
 /// </code>
 /// </summary>
 /// <remarks>
-/// The keywords and functions are spelled here again, independent of the client's <c>ExpressionWriter</c> and of the generator's grammar, which the fake must not echo. A unit test keeps
+/// The keywords and functions are spelled here again, independent of the client's <c>ExpressionWords</c> and of the generator's grammar, which the fake must not echo. A unit test keeps
 /// the lists equal to theirs.
 /// </remarks>
 internal static class ExpressionTokenizer

@@ -29,14 +29,14 @@ public ref struct ExpressionSink
     /// <summary>Appends a document path as placeholders.</summary>
     /// <param name="path">The path, such as <c>status</c>, <c>address.city</c> or <c>lines[2].sku</c>.</param>
     /// <exception cref="ArgumentException">The path is not valid.</exception>
-    public readonly void Path(string path) => _writer.AppendPath(_text, path);
+    public readonly void Path(string path) => _writer.Placeholders.AppendPath(_text, path);
 
     /// <summary>Appends a value as a placeholder. Equal values share one.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>
     /// <param name="value">The value.</param>
     public readonly void Value<T, TConverter>(T value)
-        where TConverter : IDynamoDbConverter<T> => _writer.AppendValue<T, TConverter>(_text, value);
+        where TConverter : IDynamoDbConverter<T> => _writer.Placeholders.AppendValue<T, TConverter>(_text, value);
 
     /// <summary>
     /// Writes two conditions as one group. A term that is a group of the same operator gives up its parentheses, so <c>a.Or(b).Or(c)</c> is <c>(a OR b OR c)</c> and not <c>((a OR b) OR c)</c>,

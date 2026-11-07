@@ -5,7 +5,7 @@ using GeneratorParser = DynaSharp.Generators.ExpressionParser;
 
 namespace DynaSharp.UnitTests.Testing.Fake.Expressions;
 
-// The fake spells the words of the grammar again, because it must not echo the client. These tests keep the copies in step with the client's ExpressionWriter and with the
+// The fake spells the words of the grammar again, because it must not echo the client. These tests keep the copies in step with the client's ExpressionWords and with the
 // generator's grammar; a word added on one side fails here until the other side has it.
 public sealed class ExpressionTokenizerTests
 {
@@ -13,7 +13,7 @@ public sealed class ExpressionTokenizerTests
     public async Task ConditionKeywords_AgainstTheClient_AreTheSame()
     {
         // Arrange
-        var client = ExpressionWriter.ConditionKeywords;
+        var client = ExpressionWords.ConditionKeywords;
 
         // Act
         var fake = ExpressionTokenizer.ConditionKeywords;
@@ -26,7 +26,7 @@ public sealed class ExpressionTokenizerTests
     public async Task ConditionFunctions_AgainstTheClient_AreTheSame()
     {
         // Arrange
-        var client = ExpressionWriter.ConditionFunctions;
+        var client = ExpressionWords.ConditionFunctions;
 
         // Act
         var fake = ExpressionTokenizer.ConditionFunctions;

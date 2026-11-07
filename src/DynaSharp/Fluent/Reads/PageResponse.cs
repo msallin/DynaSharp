@@ -74,7 +74,7 @@ internal static class PageResponse
     /// <param name="activity">The span.</param>
     /// <param name="state">The state of the read.</param>
     public static void SetRequestTags(Activity activity, CommandState state) =>
-        ReadTags.Set(activity, state.Read.ConsistentRead, state.Expressions.ResolveProjection(), state.Table.IndexName, state.Read.Limit > 0 ? state.Read.Limit : null, state.Read.Select);
+        ReadTags.Set(activity, state.Read.ConsistentRead, state.Expressions.Projection.Resolve(), state.Table.IndexName, state.Read.Limit > 0 ? state.Read.Limit : null, state.Read.Select);
 
     /// <summary>Sets the tags of a page of <c>Query</c>.</summary>
     /// <param name="activity">The span.</param>

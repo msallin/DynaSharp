@@ -421,7 +421,7 @@ internal sealed class CommandState
     {
         var copy = CopyRead();
         copy.ItemKeys = keys;
-        copy.Expressions.AddPartitionKey(partitionKey);
+        copy.Expressions.Placeholders.AddPartitionKey(partitionKey);
         return copy;
     }
 
@@ -452,12 +452,12 @@ internal sealed class CommandState
             throw new InvalidOperationException($"This read of {Table.Name} gives one attribute, so it has no use for Project.");
         }
 
-        Expressions.Project(new ReadOnlySpan<string>(in path));
+        Expressions.Projection.Add(new ReadOnlySpan<string>(in path));
         ReturnPath = path;
         _read.ChecksDiscriminator = discriminator == DiscriminatorCheck.CheckEachItem;
         if (_read.ChecksDiscriminator)
         {
-            Expressions.AddToProjection(Table.DiscriminatorAttributeName!);
+            Expressions.Projection.AddName(Table.DiscriminatorAttributeName!);
         }
     }
 

@@ -41,7 +41,7 @@ internal readonly struct GetOperation<T> : ICommandOperation<GetResult<T>>
     }
 
     public static void SetActivityTags(Activity activity, CommandState state) =>
-        ReadTags.SetProjection(activity, state.Read.ConsistentRead, state.Expressions.ResolveProjection());
+        ReadTags.SetProjection(activity, state.Read.ConsistentRead, state.Expressions.Projection.Resolve());
 
     // The key of the item is the one of the request, which stays until the call ends.
     private static T ReadItem(ref DynamoDbReader reader, CommandState state)

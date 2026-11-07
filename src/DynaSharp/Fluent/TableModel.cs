@@ -255,7 +255,7 @@ internal sealed class TableModel
 
     /// <summary>Completes the projection of a typed read with what the read needs. It runs when the chain ends, because a projection can grow until then.</summary>
     /// <param name="state">The state of the read.</param>
-    public void AddRequiredNames(CommandState state) => state.Expressions.CompleteProjection(RequiredNames);
+    public void AddRequiredNames(CommandState state) => state.Expressions.Projection.Complete(RequiredNames);
 
     private static string[] NamesOfATypedRead(TableModel? table, string? discriminatorAttributeName, string partitionKeyName, string? sortKeyName)
     {
@@ -296,7 +296,7 @@ internal sealed class TableModel
         var state = Begin();
         var expressions = state.Expressions;
         var text = expressions[Clause.KeyCondition];
-        expressions.AppendAttributeName(text, PartitionKeyName);
+        expressions.Placeholders.AppendName(text, PartitionKeyName);
         text.Append(" = "u8);
         if (partitionKey.Type == AttributeType.None)
         {
@@ -304,7 +304,7 @@ internal sealed class TableModel
         }
         else
         {
-            expressions.AppendValue<AttributeValue, AttributeValueConverter>(text, partitionKey);
+            expressions.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(text, partitionKey);
         }
 
         sortKey.Render(expressions, text, SortKeyName!);
@@ -319,9 +319,9 @@ internal sealed class TableModel
         {
             var expressions = state.Expressions;
             var text = expressions.StartPending();
-            expressions.AppendAttributeName(text, DiscriminatorAttributeName!);
+            expressions.Placeholders.AppendName(text, DiscriminatorAttributeName!);
             text.Append(" = "u8);
-            expressions.AppendValue<string, StringConverter>(text, Discriminator!);
+            expressions.Placeholders.AppendValue<string, StringConverter>(text, Discriminator!);
             expressions.CommitPending(Clause.Filter);
         }
     }

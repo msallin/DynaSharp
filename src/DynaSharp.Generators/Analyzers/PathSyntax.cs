@@ -4,7 +4,7 @@ namespace DynaSharp.Generators;
 /// The syntax of a document path given as a string. Every name becomes a placeholder, so a name may hold any character except <c>.</c> and
 /// <c>[</c>; this is not the grammar of paths in expression text.
 /// </summary>
-/// <remarks>Keep this in step with <c>ExpressionWriter.AppendPath</c>, which throws on exactly what this rejects. A test compares the two.</remarks>
+/// <remarks>Keep this in step with <c>PlaceholderMaps.AppendPath</c>, which throws on exactly what this rejects. A test compares the two.</remarks>
 internal static class PathSyntax
 {
     private static readonly char[] Separators = ['.', '['];

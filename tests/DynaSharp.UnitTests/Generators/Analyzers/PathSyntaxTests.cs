@@ -99,11 +99,11 @@ public sealed class PathSyntaxTests
 
     private static bool WriterAccepts(string path)
     {
-        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        var maps = new PlaceholderMaps(ArrayPool<byte>.Shared);
         using var text = new PooledByteBuffer(ArrayPool<byte>.Shared, 256);
         try
         {
-            writer.AppendPath(text, path);
+            maps.AppendPath(text, path);
             return true;
         }
         catch (ArgumentException)
@@ -112,7 +112,7 @@ public sealed class PathSyntaxTests
         }
         finally
         {
-            writer.Release();
+            maps.Clear(maxRetainedLength: 0);
         }
     }
 }

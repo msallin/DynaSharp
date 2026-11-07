@@ -19,7 +19,7 @@ public sealed class CommandStateResetTests
     private const string PageWithNextKey = """{"Items":[],"Count":0,"ScannedCount":0,"LastEvaluatedKey":{"pk":{"S":"a"}}}""";
 
     // The objects a state owns for its whole life and the structs it keeps in one field each, which are walked field by field. A buffer and a JSON writer are compared by what they hold, everything else by value.
-    private static readonly HashSet<Type> Parts = [typeof(CommandState), typeof(WriteState), typeof(ReadOptions), typeof(ExpressionWriter), typeof(ActionList), typeof(KeyInputChanges)];
+    private static readonly HashSet<Type> Parts = [typeof(CommandState), typeof(WriteState), typeof(ReadOptions), typeof(ExpressionWriter), typeof(PlaceholderMaps), typeof(ActionList), typeof(KeyInputChanges)];
 
     // Fields that keep their value on purpose. Everything else must be back at what a new state holds.
     private static readonly Dictionary<string, string> Survivors = new(StringComparer.Ordinal)
@@ -28,8 +28,8 @@ public sealed class CommandStateResetTests
         ["CommandState._version"] = "It only ever grows, so that a handle from before the release no longer matches.",
         ["CommandState._keyHolder"] = "Capacity: a holder that the next update of that key fills again, and Release takes the key out of it.",
         ["CommandState.<Pool>k__BackingField"] = "The pool of the client, which never changes.",
-        ["ExpressionWriter._nameSlices"] = "Capacity: offsets, of which only those below the count are read.",
-        ["ExpressionWriter._valueSlices"] = "Capacity: offsets, of which only those below the count are read.",
+        ["PlaceholderMaps._nameSlices"] = "Capacity: offsets, of which only those below the count are read.",
+        ["PlaceholderMaps._valueSlices"] = "Capacity: offsets, of which only those below the count are read.",
         ["ActionList._offsets"] = "Capacity: offsets, of which only those below the count are read.",
         ["ActionList._tableIndexes"] = "Capacity: indexes, of which only those below the count are read.",
     };

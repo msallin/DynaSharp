@@ -85,7 +85,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     public FanOutQueryCommand<T> Project(params ReadOnlySpan<string> paths)
     {
         var state = Enter();
-        state.Expressions.Project(paths);
+        state.Expressions.Projection.Add(paths);
         return new(state, state.Table, _plan!);
     }
 
@@ -96,7 +96,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     public FanOutQueryCommand<T> Project(params ReadOnlySpan<Attr> attributes)
     {
         var state = Enter();
-        state.Expressions.Project(attributes);
+        state.Expressions.Projection.Add(attributes);
         return new(state, state.Table, _plan!);
     }
 
@@ -289,7 +289,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
         var state = Prepare();
         if (_plan!.PartitionKeys.Length > 0)
         {
-            state.Expressions.AddPartitionKey(_plan.PartitionKeys[0]);
+            state.Expressions.Placeholders.AddPartitionKey(_plan.PartitionKeys[0]);
         }
 
         return state.RenderJson();
@@ -355,7 +355,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     {
         var state = Enter();
         state.Table.AddRequiredNames(state);
-        state.Expressions.CompleteProjection(_plan!.KeyNames);
+        state.Expressions.Projection.Complete(_plan!.KeyNames);
         return state;
     }
 }

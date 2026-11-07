@@ -18,8 +18,8 @@ namespace DynaSharp.Generators;
 internal sealed class ExpressionParser
 {
     /// <summary>
-    /// The keywords of the grammar. The runtime repeats those of a condition in <c>ExpressionWriter.ConditionKeywords</c>, because it cannot reference an analyzer.
-    /// <c>ExpressionWriterTests</c> keeps the two in step: a change here needs a change there, or a reason in that test.
+    /// The keywords of the grammar. The runtime repeats those of a condition in <c>ExpressionWords.ConditionKeywords</c>, because it cannot reference an analyzer.
+    /// <c>ExpressionWordsTests</c> keeps the two in step: a change here needs a change there, or a reason in that test.
     /// </summary>
     internal static readonly string[] Keywords = ["AND", "OR", "NOT", "BETWEEN", "IN", "SET", "REMOVE", "ADD", "DELETE"];
 

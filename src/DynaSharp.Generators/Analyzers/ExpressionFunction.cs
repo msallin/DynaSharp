@@ -8,8 +8,8 @@ namespace DynaSharp.Generators;
 internal sealed record ExpressionFunction(int Operands, bool InUpdate, bool IsTest, bool HasPath)
 {
     /// <summary>
-    /// All functions by name. The runtime repeats those of a condition in <c>ExpressionWriter.ConditionFunctions</c>, because it cannot reference an analyzer.
-    /// <c>ExpressionWriterTests</c> keeps the two in step: a change here needs a change there, or a reason in that test.
+    /// All functions by name. The runtime repeats those of a condition in <c>ExpressionWords.ConditionFunctions</c>, because it cannot reference an analyzer.
+    /// <c>ExpressionWordsTests</c> keeps the two in step: a change here needs a change there, or a reason in that test.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, ExpressionFunction> All = new Dictionary<string, ExpressionFunction>(StringComparer.Ordinal)
     {

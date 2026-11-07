@@ -72,7 +72,7 @@ internal sealed class MixedSchema : DiscriminatorSchema
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public void CompleteProjection(CommandHandle command)
     {
-        CommandState.Check(command.State, command.Version, command.Operation, command.Table).Expressions.CompleteProjection(_requiredNames);
+        CommandState.Check(command.State, command.Version, command.Operation, command.Table).Expressions.Projection.Complete(_requiredNames);
     }
 
     private static void Require(List<string> required, string? name)
@@ -94,7 +94,7 @@ internal sealed class MixedSchema : DiscriminatorSchema
     {
         var expressions = state.Expressions;
         var text = expressions.StartPending();
-        expressions.AppendAttributeName(text, Attribute);
+        expressions.Placeholders.AppendName(text, Attribute);
         text.Append(" IN ("u8);
         var discriminators = Discriminators;
         for (var i = 0; i < discriminators.Length; i++)
@@ -104,7 +104,7 @@ internal sealed class MixedSchema : DiscriminatorSchema
                 text.Append(", "u8);
             }
 
-            expressions.AppendValue<string, StringConverter>(text, discriminators[i]);
+            expressions.Placeholders.AppendValue<string, StringConverter>(text, discriminators[i]);
         }
 
         text.Append((byte)')');

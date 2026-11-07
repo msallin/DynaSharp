@@ -35,8 +35,8 @@ internal static class ExpressionLexer
     }
 
     /// <summary>
-    /// Tells whether a character can be part of a word. The runtime repeats this in <c>ExpressionWriter.IsWordByte</c>, because it cannot reference an analyzer, and differs from
-    /// 0x80 on: it reads UTF-8 and leaves a name that is not ASCII to DynamoDB. <c>ExpressionWriterTests</c> keeps the two in step.
+    /// Tells whether a character can be part of a word. The runtime repeats this in <c>ExpressionWords.IsWordByte</c>, because it cannot reference an analyzer, and differs from
+    /// 0x80 on: it reads UTF-8 and leaves a name that is not ASCII to DynamoDB. <c>ExpressionWordsTests</c> keeps the two in step.
     /// </summary>
     /// <param name="character">The character.</param>
     /// <returns><see langword="true"/> for an ASCII letter or digit and for an underscore.</returns>
