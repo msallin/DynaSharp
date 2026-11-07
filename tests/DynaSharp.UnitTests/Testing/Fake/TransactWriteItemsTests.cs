@@ -268,9 +268,9 @@ public sealed class TransactWriteItemsTests
     }
 
     [Test]
-    public async Task Handle_UpdateThatFailsOnItsItemWhileAnotherConditionFails_LeavesItsReasonNone()
+    public async Task Handle_UpdateThatFailsOnItsItemWhileAnotherConditionFails_CancelsWithValidationErrorForTheUpdate()
     {
-        // Arrange: a path into a missing map fails only when the update is applied, which a cancelled transaction never does
+        // Arrange: a path into a missing map fails on the item, which real DynamoDB reports beside the failed condition (FidelityTests, run 42356511937)
         var fake = FakeCalls.With(FakeWrites.Forum);
 
         // Act
@@ -283,7 +283,9 @@ public sealed class TransactWriteItemsTests
             """);
 
         // Assert
-        await Assert.That(FakeCalls.SameJson("""[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]""", body.GetProperty("CancellationReasons"))).IsTrue();
+        await Assert.That(FakeCalls.SameJson(
+            """[{"Code":"ValidationError","Message":"The document path provided in the update expression is invalid for update"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]""",
+            body.GetProperty("CancellationReasons"))).IsTrue();
     }
 
     [Test]
