@@ -524,6 +524,8 @@ public sealed class FakeDynamoDbTests
             () => fake.Delete(subscriber),
             () => fake.Delete(new SubscriberKey("s-1")),
             () => fake.Get(new SubscriberKey("s-1")),
+            () => fake.GetItem(new SubscriberKey("s-1")),
+            () => fake.PutItem<Subscriber>(new Item { ["pk"] = "s-1" }),
         ];
 #pragma warning restore DYNA238
 
@@ -1011,6 +1013,50 @@ public sealed class FakeDynamoDbTests
 
         // Assert
         await Assert.That(items.Select(static item => item["pk"].AsString())).IsEquivalentTo(["other", "p-1"]);
+    }
+
+    [Test]
+    public async Task GetItem_GeneratedKey_GivesTheStoredItemWithEveryAttribute()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        fake.Put("patrons", new Item { ["pk"] = "p-1", ["_type"] = "PATRON", ["Name"] = "Ada", ["legacy"] = 7 });
+
+        // Act
+        var item = fake.GetItem(Patron.Keys.Of("p-1"));
+
+        // Assert
+        await Assert.That(item).IsEqualTo(new Item { ["pk"] = "p-1", ["_type"] = "PATRON", ["Name"] = "Ada", ["legacy"] = 7 });
+    }
+
+    [Test]
+    public async Task GetItem_NoItemOnTheKey_ReturnsNull()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+
+        // Act
+        var item = fake.GetItem(Patron.Keys.Of("p-1"));
+
+        // Assert
+        await Assert.That(item).IsNull();
+    }
+
+    [Test]
+    public async Task PutItem_ItemTheEntityCannotRead_StoresItInTheDeclaredTable()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        var item = new Item { ["pk"] = "p-1", ["_type"] = "PATRON", ["Name"] = 42 };
+
+        // Act
+        fake.PutItem<Patron>(item);
+
+        // Assert
+        await Assert.That(fake.Get("patrons", new Item { ["pk"] = "p-1" })).IsEqualTo(item);
     }
 
     [Test]

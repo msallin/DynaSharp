@@ -1,1 +1,3 @@
 #nullable enable
+DynaSharp.Testing.FakeDynamoDb.GetItem<T>(DynaSharp.Mapping.IKey<T>! key) -> DynaSharp.Item?
+DynaSharp.Testing.FakeDynamoDb.PutItem<T>(DynaSharp.Item! item) -> void

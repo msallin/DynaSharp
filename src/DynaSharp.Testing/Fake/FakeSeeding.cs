@@ -135,6 +135,33 @@ public sealed partial class FakeDynamoDb
     public IReadOnlyList<Item> TableItems<T>()
         where T : IDynamoDbEntity<T> => Items(DeclaredTable.Of<T>());
 
+    /// <summary>
+    /// Gets the item of a generated key from the table the entity declares, as a raw item, as <see cref="Get(string, Item)"/> does: <c>fake.GetItem(Customer.Keys.Of("alice"))</c>. It shows every
+    /// attribute as stored, also those the entity does not read; <see cref="Get{T}(IKey{T})"/> reads the item as the entity.
+    /// </summary>
+    /// <typeparam name="T">The entity of the key, which declares its table.</typeparam>
+    /// <param name="key">The key, such as <c>Customer.Keys.Of("alice")</c>.</param>
+    /// <returns>A copy of the item, or <see langword="null"/> if there is none.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
+    public Item? GetItem<T>(IKey<T> key)
+        where T : IDynamoDbEntity<T> => Get(DeclaredTable.Of<T>(), StubResponse.KeyOf(key));
+
+    /// <summary>
+    /// Puts a raw item into the table the entity declares, as <see cref="Put(string, Item)"/> does: <c>fake.PutItem&lt;Customer&gt;(item)</c>. For an item the entity cannot write, such as one of an older
+    /// shape or with a broken attribute; <see cref="Put{T}(T)"/> puts an entity.
+    /// </summary>
+    /// <typeparam name="T">An entity of the table, which declares it. The item need not be one of its items.</typeparam>
+    /// <param name="item">The item with its key attributes, which the fake copies.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">DynamoDB would reject the item: a key attribute is missing or of another type, a number is out of range, the item is larger than 400 KB.</exception>
+    public void PutItem<T>(Item item)
+        where T : IDynamoDbEntity<T> => Put(DeclaredTable.Of<T>(), item);
+
     /// <summary>Gets the items of the entity from the table it declares, as <see cref="Items{T}(string)"/> does.</summary>
     /// <typeparam name="T">The entity, which declares its table.</typeparam>
     /// <returns>The entities, a snapshot.</returns>

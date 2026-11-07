@@ -34,6 +34,8 @@ public sealed class DeclaredTableAnalyzerTests
     [Arguments("_ = fake.[|EnableStream<Order>|](DynaSharp.Requests.StreamViewType.NewImage);", "EnableStream")]
     [Arguments("_ = fake.[|DisableStream<Order>|]();", "DisableStream")]
     [Arguments("_ = fake.[|TableItems<Order>|]();", "TableItems")]
+    [Arguments("_ = fake.[|GetItem|](Order.Keys.Of(\"o-1\"));", "GetItem")]
+    [Arguments("fake.[|PutItem<Order>|](key);", "PutItem")]
     [Arguments("_ = DynaSharp.Testing.StubResponse.[|Table<Order>|]();", "Table")]
     public async Task Analyze_EntityWithoutATable_ReportsTheCall(string statement, string method)
     {

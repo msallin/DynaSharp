@@ -21,7 +21,7 @@ internal sealed class DeclaredTableAnalyzer : DiagnosticAnalyzer
     public static readonly IReadOnlyDictionary<string, ImmutableArray<string>> Members = new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal)
     {
         ["DynaSharp.DynamoDbClient"] = ["Table"],
-        ["DynaSharp.Testing.FakeDynamoDb"] = ["CreateTable", "Delete", "DescribeTable", "DisableStream", "EnableStream", "Get", "Items", "Put", "TableItems"],
+        ["DynaSharp.Testing.FakeDynamoDb"] = ["CreateTable", "Delete", "DescribeTable", "DisableStream", "EnableStream", "Get", "GetItem", "Items", "Put", "PutItem", "TableItems"],
         ["DynaSharp.Testing.StubResponse"] = ["Table"],
     };
 
