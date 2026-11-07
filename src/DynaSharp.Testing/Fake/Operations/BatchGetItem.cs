@@ -7,7 +7,13 @@ namespace DynaSharp.Testing.Fake;
 /// A <c>BatchGetItem</c>: up to 100 keys over several tables, each read as <c>GetItem</c> reads it, with the projection of its table. <c>Responses</c> holds a list for every table
 /// of the request, empty where no key has an item, and <c>UnprocessedKeys</c> is always empty; a test of what a client does with unprocessed keys queues that answer on the handler.
 /// </summary>
-/// <remarks>The capacity of a batch rounds each item up to 4 KB on its own, as the Developer Guide says, and a key without an item costs what a read of nothing costs.</remarks>
+/// <remarks>
+/// <para>The capacity of a batch rounds each item up to 4 KB on its own, as the Developer Guide says, and a key without an item costs what a read of nothing costs.</para>
+/// <para>
+/// A key written twice the same way is a <c>ValidationException</c>. Two keys that are the same number in other forms, such as <c>1</c> and <c>1.0</c>, are one key: real DynamoDB
+/// answers the item once (<c>FidelityTests</c>, run 42356511937).
+/// </para>
+/// </remarks>
 internal static class BatchGetItem
 {
     /// <summary>The operation.</summary>
@@ -62,7 +68,7 @@ internal static class BatchGetItem
     private static List<(FakeTable Table, List<ItemKey> Keys, bool Consistent, ParsedProjection? Projection)> Read(FakeDatabase db, IReadOnlyList<JsonProperty> tables)
     {
         var reads = new List<(FakeTable, List<ItemKey>, bool, ParsedProjection?)>();
-        var seen = new HashSet<(string, ItemKey)>();
+        var seen = new HashSet<(string, string)>();
         foreach (var entry in tables)
         {
             var where = "RequestItems of " + Name;
@@ -77,17 +83,29 @@ internal static class BatchGetItem
             var consistent = RequestJson.Optional(entry.Value, "ConsistentRead") is { } value && RequestJson.ReadBool(value, "ConsistentRead");
             var projection = ExpressionMembers.ReadProjection(entry.Value);
             var table = db.GetTable(entry.Name);
-            var keys = new List<ItemKey>(elements.Count);
+            var keys = new HashSet<ItemKey>(elements.Count);
             foreach (var element in elements)
             {
                 var key = table.KeySchema.ReadKey(RequestJson.ReadItem(element, "Keys"));
-                Batches.ThrowIfSeen(seen, table, key, "Provided list of item keys contains duplicates");
+                if (!seen.Add((table.Name, AsWritten(element))))
+                {
+                    throw FakeError.Validation("Provided list of item keys contains duplicates");
+                }
+
                 keys.Add(key);
             }
 
-            reads.Add((table, keys, consistent, projection));
+            reads.Add((table, [.. keys], consistent, projection));
         }
 
         return reads;
     }
+
+    // The key as the request writes it, {"pk":{"N":"1.0"}} as "pk N 1.0": what tells a key that comes twice from another form of the same number.
+    private static string AsWritten(JsonElement key) =>
+        string.Join('\n', key.EnumerateObject().OrderBy(static attribute => attribute.Name, StringComparer.Ordinal).Select(static attribute =>
+        {
+            var value = attribute.Value.EnumerateObject().Single();
+            return $"{attribute.Name} {value.Name} {value.Value.GetString()}";
+        }));
 }

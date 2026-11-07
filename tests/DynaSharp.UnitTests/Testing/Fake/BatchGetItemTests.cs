@@ -61,19 +61,34 @@ public sealed class BatchGetItemTests
     [Arguments("""{"RequestItems":{"Users":{"Keys":[]}}}""", "1 validation error detected: Value at 'keys' failed to satisfy constraint: Member must have length greater than or equal to 1")]
     [Arguments("""{"RequestItems":{"Users":{}}}""", "1 validation error detected: Value null at 'keys' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}},{"pk":{"S":"a"}}]}}}""", "Provided list of item keys contains duplicates")]
+    [Arguments("""{"RequestItems":{"Orders":{"Keys":[{"pk":{"S":"o"},"sk":{"N":"1.0"}},{"sk":{"N":"1.0"},"pk":{"S":"o"}}]}}}""", "Provided list of item keys contains duplicates")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"},"x":{"S":"b"}}]}}}""", "The provided key element does not match the schema")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}}],"ExpressionAttributeNames":{"#n":"name"}}}}""", "ExpressionAttributeNames can only be specified when using expressions")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}}],"ProjectionExpression":"#n"}}}""", "Invalid ProjectionExpression: An expression attribute name used in the document path is not defined; attribute name: #n")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string request, string message)
     {
         // Arrange
-        var fake = FakeCalls.With(FakeCalls.Users);
+        var fake = FakeCalls.With(FakeCalls.Users, FakeCalls.Orders);
 
         // Act
         var answer = FakeCalls.Error(fake, "BatchGetItem", request);
 
         // Assert
         await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", message));
+    }
+
+    [Test]
+    public async Task Handle_KeysThatAreOneNumberInTwoForms_AnswersTheItemOnce()
+    {
+        // Arrange: real DynamoDB takes 1 and 1.0 as one key (FidelityTests, run 42356511937)
+        var fake = FakeCalls.With(FakeCalls.Orders);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Orders","Item":{"pk":{"S":"o"},"sk":{"N":"1"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "BatchGetItem", """{"RequestItems":{"Orders":{"Keys":[{"pk":{"S":"o"},"sk":{"N":"1"}},{"sk":{"N":"1.0"},"pk":{"S":"o"}}]}}}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""{"Responses":{"Orders":[{"pk":{"S":"o"},"sk":{"N":"1"}}]},"UnprocessedKeys":{}}""", body)).IsTrue();
     }
 
     [Test]
