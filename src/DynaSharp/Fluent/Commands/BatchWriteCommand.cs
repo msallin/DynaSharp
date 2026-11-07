@@ -80,9 +80,13 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     }
 
     /// <summary>
-    /// Adds a put of each item, any number of them. The whole batch is written into memory here and now, so the sequence is enumerated once, and nothing is sent until <c>SendAsync</c>: an item that
-    /// fails here leaves nothing written, and it fails the whole batch.
+    /// Adds a put of each item, any number of them: <see cref="SendAsync"/> splits the batch into DynamoDB requests of 25 writes for you. An item that fails here fails the whole batch and
+    /// leaves nothing written.
     /// </summary>
+    /// <remarks>
+    /// The whole batch is written into memory here and now, so the sequence is enumerated once, and nothing is sent until <see cref="SendAsync"/>. The remarks of
+    /// <see cref="BatchWriteCommand{T}"/> say how the requests run and what happens to the writes DynamoDB leaves unprocessed.
+    /// </remarks>
     /// <param name="items">The items, which must hold the key attributes.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="items"/> or one of them is <see langword="null"/>.</exception>
@@ -131,7 +135,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     }
 
     /// <summary>
-    /// Adds a delete of each generated key, any number of them. Deleting what does not exist is no error. The keys are written here and now, so the sequence is enumerated once, before
+    /// Adds a delete of each generated key, any number of them, which <see cref="SendAsync"/> sends in requests of 25 writes. Deleting what does not exist is no error. The keys are written here and now, so the sequence is enumerated once, before
     /// anything is sent. It takes a sequence of a generated key, such as <c>ids.Select(Order.Keys.Of)</c>, and an <see cref="IEnumerable{T}"/> of <see cref="IKey{TEntity}"/>.
     /// </summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
