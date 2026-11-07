@@ -169,12 +169,12 @@ internal sealed class ExpressionParser
         _ => Comparator.GreaterThanOrEqual,
     };
 
+    // A bound of BETWEEN, which is a string, a number or a binary by then.
     private static string Show(AttributeValue value) => value.Type switch
     {
         AttributeType.String => "{S:" + value.AsString() + "}",
         AttributeType.Number => "{N:" + value.AsNumber() + "}",
-        AttributeType.Binary => "{B:" + Convert.ToBase64String(value.AsBinary().Span) + "}",
-        _ => "{" + AttributeRules.Descriptor(value.Type) + "}",
+        _ => "{B:" + Convert.ToBase64String(value.AsBinary().Span) + "}",
     };
 
     private Term ParseOr()
@@ -282,6 +282,11 @@ internal sealed class ExpressionParser
         Advance();
         var upper = ParseOperandInParentheses();
         ThrowIfRepeated("BETWEEN", operand, [lower, upper]);
+
+        // As for <, an order holds between strings, numbers and binaries only: DynamoDB Local rejects a BETWEEN of booleans or sets before the item.
+        RequireType(operand, "BETWEEN", IsScalarKey);
+        RequireType(lower, "BETWEEN", IsScalarKey);
+        RequireType(upper, "BETWEEN", IsScalarKey);
         if (lower.ConstantValue is { } low && upper.ConstantValue is { } high)
         {
             var bounds = $"lower bound operand: AttributeValue: {Show(low)}, upper bound operand: AttributeValue: {Show(high)}";

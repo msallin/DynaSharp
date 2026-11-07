@@ -130,7 +130,10 @@ public sealed class ExpressionParserTests
     [Arguments("a < :l", "Incorrect operand type for operator or function; operator or function: <, operand type: L")]
     [Arguments(":l >= a", "Incorrect operand type for operator or function; operator or function: >=, operand type: L")]
     [Arguments("a BETWEEN :n AND :v", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {S:abc}")]
-    [Arguments("a BETWEEN :b AND :l", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {B:AQI=}, upper bound operand: AttributeValue: {L}")]
+    [Arguments("a BETWEEN :b AND :n", "The BETWEEN operator requires same data type for lower and upper bounds; lower bound operand: AttributeValue: {B:AQI=}, upper bound operand: AttributeValue: {N:5}")]
+    [Arguments("a BETWEEN :b AND :l", "Incorrect operand type for operator or function; operator or function: BETWEEN, operand type: L")]
+    [Arguments("a BETWEEN :t AND :t", "Incorrect operand type for operator or function; operator or function: BETWEEN, operand type: BOOL")]
+    [Arguments(":l BETWEEN a AND b", "Incorrect operand type for operator or function; operator or function: BETWEEN, operand type: L")]
     [Arguments("a BETWEEN :n AND :one", "The BETWEEN operator requires upper bound to be greater than or equal to lower bound; lower bound operand: AttributeValue: {N:5}, upper bound operand: AttributeValue: {N:1}")]
     [Arguments("((a = :v))", "The expression has redundant parentheses;")]
     [Arguments("((attribute_exists(a)))", "The expression has redundant parentheses;")]
@@ -147,7 +150,7 @@ public sealed class ExpressionParserTests
     public async Task ParseCondition_Rejected_ThrowsValidationWithTheMessage(string expression, string message)
     {
         // Arrange
-        var scope = Scope("""{":v":{"S":"abc"},":n":{"N":"5"},":one":{"N":"1"},":b":{"B":"AQI="},":l":{"L":[]}}""");
+        var scope = Scope("""{":v":{"S":"abc"},":n":{"N":"5"},":one":{"N":"1"},":b":{"B":"AQI="},":l":{"L":[]},":t":{"BOOL":true}}""");
 
         // Act
         void Act() => FakeExpressions.ParseCondition(expression, scope);
@@ -202,7 +205,6 @@ public sealed class ExpressionParserTests
     [Test]
     [Arguments("a BETWEEN :one AND :n")]
     [Arguments("a BETWEEN :n AND :n")]
-    [Arguments("a BETWEEN :l AND :l")]
     [Arguments("a BETWEEN b AND :one")]
     [Arguments("a BETWEEN :n AND b")]
     [Arguments("attribute_type(a, b)")]
