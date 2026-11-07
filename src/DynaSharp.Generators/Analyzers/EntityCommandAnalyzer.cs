@@ -15,6 +15,7 @@ namespace DynaSharp.Generators;
 /// also to a path inside it, to a property that a computed input of a key of an index is derived from, or to that computed input itself, which <c>KeyInputChanges</c> throws for. Behind a key of the table that is DYNA205, one step removed.
 /// DYNA225: <c>Including&lt;T&gt;</c> of an entity whose key names differ from those of the table or of the entity included first, which <c>TableSchema.Add</c> throws for.
 /// DYNA236: a write of a batch to a table of an entity with a version, without <c>IgnoreVersion</c> in the batch, which <c>WriteState.Settle</c> throws for when the batch is sent.
+/// DYNA239: an <c>Update</c> or a <c>Delete</c> by key of an entity with a version, a command or a step of a transaction, without <c>IfVersion</c> or <c>IgnoreVersion</c>, which <c>WriteState.Settle</c> throws for as well.
 /// </summary>
 /// <remarks>A command says what it is on by a type argument, and a step of a transaction by the table of the verb it came from. Whatever cannot be followed, such as a generic helper or a step in a variable, is not reported.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -26,11 +27,22 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     /// <summary>The members of <c>IUpdatable&lt;TSelf&gt;</c> that take a handle, by name.</summary>
     internal static readonly HashSet<string> WriteMethods = ["Set", "SetIfNotNull", "Add", "Remove", "SetIfNotExists", "Delete"];
 
+    /// <summary>The writes by key that leave the version to the chain, by type and name: the commands of <c>Table&lt;T&gt;</c> and the steps of a transaction that take a key.</summary>
+    internal static readonly HashSet<string> WritesByKey = ["Table.Update", "Table.Delete", "TransactWriteExtensions.Update", "TransactWriteExtensions.Delete"];
+
     private const string UpdateVerb = "Update";
 
     private const string PutVerb = "Put";
 
     private const string IgnoreVersion = "IgnoreVersion";
+
+    private const string IfVersion = "IfVersion";
+
+    private const string DeleteVerb = "Delete";
+
+    private const string KeyParameter = "key";
+
+    private const string TableClass = "Table";
 
     private const string ItemParameter = "item";
 
@@ -52,7 +64,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     private static readonly HashSet<string> BatchWrites = ["Put", "PutAll", "Delete", "DeleteAll"];
 
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex, Descriptors.IncludedKeyDiffers, Descriptors.VersionedBatchWrite];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.WriteOfTableKeyInput, Descriptors.WriteOfComputedInputSource, Descriptors.IfNotExistsOnVersionedPut, Descriptors.UndeclaredIndex, Descriptors.IncludedKeyDiffers, Descriptors.VersionedBatchWrite, Descriptors.UnsettledVersionByKey];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -166,6 +178,10 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         {
             AnalyzeBatchWrite(context, invocation, models);
         }
+        else if (IsWriteByKey(invocation.TargetMethod))
+        {
+            AnalyzeWriteByKey(context, invocation, models);
+        }
         else if (WriteMethods.Contains(invocation.TargetMethod.Name))
         {
             AnalyzeWrite(context, invocation, models);
@@ -246,6 +262,69 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         var name = ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)invocation.Syntax).Expression).Name;
         context.ReportDiagnostic(Diagnostic.Create(Descriptors.VersionedBatchWrite, name.GetLocation(), entity.Name));
     }
+
+    // Table<T>.Update(key) and Table<T>.Delete(key), and the steps of a transaction that take a table and a key. Those that take the values of a key are on a table without a schema, which has no version.
+    private static bool IsWriteByKey(IMethodSymbol method) =>
+        method.Name is UpdateVerb or DeleteVerb
+        && WritesByKey.Contains(method.ContainingType.Name + "." + method.Name)
+        && method.Parameters.Any(static parameter => parameter.Name == KeyParameter);
+
+    // orders.Update(key).Set(...): a key carries no version, so WriteRules.ExpectVersion leaves it to the chain, and WriteState.Settle throws at the terminal unless IfVersion or IgnoreVersion
+    // came. A command is decided as a batch is, by its type in all of the member. A step is decided by its own clauses up to the next verb, because every update of a transaction is an UpdateStep.
+    private static void AnalyzeWriteByKey(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
+    {
+        var method = invocation.TargetMethod;
+        var entity = method.ContainingType.Name == TableClass ? method.ContainingType.TypeArguments[0] : DynaSharpTypes.TableTypeOf(method);
+        if (entity is not INamedTypeSymbol named
+            || models.ModelOf(named)?.Entity?.VersionProperty is null
+            || (method.ContainingType.Name == TableClass ? CommandSettlesVersion(invocation) : StepSettlesVersion(invocation)))
+        {
+            return;
+        }
+
+        var name = ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)invocation.Syntax).Expression).Name;
+        context.ReportDiagnostic(Diagnostic.Create(Descriptors.UnsettledVersionByKey, name.GetLocation(), named.Name, method.Name == UpdateVerb ? "update" : "delete"));
+    }
+
+    // A command that leaves the member can get the clause where it goes.
+    private static bool CommandSettlesVersion(IInvocationOperation invocation) =>
+        ChainCalls(invocation, IfVersion) || ChainCalls(invocation, IgnoreVersion) || LeavesMember(invocation);
+
+    // The calls on the step itself, up to the next verb or the terminal. A step that goes anywhere else, into a local, an argument or a conversion, or into a method of the consumer, counts as settled.
+    private static bool StepSettlesVersion(IInvocationOperation verb)
+    {
+        IOperation current = verb;
+        while (NextCall(current) is { } next)
+        {
+            if (!DynaSharpTypes.IsDeclaredByDynaSharp(next.TargetMethod.ContainingType))
+            {
+                return true;
+            }
+
+            // A verb takes a table; IfExists and IfNotExists of a step are extension methods beside the verbs and take none.
+            if (!SymbolEqualityComparer.Default.Equals(next.Type, verb.Type) || (next.TargetMethod.ContainingType.Name == StepVerbs && DynaSharpTypes.TableTypeOf(next.TargetMethod) is not null))
+            {
+                return false;
+            }
+
+            if (next.TargetMethod.Name is IfVersion or IgnoreVersion)
+            {
+                return true;
+            }
+
+            current = next;
+        }
+
+        return true;
+    }
+
+    // The call that takes this value as its receiver: one it is the instance of, or an extension method it is the first argument of. A value that is an argument is no instance.
+    private static IInvocationOperation? NextCall(IOperation operation) => operation.Parent switch
+    {
+        IInvocationOperation call => call,
+        IArgumentOperation argument => argument.Parent is IInvocationOperation call && ReceiverOf(call) == operation ? call : null,
+        _ => null,
+    };
 
     // Put<TOther>(Table<TOther> table, TOther item) and the deletes on another table write to the table they take, the others to the table of the batch.
     private static INamedTypeSymbol? VersionedEntityOfBatchWrite(IInvocationOperation invocation, ModelCatalog models)

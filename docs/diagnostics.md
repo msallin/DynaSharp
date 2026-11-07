@@ -336,6 +336,11 @@ It also reports a key given as the values it is stored as on a table or an index
 - **Fix.** Declare the table on the entity or for its assembly, see [Declaring the table](tables.md#declaring-the-table), or pass the name: `client.Table<Order>("orders")`.
 - **Not reported.** A type parameter, and a type without `[DynamoDbEntity]`, such as one written by hand, whose `Info` says its table in code.
 
+`DYNA239` (error) reports an `Update` or a `Delete` by key of an entity with a `[Version]` that calls neither `IfVersion(n)` nor `IgnoreVersion()`: `carts.Update(Cart.Keys.Of("bob")).Set(Cart.Attrs.Lines, lines)`, `carts.Delete(Cart.Keys.Of("bob"))`, and the `Update` and `Delete` steps of a transaction. A key carries no version, so the command throws `InvalidOperationException` when it is sent. A put and a delete of the entity itself take the version from it.
+
+- **Fix.** Pass the version last read with `IfVersion(n)`, or write without the check with `IgnoreVersion()`.
+- **Not reported.** Where the build cannot see the whole write, and the command still throws when it is sent: a command that the member returns, passes to a method or stores outside a local, and a step that goes into a local, a conversion or a method of your own before its next verb. For a command, `IfVersion` or `IgnoreVersion` on a command of that type anywhere in the member keeps it quiet. A write of a type parameter.
+
 ## Expressions
 
 In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text is DynamoDB's grammar, an attribute in a hole stands for its name, and anything else in a hole is a value. DynaSharp generates every placeholder.

@@ -74,6 +74,27 @@ public sealed class AnalyzerListTests
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', opening));
     }
 
+    [Test]
+    public async Task WritesByKey_OfEntityCommandAnalyzer_AreTheUpdatesAndDeletesThatTakeAGeneratedKey()
+    {
+        // Arrange (a key carries no version, so each of these leaves it to IfVersion or IgnoreVersion)
+        Type[] writes = [typeof(UpdateCommand<>), typeof(DeleteCommand<>), typeof(UpdateStep), typeof(ConditionStep)];
+        var byKey = typeof(DynamoDbClient).Assembly.GetExportedTypes()
+            .SelectMany(static type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+            .Where(method => method.Name is "Update" or "Delete"
+                && writes.Contains(method.ReturnType.IsGenericType ? method.ReturnType.GetGenericTypeDefinition() : method.ReturnType)
+                && method.GetParameters().Any(static parameter => parameter.Name == "key" && parameter.ParameterType.IsGenericParameter))
+            .Select(static method => $"{method.DeclaringType!.Name.Split('`')[0]}.{method.Name}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal);
+
+        // Act
+        var list = EntityCommandAnalyzer.WritesByKey.Order(StringComparer.Ordinal);
+
+        // Assert
+        await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', byKey));
+    }
+
     private static IEnumerable<MethodInfo> HandleWrites() => typeof(IUpdatable<>).GetMethods().Where(IsByHandle);
 
     private static bool IsByHandle(MethodInfo method) =>

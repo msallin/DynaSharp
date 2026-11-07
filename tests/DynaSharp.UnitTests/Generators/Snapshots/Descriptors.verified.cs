@@ -96,6 +96,7 @@ DYNA038 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA039 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA040 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA238 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA239 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA041 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA042 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA043 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
@@ -197,6 +198,7 @@ DYNA038 | Error | DynaSharp.Mapping | Type has a name the generated class Dynamo
 DYNA039 | Error | DynaSharp.Mapping | Table name is invalid | The table name '{0}' is not valid: {1}
 DYNA040 | Warning | DynaSharp.Mapping | Entities of one table with other keys | '{0}' is in the table '{1}' with the keys {2}, and '{3}' is in it with {4}. A table has one key schema: name their key attributes the same, or put one of them in a table of its own.
 DYNA238 | Error | DynaSharp.Commands | Entity declares no table | '{0}' declares no table, so {1} without the name of a table throws InvalidOperationException. Declare one with [DynamoDbEntity(Table = "...")] on the type or [assembly: DynamoDbDefaults(Table = "...")], or pass the name of the table.
+DYNA239 | Error | DynaSharp.Commands | Write by key that does not say how it treats the version | '{0}' has a [Version], and this {1} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion().
 DYNA041 | Error | DynaSharp.Mapping | Property is outside a nullable context | '{0}' of '{1}' is declared where nullable annotations are disabled, so its type '{2}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{1}' declares it, and mark with '?' what can be null.
 DYNA042 | Error | DynaSharp.Mapping | Constructor parameter is passed by reference | Constructor parameter '{0}' is {1}, which a read cannot pass. Take it by value or as 'in', or mark another constructor with [DynamoDbConstructor].
 DYNA043 | Error | DynaSharp.Mapping | A generated class takes over a type name | '{0}' names '{1}' here, but inside '{2}' the generated class {2}.{0} takes that name over. Write the name in full, as {1}, or give the type another name with a using alias.

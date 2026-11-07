@@ -96,6 +96,8 @@ public static class Code
 
     public static Shift Dyna237() => new() { Id = "a", Start = new DateTime(2026, 1, 15) };
 
+    public static string Dyna239() => Orders.Delete(Order.Keys.Of("a")).ToRequestJson();
+
     private static readonly Table<Order> Orders = null!;
 
     private static readonly Table<Invoice> Invoices = null!;

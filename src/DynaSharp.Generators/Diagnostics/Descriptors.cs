@@ -714,6 +714,15 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor UnsettledVersionByKey = new(
+        "DYNA239",
+        "Write by key that does not say how it treats the version",
+        "'{0}' has a [Version], and this {1} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion().",
+        Commands,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly DiagnosticDescriptor DateTimeWithoutKind = new(
         "DYNA237",
         "DateTime without a kind",
@@ -743,7 +752,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

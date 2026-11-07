@@ -58,7 +58,9 @@ public sealed class OptimisticLockingTests(Backend backend)
         var accounts = sandbox.Shop.Of<Account>();
 
         // Act
+#pragma warning disable DYNA239 // The write says nothing of the version on purpose.
         var failure = await Items.FailureOfAsync<InvalidOperationException>(async () => await accounts.Update(Account.Keys.Of(Alice)).Set(Account.Attrs.Balance, 1m).SendAsync());
+#pragma warning restore DYNA239
 
         // Assert
         await Assert.That(failure.Message).Contains("IfVersion", StringComparison.Ordinal);

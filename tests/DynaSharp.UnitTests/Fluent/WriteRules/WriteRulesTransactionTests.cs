@@ -2,6 +2,9 @@ using DynaSharp.Mapping;
 using DynaSharp.Testing;
 using static DynaSharp.UnitTests.Fluent.WriteRulesFixture;
 
+// Some tests write by key without IfVersion or IgnoreVersion on purpose, to see the write throw at run time.
+#pragma warning disable DYNA239
+
 namespace DynaSharp.UnitTests.Fluent;
 
 /// <summary>What <see cref="VersionAttribute"/> asks of each action of a transaction, which settles action by action, as bodies written by hand from <c>api.md</c> section 8.</summary>

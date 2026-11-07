@@ -3,6 +3,9 @@ using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
 using static DynaSharp.UnitTests.Fluent.WriteRulesFixture;
 
+// Some tests write by key without IfVersion or IgnoreVersion on purpose, to see the write throw at run time.
+#pragma warning disable DYNA239
+
 namespace DynaSharp.UnitTests.Fluent;
 
 /// <summary>What <see cref="VersionAttribute"/> asks of an <c>Update</c>, which holds no entity and has to say how it treats the version, as bodies written by hand from <c>api.md</c> section 8.</summary>

@@ -157,7 +157,7 @@ What a condition can say, typed or as text, is on [Expressions](expressions.md).
 
 ## Optimistic locking
 
-A `[Version]` property turns every write of the entity into a compare-and-swap. A `Put` takes the version from its entity: 0 says that no item has the key, any other value must be the stored one, and otherwise it throws `ConditionalCheckFailedException`. An `Update` or a `Delete` by key names the version with `IfVersion(n)`, or gives the check up with `IgnoreVersion()`, and throws before anything is sent without either. A batch has only `IgnoreVersion()`.
+A `[Version]` property turns every write of the entity into a compare-and-swap. A `Put` takes the version from its entity: 0 says that no item has the key, any other value must be the stored one, and otherwise it throws `ConditionalCheckFailedException`. An `Update` or a `Delete` by key names the version with `IfVersion(n)`, or gives the check up with `IgnoreVersion()`, and throws before anything is sent without either, which the build reports as [`DYNA239`](diagnostics.md#commands) where it can see the whole write. A batch has only `IgnoreVersion()`.
 
 ```csharp
 var saved = await carts.Update(Cart.Keys.Of("bob"))

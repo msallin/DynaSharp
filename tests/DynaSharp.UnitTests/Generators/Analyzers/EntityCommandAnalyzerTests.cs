@@ -2,7 +2,7 @@ using DynaSharp.Generators;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>DYNA205 to DYNA207, DYNA219, DYNA225 and DYNA236: what a command says about its entity that the model of the entity contradicts.</summary>
+/// <summary>DYNA205 to DYNA207, DYNA219, DYNA225, DYNA236 and DYNA239: what a command says about its entity that the model of the entity contradicts.</summary>
 public sealed class EntityCommandAnalyzerTests
 {
     private const string VersionMessage = "DYNA206 Warning: This Put of 'Locked' holds a version above 0, and an item that does not exist has no version, so IfNotExists can never hold and the command throws. For a first write leave the version at 0, or call IgnoreVersion.";
@@ -191,6 +191,22 @@ public sealed class EntityCommandAnalyzerTests
         private static Table<Locked> Locks() => locks;
         private static void Keep(BatchWriteCommand<Locked> batch) { }
         private static void Give(out BatchWriteCommand<Locked> batch) => batch = locks.BatchWrite().Put(held);
+
+        """;
+
+    private const string Outside = """
+
+        public static class Steps
+        {
+            public static UpdateStep Checked(this UpdateStep step) => step.IfVersion(1);
+
+            public static string Render(UpdateStep step) => step.IfVersion(1).ToRequestJson();
+        }
+
+        public readonly ref struct Holder
+        {
+            public Holder(UpdateStep step) { }
+        }
 
         """;
 
@@ -638,6 +654,69 @@ public sealed class EntityCommandAnalyzerTests
     {
         // Arrange (a batch that is returned, and a write of a type parameter, which can be of any entity)
         var source = AnalyzerRun.Member(Fields + member);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""_ = locks.[|Update|](lockKey).Set(Locked.Attrs.Owner, "o").ToRequestJson();""", "update")]
+    [Arguments("""_ = locks.[|Delete|](lockKey).ToRequestJson();""", "delete")]
+    [Arguments("""var update = locks.[|Update|](lockKey); _ = update.ToRequestJson();""", "update")]
+    [Arguments("""_ = client.TransactWrite().[|Update|](locks, lockKey).Set(Locked.Attrs.Owner, "o").ToRequestJson();""", "update")]
+    [Arguments("""_ = client.TransactWrite().[|Update|](locks, lockKey, out _).ToRequestJson();""", "update")]
+    [Arguments("""_ = client.TransactWrite().[|Delete|](locks, lockKey).ToRequestJson();""", "delete")]
+    [Arguments("""_ = client.TransactWrite().[|Update|](locks, lockKey).Update(locks, lockKey).IfVersion(1).ToRequestJson();""", "update")]
+    [Arguments("""_ = client.TransactWrite().[|Delete|](locks, lockKey).Put(locks, held).ToRequestJson();""", "delete")]
+    [Arguments("""_ = client.TransactWrite().[|Delete|](locks, lockKey).IfExists().ToRequestJson();""", "delete")]
+    public async Task Analyze_WriteByKeyOfAVersionedEntityWithoutAVersionClause_ReportsTheVerb(string statement, string write)
+    {
+        // Arrange (a key carries no version, so the command throws when it is sent)
+        var source = Run(statement);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA239 Error: 'Locked' has a [Version], and this {write} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion()."));
+    }
+
+    [Test]
+    [Arguments("""_ = locks.Update(lockKey).IfVersion(1).ToRequestJson();""")]
+    [Arguments("""_ = locks.Update(lockKey).Set(Locked.Attrs.Owner, "o").IgnoreVersion().ToRequestJson();""")]
+    [Arguments("""_ = locks.Delete(lockKey).IgnoreVersion().ToRequestJson();""")]
+    [Arguments("""var update = locks.Update(lockKey); _ = update.IfVersion(2).ToRequestJson();""")]
+    [Arguments("""_ = locks.Delete(held).ToRequestJson();""")]
+    [Arguments("""_ = customers.Update(customerKey).ToRequestJson();""")]
+    [Arguments("""_ = locks.Update(lockKey);""")]
+    [Arguments("""_ = client.TransactWrite().Update(locks, lockKey).IfVersion(1).ToRequestJson();""")]
+    [Arguments("""_ = client.TransactWrite().Delete(locks, lockKey).IgnoreVersion().ToRequestJson();""")]
+    [Arguments("""_ = client.TransactWrite().Update(events, key).ToRequestJson();""")]
+    [Arguments("""_ = client.TransactWrite().Update(shop, "a").ToRequestJson();""")]
+    [Arguments("""UpdateStep step = client.TransactWrite().Update(locks, lockKey); _ = step.IfVersion(1).ToRequestJson();""")]
+    [Arguments("""_ = client.TransactWrite().Update(locks, lockKey).Checked().ToRequestJson();""")]
+    [Arguments("""_ = Steps.Render(client.TransactWrite().Update(locks, lockKey));""")]
+    [Arguments("""_ = new Holder(client.TransactWrite().Update(locks, lockKey));""")]
+    public async Task Analyze_WriteByKeyThatSaysHowItTreatsTheVersionOrCannotBeFollowed_ReportsNothing(string statement)
+    {
+        // Arrange (a clause on the write itself, an entity or no version, and a step that goes where its clauses cannot be seen)
+        var source = AnalyzerRun.Member(Fields + "public static void Run(string[] args)\n{\n" + statement + "\n}\n", Outside);
+
+        // Act
+        var report = await ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_WriteByKeyOfATypeParameter_ReportsNothing()
+    {
+        // Arrange (it can be of any entity)
+        var source = AnalyzerRun.Member(Fields + "private static string Run<T, TKey>(Table<T> table, TKey key) where T : IDynamoDbEntity<T> where TKey : IKey<T> => table.Delete(key).ToRequestJson();");
 
         // Act
         var report = await ReportAsync(source);
