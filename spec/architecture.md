@@ -442,6 +442,7 @@ A test that derives its expectation from the code proves little, so each area ha
 | Expression engine of the fake | `Testing/Fake/Expressions` | The same `ExpressionCorpus`, which the fake must parse or reject as DynamoDB Local does; evaluation and update tables written by hand from the Developer Guide; the word lists against the client's and the generator's |
 | Behavior of the service | `tests/DynaSharp.IntegrationTests` | Dynoxide and DynamoDB Local, and DynamoDB itself on demand; the fake runs the same tests, as a client of them, not as an oracle. `Backends/Gaps.cs` names what each lacks, and such a test is skipped there |
 | The fake against the emulators | `IntegrationTests/Differential` | Generated sequences of operations, answered alike by the fake and by Dynoxide and DynamoDB Local, see section 14 |
+| Open questions about DynamoDB | `IntegrationTests/Fidelity` | DynamoDB itself, where the fake and the emulators disagree: asserted only on real AWS, each other backend records its answer and is skipped |
 | Patterns | `IntegrationTests/Recipes` | One test class per recipe of `patterns.md`, on both emulators and the fake |
 | Native AOT | `tests/DynaSharp.AotSmoke` | The ILC: any trim or AOT warning fails the publish |
 | Packaging | `tests/DynaSharp.PackageSmoke`, `Mistakes` | A real restore from the nupkg; each rule must show in a consumer's build |
