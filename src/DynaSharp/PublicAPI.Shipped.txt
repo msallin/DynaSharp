@@ -284,10 +284,12 @@ DynaSharp.DeleteCommand<T>.ToRequestJson() -> string!
 DynaSharp.DeleteCommand<T>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
 DynaSharp.DynamoDbClient
 DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
+DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Requests.DescribeTableResponse!>!
 DynaSharp.DynamoDbClient.Dispose() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient(DynaSharp.DynamoDbClientOptions! options) -> void
 DynaSharp.DynamoDbClient.Options.get -> DynaSharp.DynamoDbClientOptions!
+DynaSharp.DynamoDbClient.ResolveTableName(string! declaredName) -> string!
 DynaSharp.DynamoDbClient.SendRawAsync(string! operation, System.ReadOnlyMemory<byte> requestJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
 DynaSharp.DynamoDbClient.Table(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Table<DynaSharp.Item!>!
 DynaSharp.DynamoDbClient.Table<T>() -> DynaSharp.Table<T>!
@@ -312,7 +314,7 @@ DynaSharp.DynamoDbClientOptions.Region.get -> DynaSharp.AwsRegion?
 DynaSharp.DynamoDbClientOptions.Region.init -> void
 DynaSharp.DynamoDbClientOptions.ServiceUrl.get -> System.Uri?
 DynaSharp.DynamoDbClientOptions.ServiceUrl.init -> void
-DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string!>?
+DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string?>?
 DynaSharp.DynamoDbClientOptions.TableNaming.init -> void
 DynaSharp.DynamoDbClientOptions.TimeProvider.get -> System.TimeProvider!
 DynaSharp.DynamoDbClientOptions.TimeProvider.init -> void
@@ -384,6 +386,7 @@ DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.Consistent() -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.CountAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 DynaSharp.FanOutQueryCommand<T>.Descending() -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.FanOutQueryCommand<T>.Descending(bool descending) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.FanOutQueryCommand() -> void
 DynaSharp.FanOutQueryCommand<T>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.Filter<TCondition>(TCondition condition) -> DynaSharp.FanOutQueryCommand<T>
@@ -392,7 +395,7 @@ DynaSharp.FanOutQueryCommand<T>.Limit(int items) -> DynaSharp.FanOutQueryCommand
 DynaSharp.FanOutQueryCommand<T>.MaxAttempts(int attempts) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.MaxConcurrency(int requests) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.FanOutQueryCommand<T>
-DynaSharp.FanOutQueryCommand<T>.PageAsync(int pageSize, DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.FanOutQueryCommand<T>.PageAsync(int pageSize, DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.FanOutQueryCommand<T>.PageAsync(int pageSize, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.FanOutQueryCommand<T>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.FanOutQueryCommand<T>
 DynaSharp.FanOutQueryCommand<T>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.FanOutQueryCommand<T>
@@ -760,6 +763,7 @@ DynaSharp.MixedExtensions
 DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Consistent() -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Descending() -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Descending(bool descending) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TMixed>!
@@ -767,12 +771,13 @@ DynaSharp.MixedQueryCommand<TMixed>.Limit(int items) -> DynaSharp.MixedQueryComm
 DynaSharp.MixedQueryCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.MixedQueryCommand() -> void
 DynaSharp.MixedQueryCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<TMixed>
-DynaSharp.MixedQueryCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedQueryCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
 DynaSharp.MixedQueryCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
 DynaSharp.MixedQueryCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
 DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Take(int items) -> DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.ToRequestJson() -> string!
 DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.MixedScanCommand<TMixed>.Consistent() -> DynaSharp.MixedScanCommand<TMixed>
@@ -783,7 +788,7 @@ DynaSharp.MixedScanCommand<TMixed>.Limit(int items) -> DynaSharp.MixedScanComman
 DynaSharp.MixedScanCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.MixedScanCommand<TMixed>.MixedScanCommand() -> void
 DynaSharp.MixedScanCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<TMixed>
-DynaSharp.MixedScanCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedScanCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
 DynaSharp.MixedScanCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
 DynaSharp.MixedScanCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
 DynaSharp.MixedScanCommand<TMixed>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<TMixed>
@@ -791,6 +796,7 @@ DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.
 DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.MixedScanCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.MixedScanCommand<TMixed>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Take(int items) -> DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.MixedScanCommand<TMixed>.ToRequestJson() -> string!
 DynaSharp.Page<T>
 DynaSharp.Page<T>.ConsumedCapacity.get -> DynaSharp.ConsumedCapacity?
@@ -821,6 +827,7 @@ DynaSharp.PutCommand<T>.MaxAttempts(int attempts) -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.PutCommand() -> void
 DynaSharp.PutCommand<T>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.ReturnMetrics() -> DynaSharp.PutCommand<T>
+DynaSharp.PutCommand<T>.ReturnNew() -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.ReturnOld() -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.ReturnOldOnFailure() -> DynaSharp.PutCommand<T>
 DynaSharp.PutCommand<T>.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.WriteResult<T>>
@@ -837,6 +844,7 @@ DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.Consistent() -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.CountAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 DynaSharp.QueryCommand<T>.Descending() -> DynaSharp.QueryCommand<T>
+DynaSharp.QueryCommand<T>.Descending(bool descending) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.Filter<TCondition>(TCondition condition) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.ItemAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
@@ -844,7 +852,7 @@ DynaSharp.QueryCommand<T>.ItemsAsync(System.Threading.CancellationToken cancella
 DynaSharp.QueryCommand<T>.Limit(int items) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.MaxAttempts(int attempts) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.QueryCommand<T>
-DynaSharp.QueryCommand<T>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.QueryCommand<T>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.QueryCommand<T>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.QueryCommand<T>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<T>>!
 DynaSharp.QueryCommand<T>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.QueryCommand<T>
@@ -854,9 +862,10 @@ DynaSharp.QueryCommand<T>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail
 DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
 DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute) -> DynaSharp.QuerySelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
 DynaSharp.QueryCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute) -> DynaSharp.QuerySelectCommand<TValue, TConverter>
+DynaSharp.QueryCommand<T>.Take(int items) -> DynaSharp.QueryCommand<T>
 DynaSharp.QueryCommand<T>.ToRequestJson() -> string!
 DynaSharp.QuerySelectCommand<TValue, TConverter>
-DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
+DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.QuerySelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.QuerySelectCommand<TValue, TConverter>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TValue>>!
 DynaSharp.QuerySelectCommand<TValue, TConverter>.QuerySelectCommand() -> void
@@ -1710,6 +1719,7 @@ DynaSharp.ReturnCommand<TValue, TConverter>.GetAwaiter() -> System.Runtime.Compi
 DynaSharp.ReturnCommand<TValue, TConverter>.ReturnCommand() -> void
 DynaSharp.ReturnCommand<TValue, TConverter>.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<TValue>
 DynaSharp.ReturnCommand<TValue, TConverter>.ToRequestJson() -> string!
+DynaSharp.ReturnCommand<TValue, TConverter>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.ReturnResult<TValue>>
 DynaSharp.ReturnConsumedCapacity
 DynaSharp.ReturnConsumedCapacity.Indexes = 2 -> DynaSharp.ReturnConsumedCapacity
 DynaSharp.ReturnConsumedCapacity.None = 0 -> DynaSharp.ReturnConsumedCapacity
@@ -1717,6 +1727,10 @@ DynaSharp.ReturnConsumedCapacity.Total = 1 -> DynaSharp.ReturnConsumedCapacity
 DynaSharp.ReturnItemCollectionMetrics
 DynaSharp.ReturnItemCollectionMetrics.None = 0 -> DynaSharp.ReturnItemCollectionMetrics
 DynaSharp.ReturnItemCollectionMetrics.Size = 1 -> DynaSharp.ReturnItemCollectionMetrics
+DynaSharp.ReturnResult<TValue>
+DynaSharp.ReturnResult<TValue>.ConditionMet.get -> bool
+DynaSharp.ReturnResult<TValue>.ReturnResult() -> void
+DynaSharp.ReturnResult<TValue>.Value.get -> TValue?
 DynaSharp.ReturnValue
 DynaSharp.ReturnValue.AllNew = 3 -> DynaSharp.ReturnValue
 DynaSharp.ReturnValue.AllOld = 1 -> DynaSharp.ReturnValue
@@ -1735,7 +1749,7 @@ DynaSharp.ScanCommand<T>.ItemsAsync(System.Threading.CancellationToken cancellat
 DynaSharp.ScanCommand<T>.Limit(int items) -> DynaSharp.ScanCommand<T>
 DynaSharp.ScanCommand<T>.MaxAttempts(int attempts) -> DynaSharp.ScanCommand<T>
 DynaSharp.ScanCommand<T>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.ScanCommand<T>
-DynaSharp.ScanCommand<T>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
+DynaSharp.ScanCommand<T>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.ScanCommand<T>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.ScanCommand<T>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<T>>!
 DynaSharp.ScanCommand<T>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<T>
@@ -1747,9 +1761,10 @@ DynaSharp.ScanCommand<T>.Segment(int segment, int of) -> DynaSharp.ScanCommand<T
 DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue!, DynaSharp.Serialization.NullableReferenceHandleConverter<TValue!, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableReferenceConverter<TValue!, TConverter>>
 DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, DynaSharp.Serialization.NullableHandleConverter<TValue, TConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue?, DynaSharp.Serialization.NullableConverter<TValue, TConverter>>
 DynaSharp.ScanCommand<T>.Select<TValue, TConverter>(DynaSharp.Attr<TValue, TConverter> attribute) -> DynaSharp.ScanSelectCommand<TValue, TConverter>
+DynaSharp.ScanCommand<T>.Take(int items) -> DynaSharp.ScanCommand<T>
 DynaSharp.ScanCommand<T>.ToRequestJson() -> string!
 DynaSharp.ScanSelectCommand<TValue, TConverter>
-DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
+DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TValue>>!
 DynaSharp.ScanSelectCommand<TValue, TConverter>.ScanSelectCommand() -> void
@@ -1917,10 +1932,12 @@ DynaSharp.Streams.Change<T>
 DynaSharp.Streams.Change<T>.<Clone>$() -> DynaSharp.Streams.Change<T>!
 DynaSharp.Streams.Change<T>.After.get -> T?
 DynaSharp.Streams.Change<T>.After.init -> void
+DynaSharp.Streams.Change<T>.At.get -> System.DateTimeOffset?
 DynaSharp.Streams.Change<T>.Before.get -> T?
 DynaSharp.Streams.Change<T>.Before.init -> void
 DynaSharp.Streams.Change<T>.Change() -> void
 DynaSharp.Streams.Change<T>.Equals(DynaSharp.Streams.Change<T>? other) -> bool
+DynaSharp.Streams.Change<T>.Id.get -> string?
 DynaSharp.Streams.Change<T>.Keys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
 DynaSharp.Streams.Change<T>.Keys.init -> void
 DynaSharp.Streams.Change<T>.Kind.get -> DynaSharp.Streams.OperationType
@@ -1932,6 +1949,7 @@ DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
 DynaSharp.Streams.ChangeRecord
 DynaSharp.Streams.ChangeRecord.<Clone>$() -> DynaSharp.Streams.ChangeRecord!
 DynaSharp.Streams.ChangeRecord.As<T>() -> DynaSharp.Streams.Change<T>?
+DynaSharp.Streams.ChangeRecord.At.get -> System.DateTimeOffset?
 DynaSharp.Streams.ChangeRecord.ChangeRecord() -> void
 DynaSharp.Streams.ChangeRecord.DynamoDb.get -> DynaSharp.Streams.StreamRecord?
 DynaSharp.Streams.ChangeRecord.DynamoDb.init -> void
@@ -1944,6 +1962,7 @@ DynaSharp.Streams.ChangeRecord.EventSource.get -> string?
 DynaSharp.Streams.ChangeRecord.EventSource.init -> void
 DynaSharp.Streams.ChangeRecord.EventVersion.get -> string?
 DynaSharp.Streams.ChangeRecord.EventVersion.init -> void
+DynaSharp.Streams.ChangeRecord.Id.get -> string?
 DynaSharp.Streams.ChangeRecord.Region.get -> string?
 DynaSharp.Streams.ChangeRecord.Region.init -> void
 DynaSharp.Streams.ChangeRecord.UserIdentity.get -> DynaSharp.Streams.RecordIdentity?
@@ -2211,6 +2230,7 @@ DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Table<T>.Delete<TKey>(TKey key) -> DynaSharp.DeleteCommand<T>
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.DescribeTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.Table<T>.DescribeTableAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.Get<TKey>(TKey key) -> DynaSharp.GetCommand<T>
 DynaSharp.Table<T>.Index(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Index<T>!
 DynaSharp.Table<T>.Name.get -> string!
@@ -2221,13 +2241,13 @@ DynaSharp.Table<T>.Query<TKey>(TKey key) -> DynaSharp.QueryCommand<T>
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3, T4>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
 DynaSharp.Table<T>.ReadChangesAsync<T1, T2>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2>>!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
-DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
+DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.RetryOnConflictAsync<TResult>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
 DynaSharp.Table<T>.Scan() -> DynaSharp.ScanCommand<T>
 DynaSharp.Table<T>.SortKeyName.get -> string?
@@ -2818,7 +2838,9 @@ static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! at
 static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName, string! keyAttribute) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.OtherType(string! entityType, string! attributeName, string! foundType) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.UndefinedEnumValue(string! enumType) -> DynaSharp.DynamoDbMappingException!
+static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.BatchWriteCommand<T> command, T entity) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
+static DynaSharp.EntityTableExtensions.DeleteAll<T>(this DynaSharp.BatchWriteCommand<T> command, System.Collections.Generic.IEnumerable<T>! entities) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.EntityTableExtensions.Get<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.GetCommand<T>
 static DynaSharp.EntityTableExtensions.Index<T>(this DynaSharp.Table<T>! table, string! name) -> DynaSharp.Index<T>!
 static DynaSharp.EntityTableExtensions.Index<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, string! name) -> DynaSharp.Index<DynaSharp.Item!>!
@@ -3220,6 +3242,7 @@ static DynaSharp.TransactWriteExtensions.IfExists<TStep>(this TStep step) -> TSt
 static DynaSharp.TransactWriteExtensions.IfNotExists<TStep>(this TStep step) -> TStep
 static DynaSharp.TransactWriteExtensions.Put<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, T item) -> DynaSharp.PutStep
 static DynaSharp.TransactWriteExtensions.Put<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, T item, out DynaSharp.TransactMarker marker) -> DynaSharp.PutStep
+static DynaSharp.TransactWriteExtensions.PutAll<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<T>! items) -> DynaSharp.TransactWriteCommand
 static DynaSharp.TransactWriteExtensions.ReturnCapacity<TChain>(this TChain chain, DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> TChain
 static DynaSharp.TransactWriteExtensions.ReturnMetrics<TChain>(this TChain chain) -> TChain
 static DynaSharp.TransactWriteExtensions.ReturnOldOnFailure<TStep>(this TStep step) -> TStep

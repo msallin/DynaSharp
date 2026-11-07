@@ -5,20 +5,28 @@ DynaSharp.Testing.FakeDynamoDb.Answer(string! operation, string! requestJson) ->
 DynaSharp.Testing.FakeDynamoDb.CreateClient(System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.DynamoDbClient!
 DynaSharp.Testing.FakeDynamoDb.CreateHandler() -> DynaSharp.Testing.StubHandler!
 DynaSharp.Testing.FakeDynamoDb.CreateStreamsClient(System.Func<DynaSharp.DynamoDbClientOptions!, DynaSharp.DynamoDbClientOptions!>? configure = null) -> DynaSharp.Streams.DynamoDbStreamsClient!
+DynaSharp.Testing.FakeDynamoDb.CreateTable(DynaSharp.CreateTableCommand! command) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.CreateTable(DynaSharp.Requests.CreateTableRequest! request) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.CreateTable(string! tableName, string! partitionKey, string? sortKey = null) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.CreateTable<T>() -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.CreateTable<T>(string! tableName) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.Delete(string! tableName, DynaSharp.Item! key) -> bool
+DynaSharp.Testing.FakeDynamoDb.Delete<T>(DynaSharp.Mapping.IKey<T>! key) -> bool
+DynaSharp.Testing.FakeDynamoDb.Delete<T>(T entity) -> bool
 DynaSharp.Testing.FakeDynamoDb.DeleteTable(string! tableName) -> void
 DynaSharp.Testing.FakeDynamoDb.DescribeTable(string! tableName) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.DescribeTable<T>() -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.DisableStream(string! tableName) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.DisableStream<T>() -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.EnableStream(string! tableName, DynaSharp.Requests.StreamViewType viewType) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.EnableStream<T>(DynaSharp.Requests.StreamViewType viewType) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.Enqueue(DynaSharp.Testing.StubResponse! response) -> void
 DynaSharp.Testing.FakeDynamoDb.ExpireItems() -> int
 DynaSharp.Testing.FakeDynamoDb.FailNext(string! operation, DynaSharp.Testing.StubResponse! failure, int times = 1, System.Func<DynaSharp.Testing.RecordedRequest!, bool>? when = null) -> void
 DynaSharp.Testing.FakeDynamoDb.FakeDynamoDb(System.TimeProvider? timeProvider = null) -> void
 DynaSharp.Testing.FakeDynamoDb.Get(string! tableName, DynaSharp.Item! key) -> DynaSharp.Item?
 DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Item! key) -> T?
+DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Mapping.IKey<T>! key) -> T?
 DynaSharp.Testing.FakeDynamoDb.Get<T>(string! tableName, DynaSharp.Item! key) -> T?
 DynaSharp.Testing.FakeDynamoDb.Items(string! tableName) -> System.Collections.Generic.IReadOnlyList<DynaSharp.Item!>!
 DynaSharp.Testing.FakeDynamoDb.Items<T>() -> System.Collections.Generic.IReadOnlyList<T>!
@@ -26,8 +34,10 @@ DynaSharp.Testing.FakeDynamoDb.Items<T>(string! tableName) -> System.Collections
 DynaSharp.Testing.FakeDynamoDb.Put(string! tableName, DynaSharp.Item! item) -> void
 DynaSharp.Testing.FakeDynamoDb.Put<T>(T entity) -> void
 DynaSharp.Testing.FakeDynamoDb.Put<T>(string! tableName, T entity) -> void
+DynaSharp.Testing.FakeDynamoDb.Requests.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedRequest!>!
 DynaSharp.Testing.FakeDynamoDb.Reset() -> void
 DynaSharp.Testing.FakeDynamoDb.SplitStreamShards(string! tableName, int children = 2, System.TimeSpan secondChildListedAfter = default(System.TimeSpan)) -> void
+DynaSharp.Testing.FakeDynamoDb.TableItems<T>() -> System.Collections.Generic.IReadOnlyList<DynaSharp.Item!>!
 DynaSharp.Testing.FakeDynamoDb.TableNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 DynaSharp.Testing.FakeDynamoDb.ThrowIfFailuresLeft() -> void
 DynaSharp.Testing.RecordedExchange
@@ -181,6 +191,7 @@ static DynaSharp.Testing.StubResponse.StreamDescription(DynaSharp.Streams.Stream
 static DynaSharp.Testing.StubResponse.StreamDescription(string! tableName, DynaSharp.Streams.StreamStatus status, params System.ReadOnlySpan<DynaSharp.Streams.Shard!> shards) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.StreamDescription(string! tableName, params System.ReadOnlySpan<DynaSharp.Streams.Shard!> shards) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.Table(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Active, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
+static DynaSharp.Testing.StubResponse.Table<T>(DynaSharp.TableStatus status = DynaSharp.TableStatus.Active) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.Table<T>(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Active) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TableCreated(string! name, DynaSharp.TableStatus status = DynaSharp.TableStatus.Creating, params System.ReadOnlySpan<DynaSharp.Requests.GlobalSecondaryIndexDescription!> globalIndexes) -> DynaSharp.Testing.StubResponse!
 static DynaSharp.Testing.StubResponse.TableDeleted(string! name) -> DynaSharp.Testing.StubResponse!

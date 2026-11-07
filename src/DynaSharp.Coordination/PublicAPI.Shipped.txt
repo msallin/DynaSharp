@@ -8,6 +8,8 @@ DynaSharp.Coordination.Lease.RenewAsync(System.Threading.CancellationToken cance
 DynaSharp.Coordination.LeaseTransactExtensions
 DynaSharp.Coordination.LockTable
 DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
+DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.TimeSpan wait, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
+DynaSharp.Coordination.LockTable.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Coordination.LockTable.LockTable(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.Coordination.LockTableOptions? options = null) -> void
 DynaSharp.Coordination.LockTable.Options.get -> DynaSharp.Coordination.LockTableOptions!
 DynaSharp.Coordination.LockTable.RunAsLeaderAsync(string! name, System.TimeSpan leaseDuration, System.Func<DynaSharp.Coordination.Lease!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
@@ -35,6 +37,7 @@ DynaSharp.Coordination.Testing.LockState.LeaseDuration.get -> System.TimeSpan?
 DynaSharp.Coordination.Testing.LockState.LeaseDuration.init -> void
 DynaSharp.Coordination.Testing.LockState.LockState(bool IsHeld, string? HolderLabel, System.TimeSpan? LeaseDuration, long FencingToken) -> void
 DynaSharp.Coordination.Testing.LockTableTesting
+const DynaSharp.Coordination.LockTable.PartitionKeyName = "pk" -> string!
 const DynaSharp.Coordination.LockTableOptions.MaxHolderLabelLength = 256 -> int
 override DynaSharp.Coordination.Testing.LockState.Equals(object? obj) -> bool
 override DynaSharp.Coordination.Testing.LockState.GetHashCode() -> int
@@ -45,6 +48,7 @@ static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain
 static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, DynaSharp.Coordination.Lease! lease, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
 static DynaSharp.Coordination.LeaseTransactExtensions.IsHeld<TChain>(this TChain chain, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
 static DynaSharp.Coordination.LockTable.For<T>(DynaSharp.Table<T>! table, DynaSharp.Coordination.LockTableOptions? options = null) -> DynaSharp.Coordination.LockTable!
+static DynaSharp.Coordination.LockTable.Open(DynaSharp.DynamoDbClient! client, string! tableName, DynaSharp.Coordination.LockTableOptions? options = null) -> DynaSharp.Coordination.LockTable!
 static DynaSharp.Coordination.Testing.LockState.operator !=(DynaSharp.Coordination.Testing.LockState? left, DynaSharp.Coordination.Testing.LockState? right) -> bool
 static DynaSharp.Coordination.Testing.LockState.operator ==(DynaSharp.Coordination.Testing.LockState? left, DynaSharp.Coordination.Testing.LockState? right) -> bool
 static DynaSharp.Coordination.Testing.LockTableTesting.GetStateAsync(this DynaSharp.Coordination.LockTable! locks, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Testing.LockState?>!

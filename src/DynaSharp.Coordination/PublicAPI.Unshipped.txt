@@ -1,5 +1,1 @@
 #nullable enable
-const DynaSharp.Coordination.LockTable.PartitionKeyName = "pk" -> string!
-DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.TimeSpan wait, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
-DynaSharp.Coordination.LockTable.CreateTable() -> DynaSharp.CreateTableCommand!
-static DynaSharp.Coordination.LockTable.Open(DynaSharp.DynamoDbClient! client, string! tableName, DynaSharp.Coordination.LockTableOptions? options = null) -> DynaSharp.Coordination.LockTable!
