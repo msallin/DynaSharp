@@ -1,0 +1,54 @@
+# A long run of the differential tests of FakeDynamoDb (tests/DynaSharp.IntegrationTests/Differential), by hand. The pull request pipeline runs them too, in the
+# integration job of ci.yml, with the bounded default of 120 sequences from seed 1; this runs as many as asked, from a seed of its own, and keeps the report of
+# every divergence, known ones and those of messages included, as an artifact. A failure names the seed and the minimized sequence. A measure, not a gate.
+name: Differential
+
+on:
+  workflow_dispatch:
+    inputs:
+      sequences:
+        description: Sequences per emulator
+        default: '3000'
+        required: false
+      seed:
+        description: First seed, or random
+        default: random
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  differential:
+    name: Differential tests (fake against Dynoxide and DynamoDB Local)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # Both emulators: each one holds the fake to what the other skips, see KnownDivergences.
+      DYNASHARP_BACKENDS: dynoxide,dynamodb-local
+      DYNASHARP_DIFF_SEQUENCES: ${{ inputs.sequences }}
+      DYNASHARP_DIFF_SEED: ${{ inputs.seed }}
+      DYNASHARP_DIFF_REPORT: ${{ github.workspace }}/artifacts/differential/report.jsonl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore tests/DynaSharp.IntegrationTests --locked-mode
+      - run: dotnet build tests/DynaSharp.IntegrationTests -c Release --no-restore
+      - run: mkdir -p artifacts/differential
+      - name: Differential tests
+        run: dotnet test --project tests/DynaSharp.IntegrationTests -c Release --no-build --treenode-filter "/*/*/DifferentialTests/*"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: differential-report
+          path: |
+            artifacts/differential/
+            TestResults/
