@@ -13,3 +13,7 @@ DynaSharp.ScanCommand<T>.PageAsync(DynaSharp.ContinuationToken? after = null, Sy
 *REMOVED*DynaSharp.ScanCommand<T>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<T>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken? after = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
 *REMOVED*DynaSharp.ScanSelectCommand<TValue, TConverter>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TValue>>
+DynaSharp.Streams.Change<T>.At.get -> System.DateTimeOffset?
+DynaSharp.Streams.Change<T>.Id.get -> string?
+DynaSharp.Streams.ChangeRecord.At.get -> System.DateTimeOffset?
+DynaSharp.Streams.ChangeRecord.Id.get -> string?

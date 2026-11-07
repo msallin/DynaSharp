@@ -71,7 +71,19 @@ public sealed record Change<T>
     public string? SequenceNumber { get; init; }
 
     /// <summary>
-    /// Gets the record the change was read from, with what the change does not repeat: <see cref="StreamRecord.ApproximateCreationDateTime"/>, and <see cref="ChangeRecord.UserIdentity"/>,
+    /// Gets the identifier to tell a record seen again by, <see cref="ChangeRecord.Id"/> of <see cref="Record"/>: the event id, or the sequence number when the event id is empty,
+    /// as DynamoDB Local leaves it. Both changes of an item whose type changed have the one of their record.
+    /// </summary>
+    public string? Id => Record.Id;
+
+    /// <summary>
+    /// Gets approximately when the change was made, to the second, <see cref="ChangeRecord.At"/> of <see cref="Record"/>. DynamoDB sends it with every record:
+    /// <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public DateTimeOffset? At => Record.At;
+
+    /// <summary>
+    /// Gets the record the change was read from, with what the change does not repeat: <see cref="ChangeRecord.UserIdentity"/>,
     /// which tells a deletion by time to live.
     /// </summary>
     public required ChangeRecord Record { get; init; }

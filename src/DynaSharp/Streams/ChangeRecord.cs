@@ -48,6 +48,22 @@ public sealed record ChangeRecord
     public RecordIdentity? UserIdentity { get; init; }
 
     /// <summary>
+    /// Gets the identifier to tell a record seen again by: <see cref="EventId"/>, or the sequence number of <see cref="DynamoDb"/> when the event id is empty, as DynamoDB Local leaves it.
+    /// <see langword="null"/> only if the response omits both.
+    /// </summary>
+    /// <remarks>
+    /// An event id is unique within the stream, a sequence number within its shard, so an identifier from the sequence number is unique only together with the shard,
+    /// <see cref="ShardChangeRecord.ShardId"/>.
+    /// </remarks>
+    public string? Id => string.IsNullOrEmpty(EventId) ? DynamoDb?.SequenceNumber : EventId;
+
+    /// <summary>
+    /// Gets approximately when the change was made, <see cref="StreamRecord.ApproximateCreationDateTime"/> of <see cref="DynamoDb"/>, to the second. DynamoDB sends it with every record:
+    /// <see langword="null"/> only if the response omits it.
+    /// </summary>
+    public DateTimeOffset? At => DynamoDb?.ApproximateCreationDateTime;
+
+    /// <summary>
     /// Reads the change as a change of a <typeparamref name="T"/>, from its images: <c>if (record.As&lt;Order&gt;() is { } order) { }</c>. A table of several entities streams
     /// all of them, so a reader asks for each type it handles, <c>As&lt;Customer&gt;()</c> after <c>As&lt;Order&gt;()</c>.
     /// </summary>

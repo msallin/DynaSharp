@@ -91,6 +91,72 @@ public sealed class ChangeRecordTests
     }
 
     [Test]
+    public async Task Id_EventIdSet_IsTheEventId()
+    {
+        // Arrange
+        var record = new ChangeRecord { EventId = "e-1", DynamoDb = new StreamRecord { SequenceNumber = "100" } };
+
+        // Act
+        var id = record.Id;
+
+        // Assert
+        await Assert.That(id).IsEqualTo("e-1");
+    }
+
+    [Test]
+    public async Task Id_EventIdEmpty_IsTheSequenceNumber()
+    {
+        // Arrange
+        var record = new ChangeRecord { EventId = string.Empty, DynamoDb = new StreamRecord { SequenceNumber = "100" } };
+
+        // Act
+        var id = record.Id;
+
+        // Assert
+        await Assert.That(id).IsEqualTo("100");
+    }
+
+    [Test]
+    public async Task Id_NoEventIdAndNoChange_IsNull()
+    {
+        // Arrange
+        var record = new ChangeRecord();
+
+        // Act
+        var id = record.Id;
+
+        // Assert
+        await Assert.That(id).IsNull();
+    }
+
+    [Test]
+    public async Task At_ChangeWithATime_IsTheApproximateCreationTime()
+    {
+        // Arrange
+        var at = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+        var record = new ChangeRecord { DynamoDb = new StreamRecord { ApproximateCreationDateTime = at } };
+
+        // Act
+        var value = record.At;
+
+        // Assert
+        await Assert.That(value).IsEqualTo(at);
+    }
+
+    [Test]
+    public async Task At_RecordWithoutAChange_IsNull()
+    {
+        // Arrange
+        var record = new ChangeRecord();
+
+        // Act
+        var value = record.At;
+
+        // Assert
+        await Assert.That(value).IsNull();
+    }
+
+    [Test]
     public async Task As_InsertOfTheType_IsAnInsertWithTheNewItem()
     {
         // Arrange
