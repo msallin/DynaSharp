@@ -163,7 +163,7 @@ public sealed class DecimalNumberTests
     }
 
     [Test]
-    [Arguments("1", "1E-40", TooManyDigits)]
+    [Arguments("1", "1E-40", Overflow)]
     [Arguments("9E+125", "9E+125", Overflow)]
     public async Task Add_SumBeyondTheLimits_ThrowsValidation(string left, string right, string message)
     {

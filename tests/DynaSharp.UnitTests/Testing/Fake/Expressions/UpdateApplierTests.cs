@@ -163,7 +163,7 @@ public sealed class UpdateApplierTests
     [Arguments("ADD s :one", """{"s":{"S":"x"}}""", IncorrectType)]
     [Arguments("ADD ns :sa", """{"ns":{"NS":["1"]}}""", IncorrectType)]
     [Arguments("DELETE ns :sa", """{"ns":{"NS":["1"]}}""", IncorrectType)]
-    [Arguments("SET n = :wide + :tenth", "{}", "Attempting to store more than 38 significant digits in a Number")]
+    [Arguments("SET n = :wide + :tenth", "{}", "Number overflow. Attempting to store a number with magnitude larger than supported range")]
     [Arguments("SET pk = :x", "{}", "One or more parameter values were invalid: Cannot update attribute pk. This attribute is part of the key")]
     [Arguments("REMOVE pk.a", "{}", "One or more parameter values were invalid: Cannot update attribute pk. This attribute is part of the key")]
     public async Task Apply_UpdateDynamoDbRejectsOnTheItem_ThrowsValidation(string update, string current, string message)

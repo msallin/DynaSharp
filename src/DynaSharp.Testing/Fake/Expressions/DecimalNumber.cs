@@ -27,6 +27,8 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
     private const int MaxLeadingExponent = 125;
     private const int MinLeadingExponent = -130;
 
+    private const string Overflow = "Number overflow. Attempting to store a number with magnitude larger than supported range";
+
     // An exponent beyond this cannot be brought back into range by any coefficient DynamoDB accepts, so parsing stops counting there.
     private const long ExponentCap = 100_000;
 
@@ -83,29 +85,31 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
 
         var negative = text[0] == '-';
         var coefficient = digits.Length == 0 ? BigInteger.Zero : BigInteger.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
-        return Create(negative ? -coefficient : coefficient, exponent);
+        return Create(negative ? -coefficient : coefficient, exponent, "Attempting to store more than 38 significant digits in a Number");
     }
 
     /// <summary>Makes a number from an integer.</summary>
     /// <param name="value">The integer.</param>
     /// <returns>The number.</returns>
-    public static DecimalNumber FromInt64(long value) => Create(value, 0);
+    public static DecimalNumber FromInt64(long value) => Create(value, 0, Overflow);
 
     /// <summary>Adds two numbers exactly.</summary>
     /// <param name="other">The other addend.</param>
     /// <returns>The sum.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c>: the sum has more than 38 significant digits or is out of range.</exception>
+    /// <exception cref="FakeError">
+    /// A <c>ValidationException</c>: the sum is out of range, or has more than 38 significant digits, which real DynamoDB reports as a number overflow too (<c>FidelityTests</c>, run 42356511937).
+    /// </exception>
     public DecimalNumber Add(DecimalNumber other)
     {
         var exponent = Math.Min(Exponent, other.Exponent);
         var sum = Scale(Coefficient, Exponent - exponent) + Scale(other.Coefficient, other.Exponent - exponent);
-        return Create(sum, exponent);
+        return Create(sum, exponent, Overflow);
     }
 
     /// <summary>Subtracts a number exactly.</summary>
     /// <param name="other">The subtrahend.</param>
     /// <returns>The difference.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c>: the difference has more than 38 significant digits or is out of range.</exception>
+    /// <exception cref="FakeError">A <c>ValidationException</c>: the difference is out of range or has more than 38 significant digits, see <see cref="Add"/>.</exception>
     public DecimalNumber Subtract(DecimalNumber other) => Add(new DecimalNumber(-other.Coefficient, other.Exponent));
 
     /// <inheritdoc/>
@@ -153,7 +157,7 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
     }
 
     // Normalizes and checks the limits of DynamoDB. The exponent is a long, so that a sum or a parsed exponent cannot wrap before the check.
-    private static DecimalNumber Create(BigInteger coefficient, long exponent)
+    private static DecimalNumber Create(BigInteger coefficient, long exponent, string tooManyDigits)
     {
         if (coefficient.IsZero)
         {
@@ -169,13 +173,13 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
         var count = BigInteger.Abs(coefficient).ToString(CultureInfo.InvariantCulture).Length;
         if (count > MaxDigits)
         {
-            throw FakeError.Validation("Attempting to store more than 38 significant digits in a Number");
+            throw FakeError.Validation(tooManyDigits);
         }
 
         var leading = exponent + count - 1;
         if (leading > MaxLeadingExponent)
         {
-            throw FakeError.Validation("Number overflow. Attempting to store a number with magnitude larger than supported range");
+            throw FakeError.Validation(Overflow);
         }
 
         if (leading < MinLeadingExponent)
