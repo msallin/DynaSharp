@@ -79,9 +79,9 @@ DynaSharp.AwsRegion.Name.get -> string!
 DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.BatchGetCommand() -> void
 DynaSharp.BatchGetCommand<T>.Consistent() -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetCommand<T>.Get<TKey>(TKey key) -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetCommand<T>.GetAll<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.BatchGetResult<T>>
-DynaSharp.BatchGetCommand<T>.Key<TKey>(TKey key) -> DynaSharp.BatchGetCommand<T>
-DynaSharp.BatchGetCommand<T>.Keys<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.MaxAttempts(int attempts) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.MaxStalledRounds(int rounds) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.BatchGetCommand<T>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.BatchGetCommand<T>
@@ -288,14 +288,6 @@ DynaSharp.DynamoDbClient.Dispose() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient() -> void
 DynaSharp.DynamoDbClient.DynamoDbClient(DynaSharp.DynamoDbClientOptions! options) -> void
 DynaSharp.DynamoDbClient.Options.get -> DynaSharp.DynamoDbClientOptions!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
-DynaSharp.DynamoDbClient.RetryOnConflictAsync<T>(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! operation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<T>!
 DynaSharp.DynamoDbClient.SendRawAsync(string! operation, System.ReadOnlyMemory<byte> requestJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
 DynaSharp.DynamoDbClient.Table(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Table<DynaSharp.Item!>!
 DynaSharp.DynamoDbClient.Table<T>() -> DynaSharp.Table<T>!
@@ -339,6 +331,8 @@ DynaSharp.DynamoDbMappingException.AttributeName.get -> string?
 DynaSharp.DynamoDbMappingException.DynamoDbMappingException(string! entityType, string? attributeName, System.Exception? innerException = null) -> void
 DynaSharp.DynamoDbMappingException.EntityType.get -> string!
 DynaSharp.DynamoDbMappingException.Key.get -> DynaSharp.Item?
+DynaSharp.EntityTableExtensions
+DynaSharp.EntityWriteExtensions
 DynaSharp.ExpiredIteratorException
 DynaSharp.ExpiredIteratorException.ExpiredIteratorException(string! message, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
 DynaSharp.Expr
@@ -434,6 +428,7 @@ DynaSharp.IConditional<TSelf>
 DynaSharp.IConditional<TSelf>.If<TCondition>(TCondition condition) -> TSelf
 DynaSharp.IFilterable<TSelf>
 DynaSharp.IFilterable<TSelf>.Filter<TCondition>(TCondition condition) -> TSelf
+DynaSharp.IMixed<TSelf>
 DynaSharp.IRetryable<TSelf>
 DynaSharp.IRetryable<TSelf>.MaxAttempts(int attempts) -> TSelf
 DynaSharp.ITransactWriteChain<TSelf>
@@ -504,6 +499,7 @@ DynaSharp.ItemCollectionMetrics.SizeEstimateRangeGB.get -> System.Collections.Ge
 DynaSharp.ItemCollectionMetrics.SizeEstimateRangeGB.init -> void
 DynaSharp.ItemCollectionSizeLimitExceededException
 DynaSharp.ItemCollectionSizeLimitExceededException.ItemCollectionSizeLimitExceededException(string! message, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
+DynaSharp.ItemTableExtensions
 DynaSharp.KeyFormatException
 DynaSharp.KeyFormatException.InTemplate(string! template, string! delimiters) -> DynaSharp.KeyFormatException!
 DynaSharp.KeyFormatException.KeyFormatException(string! message) -> void
@@ -761,111 +757,41 @@ DynaSharp.Mixed<T1, T2>.Match(System.Action<T1>! first, System.Action<T2>! secon
 DynaSharp.Mixed<T1, T2>.Match<TResult>(System.Func<T1, TResult>! first, System.Func<T2, TResult>! second) -> TResult
 DynaSharp.Mixed<T1, T2>.Mixed() -> void
 DynaSharp.MixedExtensions
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3, T4>>!
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.MixedQueryCommand() -> void
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>!
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ToRequestJson() -> string!
-DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3>>!
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.MixedQueryCommand() -> void
-DynaSharp.MixedQueryCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>!
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-DynaSharp.MixedQueryCommand<T1, T2, T3>.ToRequestJson() -> string!
-DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2>>!
-DynaSharp.MixedQueryCommand<T1, T2>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.MixedQueryCommand() -> void
-DynaSharp.MixedQueryCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
-DynaSharp.MixedQueryCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
-DynaSharp.MixedQueryCommand<T1, T2>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>!
-DynaSharp.MixedQueryCommand<T1, T2>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2>
-DynaSharp.MixedQueryCommand<T1, T2>.ToRequestJson() -> string!
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3, T4>>!
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.MixedScanCommand() -> void
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>!
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ToRequestJson() -> string!
-DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3>>!
-DynaSharp.MixedScanCommand<T1, T2, T3>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.MixedScanCommand() -> void
-DynaSharp.MixedScanCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
-DynaSharp.MixedScanCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
-DynaSharp.MixedScanCommand<T1, T2, T3>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>!
-DynaSharp.MixedScanCommand<T1, T2, T3>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2, T3>>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-DynaSharp.MixedScanCommand<T1, T2, T3>.ToRequestJson() -> string!
-DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2>>!
-DynaSharp.MixedScanCommand<T1, T2>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.MixedScanCommand() -> void
-DynaSharp.MixedScanCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
-DynaSharp.MixedScanCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
-DynaSharp.MixedScanCommand<T1, T2>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>!
-DynaSharp.MixedScanCommand<T1, T2>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2>>
-DynaSharp.MixedScanCommand<T1, T2>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2>
-DynaSharp.MixedScanCommand<T1, T2>.ToRequestJson() -> string!
+DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Consistent() -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Descending() -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TMixed>!
+DynaSharp.MixedQueryCommand<TMixed>.Limit(int items) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.MixedQueryCommand() -> void
+DynaSharp.MixedQueryCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedQueryCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedQueryCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
+DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ToRequestJson() -> string!
+DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Consistent() -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TMixed>!
+DynaSharp.MixedScanCommand<TMixed>.Limit(int items) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.MixedScanCommand() -> void
+DynaSharp.MixedScanCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedScanCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedScanCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
+DynaSharp.MixedScanCommand<TMixed>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ToRequestJson() -> string!
 DynaSharp.Page<T>
 DynaSharp.Page<T>.ConsumedCapacity.get -> DynaSharp.ConsumedCapacity?
 DynaSharp.Page<T>.Count.get -> int
@@ -2284,7 +2210,7 @@ DynaSharp.Table<T>.Client.get -> DynaSharp.DynamoDbClient!
 DynaSharp.Table<T>.CreateTable() -> DynaSharp.CreateTableCommand!
 DynaSharp.Table<T>.Delete<TKey>(TKey key) -> DynaSharp.DeleteCommand<T>
 DynaSharp.Table<T>.DeleteTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
-DynaSharp.Table<T>.DescribeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+DynaSharp.Table<T>.DescribeTableAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 DynaSharp.Table<T>.Get<TKey>(TKey key) -> DynaSharp.GetCommand<T>
 DynaSharp.Table<T>.Index(string! name, string! partitionKey, string? sortKey = null) -> DynaSharp.Index<T>!
 DynaSharp.Table<T>.Name.get -> string!
@@ -2324,7 +2250,6 @@ DynaSharp.TableDriftKind.IndexDiffers = 1 -> DynaSharp.TableDriftKind
 DynaSharp.TableDriftKind.IndexMissing = 0 -> DynaSharp.TableDriftKind
 DynaSharp.TableDriftKind.StreamDiffers = 3 -> DynaSharp.TableDriftKind
 DynaSharp.TableDriftKind.TimeToLiveDiffers = 2 -> DynaSharp.TableDriftKind
-DynaSharp.TableExtensions
 DynaSharp.TableNotActiveException
 DynaSharp.TableNotActiveException.LastStatus.get -> DynaSharp.TableStatus?
 DynaSharp.TableNotActiveException.PendingIndex.get -> string?
@@ -2893,6 +2818,25 @@ static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! at
 static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName, string! keyAttribute) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.OtherType(string! entityType, string! attributeName, string! foundType) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.UndefinedEnumValue(string! enumType) -> DynaSharp.DynamoDbMappingException!
+static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
+static DynaSharp.EntityTableExtensions.Get<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.GetCommand<T>
+static DynaSharp.EntityTableExtensions.Index<T>(this DynaSharp.Table<T>! table, string! name) -> DynaSharp.Index<T>!
+static DynaSharp.EntityTableExtensions.Index<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, string! name) -> DynaSharp.Index<DynaSharp.Item!>!
+static DynaSharp.EntityTableExtensions.Query<T>(this DynaSharp.Index<T>! index, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+static DynaSharp.EntityTableExtensions.Query<T>(this DynaSharp.Index<T>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+static DynaSharp.EntityTableExtensions.Query<T>(this DynaSharp.Table<T>! table, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+static DynaSharp.EntityTableExtensions.Query<T>(this DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
+static DynaSharp.EntityTableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.EntityTableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.EntityTableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.EntityTableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.EntityTableExtensions.QueryByDiscriminator<T>(this DynaSharp.Index<T>! index, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
+static DynaSharp.EntityWriteExtensions.IfVersion<T>(this DynaSharp.DeleteCommand<T> command, long version) -> DynaSharp.DeleteCommand<T>
+static DynaSharp.EntityWriteExtensions.IfVersion<T>(this DynaSharp.UpdateCommand<T> command, long version) -> DynaSharp.UpdateCommand<T>
+static DynaSharp.EntityWriteExtensions.IgnoreVersion<T>(this DynaSharp.DeleteCommand<T> command) -> DynaSharp.DeleteCommand<T>
+static DynaSharp.EntityWriteExtensions.IgnoreVersion<T>(this DynaSharp.PutCommand<T> command) -> DynaSharp.PutCommand<T>
+static DynaSharp.EntityWriteExtensions.IgnoreVersion<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
+static DynaSharp.EntityWriteExtensions.StoreKeyInputs<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
 static DynaSharp.Expr.Attr(string! path) -> DynaSharp.Attr
 static DynaSharp.Expr.Attr<T>(string! path) -> DynaSharp.Attr<T, DynaSharp.Serialization.NumberConverter<T>>
 static DynaSharp.Expressions.And<TLeft, TRight>.implicit operator DynaSharp.Condition!(DynaSharp.Expressions.And<TLeft, TRight> condition) -> DynaSharp.Condition!
@@ -2911,22 +2855,35 @@ static DynaSharp.GuidExtensions.extension(System.Guid).LastVersion7(System.DateT
 static DynaSharp.Item.From<T>(T value) -> DynaSharp.Item!
 static DynaSharp.ItemCollectionMetrics.operator !=(DynaSharp.ItemCollectionMetrics? left, DynaSharp.ItemCollectionMetrics? right) -> bool
 static DynaSharp.ItemCollectionMetrics.operator ==(DynaSharp.ItemCollectionMetrics? left, DynaSharp.ItemCollectionMetrics? right) -> bool
+static DynaSharp.ItemTableExtensions.Delete(this DynaSharp.BatchWriteCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Delete(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.DeleteCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Get(this DynaSharp.BatchGetCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Get(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.GetCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Put(this DynaSharp.Table<DynaSharp.Item!>! table) -> DynaSharp.PutCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.Update(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.With(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, DynaSharp.AttributeValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.With<TNumber>(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, TNumber value) -> DynaSharp.PutCommand<DynaSharp.Item!>
+static DynaSharp.ItemTableExtensions.With<TValue, TConverter>(this DynaSharp.PutCommand<DynaSharp.Item!> command, DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.Mapping.DynamoDbIndexInfo.operator !=(DynaSharp.Mapping.DynamoDbIndexInfo? left, DynaSharp.Mapping.DynamoDbIndexInfo? right) -> bool
 static DynaSharp.Mapping.DynamoDbIndexInfo.operator ==(DynaSharp.Mapping.DynamoDbIndexInfo? left, DynaSharp.Mapping.DynamoDbIndexInfo? right) -> bool
 static DynaSharp.Mapping.DynamoDbKeyInput.operator !=(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
 static DynaSharp.Mapping.DynamoDbKeyInput.operator ==(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
-static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
-static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
-static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
-static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2, T3>
-static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2>
-static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2>
-static DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2, T3, T4> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.MixedQueryCommand<T1, T2, T3>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2, T3> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.MixedQueryCommand<T1, T2>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.MixedScanCommand<T1, T2, T3, T4>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3, T4> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.MixedScanCommand<T1, T2, T3>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3> command) -> DynaSharp.Expressions.CommandHandle
-static DynaSharp.MixedScanCommand<T1, T2>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2> command) -> DynaSharp.Expressions.CommandHandle
+static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2, T3>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2, T3>>
+static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2>>
+static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2>>
+static DynaSharp.MixedQueryCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
+static DynaSharp.MixedScanCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
 static DynaSharp.PutCommand<T>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.PutCommand<T> command) -> DynaSharp.Expressions.CommandHandle
 static DynaSharp.PutStep.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.PutStep step) -> DynaSharp.Expressions.CommandHandle
 static DynaSharp.PutStep.implicit operator DynaSharp.TransactWriteCommand(DynaSharp.PutStep step) -> DynaSharp.TransactWriteCommand
@@ -3250,42 +3207,6 @@ static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaShar
 static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
 static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
-static DynaSharp.TableExtensions.Delete(this DynaSharp.BatchWriteCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchWriteCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Delete(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.DeleteCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
-static DynaSharp.TableExtensions.Get(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.GetCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Get<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.GetCommand<T>
-static DynaSharp.TableExtensions.IfVersion<T>(this DynaSharp.DeleteCommand<T> command, long version) -> DynaSharp.DeleteCommand<T>
-static DynaSharp.TableExtensions.IfVersion<T>(this DynaSharp.UpdateCommand<T> command, long version) -> DynaSharp.UpdateCommand<T>
-static DynaSharp.TableExtensions.IgnoreVersion<T>(this DynaSharp.DeleteCommand<T> command) -> DynaSharp.DeleteCommand<T>
-static DynaSharp.TableExtensions.IgnoreVersion<T>(this DynaSharp.PutCommand<T> command) -> DynaSharp.PutCommand<T>
-static DynaSharp.TableExtensions.IgnoreVersion<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
-static DynaSharp.TableExtensions.Index<T>(this DynaSharp.Table<T>! table, string! name) -> DynaSharp.Index<T>!
-static DynaSharp.TableExtensions.Index<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, string! name) -> DynaSharp.Index<DynaSharp.Item!>!
-static DynaSharp.TableExtensions.Key(this DynaSharp.BatchGetCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Put(this DynaSharp.Table<DynaSharp.Item!>! table) -> DynaSharp.PutCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Index<DynaSharp.Item!>! index, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.AttributeValue>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<string!>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query(this DynaSharp.Table<DynaSharp.Item!>! table, scoped System.ReadOnlySpan<string!> partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
-static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Index<T>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, DynaSharp.PartitionKey<T> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
-static DynaSharp.TableExtensions.Query<T>(this DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<T>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<T>
-static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Index<DynaSharp.Item!>! index, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.PartitionKey<TEntity> partitionKey, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.Query<TEntity>(this DynaSharp.Table<DynaSharp.Item!>! table, System.Collections.Generic.IEnumerable<DynaSharp.PartitionKey<TEntity>>! partitionKeys, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.FanOutQueryCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.QueryByDiscriminator<T>(this DynaSharp.Index<T>! index, DynaSharp.SortKeyCondition sortKey = default(DynaSharp.SortKeyCondition)) -> DynaSharp.QueryCommand<T>
-static DynaSharp.TableExtensions.StoreKeyInputs<T>(this DynaSharp.UpdateCommand<T> command) -> DynaSharp.UpdateCommand<T>
-static DynaSharp.TableExtensions.Update(this DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.UpdateCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.With(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, DynaSharp.AttributeValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.With<TNumber>(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, TNumber value) -> DynaSharp.PutCommand<DynaSharp.Item!>
-static DynaSharp.TableExtensions.With<TValue, TConverter>(this DynaSharp.PutCommand<DynaSharp.Item!> command, DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.TransactWriteExtensions.Check<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.Check<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key, out DynaSharp.TransactMarker marker) -> DynaSharp.ConditionStep
 static DynaSharp.TransactWriteExtensions.Check<TChain>(this TChain chain, DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.ConditionStep
