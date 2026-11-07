@@ -161,7 +161,7 @@ The request API adds nothing to this: an `IOperation<TRequest, TResponse>` is a 
 ### Handles and state
 
 A command is a `readonly ref struct`, nearly always of three fields: a `CommandState`, a version and a `TableModel`. `FanOutQueryCommand<T>` has a fourth, its `FanOutPlan`, a mixed
-command (`MixedQueryCommand<...>`, `MixedScanCommand<...>`) has one, the command of its `Mixed<...>` that it forwards to, and `CreateTableCommand` is a class, see Table administration below.
+command (`MixedQueryCommand<TMixed>`, `MixedScanCommand<TMixed>`) has one, the command of its `Mixed<...>` that it forwards to, and `CreateTableCommand` is a class, see Table administration below.
 The state is a pooled class holding the request as UTF-8, and it is what crosses the `await`. The remarks on `CommandState` explain the version protocol and the ownership of a state, and they stay the reference.
 
 - `CommandState.Enter` checks the version and consumes the handle; each fluent method does `Enter`, changes the state and returns a new handle.
@@ -244,9 +244,9 @@ Its remarks say how failures and an early end work. `MixedScanCommand` shares it
 `FanOutToken` is the composite position inside an ordinary `ContinuationToken`. `BoundedReads` limits concurrency. `StartPartition` copies the template with `CopyRead`, which assigns `ReadOptions` by value,
 so a new read option comes along by itself. The remarks of `FanOutMerge` explain why nothing reads ahead.
 
-**Mixed reads.** `Mixed<T1, ...>` implements `IDynamoDbDocument<...>`, so the normal page path reads it. `MixedSchema` is built once per type combination and holds the `IN` filter and the required projection. It extends
+**Mixed reads.** `Mixed<T1, ...>` implements `IMixed<TSelf>`, an `IDynamoDbDocument<TSelf>` with an internal static abstract `Schema`, so the normal page path reads it and one `MixedQueryCommand<TMixed>` and one `MixedScanCommand<TMixed>` serve every arity, reaching the schema through `TMixed.Schema`. `MixedSchema` is built once per type combination and holds the `IN` filter and the required projection. It extends
 `DiscriminatorSchema` of `Mapping`, which holds `FindType`: it reads a copy of the reader as a checkpoint to find `_type` and then lets the type read from the start. A problem with a combination is stored and thrown at `Of<...>()`, never from a type
-initializer. The mixed commands repeat the read clauses by hand per arity, and a test keeps them forwarding every clause. `Item.Is<T>()` asks a schema of one type, `DiscriminatorSchema.Of<T>`, whose
+initializer. The two mixed commands repeat the read clauses by hand, and `MixedForwardingTests` keeps them forwarding every clause. `Item.Is<T>()` asks a schema of one type, `DiscriminatorSchema.Of<T>`, whose
 `FindType(Item)` applies the same rule to an item that is already read and answers -1 where the wire overload throws.
 
 **Plain JSON.** `JsonBridge` holds what JSON and DynamoDB disagree on, and goes through the wire format both ways, so the reader and the writer stay the only DynamoDB-JSON code (decision 3 of section 13). In: `JsonValueWriter`, a `ref struct` over a `Utf8JsonReader`, writes one JSON value with a `DynamoDbWriter` and checks on the way what DynamoDB refuses, so a failure names its JSONPath: numbers through `DynamoDbNumber.FitsDynamoDb`, the levels with a stack of 32 frames, and duplicate names with the unescaped names of the open objects in a pooled buffer and an FNV-1a hash each, which one vectorized `IndexOf` per name searches; FNV-1a and not `HashCode`, because a test needs two names with one hash to reach the comparison of the bytes. `JsonElementConverter.Write` walks the raw text of the element (`JsonMarshal.GetRawUtf8Value`, a read-only span, no copy), so a property costs no allocation beyond the request. `AttributeValue.FromJson` writes to a pooled buffer and reads that back with `AttributeValueConverter`, so a value from JSON has the shape of one from a response. Out: `JsonBridge.Read` walks a `DynamoDbReader` into a `Utf8JsonWriter`, and writes a number with `WriteRawValue` after `DynamoDbNumber.IsJsonNumber`, or through a `JsonElement` for an indented writer, since a raw value gets no indentation. `ToJson()`, `WriteJson` and `JsonElementConverter.Read` sit on it; the first and the last parse the result with `JsonElement.Parse`. A refused value is an `UnstorableJsonException`, which `ConverterChecks.IsRefusedValue` knows and `RefusingConverters` lists, so the generated write names the property.
@@ -477,7 +477,7 @@ in `benchmarks/`; `BenchmarkDotNet` builds from the process start directory, so 
 **An option of a command.**
 1. A read option: a property in `ReadOptions` and its output in `ReadOptions.WriteMembers`. `Release` and `CopyRead` take the struct as a whole. Any other option: a property in `CommandState`, its reset in `Release`, its output in `WriteMembers` or `WriteRequestOptions`, and for an option every command has, as `MaxAttempts` and `ReturnCapacity`, a line in `CopyRead`.
 2. The clause on each command that has it, with `Enter`. An interface in `Fluent/Commands/I*.cs` if helpers should reach it.
-3. A read option: the clause on `FanOutQueryCommand<T>` and all six `Mixed*Command` files.
+3. A read option: the clause on `FanOutQueryCommand<T>`, `MixedQueryCommand<TMixed>` and, for a scan, `MixedScanCommand<TMixed>`.
 4. A per-call setting of the loop: a member on `IWireCall<T>` and all five calls.
 5. Tests, and the clause table of `api.md` section 5.
 

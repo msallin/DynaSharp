@@ -9,7 +9,7 @@ namespace DynaSharp;
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
 /// <typeparam name="T3">The third type.</typeparam>
-public readonly struct Mixed<T1, T2, T3> : IDynamoDbDocument<Mixed<T1, T2, T3>>
+public readonly struct Mixed<T1, T2, T3> : IMixed<Mixed<T1, T2, T3>>
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>
     where T3 : IDynamoDbDiscriminated<T3>
@@ -29,6 +29,8 @@ public readonly struct Mixed<T1, T2, T3> : IDynamoDbDocument<Mixed<T1, T2, T3>>
         _second = second;
         _third = third;
     }
+
+    static MixedSchema IMixed<Mixed<T1, T2, T3>>.Schema => Schema;
 
     static void IDynamoDbDocument<Mixed<T1, T2, T3>>.WriteAttributes(DynamoDbWriter writer, Mixed<T1, T2, T3> entity)
     {

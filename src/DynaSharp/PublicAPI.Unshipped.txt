@@ -1,1 +1,162 @@
 #nullable enable
+DynaSharp.IMixed<TSelf>
+DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Consistent() -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Descending() -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TMixed>!
+DynaSharp.MixedQueryCommand<TMixed>.Limit(int items) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.MixedQueryCommand() -> void
+DynaSharp.MixedQueryCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedQueryCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedQueryCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
+DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.MixedQueryCommand<TMixed>.ToRequestJson() -> string!
+DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Consistent() -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TMixed>!
+DynaSharp.MixedScanCommand<TMixed>.Limit(int items) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.MixedScanCommand() -> void
+DynaSharp.MixedScanCommand<TMixed>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedScanCommand<TMixed>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<TMixed>>
+DynaSharp.MixedScanCommand<TMixed>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<TMixed>>!
+DynaSharp.MixedScanCommand<TMixed>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<TMixed>
+DynaSharp.MixedScanCommand<TMixed>.ToRequestJson() -> string!
+static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2, T3>>
+static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2, T3>>
+static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<DynaSharp.Mixed<T1, T2>>
+static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2>>
+static DynaSharp.MixedQueryCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
+static DynaSharp.MixedScanCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3, T4>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.MixedQueryCommand() -> void
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.MixedQueryCommand() -> void
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Limit(int items) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.MaxAttempts(int attempts) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.MixedQueryCommand() -> void
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>!
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*DynaSharp.MixedQueryCommand<T1, T2>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3, T4>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.MixedScanCommand() -> void
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3, T4>>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2, T3, T4>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3, T4>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2, T3>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.MixedScanCommand() -> void
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2, T3>>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2, T3>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2, T3>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Consistent() -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Filter(DynaSharp.Expressions.ExpressionHandler condition) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Filter<TCondition>(TCondition condition) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.ItemsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Mixed<T1, T2>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Limit(int items) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.MaxAttempts(int attempts) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.MixedScanCommand() -> void
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.OnMappingFailure(System.Action<DynaSharp.DynamoDbMappingException!>! onFailure) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.PageAsync(DynaSharp.ContinuationToken after = default(DynaSharp.ContinuationToken), System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.PageAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.PagesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Page<DynaSharp.Mixed<T1, T2>>>!
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Parallel(int segments) -> DynaSharp.ParallelScanCommand<DynaSharp.Mixed<T1, T2>>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Project(params System.ReadOnlySpan<DynaSharp.Attr> attributes) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Project(params System.ReadOnlySpan<string!> paths) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*DynaSharp.MixedScanCommand<T1, T2>.ToRequestJson() -> string!
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2, T3>
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2>
+*REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2>
+*REMOVED*static DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2, T3, T4> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*static DynaSharp.MixedQueryCommand<T1, T2, T3>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2, T3> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*static DynaSharp.MixedQueryCommand<T1, T2>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<T1, T2> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*static DynaSharp.MixedScanCommand<T1, T2, T3, T4>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3, T4> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*static DynaSharp.MixedScanCommand<T1, T2, T3>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3> command) -> DynaSharp.Expressions.CommandHandle
+*REMOVED*static DynaSharp.MixedScanCommand<T1, T2>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2> command) -> DynaSharp.Expressions.CommandHandle

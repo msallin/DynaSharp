@@ -128,8 +128,9 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var types = command.TypeArguments.OfType<INamedTypeSymbol>().Select(models.ModelOf).ToList();
-        if (types.Count != command.TypeArguments.Length || types.Contains(null))
+        var read = DynaSharpTypes.TypesReadBy(command).ToList();
+        var types = read.OfType<INamedTypeSymbol>().Select(models.ModelOf).ToList();
+        if (types.Count != read.Count || types.Contains(null))
         {
             return;
         }

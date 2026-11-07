@@ -24,7 +24,8 @@ internal sealed class AttributeCatalog(ModelCatalog models)
             return null;
         }
 
-        foreach (var argument in command.TypeArguments)
+        var types = DynaSharpTypes.TypesReadBy(command).ToList();
+        foreach (var argument in types)
         {
             if (argument is not INamedTypeSymbol mapped || NamesOf(mapped) is not { } names || names.Contains(root))
             {
@@ -32,7 +33,7 @@ internal sealed class AttributeCatalog(ModelCatalog models)
             }
         }
 
-        return command.TypeArguments.FirstOrDefault();
+        return types.FirstOrDefault();
     }
 
     private static void AddKey(HashSet<string> names, KeyModel key) => names.Add(key.AttributeName);

@@ -50,7 +50,7 @@ public partial record Customer
 
 | Namespace | Holds |
 |---|---|
-| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, `TableDrift` and `TableDriftKind` of `CreateTableResult`, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `GuidExtensions`, which adds `Guid.FirstVersion7` and `Guid.LastVersion7`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `ContinuationTokenSigner`, `Page<T>`, `Mixed<...>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `ConflictKind`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
+| `DynaSharp` | `DynamoDbClient`, `DynamoDbClientOptions`, `AwsRegion`, `Table<T>`, `Index<T>`, every command and result, `TableDrift` and `TableDriftKind` of `CreateTableResult`, the composition interfaces `IConditional<TSelf>`, `IFilterable<TSelf>`, `IUpdatable<TSelf>` and `IRetryable<TSelf>`, the extensions `AttrExtensions`, `ConditionExtensions`, `TableExtensions`, `MixedExtensions` and `TransactWriteExtensions`, `GuidExtensions`, which adds `Guid.FirstVersion7` and `Guid.LastVersion7`, `Item`, `AttributeValue`, `AttributeType`, `Attr`, `Attr<T, TConverter>`, `Expr`, `Condition`, `SortKeyCondition`, `PartitionKey<T>`, `ContinuationToken`, `ContinuationTokenSigner`, `Page<T>`, `Mixed<...>` and its `IMixed<TSelf>`, `ConsumedCapacity`, `CapacityDetail`, `ItemCollectionMetrics`, `CancellationReason`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`, `ReturnValue`, `ReturnValuesOnConditionCheckFailure`, `SelectKind`, `TableStatus`, `ConflictKind`, `DynamoDbException` and the exceptions of the service, `KeyFormatException`, `TableNotActiveException` |
 | `DynaSharp.Expressions` | The structs that conditions compose from, which are return types, not written by hand and hidden: `Compare<,>`, `And<,>`, `Or<,>`, `Not<>`, `Between<,>`, `AttributeExists`, `BeginsWith`, `Contains<,>`, `Arg<,>`; `ICondition`, `ExpressionSink`, `ExpressionHandler`, `CommandHandle` |
 | `DynaSharp.Requests` | Every `XxxRequest` and `XxxResponse` record and its structure types, and the `XxxAsync(request)` methods as extension methods on `DynamoDbClient` (static class `DynamoDbRequests`) |
 | `DynaSharp.Streams` | `DynamoDbStreamsClient` with its records and enums, `TableStreamExtensions`, and the typed changes `Change<T>` and `MixedChange<...>` |
@@ -291,7 +291,7 @@ Their type parameter has `allows ref struct`, so a generic helper costs no box. 
 | `ScanSelectCommand<,>` | `ValuesAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
 | `ParallelScanCommand<T>` | `ItemsAsync` |
 | `FanOutQueryCommand<T>` | `ItemsAsync`, `PageAsync(pageSize, after, ct)`, `PageAsync(pageSize, ct)`, `CountAsync`, `ToRequestJson` |
-| `MixedQueryCommand<...>`, `MixedScanCommand<...>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
+| `MixedQueryCommand<TMixed>`, `MixedScanCommand<TMixed>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `ToRequestJson` |
 | `BatchGetCommand<T>`, `BatchWriteCommand<T>`, `TransactGetCommand`, a transaction chain | `SendAsync`, `ToRequestJson` |
 | `CreateTableCommand` | `SendAsync`, `ToRequest`, `ToRequestJson` |
 
@@ -719,8 +719,10 @@ await foreach (Mixed<Customer, Order> row in shop.Query(pk).Of<Customer, Order>(
 ```
 
 `Of<...>()` is an extension of `QueryCommand<Item>` and `ScanCommand<Item>`, on a table or an `Index<Item>`, with 2 to 4 entity types, and returns a
-`MixedQueryCommand<...>` or `MixedScanCommand<...>` with the same read clauses and the terminals of section 5. `MixedScanCommand` also has `Segment` and
-`Parallel`. Its type arguments are constrained to `IDynamoDbDiscriminated<T>`, so a type that opted out does not compile. On a hand-written type that
+`MixedQueryCommand<TMixed>` or `MixedScanCommand<TMixed>` with the same read clauses and the terminals of section 5. `MixedScanCommand` also has `Segment` and
+`Parallel`. `TMixed` is the item of the read, `Mixed<Customer, Order>`, so one command type serves every arity: `Of<Customer, Order>()` gives a
+`MixedQueryCommand<Mixed<Customer, Order>>`, which a call site holds in a `var`. The constraint is `IMixed<TSelf>`, an `IDynamoDbDocument<TSelf>` that only the `Mixed<...>` types
+implement, since its one member, the schema of the mix, is internal. Its type arguments are constrained to `IDynamoDbDiscriminated<T>`, so a type that opted out does not compile. On a hand-written type that
 claims it, `Of<...>()` throws `ArgumentException`.
 
 The filter gains `#_type IN (:a, :b)`, so other types never reach the client and `ScannedCount` can exceed `Count`. A query of a table or index keyed by the

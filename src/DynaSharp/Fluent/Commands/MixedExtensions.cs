@@ -9,7 +9,7 @@ namespace DynaSharp;
 public static class MixedExtensions
 {
     /// <summary>
-    /// Reads the partition as several types: <c>await foreach (var item in shop.Query(pk).Of&lt;Customer, Order&gt;().ItemsAsync(ct))</c>. See <see cref="MixedQueryCommand{T1, T2}"/>.
+    /// Reads the partition as several types: <c>await foreach (var item in shop.Query(pk).Of&lt;Customer, Order&gt;().ItemsAsync(ct))</c>. See <see cref="MixedQueryCommand{TMixed}"/>.
     /// </summary>
     /// <remarks>
     /// It works on an index of a table without a schema too, and clauses can come before and after this call. The items come in the order of the sort key, as in any query, whatever their
@@ -22,7 +22,7 @@ public static class MixedExtensions
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">Two types have one discriminator, or keep it in different attributes, which DynamoDB could not filter on with one <c>IN</c>.</exception>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
-    public static MixedQueryCommand<T1, T2> Of<T1, T2>(this QueryCommand<Item> command)
+    public static MixedQueryCommand<Mixed<T1, T2>> Of<T1, T2>(this QueryCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
     {
@@ -34,7 +34,7 @@ public static class MixedExtensions
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
-    public static MixedQueryCommand<T1, T2, T3> Of<T1, T2, T3>(this QueryCommand<Item> command)
+    public static MixedQueryCommand<Mixed<T1, T2, T3>> Of<T1, T2, T3>(this QueryCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
         where T3 : IDynamoDbDiscriminated<T3>
@@ -48,7 +48,7 @@ public static class MixedExtensions
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
     /// <typeparam name="T4">The fourth type.</typeparam>
-    public static MixedQueryCommand<T1, T2, T3, T4> Of<T1, T2, T3, T4>(this QueryCommand<Item> command)
+    public static MixedQueryCommand<Mixed<T1, T2, T3, T4>> Of<T1, T2, T3, T4>(this QueryCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
         where T3 : IDynamoDbDiscriminated<T3>
@@ -60,7 +60,7 @@ public static class MixedExtensions
 
     /// <summary>
     /// Scans the table or index as several types: <c>shop.Scan().Of&lt;Customer, Order&gt;()</c>. Clauses can come before and after this call. See
-    /// <see cref="MixedScanCommand{T1, T2}"/>.
+    /// <see cref="MixedScanCommand{TMixed}"/>.
     /// </summary>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
@@ -68,7 +68,7 @@ public static class MixedExtensions
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">Two types have one discriminator, or keep it in different attributes, which DynamoDB could not filter on with one <c>IN</c>.</exception>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
-    public static MixedScanCommand<T1, T2> Of<T1, T2>(this ScanCommand<Item> command)
+    public static MixedScanCommand<Mixed<T1, T2>> Of<T1, T2>(this ScanCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
     {
@@ -80,7 +80,7 @@ public static class MixedExtensions
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
-    public static MixedScanCommand<T1, T2, T3> Of<T1, T2, T3>(this ScanCommand<Item> command)
+    public static MixedScanCommand<Mixed<T1, T2, T3>> Of<T1, T2, T3>(this ScanCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
         where T3 : IDynamoDbDiscriminated<T3>
@@ -94,7 +94,7 @@ public static class MixedExtensions
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
     /// <typeparam name="T4">The fourth type.</typeparam>
-    public static MixedScanCommand<T1, T2, T3, T4> Of<T1, T2, T3, T4>(this ScanCommand<Item> command)
+    public static MixedScanCommand<Mixed<T1, T2, T3, T4>> Of<T1, T2, T3, T4>(this ScanCommand<Item> command)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
         where T3 : IDynamoDbDiscriminated<T3>

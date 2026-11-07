@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-// A mixed read forwards to a read of one type, by hand and once per arity, so a method added to the read would go missing on all of them without a word.
+// A mixed read forwards to a read of one type by hand, so a method added to the read would go missing on it without a word.
 public sealed class MixedForwardingTests
 {
     private const BindingFlags DeclaredPublicMethods = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
@@ -20,13 +20,9 @@ public sealed class MixedForwardingTests
     };
 
     [Test]
-    [Arguments(typeof(QueryCommand<>), typeof(MixedQueryCommand<,>))]
-    [Arguments(typeof(QueryCommand<>), typeof(MixedQueryCommand<,,>))]
-    [Arguments(typeof(QueryCommand<>), typeof(MixedQueryCommand<,,,>))]
-    [Arguments(typeof(ScanCommand<>), typeof(MixedScanCommand<,>))]
-    [Arguments(typeof(ScanCommand<>), typeof(MixedScanCommand<,,>))]
-    [Arguments(typeof(ScanCommand<>), typeof(MixedScanCommand<,,,>))]
-    public async Task PublicMethods_EveryArity_ForwardTheReadOfOneType(Type read, Type mixed)
+    [Arguments(typeof(QueryCommand<>), typeof(MixedQueryCommand<>))]
+    [Arguments(typeof(ScanCommand<>), typeof(MixedScanCommand<>))]
+    public async Task PublicMethods_MixedRead_ForwardsTheReadOfOneType(Type read, Type mixed)
     {
         // Arrange
         ArgumentNullException.ThrowIfNull(read);

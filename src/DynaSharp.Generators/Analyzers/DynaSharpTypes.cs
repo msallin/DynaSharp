@@ -7,6 +7,8 @@ internal static class DynaSharpTypes
 {
     private const string RootNamespace = "DynaSharp";
 
+    private const string MixedType = "Mixed";
+
     /// <summary>Whether a type is in the namespace of the library or below it.</summary>
     /// <param name="type">The type.</param>
     /// <returns>True for <c>DynaSharp.Fluent.Page</c>, false for <c>DynaSharpExtras.Page</c>.</returns>
@@ -32,6 +34,12 @@ internal static class DynaSharpTypes
         var table = method.Parameters.FirstOrDefault(static parameter => parameter.Name == "table");
         return table is null ? null : ((INamedTypeSymbol)table.Type).TypeArguments[0];
     }
+
+    /// <summary>The types a command reads, from its type arguments: those of a <c>Mixed&lt;...&gt;</c> of the library stand for the mix, as the item of a mixed read.</summary>
+    /// <param name="command">The type of the command.</param>
+    /// <returns><c>Customer, Order</c> for <c>MixedQueryCommand&lt;Mixed&lt;Customer, Order&gt;&gt;</c>, <c>Order</c> for <c>QueryCommand&lt;Order&gt;</c>.</returns>
+    public static IEnumerable<ITypeSymbol> TypesReadBy(INamedTypeSymbol command) =>
+        command.TypeArguments.SelectMany(static argument => argument is INamedTypeSymbol { Name: MixedType, IsGenericType: true } mixed && IsDeclaredByDynaSharp(mixed) ? mixed.TypeArguments : [argument]);
 
     /// <summary>Whether a value is a ref struct of the library: a command, a step, a handler, a reader or a writer.</summary>
     /// <param name="type">The type of the value, if it has one.</param>

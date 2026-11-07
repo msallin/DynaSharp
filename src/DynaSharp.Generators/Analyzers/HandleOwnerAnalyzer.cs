@@ -118,7 +118,7 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
 
     private static List<INamedTypeSymbol>? MappedArguments(INamedTypeSymbol type)
     {
-        var arguments = type.TypeArguments.OfType<INamedTypeSymbol>().ToList();
+        var arguments = DynaSharpTypes.TypesReadBy(type).OfType<INamedTypeSymbol>().ToList();
         return arguments.TrueForAll(IsMapped) ? arguments : null;
     }
 

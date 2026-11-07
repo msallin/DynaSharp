@@ -189,8 +189,8 @@ public sealed class ReadTerminalAnalyzerTests
     [Arguments("ScanSelectCommand<TValue, TConverter>", "where TConverter : IDynamoDbConverter<TValue>", """shop.Scan().Select(Attr<int>("n"))""")]
     [Arguments("FanOutQueryCommand<T>", "where T : IDynamoDbDocument<T>", """shop.Query(["a", "b"])""")]
     [Arguments("ParallelScanCommand<T>", "where T : IDynamoDbDocument<T>", "shop.Scan().Parallel(8)")]
-    [Arguments("MixedQueryCommand<T1, T2>", "where T1 : IDynamoDbDiscriminated<T1> where T2 : IDynamoDbDiscriminated<T2>", """shop.Query("a").Of<Order, Order>()""")]
-    [Arguments("MixedScanCommand<T1, T2>", "where T1 : IDynamoDbDiscriminated<T1> where T2 : IDynamoDbDiscriminated<T2>", "shop.Scan().Of<Order, Order>()")]
+    [Arguments("MixedQueryCommand<TMixed>", "where TMixed : IMixed<TMixed>", """shop.Query("a").Of<Order, Order>()""")]
+    [Arguments("MixedScanCommand<TMixed>", "where TMixed : IMixed<TMixed>", "shop.Scan().Of<Order, Order>()")]
     public async Task Analyze_ExtensionOfTheConsumerOnAnyRead_ReportsNothing(string receiver, string constraints, string read)
     {
         // Arrange
