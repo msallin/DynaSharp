@@ -90,7 +90,7 @@ public static class Code
 
     public static void Dyna233() => Shipments.Update(Shipment.Keys.Of("a")).Add(Shipment.Attrs.Carrier, "x");
 
-    public static void Dyna234() => Shipments.Query(Shipment.Keys.Pk.Of("a")).Take(1);
+    public static void Dyna234() => _ = Shipments.Query(Shipment.Keys.Pk.Of("a")).ToListAsync();
 
     public static void Dyna235() => _ = Orders.Put(new Order { Id = "a" }).IfVersion(1);
 
