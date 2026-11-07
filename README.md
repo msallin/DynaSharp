@@ -28,7 +28,7 @@ dotnet add package DynaSharp.Coordination   # locks and leader election, optiona
 
 ### A first table
 
-All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program to copy, a local emulator to run it against, the options and the credential chain.
+All requests go through `DynamoDbClient`: create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program to copy, a local emulator, the options and the credential chain.
 
 ```csharp
 using DynaSharp;
@@ -36,7 +36,7 @@ using DynaSharp;
 using var client = new DynamoDbClient();
 ```
 
-Without a region it throws `InvalidOperationException`. To try the code below offline, with no AWS account and no Docker, take a client of `FakeDynamoDb`, the in-memory DynamoDB of [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html#a-fake-dynamodb), instead:
+Without a region it throws `InvalidOperationException`. To try the code below offline, with no AWS account and no Docker, take a client of `FakeDynamoDb`, the in-memory DynamoDB of [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html#a-fake-dynamodb):
 
 ```csharp
 using DynaSharp.Testing;
@@ -45,7 +45,7 @@ var fake = new FakeDynamoDb();
 using var client = fake.CreateClient();
 ```
 
-Declare a `partial` type and say how it maps. The generator writes the code that reads and writes the item, plus `Keys`, which builds keys, and `Attrs`, a typed handle per attribute. [Entities and keys](https://msallin.github.io/DynaSharp/entities.html) has the rest.
+Declare a `partial` type and say how it maps. The generator writes the code that reads and writes the item, plus `Keys`, which builds keys, and `Attrs`, a typed handle per attribute, see [Entities and keys](https://msallin.github.io/DynaSharp/entities.html).
 
 ```csharp
 using DynaSharp.Mapping;
@@ -90,11 +90,11 @@ The guide and the examples below use [a small shop on one table](https://msallin
 | `ScanAsync` | `Scan<T>()` | `orders.Scan().Filter(...).ItemsAsync(ct)` |
 | `CreateBatchWrite` | `BatchWrite()` | `orders.BatchWrite().PutAll(items).SendAsync(ct)` |
 
-There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where its chain ends. [Migrating](https://msallin.github.io/DynaSharp/migrating.html) has the full table, what changes for stored data, and [Adopting an existing table](https://msallin.github.io/DynaSharp/adopting.html) the rules for a table that other code wrote. [How DynaSharp compares](https://msallin.github.io/DynaSharp/comparison.html) sets the features of the three side by side.
+There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where its chain ends. [Migrating](https://msallin.github.io/DynaSharp/migrating.html) has the full table and what changes for stored data, [Adopting an existing table](https://msallin.github.io/DynaSharp/adopting.html) the rules for a table that other code wrote, and [How DynaSharp compares](https://msallin.github.io/DynaSharp/comparison.html) the features of the three.
 
 ## Examples
 
-A few things DynaSharp does, on the shop of the sample. The guide has each of them in full: [Reading and writing](https://msallin.github.io/DynaSharp/commands.html), [Queries and scans](https://msallin.github.io/DynaSharp/queries.html), [Expressions](https://msallin.github.io/DynaSharp/expressions.html), [Transactions and batches](https://msallin.github.io/DynaSharp/transactions.html), [Tables](https://msallin.github.io/DynaSharp/tables.html) and [Testing](https://msallin.github.io/DynaSharp/testing.html). [Design patterns](https://msallin.github.io/DynaSharp/patterns.html) shows the common DynamoDB designs, such as single-table, sharding, idempotency and the outbox, each with its code.
+A few things DynaSharp does, on the shop of the sample; the guide has each in full. [Design patterns](https://msallin.github.io/DynaSharp/patterns.html) shows the common DynamoDB designs, such as single-table, sharding, idempotency and the outbox, each with its code.
 
 **Typed queries**, with keys and filters that the compiler checks. [Query](https://msallin.github.io/DynaSharp/queries.html#query)
 
@@ -142,17 +142,7 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 }
 ```
 
-**Optimistic locking, and a retry on a conflict**, for a read-modify-write that loses to another writer. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking)
-
-`Cart` has a `[Version] public long Revision`. A `Put` checks that the stored cart holds the version it was read with and stores the next one, so the losing writer gets a `ConditionalCheckFailedException` and `RetryOnConflictAsync` runs the lambda again with a fresh read.
-
-```csharp
-await carts.RetryOnConflictAsync(async token =>
-{
-    var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(token);
-    await carts.Put(cart! with { Lines = lines }).SendAsync(token);
-}, ct);
-```
+**Optimistic locking, and a retry on a conflict.** With `[Version]` on a property, a write of a copy that changed since it was read throws `ConditionalCheckFailedException`, and `RetryOnConflictAsync` runs the read-modify-write again with a fresh read. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking), [Retry on a conflict](https://msallin.github.io/DynaSharp/commands.html#retry-on-a-conflict)
 
 **Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, the index that `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
 
@@ -171,9 +161,9 @@ await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().GetAll(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
-`null` is the first page, and `page.Next` the next one while `HasMore` holds. A page can be empty and still have more: a filter can leave it empty, and when the items end exactly at the `Limit`, DynamoDB still returns a position, so the loop reads one more page, empty and the last. A web API hands `page.Next.ToString()` to its client and takes it back with `ContinuationToken.Parse`.
+`null` is the first page, and `page.Next` the next one while `HasMore` holds, which an empty page can still say, see [Page by page](https://msallin.github.io/DynaSharp/queries.html#page-by-page). A web API hands `page.Next.ToString()` to its client and takes it back with `ContinuationToken.Parse`.
 
-**Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` to read [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), one shard or a whole stream, and the changes of a table as entities ([`ReadChangesAsync`](https://msallin.github.io/DynaSharp/streams.html#typed-changes)), locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
+**Also:** one list over many partitions, `ToRequestJson()` to see what goes over the wire, converters of your own, [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html) read as entities, locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
 ```csharp
 using var handler = new StubHandler(_ => StubResponse.Item(order));
@@ -242,7 +232,7 @@ Inside DynaSharp, by API level, in bytes:
 
 ## Compatibility
 
-Until 1.0, a minor release can break the public API, behaviour and analyzers, and DynaSharp prefers the right design over compatibility; the release notes say what to change. A patch release fixes and does not break. What an entity writes to a table changes only with a release note that says how to migrate. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
+Until 1.0, a minor release can break the public API, behaviour and analyzers, and the release notes say what to change; a patch release does not break. What an entity writes to a table changes only with a release note that says how to migrate. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
 
 ## Building
 

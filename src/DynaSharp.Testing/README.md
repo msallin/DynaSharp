@@ -10,7 +10,7 @@ Test support for [DynaSharp](https://github.com/msallin/DynaSharp). It fakes the
 
 ## A client for a test
 
-A test needs both namespaces: `DynaSharp` holds the client, the tables and the extensions of their commands, such as `Query(pk, sk)` of an entity table, which a file with only `using DynaSharp.Testing;` does not see, and the compiler then names no missing `using` (CS1501, CS0315).
+A test needs both namespaces. `DynaSharp` holds the client, the tables and the extensions of their commands, such as `Query(pk, sk)`; without it the compiler names no missing `using`, only CS1501 or CS0315.
 
 ```csharp
 using DynaSharp;
@@ -27,19 +27,17 @@ stub.Enqueue(StubResponse.Item(customer));
 var found = await client.Table<Customer>("Shop").Get(Customer.Keys.Of("alice")).ItemAsync(ct);
 ```
 
-A request takes the next queued response, else the answer of the responder given to the constructor, else `DefaultResponse`, else it fails. A `StubResponse` taken by an operation it is not written for throws, naming both operations and its position in the queue. Responses left in the queue are no error; call `stub.ThrowIfResponsesLeft()` at the end of a test to check that all were taken. The second argument of `Create` changes the options:
+A request takes the next queued response, else the answer of the responder given to the constructor, else `DefaultResponse`, else it fails. A `StubResponse` taken by an operation it is not written for throws, naming both. Responses left in the queue are no error; `stub.ThrowIfResponsesLeft()` at the end of a test checks that all were taken. The second argument of `Create` changes the options:
 
 ```csharp
 using var retrying = StubClient.Create(stub, options => options with { MaxAttempts = 4, TimeProvider = clock });
 ```
 
-`AttemptTimeout` runs on `TimeProvider`, so with a fake clock it would time out the request the test is answering; set one only in a test of a timeout.
-
-The timeout of `WaitUntilActiveAsync` and `WaitUntilActive()` runs on that clock too. A loop that advances the clock with `Task.Yield` until the wait ends burns the whole timeout, and the wait throws `TableNotActiveException` with answers still queued. Give the wait a timeout the loop does not reach, or advance the clock once per poll the handler has seen.
+`AttemptTimeout` and the timeout of `WaitUntilActive()` run on `TimeProvider`. With a fake clock, set an `AttemptTimeout` only in a test of a timeout, and give a wait a timeout that a loop advancing the clock does not reach, or advance it once per poll the handler has seen; otherwise the wait throws `TableNotActiveException` with answers still queued.
 
 ## Answers
 
-`StubResponse` writes DynamoDB's answers from entities, so a test holds no JSON.
+`StubResponse` writes DynamoDB's answers from entities, so a test holds no JSON:
 
 | For | Use |
 |---|---|
@@ -59,13 +57,13 @@ The timeout of `WaitUntilActiveAsync` and `WaitUntilActive()` runs on that clock
 | Tables and streams | the one call each describes, such as `TableUpdated` for `UpdateTable` |
 | `ResourceNotFound`, `ResourceInUse`, `DynamoDbError`, `Json`, `new StubResponse()` | any operation |
 
-`TablesListed` with `lastEvaluatedTableName` is a page with more to follow. `Table<T>()` describes the table the entity declares, and `Table<T>(name)` the one it is given; both list the entity's keys and indexes as active, so a wait for its indexes ends on it; a table of several entities takes `Table(name, status, indexes)`.
+`TablesListed` with `lastEvaluatedTableName` is a page with more to follow. `Table<T>()` describes the table the entity declares, and `Table<T>(name)` the one it is given; both list the entity's keys and indexes as active, so a wait for its indexes ends on it. A table of several entities takes `Table(name, status, indexes)`.
 
-`StreamDescription(table, shards)` describes an `ENABLED` stream, and an enabled stream can still open shards, so `ReadStreamAsync` keeps looking for the children of a closed shard and never ends. A closed stream must say `DISABLED`: a script whose last shard closes answers `StreamDescription(table, StreamStatus.Disabled, shards)`, which ends the reading.
+`StreamDescription(table, shards)` describes an `ENABLED` stream, on which `ReadStreamAsync` never ends; a script whose last shard closes answers `StreamDescription(table, StreamStatus.Disabled, shards)`.
 
 ## What was sent
 
-`stub.Requests` holds every request. A `RecordedRequest` has `Operation`, `Body`, `BodyText` and `BodyJson`, and reads an item or key back with `ReadItem<T>()` and `ReadKey<T>()`. `TableName`, `IndexName`, `ConsistentRead`, `ScanIndexForward` and `Limit` give those members as sent, or `null` where absent: a batch or transaction names a table per entry, and a command sends `ConsistentRead` only as `true` and `ScanIndexForward` only as `false`.
+`stub.Requests` holds every request. A `RecordedRequest` has `Operation`, `Body`, `BodyText` and `BodyJson`, and reads an item or key back with `ReadItem<T>()` and `ReadKey<T>()`. `TableName`, `IndexName`, `ConsistentRead`, `ScanIndexForward` and `Limit` give those members as sent, or `null` where absent, as in a batch, which names a table per entry; a command sends `ConsistentRead` only as `true` and `ScanIndexForward` only as `false`.
 
 `ConditionText`, `UpdateText`, `KeyConditionText`, `FilterText` and `ProjectionText` give an expression with its placeholders resolved, or `null`.
 
@@ -80,7 +78,7 @@ Console.WriteLine(sent.ConditionText); // Price = 95.00
 Console.WriteLine(sent.UpdateText);    // SET Price = 79.00, _type = if_not_exists(_type, "PRODUCT")
 ```
 
-Keywords, functions and spacing stay as sent, and a placeholder missing from the maps stays as it is, so the test sees the mistake. A name appears as is, in backticks if it holds a dot or a bracket. A value reads in PartiQL notation with double quotes:
+Keywords and spacing stay as sent, and a placeholder missing from the maps stays as it is, so the test sees the mistake. A name holding a dot or a bracket is in backticks, and a value is in PartiQL notation:
 
 | Stored | Text |
 |---|---|
@@ -94,7 +92,7 @@ Keywords, functions and spacing stay as sent, and a placeholder missing from the
 
 ## A fake DynamoDB
 
-`FakeDynamoDb` is an in-memory DynamoDB behind the same seam. A test sets up tables and items, runs the code under test through a real client, and reads the state back.
+`FakeDynamoDb` is an in-memory DynamoDB behind the same seam. A test sets up tables and items, runs the code under test through a real client, and reads the state back. It is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
 ```csharp
 var fake = new FakeDynamoDb();
@@ -107,9 +105,14 @@ var stored = fake.Get(Customer.Keys.Of("alice"));
 var sent = fake.Requests.Select(request => request.Operation); // PutItem
 ```
 
-Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(command)`, which applies the `CreateTableCommand` of the code under test at once, `fake.CreateTable(request)`, `fake.CreateTable<T>()`, which creates the table the entity declares with its keys and indexes as its `CreateTable()` would, `fake.CreateTable<T>(name)`, the same under another name, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
+A table is `ACTIVE` with its indexes in the answer that creates it, `DeleteTable` frees the name at once, and any other table is `ResourceNotFoundException`. To create one:
 
-A table of several entities is best created the way the application creates it. `fake.CreateTable(command)` takes the command the application builds and sends at start-up, unsent, and applies it at once and without a request: its keys, the indexes of every `Including`, its stream, and time to live on the attribute of `TimeToLive(...)` or of an entity. With `IfNotExists()` it keeps a table that exists. So the test builds the table from the code that builds it in production, without an `await` in a constructor:
+- `fake.CreateTable(command)` applies a `CreateTableCommand` of the code under test, unsent, at once and without a request: its keys, the indexes of every `Including`, its stream and its time to live. With `IfNotExists()` it keeps a table that exists.
+- `fake.CreateTable<T>()` creates the table the entity declares, with its keys and indexes, as its `CreateTable()` would, and `fake.CreateTable<T>(name)` the same under another name.
+- `fake.CreateTable(name, "pk", "sk")` creates the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`.
+- `fake.CreateTable(request)` takes a `CreateTableRequest`, and a client of the fake can send `CreateTable().SendAsync` or a `CreateTable` of its own.
+
+Create a table of several entities from the command the application builds at start-up, so that the fake gets every index of every entity it names, without an `await` in a constructor:
 
 ```csharp
 var fake = new FakeDynamoDb();
@@ -117,13 +120,11 @@ using var client = fake.CreateClient();
 fake.CreateTable(client.Table<Customer>().CreateTable().Including<Order>().IfNotExists());
 ```
 
-The application's own code can also run over a client of the fake. Where the application names its entities, as in `orders.CreateTable().Including<Customer>().Including<Cart>()`, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity named, see [Creating a table](https://msallin.github.io/DynaSharp/tables.html#creating-a-table). `fake.CreateTable<T>(name)` declares one entity.
-
 The forms without a table name, `CreateTable<T>()`, `DescribeTable<T>()`, `EnableStream<T>(viewType)`, `DisableStream<T>()`, `Put(entity)`, `Get(key)`, `Delete(key)`, `Delete(entity)`, `Items<T>()`, `TableItems<T>()`, `GetItem(key)` and `PutItem<T>(item)`, use the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or the default of its assembly, and throw `InvalidOperationException` for an entity that declares none. They take the name as declared: the fake knows no `TableNaming`, so a test whose client sets one, or that wants a table of its own, passes the name, as in `fake.CreateTable<Customer>("dev-Shop")`.
 
-`Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `Get(Customer.Keys.Of("alice"))` and `Delete(Customer.Keys.Of("alice"))` take a generated key, `Delete(customer)` the key of an entity, and `TableItems<Customer>()` gives every item of the table of `Customer`, of whatever entity, as raw items. `GetItem(Customer.Keys.Of("alice"))` gives the one item of a generated key raw, with every attribute as stored, and `PutItem<Customer>(item)` puts a raw item into the table of `Customer`, such as one of an older shape that the entity cannot read. `DescribeTable`, `DeleteTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
+`Put`, `Get`, `Delete` and `Items` set up and read items without a client, through the checks of a request, so a key that does not match the schema throws the `ValidationException` a client would get. `TableItems<T>()` gives every item of the table as raw items, `GetItem(key)` one, and `PutItem<T>(item)` puts a raw item, such as one of an older shape that the entity cannot read. `DescribeTable`, `DeleteTable`, `TableNames` and `Reset` do the same for tables.
 
-On a table of several entities, `Items<T>` gives the items of `T` and skips the others, as a typed `Scan()` does, so a single-table design reads back one entity at a time:
+On a table of several entities, `Items<T>` gives the items of `T` and skips the others, as a typed `Scan()` does:
 
 ```csharp
 var fake = new FakeDynamoDb();
@@ -134,15 +135,15 @@ fake.Put(order);
 IReadOnlyList<Customer> stored = fake.Items<Customer>();
 ```
 
-An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and so does `Get<T>` for an item of another entity on that key. [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) has the rules.
+An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and so does `Get<T>` for an item of another entity on that key.
 
-`fake.Requests` holds what the clients of `fake.CreateClient()` and `fake.CreateStreamsClient()` sent, all of them in one list in the order sent, however many clients the code under test makes. `fake.Enqueue(response)` answers the next request of one of them instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB. With a stream reader polling in the background, its next request could take that response, so such a test plans the failure with `FailNext`, which names the operation. `Reset()` empties both. `fake.CreateHandler()` gives a `StubHandler` of its own over the fake, with its own `Requests` and queue, for a client made another way.
+`fake.Requests` holds what every client of `fake.CreateClient()` and `fake.CreateStreamsClient()` sent, in the order sent. `fake.Enqueue(response)` answers the next request of any of them instead of the fake, so a queued throttle changes no state; with a stream reader polling in the background, use `FailNext`, which names the operation. `Reset()` empties both. `fake.CreateHandler()` gives a `StubHandler` over the fake for a client made another way.
 
-The constructor's clock dates the tables. Time to live is stored and reported, but nothing expires by itself: `fake.ExpireItems()` runs DynamoDB's background sweep when the test says, deleting every item whose time to live attribute is a number of epoch seconds at or before that clock. An expiry more than five years before the clock is left alone, as on DynamoDB. The sweep reads tables with time to live on: `fake.CreateTable<T>` turns it on for an entity with a `[TimeToLive]` property, as `CreateTable()` of the client does, and a table of another kind gets it from an `UpdateTimeToLive`, or from `CreateTable().TimeToLive(...)` through a client of the fake.
+Nothing expires by itself: `fake.ExpireItems()` runs DynamoDB's sweep when the test says, on the tables with time to live on, deleting each item whose expiry is at or before the fake's clock and not more than five years before it. `fake.CreateTable<T>` turns time to live on for an entity with a `[TimeToLive]` property.
 
-Reads and writes behave as on DynamoDB: queries, segmented scans, projections, pages cut by `Limit` before the filter and at 1 MB with `LastEvaluatedKey` holding the index key too, conditions with `ReturnValues` and `ReturnValuesOnConditionCheckFailure`, batches, and all-or-nothing transactions with one cancellation reason per action. An optimistic lock, a create that must not overwrite, or a failed transaction condition leaves the item as it was. A `ClientRequestToken` makes a transaction idempotent for 10 minutes on the fake's clock. Consumed capacity follows the Developer Guide, indexes included. A batch never leaves unprocessed items or keys; to test a client that retries them, queue that answer on the handler.
+Reads, writes, batches and transactions behave as on DynamoDB, consumed capacity included; [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. The fake never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`. A batch never leaves unprocessed items or keys; to test a client that retries them, queue that answer on the handler.
 
-A table with a stream records its changes in a shard, which `fake.SplitStreamShards(table)` splits, and `fake.CreateStreamsClient()` reads them through a `DynamoDbStreamsClient`, as `StubClient.CreateStreams` makes it, waiting on the clock of the fake. `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch the stream as an `UpdateTable` with a `StreamSpecification` does: an enable makes a new stream with a new `LatestStreamArn`, a disable closes its shards. So the code that consumes a stream is tested with the code that writes:
+A table with a stream records its changes, which a `DynamoDbStreamsClient` of `fake.CreateStreamsClient()` reads. `fake.EnableStream(table, viewType)` and `fake.DisableStream(table)` switch the stream as an `UpdateTable` does, and `fake.SplitStreamShards(table)` splits its shards:
 
 ```csharp
 var fake = new FakeDynamoDb();
@@ -161,15 +162,13 @@ await foreach (var change in shop.ReadChangesAsync(streams, ShardIteratorType.Tr
 }
 ```
 
-`ReadChangesAsync` gives the changes as entities, as on DynamoDB, and `ReadStreamAsync` the records, whose `As<T>()` types one. Code that only handles changes needs no stream at all: a test builds a `Change<T>`, a record, and a `MixedChange` with the constructor of its type, `new MixedChange<Customer, Order>(new Change<Order> { ... })`, see [Streams](https://msallin.github.io/DynaSharp/streams.html#several-entities). The shards of a disabled stream are closed, so a read of one, or of the whole stream, ends: `fake.DisableStream("Shop")` ends a reading that a test runs to its end, and `DescribeStream` says `DISABLED`.
+The shards of a disabled stream are closed, so `fake.DisableStream("Shop")` ends a reading that a test runs to its end. Code that only handles changes needs no stream: a test builds a `Change<T>`, a record or a `MixedChange` with its constructor, `new MixedChange<Customer, Order>(new Change<Order> { ... })`, see [Streams](https://msallin.github.io/DynaSharp/streams.html#several-entities).
 
-A reader that finds nothing waits before it asks again: `EmptyPageDelay`, a second by default, and at least a second before it looks for the children of a shard again. Against DynamoDB that keeps it from polling an idle shard without pause. On a client of `CreateStreamsClient` those waits also end at the next change of a stream of the fake: a write, a split, an enable or a disable. So a test reads a write in milliseconds, a reading ends as soon as the stream is disabled, and neither the test nor the code under test sets `EmptyPageDelay` or moves a clock for it. The reader sends the requests it sends to DynamoDB, an empty page, a wait and the next page; only the wait is shorter. A child that `secondChildListedAfter` lists late and a retry after a failure of `FailNext` still wait on the clock, which the test moves. Because a write ends the wait, how much clock time passes before a reader of this client sees a write is not `EmptyPageDelay`: a test that measures the delay itself, such as one that checks the `emptyPageDelay` its code passes, reads through a client of `StubClient.CreateStreams` over a script of answers, whose wait is the whole delay on the clock of its options.
-
-[What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) lists every operation, rule and limit. It never ignores a member of a request: an unimplemented member fails with the code `UnsupportedByFakeException`, an unanswered operation with `UnknownOperationException`.
+A reader of `CreateStreamsClient` that finds nothing waits `EmptyPageDelay`, as against DynamoDB, but the wait also ends at the next change of a stream of the fake, so a test reads a write in milliseconds without setting the delay or moving a clock. A child that `secondChildListedAfter` lists late and a retry after `FailNext` still wait on the clock, which the test moves. A test of the delay itself reads through `StubClient.CreateStreams` over a script of answers.
 
 ### Failing a call
 
-`fake.FailNext(operation, failure, times = 1, when = null)` makes the next requests of an operation fail, through every handler of the fake, those made before too, so a client of `CreateClient` and one of `CreateStreamsClient` alike. The fake never sees such a request, as DynamoDB never sees one it throttles, so a failed write writes nothing, and the requests after it are answered by the fake. `ThrowIfFailuresLeft()` fails a test whose code sent fewer requests than it planned failures for, as `ThrowIfResponsesLeft()` does for a handler:
+`fake.FailNext(operation, failure, times = 1, when = null)` makes the next requests of an operation fail, through every handler of the fake. The fake never sees such a request, so a failed write writes nothing. `ThrowIfFailuresLeft()` fails a test whose code sent fewer requests than it planned failures for:
 
 ```csharp
 var fake = new FakeDynamoDb();
@@ -189,7 +188,7 @@ catch (InternalServerErrorException)
 fake.ThrowIfFailuresLeft();
 ```
 
-A client of the fake makes one attempt per call, so a failure reaches the code under test at once. A test of the retries asks for more attempts: `fake.CreateClient(options => options with { MaxAttempts = 3 })` repeats a throttle or a server error as it does on DynamoDB. `ReadStreamAsync` reads a shard on after a failure that its client gave up on, waiting on the clock of the fake, which the test moves:
+A client of the fake makes one attempt per call; a test of the retries asks for more, `fake.CreateClient(options => options with { MaxAttempts = 3 })`. `ReadStreamAsync` reads a shard on after a failure its client gave up on, waiting on the clock of the fake:
 
 ```csharp
 var fake = new FakeDynamoDb(clock);
@@ -198,10 +197,8 @@ fake.FailNext("GetRecords", StubResponse.DynamoDbError("ThrottlingException", "R
 // ReadStreamAsync over streams reads on after the two throttles, once the test moves the clock past its waits.
 ```
 
-- **Which requests.** A request takes the first planned failure of its operation, `GetRecords` or its whole target, that `when` accepts, such as `request => request.BodyJson.GetProperty("TableName").GetString() == "Orders"` for one table; `when` runs under the lock of the fake and must not call it. `times` is how many requests get it.
-- **Threads.** The shard readers of `ReadStreamAsync` send at once; each failure is taken by one request, under the lock of the fake.
-- **The queue first.** A response queued with `fake.Enqueue`, or with `Enqueue` on a handler, still answers before the fake is asked, so before a planned failure.
-- **Reset.** `Reset()` drops the failures no request took. The direct API, `Put` or `Items`, is no request and takes none.
+- **Which requests.** A request takes the first planned failure of its operation that `when` accepts, such as `request => request.BodyJson.GetProperty("TableName").GetString() == "Orders"`; `when` runs under the lock of the fake and must not call it. `times` is how many requests get it, each taken by one request, also when shard readers send at once.
+- **The queue first.** A response queued with `Enqueue` answers before a planned failure. `Reset()` drops the failures no request took, and the direct API, `Put` or `Items`, takes none.
 
 For a write whose response is lost, the write must happen and the client must see an error, which `FailNext` does not do. Let the fake answer and return an error instead:
 
@@ -218,7 +215,7 @@ using var lost = new StubHandler(request =>
 
 ## STS
 
-A credentials provider does not go through `HttpHandler`, so `StubSts` is a server: HTTP on `127.0.0.1` and a free port, from the constructor to `Dispose`. It answers `AssumeRoleWithWebIdentity` and `AssumeRole` with the next queued `StubStsResponse`, else `DefaultResponse`, and records `Requests`.
+A credentials provider does not go through `HttpHandler`, so `StubSts` is a server on `127.0.0.1` and a free port, from the constructor to `Dispose`. It answers `AssumeRoleWithWebIdentity` and `AssumeRole` with the next queued `StubStsResponse`, else `DefaultResponse`, and records `Requests`.
 
 ```csharp
 using var sts = new StubSts();
@@ -229,9 +226,9 @@ var credentials = await provider.GetCredentialsAsync(ct);
 Console.WriteLine(sts.Requests[0].RoleArn);
 ```
 
-That constructor reads no variable, so the test can run in parallel. To go through the default chain as a pod does, set `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and do not run that test in parallel. Without `AWS_ENDPOINT_URL_STS` the token goes to the real STS in the test's region, or the fetch fails without a region. The stub never touches the environment or the disk: the test writes the token file.
+That constructor reads no variable, so the test can run in parallel. A test of the default chain sets `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and does not run in parallel; without that endpoint the token goes to the real STS. The test writes the token file itself.
 
-`AssumeRoleCredentialsProvider` goes to the stub through `StsEndpoint`, and reads no variable when `Region` is set too. The stub takes any signature; the form is in `Requests`, with `ExternalId` and `DurationSeconds`.
+`AssumeRoleCredentialsProvider` goes to the stub through `StsEndpoint`, and reads no variable when `Region` is set too. The stub takes any signature, and `Requests` holds the form.
 
 ```csharp
 using var sts = new StubSts();
@@ -244,4 +241,4 @@ await provider.GetCredentialsAsync(ct);
 Console.WriteLine(sts.Requests[0].ExternalId);
 ```
 
-Credentials without an expiration go out with `2100-01-01T00:00:00Z`, as STS always sends one, so the provider never refreshes them. It refreshes in the background from 15 minutes before the expiration and blocks callers from 10 minutes before. A test of a refresh sets the expiration it needs, relative to its clock.
+Credentials without an expiration go out with `2100-01-01T00:00:00Z`, so the provider never refreshes them. It refreshes from 15 minutes before the expiration and blocks callers from 10 minutes before: a test of a refresh sets the expiration it needs, relative to its clock.

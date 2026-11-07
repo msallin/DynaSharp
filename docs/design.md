@@ -38,7 +38,7 @@ Arguments are checked where they are passed: a null, an empty key, a path that i
 
 ## One client, shared providers
 
-A `DynamoDbClient` owns its HTTP connections, its retry quota and, without `Credentials` in the options, a credentials provider with its own cache. Create one per application and keep it. A second client, also a `DynamoDbStreamsClient`, makes a second set of requests to STS or the metadata service unless both get one provider, as [Credentials](credentials.md) describes.
+A `DynamoDbClient` owns its HTTP connections, its retry quota and, without `Credentials` in the options, a credentials provider with its own cache, which is why there is [one per application](getting-started.md#configure-the-client). A second client, also a `DynamoDbStreamsClient`, makes a second set of requests to STS or the metadata service unless both get one provider, as [Credentials](credentials.md) describes.
 
 ## Testing through the handler
 

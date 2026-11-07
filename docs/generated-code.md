@@ -167,4 +167,4 @@ internal static class DynamoDbEntities
 }
 ```
 
-`orders.CreateTable().IncludingAll()` names every entity of the assembly, so none of their indexes is left out of the table, see [Every entity of an assembly](tables.md#every-entity-of-an-assembly). Each assembly has its own, which no other assembly sees, so another assembly names the entities with `Including<T>()`, see [Every entity of an assembly](tables.md#every-entity-of-an-assembly) for `InternalsVisibleTo`. There is none, with the info diagnostic `DYNA037`, when the entities declare the keys of more than one table or one is nested in a `private` type. The file is `DynaSharp-DynamoDbEntities.g.cs`.
+`orders.CreateTable().IncludingAll()` names every entity of the assembly; which assemblies get it, and what another assembly writes instead, is under [Every entity of an assembly](tables.md#every-entity-of-an-assembly). The file is `DynaSharp-DynamoDbEntities.g.cs`.

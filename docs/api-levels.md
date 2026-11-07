@@ -15,6 +15,6 @@ You can tell which level a line uses by what it names: `Keys` and `Attrs` mean a
 
 ## One command engine
 
-The first two levels share one command engine: ref struct chains that write JSON as you call them. A chain is built and sent in one expression, so it works in pooled buffers that go back at the end, and [the benchmarks](performance.md#benchmarks) show what a call allocates in all. An analyzer explains the compiler error if you hold on to one across an `await`: `DYNA201` under [Commands](diagnostics.md#commands) on the diagnostics page.
+The first two levels share one command engine, whose chains are built and sent in one expression: a command cannot cross an `await`, and `DYNA201` under [Commands](diagnostics.md#commands) explains the compiler error if one does. [How it is built](design.md#commands-are-ref-structs-over-borrowed-buffers) says why.
 
 The [API reference](api/index.md) lists every type of every level.

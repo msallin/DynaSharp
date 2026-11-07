@@ -21,22 +21,11 @@ public partial record Account
 }
 ```
 
-A `Put` fails with `ConditionalCheckFailedException` if the stored version moved on since the read. `RetryOnConflictAsync` then reruns the delegate, which reads again:
-
-```csharp
-var accounts = shop.Of<Account>();
-await accounts.RetryOnConflictAsync(async token =>
-{
-    var account = await accounts.Get(Account.Keys.Of("alice")).Consistent().ItemAsync(token);
-    await accounts.Put(account! with { Balance = account.Balance + 10m }).SendAsync(token);
-}, ct);
-```
-
-Caveats:
+A `Put` of an `Account` fails with `ConditionalCheckFailedException` if the stored version moved on since the read, and `RetryOnConflictAsync` reruns the read-modify-write, see [Optimistic locking](commands.md#optimistic-locking) and [Retry on a conflict](commands.md#retry-on-a-conflict). Caveats:
 
 - Opt-in per type: two writers of a type without `[Version]` both succeed, and the second silently undoes the first.
-- Enforced per write: an `Update` or `Delete` by key says `IfVersion(n)` or `IgnoreVersion()`, or throws before sending, see [Optimistic locking](commands.md#optimistic-locking).
-- Nothing retries a conflict by itself. `RetryOnConflictAsync` makes 5 runs. With n writers that each write once, a run loses at most n - 1 times, but while new writers keep arriving it can lose any number of times: pass `maxAttempts` for a hot item.
+- Enforced per write: an `Update` or `Delete` by key says `IfVersion(n)` or `IgnoreVersion()`, or throws before sending.
+- Nothing retries a conflict by itself, and `RetryOnConflictAsync` makes 5 runs. With n writers that each write once, a run loses at most n - 1 times, but while new writers keep arriving it can lose any number of times: pass `maxAttempts` for a hot item.
 
 ## Uniqueness constraints
 

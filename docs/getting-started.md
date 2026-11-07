@@ -1,6 +1,6 @@
 # Getting started
 
-Install DynaSharp, run a first program against a local emulator, and meet the shop that the rest of the guide uses. New to DynamoDB? [DynamoDB in short](glossary.md) explains the terms.
+Install DynaSharp, run a first program against a local emulator, and meet the shop of the rest of the guide. New to DynamoDB? [DynamoDB in short](glossary.md) explains the terms.
 
 ## Installation
 
@@ -14,14 +14,14 @@ dotnet add package DynaSharp.Coordination   # locks and leader election, optiona
 
 ## Run a local emulator
 
-The repository has two emulators ready in [`samples/compose.yaml`](https://github.com/msallin/DynaSharp/blob/main/samples/compose.yaml): Dynoxide, a native emulator that starts in milliseconds, and DynamoDB Local, the emulator of AWS, in memory and with one database for all credentials and regions.
+The repository has two emulators ready in [`samples/compose.yaml`](https://github.com/msallin/DynaSharp/blob/main/samples/compose.yaml): Dynoxide, a native emulator that starts in milliseconds, and DynamoDB Local, the emulator of AWS, in memory.
 
 ```shell
 docker compose -f samples/compose.yaml up -d                           # Dynoxide on http://localhost:8000
 docker compose -f samples/compose.yaml --profile dynamodb-local up -d  # DynamoDB Local on http://localhost:8001
 ```
 
-A client for an emulator names it in `ServiceUrl`. It still needs a region and credentials, because every request is signed, but an emulator checks neither, so any value does. `DynamoDbClientOptions.ForEmulator` sets all three, with the region `us-east-1` and the keys `local` and `local`:
+A client for an emulator names it in `ServiceUrl`, and still needs a region and credentials, because every request is signed, though any value does. `DynamoDbClientOptions.ForEmulator` sets all three, with the region `us-east-1` and the keys `local` and `local`:
 
 ```csharp
 using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000")));
@@ -29,20 +29,14 @@ using var client = new DynamoDbClient(DynamoDbClientOptions.ForEmulator(new Uri(
 
 The rest is a `with`, as in `DynamoDbClientOptions.ForEmulator(url) with { MaxAttempts = 1 }`.
 
-DynamoDB Local started without `-sharedDb` keeps one database per access key and region. A tool or a program that uses another region or other keys sees other tables, and none that this client created: the AWS CLI with the region of its profile, for one. `ForEmulator` uses the same values on every call, so two programs that both use it meet. A tool takes `us-east-1` and the keys `local` and `local` too, or the client takes the region of the tool with the second parameter:
+DynamoDB Local without `-sharedDb`, which the compose file passes, keeps a database per access key and region, so a tool with other values, such as the AWS CLI with the region of its profile, sees none of this client's tables. Give the tool `us-east-1` and the keys `local` and `local`, or give `ForEmulator` the tool's region as its second parameter, `ForEmulator(url, "eu-central-2")`.
 
-```csharp
-var options = DynamoDbClientOptions.ForEmulator(new Uri("http://localhost:8000"), "eu-central-2");
-```
+The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000`, `AWS_REGION`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set, `new DynamoDbClient()` goes to the emulator, and the same build goes to AWS where they are not. An option that is set wins over its variable.
 
-The compose file starts DynamoDB Local with `-sharedDb`, one database for all of them.
-
-The environment does the same without code: with `AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000`, `AWS_REGION` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set, `new DynamoDbClient()` goes to the emulator, and the same build goes to AWS where they are not set. An option that is set wins over its variable.
-
-An http endpoint on another host, such as `http://dynamodb-local:8000` in a compose network, works the same. The requests and the session token then travel unencrypted, and the client logs a warning once (event 9, see [Observability](observability.md#logs)).
+An http endpoint on another host, such as `http://dynamodb-local:8000` in a compose network, works the same, and the client logs once that the requests travel unencrypted (event 9, see [Observability](observability.md#logs)).
 
 > [!TIP]
-> DynamoDB Local runs [time to live](glossary.md#time-to-live-ttl): its sweeper deletes items whose expiry attribute holds a past date, which looks like a read that finds nothing. Give test data dates in the future, or turn time to live off for such a test.
+> DynamoDB Local runs [time to live](glossary.md#time-to-live-ttl): it deletes items whose expiry is past, which looks like a read that finds nothing. Give test data expiries in the future.
 
 ## A first program
 
@@ -92,21 +86,13 @@ public partial record TodoItem
 
 What happens:
 
-- **The entity.** `TodoItem` is `partial`, and the source generator writes the code that reads and writes it as an [item](glossary.md#item), plus `Keys`, which builds its keys, and `Attrs`, a typed handle per [attribute](glossary.md#attribute). The [partition key](glossary.md#partition-key) of both items is `USER#alice`, and the [sort key](glossary.md#sort-key) is `TODO#000001` and `TODO#000002`, so they sit in one partition in the order of their numbers. `_type` holds `TODO`, which tells them apart from other types in the same table. [Entities and keys](entities.md) has the rest.
-- **The table.** `Table = "Todos"` declares the table the entity lives in, and `client.Table<TodoItem>()` opens it; `client.Table<TodoItem>("Todos-test")` opens another, as given. Opening a table makes no request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
+- **The entity.** `TodoItem` is `partial`, and the source generator writes the code that reads and writes it as an [item](glossary.md#item), plus `Keys`, which builds its keys, and `Attrs`, a typed handle per [attribute](glossary.md#attribute). Both items have the [partition key](glossary.md#partition-key) `USER#alice` and sit in it in the order of their [sort keys](glossary.md#sort-key), `TODO#000001` and `TODO#000002`. `_type` holds `TODO`, which tells them apart from other types in the table. [Entities and keys](entities.md) has the rest.
+- **The table.** `Table = "Todos"` declares the table the entity lives in, and `client.Table<TodoItem>()` opens it, without a request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
 - **The commands.** A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`, each of which takes a `CancellationToken`. A `Put` replaces the whole item, `ItemAsync` gives null when there is none, and `ItemsAsync` follows the pages of the `Query` for you. [Reading and writing](commands.md) and [Queries and scans](queries.md) go on from here.
 
 ## Configure the client
 
-All requests go through `DynamoDbClient`. It is thread-safe, so create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them, see [Region](#region) and [Credentials](#credentials).
-
-```csharp
-using DynaSharp;
-
-using var client = new DynamoDbClient();
-```
-
-Every setting can be given explicitly:
+All requests go through `DynamoDbClient`, which is thread-safe: create one per application and keep it, since it holds the connections, the retry quota and the cached credentials. `new DynamoDbClient()` takes region, endpoint and credentials from the environment, the way the AWS SDKs read them, see [Region](#region) and [Credentials](#credentials). Every setting can also be given explicitly:
 
 ```csharp
 using DynaSharp;
@@ -123,11 +109,11 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 
 `MaxAttempts` and `AttemptTimeout` stand at their defaults here; [Retries](errors.md#retries) and [Timeouts and cancellation](errors.md#timeouts-and-cancellation) say what they bound.
 
-`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging, and `TableNaming` turns the table an entity declares into the one of an environment, such as `dev-Shop`, see [A table per environment](tables.md#a-table-per-environment). A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
+`HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging, and `TableNaming` turns a declared table into the one of an environment, such as `dev-Shop`, see [A table per environment](tables.md#a-table-per-environment). A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
 
 ## The shop
 
-The rest of the guide uses a small online shop, all of it in one table named `Shop`. Its types are in [`ShopModel.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/ShopModel.cs) of the sample: `Product`, `Customer`, `Order`, `Cart` and `EmailClaim`, with `Address` and `OrderLine` as documents inside them. Each declares the table with `[DynamoDbEntity(Table = ShopTable.Name)]`, a constant of the model that holds `"Shop"`. Where a page uses `orders`, `customers` or `shop`, they are these:
+The rest of the guide uses a small online shop in one table named `Shop`. Its types are in [`ShopModel.cs`](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/ShopModel.cs) of the sample: `Product`, `Customer`, `Order`, `Cart` and `EmailClaim`, with `Address` and `OrderLine` as documents inside them, each with `[DynamoDbEntity(Table = ShopTable.Name)]`, a constant that holds `"Shop"`. Where a page uses `orders`, `customers` or `shop`, they are these:
 
 ```csharp
 var products = client.Table<Product>();
@@ -147,7 +133,7 @@ var byStatus = orders.Index(Order.Indexes.ByStatus);
 | `CUSTOMER#alice` | `CART` | her cart, which two browser tabs can edit at once |
 | `EMAIL#a@example.ch` | `CLAIM` | who holds an email address, which keeps them unique |
 
-Each entity opens the table under its own type, and `shop` opens it without a model, as a `Table<Item>`. `shop.Of<Cart>()` is the same table as `carts`, which lets code that holds `shop` stay with one name. `byStatus` reads the [global index](glossary.md#global-secondary-index-gsi) `ByStatus` of `Order`. One `CreateTable()` creates the table with the indexes of all five:
+Each entity opens the table under its own type, and `shop` opens it without a model, as a `Table<Item>`; `shop.Of<Cart>()` is the same table as `carts`. `byStatus` reads the [global index](glossary.md#global-secondary-index-gsi) `ByStatus` of `Order`. One `CreateTable()` creates the table with the indexes of all five:
 
 ```csharp
 await orders.CreateTable()
@@ -164,11 +150,11 @@ The [sample](https://github.com/msallin/DynaSharp/tree/main/samples) runs all of
 
 ## In a service
 
-In ASP.NET Core or any other host, register the client as a singleton, so that its pooled connections and cached credentials live as long as the process. The container disposes it when the host stops.
+In ASP.NET Core or any other host, register the client as a singleton, which the container disposes when the host stops.
 
 - Put the tables in a singleton of their own. A table is small and immutable, and opening one makes no request.
-- Pass `LoggerFactory` from the container, so the client can log what happens outside a single request, such as where the credentials came from and a refresh that failed.
-- Create the table in an `IHostedService`. The host runs its `StartAsync` before the server takes requests, and a failure stops the host:
+- Pass `LoggerFactory` from the container, so the client can log what happens outside a single request, such as a failed refresh of the credentials.
+- Create the table in an `IHostedService`, whose `StartAsync` runs before the server takes requests and whose failure stops the host:
 
 ```csharp
 using DynaSharp;
@@ -205,14 +191,14 @@ public static class ShopServices
 
 Call `builder.Services.AddShop()` in `Program.cs`, and inject `ShopTables` like any other service.
 
-For a second client with other settings, such as one for writes that must not be retried, start from the options of the first: `new DynamoDbClient(client.Options with { MaxAttempts = 1 })`. It shares the credentials provider and with it the cached credentials. Register it with `AddKeyedSingleton`, so that both can be injected.
+A second client with other settings, such as one for writes that must not be retried, starts from the options of the first, `new DynamoDbClient(client.Options with { MaxAttempts = 1 })`, and so shares the cached credentials. Register it with `AddKeyedSingleton`, so that both can be injected.
 
 ## Native AOT
 
-An application with `<PublishAot>true</PublishAot>` publishes as usual, `dotnet publish -c Release -r linux-x64`. DynaSharp needs nothing extra, because the mapping comes from the source generator and nothing is reflected or generated at run time.
+An application with `<PublishAot>true</PublishAot>` publishes as usual, `dotnet publish -c Release -r linux-x64`. DynaSharp needs nothing extra: the mapping comes from the source generator, and nothing is reflected or generated at run time.
 
 - Native AOT compiles for the operating system it runs on. On Windows it needs the Visual Studio workload "Desktop development with C++", which brings the native linker.
-- CI publishes [`tests/DynaSharp.AotSmoke`](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.AotSmoke) with Native AOT, where any trim or AOT warning fails the publish, and runs it through reads, writes, errors, converters and telemetry.
+- CI publishes [`tests/DynaSharp.AotSmoke`](https://github.com/msallin/DynaSharp/tree/main/tests/DynaSharp.AotSmoke) with Native AOT, where any trim or AOT warning fails, and runs it through reads, writes, errors, converters and telemetry.
 
 ## Region
 
@@ -222,20 +208,16 @@ Without `Region`, the client reads `AWS_REGION`, then `AWS_DEFAULT_REGION`, then
 
 Without `Credentials`, the client uses the default chain of the AWS SDKs and takes the first source that has credentials:
 
-1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`, with `AWS_CREDENTIAL_EXPIRATION` for temporary credentials, which are then read again before that time
+1. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`, with `AWS_CREDENTIAL_EXPIRATION` for temporary credentials, read again before that time
 2. the web identity token file named by `AWS_WEB_IDENTITY_TOKEN_FILE`, with `AWS_ROLE_ARN`
 3. the profile selected by `AWS_PROFILE`, or `default` when it is unset or empty, in the shared credentials and config files, which may assume a role, use SSO, run a `credential_process` or hold keys, in the order of the AWS CLI
 4. the container credentials endpoint of ECS and EKS, which is also EKS Pod Identity
 5. the instance metadata service of EC2
 
-A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass `EnvironmentCredentialsProvider`, `WebIdentityCredentialsProvider`, `ProfileCredentialsProvider`, `AssumeRoleCredentialsProvider`, `SsoCredentialsProvider`, `ContainerCredentialsProvider`, `InstanceMetadataCredentialsProvider` or `StaticCredentialsProvider`.
-
-[Credentials](credentials.md) covers IRSA, a `credential_process`, an assumed role and IAM Identity Center (SSO), and what fails when a source is broken.
+A source that applies but is broken fails the request and does not fall through to the next one, so a misconfigured pod never signs with the node's role. To use one source only, pass its provider, such as `WebIdentityCredentialsProvider` or `StaticCredentialsProvider`. [Credentials](credentials.md) covers IRSA, a `credential_process`, an assumed role and IAM Identity Center (SSO), and what fails when a source is broken.
 
 ## Next steps
 
-- [Entities and keys](entities.md): declare what an item looks like and how its keys are built.
-- [Tables](tables.md): open a table, and create it from what the entities declare.
+- [Entities and keys](entities.md) and [Tables](tables.md): what an item looks like, and the table it lives in.
 - [Reading and writing](commands.md) and [Queries and scans](queries.md): the operations.
-- [Migrating](migrating.md), if you come from the AWS SDK or from EfficientDynamoDb, and [How DynaSharp compares](comparison.md) for what each of them has.
-- [Compatibility](compatibility.md): what a release promises.
+- [Migrating](migrating.md), from the AWS SDK or EfficientDynamoDb, and [Compatibility](compatibility.md), what a release promises.

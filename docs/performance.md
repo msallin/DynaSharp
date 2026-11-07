@@ -29,7 +29,7 @@ The benchmarks live in [`benchmarks/DynaSharp.Benchmarks`](https://github.com/ms
 
 **In the client**
 
-- **One client.** A client is thread-safe and holds the connections, the retry quota and, without `Credentials`, a provider with its own cache of credentials. Create one and keep it. A second client makes a second set of requests to STS or the metadata service, unless both get one provider.
+- **One client**, kept for the life of the application, see [Configure the client](getting-started.md#configure-the-client). A second client opens connections of its own and, unless both get one provider, makes a second set of requests to STS or the metadata service.
 - **A command** writes its request as you call it, into buffers from a pool that go back when it is sent. That is why it is built and sent in one expression (`DYNA201`).
 - **A key.** `Order.Keys.Of(...)` holds its values and makes no string until the command writes it, and `TryOf` makes none either. `Order.Keys.Pk.Of(...)` and `Format` make the string of the key. A plain string or number key costs nothing beyond itself.
 - **A condition** of handles, `Order.Attrs.Total.Gt(100m).And(...)`, is a struct and allocates nothing. `Condition.Of(...)` puts one on the heap, for a field. A sort key condition of constant text allocates nothing, and one that formats a value costs its strings.

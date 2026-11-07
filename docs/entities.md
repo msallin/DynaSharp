@@ -24,7 +24,7 @@ public partial record Order
 }
 ```
 
-`Table = "Shop"` declares the table the entity lives in, which `client.Table<Order>()` opens, and `client.Table<Order>(name)` opens another table, as given; [Declaring the table](tables.md#declaring-the-table) has the rest. `{Number:d6}` pads to six digits, so keys sort by number. A timestamp in a template is in UTC. A bare `{PlacedAt}` means `ticks`, seven fraction digits like the attribute: the only format that keeps the whole value, so a key built from a value read back finds its item and a read can restore the property from the key. Others truncate. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
+`Table = "Shop"` declares the table that `client.Table<Order>()` opens, see [Declaring the table](tables.md#declaring-the-table). `{Number:d6}` pads to six digits, so keys sort by number. A timestamp in a template is in UTC, and a bare `{PlacedAt}` means `ticks`, seven fraction digits like the attribute: the only format that keeps the whole value, so a key built from a value read back finds its item. Others truncate. For `PlacedAt` at 14:34:56.7890123 +02:00 on 2026-10-31:
 
 | Where | Text |
 |---|---|
@@ -51,13 +51,13 @@ Those are the default names. Key inputs are stored as follows:
 
 - **Put** also stores them as attributes, unless `[KeyOnly]` says the key is enough. Such a property has no attribute, so no handle in `Attrs`.
 - **Update** writes no input of the table key unless `StoreKeyInputs()` asks. An item it created holds the key without those attributes, and a read restores them from the key.
-- **A `raw` input of the table key**, such as `{Key:raw}`, goes with `[KeyOnly]`: it is mostly an id that holds the delimiter, and without `[KeyOnly]` only the items a `Put` wrote hold it as an attribute, those an `Update` created do not. `DYNA123` (info) reports one without it; an adopted table whose items hold the attribute keeps it and suppresses the message, see [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter).
+- **A `raw` input of the table key**, such as `{Key:raw}`, goes with `[KeyOnly]`, since without it only the items a `Put` wrote hold it as an attribute. `DYNA123` (info) reports one without it; an adopted table whose items hold the attribute suppresses it, see [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter).
 
 The rules of a template, and what the generator reports when one is broken, are under [Key templates](diagnostics.md#key-templates).
 
 ## Keys and Attrs
 
-`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query, such as `BeginsWith`, `Between` and `Ge`. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `TryOf` checks without an exception and gives the key or `null`, so `Order.Keys.Pk.TryOf(id) is { } key` guards a read. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
+`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `Order.Keys.Pk.TryOf(id) is { } key` checks without an exception. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
 
 ## Documents
 
@@ -71,7 +71,7 @@ public partial record Dimensions(decimal Width, decimal Height, decimal Depth)
 }
 ```
 
-A document stores what an entity stores: every public readable property with a setter or a matching constructor parameter, named and converted by the same rules, `[OmitEmpty]` and `[DynamoDbIgnore]` included. A null is left out of the map. `new Dimensions(10, 2, 3)` is `{"M":{"Width":{"N":"10"},"Height":{"N":"2"},"Depth":{"N":"3"}}}`.
+A document stores what an entity stores: every public readable property with a setter or a matching constructor parameter, by the same rules, and leaves a null out of the map. `new Dimensions(10, 2, 3)` is `{"M":{"Width":{"N":"10"},"Height":{"N":"2"},"Depth":{"N":"3"}}}`.
 
 - **Computed properties.** A get-only property without a constructor parameter, such as `Volume`, is not stored; the getter computes it after a read. `[DynamoDbAttribute]` on it stores it, written and never read.
 - **Constructors.** A read builds a positional record through its constructor, whose parameters are named after its properties. `[DynamoDbConstructor]` picks one where several could be used (`DYNA005`).
@@ -105,7 +105,7 @@ The built-in converters store these types; anything else needs its own converter
 
 ## JSON of a contract
 
-A document whose schema another team owns, such as an event of a Kafka topic or the payload of an external API, goes into a property of type `JsonElement`. It is stored as a native map, so a filter, a projection and an update reach into it by path, and the service needs no code to convert it. Serialize the contract with a source-generated `JsonSerializerContext`, which stays free of reflection under Native AOT:
+A document whose schema another team owns, such as an event of a Kafka topic, goes into a property of type `JsonElement`. It is stored as a native map, so a filter, a projection and an update reach into it by path. Serialize the contract with a source-generated `JsonSerializerContext`, which stays free of reflection under Native AOT:
 
 ```csharp
 using System.Text.Json;
@@ -141,11 +141,11 @@ ShippingLabel? back = stored is null ? null : System.Text.Json.JsonSerializer.De
 ```
 
 - **What it stores.** What [Documents from JSON](without-a-model.md#documents-from-json) says: `Note`, which is null, is left out of the map, a null in an array is `NULL`, and a number keeps its digits on the way in and its value on the way back, as DynamoDB stores `1.50` as `1.5`. Dates stay the text the contract wrote.
-- **What a write refuses.** JSON that DynamoDB cannot store throws an `ArgumentException` that names the property, its attribute and the place in the JSON, such as `$.lines[2].weight`: a number beyond 38 digits or the range of DynamoDB, more than 32 levels counted from the attribute, an empty name, a name twice in one object, and a `default(JsonElement)`, which holds no JSON.
+- **What a write refuses.** JSON that DynamoDB cannot store throws an `ArgumentException` that names the property and the place in the JSON, such as `$.lines[2].weight`: a number beyond 38 digits or the range of DynamoDB, more than 32 levels, an empty name, a name twice in one object, and a `default(JsonElement)`.
 - **Null.** A `JsonElement?` that is null leaves the attribute out, and a missing attribute or `NULL` reads as null. A JSON `null` in a `JsonElement` is stored as `NULL`.
 - **What a read takes.** Any value, also one other code wrote: a string set and a number set read as an array, a binary value and a binary set as base64 text.
 - **Paths.** `LabelRecord.Attrs.Label` sets, compares and selects the whole document. Inside it a path is a string, as in `Set("Label.To", ...)`, `Attr("Label.Weight")` and `Project("Label.To")`: `.At(...)` walks into a `[DynamoDbDocument]` only, which has handles of its own.
-- **One type.** `JsonElement` and no other type of JSON: a `JsonDocument` has to be disposed, which a read has nobody to do, and a `JsonNode` converts with `JsonSerializer.SerializeToElement(node)`.
+- **One type.** `JsonElement` and no other type of JSON; a `JsonNode` converts with `JsonSerializer.SerializeToElement(node)`.
 
 ## Project defaults
 
@@ -163,7 +163,7 @@ An attribute on a type or property still wins. A stored attribute is named after
 
 ## Global indexes
 
-`[GlobalIndexKey]` declares an index by its name, with the keys as named properties: `PartitionKey` is the template of its partition key and required, `SortKey` the template of its sort key, or none for an index without one. `Sparse = true` leaves an item out of the index while an input is null, see [Sparse indexes](#sparse-indexes), and `PartitionKeyAttributeName` and `SortKeyAttributeName` name the attributes that hold the keys, `bystatuspk` and `bystatussk` by default (the index name in lower case plus `pk` or `sk`). An entity takes as many as it needs.
+`[GlobalIndexKey]` declares an index by its name: `PartitionKey` is the template of its partition key and required, `SortKey` that of its sort key, if any. `Sparse = true` leaves an item out of the index while an input is null, see [Sparse indexes](#sparse-indexes), and `PartitionKeyAttributeName` and `SortKeyAttributeName` name the attributes of the keys, by default the index name in lower case plus `pk` or `sk`. An entity takes as many as it needs.
 
 ```csharp
 [DynamoDbEntity(Table = "Chores")]
@@ -222,7 +222,7 @@ With `Sparse = true`, an item with a null input writes no key of that index, so 
 public partial record Parcel(string Id, string? TrackingNumber);
 ```
 
-A string that other code fills with `""` for "none" gets an `[OmitEmpty]` of its own, which makes an empty value count as null here as well: the attribute is left out and so is every key of the index, where without the attribute the write throws `KeyFormatException`, because DynamoDB refuses an empty string in a key.
+A string that other code fills with `""` for "none" gets an `[OmitEmpty]` of its own, so an empty value counts as null: the attribute and every key of the index are left out, where otherwise the write throws `KeyFormatException`, since DynamoDB refuses an empty string in a key.
 
 ```csharp
 [GlobalIndexKey("ByCoupon", PartitionKey = "COUPON#{Coupon}", Sparse = true)]
@@ -235,12 +235,11 @@ public partial record Booking
 }
 ```
 
-- **Only on the property.** `[OmitEmpty]` on the type and `OmitEmpty = true` in `[assembly: DynamoDbDefaults]` pass over an input of a key, so that a default does not turn a key that throws for `""` into an item that silently stays out of an index.
-- **Only for sparse indexes.** The string feeds no key of the table and no key of an index without `Sparse = true`, where `[OmitEmpty]` is `DYNA030`.
+- **Only on the property, only for sparse indexes.** `[OmitEmpty]` on the type and `OmitEmpty = true` in `[assembly: DynamoDbDefaults]` pass over an input of a key, so that a default does not make an item silently stay out of an index. On an input of the table key or of an index without `Sparse = true`, `[OmitEmpty]` is `DYNA030`.
 - **Reads.** An item without the attribute reads as the initial value: `""` above, null for a `string?`. A non-nullable `required` string has nothing to read back, and is `DYNA030` too.
 - **Updates.** `Set(Booking.Attrs.Coupon, "")` is a `Remove`, which takes the item out of the index, `SetIfNotNull` with `""` adds nothing, and `SetIfNotExists` throws `ArgumentException` for it. `Booking.Keys.ByCouponPk.Of("")` still throws `KeyFormatException`: a key built by hand is no write that can leave it out.
 
-An update that sets one key of a sparse index writes the other too, building it from the values it has, or throws naming the `Set` to add. A key that is one bare placeholder over a string, `Guid`, `DateOnly`, `ticks` timestamp or enum by name, such as `PartitionKey = "{Owner}"`, is the text of its attribute, so the update copies it from the item (`SET byownerpk = Owner`) and needs no value. An item without the attribute fails that update with `ValidationException`.
+An update that sets one key of a sparse index writes the other too, from the values it has, or throws naming the `Set` to add. A key that is one bare placeholder over a string, `Guid`, `DateOnly`, `ticks` timestamp or enum by name, such as `PartitionKey = "{Owner}"`, is copied from the item (`SET byownerpk = Owner`), and an item without the attribute fails that update with `ValidationException`.
 
 ## Local indexes
 
@@ -294,20 +293,13 @@ public partial record ClubMember
 }
 ```
 
-A put never changes the entity it is given, so the entity that went in still holds the old version, and an item read back afterwards is not equal to it. `ReturnNew()` on the put returns the item as it was stored, at the new version, read from what the put sent, at no cost; an update has `ReturnNew()` too, which DynamoDB answers. Take that item for the next write:
-
-```csharp
-var saved = await carts.Put(seen with { Lines = lines }).ReturnNew().SendAsync(ct);
-Cart current = saved.Item!;
-```
-
-What a write needs, `IfVersion(n)` or `IgnoreVersion()`, and how a counter on such an item behaves, are under [Optimistic locking](commands.md#optimistic-locking).
+[Optimistic locking](commands.md#optimistic-locking) says what each write needs, `IfVersion(n)` or `IgnoreVersion()`, and what a put returns.
 
 ## Converters
 
 `[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property; [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` makes a stored value count as a missing attribute, so the rest of the item reads.
 
-An enum needs no converter for that. With `[DynamoDbEnum]`, an unknown name, such as one a newer version of a service stores during a rollout, keeps the property's initial value (null for a nullable property without an initializer). Writes store names as without the attribute, so the next `Put` stores that initial value over the unknown name.
+An enum needs no converter for that. With `[DynamoDbEnum]`, an unknown name, such as one a newer version of a service stores during a rollout, reads as the property's initial value, which the next `Put` stores over the unknown name.
 
 > [!WARNING]
 > Use it only for an enum whose initial value is a safe "unknown". With `Scheduled` as the initial value, an item a newer version cancelled under a name this one lacks reads as `Scheduled`, and the next `Put` reopens it.
@@ -359,8 +351,8 @@ public partial record Session
 }
 ```
 
-`CreateTable()` of the entity then turns time to live on for `ExpiresAt`, as `.TimeToLive(Session.Attrs.ExpiresAt)` on the chain does, and `FakeDynamoDb.CreateTable<Session>` turns it on too. A null expiry is left out of the item, which then never expires.
+`CreateTable()` of the entity then turns time to live on for `ExpiresAt`, and so does `FakeDynamoDb.CreateTable<Session>`. A null expiry is left out of the item, which then never expires.
 
-- **One per table.** A second `[TimeToLive]` on a type, one on a property that is not stored, and one on a property that is no number of seconds, such as a `DateTimeOffset` without the converter, are `DYNA036`. Two entities of a table that name different attributes make `CreateTable().Including<T>()` throw `ArgumentException`, as other disagreements do.
-- **What it costs.** Time to live needs an active table, so the create waits up to five minutes for it, and it takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`, also over a table that `IfNotExists()` finds. See [Creating a table](tables.md#creating-a-table).
+- **One per table.** A second `[TimeToLive]` on a type, one on a property that is not stored, and one on a property that is no number of seconds, such as a `DateTimeOffset` without the converter, are `DYNA036`. Two entities of a table that name different attributes make `Including<T>()` throw `ArgumentException`.
+- **What it costs.** Time to live needs an active table, so the create waits up to five minutes for it, and it takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`, also over a table that `IfNotExists()` finds.
 - **When it happens.** DynamoDB deletes within days of the expiry, and a read finds the item until then, so a read that must not see an expired one filters on the attribute.

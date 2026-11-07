@@ -14,7 +14,7 @@ var carts = shop.Of<Cart>();
 var byStatus = orders.Index(Order.Indexes.ByStatus);
 ```
 
-`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, and works on any table, typed or not. It keeps the name of the table it is called on, whatever `T` declares. It is cached per type, so calling it inline costs a lookup and no allocation. The [design patterns](patterns.md) hold `shop` and write `shop.Of<Account>()` where they need a type. `Index(...)` reads an index of the table through a type of its own, which has no writes.
+`Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, on any table, typed or not, and keeps its name whatever `T` declares. It is cheap enough to call inline, as the [design patterns](patterns.md) do. `Index(...)` reads an index of the table through a type of its own, which has no writes.
 
 > [!NOTE]
 > `DYNA221` and `DYNA224` check a query against the keys of what it reads only when `Index(...)` is in the chain of the query. They pass over a query of an index kept in a field or a variable, such as `byStatus`. See [Commands](diagnostics.md#commands) on the diagnostics page.
@@ -89,7 +89,7 @@ using var staged = new DynamoDbClient(new DynamoDbClientOptions
 var accounts = staged.Table<LedgerAccount>(); // dev-Ledger
 ```
 
-It applies only to declared names. A function that returns null or an empty name keeps the declared name, so it can rename only some tables, `name => name == "Ledger" ? $"{environment}-Ledger" : null`; any other result is opened as it is, so it can be an ARN, and DynamoDB answers a table it does not know with the first command.
+It applies only to declared names. A function that returns null or an empty name keeps the declared name, so it can rename only some tables; any other result is opened as it is, an ARN as well.
 
 Code that names a table and knows no entity, such as a health check, asks the client for the name it opens with `ResolveTableName`. `DescribeTableAsync(name)` of the client, like every member that takes a name, takes the name as deployed and applies no `TableNaming`:
 
@@ -118,7 +118,7 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
-Code that holds the table without a model, as `shop` (`client.Table("Shop", "pk", "sk")`), starts there and names every entity alike. The keys start as the names the table was opened with, and the entities give their types and indexes, or throw at `Including` when they disagree with those names:
+Code that holds the table without a model, as `shop`, starts there and names every entity alike. The keys start as the names the table was opened with, and the entities give their types and indexes, or throw at `Including` when they disagree:
 
 ```csharp
 await shop.CreateTable()
@@ -136,11 +136,11 @@ Without an `Including`, such a table has string keys and no index. Either start 
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 
-A chain that leaves out an entity that declares the same table, in this project or in one it references, is the warning [`DYNA240`](diagnostics.md#commands), whose code fix adds the missing `Including<T>()` calls. It checks the chain as written, up to `SendAsync`, `ToRequest`, `ToRequestJson`, an `await` or a `return`, so a method that returns the command for the app and its tests to send is checked as well; a command kept in a variable or passed to a method of your own is not checked.
+A chain that leaves out an entity that declares the same table, in this project or in one it references, is the warning [`DYNA240`](diagnostics.md#commands), whose code fix adds the missing `Including<T>()` calls. It checks the chain as written, also one that a method returns; a command kept in a variable or passed to a method of your own is not checked.
 
 ### Every entity of an assembly
 
-An entity left out of the chain is an index left out of the table, and with `IfNotExists()` an index that [the drift report](#a-table-that-exists) cannot show, because it compares the table with the entities the chain names. So the generator writes `IncludingAll()` for each assembly whose entities all have the keys of one table: an `Including<T>()` of every `[DynamoDbEntity]` of the assembly, in the order of their full names, a direct call per type with nothing looked up at run time. It lives in an `internal` class `DynamoDbEntities` in the namespace `DynaSharp`, so a file with `using DynaSharp;` finds it, top-level statements in the global namespace included. The [sample](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/Program.cs) creates its table with it:
+An entity left out of the chain is an index left out of the table, and with `IfNotExists()` one that [the drift report](#a-table-that-exists) cannot show, since it compares the table with the entities the chain names. So the generator writes `IncludingAll()` for each assembly whose entities all have the keys of one table: an `Including<T>()` of every `[DynamoDbEntity]` of the assembly, in the order of their full names. It lives in an `internal` class `DynamoDbEntities` in the namespace `DynaSharp`, so `using DynaSharp;` finds it. The [sample](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/Program.cs) creates its table with it:
 
 ```text
 await orders.CreateTable()
@@ -150,11 +150,11 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
-- **Which assemblies get it.** Only one whose entities share one pair of key names, which `Including<T>` demands. Entities of more than one table, or an entity nested in a `private` type, give no `IncludingAll()`, and the info diagnostic [`DYNA037`](diagnostics.md#entities) says why; name the entities of each table with `Including<T>` there. Two tables whose keys have the same names cannot be told apart, so their entities are one set: keep them in different assemblies, or list them.
-- **One per assembly, internal.** Each assembly has its own class, which no other assembly sees, so the classes of two assemblies cannot clash. Code in another assembly that creates the table names the entities with `Including<T>()`. An assembly that sees the internals of another through `InternalsVisibleTo`, such as its test project, sees that `IncludingAll()` as well: without entities of its own it calls that one, for the entities of the other assembly. With entities of its own it has a second one, and the call is ambiguous, `CS0121`: name the entities there with `Including<T>()`.
+- **Which assemblies get it.** Only one whose entities share one pair of key names, which `Including<T>` demands. Entities of more than one table, or an entity nested in a `private` type, give none, and the info diagnostic [`DYNA037`](diagnostics.md#entities) says why; name the entities with `Including<T>` there. Two tables whose keys have the same names cannot be told apart: keep their entities in different assemblies, or list them.
+- **One per assembly, internal.** No other assembly sees it, so code in another assembly names the entities with `Including<T>()`. A test project that sees the internals through `InternalsVisibleTo` calls it for the entities of the other assembly, unless it has entities of its own, which make the call ambiguous (`CS0121`).
 - **The name.** A type of the assembly named `DynaSharp.DynamoDbEntities` is the error [`DYNA038`](diagnostics.md#entities).
 
-The example blocks of this page are compiled beside entities of other tables, so this one is plain text; the sample compiles it.
+The example blocks of this page are compiled beside entities of other tables, so this one is plain text.
 
 ## A table that exists
 
@@ -188,7 +188,7 @@ foreach (var drift in result.Drift)
 var missing = result.Drift.Where(drift => drift.Kind == TableDriftKind.IndexMissing).Select(drift => drift.IndexName).ToList();
 ```
 
-A missing global index goes in with `UpdateTable`, see [Adding an index](#adding-an-index). A local index exists only if the table was created with it, so one that is missing, and an index with other keys, which `UpdateTable` would have to delete and create again, need a decision: a new table, or a deleted and recreated global index while the code that queries it waits. A stream goes on with `StreamSpecification` of `UpdateTable`, and time to live moves with `UpdateTimeToLive`, off and then on for the new attribute. A test that pins the schema asserts that `Drift` is empty.
+A missing global index goes in with `UpdateTable`, see [Adding an index](#adding-an-index). A missing local index, which only a new table can have, and an index with other keys need a decision: a new table, or a global index deleted and created again while the code that queries it waits. A stream goes on with `StreamSpecification` of `UpdateTable`, and time to live moves with `UpdateTimeToLive`, off and then on for the new attribute. A test that pins the schema asserts that `Drift` is empty.
 
 A program that must not hang at its start gives the whole command a bound:
 
@@ -200,11 +200,11 @@ await orders.CreateTable()
     .SendAsync(ct);
 ```
 
-`Timeout` covers the look, the create, the wait and time to live, and throws a `TimeoutException` that names the table and the step it was at, where a `CancellationToken` on a timer gives a bare `OperationCanceledException` that names nothing. The bound of the wait still holds inside it, and a wait that runs out first throws its `TableNotActiveException`, which names the index. A table that DynamoDB accepted stays after a timeout, and the next start goes on from there. The token of the caller still cancels as before.
+`Timeout` covers the look, the create, the wait and time to live, and throws a `TimeoutException` that names the table and the step, where a token on a timer gives a bare `OperationCanceledException`. A wait that runs out first throws its `TableNotActiveException`, which names the index. A table that DynamoDB accepted stays after a timeout, and the next start goes on from there.
 
 ### Describing a table within a time
 
-A health check asks whether the table is there and gives up after a few seconds. `DescribeTableAsync(timeout, ct)` bounds the call on the clock of the client, with its retries, and throws a `TimeoutException` that names the table, where a linked token on a timer of its own gives a bare `OperationCanceledException`:
+A health check asks whether the table is there and gives up after a few seconds. `DescribeTableAsync(timeout, ct)` bounds the call, retries included, and throws a `TimeoutException` that names the table:
 
 ```csharp
 try
@@ -218,7 +218,7 @@ catch (TimeoutException timeout)
 }
 ```
 
-`client.DescribeTableAsync(name, timeout, ct)` does the same by name, the deployed one. The token of the caller still cancels with its own `OperationCanceledException`.
+`client.DescribeTableAsync(name, timeout, ct)` does the same by the deployed name.
 
 ## Adding an index
 
@@ -250,11 +250,11 @@ await orders.CreateTable()
 ```
 
 1. `CreateTable().IfNotExists()` without a wait creates a missing table with all its indexes and leaves one that exists alone.
-2. `shop` is `client.Table("Shop", "pk", "sk")`, which has no entity, so its wait takes what the table lists, and `UpdateTable` needs an active table. A typed wait here would not return: `orders.WaitUntilActiveAsync()` keeps polling until its timeout for the index that is not there yet, and `CreateTable().WaitUntilActive()` fails within seconds naming it.
+2. `shop` has no entity, so its wait takes what the table lists, and `UpdateTable` needs an active table. A typed wait here would wait for the index that is not there yet, until its timeout.
 3. `UpdateTableAsync`, from `DynaSharp.Requests`, adds one index per call, and `AttributeDefinitions` holds the keys of that index. A second index is a call of its own after the wait on `shop`. So is a stream on a table that exists, with `StreamSpecification`, before the wait of step 4, because it puts the table back into updating.
 4. Only now does a typed wait end, once DynamoDB lists the index, has allocated it and has backfilled it. The allocation takes minutes on any table, often more than the default of five, and the backfill as long as the table is large, so give the wait half an hour for a small table and more for a large one. Every `TimeToLive` implies that wait, with a default of five minutes, which is why it comes last.
 
-`UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait, which fails if the index is not there. A backfill finds the items that hold the attributes of the index. An older item enters it when a `Put` of the entity writes them.
+`UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait. A backfill finds the items that hold the attributes of the index; an older item enters it when a write gives it them.
 
 ## One table per entity
 
@@ -306,7 +306,7 @@ What spans tables and what does not:
 
 - A transaction belongs to the client, so `client.TransactWrite()` and `client.TransactGet()` take actions on any tables of the account and region, as DynamoDB does.
 - A batch belongs to a table: `BatchGet()` and `BatchWrite()` of `Table<T>` read or write that table only, so two tables take two batches.
-- What reads several types at once, mixed-type reads, fan-out queries and `Of<T>()`, is about one table holding several types, and has nothing to do in a table of one.
+- Mixed-type reads, fan-out queries and `Of<T>()` are about one table holding several types.
 - `FakeDynamoDb` holds any number of tables, and the [locks](coordination.md) and [streams](streams.md) work on any table.
 
 ## Other table operations
