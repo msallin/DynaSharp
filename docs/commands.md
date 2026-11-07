@@ -179,7 +179,19 @@ await client.TransactWrite()
 
 An `Update` that sets the version attribute itself keeps that value, and the version is not advanced besides it. A `Delete` has nothing to advance.
 
-The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null where the write does not know one (a delete, an update with `IgnoreVersion()`, which advances a version it did not read, a `TrySendAsync` whose condition did not hold). A put of a `[Version]` entity and an `IfVersion(n)` update sent with `SendAsync` always store one, so `!.Value` is safe there; elsewhere `saved.Version is { } next` asks.
+The entity of a `Put` stays as it was: the put stores its version plus one, so the item read back differs from the instance you passed in its version, and a record read back is not equal to it. The result says what was stored: `Version` is the version, or null where the write does not know one (a delete, an update with `IgnoreVersion()`, which advances a version it did not read, a `TrySendAsync` whose condition did not hold). A put of a `[Version]` entity and an `IfVersion(n)` update sent with `SendAsync` always store one, so `!.Value` is safe there; elsewhere `saved.Version is { } next` asks.
+
+A counter on a versioned item, bumped with `Add` and `IgnoreVersion()`, needs no read, but it advances the version on every bump like any other write, so each bump makes every copy read before it stale, and the checked writes of those copies fail. `members` is `client.Table<ClubMember>()`, the entity of [Versions](entities.md#versions):
+
+```csharp
+var members = client.Table<ClubMember>();
+await client.TransactWrite()
+    .Put(orders, order)
+    .Update(members, ClubMember.Keys.Of("alice")).Add(ClubMember.Attrs.Visits, 1).IgnoreVersion()
+    .SendAsync(ct);
+```
+
+That suits a counter that changes now and then. A hot counter, one that changes while people edit the item, goes on an item of its own without a `[Version]`, so its bumps do not fail their edits.
 
 ## Retry on a conflict
 

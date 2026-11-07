@@ -14,6 +14,14 @@ namespace DynaSharp.Mapping;
 /// <see cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
 /// </para>
 /// <para>
+/// <b>The instance you passed.</b> A put stores the version of the entity plus 1 and does not change the entity, so an item read back after it differs from the instance in the version, and
+/// a record compared with it is not equal. The next write takes <see cref="WriteResult{T}.Version"/> or the entity read again.
+/// </para>
+/// <para>
+/// <b>A counter on a versioned item.</b> A bump with <c>Add</c> and <c>.IgnoreVersion()</c> needs no read, but it advances the version as every write does, so each bump makes the copies
+/// read before it stale, and their checked writes fail. Keep a counter that changes while the item is edited on an item of its own, without a version.
+/// </para>
+/// <para>
 /// <b>A lost race.</b> A write that loses fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>, whose marker of the
 /// action says why. Nothing is read or retried by itself: <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> repeats code that
 /// reads the version again.
@@ -47,6 +55,13 @@ namespace DynaSharp.Mapping;
 /// <b>Untyped access.</b> The table without a schema and the requests of <c>DynaSharp.Requests</c> know no entity, so they do not enforce a version.
 /// </para>
 /// </remarks>
+/// <example>
+/// <code>
+/// var cart = await carts.Get(Cart.Keys.Of("bob")).ItemAsync(ct);
+/// var saved = await carts.Put(cart! with { Lines = lines }).SendAsync(ct);
+/// long stored = saved.Version!.Value; // cart.Revision + 1, while cart keeps its Revision
+/// </code>
+/// </example>
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
 public sealed class VersionAttribute : Attribute
 {

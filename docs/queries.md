@@ -155,6 +155,28 @@ await foreach (var order in orders.Query(Order.Keys.Pk.Of("alice")).OnMappingFai
 - `Page.Next` continues after the page, so the item is not read again. A fan-out continues after the last item it gave from each partition, so a skipped item behind that one comes up again on the next page.
 - Each skipped item counts in the metric `dynasharp.client.operation.skipped_items`, see [Observability](observability.md#metrics). Nothing logs the key.
 
+## Page by page
+
+`ItemsAsync` follows the pages itself. To read one page at a time, `PageAsync` takes the position: `null` is the first page, and `page.Next` is where the next one starts while `HasMore` holds. Build the same query for every page.
+
+```csharp
+ContinuationToken? position = null;
+Page<Order> page;
+do
+{
+    page = await orders.Query(Order.Keys.Pk.Of("alice")).Limit(25).PageAsync(position, ct);
+    foreach (var placed in page.Items)
+    {
+        Console.WriteLine(placed.Number);
+    }
+
+    position = page.Next;
+}
+while (page.HasMore);
+```
+
+A page can be empty and still have more, so the loop asks `HasMore` and not `Items.Count`. A filter can leave a page empty, and when the items end exactly at the `Limit`, DynamoDB still returns a `LastEvaluatedKey`: that page says `HasMore`, and the page after it is empty and the last.
+
 ## Paging for web APIs
 
 A token holds the position, and comes back with the next request. It is safe in a URL, and it shows the key values of the last item, as `LastEvaluatedKey` does. What the client sends back is input like any other: `TryParse` turns text that is no token into `false`, and `PageAsync` throws `FormatException` for a token that does not fit the query or the signing of the client. Both are a 400 for the client, which starts its read again. A missing or empty `after` is the first page.

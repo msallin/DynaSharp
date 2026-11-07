@@ -161,6 +161,42 @@ using DynaSharp.Mapping;
 
 An attribute on a type or property still wins. A stored attribute is named after its property, so changing `Naming` or renaming a property renames stored attributes: the rename compiles, items written before keep the old name, and a read finds the new one missing. Give a property whose name may change a `[DynamoDbAttribute]`. `pk`, `sk` and `_type` stay as they are.
 
+## Global indexes
+
+`[GlobalIndexKey]` declares an index by its name, with the keys as named properties: `PartitionKey` is the template of its partition key and required, `SortKey` the template of its sort key, or none for an index without one. `Sparse = true` leaves an item out of the index while an input is null, see [Sparse indexes](#sparse-indexes), and `PartitionKeyAttributeName` and `SortKeyAttributeName` name the attributes that hold the keys, `bystatuspk` and `bystatussk` by default (the index name in lower case plus `pk` or `sk`). An entity takes as many as it needs.
+
+```csharp
+[DynamoDbEntity(Table = "Chores")]
+[Discriminator("TASK")]
+[PartitionKey("TASK#{Id}")]
+[SortKey("TASK")]
+[GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}")]
+[GlobalIndexKey("ByOwner", PartitionKey = "OWNER#{Owner}", SortKey = "{Due}", PartitionKeyAttributeName = "gsi2pk", SortKeyAttributeName = "gsi2sk")]
+public partial record Chore
+{
+    public required string Id { get; init; }
+    public required string Status { get; init; }
+    public required string Owner { get; init; }
+    public required DateOnly Due { get; init; }
+}
+```
+
+Read an index through `Index(...)` of the table, with the key builders the generator names after it, `Keys.<Index>Pk` and `Keys.<Index>Sk`:
+
+```csharp
+var chores = client.Table<Chore>();
+await foreach (var open in chores.Index(Chore.Indexes.ByStatus).Query(Chore.Keys.ByStatusPk.Of("open")).ItemsAsync(ct))
+{
+    Console.WriteLine(open.Id);
+}
+
+var soon = chores.Index(Chore.Indexes.ByOwner)
+    .Query(Chore.Keys.ByOwnerPk.Of("ann"), Chore.Keys.ByOwnerSk.Le(new DateOnly(2026, 12, 31)))
+    .ItemsAsync(ct);
+```
+
+A global index is eventually consistent and refuses `Consistent()`. [Queries](queries.md#indexes) has the rest of reading one, and [Tables](tables.md#creating-a-table) creating one.
+
 ## Computed index keys
 
 For a computed index key, say what the getter reads, so an update that changes it throws instead of leaving the index behind. A `Put` of the changed entity moves the key.
@@ -237,6 +273,28 @@ var urgent = client.Table<Ticket>("Tickets").Index(Ticket.Indexes.ByPriority)
 - **Consistent reads.** `Consistent()` works on a local index; a global index refuses it.
 - **Attributes.** Its sort key is the attribute `byprioritysk` by default (index name in lower case plus `sk`); `SortKeyAttributeName` names another. `Sparse = true` works as on a global index.
 - **Size.** A table with a local index holds at most 10 GB per partition; a write beyond throws `ItemCollectionSizeLimitExceededException`.
+
+## Versions
+
+`[Version]` on one integer property turns every write of the entity into a compare-and-swap: a write of a copy that changed since it was read fails with `ConditionalCheckFailedException`, and a new item starts at 0.
+
+```csharp
+[DynamoDbEntity(Table = "Shop")]
+[Discriminator("CLUBMEMBER")]
+[PartitionKey("CLUB#{Id}")]
+[SortKey("PROFILE")]
+public partial record ClubMember
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public int Visits { get; init; }
+
+    [Version]
+    public long Revision { get; init; }
+}
+```
+
+A put stores `Revision + 1` and leaves the instance you passed as it was, so the item read back differs from it in `Revision`. What a write needs, `IfVersion(n)` or `IgnoreVersion()`, and how a counter on such an item behaves, are under [Optimistic locking](commands.md#optimistic-locking).
 
 ## Converters
 

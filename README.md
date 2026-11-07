@@ -157,12 +157,21 @@ await carts.RetryOnConflictAsync(async token =>
 **Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, the index that `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
 
 ```csharp
-var page = await byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed)).Limit(25).PageAsync(ContinuationToken.Parse(after), ct);
-string? next = page.HasMore ? page.Next.ToString() : null;
+ContinuationToken? position = null;
+Page<Order> page;
+do
+{
+    page = await byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Placed)).Limit(25).PageAsync(position, ct);
+    Console.WriteLine(page.Items.Count);
+    position = page.Next;
+}
+while (page.HasMore);
 
 await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().GetAll(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
+
+`null` is the first page, and `page.Next` the next one while `HasMore` holds. A page can be empty and still have more: a filter can leave it empty, and when the items end exactly at the `Limit`, DynamoDB still returns a position, so the loop reads one more page, empty and the last. A web API hands `page.Next.ToString()` to its client and takes it back with `ContinuationToken.Parse`.
 
 **Also:** batches of any size, one list over many partitions, paging tokens for web APIs, `ToRequestJson()` to see what goes over the wire, converters of your own, `DynamoDbStreamsClient` to read [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html), one shard or a whole stream, and the changes of a table as entities ([`ReadChangesAsync`](https://msallin.github.io/DynaSharp/streams.html#typed-changes)), locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
