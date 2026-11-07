@@ -16,7 +16,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetClient(null);
 
         // Assert
-        var handler = (SocketsHttpHandler)HttpClientInspector.HandlerOf(client);
+        var handler = (SocketsHttpHandler)CredentialsHttp.HandlerOf(client);
         await Assert.That((handler.AllowAutoRedirect, handler.UseCookies, handler.UseProxy)).IsEqualTo((false, false, false));
     }
 
@@ -29,7 +29,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetProxiedClient(null);
 
         // Assert
-        var handler = (SocketsHttpHandler)HttpClientInspector.HandlerOf(client);
+        var handler = (SocketsHttpHandler)CredentialsHttp.HandlerOf(client);
         await Assert.That((handler.UseProxy, handler.Proxy, handler.AllowAutoRedirect, handler.UseCookies)).IsEqualTo((true, (IWebProxy?)null, false, false));
     }
 
@@ -78,7 +78,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetClientFor(new Uri(endpoint), handler);
 
         // Assert
-        await Assert.That(HttpClientInspector.HandlerOf(client)).IsSameReferenceAs(handler);
+        await Assert.That(CredentialsHttp.HandlerOf(client)).IsSameReferenceAs(handler);
     }
 
     [Test]
@@ -91,7 +91,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetProxiedClient(handler);
 
         // Assert
-        await Assert.That(HttpClientInspector.HandlerOf(client)).IsSameReferenceAs(handler);
+        await Assert.That(CredentialsHttp.HandlerOf(client)).IsSameReferenceAs(handler);
     }
 
     [Test]
@@ -103,7 +103,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetClient(null);
 
         // Assert
-        var handler = (SocketsHttpHandler)HttpClientInspector.HandlerOf(client);
+        var handler = (SocketsHttpHandler)CredentialsHttp.HandlerOf(client);
         await Assert.That(handler.PooledConnectionLifetime).IsEqualTo(TimeSpan.FromMinutes(2));
     }
 

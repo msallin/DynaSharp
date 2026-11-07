@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Http;
@@ -20,7 +19,7 @@ public sealed class ClientCoreTests
         using var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, options, static _ => null, null, null, null, null);
 
         // Assert
-        await Assert.That(HttpClientOf(core).Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
+        await Assert.That(core.Http.Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
     }
 
     [Test]
@@ -34,7 +33,7 @@ public sealed class ClientCoreTests
         using var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, options, static _ => null, null, null, null, null);
 
         // Assert
-        await Assert.That(HttpClientOf(core).Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
+        await Assert.That(core.Http.Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
     }
 
     [Test]
@@ -42,7 +41,7 @@ public sealed class ClientCoreTests
     {
         // Arrange
         var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, Options(), static _ => null, null, null, null, null);
-        var handler = (SocketsHttpHandler)HttpClientInspector.HandlerOf(HttpClientOf(core));
+        var handler = (SocketsHttpHandler)core.Handler;
 
         // Act
         core.Dispose();
@@ -87,8 +86,4 @@ public sealed class ClientCoreTests
         Credentials = new StaticCredentialsProvider(TestClient.Credentials),
         HttpHandler = handler,
     };
-
-    // The HTTP client is private on purpose; what it is set to is the contract of the core, so the tests look at it.
-    private static HttpClient HttpClientOf(ClientCore core) =>
-        (HttpClient)typeof(ClientCore).GetField("_http", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(core)!;
 }

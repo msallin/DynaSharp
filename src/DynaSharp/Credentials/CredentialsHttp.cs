@@ -164,7 +164,12 @@ internal static class CredentialsHttp
         }
     }
 
-    private static HttpClient CreateClient(HttpMessageHandler handler) => new(handler, disposeHandler: false)
+    /// <summary>Gets the handler that a client of this class sends through, whose set-up is the contract of the class.</summary>
+    /// <param name="client">A client that <see cref="GetClient"/>, <see cref="GetProxiedClient"/> or <see cref="GetClientFor"/> returned.</param>
+    /// <returns>The handler.</returns>
+    public static HttpMessageHandler HandlerOf(HttpClient client) => ((Client)client).Handler;
+
+    private static Client CreateClient(HttpMessageHandler handler) => new(handler)
     {
         // Timeouts are applied per request with the configured TimeProvider.
         Timeout = Timeout.InfiniteTimeSpan,
@@ -189,5 +194,12 @@ internal static class CredentialsHttp
             ResultKind.Failed => $"failed ({Error})",
             _ => $"HTTP {(int)StatusCode}",
         };
+    }
+
+    /// <summary>A client that knows the handler it sends through, which <see cref="HttpClient"/> keeps to itself.</summary>
+    /// <param name="handler">The handler, which the client does not dispose.</param>
+    private sealed class Client(HttpMessageHandler handler) : HttpClient(handler, disposeHandler: false)
+    {
+        public HttpMessageHandler Handler { get; } = handler;
     }
 }

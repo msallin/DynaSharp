@@ -17,19 +17,19 @@ internal sealed class ClientCore : IDisposable
 {
     private static readonly SearchValues<char> OperationNameCharacters = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
 
-    private readonly HttpClient _http;
     private readonly DynamoDbPipeline _pipeline;
     private readonly Type _clientType;
     private readonly string _targetPrefix;
     private readonly string _serviceName;
     private bool _disposed;
 
-    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options, ILogger logger)
+    private ClientCore(HttpClient http, HttpMessageHandler handler, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options, ILogger logger)
     {
         TimeProvider = timeProvider;
         Logger = logger;
         Options = options;
-        _http = http;
+        Http = http;
+        Handler = handler;
         _pipeline = pipeline;
         Commands = new CommandPool(this, pool);
         _clientType = clientType;
@@ -42,6 +42,12 @@ internal sealed class ClientCore : IDisposable
 
     /// <summary>Gets the clock of the client, for what waits outside the pipeline.</summary>
     public TimeProvider TimeProvider { get; }
+
+    /// <summary>Gets the HTTP client that sends the requests, whose set-up is the contract of the core.</summary>
+    public HttpClient Http { get; }
+
+    /// <summary>Gets the handler that <see cref="Http"/> sends through: that of <see cref="DynamoDbClientOptions.HttpHandler"/>, or the one the core created and disposes.</summary>
+    public HttpMessageHandler Handler { get; }
 
     /// <summary>Gets the logger of the client, for the events outside a single request that the layers above the pipeline report.</summary>
     public ILogger Logger { get; }
@@ -87,13 +93,13 @@ internal sealed class ClientCore : IDisposable
         LogConfiguration(configuration, logger);
 
         // The client has no overall timeout: the attempt timeout is enforced per attempt.
-        var http = options.HttpHandler is { } handler
-            ? new HttpClient(handler, disposeHandler: false) { Timeout = Timeout.InfiniteTimeSpan }
-            : new HttpClient(CreateOwnedHandler(), disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
+        var owned = options.HttpHandler is null;
+        var handler = options.HttpHandler ?? CreateOwnedHandler();
+        var http = new HttpClient(handler, disposeHandler: owned) { Timeout = Timeout.InfiniteTimeSpan };
         var buffers = pool ?? ArrayPool<byte>.Shared;
         var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, random ?? Random.Shared, maxResponseLength);
         var resolved = options with { Region = configuration.Region, ServiceUrl = configuration.ChosenEndpoint, Credentials = configuration.Credentials };
-        return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved, logger);
+        return new ClientCore(http, handler, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved, logger);
     }
 
     /// <summary>
@@ -209,7 +215,7 @@ internal sealed class ClientCore : IDisposable
         _disposed = true;
         Commands.Close();
         _pipeline.Dispose();
-        _http.Dispose();
+        Http.Dispose();
     }
 
     // Connections are recycled so that DNS changes are noticed; DynamoDB endpoints change addresses regularly.
