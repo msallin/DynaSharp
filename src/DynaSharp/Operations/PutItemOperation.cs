@@ -29,7 +29,7 @@ internal readonly struct PutItemOperation : IOperation<PutItemRequest, PutItemRe
 
     public static PutItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        var result = ItemWriteResult.Read(ref reader);
+        var result = WriteEnvelope<Item>.Read(ref reader);
         return new PutItemResponse { Attributes = result.Attributes, ConsumedCapacity = result.ConsumedCapacity, ItemCollectionMetrics = result.ItemCollectionMetrics };
     }
 

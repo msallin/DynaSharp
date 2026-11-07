@@ -27,26 +27,8 @@ internal readonly struct GetItemOperation : IOperation<GetItemRequest, GetItemRe
 
     public static GetItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        IReadOnlyDictionary<string, AttributeValue>? item = null;
-        ConsumedCapacity? consumedCapacity = null;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("Item"u8))
-            {
-                item = AttributeValueConverter.ReadItem(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                consumedCapacity = OperationJson.ReadConsumedCapacity(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        return new GetItemResponse { Item = item, ConsumedCapacity = consumedCapacity };
+        var envelope = GetEnvelope<Item>.Read(ref reader);
+        return new GetItemResponse { Item = envelope.Item, ConsumedCapacity = envelope.ConsumedCapacity };
     }
 
     public static void SetActivityTags(Activity activity, GetItemRequest request) =>

@@ -44,26 +44,9 @@ internal readonly struct TransactGetItemsOperation : IOperation<TransactGetItems
 
     public static TransactGetItemsResponse ReadResponse(ref DynamoDbReader reader)
     {
-        IReadOnlyList<ItemResponse> responses = [];
-        IReadOnlyList<ConsumedCapacity> consumedCapacity = [];
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("Responses"u8))
-            {
-                responses = ReadItemResponses(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                consumedCapacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        return new TransactGetItemsResponse { Responses = responses, ConsumedCapacity = consumedCapacity };
+        var responses = default(ItemResponses);
+        var envelope = TransactGetEnvelope.Read(ref reader, ref responses);
+        return new TransactGetItemsResponse { Responses = responses.Value ?? [], ConsumedCapacity = envelope.ConsumedCapacity };
     }
 
     public static void SetActivityTags(Activity activity, TransactGetItemsRequest request)
@@ -125,5 +108,13 @@ internal readonly struct TransactGetItemsOperation : IOperation<TransactGetItems
         }
 
         return new ItemResponse { Item = item };
+    }
+
+    // "Responses":[{"Item":{...}},{}], parsed into an entry per action.
+    private struct ItemResponses : IResponseMember
+    {
+        public IReadOnlyList<ItemResponse>? Value { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => Value = ReadItemResponses(ref reader);
     }
 }

@@ -29,7 +29,7 @@ internal readonly struct DeleteItemOperation : IOperation<DeleteItemRequest, Del
 
     public static DeleteItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        var result = ItemWriteResult.Read(ref reader);
+        var result = WriteEnvelope<Item>.Read(ref reader);
         return new DeleteItemResponse { Attributes = result.Attributes, ConsumedCapacity = result.ConsumedCapacity, ItemCollectionMetrics = result.ItemCollectionMetrics };
     }
 

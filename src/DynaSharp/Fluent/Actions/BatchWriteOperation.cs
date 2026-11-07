@@ -161,36 +161,13 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
     {
         var actions = state.Actions;
         actions.ReadFailed = true;
-        var unprocessed = 0;
-        var carry = default(Range);
-        IReadOnlyList<ConsumedCapacity> capacity = [];
-        Dictionary<string, IReadOnlyList<ItemCollectionMetrics>>? metrics = null;
+        var unprocessed = default(Unprocessed);
         var reader = new DynamoDbReader(utf8Json);
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("UnprocessedItems"u8))
-            {
-                unprocessed = FindUnprocessed(ref reader, out carry);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ItemCollectionMetrics"u8))
-            {
-                metrics = OperationJson.ReadItemCollectionMetricsByTable(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
+        var envelope = BatchWriteEnvelope.Read(ref reader, ref unprocessed);
         actions.ReadFailed = false;
         actions.Carry.Truncate(0);
-        actions.Carry.Append(utf8Json[carry]);
-        return new BatchResponse(unprocessed, capacity, metrics);
+        actions.Carry.Append(utf8Json[unprocessed.Json]);
+        return new BatchResponse(unprocessed.Count, envelope.ConsumedCapacity, envelope.ItemCollectionMetrics);
     }
 
     public static IReadOnlyList<ConsumedCapacity> GetConsumedCapacity(BatchResponse response) => response.ConsumedCapacity;
@@ -241,5 +218,19 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
 
         json = count > 0 ? start..(int)reader.Json.BytesConsumed : default;
         return count;
+    }
+
+    // What DynamoDB left: how many, and where it stands in the response.
+    private struct Unprocessed : IResponseMember
+    {
+        public int Count { get; private set; }
+
+        public Range Json { get; private set; }
+
+        public void Read(ref DynamoDbReader reader)
+        {
+            Count = FindUnprocessed(ref reader, out var json);
+            Json = json;
+        }
     }
 }

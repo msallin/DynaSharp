@@ -4,7 +4,7 @@ using DynaSharp.UnitTests.Serialization;
 
 namespace DynaSharp.UnitTests.Operations;
 
-public sealed class ItemWriteResultTests
+public sealed class WriteEnvelopeTests
 {
     [Test]
     public async Task Read_EmptyObject_HasNothing()
@@ -16,7 +16,7 @@ public sealed class ItemWriteResultTests
         var result = Read(json);
 
         // Assert
-        await Assert.That(result).IsEqualTo(new ItemWriteResult(null, null, null));
+        await Assert.That(result).IsEqualTo(new WriteEnvelope<Item>(null, false, null, null));
     }
 
     [Test]
@@ -85,5 +85,5 @@ public sealed class ItemWriteResultTests
         await Assert.That(act).Throws<JsonException>();
     }
 
-    private static ItemWriteResult Read(string json) => TestJson.Read(json, static (ref reader) => ItemWriteResult.Read(ref reader));
+    private static WriteEnvelope<Item> Read(string json) => TestJson.Read(json, static (ref reader) => WriteEnvelope<Item>.Read(ref reader));
 }

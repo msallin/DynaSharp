@@ -41,26 +41,12 @@ internal readonly struct TransactWriteItemsOperation : IOperation<TransactWriteI
 
     public static TransactWriteItemsResponse ReadResponse(ref DynamoDbReader reader)
     {
-        IReadOnlyList<ConsumedCapacity> consumedCapacity = [];
-        IReadOnlyDictionary<string, IReadOnlyList<ItemCollectionMetrics>> itemCollectionMetrics = FrozenDictionary<string, IReadOnlyList<ItemCollectionMetrics>>.Empty;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
+        var envelope = TransactWriteEnvelope.Read(ref reader);
+        return new TransactWriteItemsResponse
         {
-            if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                consumedCapacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ItemCollectionMetrics"u8))
-            {
-                itemCollectionMetrics = OperationJson.ReadItemCollectionMetricsByTable(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        return new TransactWriteItemsResponse { ConsumedCapacity = consumedCapacity, ItemCollectionMetrics = itemCollectionMetrics };
+            ConsumedCapacity = envelope.ConsumedCapacity,
+            ItemCollectionMetrics = envelope.ItemCollectionMetrics ?? (IReadOnlyDictionary<string, IReadOnlyList<ItemCollectionMetrics>>)FrozenDictionary<string, IReadOnlyList<ItemCollectionMetrics>>.Empty,
+        };
     }
 
     public static void SetActivityTags(Activity activity, TransactWriteItemsRequest request)

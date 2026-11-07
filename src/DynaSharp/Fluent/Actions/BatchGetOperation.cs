@@ -60,33 +60,14 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
         var actions = state.Actions;
         var items = (List<T>)actions.Results!;
         var before = items.Count;
-        var unprocessed = 0;
-        var carry = default(Range);
-        IReadOnlyList<ConsumedCapacity> capacity = [];
+        var responses = new Responses(items, state.Table);
+        var unprocessed = default(Unprocessed);
+        BatchGetEnvelope envelope;
         actions.ReadFailed = true;
         try
         {
             var reader = new DynamoDbReader(utf8Json);
-            reader.ReadStartItem();
-            while (reader.TryReadAttributeName())
-            {
-                if (reader.AttributeNameEquals("Responses"u8))
-                {
-                    ReadItems(ref reader, items, state.Table);
-                }
-                else if (reader.AttributeNameEquals("UnprocessedKeys"u8))
-                {
-                    unprocessed = FindUnprocessed(ref reader, out carry);
-                }
-                else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-                {
-                    capacity = OperationJson.ReadConsumedCapacityList(ref reader);
-                }
-                else
-                {
-                    OperationJson.SkipValue(ref reader);
-                }
-            }
+            envelope = BatchGetEnvelope.Read(ref reader, ref responses, ref unprocessed);
         }
         catch
         {
@@ -96,8 +77,8 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
 
         actions.ReadFailed = false;
         actions.Carry.Truncate(0);
-        actions.Carry.Append(utf8Json[carry]);
-        return new BatchResponse(unprocessed, capacity, null);
+        actions.Carry.Append(utf8Json[unprocessed.Json]);
+        return new BatchResponse(unprocessed.Count, envelope.ConsumedCapacity, null);
     }
 
     public static IReadOnlyList<ConsumedCapacity> GetConsumedCapacity(BatchResponse response) => response.ConsumedCapacity;
@@ -130,30 +111,6 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
         return BatchJson.ReadKeysByTable(ref reader);
     }
 
-    // "Responses":{"Shop":[{"pk":{"S":"a"}},{"pk":{"S":"b"}}]}, on the one table of the command.
-    private static void ReadItems(ref DynamoDbReader reader, List<T> items, TableModel table)
-    {
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            OperationJson.ReadStartArray(ref reader);
-            var first = reader;
-            var before = items.Count;
-            try
-            {
-                while (reader.TryReadStartItem())
-                {
-                    items.Add(T.ReadAttributes(ref reader));
-                }
-            }
-            catch (DynamoDbMappingException failure)
-            {
-                failure.Key = FailedItem.KeyOf(first, items.Count - before, table);
-                throw;
-            }
-        }
-    }
-
     // "UnprocessedKeys":{"Shop":{"Keys":[{...},{...}],"ConsistentRead":true}}. The object is the next RequestItems as it stands, with the projection, so it is
     // copied, and walked only to count the keys. The range is empty if there are none.
     private static int FindUnprocessed(ref DynamoDbReader reader, out Range json)
@@ -184,5 +141,46 @@ internal readonly struct BatchGetOperation<T> : IBatchOperation<BatchGetResult<T
 
         json = count > 0 ? start..(int)reader.Json.BytesConsumed : default;
         return count;
+    }
+
+    // "Responses":{"Shop":[{"pk":{"S":"a"}},{"pk":{"S":"b"}}]}, on the one table of the command.
+    private readonly struct Responses(List<T> items, TableModel table) : IResponseMember
+    {
+        public void Read(ref DynamoDbReader reader)
+        {
+            reader.ReadStartItem();
+            while (reader.TryReadAttributeName())
+            {
+                OperationJson.ReadStartArray(ref reader);
+                var first = reader;
+                var before = items.Count;
+                try
+                {
+                    while (reader.TryReadStartItem())
+                    {
+                        items.Add(T.ReadAttributes(ref reader));
+                    }
+                }
+                catch (DynamoDbMappingException failure)
+                {
+                    failure.Key = FailedItem.KeyOf(first, items.Count - before, table);
+                    throw;
+                }
+            }
+        }
+    }
+
+    // What DynamoDB left: how many, and where it stands in the response.
+    private struct Unprocessed : IResponseMember
+    {
+        public int Count { get; private set; }
+
+        public Range Json { get; private set; }
+
+        public void Read(ref DynamoDbReader reader)
+        {
+            Count = FindUnprocessed(ref reader, out var json);
+            Json = json;
+        }
     }
 }

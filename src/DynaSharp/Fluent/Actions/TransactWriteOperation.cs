@@ -48,27 +48,9 @@ internal readonly struct TransactWriteOperation : IActionOperation<TransactWrite
 
     public static TransactWriteResult ReadResponse(ReadOnlySpan<byte> utf8Json, CommandState state)
     {
-        IReadOnlyList<ConsumedCapacity> capacity = [];
-        Dictionary<string, IReadOnlyList<ItemCollectionMetrics>>? metrics = null;
         var reader = new DynamoDbReader(utf8Json);
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ItemCollectionMetrics"u8))
-            {
-                metrics = OperationJson.ReadItemCollectionMetricsByTable(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        return new TransactWriteResult(capacity, metrics);
+        var envelope = TransactWriteEnvelope.Read(ref reader);
+        return new TransactWriteResult(envelope.ConsumedCapacity, envelope.ItemCollectionMetrics);
     }
 
     public static IReadOnlyList<ConsumedCapacity> GetConsumedCapacity(TransactWriteResult response) => response.ConsumedCapacity;

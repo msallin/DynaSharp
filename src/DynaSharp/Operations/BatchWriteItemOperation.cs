@@ -41,31 +41,14 @@ internal readonly struct BatchWriteItemOperation : IOperation<BatchWriteItemRequ
 
     public static BatchWriteItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        IReadOnlyDictionary<string, IReadOnlyList<WriteRequest>> unprocessedItems = FrozenDictionary<string, IReadOnlyList<WriteRequest>>.Empty;
-        IReadOnlyDictionary<string, IReadOnlyList<ItemCollectionMetrics>> itemCollectionMetrics = FrozenDictionary<string, IReadOnlyList<ItemCollectionMetrics>>.Empty;
-        IReadOnlyList<ConsumedCapacity> consumedCapacity = [];
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
+        var unprocessedItems = default(UnprocessedItems);
+        var envelope = BatchWriteEnvelope.Read(ref reader, ref unprocessedItems);
+        return new BatchWriteItemResponse
         {
-            if (reader.AttributeNameEquals("UnprocessedItems"u8))
-            {
-                unprocessedItems = BatchJson.ReadWritesByTable(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ItemCollectionMetrics"u8))
-            {
-                itemCollectionMetrics = OperationJson.ReadItemCollectionMetricsByTable(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                consumedCapacity = OperationJson.ReadConsumedCapacityList(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        return new BatchWriteItemResponse { UnprocessedItems = unprocessedItems, ItemCollectionMetrics = itemCollectionMetrics, ConsumedCapacity = consumedCapacity };
+            UnprocessedItems = unprocessedItems.Value ?? (IReadOnlyDictionary<string, IReadOnlyList<WriteRequest>>)FrozenDictionary<string, IReadOnlyList<WriteRequest>>.Empty,
+            ItemCollectionMetrics = envelope.ItemCollectionMetrics ?? (IReadOnlyDictionary<string, IReadOnlyList<ItemCollectionMetrics>>)FrozenDictionary<string, IReadOnlyList<ItemCollectionMetrics>>.Empty,
+            ConsumedCapacity = envelope.ConsumedCapacity,
+        };
     }
 
     public static void SetActivityTags(Activity activity, BatchWriteItemRequest request)
@@ -76,4 +59,12 @@ internal readonly struct BatchWriteItemOperation : IOperation<BatchWriteItemRequ
     }
 
     public static IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(BatchWriteItemResponse response) => response.ConsumedCapacity;
+
+    // "UnprocessedItems":{"Shop":[{"PutRequest":{...}}]}, parsed into requests by table.
+    private struct UnprocessedItems : IResponseMember
+    {
+        public IReadOnlyDictionary<string, IReadOnlyList<WriteRequest>>? Value { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => Value = BatchJson.ReadWritesByTable(ref reader);
+    }
 }

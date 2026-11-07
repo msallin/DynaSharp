@@ -14,46 +14,22 @@ internal readonly struct GetOperation<T> : ICommandOperation<GetResult<T>>
 
     public static GetResult<T> ReadResponse(ref DynamoDbReader reader, CommandState state)
     {
-        var item = default(T);
-        var found = false;
-        ConsumedCapacity? capacity = null;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
+        GetEnvelope<T> envelope;
+        try
         {
-            if (reader.AttributeNameEquals("Item"u8))
-            {
-                reader.ReadStartItem();
-                item = ReadItem(ref reader, state);
-                found = true;
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacity(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
+            envelope = GetEnvelope<T>.Read(ref reader);
+        }
+        catch (DynamoDbMappingException failure)
+        {
+            // The key of the item is the one of the request, which stays until the call ends.
+            failure.Key = state.ReadKey();
+            throw;
         }
 
-        state.ResponseCapacity = capacity;
-        return new GetResult<T>(item, found, capacity);
+        state.ResponseCapacity = envelope.ConsumedCapacity;
+        return new GetResult<T>(envelope.Item, envelope.Found, envelope.ConsumedCapacity);
     }
 
     public static void SetActivityTags(Activity activity, CommandState state) =>
         ReadTags.SetProjection(activity, state.Read.ConsistentRead, state.Expressions.Projection.Resolve());
-
-    // The key of the item is the one of the request, which stays until the call ends.
-    private static T ReadItem(ref DynamoDbReader reader, CommandState state)
-    {
-        try
-        {
-            return T.ReadAttributes(ref reader);
-        }
-        catch (DynamoDbMappingException failure)
-        {
-            failure.Key = state.ReadKey();
-            throw;
-        }
-    }
 }

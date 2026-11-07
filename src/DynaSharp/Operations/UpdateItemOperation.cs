@@ -30,7 +30,7 @@ internal readonly struct UpdateItemOperation : IOperation<UpdateItemRequest, Upd
 
     public static UpdateItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        var result = ItemWriteResult.Read(ref reader);
+        var result = WriteEnvelope<Item>.Read(ref reader);
         return new UpdateItemResponse { Attributes = result.Attributes, ConsumedCapacity = result.ConsumedCapacity, ItemCollectionMetrics = result.ItemCollectionMetrics };
     }
 

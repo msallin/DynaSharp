@@ -30,44 +30,11 @@ internal static class PageResponse
     public static PageData<T> Read<T, TItem>(ref DynamoDbReader reader, CommandState state, FanOutKeys? keys = null)
         where TItem : IItemReader<T>
     {
-        T[] items = [];
-        List<DynamoDbMappingException>? skipped = null;
-        var count = 0;
-        var scannedCount = 0;
-        var keyOffset = 0;
-        var keyLength = 0;
-        ConsumedCapacity? capacity = null;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("Items"u8))
-            {
-                items = ReadItems<T, TItem>(ref reader, keys, state, ref skipped);
-            }
-            else if (reader.AttributeNameEquals("Count"u8))
-            {
-                count = OperationJson.ReadInt32(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ScannedCount"u8))
-            {
-                scannedCount = OperationJson.ReadInt32(ref reader);
-            }
-            else if (reader.AttributeNameEquals("LastEvaluatedKey"u8))
-            {
-                (keyOffset, keyLength) = LocateKey(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacity(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        state.ResponseCapacity = capacity;
-        return new PageData<T>(items, count, scannedCount, keyOffset, keyLength, skipped);
+        var items = new PageItems<T, TItem>(state, keys);
+        var lastEvaluatedKey = default(LocatedKey);
+        var envelope = PageEnvelope.Read(ref reader, ref items, ref lastEvaluatedKey);
+        state.ResponseCapacity = envelope.ConsumedCapacity;
+        return new PageData<T>(items.Items ?? [], envelope.Count, envelope.ScannedCount, lastEvaluatedKey.Offset, lastEvaluatedKey.Length, items.Skipped);
     }
 
     /// <summary>Sets the tags that the pages of <c>Query</c> and <c>Scan</c> share, the same as the request API has for the same request.</summary>
@@ -172,5 +139,28 @@ internal static class PageResponse
         var empty = next.TokenType == JsonTokenType.EndObject;
         json.Skip();
         return empty ? default : (start, (int)json.BytesConsumed - start);
+    }
+
+    // "Items":[{...},{...}], read into what the read gives.
+    private struct PageItems<T, TItem>(CommandState state, FanOutKeys? keys) : IResponseMember
+        where TItem : IItemReader<T>
+    {
+        private List<DynamoDbMappingException>? _skipped;
+
+        public T[]? Items { get; private set; }
+
+        public readonly List<DynamoDbMappingException>? Skipped => _skipped;
+
+        public void Read(ref DynamoDbReader reader) => Items = ReadItems<T, TItem>(ref reader, keys, state, ref _skipped);
+    }
+
+    // "LastEvaluatedKey":{...}, located: parsing it would build a dictionary, only to write it back to the next request.
+    private struct LocatedKey : IResponseMember
+    {
+        public int Offset { get; private set; }
+
+        public int Length { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => (Offset, Length) = LocateKey(ref reader);
     }
 }

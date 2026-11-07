@@ -23,40 +23,25 @@ internal readonly record struct ItemPage(
     /// <returns>The page.</returns>
     public static ItemPage Read(ref DynamoDbReader reader)
     {
-        IReadOnlyList<IReadOnlyDictionary<string, AttributeValue>> items = [];
-        var count = 0;
-        var scannedCount = 0;
-        IReadOnlyDictionary<string, AttributeValue>? lastEvaluatedKey = null;
-        ConsumedCapacity? consumedCapacity = null;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("Items"u8))
-            {
-                items = OperationJson.ReadItems(ref reader);
-            }
-            else if (reader.AttributeNameEquals("Count"u8))
-            {
-                count = OperationJson.ReadInt32(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ScannedCount"u8))
-            {
-                scannedCount = OperationJson.ReadInt32(ref reader);
-            }
-            else if (reader.AttributeNameEquals("LastEvaluatedKey"u8))
-            {
-                lastEvaluatedKey = OperationJson.ReadLastEvaluatedKey(ref reader);
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                consumedCapacity = OperationJson.ReadConsumedCapacity(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
+        var items = default(ItemList);
+        var lastEvaluatedKey = default(LastKey);
+        var envelope = PageEnvelope.Read(ref reader, ref items, ref lastEvaluatedKey);
+        return new ItemPage(items.Value ?? [], envelope.Count, envelope.ScannedCount, lastEvaluatedKey.Value, envelope.ConsumedCapacity);
+    }
 
-        return new ItemPage(items, count, scannedCount, lastEvaluatedKey, consumedCapacity);
+    // "Items":[{...},{...}], parsed into dictionaries.
+    private struct ItemList : IResponseMember
+    {
+        public IReadOnlyList<IReadOnlyDictionary<string, AttributeValue>>? Value { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => Value = OperationJson.ReadItems(ref reader);
+    }
+
+    // "LastEvaluatedKey":{...}, parsed into a dictionary.
+    private struct LastKey : IResponseMember
+    {
+        public IReadOnlyDictionary<string, AttributeValue>? Value { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => Value = OperationJson.ReadLastEvaluatedKey(ref reader);
     }
 }
