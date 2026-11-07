@@ -9,8 +9,9 @@ namespace DynaSharp;
 /// <remarks>
 /// <para>
 /// This happens when a table stays throttled: requests in a row that get nothing done, or a request that fails with a throttling error on its last
-/// attempt. It also happens when any other failure ends the batch after a request went through, because the caller would otherwise lose what was read. In those two cases the failure, as it
-/// came, is the <see cref="Exception.InnerException"/>. A failure of the first request surfaces as it is.
+/// attempt. It also happens when any other failure ends the batch after a request went through, because the caller would otherwise lose what was read, and when the first request
+/// fails with a timeout, a lost connection or a server error after its last attempt. In those cases the failure, as it came, is the <see cref="Exception.InnerException"/>, and the keys
+/// of a request that got no answer count as unprocessed. Any other failure of the first request, such as a <see cref="ValidationException"/>, surfaces as it is.
 /// </para>
 /// <para>
 /// A caller who cancels gets an <see cref="OperationCanceledException"/> and no report of the progress.

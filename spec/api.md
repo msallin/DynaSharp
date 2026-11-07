@@ -660,7 +660,7 @@ A batch is not atomic. `BatchGetResult<T>` has `Items`, unordered, without missi
 and `Written`, or `BatchGetIncompleteException<T>`, with `UnprocessedKeys` and the `Items` read so far. Both derive from `DynamoDbException` with the
 code `BatchIncomplete`, and what they hold goes straight into the request API.
 
-A batch gives up after `MaxStalledRounds`, on a throttle on the last attempt of a request, and on any other failure after at least one request went through; the last two have the failure as it came as `InnerException`. A failure of the first request, where nothing was applied, stays raw. Cancellation by the caller stays an `OperationCanceledException` and does not report progress.
+A batch gives up after `MaxStalledRounds`, on a failure of the first request that the pipeline retries (a throttle, a timeout, a lost connection, a 5xx) after its last attempt, and on any other failure after at least one request went through; the last two have the failure as it came as `InnerException`. A request that got no answer may have been applied in part, so all of it counts as unprocessed, which is safe to send again. A permanent failure of the first request, such as a `ValidationException`, applied nothing and stays raw. Cancellation by the caller stays an `OperationCanceledException` and does not report progress.
 
 ## 11. Transactions
 

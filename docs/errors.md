@@ -82,7 +82,7 @@ The loop never retries a failed condition. `RetryOnConflictAsync` reruns your re
 
 ### Batches
 
-A batch resends what DynamoDB left unprocessed, with the backoff above; each of its requests has the loop's retries. `MaxStalledRounds(n)`, 8 by default, bounds consecutive requests that get nothing done. Then, on a throttle on the last attempt, or on any other failure after a request went through, it throws `BatchIncompleteException` or `BatchGetIncompleteException<T>`. Their `UnprocessedItems` or `UnprocessedKeys` go straight into `client.BatchWriteItemAsync` or `client.BatchGetItemAsync`. A failure of the first request, which applied nothing, surfaces as it is.
+A batch resends what DynamoDB left unprocessed, with the backoff above; each of its requests has the loop's retries. `MaxStalledRounds(n)`, 8 by default, bounds consecutive requests that get nothing done. Then, on a throttle, a timeout, a lost connection or a server error on the last attempt of a request, or on any other failure after a request went through, it throws `BatchIncompleteException` or `BatchGetIncompleteException<T>`. Their `UnprocessedItems` or `UnprocessedKeys` go straight into `client.BatchWriteItemAsync` or `client.BatchGetItemAsync`. DynamoDB may have applied part of a request that got no answer, so its writes count as unprocessed, and sending them again is safe: a put or a delete ends where it would have. A failure of the first request that repeating cannot fix, such as a `ValidationException`, applied nothing and surfaces as it is.
 
 ## Where a retry applies a write twice
 

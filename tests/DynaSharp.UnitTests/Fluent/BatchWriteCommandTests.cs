@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
@@ -604,10 +605,30 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
-    public async Task SendAsync_NetworkFailureOnTheFirstRequest_SurfacesAsItIs()
+    [Arguments(typeof(HttpRequestException))]
+    [Arguments(typeof(TimeoutException))]
+    [Arguments(typeof(InternalServerErrorException))]
+    public async Task SendAsync_FirstRequestWithoutAnAnswer_HoldsTheWholeBatchAndTheFailure(Type kind)
     {
-        // Arrange
-        using var handler = new StubHandler(_ => throw new HttpRequestException("No route."));
+        // Arrange (DynamoDB may have applied part of a request whose answer was lost, so all of it counts as unprocessed, with the 2 writes never sent)
+        using var handler = new StubHandler(_ => kind == typeof(InternalServerErrorException)
+            ? StubResponse.DynamoDbError("InternalServerError", "Internal error.", HttpStatusCode.InternalServerError)
+            : throw (kind == typeof(TimeoutException) ? new TimeoutException("No answer.") : new HttpRequestException("No route.")));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 27));
+
+        // Assert
+        await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException?.GetType())).IsEqualTo((0, 27, (Type?)kind));
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseAboveTheLimitOnTheFirstRequest_SurfacesAsItIs()
+    {
+        // Arrange (a limit of the client: the same request gets the same response)
+        using var handler = new StubHandler(_ => throw new HttpRequestException(HttpRequestError.ConfigurationLimitExceeded, "Too large."));
         using var client = TestClient.Create(handler);
         var shop = client.Table("Shop", "pk");
 
@@ -615,7 +636,7 @@ public sealed class BatchWriteCommandTests
         var failure = await TestClient.CaptureAsync<HttpRequestException>(async () => await SendMany(shop, 27));
 
         // Assert
-        await Assert.That(failure.Message).IsEqualTo("No route.");
+        await Assert.That(failure.Message).IsEqualTo("Too large.");
     }
 
     [Test]

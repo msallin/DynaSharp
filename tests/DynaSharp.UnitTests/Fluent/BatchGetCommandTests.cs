@@ -379,6 +379,22 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
+    public async Task SendAsync_FirstRequestTimesOut_HoldsEveryKeyAndTheFailure()
+    {
+        // Arrange (100 keys in the request that got no answer, 50 never sent)
+        using var handler = new StubHandler(_ => throw new TimeoutException("No answer."));
+        using var client = TestClient.Create(handler);
+        var ids = Enumerable.Range(0, 150).Select(static i => new TextKey("id-" + i));
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+
+        // Assert
+        await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is TimeoutException)).IsEqualTo((150, 0, true));
+    }
+
+    [Test]
     public async Task SendAsync_DuplicatesInOneRequest_SendsThemForDynamoDBToReject()
     {
         // Arrange

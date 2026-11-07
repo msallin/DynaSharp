@@ -9,7 +9,7 @@ namespace DynaSharp.Fluent;
 /// Sends a batch: cuts it into requests DynamoDB accepts, and sends again what comes back unprocessed until nothing is left or nothing moves any
 /// more. Each request goes through the pipeline as a call of its own, with the retries of a call. A batch that makes no progress waits, with the
 /// backoff of the retry policy and on the clock of the client, and gives up after a bounded number of rounds. A failure after a request went through ends
-/// it too, with what was done in the exception.
+/// it too, with what was done in the exception, and so does a failure of the first request that the pipeline retries.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -141,11 +141,11 @@ internal static class BatchDriver
         }
     }
 
-    // Nothing was applied before the first answer, so a failure there has nothing to report and stays as it is. A throttle does not, because it is what DynamoDB answers when it can
-    // take none of a request. A caller who cancels has stopped listening, and a cancellation stays one.
+    // A permanent failure of the first request, such as a rejected request or a missing table, applied none of it and stays as it is. Anything the pipeline retries can have
+    // been applied in part, a timeout or a lost connection, or says that DynamoDB took none of it, a throttle: the whole batch is then unprocessed and safe to send again.
+    // A caller who cancels has stopped listening, and a cancellation stays one.
     private static bool EndsIncomplete(Exception exception, int answered) =>
-        exception is not OperationCanceledException
-        && (answered > 0 || (exception is DynamoDbException failure && FailureClassifier.Classify(failure) == FailureKind.Throttling));
+        exception is not OperationCanceledException && (answered > 0 || FailureClassifier.Classify(exception) != FailureKind.Permanent);
 
     private static Exception GiveUp<TOperation, TResult>(CommandState state, BatchTotals totals, Exception? cause)
         where TOperation : IBatchOperation<TResult>
