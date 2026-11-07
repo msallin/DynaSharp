@@ -196,9 +196,11 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <see cref="InvalidOperationException"/> for such an entity.
     /// </summary>
     /// <remarks>
-    /// The version of what the batch writes is not checked and does not advance. It holds for the whole batch, wherever in the chain it stands. Each item is stored with the version its
-    /// entity holds, so seed at 1 or above: an item stored at 0 reads as 0, which the next checked write takes for no item, and fails, unless the entity has
-    /// <c>[Version(Missing = VersionMissing.Allow)]</c>.
+    /// <para>
+    /// <b>The whole batch.</b> It holds for every write of the batch, wherever in the chain it stands. The version of what the batch writes is not checked, and each item is stored with the version
+    /// of its entity plus one, as a put stores it, so an entity at 0 is stored at 1.
+    /// </para>
+    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para[1]"/>
     /// </remarks>
     /// <returns>The command, which replaces this one.</returns>
     public BatchWriteCommand<T> IgnoreVersion()

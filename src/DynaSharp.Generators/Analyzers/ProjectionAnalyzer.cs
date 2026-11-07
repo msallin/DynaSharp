@@ -88,7 +88,7 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    // What a read of the entity gets past and Select does not. A version is not among it: every write of the library holds one but an Update with IgnoreVersion() that creates the item,
+    // What a read of the entity gets past and Select does not. A version is not among it: every write of the library stores one, an item without one comes from code of another kind,
     // and a Select of such an item throws a message that names VersionMissing.Allow, which beats the 0 a read of the entity gives without a word.
     private static string? WhySelectThrows(EntityModel entity, PropertyModel property)
     {

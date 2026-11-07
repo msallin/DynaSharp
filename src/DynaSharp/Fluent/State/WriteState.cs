@@ -33,11 +33,8 @@ internal struct WriteState
     /// <summary>Gets or sets a value indicating whether an update has yet to write the indexes of its entity that have only literals, see <see cref="WriteRules"/>.</summary>
     public bool OwesLiteralKeys { get; set; }
 
-    /// <summary>Gets or sets the entity of a put whose item holds the next version, while <c>IgnoreVersion</c> can still replace that item, see <see cref="WriteRules"/>.</summary>
-    public object? PutEntity { get; set; }
-
-    /// <summary>Gets or sets what writes <see cref="PutEntity"/> as it stands.</summary>
-    public Action<DynamoDbWriter, object>? WritePutEntity { get; set; }
+    /// <summary>Gets or sets a value indicating whether an update without the check of its version has yet to advance it, see <see cref="IgnoreVersion"/>.</summary>
+    public bool OwesNextVersion { get; set; }
 
     /// <summary>Gets or sets a value indicating whether a batch writes without looking at versions.</summary>
     public bool VersionIgnored { get; set; }
@@ -66,25 +63,23 @@ internal struct WriteState
     /// </summary>
     public ConditionParts Conditions { get; set; }
 
-    /// <summary>Lets the write go out without looking at the version. A put of an entity then stores the entity as it is, so its item is written again.</summary>
-    /// <param name="state">The state this is the write of.</param>
+    /// <summary>
+    /// Lets the write go out without looking at the version. It still advances it, so that a copy read before this write fails its next checked write: a put keeps the next version it wrote, and an
+    /// update owes it, which <see cref="Settle"/> writes, because only then is it known whether the update has an action of its own on the attribute.
+    /// </summary>
+    /// <param name="isUpdate">Whether the write is an update, which does not know the version it advances from.</param>
     /// <exception cref="InvalidOperationException">The write already has <c>IfVersion</c>, whose condition stands in the expressions.</exception>
-    public void IgnoreVersion(CommandState state)
+    public void IgnoreVersion(bool isUpdate)
     {
         if (VersionChecked)
         {
             throw new InvalidOperationException("This write already has IfVersion, which IgnoreVersion cannot take back. Use one of them.");
         }
 
+        OwesNextVersion |= isUpdate && UnsettledVersion is not null;
         UnsettledVersion = null;
         VersionIgnored = true;
-        if (PutEntity is { } entity)
-        {
-            WritePutEntity!(state.RestartItem(), entity);
-            StoredVersion = EntityVersion;
-        }
-
-        ForgetEntity();
+        EntityVersion = null;
     }
 
     /// <summary>Ends what a write owes before it goes out. It runs at the terminal of a command and at the end of each action of a transaction.</summary>
@@ -159,7 +154,7 @@ internal struct WriteState
             }
 
             UnsettledVersion = null;
-            ForgetEntity();
+            EntityVersion = null;
         }
 
         if (state.HasKeyInputs)
@@ -188,6 +183,12 @@ internal struct WriteState
             OwesDiscriminator = false;
             state.Expressions.SetMissingAttribute<string, StringConverter>(state.Table.DiscriminatorAttributeName!, state.Table.Discriminator!);
         }
+
+        if (OwesNextVersion)
+        {
+            OwesNextVersion = false;
+            state.Expressions.AdvanceMissingVersion(state.Table.Writes!.VersionAttributeName!);
+        }
     }
 
     private static InvalidOperationException Contradiction(TableModel table) => new(
@@ -198,12 +199,4 @@ internal struct WriteState
 
     private static InvalidOperationException ExistsAtVersionZero(TableModel table) => new(
         $"This write of {table.Writes!.EntityName} holds version 0 and asks that an item has its key, which can never both hold: version 0 means that no item has the key. For a first write leave out IfExists, for an item that exists use the version last read, and to write without looking at the version call IgnoreVersion().");
-
-    // In a transaction the next action starts on the same state, and what this action knew about its entity says nothing about that one.
-    private void ForgetEntity()
-    {
-        EntityVersion = null;
-        PutEntity = null;
-        WritePutEntity = null;
-    }
 }

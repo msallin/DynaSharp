@@ -10,7 +10,8 @@ namespace DynaSharp.Mapping;
 /// and a <c>Delete</c> of an entity take the version from it: <c>attribute_not_exists</c> for 0, <c>version = :old</c> for any other. The put stores the next version without changing the
 /// entity, so the next write takes <see cref="WriteResult{T}.Version"/>, or the entity read again. A key does not carry a version, so <c>Update</c> and a <c>Delete</c> by key need
 /// <c>.IfVersion(n)</c>, or <c>.IgnoreVersion()</c>, and sending without either throws <see cref="InvalidOperationException"/>. A <see cref="BatchWriteCommand{T}"/> cannot carry a condition, so it
-/// takes <c>.IgnoreVersion()</c> only.
+/// takes <c>.IgnoreVersion()</c> only. Every write of the entity but a delete advances the version, also without the check, so a copy read before it fails its next checked write, see
+/// <see cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
 /// </para>
 /// <para>
 /// <b>A lost race.</b> A write that loses fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>, whose marker of the
@@ -39,8 +40,8 @@ namespace DynaSharp.Mapping;
 /// partition key beside that same condition on the version attribute. A version above 0 is the same either way.
 /// </para>
 /// <para>
-/// <b>Taking over a single item.</b> Without changing the attribute, a <c>Put</c> without the check takes it over, as <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/>
-/// says.
+/// <b>Taking over a single item.</b> Without changing the attribute, put it once without the check: <c>orders.Put(order).IgnoreVersion()</c> of the entity as it was read, at 0, stores
+/// version 1, and the writes after it are ordinary ones.
 /// </para>
 /// <para>
 /// <b>Untyped access.</b> The table without a schema and the requests of <c>DynaSharp.Requests</c> know no entity, so they do not enforce a version.

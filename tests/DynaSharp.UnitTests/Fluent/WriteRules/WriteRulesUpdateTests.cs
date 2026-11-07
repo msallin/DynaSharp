@@ -53,7 +53,7 @@ public sealed class WriteRulesUpdateTests
     }
 
     [Test]
-    public async Task ToRequestJson_UpdateIgnoreVersion_LeavesTheVersionAlone()
+    public async Task ToRequestJson_UpdateIgnoreVersion_AdvancesTheVersionWithoutACondition()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -63,7 +63,7 @@ public sealed class WriteRulesUpdateTests
         var json = client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).Set("Note", "x").IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"Note","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2) + :v3","ExpressionAttributeNames":{"#n0":"Note","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"TICKET"},":v2":{"N":"0"},":v3":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -79,6 +79,35 @@ public sealed class WriteRulesUpdateTests
 
         // Assert
         await Assert.That(result.Version).IsNull();
+    }
+
+    [Test]
+    public async Task ToRequestJson_UpdateIgnoreVersionThatSetsTheVersion_KeepsTheValueOfTheCaller()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).Set(Ticket.Attrs.Revision, 9).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"Revision","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"9"},":v1":{"S":"TICKET"}}}"""));
+    }
+
+    [Test]
+    public async Task ToRequestJson_UpdateIfVersionAfterIgnoreVersion_AdvancesFromThatVersionOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var json = tickets.Update(Ticket.Keys.Of("t1", Day)).IgnoreVersion().IfVersion(3).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(tickets.Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).ToRequestJson());
     }
 
     [Test]

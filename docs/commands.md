@@ -168,7 +168,18 @@ var saved = await carts.Update(Cart.Keys.Of("bob"))
 long next = saved.Version!.Value;
 ```
 
-The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null for a write that stored none (a delete, an update with `IgnoreVersion()`, a `TrySendAsync` whose condition did not hold). A put of a `[Version]` entity and an `IfVersion(n)` update sent with `SendAsync` always store one, so `!.Value` is safe there; elsewhere `saved.Version is { } next` asks.
+`IgnoreVersion()` drops the check and keeps the version moving: a `Put` or a batch still stores the version of its entity plus one, and an `Update` adds 1 to the stored version (`SET #v = if_not_exists(#v, :zero) + :one`, so an item without one gets 1). A copy read before such a write fails its next checked write, so the write is never lost under a stale one. What the write itself overwrites is not checked, which suits a change that does not depend on what was read, such as a checkout that replaces the lines of the cart whatever a tab saved last. A tab that still holds the cart it read before then fails its next save:
+
+```csharp
+await client.TransactWrite()
+    .Put(orders, order)
+    .Update(carts, Cart.Keys.Of("bob")).Set(Cart.Attrs.Lines, lines).IgnoreVersion()
+    .SendAsync(ct);
+```
+
+An `Update` that sets the version attribute itself keeps that value, and the version is not advanced besides it. A `Delete` has nothing to advance.
+
+The entity of a `Put` stays as it was, and the result says what was stored: `Version` is the version, or null where the write does not know one (a delete, an update with `IgnoreVersion()`, which advances a version it did not read, a `TrySendAsync` whose condition did not hold). A put of a `[Version]` entity and an `IfVersion(n)` update sent with `SendAsync` always store one, so `!.Value` is safe there; elsewhere `saved.Version is { } next` asks.
 
 ## Retry on a conflict
 

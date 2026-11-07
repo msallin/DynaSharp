@@ -21,7 +21,7 @@ public sealed class KeyInputChangesTemplateTests
         var json = client.Table<Ticket>("Shop").Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.State, TicketState.Closed).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"State","#n1":"bystatepk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"STATE#Closed"},":v2":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3) + :v4","ExpressionAttributeNames":{"#n0":"State","#n1":"bystatepk","#n2":"_type","#n3":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"STATE#Closed"},":v2":{"S":"TICKET"},":v3":{"N":"0"},":v4":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -35,7 +35,7 @@ public sealed class KeyInputChangesTemplateTests
         var json = client.Table<Ticket>("Shop").Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Queue, "vip").Set(Ticket.Attrs.Rank, 7).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = :v2, #n3 = if_not_exists(#n3, :v3)","ExpressionAttributeNames":{"#n0":"Queue","#n1":"Rank","#n2":"bystatesk","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"S":"vip"},":v1":{"N":"7"},":v2":{"S":"007-vip"},":v3":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = :v2, #n3 = if_not_exists(#n3, :v3), #n4 = if_not_exists(#n4, :v4) + :v5","ExpressionAttributeNames":{"#n0":"Queue","#n1":"Rank","#n2":"bystatesk","#n3":"_type","#n4":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"vip"},":v1":{"N":"7"},":v2":{"S":"007-vip"},":v3":{"S":"TICKET"},":v4":{"N":"0"},":v5":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -82,7 +82,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "ExpressionAttributeNames":{"#n0":"Title","#n1":"bytitlesk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"new"},":v1":{"S":"TITLE#new"},":v2":{"S":"TICKET"}}
+            "ExpressionAttributeNames":{"#n0":"Title","#n1":"bytitlesk","#n2":"_type","#n3":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"new"},":v1":{"S":"TITLE#new"},":v2":{"S":"TICKET"},":v3":{"N":"0"},":v4":{"N":"1"}}
             """);
     }
 
@@ -98,7 +98,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"Status","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"PURCHASE"}}
+            "UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2) + :v3","ExpressionAttributeNames":{"#n0":"Status","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"PURCHASE"},":v2":{"N":"0"},":v3":{"N":"1"}}
             """);
     }
 
@@ -144,7 +144,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n1 = if_not_exists(#n1, :v1), #n3 = if_not_exists(#n3, :v2) REMOVE #n2 ADD #n0 :v0"
+            "UpdateExpression":"SET #n1 = if_not_exists(#n1, :v1), #n3 = if_not_exists(#n3, :v2), #n4 = if_not_exists(#n4, :v3) + :v0 REMOVE #n2 ADD #n0 :v0"
             """);
     }
 
@@ -160,7 +160,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0 = :v0, #n2 = if_not_exists(#n2, :v1) REMOVE #n1","ExpressionAttributeNames":{"#n0":"Rank","#n1":"Owner","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"N":"7"},":v1":{"S":"TICKET"}}
+            "UpdateExpression":"SET #n0 = :v0, #n2 = if_not_exists(#n2, :v1), #n3 = if_not_exists(#n3, :v2) + :v3 REMOVE #n1","ExpressionAttributeNames":{"#n0":"Rank","#n1":"Owner","#n2":"_type","#n3":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"7"},":v1":{"S":"TICKET"},":v2":{"N":"0"},":v3":{"N":"1"}}
             """);
     }
 
@@ -177,7 +177,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0.#n1 = :v0, #n2 = if_not_exists(#n2, :v1)"
+            "UpdateExpression":"SET #n0.#n1 = :v0, #n2 = if_not_exists(#n2, :v1), #n3 = if_not_exists(#n3, :v2) + :v3"
             """);
     }
 
@@ -210,7 +210,7 @@ public sealed class KeyInputChangesTemplateTests
             .Token("t").ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"State","#n1":"bystatepk","#n2":"_type"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"STATE#Closed"},":v2":{"S":"TICKET"}}}},{"Update":{"TableName":"Shop","Key":{"pk":{"S":"TICKET#t2"},"sk":{"S":"AT#2026-10-31"}},"UpdateExpression":"SET #n1 = if_not_exists(#n1, :v1) ADD #n0 :v0","ExpressionAttributeNames":{"#n0":"Votes","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"TICKET"}}}}],"ClientRequestToken":"t"}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3) + :v4","ExpressionAttributeNames":{"#n0":"State","#n1":"bystatepk","#n2":"_type","#n3":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"Closed"},":v1":{"S":"STATE#Closed"},":v2":{"S":"TICKET"},":v3":{"N":"0"},":v4":{"N":"1"}}}},{"Update":{"TableName":"Shop","Key":{"pk":{"S":"TICKET#t2"},"sk":{"S":"AT#2026-10-31"}},"UpdateExpression":"SET #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2) + :v0 ADD #n0 :v0","ExpressionAttributeNames":{"#n0":"Votes","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"1"},":v1":{"S":"TICKET"},":v2":{"N":"0"}}}}],"ClientRequestToken":"t"}"""));
     }
 
     [Test]
@@ -339,7 +339,7 @@ public sealed class KeyInputChangesTemplateTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "ExpressionAttributeNames":{"#n0":"Note","#n1":"_type"}
+            "ExpressionAttributeNames":{"#n0":"Note","#n1":"_type","#n2":"Revision"}
             """);
     }
 }

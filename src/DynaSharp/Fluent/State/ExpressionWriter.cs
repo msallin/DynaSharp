@@ -376,6 +376,26 @@ internal sealed class ExpressionWriter
         }
     }
 
+    /// <summary>
+    /// Adds <c>name = if_not_exists(name, :zero) + :one</c> to the <c>SET</c> clause, the next version of an update that does not know the one it advances from: an item without a version reads as 0, so it
+    /// gets 1, as a first checked write stores. An action of the update on the attribute takes precedence, as in <see cref="SetMissingAttribute"/>. It runs last, so that it sees them all.
+    /// </summary>
+    /// <param name="attributeName">The attribute of the version.</param>
+    public void AdvanceMissingVersion(string attributeName)
+    {
+        if (!HasActionOnAttribute(attributeName))
+        {
+            var text = StartAction(Clause.Set, "SET "u8);
+            AppendAttributeName(text, attributeName);
+            text.Append(" = if_not_exists("u8);
+            AppendAttributeName(text, attributeName);
+            text.Append(", "u8);
+            AppendValue<long, NumberConverter<long>>(text, 0);
+            text.Append(") + "u8);
+            AppendValue<long, NumberConverter<long>>(text, 1);
+        }
+    }
+
     /// <summary>Adds <c>path = if_not_exists(path, value)</c> to the <c>SET</c> clause.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>

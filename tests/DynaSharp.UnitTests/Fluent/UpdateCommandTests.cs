@@ -73,7 +73,7 @@ public sealed partial class UpdateCommandTests
         var json = client.Table<Purchase>("Shop").Update(Purchase.Keys.Of("a", 1)).IgnoreVersion().Set(Purchase.Attrs.ShipTo, null!).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0) REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"PURCHASE"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0), #n2 = if_not_exists(#n2, :v1) + :v2 REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"PURCHASE"},":v1":{"N":"0"},":v2":{"N":"1"}}}""");
     }
 
     [Test]
@@ -281,7 +281,7 @@ public sealed partial class UpdateCommandTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0) REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"_type"}
+            "UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0), #n2 = if_not_exists(#n2, :v1) + :v2 REMOVE #n0","ExpressionAttributeNames":{"#n0":"ShipTo","#n1":"_type","#n2":"Revision"}
             """);
     }
 

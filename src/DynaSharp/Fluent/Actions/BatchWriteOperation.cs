@@ -40,7 +40,17 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
         body.Append("{\"PutRequest\":{\"Item\":"u8);
         var json = state.BodyJson;
         json.WriteStartObject();
-        T.WriteAttributes(new DynamoDbWriter(json), item);
+        var writer = new DynamoDbWriter(json);
+        if (table.Writes?.VersionAttributeName is null)
+        {
+            T.WriteAttributes(writer, item);
+        }
+        else
+        {
+            // A batch of such an item goes out only with IgnoreVersion, which writes without the check and still advances the version.
+            T.WriteNextVersion(writer, item);
+        }
+
         json.WriteEndObject();
         CommandState.EndWrite(json);
         body.Append("}}"u8);

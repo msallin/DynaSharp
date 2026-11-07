@@ -187,17 +187,18 @@ a set of expressions per action and clears them in `EndAction`, so `#n0` means s
 
 | Marked by | State | Settled as |
 |---|---|---|
-| `WriteItem` of a versioned entity | `UnsettledVersion`, `EntityVersion`, `StoredVersion`, `PutEntity`, `WritePutEntity` | `AppendVersion`. `IgnoreVersion` restarts the item without the bump, through `CommandState.RestartItem` |
+| `WriteItem` of a versioned entity | `UnsettledVersion`, `EntityVersion`, `StoredVersion` | `AppendVersion`. The item always holds the next version, so `IgnoreVersion` only drops the condition |
 | `IfNotExists` of a put or a step | `ItemMustNotExist` | Throws if `UnsettledVersion` holds a version above 0, which no missing item can have |
 | `ExpectVersion` for a write by key | `UnsettledVersion` | Throws unless `IfVersion` or `IgnoreVersion` came |
 | `IfVersion(0)` of an entity with `EntityWrites.AllowsMissingVersion` | `VersionMustReadAsZero` | `AppendVersionZero`, the version missing or at 0, unless `IfNotExists` came. It waits because that replaces it, and a version from an entity decides the same way |
 | `ExpectVersionOf` for `Delete(entity)` | `UnsettledVersion`, `EntityVersion` | `AppendVersion` of what the entity held |
-| `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator, last |
+| `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator |
+| `IgnoreVersion(isUpdate: true)` of an update of a versioned entity | `OwesNextVersion` | `AdvanceMissingVersion`, `SET #v = if_not_exists(#v, :zero) + :one`, last, unless an action of the update already changes the attribute |
 | `Set`, `Remove`, `NoteUnknownValue` by handle | `KeyInputs` | `KeyInputChanges.Apply`: checks every template, writes or removes derived attributes and keys of literals beside them, checks sparse siblings and copies one that is the text of an attribute. Values of the table key come from `CommandState.ReadKey` and `DynamoDbKeyTemplate.Parse`, or from `HeldKey` for an entity with `EntityWrites.HoldsKey` |
 | `StoreKeyInputs` | `StoresKeyInputs` | `KeyInputChanges.StoreTableInputs`: `SetMissingAttribute` per `EntityWrites.StoredTableInputs`, with the value from `HeldKey`, or from `Parse` of the key text unless `DynamoDbKeyInput.IsCutOff` says that the text holds less. It needs no read, and it throws what a key given as strings cannot give back |
-| `NoteBatchWrite` | `UnsettledVersion` | Throws unless `IgnoreVersion` came |
+| `NoteBatchWrite` | `UnsettledVersion` | Throws unless `IgnoreVersion` came. `BatchWriteOperation.AddPut` writes the next version of a versioned entity, because a batch that is sent has `IgnoreVersion` |
 
-The order in `Settle` matters: the version first, then keys, then stored inputs, then indexes of literals, then the discriminator, so that each sees the actions before it and the discriminator ends the `SET`. `ForgetEntity` exists because a transaction reuses the state for its next action.
+The order in `Settle` matters: the condition of the version first, then keys, then stored inputs, then indexes of literals, then the discriminator, then the next version of an update without the check, so that each sees the actions before it. `EntityVersion` is cleared when the version settles, because a transaction reuses the state for its next action.
 `VersionChecked` is what makes `IgnoreVersion` after `IfVersion` throw. Raw paths go past all of this on purpose. `api.md` section 8 is the contract.
 
 Building a one-item command, a batch or a transaction, and reading one attribute, allocates nothing once the pool is warm, except the box of a struct entity with a version on `Put`, boxed values and a key string on an update of a key input, and an `AttributeValue` per input of an update with `StoreKeyInputs`, with a box of the value when a generated key gives it. A generated key an update has to keep goes into a `HeldKey` that the state fills again, because the clause that wants it can come after the verb, so an update that never asks pays nothing for it. `CommandAllocationTests` pins that per

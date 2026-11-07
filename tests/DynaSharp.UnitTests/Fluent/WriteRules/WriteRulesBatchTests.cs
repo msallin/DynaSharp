@@ -71,7 +71,7 @@ public sealed class WriteRulesBatchTests
     }
 
     [Test]
-    public async Task ToRequestJson_BatchIgnoreVersionAfterTheWrites_WritesThemAsTheyAre()
+    public async Task ToRequestJson_BatchIgnoreVersionAfterTheWrites_WritesTheNextVersions()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -81,7 +81,7 @@ public sealed class WriteRulesBatchTests
         var json = client.Table<Ticket>("Shop").BatchWrite().Put(Held(3)).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"RequestItems":{"Shop":[{"PutRequest":{"Item":@ITEM}}]}}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"RequestItems":{"Shop":[{"PutRequest":{"Item":@ITEM}}]}}""", 4));
     }
 
     [Test]

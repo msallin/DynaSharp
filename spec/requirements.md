@@ -46,7 +46,7 @@ Fix:
   order-preserving encoding of negative and decimal numbers, UTC timestamps in fixed format, and escaping or
   rejection of separators in values.
 - **Concurrency primitives in the core**: optimistic locking via `[Version]` (opt-in per type, then enforced on every
-  write); typed `ReturnValues` (for example a counter after `ADD`); transaction builder accepting raw marker items,
+  write, and advanced by every write but a delete, also one that skips the check with `IgnoreVersion()`); typed `ReturnValues` (for example a counter after `ADD`); transaction builder accepting raw marker items,
   a uniqueness helper (marker item with `attribute_not_exists`), and cancellation reasons mapped back to the action
   that caused them.
 - **Fan-out query**: query a set of partition keys (write shards, time buckets) and merge results by sort key, with a

@@ -49,7 +49,7 @@ namespace DynaSharp.Fluent;
 /// <item><term>Linear version</term><description>Every fluent step goes through <see cref="Enter"/>, and a terminal passes on the version it entered with.</description></item>
 /// <item><term>CAS release</term><description><see cref="Release"/> is the only way back, and the compare-and-swap comes first, before anything is cleared.</description></item>
 /// <item><term>Pending buffer</term><description>The handler of an interpolated expression runs before its method, so the text waits in <see cref="ExpressionWriter.StartPending"/> until <see cref="ExpressionWriter.CommitPending"/> moves it to a clause. Others use that buffer as scratch, so nothing stays there between calls.</description></item>
-/// <item><term>Open item</term><description>After <see cref="StartItem"/> nothing else goes into the body until <see cref="CloseItem"/>, which is what lets <see cref="RestartItem"/> cut the item off.</description></item>
+/// <item><term>Open item</term><description>After <see cref="StartItem"/> nothing else goes into the body until <see cref="CloseItem"/>.</description></item>
 /// <item><term>Write-rule flags</term><description><see cref="WriteState"/> holds what waits for <see cref="WriteState.Settle"/>, and a transaction settles it per action.</description></item>
 /// <item><term><see cref="MaxRetainedLength"/></term><description>The longest array an idle state keeps, which <see cref="Release"/> passes to every buffer.</description></item>
 /// <item><term>Batch actions</term><description><see cref="Actions"/> holds offsets into <see cref="Body"/>, which a batch does not send: <see cref="BatchDriver.WriteBody{TOperation, TResult}"/> cuts a request out of it for each round.</description></item>
@@ -74,9 +74,6 @@ internal sealed class CommandState
     private ReadOptions _read;
     private int _version;
     private bool _itemOpen;
-
-    // Where the open item starts in the body.
-    private int _itemStart;
 
     // Where the object of the key of the action that is being written starts in the body.
     private int _keyStart;
@@ -327,23 +324,10 @@ internal sealed class CommandState
     /// <returns>The writer, inside the object.</returns>
     public DynamoDbWriter StartItem()
     {
-        _itemStart = Body.WrittenCount;
         Body.Append(",\"Item\":"u8);
         BodyJson.WriteStartObject();
         _itemOpen = true;
         return new DynamoDbWriter(BodyJson);
-    }
-
-    /// <summary>
-    /// Takes the open item out of the body and starts it again. The writer may have handed part of the item to the body already and holds the rest, so both go. Nothing can
-    /// follow an open item in the body, which is what makes this a matter of cutting it off.
-    /// </summary>
-    /// <returns>The writer, inside the object.</returns>
-    public DynamoDbWriter RestartItem()
-    {
-        BodyJson.Reset();
-        Body.Truncate(_itemStart);
-        return StartItem();
     }
 
     /// <summary>Writes the rest of the body: the open item, the expressions and the options. Everything is written once and the bytes do not change after this.</summary>
@@ -531,7 +515,6 @@ internal sealed class CommandState
         _read = default;
         Table = null!;
         _itemOpen = false;
-        _itemStart = 0;
         _keyStart = 0;
         _pageMark = 0;
         MaxAttempts = 0;
@@ -547,9 +530,10 @@ internal sealed class CommandState
         _core.Commands.Return(this);
     }
 
-    /// <summary>Lets the write go out without looking at the version, see <see cref="WriteState.IgnoreVersion"/>.</summary>
+    /// <summary>Lets the write go out without looking at the version, which it still advances, see <see cref="WriteState.IgnoreVersion"/>.</summary>
+    /// <param name="isUpdate">Whether the write is an update, which advances the version in its expressions.</param>
     /// <exception cref="InvalidOperationException">The write already has <c>IfVersion</c>.</exception>
-    public void IgnoreVersion() => _write.IgnoreVersion(this);
+    public void IgnoreVersion(bool isUpdate = false) => _write.IgnoreVersion(isUpdate);
 
     /// <summary>Ends what a write owes before it goes out, see <see cref="WriteState.Settle"/>.</summary>
     /// <returns>This state, for a chain.</returns>

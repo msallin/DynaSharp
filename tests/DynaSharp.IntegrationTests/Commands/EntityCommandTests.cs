@@ -66,7 +66,7 @@ public sealed class EntityCommandTests(Backend backend)
         var existing = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
 
         // Act
-        await tallies.Put(existing! with { Count = 8, Revision = 1 }).IgnoreVersion().SendAsync();
+        await tallies.Put(existing! with { Count = 8 }).IgnoreVersion().SendAsync();
         var taken = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();
         await tallies.Put(taken! with { Count = 9 }).SendAsync();
         var stored = await tallies.Get(Tally.Keys.Of("a")).Consistent().ItemAsync();

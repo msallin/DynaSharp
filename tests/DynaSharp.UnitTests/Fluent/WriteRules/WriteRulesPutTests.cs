@@ -97,11 +97,11 @@ public sealed class WriteRulesPutTests
         var json = ignoreFirst ? tickets.Put(Held(3)).IgnoreVersion().IfNotExists().ToRequestJson() : tickets.Put(Held(3)).IfNotExists().IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_not_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_not_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}""", 4));
     }
 
     [Test]
-    public async Task ToRequestJson_PutIgnoreVersionTwice_WritesTheItemOnce()
+    public async Task ToRequestJson_PutIgnoreVersionTwice_IsOnce()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -111,26 +111,11 @@ public sealed class WriteRulesPutTests
         var json = client.Table<Ticket>("Shop").Put(Held(3)).IgnoreVersion().IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 4));
     }
 
     [Test]
-    public async Task ToRequestJson_PutIgnoreVersionOfAnItemAboveTheBufferOfTheWriter_WritesItOnce()
-    {
-        // Arrange (the writer hands such an item to the body while it is being written)
-        using var handler = new StubHandler();
-        using var client = TestClient.Create(handler);
-        var note = new string('x', 100_000);
-
-        // Act
-        var json = client.Table<Ticket>("Shop").Put(Held(3) with { Note = note }).IgnoreVersion().ToRequestJson();
-
-        // Assert
-        await Assert.That(json).IsEqualTo(client.Table<Ticket>("Shop").BatchWrite().Put(Held(3) with { Note = note }).IgnoreVersion().ToRequestJson()[..^4].Replace("""{"RequestItems":{"Shop":[{"PutRequest":{"Item":""", """{"TableName":"Shop","Item":""", StringComparison.Ordinal));
-    }
-
-    [Test]
-    public async Task ToRequestJson_PutIgnoreVersionOfAStructEntity_WritesItsVersion()
+    public async Task ToRequestJson_PutIgnoreVersionOfAStructEntity_WritesItsNextVersion()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -140,7 +125,7 @@ public sealed class WriteRulesPutTests
         var json = client.Table<Gauge>("Shop").Put(new Gauge { Id = "g", Revision = 3 }).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"GAUGE#g"},"_type":{"S":"GAUGE"},"Id":{"S":"g"},"Revision":{"N":"3"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"GAUGE#g"},"_type":{"S":"GAUGE"},"Id":{"S":"g"},"Revision":{"N":"4"}}}""");
     }
 
     [Test]
@@ -185,7 +170,7 @@ public sealed class WriteRulesPutTests
         var result = await client.Table<Ticket>("Shop").Put(ticket).IgnoreVersion().SendAsync();
 
         // Assert
-        await Assert.That((result.Version, ticket.Revision)).IsEqualTo(((long?)3L, 3));
+        await Assert.That((result.Version, ticket.Revision)).IsEqualTo(((long?)4L, 3));
     }
 
     [Test]

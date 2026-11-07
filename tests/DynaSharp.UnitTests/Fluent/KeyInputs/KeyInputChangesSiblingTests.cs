@@ -20,7 +20,7 @@ public sealed class KeyInputChangesSiblingTests
         var json = client.Table<Ticket>("Shop").Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, "ann").Set(Ticket.Attrs.Due, Day).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = :v2, #n3 = :v3, #n4 = if_not_exists(#n4, :v4)","ExpressionAttributeNames":{"#n0":"Owner","#n1":"Due","#n2":"byownerpk","#n3":"byownersk","#n4":"_type"},"ExpressionAttributeValues":{":v0":{"S":"ann"},":v1":{"S":"2026-10-31"},":v2":{"S":"OWNER#ann"},":v3":{"S":"DUE#2026-10-31"},":v4":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = :v2, #n3 = :v3, #n4 = if_not_exists(#n4, :v4), #n5 = if_not_exists(#n5, :v5) + :v6","ExpressionAttributeNames":{"#n0":"Owner","#n1":"Due","#n2":"byownerpk","#n3":"byownersk","#n4":"_type","#n5":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"ann"},":v1":{"S":"2026-10-31"},":v2":{"S":"OWNER#ann"},":v3":{"S":"DUE#2026-10-31"},":v4":{"S":"TICKET"},":v5":{"N":"0"},":v6":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public sealed class KeyInputChangesSiblingTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2)"
+            "UpdateExpression":"SET #n0 = :v0, #n1 = :v1, #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3) + :v4"
             """);
     }
 
@@ -129,7 +129,7 @@ public sealed class KeyInputChangesSiblingTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0 = :v0, #n4 = if_not_exists(#n4, :v1) REMOVE #n1, #n2, #n3"
+            "UpdateExpression":"SET #n0 = :v0, #n4 = if_not_exists(#n4, :v1), #n5 = if_not_exists(#n5, :v2) + :v3 REMOVE #n1, #n2, #n3"
             """);
     }
 
@@ -145,7 +145,7 @@ public sealed class KeyInputChangesSiblingTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n0 = :v0, #n4 = if_not_exists(#n4, :v1) REMOVE #n1, #n2, #n3"
+            "UpdateExpression":"SET #n0 = :v0, #n4 = if_not_exists(#n4, :v1), #n5 = if_not_exists(#n5, :v2) + :v3 REMOVE #n1, #n2, #n3"
             """);
     }
 

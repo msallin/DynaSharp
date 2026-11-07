@@ -590,32 +590,46 @@ public static class TableExtensions
         return new(state, state.Table);
     }
 
-    /// <summary>Lets the update go out without the check and without a new version, which leaves the version as it is. A later writer that holds it is not told about this update.</summary>
+    /// <summary>
+    /// Lets the update go out without the check of the version, and still stores the next version, so that a copy read before it fails its next checked write. <see cref="WriteResult{T}.Version"/> is
+    /// <see langword="null"/>, because the update does not know the version it advanced from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The version still advances.</b> Every write of a versioned entity stores a new version, also one without the check: an update adds 1 to the stored version,
+    /// <c>SET #v = if_not_exists(#v, :zero) + :one</c>, so an item without one, or a new item, gets version 1, and a put or a batch stores the version of its entity plus one, as a checked put does. A writer
+    /// that holds a copy read before this write then fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with <see cref="TransactionCanceledException"/>, instead of overwriting it.
+    /// What this write itself overwrites is not checked: it wins over whatever another writer stored since, so it suits a change that does not depend on what was read, such as an <c>Add</c> to a counter.
+    /// </para>
+    /// <para>
+    /// <b>Setting the version yourself.</b> An update that sets, adds to or removes the version attribute by its own action keeps that action, and the version is not advanced besides it.
+    /// <c>IfVersion(n)</c> after this checks <c>n</c> and stores <c>n + 1</c>; before it, this throws.
+    /// </para>
+    /// </remarks>
     /// <typeparam name="T">The entity.</typeparam>
     /// <param name="command">The command.</param>
     /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">The update already has <c>IfVersion</c>, whose condition cannot be taken back.</exception>
     public static UpdateCommand<T> IgnoreVersion<T>(this UpdateCommand<T> command)
         where T : IDynamoDbEntity<T>
     {
         var state = command.Enter();
-        state.IgnoreVersion();
+        state.IgnoreVersion(isUpdate: true);
         return new(state, state.Table);
     }
 
     /// <summary>
-    /// Writes the entity as it is, with no condition on its version and no new version, for imports and migrations that bring their versions along: the item ends up as a batch that
-    /// ignores versions writes it, and <see cref="WriteResult{T}.Version"/> is the version of the entity. Conditions of your own stay, and it holds wherever it stands in the chain. On an entity
-    /// without a <see cref="VersionAttribute"/> it changes nothing.
+    /// Writes the entity without the check of its version, for imports, migrations and an item written without a version, and still stores the next version, as a checked put does:
+    /// <see cref="WriteResult{T}.Version"/> is the version of the entity plus one. Conditions of your own stay, it holds wherever it stands in the chain, and on an entity without a <see cref="VersionAttribute"/> it changes nothing.
     /// </summary>
     /// <remarks>
+    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para[1]"/>
     /// <para>
-    /// This is also how a single item without a version attribute is taken over; for a table that keeps such items, <see cref="VersionMissing.Allow"/> is the better answer. Such an item reads as version 0, and a put at 0
-    /// fails with <see cref="ConditionalCheckFailedException"/>, because 0 says that no item has the key. <c>orders.Put(order with { Revision = 1 }).IgnoreVersion()</c> stores version 1, and the next write is an ordinary
-    /// one. It has to be above 0: an item stored at 0 reads as 0 and fails that next write the same way.
+    /// <b>Taking over an item without a version.</b> Such an item reads as version 0, and a checked put at 0 fails with <see cref="ConditionalCheckFailedException"/>, because 0 says that no item has the key.
+    /// <c>orders.Put(order).IgnoreVersion()</c> of the entity as it was read stores version 1, and the next write is an ordinary one. For a table that keeps such items, <see cref="VersionMissing.Allow"/> is the better answer.
     /// </para>
     /// <para>
-    /// <see cref="Table{T}.Put(T)"/> has written the item with the next version by now, so this writes it a second time, and a change to the entity since then shows. That same first
-    /// write is why an entity at the last version its property holds throws <see cref="OverflowException"/> at the put, before this can say anything.
+    /// <b>The last version.</b> An entity at the last version its property holds throws <see cref="OverflowException"/> at <see cref="Table{T}.Put(T)"/>, because it has no next one.
     /// </para>
     /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>

@@ -291,12 +291,19 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
         return new(state);
     }
 
-    /// <summary>Lets this update go out without the check and without a new version.</summary>
+    /// <summary>
+    /// Lets this update go out without the check of the version, and still stores the next version, so that a copy read before it fails its next checked write. See
+    /// <see cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para"/>
+    /// </remarks>
     /// <returns>The step, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">This update already has <c>IfVersion</c>, whose condition cannot be taken back.</exception>
     public UpdateStep IgnoreVersion()
     {
         var state = Enter();
-        state.IgnoreVersion();
+        state.IgnoreVersion(isUpdate: true);
         return new(state);
     }
 

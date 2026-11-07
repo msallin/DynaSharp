@@ -349,8 +349,14 @@ Check(putVoucher.Version == 3 && commandHandler.Requests[^1].BodyText.Contains("
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var importedVoucher = await vouchers.Put(new Voucher { Id = "v-1", Revision = 2 }).IgnoreVersion().SendAsync();
 Check(
-    importedVoucher.Version == 2 && commandHandler.Requests[^1].BodyText.Contains("\"Revision\":{\"N\":\"2\"}", StringComparison.Ordinal) && !commandHandler.Requests[^1].BodyText.Contains("ConditionExpression", StringComparison.Ordinal),
-    "IgnoreVersion writes the entity as it is, through a delegate per type");
+    importedVoucher.Version == 3 && commandHandler.Requests[^1].BodyText.Contains("\"Revision\":{\"N\":\"3\"}", StringComparison.Ordinal) && !commandHandler.Requests[^1].BodyText.Contains("ConditionExpression", StringComparison.Ordinal),
+    "IgnoreVersion drops the condition and keeps the next version");
+
+commandHandler.Enqueue(StubResponse.Json("{}"));
+await vouchers.Update(Voucher.Keys.Of("v-1")).Set(Voucher.Attrs.Rank, 7).Set(Voucher.Attrs.Campaign, "x").IgnoreVersion().SendAsync();
+Check(
+    commandHandler.Requests[^1].BodyText.Contains(" + :v", StringComparison.Ordinal) && !commandHandler.Requests[^1].BodyText.Contains("ConditionExpression", StringComparison.Ordinal),
+    "an update that ignores the version still advances it");
 
 commandHandler.Enqueue(StubResponse.Json("{}"));
 var updatedVoucher = await vouchers.Update(Voucher.Keys.Of("v-1")).Set(Voucher.Attrs.Rank, 7).Set(Voucher.Attrs.Campaign, "x").Remove(Voucher.Attrs.Owner).IfVersion(3).SendAsync();

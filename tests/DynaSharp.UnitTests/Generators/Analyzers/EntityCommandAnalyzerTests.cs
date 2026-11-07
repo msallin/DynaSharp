@@ -194,7 +194,7 @@ public sealed class EntityCommandAnalyzerTests
 
         """;
 
-    private const string BatchMessage = "DYNA236 Warning: 'Locked' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.";
+    private const string BatchMessage = "DYNA236 Warning: 'Locked' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items without the check, each with the next version, or write them one by one with Put.";
 
     private static readonly AnalyzerFixture Shared = new(Entities);
 

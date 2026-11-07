@@ -222,7 +222,7 @@ public sealed class WriteRulesExistenceTests
         var json = ignoreFirst ? tickets.Put(Held(0)).IgnoreVersion().IfExists().ToRequestJson() : tickets.Put(Held(0)).IfExists().IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}""", 0));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}""", 1));
     }
 
     [Test]
@@ -528,7 +528,7 @@ public sealed class WriteRulesExistenceTests
     }
 
     [Test]
-    public async Task ToRequestJson_PutIgnoreVersionOfANewEntity_HasNoCondition()
+    public async Task ToRequestJson_PutIgnoreVersionOfANewEntity_StoresVersion1WithoutACondition()
     {
         // Arrange (this is how an item without a version attribute is taken over)
         using var handler = new StubHandler();
@@ -538,7 +538,7 @@ public sealed class WriteRulesExistenceTests
         var json = client.Table<Ticket>("Shop").Put(Held(0)).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 0));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 1));
     }
 
     [Test]
@@ -604,7 +604,7 @@ public sealed class WriteRulesExistenceTests
     }
 
     [Test]
-    public async Task ToRequestJson_PutIgnoreVersion_WritesTheEntityAsItIsWithoutACondition()
+    public async Task ToRequestJson_PutIgnoreVersion_WritesTheNextVersionWithoutACondition()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -614,6 +614,6 @@ public sealed class WriteRulesExistenceTests
         var json = client.Table<Ticket>("Shop").Put(Held(3)).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Item":@ITEM}""", 4));
     }
 }

@@ -1049,7 +1049,7 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
-    public async Task PutAll_OfAnEntityWithAVersionAndIgnoreVersion_WritesThemAsTheyAre()
+    public async Task PutAll_OfAnEntityWithAVersionAndIgnoreVersion_WritesTheNextVersions()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -1062,7 +1062,7 @@ public sealed class BatchWriteCommandTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "Revision":{"N":"1"}
+            "Revision":{"N":"2"}
             """);
     }
 

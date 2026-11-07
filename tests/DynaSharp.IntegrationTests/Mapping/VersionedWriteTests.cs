@@ -67,7 +67,7 @@ public sealed class VersionedWriteTests(Backend backend)
         await WriteWithoutAVersionAsync(shop);
 
         // Act
-        await shop.Tickets.Put(NewTicket with { Note = "ours", Revision = 1 }).IgnoreVersion().SendAsync();
+        await shop.Tickets.Put(NewTicket with { Note = "ours" }).IgnoreVersion().SendAsync();
         var stored = await ReadAsync(shop);
 
         // Assert
@@ -212,7 +212,7 @@ public sealed class VersionedWriteTests(Backend backend)
     }
 
     [Test]
-    public async Task Put_IgnoreVersionOverAnItem_ReplacesItAndStoresTheVersionOfTheEntity()
+    public async Task Put_IgnoreVersionOverAnItem_ReplacesItAndStoresTheNextVersionOfTheEntity()
     {
         // Arrange (an import brings its own versions, and the item here is ahead of it)
         await using var shop = await ShopSandbox.StartAsync(backend);
@@ -224,7 +224,7 @@ public sealed class VersionedWriteTests(Backend backend)
         var stored = await ReadAsync(shop);
 
         // Assert
-        await Assert.That((result.Version, stored.Note, stored.Revision)).IsEqualTo(((long?)9L, (string?)"imported", 9L));
+        await Assert.That((result.Version, stored.Note, stored.Revision)).IsEqualTo(((long?)10L, (string?)"imported", 10L));
     }
 
     [Test]
@@ -257,7 +257,7 @@ public sealed class VersionedWriteTests(Backend backend)
         var second = await shop.Tickets.Get(Ticket.Keys.Of("t2")).Consistent().ItemAsync();
 
         // Assert
-        await Assert.That((stored.Note, stored.Revision, second!.Revision)).IsEqualTo(((string?)"imported", 9L, 1L));
+        await Assert.That((stored.Note, stored.Revision, second!.Revision)).IsEqualTo(((string?)"imported", 10L, 1L));
     }
 
     [Test]
@@ -475,7 +475,7 @@ public sealed class VersionedWriteTests(Backend backend)
     }
 
     [Test]
-    public async Task BatchWrite_IgnoreVersion_WritesTheVersionAsItStands()
+    public async Task BatchWrite_IgnoreVersion_StoresTheNextVersion()
     {
         // Arrange
         await using var shop = await ShopSandbox.StartAsync(backend);
@@ -484,7 +484,84 @@ public sealed class VersionedWriteTests(Backend backend)
         await shop.Tickets.BatchWrite().Put(NewTicket with { Revision = 5 }).IgnoreVersion().SendAsync();
 
         // Assert
-        await Assert.That((await ReadAsync(shop)).Revision).IsEqualTo(5L);
+        await Assert.That((await ReadAsync(shop)).Revision).IsEqualTo(6L);
+    }
+
+    [Test]
+    public async Task Put_StaleCopyAfterATransactionUpdateThatIgnoresTheVersion_FailsTheCondition()
+    {
+        // Arrange (the copy is read before the update, which a put of it would otherwise undo without a word)
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket).SendAsync();
+        var stale = await ReadAsync(shop);
+        await shop.Client.TransactWrite().Update(shop.Tickets, Key).Set(Ticket.Attrs.Note, "counted").IgnoreVersion().SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Put(stale with { Note = "lost" }).SendAsync());
+        var stored = await ReadAsync(shop);
+
+        // Assert
+        await Assert.That((failure is not null, stored.Note, stored.Revision)).IsEqualTo((true, (string?)"counted", 2L));
+    }
+
+    [Test]
+    public async Task Update_IfVersionOfAStaleCopyAfterAnUpdateThatIgnoresTheVersion_FailsTheCondition()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket).SendAsync();
+        var stale = await ReadAsync(shop);
+        await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "counted").IgnoreVersion().SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<ConditionalCheckFailedException>(async () => await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "lost").IfVersion(stale.Revision).SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"counted"));
+    }
+
+    [Test]
+    public async Task TransactWrite_PutOfAStaleCopyAfterABatchThatIgnoresTheVersion_CancelsTheTransaction()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await shop.Tickets.Put(NewTicket).SendAsync();
+        var stale = await ReadAsync(shop);
+        await shop.Tickets.BatchWrite().Put(stale with { Note = "imported" }).IgnoreVersion().SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<TransactionCanceledException>(async () => await shop.Client.TransactWrite().Put(shop.Tickets, stale with { Note = "lost" }).SendAsync());
+
+        // Assert
+        await Assert.That((failure is not null, (await ReadAsync(shop)).Note)).IsEqualTo((true, (string?)"imported"));
+    }
+
+    [Test]
+    public async Task Update_IgnoreVersionThatCreatesTheItem_StoresTheFirstVersion()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+
+        // Act
+        await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "n").IgnoreVersion().SendAsync();
+
+        // Assert
+        await Assert.That((await ReadAsync(shop)).Revision).IsEqualTo(1L);
+    }
+
+    [Test]
+    public async Task Update_IgnoreVersionOfAnItemWithoutAVersionAttribute_StoresTheFirstVersion()
+    {
+        // Arrange
+        await using var shop = await ShopSandbox.StartAsync(backend);
+        await WriteWithoutAVersionAsync(shop);
+
+        // Act
+        await shop.Tickets.Update(Key).Set(Ticket.Attrs.Note, "ours").IgnoreVersion().SendAsync();
+        var stored = await ReadAsync(shop);
+
+        // Assert
+        await Assert.That((stored.Note, stored.Revision)).IsEqualTo(((string?)"ours", 1L));
     }
 
     [Test]

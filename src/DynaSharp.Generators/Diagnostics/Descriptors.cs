@@ -681,7 +681,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor VersionedBatchWrite = new(
         "DYNA236",
         "Batch of an entity with a version",
-        "'{0}' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items as they are, with the version each holds, or write them one by one with Put.",
+        "'{0}' has a [Version], and a batch cannot carry the condition of a version, so this batch throws InvalidOperationException when it is sent. Call IgnoreVersion() on the batch to write the items without the check, each with the next version, or write them one by one with Put.",
         Commands,
         DiagnosticSeverity.Warning,
         true,

@@ -83,7 +83,7 @@ public sealed class KeyInputChangesRemovalTests
         var json = client.Table<Ticket>("Shop").Update(TicketKey).IgnoreVersion().Remove(Ticket.Attrs.Owner).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n3 = if_not_exists(#n3, :v0) REMOVE #n0, #n1, #n2","ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"byownersk","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n3 = if_not_exists(#n3, :v0), #n4 = if_not_exists(#n4, :v1) + :v2 REMOVE #n0, #n1, #n2","ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"byownersk","#n3":"_type","#n4":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"TICKET"},":v1":{"N":"0"},":v2":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -97,7 +97,7 @@ public sealed class KeyInputChangesRemovalTests
         var json = client.Table<Ticket>("Shop").Update(TicketKey).IgnoreVersion().Set(Ticket.Attrs.Owner, null!).ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n3 = if_not_exists(#n3, :v0) REMOVE #n0, #n1, #n2","ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"byownersk","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"S":"TICKET"}}}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n3 = if_not_exists(#n3, :v0), #n4 = if_not_exists(#n4, :v1) + :v2 REMOVE #n0, #n1, #n2","ExpressionAttributeNames":{"#n0":"Owner","#n1":"byownerpk","#n2":"byownersk","#n3":"_type","#n4":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"TICKET"},":v1":{"N":"0"},":v2":{"N":"1"}}}"""));
     }
 
     [Test]
@@ -112,7 +112,7 @@ public sealed class KeyInputChangesRemovalTests
 
         // Assert
         await Assert.That(json).Contains("""
-            "UpdateExpression":"SET #n1 = :v0, #n4 = if_not_exists(#n4, :v1) REMOVE #n0, #n2, #n3","ExpressionAttributeNames":{"#n0":"Owner","#n1":"Due","#n2":"byownerpk","#n3":"byownersk","#n4":"_type"},"ExpressionAttributeValues":{":v0":{"S":"2026-10-31"},":v1":{"S":"TICKET"}}
+            "UpdateExpression":"SET #n1 = :v0, #n4 = if_not_exists(#n4, :v1), #n5 = if_not_exists(#n5, :v2) + :v3 REMOVE #n0, #n2, #n3","ExpressionAttributeNames":{"#n0":"Owner","#n1":"Due","#n2":"byownerpk","#n3":"byownersk","#n4":"_type","#n5":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"2026-10-31"},":v1":{"S":"TICKET"},":v2":{"N":"0"},":v3":{"N":"1"}}
             """);
     }
 

@@ -13,7 +13,7 @@ public sealed class StoreKeyInputsTests
 {
     private const string OrderId = "0190a5b2-7c3e-7f00-8a11-1234567890ab";
 
-    private const string PurchaseBody = """{"TableName":"Shop","Key":{"pk":{"S":"USER#alice"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3)","ExpressionAttributeNames":{"#n0":"Lines","#n1":"userId","#n2":"orderId","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"N":"3"},":v1":{"S":"alice"},":v2":{"S":"0190a5b2-7c3e-7f00-8a11-1234567890ab"},":v3":{"S":"PURCHASE"}}}""";
+    private const string PurchaseBody = """{"TableName":"Shop","Key":{"pk":{"S":"USER#alice"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3), #n4 = if_not_exists(#n4, :v4) + :v5","ExpressionAttributeNames":{"#n0":"Lines","#n1":"userId","#n2":"orderId","#n3":"_type","#n4":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"3"},":v1":{"S":"alice"},":v2":{"S":"0190a5b2-7c3e-7f00-8a11-1234567890ab"},":v3":{"S":"PURCHASE"},":v4":{"N":"0"},":v5":{"N":"1"}}}""";
 
     private static readonly DateTimeOffset At = new(2026, 11, 2, 13, 45, 30, TimeSpan.Zero);
 
@@ -325,7 +325,7 @@ public sealed class StoreKeyInputsTests
         var json = client.Table<UserOrder>("Shop").Update(UserOrder.Keys.Of("alice", Id)).Set("userId", "x").IgnoreVersion().StoreKeyInputs().ToRequestJson();
 
         // Assert
-        await Assert.That(json).Contains("""UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2)","ExpressionAttributeNames":{"#n0":"userId","#n1":"orderId","#n2":"_type"}""");
+        await Assert.That(json).Contains("""UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3) + :v4","ExpressionAttributeNames":{"#n0":"userId","#n1":"orderId","#n2":"_type","#n3":"Revision"}""");
     }
 
     [Test]
@@ -355,7 +355,7 @@ public sealed class StoreKeyInputsTests
         var json = client.Table<UserOrder>("Shop").Update(UserOrder.Keys.Of("alice", Id)).IfExists().IgnoreVersion().StoreKeyInputs().ToRequestJson();
 
         // Assert
-        await Assert.That(json).Contains("""UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0), #n2 = if_not_exists(#n2, :v1), #n3 = if_not_exists(#n3, :v2)","ConditionExpression":"attribute_exists(#n0)""");
+        await Assert.That(json).Contains("""UpdateExpression":"SET #n1 = if_not_exists(#n1, :v0), #n2 = if_not_exists(#n2, :v1), #n3 = if_not_exists(#n3, :v2), #n4 = if_not_exists(#n4, :v3) + :v4","ConditionExpression":"attribute_exists(#n0)""");
     }
 
     [Test]
@@ -402,7 +402,7 @@ public sealed class StoreKeyInputsTests
             .ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":{"pk":{"S":"USER#alice"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3)","ExpressionAttributeNames":{"#n0":"Lines","#n1":"userId","#n2":"orderId","#n3":"_type"},"ExpressionAttributeValues":{":v0":{"N":"3"},":v1":{"S":"alice"},":v2":{"S":"0190a5b2-7c3e-7f00-8a11-1234567890ab"},":v3":{"S":"PURCHASE"}}}},{"Update":{"TableName":"Shop","Key":{"pk":{"S":"USER#bob"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"Lines","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"4"},":v1":{"S":"PURCHASE"}}}}],"ClientRequestToken":"t"}""");
+        await Assert.That(json).IsEqualTo("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":{"pk":{"S":"USER#alice"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2), #n3 = if_not_exists(#n3, :v3), #n4 = if_not_exists(#n4, :v4) + :v5","ExpressionAttributeNames":{"#n0":"Lines","#n1":"userId","#n2":"orderId","#n3":"_type","#n4":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"3"},":v1":{"S":"alice"},":v2":{"S":"0190a5b2-7c3e-7f00-8a11-1234567890ab"},":v3":{"S":"PURCHASE"},":v4":{"N":"0"},":v5":{"N":"1"}}}},{"Update":{"TableName":"Shop","Key":{"pk":{"S":"USER#bob"},"sk":{"S":"ORDER#0190a5b2-7c3e-7f00-8a11-1234567890ab"}},"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2) + :v3","ExpressionAttributeNames":{"#n0":"Lines","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"4"},":v1":{"S":"PURCHASE"},":v2":{"N":"0"},":v3":{"N":"1"}}}}],"ClientRequestToken":"t"}""");
     }
 
     [Test]

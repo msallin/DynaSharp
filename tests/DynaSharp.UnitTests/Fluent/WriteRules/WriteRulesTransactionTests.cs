@@ -23,7 +23,7 @@ public sealed class WriteRulesTransactionTests
     }
 
     [Test]
-    public async Task ToRequestJson_TransactionPutIgnoreVersion_WritesTheEntityAsItIsWithoutACondition()
+    public async Task ToRequestJson_TransactionPutIgnoreVersion_WritesTheNextVersionWithoutACondition()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -33,7 +33,7 @@ public sealed class WriteRulesTransactionTests
         var json = client.TransactWrite().Put(client.Table<Ticket>("Shop"), Held(3)).IgnoreVersion().Token("t").ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Put":{"TableName":"Shop","Item":@ITEM}}],"ClientRequestToken":"t"}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Put":{"TableName":"Shop","Item":@ITEM}}],"ClientRequestToken":"t"}""", 4));
     }
 
     [Test]
@@ -50,7 +50,7 @@ public sealed class WriteRulesTransactionTests
         // Assert
         await Assert.That(json).IsEqualTo(Fill(
             """{"TransactItems":[{"Put":{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"#n0 = :v0","ExpressionAttributeNames":{"#n0":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"3"}}}},""", 4)
-            + Fill("""{"Put":{"TableName":"Shop","Item":@ITEM}},""", 5)
+            + Fill("""{"Put":{"TableName":"Shop","Item":@ITEM}},""", 6)
             + Fill("""{"Put":{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"#n0 = :v0","ExpressionAttributeNames":{"#n0":"Revision"},"ExpressionAttributeValues":{":v0":{"N":"7"}}}}],"ClientRequestToken":"t"}""", 8));
     }
 
@@ -99,7 +99,7 @@ public sealed class WriteRulesTransactionTests
         var json = client.TransactWrite().Unique(client.Table<Ticket>("Shop"), Held(3), out _).IgnoreVersion().Token("t").ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Put":{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_not_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}}],"ClientRequestToken":"t"}""", 3));
+        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Put":{"TableName":"Shop","Item":@ITEM,"ConditionExpression":"attribute_not_exists(#n0)","ExpressionAttributeNames":{"#n0":"pk"}}}],"ClientRequestToken":"t"}""", 4));
     }
 
     [Test]
@@ -160,7 +160,7 @@ public sealed class WriteRulesTransactionTests
     }
 
     [Test]
-    public async Task ToRequestJson_TransactionUpdateIgnoreVersion_LeavesTheVersionAlone()
+    public async Task ToRequestJson_TransactionUpdateIgnoreVersion_AdvancesTheVersionWithoutACondition()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -170,7 +170,7 @@ public sealed class WriteRulesTransactionTests
         var json = client.TransactWrite().Update(client.Table<Ticket>("Shop"), Ticket.Keys.Of("t1", Day)).Set("Note", "x").IgnoreVersion().Token("t").ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)","ExpressionAttributeNames":{"#n0":"Note","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"TICKET"}}}}],"ClientRequestToken":"t"}"""));
+        await Assert.That(json).IsEqualTo(Fill("""{"TransactItems":[{"Update":{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1), #n2 = if_not_exists(#n2, :v2) + :v3","ExpressionAttributeNames":{"#n0":"Note","#n1":"_type","#n2":"Revision"},"ExpressionAttributeValues":{":v0":{"S":"x"},":v1":{"S":"TICKET"},":v2":{"N":"0"},":v3":{"N":"1"}}}}],"ClientRequestToken":"t"}"""));
     }
 
     [Test]

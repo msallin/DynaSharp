@@ -393,7 +393,7 @@ public sealed class VersionMissingTests
     }
 
     [Test]
-    public async Task ToRequestJson_PutIgnoreVersionAtZero_HasNoCondition()
+    public async Task ToRequestJson_PutIgnoreVersionAtZero_StoresVersion1WithoutACondition()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -403,7 +403,7 @@ public sealed class VersionMissingTests
         var json = client.Table<Parcel>("Shop").Put(New).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"PARCEL#p1"},"_type":{"S":"PARCEL"},"Id":{"S":"p1"},"Revision":{"N":"0"}}}""");
+        await Assert.That(json).IsEqualTo("""{"TableName":"Shop","Item":{"pk":{"S":"PARCEL#p1"},"_type":{"S":"PARCEL"},"Id":{"S":"p1"},"Revision":{"N":"1"}}}""");
     }
 
     [Test]

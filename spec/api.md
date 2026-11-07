@@ -499,7 +499,7 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, on `WriteResult<T>.Item` with `TrySendAsync`, or through `ItemFor` in a transaction |
 | `StoreKeyInputs()` | Update of an entity and `UpdateStep`: stores the inputs of the key of the table as attributes, section 8. On a `Table<Item>` it does not compile, and on a step of one it throws `InvalidOperationException` |
 
-`WriteResult<T>` has `ConditionMet`, `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`, a `long?` that is null for a write that stored no version: a delete, an update with `IgnoreVersion()`, a type without `[Version]`, and a `TrySendAsync` whose condition did not hold. One nullable member and no non-null twin: whether a write stores a version depends on the chain and on the answer, which no type can say, so code that knows writes `Version!.Value`.
+`WriteResult<T>` has `ConditionMet`, `Item`, `HasItem`, `ConsumedCapacity`, `ItemCollectionMetrics` and `Version`, a `long?` that is null for a write that stored no version it knows: a delete, an update with `IgnoreVersion()`, which advances the stored version without reading it, a type without `[Version]`, and a `TrySendAsync` whose condition did not hold. One nullable member and no non-null twin: whether a write stores a version depends on the chain and on the answer, which no type can say, so code that knows writes `Version!.Value`.
 
 ```csharp
 var result = await matches.Update(LiveMatch.Keys.Of(id)).Set(LiveMatch.Attrs.ScoreAt, at)
@@ -537,7 +537,7 @@ The handle says so in its converter, `Attr<string, NullableReferenceHandleConver
 
 | Write | Rule |
 |---|---|
-| `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `[Version(Missing = VersionMissing.Allow)]` is the answer for a table that keeps such items, see below; for one item, `Put(entity with a version above 0).IgnoreVersion()` takes it over, and at 0 the item would read as 0 and fail the next write. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
+| `Put(entity)` | Version 0 adds `attribute_not_exists(<partition key>)`, on the key and not on the version, so it fails on any item under the key, also on one without a version attribute. `[Version(Missing = VersionMissing.Allow)]` is the answer for a table that keeps such items, see below; for one item, `Put(entity).IgnoreVersion()` takes it over and stores version 1. Any other `<version> = :old`, and the item is stored with `old + 1`. The entity is not mutated: `WriteResult<T>.Version` returns the stored version |
 | `Update(key).IfVersion(n).IfNotExists()` | Legal at version 0, in either order, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on `UpdateStep` and `ConditionStep`, for the reason of the next row |
 | `Put(entity).IfNotExists()` | Legal at version 0, and the clause appears once. Above 0 the terminal throws `InvalidOperationException`, also on a transaction step and on `Unique`, because no item can lack its key and hold a version, unless `.IgnoreVersion()` was called. `DYNA206` reports that where a build can see the version |
 | `Put(entity).IfExists()`, `Update(key).IfVersion(0).IfExists()`, `Delete(entity).IfExists()` | Legal above 0. At version 0 the terminal throws `InvalidOperationException` naming the entity, in either order, also on a transaction step and `ConditionStep`, because version 0 means that no item has the key, unless `.IgnoreVersion()` was called, which lifts this where it lifts the row above. Both conditions would otherwise go out and fail at DynamoDB every time |
@@ -545,8 +545,9 @@ The handle says so in its converter, `Attr<string, NullableReferenceHandleConver
 | `Delete(key)` | The same rule, with the condition alone |
 | `Delete(entity)` | Takes the version from the entity, as `IfVersion(entity.Version)`, so at 0 it fails on any item under the key. `IfVersion(n)` replaces it, and `IgnoreVersion()` opts out |
 | Transaction steps | The same rules: `IfVersion` on `UpdateStep` and `ConditionStep`, `IgnoreVersion` on all three steps |
-| `BatchWrite` | A batch cannot carry a condition, so a put or delete of a versioned entity throws at the terminal unless `.IgnoreVersion()` was called on the batch |
-| `Put(entity).IgnoreVersion()` | Stores the entity as it is, with no condition and no bump, for imports and migrations |
+| `BatchWrite` | A batch cannot carry a condition, so a put or delete of a versioned entity throws at the terminal unless `.IgnoreVersion()` was called on the batch, which stores each put with the version of its entity plus one |
+| `Put(entity).IgnoreVersion()` | No condition on the version, and the item is stored with `old + 1`, as a checked put stores it, for imports and migrations |
+| `Update(key).IgnoreVersion()` | No condition on the version, and `SET <version> = if_not_exists(<version>, :zero) + :one` after every other action, so a new item or one without a version gets 1. An action of the update of its own on the version attribute (`Set`, `Add`, `Remove`, a raw path) takes its place. `Version` of the result is null, because the update does not know the old version |
 
 **`VersionMissing`.** `[Version(Missing = VersionMissing.Allow)]` is for a table that keeps items without the attribute, which read as version 0, or items that hold 0, which the first `SaveAsync` of the AWS SDK stores and which read the same. `Reject`, the default, is what the table above says. `DynamoDbEntityInfo.VersionMissing` carries it.
 
@@ -561,6 +562,8 @@ The handle says so in its converter, `Attr<string, NullableReferenceHandleConver
 The condition of `IfVersion(0)` waits for the terminal, because `IfNotExists` can still replace it, so it stands after the other conditions of the chain. A version above 0 behaves as without `Allow`.
 
 `IgnoreVersion()` after `IfVersion(n)` throws, because the condition cannot be taken out of the expressions; `IfVersion(n)` after `IgnoreVersion()` wins.
+
+`IgnoreVersion()` drops the check and never the advance: every write of a versioned entity but a delete stores a new version, so a copy read before a write without the check fails its next checked write instead of undoing it.
 A failed condition is the ordinary `ConditionalCheckFailedException`. No retry and no read happens implicitly. The check runs in the terminal and costs an
 entity without a version nothing. `WriteAttributes` does not bump, so `Item.From` stays a plain copy.
 

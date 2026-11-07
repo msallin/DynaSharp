@@ -11,8 +11,8 @@ namespace DynaSharp.Fluent;
 internal static class WriteRules
 {
     /// <summary>
-    /// Writes a whole item, and for an entity with a version the next version. The condition on it has to wait for <see cref="WriteState.Settle"/>, because <see cref="WriteState.IgnoreVersion"/> can still take it
-    /// back, and that also writes the item again, so the entity stays at hand until then. A struct gets a box for that, which is the one thing a put of a version costs.
+    /// Writes a whole item, and for an entity with a version the next version, with or without the check. The condition on it has to wait for <see cref="WriteState.Settle"/>, because
+    /// <see cref="WriteState.IgnoreVersion"/> can still take it back.
     /// </summary>
     /// <typeparam name="T">The type of the item.</typeparam>
     /// <param name="state">The state, whose table is the one of the write.</param>
@@ -31,8 +31,6 @@ internal static class WriteRules
         state.Write.UnsettledVersion = state.Table;
         state.Write.EntityVersion = held;
         state.Write.StoredVersion = held + 1;
-        state.Write.PutEntity = item;
-        state.Write.WritePutEntity = PlainWrite<T>.Write;
     }
 
     /// <summary>Marks a write whose key does not carry a version, so it must say how it treats one before it goes out.</summary>
@@ -285,12 +283,4 @@ internal static class WriteRules
 
     private static string VersionAttribute(CommandState state) => state.Table.Writes?.VersionAttributeName
         ?? throw new InvalidOperationException($"This view of the table {state.Table.Name} has no [Version] attribute, so there is no version to check.");
-
-    /// <summary>The plain write of a type as a delegate, made once per type: a step of a transaction does not know the type of its entity, and a put allocates nothing for this.</summary>
-    /// <typeparam name="T">The type of the item.</typeparam>
-    private static class PlainWrite<T>
-        where T : IDynamoDbDocument<T>
-    {
-        public static readonly Action<DynamoDbWriter, object> Write = static (writer, entity) => T.WriteAttributes(writer, (T)entity);
-    }
 }

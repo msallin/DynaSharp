@@ -89,8 +89,8 @@ public sealed class DynamoDbMappingException : Exception
         new($"The value is not a member of {enumType}, so it has no name to store.", enumType, null, null);
 
     /// <summary>
-    /// Creates the exception for a read of the version attribute alone, by <c>Select</c>, from an item that has none. A read of the entity gives 0 there, and every write of the library stores a version, but
-    /// an <c>Update</c> with <c>IgnoreVersion()</c> that creates the item, and code of another kind. The message holds no value.
+    /// Creates the exception for a read of the version attribute alone, by <c>Select</c>, from an item that has none. A read of the entity gives 0 there, and every write of the library stores a version, so such an
+    /// item comes from code of another kind, or from an update that removes the version attribute itself. The message holds no value.
     /// </summary>
     /// <param name="entityType">The .NET type whose version was read.</param>
     /// <param name="attributeName">The attribute of the version.</param>

@@ -72,9 +72,12 @@ public readonly ref struct PutStep : ITransactWriteStep<PutStep>
     }
 
     /// <summary>
-    /// Writes the entity of this put as it is, with no condition on its version and no new version, for imports and migrations that bring their versions along. Conditions of your own
-    /// stay, and the other actions of the transaction are not touched. On a type without a <see cref="Mapping.VersionAttribute"/> it changes nothing. See <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/>.
+    /// Writes the entity of this put without the check of its version, and still stores the next version, as a checked put does. Conditions of your own stay, and the other actions of the
+    /// transaction are not touched. On a type without a <see cref="Mapping.VersionAttribute"/> it changes nothing. See <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/>.
     /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para[1]"/>
+    /// </remarks>
     /// <returns>The step, which replaces this one.</returns>
     public PutStep IgnoreVersion()
     {
