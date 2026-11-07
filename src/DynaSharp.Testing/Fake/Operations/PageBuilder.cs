@@ -10,8 +10,10 @@ namespace DynaSharp.Testing.Fake;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>LastEvaluatedKey</c> is the key of the last item read when the page stopped at <c>Limit</c> or at 1 MB, also when nothing follows, as on DynamoDB: the next page is then empty
-/// and the end. It holds the key of the table, and for a read of an index the key of the index as well.
+/// <c>LastEvaluatedKey</c> is the key of the last item read when the page stopped at <c>Limit</c> or at 1 MB, also when nothing follows: the next page is then empty and the end.
+/// It holds the key of the table, and for a read of an index the key of the index as well. A <c>Query</c> whose key condition has a part for the sort key leaves it out when
+/// <c>Limit</c> ends the page at the last item the condition matches, as real DynamoDB does (<c>FidelityTests</c>, run 42356511937). With a condition on the partition key alone
+/// DynamoDB sent it in one case of that run and left it out in another, so the fake keeps sending it there.
 /// </para>
 /// <para>
 /// <c>Select</c> without a value is <c>ALL_ATTRIBUTES</c> for a table, <c>ALL_PROJECTED_ATTRIBUTES</c> for an index and <c>SPECIFIC_ATTRIBUTES</c> with a projection. A local index
@@ -65,8 +67,10 @@ internal static class PageBuilder
         long bytes = 0;
         double fetchUnits = 0;
         Item? lastEvaluatedKey = null;
-        foreach (var entry in items)
+        using var pending = items.GetEnumerator();
+        while (pending.MoveNext())
         {
+            var entry = pending.Current;
             scanned++;
             bytes += ItemSize.Of(entry);
             var source = fetches ? Source(entry, select, options, ref fetchUnits) : entry;
@@ -81,7 +85,8 @@ internal static class PageBuilder
 
             if (scanned == options.Limit || bytes >= MaxPageBytes)
             {
-                lastEvaluatedKey = KeyOf(entry, options);
+                var atTheEndOfTheRange = scanned == options.Limit && options.HasSortKeyCondition && !pending.MoveNext();
+                lastEvaluatedKey = atTheEndOfTheRange ? null : KeyOf(entry, options);
                 break;
             }
         }

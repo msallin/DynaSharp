@@ -131,6 +131,43 @@ public sealed class QueryTests
     }
 
     [Test]
+    [Arguments("sk <= :end", 5, 3, 3, false)]
+    [Arguments("sk <= :end", 5, 3, 2, true)]
+    [Arguments("sk <= :end", 2, 3, 2, false)]
+    [Arguments("sk BETWEEN :end AND :end", 5, 3, 1, false)]
+    public async Task Handle_LimitAtTheLastItemOfTheSortKeyCondition_LeavesOutLastEvaluatedKey(string sortKeyCondition, int items, int end, int limit, bool expected)
+    {
+        // Arrange: real DynamoDB ends such a page without a key, also with items of the partition beyond the condition (FidelityTests, run 42356511937)
+        var fake = ReadTables.ShopWith(("a", items));
+
+        // Act
+        var body = FakeCalls.Ok(
+            fake,
+            "Query",
+            $$$$$"""
+            {"TableName":"Shop","KeyConditionExpression":"pk = :pk AND {{{{{sortKeyCondition}}}}}","ExpressionAttributeValues":{":pk":{"S":"a"},":end":{"N":"{{{{{end}}}}}"}},"Limit":{{{{{limit}}}}}}
+            """);
+
+        // Assert
+        await Assert.That(body.TryGetProperty("LastEvaluatedKey", out _)).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("ALL_ATTRIBUTES")]
+    [Arguments("COUNT")]
+    public async Task Handle_LimitAtTheLastItemOfThePartition_SendsLastEvaluatedKey(string select)
+    {
+        // Arrange
+        var fake = ReadTables.ShopWith(("a", 2));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Query", ByPartition + $$$$$""","Limit":2,"Select":"{{{{{select}}}}}"}""");
+
+        // Assert
+        await Assert.That(body.TryGetProperty("LastEvaluatedKey", out _)).IsTrue();
+    }
+
+    [Test]
     public async Task Handle_FollowingLastEvaluatedKey_AnswersEveryItemOnce()
     {
         // Arrange

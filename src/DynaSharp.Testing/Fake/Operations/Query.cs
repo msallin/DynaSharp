@@ -46,7 +46,7 @@ internal static class Query
             ThrowIfOutside(start, range, read.KeySchema);
         }
 
-        read.Write(response, PageBuilder.Build(read.Table.Range(read.Index, range.Partition, range.Sort, forward, start), options));
+        read.Write(response, PageBuilder.Build(read.Table.Range(read.Index, range.Partition, range.Sort, forward, start), options with { HasSortKeyCondition = range.Sort is not null }));
     }
 
     private static void ThrowIfOutside(Item start, KeyRange range, KeySchema keySchema)
