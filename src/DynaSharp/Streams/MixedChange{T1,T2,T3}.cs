@@ -15,7 +15,6 @@ namespace DynaSharp.Streams;
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
 /// <typeparam name="T3">The third type.</typeparam>
-[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "A change of a reading is handled, not compared, as a Mixed of a mixed read is.")]
 public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2, T3>>
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>

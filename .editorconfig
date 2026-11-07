@@ -162,13 +162,14 @@ dotnet_diagnostic.CA1720.severity = none
 # RS0026, RS0027: optional parameters on several overloads. The verbs are overloads over what a key is, each with an optional sort key, and generated code and its package ship together.
 dotnet_diagnostic.RS0026.severity = none
 dotnet_diagnostic.RS0027.severity = none
+# CA1815: the structs of the library are handles, keys, results, markers, converters and enumerators: they are read, rendered or passed
+# on, and nothing compares them, as with Dictionary<TKey, TValue>.Enumerator. A value that is compared is a record struct, which has equality.
+dotnet_diagnostic.CA1815.severity = none
 
 # ---------------------------------------------------------------------------
 # The command API
 # ---------------------------------------------------------------------------
 [src/DynaSharp/{Expressions,Fluent}/**.cs]
-# CA1815: conditions, handles and results are read or rendered; nothing compares them.
-dotnet_diagnostic.CA1815.severity = none
 # CA1716: And, Or and Not name what they are; nobody writes the types, they are return types.
 dotnet_diagnostic.CA1716.severity = none
 # CA2225: the implicit conversions exist for the compiler; the named forms are Condition.Of and ToString.
@@ -178,12 +179,7 @@ dotnet_diagnostic.CA1711.severity = none
 # CA2012: a command's awaiter consumes its ValueTask once, which is what the rule protects.
 dotnet_diagnostic.CA2012.severity = none
 
-[src/DynaSharp/Keys/PartitionKey*.cs]
-# CA1815: a key goes into Query; nothing compares it.
-dotnet_diagnostic.CA1815.severity = none
-
 [src/DynaSharp/Serialization/{Converters/*,AttributeValueConverter}.cs]
-# CA1000, CA1815: converters are empty structs that carry static abstract interface implementations. A generic struct type argument
-# gives each instantiation its own code, so the static members on generic types are the design, and an empty struct has no value to compare.
+# CA1000: converters are empty structs that carry static abstract interface implementations. A generic struct type argument
+# gives each instantiation its own code, so the static members on generic types are the design.
 dotnet_diagnostic.CA1000.severity = none
-dotnet_diagnostic.CA1815.severity = none

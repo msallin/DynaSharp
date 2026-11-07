@@ -534,7 +534,6 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     }
 
     /// <summary>Enumerates the attributes of an item.</summary>
-    [SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types", Justification = "Enumerators are not compared, as with Dictionary<TKey, TValue>.Enumerator.")]
     [SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "The conventional place of a struct enumerator, as in Dictionary<TKey, TValue>.")]
     public struct Enumerator : IEnumerator<KeyValuePair<string, AttributeValue>>
     {
