@@ -717,7 +717,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor UnsettledVersionByKey = new(
         "DYNA239",
         "Write by key that does not say how it treats the version",
-        "'{0}' has a [Version], and this {1} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion().",
+        "'{0}' has a [Version], and this {1} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Call IfVersion(n) with the version you read when the write depends on that copy, or IgnoreVersion() when it does not (a counter, an import); IgnoreVersion() still advances the version, so holders of an older copy then fail their checked write.",
         Commands,
         DiagnosticSeverity.Error,
         true,

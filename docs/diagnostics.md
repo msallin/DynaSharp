@@ -338,7 +338,7 @@ It also reports a key given as the values it is stored as on a table or an index
 
 `DYNA239` (error) reports an `Update` or a `Delete` by key of an entity with a `[Version]` that calls neither `IfVersion(n)` nor `IgnoreVersion()`: `carts.Update(Cart.Keys.Of("bob")).Set(Cart.Attrs.Lines, lines)`, `carts.Delete(Cart.Keys.Of("bob"))`, and the `Update` and `Delete` steps of a transaction. A key carries no version, so the command throws `InvalidOperationException` when it is sent. A put and a delete of the entity itself take the version from it.
 
-- **Fix.** Pass the version last read with `IfVersion(n)`, or write without the check with `IgnoreVersion()`.
+- **Fix.** `IfVersion(n)`, with the version you read, when the write depends on that copy: an edit of what the user saw. `IgnoreVersion()` when it does not: a counter, an import. `IgnoreVersion()` still advances the version, so a holder of an older copy then fails its checked write; keep a hot counter on an item of its own (see [Optimistic locking](commands.md#optimistic-locking)).
 - **Not reported.** Where the build cannot see the whole write, and the command still throws when it is sent: a command that the member returns, passes to a method or stores outside a local, and a step that goes into a local, a conversion or a method of your own before its next verb. For a command, `IfVersion` or `IgnoreVersion` on a command of that type anywhere in the member keeps it quiet. A write of a type parameter.
 
 ## Expressions

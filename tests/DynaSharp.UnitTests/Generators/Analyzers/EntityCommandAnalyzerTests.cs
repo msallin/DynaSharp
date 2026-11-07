@@ -681,7 +681,7 @@ public sealed class EntityCommandAnalyzerTests
         var report = await ReportAsync(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA239 Error: 'Locked' has a [Version], and this {write} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Pass the version last read with IfVersion(n), or write without the check with IgnoreVersion()."));
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA239 Error: 'Locked' has a [Version], and this {write} by key does not say how it treats it, so it throws InvalidOperationException when it is sent. Call IfVersion(n) with the version you read when the write depends on that copy, or IgnoreVersion() when it does not (a counter, an import); IgnoreVersion() still advances the version, so holders of an older copy then fail their checked write."));
     }
 
     [Test]
