@@ -500,7 +500,6 @@ public sealed class TransactWriteItemsTests
     [Arguments(
         """{"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}}}],"ClientRequestToken":"0123456789012345678901234567890123456"}""",
         "1 validation error detected: Value '0123456789012345678901234567890123456' at 'clientRequestToken' failed to satisfy constraint: Member must have length less than or equal to 36")]
-    [Arguments("""{"TransactItems":[{"Update":{"TableName":"Users","Key":{"pk":{"S":"a"}},"UpdateExpression":"SET pk = :v","ExpressionAttributeValues":{":v":{"S":"b"}}}}]}""", "One or more parameter values were invalid: Cannot update attribute pk. This attribute is part of the key")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidationAndWritesNothing(string request, string message)
     {
         // Arrange
@@ -511,6 +510,47 @@ public sealed class TransactWriteItemsTests
 
         // Assert
         await Assert.That((answer, fake.Items("Users").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", message), 0));
+    }
+
+    [Test]
+    public async Task Handle_UpdateOfAKeyAttribute_CancelsWithValidationErrorForThatAction()
+    {
+        // Arrange: real DynamoDB cancels, one reason per action (FidelityTests, run 42356511937)
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var (_, body) = FakeCalls.Send(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"b"}}}},
+              {"Update":{"TableName":"Users","Key":{"pk":{"S":"a"}},"UpdateExpression":"SET pk = :v","ExpressionAttributeValues":{":v":{"S":"c"}}}},
+              {"Put":{"TableName":"Users","Item":{"pk":{"S":"d"}}}}]}
+            """);
+
+        // Assert
+        await Assert.That((FakeCalls.SameJson(
+            """[{"Code":"None"},{"Code":"ValidationError","Message":"One or more parameter values were invalid: Cannot update attribute pk. This attribute is part of the key"},{"Code":"None"}]""",
+            body.GetProperty("CancellationReasons")), fake.Items("Users").Count)).IsEqualTo((true, 0));
+    }
+
+    [Test]
+    public async Task Handle_UpdateOfAKeyAttributeOfAnItemTwice_AnswersOneItemTwice()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}}},
+              {"Update":{"TableName":"Users","Key":{"pk":{"S":"a"}},"UpdateExpression":"SET pk = :v","ExpressionAttributeValues":{":v":{"S":"c"}}}}]}
+            """);
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Transaction request cannot include multiple operations on one item"));
     }
 
     [Test]

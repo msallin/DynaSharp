@@ -7,7 +7,7 @@ namespace DynaSharp.Testing.Fake;
 /// A <c>TransactWriteItems</c>: up to 100 condition checks, puts, deletes and updates over several tables, all or nothing. Every condition is checked against the items as they are
 /// before any write; if one fails, the transaction is cancelled with one reason per action in its order, <c>ConditionalCheckFailed</c> where a condition failed, with the item when
 /// the action asked for it with <c>ALL_OLD</c>, <c>ValidationError</c> for a key that does not match the schema of its table, a put of an index key of another type than the index
-/// defines (whatever its condition) and an update that fails on its item or whose result has one (once its condition holds), and <c>None</c> for the others. A write the table rejects once every action passed,
+/// defines (whatever its condition) and an update that fails on its item, an update of a key attribute included, or whose result has one (once its condition holds), and <c>None</c> for the others. A write the table rejects once every action passed,
 /// such as an update that makes an item over 400 KB, cancels it with <c>ValidationError</c> and takes back the writes before it. One item twice is a <c>ValidationException</c>, and so is
 /// a put of an item over 400 KB, and an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes, and an index key that is too large.
 /// </summary>
@@ -172,12 +172,6 @@ internal static class TransactWriteItems
         }
 
         var (condition, update) = ExpressionMembers.ReadWrite(body, kind == ActionKind.Update);
-
-        // An update of a key attribute is wrong whatever the item holds, so it fails the request before the transaction, not as a reason of it.
-        if (update?.Actions.FirstOrDefault(action => table.KeySchema.Names.Contains(action.Path.Root)) is { } keyUpdate)
-        {
-            throw FakeError.Validation($"One or more parameter values were invalid: Cannot update attribute {keyUpdate.Path.Root}. This attribute is part of the key");
-        }
 
         var onFailure = SingleWrite.Enum(body, "ReturnValuesOnConditionCheckFailure", WireNames.ReturnValuesOnConditionCheckFailures);
         return new Action(kind, table, key, item, condition, update, onFailure, rejected);
