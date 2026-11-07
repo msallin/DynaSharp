@@ -1082,16 +1082,31 @@ public sealed class TypeDiagnosticsTests
     [Arguments("public int [|Indexes|] { get; set; }", "Indexes")]
     [Arguments("public static class [|Indexes|] { }", "Indexes")]
     [Arguments("public enum [|Keys|] { A } public Keys K { get; set; }", "Keys")]
+    [Arguments("public string [|TableName|] { get; set; } = \"\";", "TableName")]
+    [Arguments("public const string [|TableName|] = \"orders\";", "TableName")]
     public async Task Build_MemberNamedLikeAGeneratedOne_ReportsDyna014(string member, string name)
     {
         // Arrange
-        var source = $$"""[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { {{member}} }""";
+        var source = $$"""[DynamoDbEntity(Table = "orders"), Discriminator("E"), PartitionKey("E")] public partial class E { {{member}} }""";
 
         // Act
         var report = Analysis.Report(source);
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA014 Error: Generated member '{name}' conflicts with a member of 'E'"));
+    }
+
+    [Test]
+    public async Task Build_EntityWithoutATableWithATableNameMember_ReportsNothing()
+    {
+        // Arrange (only an entity that declares a table gets the constant)
+        const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { public string TableName { get; set; } = ""; }""";
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -1124,6 +1139,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("""[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class [|Keys|] { }""", "Keys")]
     [Arguments("""[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class [|Attrs|] { }""", "Attrs")]
     [Arguments("[DynamoDbDocument] public partial class [|Attrs|] { }", "Attrs")]
+    [Arguments("""[DynamoDbEntity(Table = "orders"), Discriminator("E"), PartitionKey("E")] public partial class [|TableName|] { }""", "TableName")]
     [Arguments("""[DynamoDbEntity, Discriminator("E"), PartitionKey("E"), GlobalIndexKey("GSI1", PartitionKey = "A")] public partial class [|Indexes|] { }""", "Indexes")]
     [Arguments("""[DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey("S"), LocalIndexKey("LSI1", "B")] public partial class [|Indexes|] { }""", "Indexes")]
     public async Task Build_TypeNamedLikeAClassGeneratedIntoIt_ReportsDyna025(string source, string name)
@@ -1134,7 +1150,7 @@ public sealed class TypeDiagnosticsTests
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA025 Error: Type '{name}' has the name of a class that is generated into it, which C# does not allow. Rename the type."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA025 Error: Type '{name}' has the name of a member that is generated into it, which C# does not allow. Rename the type."));
     }
 
     [Test]
@@ -1154,6 +1170,39 @@ public sealed class TypeDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, TakenOver(name, full, owner)));
+    }
+
+    [Test]
+    [Arguments("public static class Names { public const string TableName = \"orders\"; }", "[DynamoDbEntity(Table = \"carts\"), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public static string Other => [|TableName|]; }", "global::Shop.Names.TableName")]
+    [Arguments("public static class Names { public static string TableName { get; } = \"orders\"; }", "[DynamoDbEntity(Table = \"orders\"), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public static int Length => [|TableName|].Length; }", "global::Shop.Names.TableName")]
+    [Arguments("public enum TableName { A }", "[DynamoDbEntity(Table = \"orders\"), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public [|TableName|] X { get; set; } }", "global::Shop.TableName")]
+    public async Task Build_NameThatTheGeneratedTableNameTakesOver_ReportsDyna043(string outside, string type, string full)
+    {
+        // Arrange (inside the type the name would give the table of the type instead)
+        var source = "using static Shop.Names;\n" + outside + "\n" + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, TakenOver("TableName", full, "E", "constant")));
+    }
+
+    [Test]
+    [Arguments("[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public static int Length => TableName.Length; }")]
+    [Arguments("[DynamoDbEntity(Table = \"orders\"), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public static int Length(string TableName) => TableName.Length; }")]
+    [Arguments("[DynamoDbEntity(Table = \"orders\"), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { public static int Length => Names.TableName.Length; }")]
+    [Arguments("[DynamoDbEntity(Table = TableName), Discriminator(\"E\"), PartitionKey(\"E\")] public partial class E { }")]
+    public async Task Build_NameTheGeneratedTableNameDoesNotTakeOver_ReportsNothing(string type)
+    {
+        // Arrange (an entity without a table has no constant, a parameter is found first, a name after a dot is looked up elsewhere, and the table the type declares is the value of the constant)
+        var source = "using static Shop.Names;\npublic static class Names { public const string TableName = \"orders\"; }\n" + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -1230,9 +1279,11 @@ public sealed class TypeDiagnosticsTests
     [Arguments("[DynaSharp.Mapping.DynamoDbDocument] public partial class Keys { }")]
     [Arguments("[DynaSharp.Mapping.DynamoDbDocument] public partial class Indexes { }")]
     [Arguments("""[DynaSharp.Mapping.DynamoDbEntity, DynaSharp.Mapping.Discriminator("E"), DynaSharp.Mapping.PartitionKey("E")] public partial class Indexes { }""")]
+    [Arguments("[DynaSharp.Mapping.DynamoDbDocument] public partial class TableName { }")]
+    [Arguments("""[DynaSharp.Mapping.DynamoDbEntity, DynaSharp.Mapping.Discriminator("E"), DynaSharp.Mapping.PartitionKey("E")] public partial class TableName { }""")]
     public async Task Run_TypeNamedLikeAClassItDoesNotGet_Compiles(string declaration)
     {
-        // Arrange (a document gets Attrs alone, and an entity gets Indexes only with an index)
+        // Arrange (a document gets Attrs alone, an entity gets Indexes only with an index, and TableName only with a table)
         var source = $"namespace Shop; {declaration}";
 
         // Act
@@ -1991,8 +2042,8 @@ public sealed class TypeDiagnosticsTests
         await Assert.That(report).IsEmpty();
     }
 
-    private static string TakenOver(string name, string full, string owner) =>
-        $"DYNA043 Error: '{name}' names '{full}' here, but inside '{owner}' the generated class {owner}.{name} takes that name over. Write the name in full, as {full}, or give the type another name with a using alias.";
+    private static string TakenOver(string name, string full, string owner, string what = "class") =>
+        $"DYNA043 Error: '{name}' names '{full}' here, but inside '{owner}' the generated {what} {owner}.{name} takes that name over. Write the name in full, as {full}.";
 
     private static string Oblivious(string property, string type, string shown) =>
         $"DYNA041 Error: '{property}' of '{type}' is declared where nullable annotations are disabled, so its type '{shown}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{type}' declares it, and mark with '?' what can be null.";

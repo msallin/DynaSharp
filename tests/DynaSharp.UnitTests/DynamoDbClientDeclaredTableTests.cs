@@ -20,6 +20,19 @@ public sealed class DynamoDbClientDeclaredTableTests
     }
 
     [Test]
+    public async Task TableName_OfTheGeneratedEntity_IsTheNameTheClientOpensWithoutTableNaming()
+    {
+        // Arrange
+        using var client = Create(null);
+
+        // Act
+        var patrons = client.Table<Patron>();
+
+        // Assert
+        await Assert.That(patrons.Name).IsEqualTo(Patron.TableName);
+    }
+
+    [Test]
     public async Task Table_TableNaming_OpensTheNameItReturns()
     {
         // Arrange

@@ -23,7 +23,7 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            discriminatorAttributeName: "_type") { TableName = "audited" };
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
@@ -222,4 +222,8 @@ partial class Derived : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.
             public static string Format(string id) => Of(id).Value;
         }
     }
+
+    /// <summary>The table <c>Derived</c> declares, <c>audited</c>, as written. The client opens it as <c>DynamoDbClientOptions.TableNaming</c> names it, which <c>client.Table&lt;Derived&gt;().Name</c> gives.</summary>
+    [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
+    public new const string TableName = "audited";
 }

@@ -76,14 +76,14 @@ public sealed class GeneratedCodeAttributeTests
     [MethodDataSource(nameof(Shapes))]
     public async Task Run_PartialDeclaration_GetsNoFieldInitializer(string shape)
     {
-        // Arrange (an initializer runs in the static constructor of the type, which no attribute on the field excludes from coverage)
+        // Arrange (an initializer runs in the static constructor of the type, which no attribute on the field excludes from coverage; a constant runs nothing)
         var result = Runs[shape].Value;
 
         // Act
         var initialized = Generated(result)
             .SelectMany(UserTypes)
             .SelectMany(static type => type.Members.OfType<FieldDeclarationSyntax>())
-            .Where(static field => field.Declaration.Variables.Any(static variable => variable.Initializer is not null))
+            .Where(static field => !field.Modifiers.Any(SyntaxKind.ConstKeyword) && field.Declaration.Variables.Any(static variable => variable.Initializer is not null))
             .ToList();
 
         // Assert

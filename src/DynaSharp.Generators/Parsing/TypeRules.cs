@@ -13,6 +13,8 @@ internal static class TypeRules
 
     private const string IndexesClass = "Indexes";
 
+    private const string TableNameConstant = "TableName";
+
     /// <summary>Checks the declaration.</summary>
     /// <returns>False when the type cannot be analyzed further.</returns>
     public static bool Check(GeneratorAttributeSyntaxContext context, INamedTypeSymbol type, MappedKind kind, DiagnosticBag bag, Spot spot)
@@ -57,6 +59,10 @@ internal static class TypeRules
         {
             CheckReservedMember(type, KeysClass, bag, spot);
             CheckReservedMember(type, IndexesClass, bag, spot);
+            if (TableNames.Of(type) is not null)
+            {
+                CheckReservedMember(type, TableNameConstant, bag, spot);
+            }
         }
 
         CheckReservedMember(type, AttrsClass, bag, spot);
@@ -79,6 +85,20 @@ internal static class TypeRules
 
     public static bool HidesAttrs(INamedTypeSymbol type) =>
         HidesInherited(type, AttrsClass, WellKnownNames.EntityAttribute) || HidesInherited(type, AttrsClass, WellKnownNames.DocumentAttribute);
+
+    // A base entity has the constant only if it declares a table, on itself or through its assembly.
+    public static bool HidesTableName(INamedTypeSymbol type)
+    {
+        for (var current = type.BaseType; current is not null; current = current.BaseType)
+        {
+            if (current.GetMembers(TableNameConstant).Length > 0 || (AttributeReader.Find(current, WellKnownNames.EntityAttribute) is not null && TableNames.Of(current) is not null))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     // Unlike the other two, a base entity has this class only if it declares an index.
     public static bool HidesIndexes(INamedTypeSymbol type)
@@ -103,6 +123,7 @@ internal static class TypeRules
         AttrsClass => true,
         KeysClass => kind == MappedKind.Entity,
         IndexesClass => kind == MappedKind.Entity && DeclaresIndex(type),
+        TableNameConstant => kind == MappedKind.Entity && TableNames.Of(type) is not null,
         _ => false,
     };
 
@@ -165,41 +186,69 @@ internal static class TypeRules
         return true;
     }
 
-    // The classes generated into the type: Attrs into each, Keys into an entity, and Indexes into an entity with an index of its own or of a base.
-    private static string[] GeneratedClasses(INamedTypeSymbol type, MappedKind kind)
+    // The members generated into the type: Attrs into each, Keys into an entity, Indexes into an entity with an index of its own or of a base, and TableName into an entity that declares a table.
+    private static List<string> GeneratedMembers(INamedTypeSymbol type, MappedKind kind)
     {
+        List<string> members = [AttrsClass];
         if (kind == MappedKind.Document)
         {
-            return [AttrsClass];
+            return members;
         }
 
-        return DeclaresIndex(type) || HidesIndexes(type) ? [AttrsClass, KeysClass, IndexesClass] : [AttrsClass, KeysClass];
+        members.Add(KeysClass);
+        if (DeclaresIndex(type) || HidesIndexes(type))
+        {
+            members.Add(IndexesClass);
+        }
+
+        if (TableNames.Of(type) is not null)
+        {
+            members.Add(TableNameConstant);
+        }
+
+        return members;
     }
 
-    // DYNA043. Inside the type a simple name finds the generated class before a type of that name outside it, so with an enum Keys, `public Keys Key { get; set; }` would name the class.
-    // The generated class is not in this compilation, so a name that binds to a type or a namespace outside the type is one it would take over.
+    // DYNA043. Inside the type a simple name finds the generated member before a type or a member of that name outside it, so with an enum Keys, `public Keys Key { get; set; }` would name the class,
+    // and with `using static Names;`, `Table = TableName` would name the constant of the type. The generated member is not in this compilation, so a name that binds to something outside the type is
+    // one it would take over. A local or a parameter is found before the members of the type, so the generated one does not take it over;
+    // a method of that name outside is left to the compiler.
     private static void CheckTakenOverNames(INamedTypeSymbol type, MappedKind kind, Compilation compilation, DiagnosticBag bag)
     {
-        var generated = GeneratedClasses(type, kind);
+        var generated = GeneratedMembers(type, kind);
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
             var declaration = reference.GetSyntax();
             SemanticModel? model = null;
             foreach (var name in declaration.DescendantNodes().OfType<IdentifierNameSyntax>())
             {
-                if (Array.IndexOf(generated, name.Identifier.ValueText) < 0 || IsAfterADot(name))
+                if (!generated.Contains(name.Identifier.ValueText) || IsAfterADot(name) || IsTheDeclaredTable(name))
                 {
                     continue;
                 }
 
                 model ??= compilation.GetSemanticModel(declaration.SyntaxTree);
-                if (model.GetSymbolInfo(name).Symbol is INamespaceOrTypeSymbol target && !SymbolEqualityComparer.Default.Equals(target.ContainingSymbol, type))
+                if (model.GetSymbolInfo(name).Symbol is { } target && TakenOverName(target, type) is { } full)
                 {
-                    bag.Report(Descriptors.NameTakenOverByGeneratedClass, Spot.Of(name.GetLocation()), name.Identifier.ValueText, target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), type.Name);
+                    var what = name.Identifier.ValueText == TableNameConstant ? "constant" : "class";
+                    bag.Report(Descriptors.NameTakenOverByGeneratedClass, Spot.Of(name.GetLocation()), name.Identifier.ValueText, full, type.Name, what);
                 }
             }
         }
     }
+
+    // The name in full of what a simple name inside the type binds to, when a generated member would take it over: a type, a namespace or a member outside the type.
+    private static string? TakenOverName(ISymbol target, INamedTypeSymbol type) => target switch
+    {
+        _ when SymbolEqualityComparer.Default.Equals(target.ContainingSymbol, type) => null,
+        INamespaceOrTypeSymbol namespaceOrType => namespaceOrType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+        IFieldSymbol or IPropertySymbol => target.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + target.Name,
+        _ => null,
+    };
+
+    // [DynamoDbEntity(Table = TableName)]: the constant would give the very value the argument declares, so the name may stand for it.
+    private static bool IsTheDeclaredTable(IdentifierNameSyntax name) =>
+        name.Identifier.ValueText == TableNameConstant && name.Parent is AttributeArgumentSyntax { NameEquals.Name.Identifier.ValueText: WellKnownNames.TableArgument };
 
     // Only a name that starts a lookup can be taken over: `Shop.Keys` and `x.Keys` look in what stands before the dot, and the alias of `alias::Keys` is no type.
     private static bool IsAfterADot(IdentifierNameSyntax name) => name.Parent switch

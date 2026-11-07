@@ -16,9 +16,10 @@ The source generator adds members to every `partial` type with `[DynamoDbEntity]
 | `Order.Attrs` | Every entity and document | A typed handle per stored attribute, see [Attrs](#attrs) |
 | `Order.Keys` | Every entity | `Of` and `TryOf` for the table key, and a builder per key, see [Keys](#keys) |
 | `Order.Indexes` | An entity that declares an index | Each index name as a `const string`, see [Indexes](#indexes) |
+| `Order.TableName` | An entity that declares a table | The declared name as a `const string`, see [TableName](#tablename) |
 | `DynamoDbEntities.IncludingAll()` | The assembly, once, when its entities share the keys of one table | An `Including<T>()` of every entity, see [DynamoDbEntities](#dynamodbentities) |
 
-The code that reads and writes the item implements `IDynamoDbEntity<Order>` explicitly, so you cannot call it. An enum's converter is a `file` type, and the structs a handle names to reach it are hidden from IntelliSense. `Keys`, `Attrs` and `Indexes` are reserved member names on every mapped type (`DYNA014`); a type that inherits from an entity hides its base's classes with its own.
+The code that reads and writes the item implements `IDynamoDbEntity<Order>` explicitly, so you cannot call it. An enum's converter is a `file` type, and the structs a handle names to reach it are hidden from IntelliSense. `Keys`, `Attrs` and `Indexes` are reserved member names on every mapped type, and `TableName` on an entity that declares a table (`DYNA014`); a type that inherits from an entity hides its base's members with its own.
 
 ```csharp
 Order.Keys.PrimaryKey key = Order.Keys.Of("alice", 42);
@@ -141,6 +142,16 @@ See [Expressions](expressions.md) for what a handle can do.
 ## Indexes
 
 `Order.Indexes.ByStatus` is the `const string` `"ByStatus"`, for `orders.Index(...)`, `shop.Index<Order>(...)` and the request API. The constant is named like the builders, so `GSI1` is `Indexes.Gsi1`. An entity without an index has no `Indexes`. Two indexes of one type that would share a name are reported at compile time.
+
+## TableName
+
+`Order.TableName` is the `const string` `"Shop"`: the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or through `[assembly: DynamoDbDefaults(Table = "...")]`, as written. An entity without a declared table has none. It is the name before [`TableNaming`](tables.md#a-table-per-environment): the name the client opens is `orders.Name`, of a table from `client.Table<Order>()`.
+
+```csharp
+Console.WriteLine($"{Order.TableName} opens as {client.Table<Order>().Name}");  // "Shop", then the name after TableNaming
+```
+
+It is a constant, so it fits where only one does, such as an attribute argument or a `case`, and a tool, a test or infrastructure code that needs the name reads it from the entity instead of repeating it.
 
 ## DynamoDbEntities
 

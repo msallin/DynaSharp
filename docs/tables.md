@@ -72,6 +72,7 @@ public partial record Session { ... }
 The example blocks of this guide are compiled together, and [Project defaults](entities.md#project-defaults) holds their assembly attribute, so this one is plain text.
 
 - **What the generator checks.** A name DynamoDB would refuse, empty, outside 3 to 255 characters, or with a character other than `a-z`, `A-Z`, `0-9`, `_`, `-` and `.`, is the error [`DYNA039`](diagnostics.md#entities). Two entities of one table whose keys have other names are the warning [`DYNA040`](diagnostics.md#entities), since a table has one key schema.
+- **The name in code.** Each entity that declares a table gets the constant `LedgerAccount.TableName`, here `"Ledger"`, the name as declared, see [TableName](generated-code.md#tablename).
 - **No declaration.** `client.Table<T>()` of an entity that declares no table, on itself or through its assembly, is the error [`DYNA238`](diagnostics.md#commands), and an entity from elsewhere throws `InvalidOperationException` there, naming both ways to fix it.
 
 ### A table per environment

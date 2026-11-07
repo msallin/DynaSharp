@@ -17,6 +17,7 @@ namespace DynaSharp.Generators;
 /// <param name="HidesInheritedKeys">Whether <c>Keys</c> needs <c>new</c>, because a base type has a member of that name.</param>
 /// <param name="HidesInheritedAttrs">Whether <c>Attrs</c> needs <c>new</c>, because a base type has a member of that name.</param>
 /// <param name="HidesInheritedIndexes">Whether <c>Indexes</c> needs <c>new</c>, because a base type has a member of that name.</param>
+/// <param name="HidesInheritedTableName">Whether <c>TableName</c> needs <c>new</c>, because a base type has a member of that name.</param>
 /// <param name="Reach">The accessibility the type really has, through the types around it, which decides who can name it outside the type.</param>
 internal sealed record TypeModel(
     string? Namespace,
@@ -33,6 +34,7 @@ internal sealed record TypeModel(
     bool HidesInheritedKeys,
     bool HidesInheritedAttrs,
     bool HidesInheritedIndexes,
+    bool HidesInheritedTableName,
     Accessibility Reach)
 {
     /// <summary>Gets the property a model refers to by <see cref="PropertyModel.Name"/>.</summary>

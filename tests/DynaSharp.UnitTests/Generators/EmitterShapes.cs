@@ -195,7 +195,7 @@ internal static class EmitterShapes
                 public virtual string Secret { get; set; } = "";
             }
 
-            [DynamoDbEntity]
+            [DynamoDbEntity(Table = "audited")]
             [Discriminator("BASE")]
             public partial class Base : Audited
             {
@@ -203,7 +203,7 @@ internal static class EmitterShapes
                 public string Id { get; set; } = "none";
             }
 
-            [DynamoDbEntity]
+            [DynamoDbEntity(Table = "audited")]
             [Discriminator("DERIVED")]
             public partial class Derived : Base
             {

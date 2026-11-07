@@ -2,7 +2,7 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// Writes what a type offers for addressing its data into the body of its type: the <c>Attrs</c> handles of every mapped type, and for an
-/// entity the nested <c>Keys</c> class, and <c>Indexes</c> if it has an index. The body is members only, each after a blank line like the other parts of a body; the file around it,
+/// entity the nested <c>Keys</c> class, <c>Indexes</c> if it has an index, and the constant <c>TableName</c> if it declares a table. The body is members only, each after a blank line like the other parts of a body; the file around it,
 /// and the converters of enums it refers to, belong to <see cref="EntityEmitter"/>.
 /// </summary>
 /// <remarks>
@@ -44,6 +44,20 @@ internal static class KeysEmitter
             code.Blank();
             EmitIndexes(code, type, entity);
         }
+
+        if (entity.TableName is { } table)
+        {
+            code.Blank();
+            EmitTableName(code, type, table);
+        }
+    }
+
+    // A valid table name holds only letters, digits, '_', '-' and '.', so it needs no escaping in the comment.
+    private static void EmitTableName(IndentedCode code, TypeModel type, string table)
+    {
+        code.Line($"/// <summary>The table <c>{type.Name}</c> declares, <c>{table}</c>, as written. The client opens it as <c>DynamoDbClientOptions.TableNaming</c> names it, which <c>client.Table&lt;{type.Name}&gt;().Name</c> gives.</summary>");
+        code.Line(CodeText.GeneratedCode);
+        code.Line($"public {(type.HidesInheritedTableName ? "new " : string.Empty)}const string TableName = {CodeText.Literal(table)};");
     }
 
     private static void EmitIndexes(IndentedCode code, TypeModel type, EntityModel entity)

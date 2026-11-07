@@ -766,6 +766,45 @@ public sealed class ModelBuilderTests
     }
 
     [Test]
+    public async Task Build_EntityDerivedFromAnEntityWithATable_HidesItsTableName()
+    {
+        // Arrange
+        var source = """[DynamoDbEntity(Table = "audit"), Discriminator("E"), PartitionKey("E")] public partial class Root { } """ + Keyed.Replace("\"E\"", "\"D\"", StringComparison.Ordinal) + " public partial class D : Root { }";
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.D");
+
+        // Assert
+        await Assert.That(model.HidesInheritedTableName).IsTrue();
+    }
+
+    [Test]
+    public async Task Build_EntityDerivedFromAnEntityWithoutATable_HidesNoTableName()
+    {
+        // Arrange (such a base has no TableName, and a needless new is a warning)
+        var source = Keyed + " public partial class Root { } " + Keyed.Replace("\"E\"", "\"D\"", StringComparison.Ordinal) + " public partial class D : Root { }";
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.D");
+
+        // Assert
+        await Assert.That(model.HidesInheritedTableName).IsFalse();
+    }
+
+    [Test]
+    public async Task Build_BaseWithAMemberNamedTableName_HidesIt()
+    {
+        // Arrange
+        var source = "public class Root { public const string TableName = \"x\"; } " + Keyed + " public partial class E : Root { }";
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.E");
+
+        // Assert
+        await Assert.That(model.HidesInheritedTableName).IsTrue();
+    }
+
+    [Test]
     public async Task Build_DocumentDerivedFromADocument_HidesAttrsAndHasNoKeys()
     {
         // Arrange

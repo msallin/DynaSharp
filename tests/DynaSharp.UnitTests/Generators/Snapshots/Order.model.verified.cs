@@ -521,4 +521,5 @@ Enums:
 HidesInheritedKeys: False
 HidesInheritedAttrs: False
 HidesInheritedIndexes: False
+HidesInheritedTableName: False
 Reach: Public

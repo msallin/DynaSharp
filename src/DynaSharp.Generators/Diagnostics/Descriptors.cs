@@ -131,7 +131,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor NamedLikeGeneratedClass = new(
         "DYNA025",
         "Type has the name of a generated class",
-        "Type '{0}' has the name of a class that is generated into it, which C# does not allow. Rename the type.",
+        "Type '{0}' has the name of a member that is generated into it, which C# does not allow. Rename the type.",
         Mapping,
         DiagnosticSeverity.Error,
         true,
@@ -252,7 +252,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor NameTakenOverByGeneratedClass = new(
         "DYNA043",
         "A generated class takes over a type name",
-        "'{0}' names '{1}' here, but inside '{2}' the generated class {2}.{0} takes that name over. Write the name in full, as {1}, or give the type another name with a using alias.",
+        "'{0}' names '{1}' here, but inside '{2}' the generated {3} {2}.{0} takes that name over. Write the name in full, as {1}.",
         Mapping,
         DiagnosticSeverity.Error,
         true,
