@@ -107,6 +107,27 @@ public sealed class TransactGetItemsTests
     }
 
     [Test]
+    [Arguments("""{"pk":{"N":"1"}}""")]
+    [Arguments("""{"pk":{"S":"b"},"x":{"S":"1"}}""")]
+    [Arguments("""{"id":{"S":"b"}}""")]
+    public async Task Handle_KeyThatDoesNotMatchTheSchema_CancelsWithValidationErrorForThatGet(string key)
+    {
+        // Arrange: both emulators cancel the transaction for it, as TransactWriteItems does
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var (status, body) = FakeCalls.Send(
+            fake,
+            "TransactGetItems",
+            """{"TransactItems":[{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}}}},{"Get":{"TableName":"Users","Key":""" + key + "}}]}");
+
+        // Assert
+        await Assert.That((status, body.GetProperty("__type").GetString(), FakeCalls.SameJson(
+            """[{"Code":"None"},{"Code":"ValidationError","Message":"The provided key element does not match the schema"}]""",
+            body.GetProperty("CancellationReasons")))).IsEqualTo((HttpStatusCode.BadRequest, "com.amazonaws.dynamodb.v20120810#TransactionCanceledException", true));
+    }
+
+    [Test]
     public async Task Handle_101Gets_AnswersTheLengthConstraint()
     {
         // Arrange

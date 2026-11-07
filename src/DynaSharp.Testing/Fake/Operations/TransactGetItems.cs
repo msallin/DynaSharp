@@ -6,7 +6,8 @@ namespace DynaSharp.Testing.Fake;
 /// <summary>
 /// A <c>TransactGetItems</c>: up to 100 gets, each a strongly consistent read of one item, all at one moment. <c>Responses</c> has one element per get, in its order: <c>{"Item":{...}}</c>,
 /// or <c>{}</c> for a key without an item. A projection takes only what it names, not even the key, and one that matches no attribute of the item gives <c>{}</c> as well.
-/// One item twice is a <c>ValidationException</c>.
+/// One item twice is a <c>ValidationException</c>. A key that does not match the schema of its table cancels the transaction, with a <c>ValidationError</c> reason for that get and
+/// <c>None</c> for the others, as <c>TransactWriteItems</c> does: both emulators answer <c>TransactionCanceledException</c> for it.
 /// </summary>
 /// <remarks>
 /// A transactional read costs twice a strongly consistent read of the item, as the Developer Guide says. <c>INDEXES</c> repeats the units as <c>ReadCapacityUnits</c>, at the top and of
@@ -36,16 +37,37 @@ internal static class TransactGetItems
 
         var gets = new List<(FakeTable Table, ItemKey Key, ParsedProjection? Projection)>(elements.Count);
         var seen = new HashSet<(string, ItemKey)>();
-        foreach (var element in elements)
+        var reasons = new CancellationReason[elements.Count];
+        var cancelled = false;
+        for (var i = 0; i < elements.Count; i++)
         {
+            var element = elements[i];
             RequestJson.Members(element, "TransactItems of " + Name, "Get");
             var get = RequestJson.Required(element, "Get");
             RequestJson.Members(get, "Get of " + Name, "TableName", "Key", "ProjectionExpression", "ExpressionAttributeNames");
             var table = db.GetTable(TableOperations.ReadTableName(get));
-            var key = table.KeySchema.ReadKey(RequestJson.ReadItem(RequestJson.Required(get, "Key"), "Key"));
+            var keyMap = RequestJson.ReadItem(RequestJson.Required(get, "Key"), "Key");
             var projection = ExpressionMembers.ReadProjection(get);
+            reasons[i] = new CancellationReason { Code = "None" };
+            ItemKey key;
+            try
+            {
+                key = table.KeySchema.ReadKey(keyMap);
+            }
+            catch (FakeError error) when (!error.IsInputError)
+            {
+                reasons[i] = new CancellationReason { Code = "ValidationError", Message = error.Message };
+                cancelled = true;
+                continue;
+            }
+
             Batches.ThrowIfSeen(seen, table, key, SameItemTwice);
             gets.Add((table, key, projection));
+        }
+
+        if (cancelled)
+        {
+            throw FakeError.TransactionCanceled(reasons);
         }
 
         var shares = new List<CapacityShare>(gets.Count);
