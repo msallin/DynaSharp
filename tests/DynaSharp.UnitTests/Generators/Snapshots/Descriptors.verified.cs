@@ -96,6 +96,7 @@ DYNA038 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA039 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA040 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA238 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA041 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -194,3 +195,4 @@ DYNA038 | Error | DynaSharp.Mapping | Type has a name the generated class Dynamo
 DYNA039 | Error | DynaSharp.Mapping | Table name is invalid | The table name '{0}' is not valid: {1}
 DYNA040 | Warning | DynaSharp.Mapping | Entities of one table with other keys | '{0}' is in the table '{1}' with the keys {2}, and '{3}' is in it with {4}. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.
 DYNA238 | Error | DynaSharp.Commands | Entity declares no table | '{0}' declares no table, so {1} without the name of a table throws InvalidOperationException. Declare one with [DynamoDbEntity(Table = "...")] on the type or [assembly: DynamoDbDefaults(Table = "...")], or pass the name of the table.
+DYNA041 | Error | DynaSharp.Mapping | Property is outside a nullable context | '{0}' of '{1}' is declared where nullable annotations are disabled, so its type '{2}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{1}' declares it, and mark with '?' what can be null.

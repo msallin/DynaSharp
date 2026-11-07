@@ -37,6 +37,15 @@ internal static class Analysis
         return string.Join("\n", result.Diagnostics.Select(Describe));
     }
 
+    /// <summary>What <see cref="Report"/> gives when <paramref name="otherFile"/>, which has no header, is a second file of the compilation.</summary>
+    public static string ReportWithFile(string markedSource, string otherFile)
+    {
+        var other = CSharpSyntaxTree.ParseText(Strip(otherFile).Text, GeneratorRun.ParseOptions(LanguageVersion.Latest), "Other.cs");
+        var compilation = GeneratorRun.CreateCompilation(Strip(Header + markedSource).Text, LanguageVersion.Latest).AddSyntaxTrees(other);
+        var result = GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest).RunGenerators(compilation).GetRunResult();
+        return string.Join("\n", result.Diagnostics.Select(Describe));
+    }
+
     /// <summary>What <see cref="Report"/> gives for a source with its own usings and namespaces, which is where an assembly attribute can go.</summary>
     public static string ReportOfWholeFile(string markedSource)
     {

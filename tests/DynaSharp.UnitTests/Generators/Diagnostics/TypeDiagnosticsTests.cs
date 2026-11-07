@@ -44,6 +44,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("DYNA017", """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey] public long Id { get; set; } }""")]
     [Arguments("DYNA018", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey("S"), GlobalIndexKey("GSI1", PartitionKey = "A"), LocalIndexKey("LSI1", "B")] public partial class E { }""")]
     [Arguments("DYNA020", """[DynamoDbEntity, Discriminator(OptOut = true), PartitionKey("E")] public partial class E { }""")]
+    [Arguments("DYNA041", "[DynamoDbDocument] public partial class A {\n#nullable disable\npublic int X { get; set; } [DynamoDbIgnore] public string Y { get; set; }\n#nullable restore\npublic string? Z { get; set; } }")]
     [Arguments("DYNA021", """[DynamoDbEntity, Discriminator("E")] public partial class E { [PartitionKey] public string Id { get; set; } = "id"; [DynamoDbIgnore] public int X { get; set; } }""")]
     [Arguments("DYNA022", """[DynamoDbEntity, Discriminator("E", AttributeName = "kind"), PartitionKey("E")] public partial class E { }""")]
     [Arguments("DYNA023", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}")] public partial class E { public string Id { get; set; } = "id"; [Version] public long V { get; set; } }""")]
@@ -1342,6 +1343,50 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
+    [Arguments("string", "string")]
+    [Arguments("List<string>", "System.Collections.Generic.List<string>")]
+    [Arguments("int[]", "int[]")]
+    public async Task Build_PropertyInARegionWithNullableDisabled_ReportsDyna041OnIt(string type, string shown)
+    {
+        // Arrange (DYNA019 looks at the declaration of the type alone, which is in an enabled context)
+        var source = $"[DynamoDbDocument] public partial class A\n{{\n#nullable disable\n    public {type} [|X|] {{ get; set; }}\n#nullable restore\n}}";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, Oblivious("X", "Shop.A", shown)));
+    }
+
+    [Test]
+    public async Task Build_PartInAFileWithNullableDisabled_ReportsDyna041InThatFile()
+    {
+        // Arrange
+        const string Source = "[DynamoDbDocument] public partial class A { public string Title { get; set; } = \"\"; }";
+        const string Other = "#nullable disable\nnamespace Shop;\npublic partial class A { public string [|Text|] { get; set; } }\n";
+
+        // Act
+        var report = Analysis.ReportWithFile(Source, Other);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.OnSpans(Analysis.Strip(Other).Spans, [Oblivious("Text", "Shop.A", "string")]));
+    }
+
+    [Test]
+    public async Task Build_BaseFromAnAssemblyWithNullableDisabled_ReportsDyna041OnTheType()
+    {
+        // Arrange
+        var library = Analysis.Library("#nullable disable\nnamespace Lib { public class Base { public string Text { get; set; } } }");
+        const string Source = "[DynamoDbDocument] public partial class [|A|] : Lib.Base { public string Title { get; set; } = \"\"; }";
+
+        // Act
+        var report = Analysis.Report(Source, LanguageVersion.Latest, library);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, Oblivious("Text", "Lib.Base", "string")));
+    }
+
+    [Test]
     public async Task Build_AnnotationsContext_ReportsNothing()
     {
         // Arrange
@@ -1837,6 +1882,9 @@ public sealed class TypeDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string Oblivious(string property, string type, string shown) =>
+        $"DYNA041 Error: '{property}' of '{type}' is declared where nullable annotations are disabled, so its type '{shown}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{type}' declares it, and mark with '?' what can be null.";
 
     private static string NullReadsBack(string property, string kept, string fix) =>
         $"DYNA035 Warning: '{property}' is nullable, but a write leaves null out of the item and a read of an item without the attribute keeps {kept}, so a null that was written reads back as that value. {fix}.";

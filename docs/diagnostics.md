@@ -26,7 +26,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity |
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
-| `DYNA019` | The type is outside a nullable context | Enable nullable reference types |
+| `DYNA019` | The type is outside a nullable context; a property outside one in a type that is inside is `DYNA041` | Enable nullable reference types |
 | `DYNA020` | An entity has no discriminator | Add the suggested `[Discriminator("EMAIL_CLAIM")]` (for `EmailClaim`: its name in upper snake case), or `[Discriminator(OptOut = true)]` for a table other tools write. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, also named in the message, does that for every entity of a project |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, both a value and `OptOut`, or neither | Set one |
@@ -98,6 +98,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 - **Fix.** Give the entities the same names of their keys, with `AttributeName`, or give one a table of its own: `[DynamoDbEntity(Table = "sessions")]`.
 - **Not reported.** An entity without a declared table, an entity of another assembly, and the types of a key, which the names alone do not show.
+
+`DYNA041` (error): a mapped property whose type was written where nullable annotations are disabled, though the type itself is declared in an enabled context, which `DYNA019` checks: a `#nullable disable` region inside the type, a part of a partial type in a file with nullable disabled, or a base type compiled with nullable disabled. There `string` says nothing about null, so the generated code takes it as never null and throws `ArgumentNullException` on a null. Reported on the property, or on the type for a base type from a compiled assembly.
+
+- **Fix.** Enable nullable reference types where the property is declared, and mark with `?` what can be null. For a base type from a library compiled without them, map a type of your own.
+- **Not reported.** A value type such as `int`, which needs no annotation, a property that is not stored, such as one with `[DynamoDbIgnore]`, and a type that `DYNA019` already reports.
 
 ## Key templates
 

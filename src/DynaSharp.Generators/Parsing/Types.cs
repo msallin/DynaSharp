@@ -20,6 +20,18 @@ internal static class Types
         _ => false,
     };
 
+    /// <summary>
+    /// Whether the type, or an element or type argument of it, is a reference type written where nullable annotations are disabled, so that
+    /// <c>string</c> there may hold null as much as <c>string?</c> may.
+    /// </summary>
+    public static bool IsOblivious(ITypeSymbol type) =>
+        (type.IsReferenceType && type.NullableAnnotation == NullableAnnotation.None) || type switch
+        {
+            IArrayTypeSymbol array => IsOblivious(array.ElementType),
+            INamedTypeSymbol named => named.TypeArguments.Any(IsOblivious),
+            _ => false,
+        };
+
     /// <summary>The accessibility the type really has, through its containing types and type arguments. <c>file</c> types count as private.</summary>
     public static Accessibility Effective(ITypeSymbol type) => type switch
     {

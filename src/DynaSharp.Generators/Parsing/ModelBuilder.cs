@@ -34,8 +34,12 @@ internal sealed class ModelBuilder
 
     private readonly ProjectDefaults _defaults;
 
-    private ModelBuilder(INamedTypeSymbol type, MappedKind kind, Compilation compilation, Spot spot)
+    // DYNA019 already says it for the whole type, so each property need not.
+    private readonly bool _checksOblivious;
+
+    private ModelBuilder(INamedTypeSymbol type, MappedKind kind, Compilation compilation, Spot spot, bool checksOblivious)
     {
+        _checksOblivious = checksOblivious;
         _type = type;
         _defaults = ProjectDefaults.Of(type.ContainingAssembly);
         _kind = kind;
@@ -50,7 +54,7 @@ internal sealed class ModelBuilder
 
         // The attributed part, which a partial type need not list first.
         var spot = Spot.Of(((TypeDeclarationSyntax)context.TargetNode).Identifier.GetLocation());
-        var builder = new ModelBuilder(type, kind, context.SemanticModel.Compilation, spot);
+        var builder = new ModelBuilder(type, kind, context.SemanticModel.Compilation, spot, TypeRules.AnnotatesNullability(context));
         var model = TypeRules.Check(context, type, kind, builder._bag, builder._spot) ? builder.Analyze() : null;
         return new BuildResult(builder._bag.HasErrors ? null : model, builder._bag.ToEquatableArray());
     }
@@ -61,7 +65,7 @@ internal sealed class ModelBuilder
     /// <param name="compilation">The compilation.</param>
     /// <returns>The model, or null when an error makes the type unusable.</returns>
     public static TypeModel? ModelOf(INamedTypeSymbol type, MappedKind kind, Compilation compilation) =>
-        new ModelBuilder(type, kind, compilation, new Spot(string.Empty, default)).Analyze();
+        new ModelBuilder(type, kind, compilation, new Spot(string.Empty, default), checksOblivious: true).Analyze();
 
     private static string Keyword(INamedTypeSymbol type)
     {
@@ -397,6 +401,13 @@ internal sealed class ModelBuilder
         if (!Types.IsAccessible(property.Type))
         {
             _bag.Report(Descriptors.InaccessibleType, property.Spot, property.Type.ToDisplayString(), property.Name);
+            return;
+        }
+
+        // DYNA041. A property of a region with nullable disabled, of a part in such a file or of a base type compiled so would be taken as never null.
+        if (_checksOblivious && Types.IsOblivious(property.Type))
+        {
+            _bag.Report(Descriptors.ObliviousProperty, property.Spot, property.Name, property.Symbol.ContainingType.ToDisplayString(), property.Type.ToDisplayString());
             return;
         }
 

@@ -5,3 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
+DYNA041 | DynaSharp.Mapping | Error | Property is outside a nullable context

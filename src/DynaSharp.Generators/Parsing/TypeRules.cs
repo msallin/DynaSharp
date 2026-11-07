@@ -47,7 +47,7 @@ internal static class TypeRules
             bag.Report(Descriptors.LanguageVersionTooLow, spot, language.ToDisplayString());
         }
 
-        if (!context.SemanticModel.GetNullableContext(context.TargetNode.SpanStart).AnnotationsEnabled())
+        if (!AnnotatesNullability(context))
         {
             bag.Report(Descriptors.NullableContextDisabled, spot, type.Name);
         }
@@ -69,6 +69,10 @@ internal static class TypeRules
 
         return true;
     }
+
+    /// <summary>Whether nullable annotations are enabled where the attributed part of the type is declared.</summary>
+    public static bool AnnotatesNullability(GeneratorAttributeSyntaxContext context) =>
+        context.SemanticModel.GetNullableContext(context.TargetNode.SpanStart).AnnotationsEnabled();
 
     public static bool HidesKeys(INamedTypeSymbol type) => HidesInherited(type, KeysClass, WellKnownNames.EntityAttribute);
 
