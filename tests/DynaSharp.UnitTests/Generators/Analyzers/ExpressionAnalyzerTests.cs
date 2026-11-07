@@ -632,7 +632,6 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""shop.Query("a").Filter($"{Attr("a")} = {1} OR NOT ([|USER|] IN ({1}, {2}))");""", "USER")]
     [Arguments("""shop.Update("a").Set($"a = {1} REMOVE [|data|]");""", "data")]
     [Arguments("""shop.Update("a").Set($"a = {1} ADD [|count|] {1}");""", "count")]
-    [Arguments("""shop.Update("a").If($"[|Size|] = {1}");""", "Size")]
     public async Task Analyze_ReservedWordAsABareName_ReportsTheWord(string statement, string word)
     {
         // Arrange
@@ -667,6 +666,7 @@ public sealed class ExpressionAnalyzerTests
     [Arguments("""update.Touch($"status = {1}");""")]
     [Arguments("""shop.Update("a").If($"size = {1} AND attribute_not_exists(info.size)");""")]
     [Arguments("""shop.Update("a").Set($"a = {1} REMOVE size");""")]
+    [Arguments("""shop.Update("a").If($"Size = {1} OR info.SIZE = {2}");""")]
     public async Task Analyze_ReservedWordWhereNoBareNameStands_ReportsNothing(string statement)
     {
         // Arrange (a function, a keyword, a value, a name in a hole, a method of the consumer, which reads no grammar, and size, which DynamoDB takes as a name)
