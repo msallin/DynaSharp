@@ -1,14 +1,20 @@
 namespace DynaSharp.Mapping;
 
 /// <summary>
-/// Names an entity type in its items, in a dedicated attribute named <c>_type</c>. It is required on every entity: a default of the
-/// type name would turn renaming a class into a silent migration. <see cref="DynamoDbDefaultsAttribute.DiscriminatorOptOut"/> opts out for the entities of an assembly that do not have it.
+/// Sets the discriminator of an entity: the value stored in each of its items, in an attribute named <c>_type</c>, that tells which entity an item is, so that several entities can share
+/// a table and a typed read gets its own items. It is required on every entity, as <c>[Discriminator("ORDER")]</c>.
 /// </summary>
 /// <remarks>
-/// Typed reads check the attribute and fail with a mapping exception naming the type they found, because a query over an overloaded
+/// <para>
+/// <b>Required.</b> A default of the type name would turn renaming a class into a silent migration. <see cref="DynamoDbDefaultsAttribute.DiscriminatorOptOut"/> opts out for the entities of an
+/// assembly that do not have it.
+/// </para>
+/// <para>
+/// <b>Reads.</b> Typed reads check the attribute and fail with a mapping exception naming the type they found, because a query over an overloaded
 /// prefix can return other types. Typed queries and scans filter on it. For a table written by other tools, which has no such
 /// attribute, set <see cref="OptOut"/> instead of a value: the type then takes no part in mixed queries. An item has no order of attributes,
 /// so an attribute the two types share with values of different shapes can fail first, under its own name.
+/// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
 public sealed class DiscriminatorAttribute : Attribute
