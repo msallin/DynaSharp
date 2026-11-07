@@ -1153,6 +1153,119 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
+    public async Task Delete_Entity_WritesTheDeleteOfItsKey()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+        var byKey = customers.BatchWrite().Delete(Customer.Keys.Of("a")).ToRequestJson();
+
+        // Act
+        var json = customers.BatchWrite().Delete(new Customer("a", "Alice", Note: "kept")).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(byKey);
+    }
+
+    [Test]
+    public async Task Delete_NullEntity_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().Delete((Customer)null!));
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("entity");
+    }
+
+    [Test]
+    public async Task DeleteAll_Entities_WritesTheDeletesOfTheirKeys()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+        List<Customer> read = [new("a", "Alice"), new("b", "Bob")];
+        var byKey = customers.BatchWrite().DeleteAll([Customer.Keys.Of("a"), Customer.Keys.Of("b")]).ToRequestJson();
+
+        // Act
+        var json = customers.BatchWrite().DeleteAll(read).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(byKey);
+    }
+
+    [Test]
+    public async Task DeleteAll_NullEntities_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().DeleteAll((IEnumerable<Customer>)null!));
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("entities");
+    }
+
+    [Test]
+    public async Task DeleteAll_NullEntityInTheSequence_ThrowsNamingTheSequence()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+        Customer[] read = [null!];
+
+        // Act
+        var failure = TestClient.Catch(() => _ = customers.BatchWrite().DeleteAll(read));
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("entities");
+    }
+
+    [Test]
+    public async Task DeleteAll_EntitiesWithAVersion_ThrowsAtTheTerminalWithoutIgnoreVersion()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        Ticket[] read = [new() { Id = "t1", OpenedAt = new DateOnly(2026, 10, 31), Revision = 3 }];
+
+        // Act
+#pragma warning disable DYNA236 // The batch throws on purpose.
+        var failure = TestClient.Catch(() => tickets.BatchWrite().DeleteAll(read).ToRequestJson());
+#pragma warning restore DYNA236
+
+        // Assert
+        await Assert.That(failure.Message).Contains(nameof(Ticket));
+    }
+
+    [Test]
+    public async Task DeleteAll_EntitiesWithAVersionAndIgnoreVersion_WritesTheKeysAlone()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        Ticket[] read = [new() { Id = "t1", OpenedAt = new DateOnly(2026, 10, 31), Revision = 3 }];
+
+        // Act
+        var json = tickets.BatchWrite().DeleteAll(read).IgnoreVersion().ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo("""{"RequestItems":{"Shop":[{"DeleteRequest":{"Key":{"pk":{"S":"TICKET#t1"},"sk":{"S":"AT#2026-10-31"}}}}]}}""");
+    }
+
+    [Test]
     public async Task DeleteAll_StaleCommand_Throws()
     {
         // Arrange

@@ -660,7 +660,7 @@ BatchWriteResult written = await shop.BatchWrite()
 `BatchGet` reads one table, cut into requests of 100 keys. `BatchWrite` takes any tables, cut into requests of 25 writes that fit 16 MB. Requests run one
 after the other, and what DynamoDB leaves unprocessed is sent again with the backoff of the retry policy on the client's clock. `MaxAttempts(n)` means what
 it means everywhere, HTTP attempts per request. `MaxStalledRounds(n)` bounds the requests in a row without progress, default 8. `PutAll(IEnumerable<T>)`
-and `DeleteAll<TKey>(IEnumerable<TKey>)` add a sequence; `GetAll<TKey>` does on `BatchGet`. The verbs of a batch are those of the item they act on, `Get`, `Put` and `Delete`, with `All` for a sequence, as `Get` of `TransactGet` is.
+and `DeleteAll<TKey>(IEnumerable<TKey>)` add a sequence, and on a table of an entity `Delete(entity)` and `DeleteAll(IEnumerable<T>)` of `EntityTableExtensions` take the key of each entity, so what a read returned is deleted as it is; overload resolution drops the form of keys for a sequence of entities, whose constraint they fail, and binds the extension; `GetAll<TKey>` does on `BatchGet`. The verbs of a batch are those of the item they act on, `Get`, `Put` and `Delete`, with `All` for a sequence, as `Get` of `TransactGet` is.
 
 A batch is not atomic. `BatchGetResult<T>` has `Items`, unordered, without missing keys, `ConsumedCapacity` and `Requests`. `BatchWriteResult` has `Written`,
 `Requests`, `ConsumedCapacity` and `ItemCollectionMetrics`. A batch that gives up throws `BatchIncompleteException`, with the parsed `UnprocessedItems`

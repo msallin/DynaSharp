@@ -66,6 +66,13 @@ await products.BatchWrite().DeleteAll(skus.Select(Product.Keys.Of)).SendAsync(ct
 await products.BatchWrite().PutAll(catalog).Delete(Product.Keys.Of("KB-01")).SendAsync(ct);
 ```
 
+A delete takes a generated key or the entity itself, so what a query read goes back into a batch as it is:
+
+```csharp
+var history = await orders.Query(Order.Keys.Pk.Of("alice")).ItemsAsync(ct).ToListAsync();
+await orders.BatchWrite().DeleteAll(history).SendAsync(ct);
+```
+
 `written` is a `BatchWriteResult` with `Written`, `Requests` and `ConsumedCapacity`. Getting it means every write was applied, and what cannot be written ends in a `BatchIncompleteException`.
 
 A batch of a `[Version]` entity cannot carry the condition of the version, so it takes `IgnoreVersion()`, see [Optimistic locking](commands.md#optimistic-locking).

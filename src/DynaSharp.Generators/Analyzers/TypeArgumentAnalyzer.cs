@@ -177,6 +177,10 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         {
             _ when table is ITypeParameterSymbol => null,
             (false, _, true) => null,
+
+            // A write by the entity itself, batch.DeleteAll(customers) on a table of orders, binds to the form that takes keys when the entity is of another type.
+            (false, _, false) when key.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, library.Entity)) =>
+                ["an entity", $"this table holds '{entity}'", $"Pass the {entity} itself or a key of {entity}.Keys"],
             (false, _, false) => ["not a key", $"this table holds '{entity}'", $"Build one with {entity}.Keys.Of(...)"],
             (true, true, true) => [$"the partition key of '{of}' alone", "this call needs the whole key of an item", $"Open the table with Of<{of}>() and use {of}.Keys.Of(...)"],
             (true, true, false) when SymbolEqualityComparer.Default.Equals(owner, table) =>

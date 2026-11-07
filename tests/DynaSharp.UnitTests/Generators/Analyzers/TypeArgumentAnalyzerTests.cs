@@ -132,6 +132,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""orders.BatchWrite().Delete([|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""orders.BatchGet().GetAll([|new Customer.Keys.PrimaryKey[1]|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""orders.BatchWrite().DeleteAll([|new List<Customer.Keys.PrimaryKey>()|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
+    [Arguments("""orders.BatchWrite().DeleteAll([|new List<Customer>()|]);""", "'Customer' is an entity, and this table holds 'Order'. Pass the Order itself or a key of Order.Keys.")]
     public async Task Analyze_KeyThatDoesNotFitTheTable_ReportsTheKey(string statement, string message)
     {
         // Arrange

@@ -246,6 +246,54 @@ public static class EntityTableExtensions
         return new(state, state.Table);
     }
 
+    /// <summary>Adds a delete of the item under the key of an entity to a batch, for an entity that was read: <c>batch.Delete(order)</c>. Deleting what does not exist is no error.</summary>
+    /// <remarks>
+    /// <b>Only the key.</b> A batch has no conditions, so the other attributes of the entity play no part, its version included: a batch that writes an entity with a
+    /// <see cref="VersionAttribute"/> needs <see cref="BatchWriteCommand{T}.IgnoreVersion"/>, as its puts do, and deletes whatever version is stored.
+    /// </remarks>
+    /// <typeparam name="T">The entity.</typeparam>
+    /// <param name="command">The batch.</param>
+    /// <param name="entity">The entity to take the key from.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entity"/> is <see langword="null"/>.</exception>
+    public static BatchWriteCommand<T> Delete<T>(this BatchWriteCommand<T> command, T entity)
+        where T : IDynamoDbEntity<T>
+    {
+        Argument.ThrowIfNull(entity);
+        var state = command.Enter();
+        BatchWriteOperation.AddDelete(state, state.Table, new EntityKey<T>(entity));
+        return new(state, state.Table);
+    }
+
+    /// <summary>
+    /// Adds a delete of the item under the key of each entity, any number of them, which <see cref="BatchWriteCommand{T}.SendAsync"/> sends in requests of 25 writes: <c>batch.DeleteAll(orders)</c>
+    /// for what a query read. Deleting what does not exist is no error.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Enumerated here.</b> The keys are written into memory at the call, so the sequence is enumerated once, before anything is sent, and an entity that fails here leaves nothing written.
+    /// </para>
+    /// <inheritdoc cref="Delete{T}(BatchWriteCommand{T}, T)" path="/remarks"/>
+    /// </remarks>
+    /// <typeparam name="T">The entity.</typeparam>
+    /// <param name="command">The batch.</param>
+    /// <param name="entities">The entities to take the keys from.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entities"/> or one of them is <see langword="null"/>.</exception>
+    public static BatchWriteCommand<T> DeleteAll<T>(this BatchWriteCommand<T> command, IEnumerable<T> entities)
+        where T : IDynamoDbEntity<T>
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+        var state = command.Enter();
+        foreach (var entity in entities)
+        {
+            Argument.ThrowIfNull(entity, nameof(entities));
+            BatchWriteOperation.AddDelete(state, state.Table, new EntityKey<T>(entity));
+        }
+
+        return new(state, state.Table);
+    }
+
     private static DynamoDbIndexInfo IndexOf<TEntity>(string name)
         where TEntity : IDynamoDbEntity<TEntity>
     {

@@ -80,6 +80,24 @@ public sealed class BatchCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task BatchWrite_DeleteAllOfTheEntitiesAQueryRead_RemovesTheirItems()
+    {
+        // Arrange (more than one request holds)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+        var names = Enumerable.Range(0, 30).Select(static i => "user-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        await profiles.BatchWrite().PutAll(names.Select(static name => new Profile(name, name))).SendAsync();
+        var read = (await profiles.BatchGet().GetAll(names.Select(Profile.Keys.Of)).Consistent().SendAsync()).Items;
+
+        // Act
+        var deleted = await profiles.BatchWrite().DeleteAll(read).SendAsync();
+        var left = await profiles.BatchGet().GetAll(names.Select(Profile.Keys.Of)).Consistent().SendAsync();
+
+        // Assert
+        await Assert.That((deleted.Written, left.Items.Count)).IsEqualTo((30, 0));
+    }
+
+    [Test]
     public async Task BatchWrite_OneKeyTwiceInARequest_FailsWithTheErrorOfDynamoDB()
     {
         // Arrange

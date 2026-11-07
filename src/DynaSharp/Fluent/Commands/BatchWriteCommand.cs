@@ -140,6 +140,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// Adds a delete of each generated key, any number of them, which <see cref="SendAsync"/> sends in requests of 25 writes. Deleting what does not exist is no error. The keys are written here and now, so the sequence is enumerated once, before
     /// anything is sent. It takes a sequence of a generated key, such as <c>ids.Select(Order.Keys.Of)</c>, and an <see cref="IEnumerable{T}"/> of <see cref="IKey{TEntity}"/>.
     /// </summary>
+    /// <remarks>A sequence of entities, such as what a query read, takes the key of each: <see cref="EntityTableExtensions.DeleteAll{T}(BatchWriteCommand{T}, IEnumerable{T})"/>.</remarks>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
     /// <param name="keys">The keys.</param>
     /// <returns>The command, which replaces this one.</returns>

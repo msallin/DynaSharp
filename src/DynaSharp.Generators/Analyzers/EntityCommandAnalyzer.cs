@@ -61,7 +61,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
 
     private const string BatchWriteCommand = "BatchWriteCommand";
 
-    // The writes of BatchWriteCommand<T>, each of which settles a version that a batch cannot carry.
+    // The writes of BatchWriteCommand<T>, each of which settles a version that a batch cannot carry, and the deletes by an entity that extend it.
     private static readonly HashSet<string> BatchWrites = ["Put", "PutAll", "Delete", "DeleteAll"];
 
     /// <inheritdoc/>
@@ -175,7 +175,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (invocation.TargetMethod.ContainingType is { Name: BatchWriteCommand, Arity: 1 } && BatchWrites.Contains(invocation.TargetMethod.Name))
+        if (IsBatchWrite(invocation))
         {
             AnalyzeBatchWrite(context, invocation, models);
         }
@@ -327,25 +327,28 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         _ => null,
     };
 
+    // A write of a batch returns the batch: an instance method of BatchWriteCommand<T>, or an extension method such as DeleteAll(entities) of EntityTableExtensions.
+    private static bool IsBatchWrite(IInvocationOperation invocation) =>
+        invocation.Type is INamedTypeSymbol { Name: BatchWriteCommand, Arity: 1 } && BatchWrites.Contains(invocation.TargetMethod.Name);
+
     // Put<TOther>(Table<TOther> table, TOther item) and the deletes on another table write to the table they take, the others to the table of the batch.
     private static INamedTypeSymbol? VersionedEntityOfBatchWrite(IInvocationOperation invocation, ModelCatalog models)
     {
-        var method = invocation.TargetMethod;
-        var entity = DynaSharpTypes.TableTypeOf(method) ?? method.ContainingType.TypeArguments[0];
+        var entity = DynaSharpTypes.TableTypeOf(invocation.TargetMethod) ?? ((INamedTypeSymbol)invocation.Type!).TypeArguments[0];
         return entity is INamedTypeSymbol named && models.ModelOf(named)?.Entity?.VersionProperty is not null ? named : null;
     }
 
     private static bool EarlierVersionedBatchWrite(IInvocationOperation invocation, ModelCatalog models)
     {
-        var current = invocation.Instance;
+        var current = ReceiverOf(invocation);
         while (current is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.Type, invocation.Type))
         {
-            if (BatchWrites.Contains(call.TargetMethod.Name) && VersionedEntityOfBatchWrite(call, models) is not null)
+            if (IsBatchWrite(call) && VersionedEntityOfBatchWrite(call, models) is not null)
             {
                 return true;
             }
 
-            current = call.Instance;
+            current = ReceiverOf(call);
         }
 
         return false;
@@ -364,11 +367,15 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return root.Descendants().Any(operation => operation switch
         {
             IReturnOperation returned => Is(returned.ReturnedValue, batch),
-            IArgumentOperation argument => Is(argument.Value, batch),
+            IArgumentOperation argument => Is(argument.Value, batch) && !IsReceiverOfTheLibrary(argument),
             ISimpleAssignmentOperation assignment => Is(assignment.Value, batch) && assignment.Target is not ILocalReferenceOperation,
             _ => false,
         });
     }
+
+    // batch.DeleteAll(entities) is an extension method of the library, whose first argument is the batch it extends and goes nowhere else.
+    private static bool IsReceiverOfTheLibrary(IArgumentOperation argument) =>
+        argument.Parent is IInvocationOperation { TargetMethod.IsExtensionMethod: true } call && DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType) && argument.Parameter!.Ordinal == 0;
 
     private static bool Is(IOperation? value, ITypeSymbol? type) => value is not null && SymbolEqualityComparer.Default.Equals(value.Type, type);
 
