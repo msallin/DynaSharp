@@ -53,6 +53,19 @@ public sealed class IncludeEntitiesCodeFixTests
     }
 
     [Test]
+    public async Task Fix_ChainAMemberReturns_AppendsTheEntitiesAfterCreateTable()
+    {
+        // Arrange
+        var source = Returned("        .Including<Customer>()");
+
+        // Act
+        var fixedSource = await FixAsync(source);
+
+        // Assert
+        await Assert.That(fixedSource).IsEqualTo(Returned("        .Including<Product>()\n        .Including<Customer>()"));
+    }
+
+    [Test]
     public async Task Fix_EntityOfANamespaceTheFileDoesNotImport_NamesItInFull()
     {
         // Arrange
@@ -106,6 +119,11 @@ public sealed class IncludeEntitiesCodeFixTests
         // Assert
         await Assert.That(provider).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
     }
+
+    // A method that returns the chain, with these calls between CreateTable() and IfNotExists(), one per line.
+    private static string Returned(string including) => AnalyzerRun.Member(
+        "public static CreateTableCommand Command(DynamoDbClient client) =>\n    client.Table<Order>().CreateTable()\n" + including + "\n        .IfNotExists()\n        .WaitUntilActive();",
+        LeftOutEntityAnalyzerTests.Model);
 
     // The analyzer needs the generated code, which a workspace does not run, so the diagnostic comes from a compilation after the generator, of the same text.
     private static async Task<string> FixAsync(string source)

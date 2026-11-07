@@ -136,7 +136,7 @@ Without an `Including`, such a table has string keys and no index. Either start 
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 
-A chain that leaves out an entity that declares the same table, in this project or in one it references, is the warning [`DYNA240`](diagnostics.md#commands), whose code fix adds the missing `Including<T>()` calls. It checks the chain as written, up to `SendAsync`, `ToRequest`, `ToRequestJson` or an `await`; a command kept in a variable or passed to a method of your own is not checked.
+A chain that leaves out an entity that declares the same table, in this project or in one it references, is the warning [`DYNA240`](diagnostics.md#commands), whose code fix adds the missing `Including<T>()` calls. It checks the chain as written, up to `SendAsync`, `ToRequest`, `ToRequestJson`, an `await` or a `return`, so a method that returns the command for the app and its tests to send is checked as well; a command kept in a variable or passed to a method of your own is not checked.
 
 ### Every entity of an assembly
 

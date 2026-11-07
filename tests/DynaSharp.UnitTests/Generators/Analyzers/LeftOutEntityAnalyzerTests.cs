@@ -8,7 +8,7 @@ namespace DynaSharp.UnitTests.Generators.Analyzers;
 /// <summary>DYNA240: a <c>CreateTable()</c> chain that leaves out an entity that declares the same table.</summary>
 public sealed class LeftOutEntityAnalyzerTests
 {
-    private const string Model = """
+    internal const string Model = """
         [DynamoDbEntity(Table = "store"), Discriminator("ORDER"), PartitionKey("ORDER#{Id}")]
         public partial class Order { public string Id { get; set; } = "id"; }
 
@@ -47,6 +47,8 @@ public sealed class LeftOutEntityAnalyzerTests
             public static Task Twice(this int times, CreateTableCommand command) => Task.CompletedTask;
 
             public static Task Send(CreateTableCommand command) => Task.CompletedTask;
+
+            public static CreateTableCommand Keep(CreateTableCommand command) => command;
 
             public static Table<Order> Open(DynamoDbClient client) => client.Table<Order>();
         }
@@ -113,6 +115,52 @@ public sealed class LeftOutEntityAnalyzerTests
     [Arguments("public static ValueTask<CreateTableResult> Make<T>(Table<Order> orders) where T : IDynamoDbEntity<T> => orders.CreateTable().Including<T>().SendAsync();")]
     [Arguments("public static ValueTask<CreateTableResult> Make<T>(Table<T> table) where T : IDynamoDbEntity<T> => table.CreateTable().SendAsync();")]
     public async Task Analyze_TypeParameter_ReportsNothing(string member)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(member, Model);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new LeftOutEntityAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("public static CreateTableCommand Command(DynamoDbClient client) => client.Table<Order>().[|CreateTable|]().Including<Customer>().IfNotExists().WaitUntilActive();", "'Product'")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) { return orders.[|CreateTable|]().Including<Product>(); }", "'Customer'")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) { CreateTableCommand Local() => orders.[|CreateTable|](); return Local(); }", "'Customer', 'Product'")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) { CreateTableCommand Local() { return orders.[|CreateTable|]().Including<Customer>(); } return Local(); }", "'Product'")]
+    [Arguments("public static CreateTableCommand Command => new DynamoDbClient().Table<Order>().[|CreateTable|]().Including<Customer>();", "'Product'")]
+    [Arguments("public static CreateTableCommand Command { get { return new DynamoDbClient().Table<Order>().[|CreateTable|]().Including<Customer>(); } }", "'Product'")]
+    [Arguments("public static Func<Table<Order>, CreateTableCommand> Command = orders => orders.[|CreateTable|]().Including<Customer>();", "'Product'")]
+    [Arguments("public static Func<Table<Order>, CreateTableCommand> Command = orders => { return orders.[|CreateTable|]().Including<Product>(); };", "'Customer'")]
+    [Arguments("public static IEnumerable<CreateTableCommand> Commands(Table<Order> orders) { yield return orders.[|CreateTable|]().Including<Product>(); }", "'Customer'")]
+    [Arguments("public static async Task<CreateTableCommand> Command(Table<Order> orders) { await Task.Yield(); return orders.[|CreateTable|]().Including<Product>(); }", "'Customer'")]
+    public async Task Analyze_ReturnedChainThatLeavesOutAnEntityOfTheTable_ReportsCreateTable(string member, string missing)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(member, Model);
+
+        // Act
+        var report = await AnalyzerRun.ReportWithAsync(source, new LeftOutEntityAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Order", "store", missing)));
+    }
+
+    [Test]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) => orders.CreateTable().Including<Customer>().Including<Product>().IfNotExists();")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) => orders.CreateTable().WithEverything();")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) => GeneratorInput.DynamoDbEntities.IncludingAll(orders.CreateTable());")]
+    [Arguments("public static object Command(Table<Order> orders) => orders.CreateTable();")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders, bool exists) => exists ? orders.CreateTable().IfNotExists() : orders.CreateTable();")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) { var command = orders.CreateTable(); return command; }")]
+    [Arguments("public static CreateTableCommand Stored = new DynamoDbClient().Table<Order>().CreateTable();")]
+    [Arguments("public static CreateTableCommand Command(Table<Order> orders) => Helpers.Keep(orders.CreateTable());")]
+    [Arguments("public static void Command(Table<Order> orders) => orders.CreateTable();")]
+    [Arguments("public static Action<Table<Order>> Command = orders => orders.CreateTable();")]
+    public async Task Analyze_ReturnedChainThatIsCompleteOrOutOfSight_ReportsNothing(string member)
     {
         // Arrange
         var source = AnalyzerRun.Member(member, Model);

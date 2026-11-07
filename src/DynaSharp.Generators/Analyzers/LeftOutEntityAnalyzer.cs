@@ -12,7 +12,8 @@ namespace DynaSharp.Generators;
 /// </summary>
 /// <remarks>
 /// It checks the chain as written, from <c>CreateTable()</c> on a <c>Table&lt;T&gt;</c> of an entity that declares a table to the call that leaves the command: <c>SendAsync</c>, <c>ToRequest</c>,
-/// <c>ToRequestJson</c> or an <c>await</c>. A chain that goes into a variable, a parameter or a method of its own, which may add an entity later, is not checked, nor one with <c>IncludingAll()</c>, nor a table
+/// <c>ToRequestJson</c>, an <c>await</c>, or a <c>return</c> or expression body that hands the command to the caller as it is. A chain that goes into a variable, a field, an argument or a method of its own,
+/// which may add an entity later, is not checked, nor one with <c>IncludingAll()</c>, nor a table
 /// opened with a name, <c>client.Table&lt;T&gt;("name")</c>, which may be another table. An entity that the code cannot name, such as an <c>internal</c> one of another assembly, is left out of the message.
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -99,6 +100,7 @@ internal sealed class LeftOutEntityAnalyzer : DiagnosticAnalyzer
         && opened.TargetMethod.Parameters.Any(static parameter => parameter.Type.SpecialType == SpecialType.System_String);
 
     // The entities the chain includes, up to the call that leaves the command. Null when the chain does not end in sight, or calls IncludingAll() or a method of its own on the way, which may include any entity.
+    // A command a member returns, by return or expression body, is complete there: it is what the member offers, such as a table to create in a fake, and a caller that adds to it is rare.
     private static HashSet<INamedTypeSymbol>? IncludedUpToTheEnd(IInvocationOperation createTable, INamedTypeSymbol command)
     {
         var included = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
@@ -129,7 +131,7 @@ internal sealed class LeftOutEntityAnalyzer : DiagnosticAnalyzer
             current = call;
         }
 
-        return current.Parent is IAwaitOperation ? included : null;
+        return current.Parent is IAwaitOperation or IReturnOperation ? included : null;
     }
 
     // The call on the result of this one: x.Including<T>(), or an extension method, whose receiver is its first argument.
