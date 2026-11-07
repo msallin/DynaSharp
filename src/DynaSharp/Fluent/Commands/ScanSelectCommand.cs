@@ -50,8 +50,8 @@ public readonly ref struct ScanSelectCommand<TValue, TConverter> : IReadCommand
     public IAsyncEnumerable<Page<TValue>> PagesAsync(CancellationToken cancellationToken = default) =>
         PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.Pages(Enter(), cancellationToken);
 
-    /// <summary>Reads one page, as <see cref="ScanCommand{T}.PageAsync(ContinuationToken, CancellationToken)"/> does, with the values in <see cref="Page{T}.Items"/>.</summary>
-    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same scan, and the same segment. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
+    /// <summary>Reads one page, as <see cref="ScanCommand{T}.PageAsync(ContinuationToken?, CancellationToken)"/> does, with the values in <see cref="Page{T}.Items"/>.</summary>
+    /// <param name="after">The position to continue from, the <see cref="Page{T}.Next"/> of the page before, or <c>null</c> for the first page, as is a <c>default</c> token. It must come from the same scan, and the same segment.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
@@ -61,10 +61,10 @@ public readonly ref struct ScanSelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item has no such attribute and the handle cannot be null, or its value cannot be read as <typeparamref name="TValue"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<TValue>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default) =>
-        PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.PageAsync(Enter(), after, cancellationToken);
+    public ValueTask<Page<TValue>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default) =>
+        PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.PageAsync(Enter(), after.GetValueOrDefault(), cancellationToken);
 
-    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken, CancellationToken)"/> does at the default position, for a caller that has a token and no position yet.</summary>
+    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
@@ -73,7 +73,7 @@ public readonly ref struct ScanSelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item has no such attribute and the handle cannot be null, or its value cannot be read as <typeparamref name="TValue"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<TValue>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
+    public ValueTask<Page<TValue>> PageAsync(CancellationToken cancellationToken) => PageAsync(null, cancellationToken);
 
     /// <summary>
     /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging. It shows what goes out, and the text contains the values.

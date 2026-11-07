@@ -64,7 +64,7 @@ public sealed class PageForwardingTests
     public async Task PageAsync_EveryOverloadWithAPosition_HasOneWithOnlyAToken()
     {
         // Arrange
-        var withPosition = PageMethods().Where(static method => method.GetParameters().Any(static parameter => parameter.ParameterType == typeof(ContinuationToken))).ToList();
+        var withPosition = PageMethods().Where(static method => method.GetParameters().Any(static parameter => parameter.ParameterType == typeof(ContinuationToken?))).ToList();
 
         // Act
         var missing = withPosition.Where(static method => !HasOverloadWithOnlyAToken(method)).Select(static method => method.DeclaringType!.Name);
@@ -79,7 +79,7 @@ public sealed class PageForwardingTests
     // The token has no default on that overload, or PageAsync() would have two candidates.
     private static bool HasOverloadWithOnlyAToken(MethodInfo method)
     {
-        var expected = method.GetParameters().Select(static parameter => parameter.ParameterType).Where(static type => type != typeof(ContinuationToken));
+        var expected = method.GetParameters().Select(static parameter => parameter.ParameterType).Where(static type => type != typeof(ContinuationToken?));
         return method.DeclaringType!.GetMethods().Any(candidate =>
             candidate.Name == method.Name
             && candidate.GetParameters().Select(static parameter => parameter.ParameterType).SequenceEqual(expected)

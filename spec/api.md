@@ -392,7 +392,7 @@ A version-7 `Guid` starts with its time in milliseconds, and the lowercase text 
 
 A condition of constant text or of a plain string allocates nothing. One that formats a value costs its strings, as `BeginsWith(value)` does, because a key condition holds text.
 
-`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. `PageAsync(ct)` is the first page without a `default` in front of the token, and its token has no default, so `PageAsync()` stays the overload with the position. `SortKeyCondition` offers only what a key
+`ItemsAsync` and `PagesAsync` follow pages, filtered empty ones included, and can be enumerated once. The position of `PageAsync` is a `ContinuationToken?`, so `ContinuationToken? token = null` passes as it is, and null, like a `default` token, is the first page; `Page<T>.Next` stays a plain token, whose `HasMore` says if there is more. `PageAsync(ct)` is the first page without a `null` in front of the cancellation token, because a `CancellationToken` does not convert to the position; its cancellation token has no default, so `PageAsync()` stays the overload with the position. `SortKeyCondition` offers only what a key
 condition allows: `Eq`, `Lt`, `Le`, `Gt`, `Ge`, `Between`, `BeginsWith`. `CountAsync` is `Select: COUNT` summed over pages, and throws
 `InvalidOperationException` with a projection. `Parallel(segments)` returns `ParallelScanCommand<T>`, whose only terminal is `ItemsAsync`, because a merged
 page has no single key; concurrency is the segment count, and paging across requests goes through `Segment(n, of: m)`.
@@ -447,7 +447,7 @@ The handle decides what can be read, and it goes through the converter of the pr
 throws for an item without `ShipTo`, even if `ShipTo` is nullable. A path with a list index throws `ArgumentException`, because DynamoDB returns a shortened list, in which its position is not known. A `[KeyOnly]` property has no attribute and no handle, so it does not compile. A stored input of a key of the table has both, but an item an `Update` created holds only the key: a read of the entity restores the
 input from the key, `Select` does not, and throws, which `DYNA209` reports. An update with `StoreKeyInputs()` stores it. Reading through the key would take the parser of the template at run time, which only the generated read has, for a value the caller usually holds: it is part of the key.
 
-`ContinuationToken` is a position: `default` is the start, `Parse` and `TryParse` take what `ToString()` gave, and null or `""` give the
+`ContinuationToken` is a position: `default`, as a null `after`, is the start, `Parse` and `TryParse` take what `ToString()` gave, and null or `""` give the
 default, so the first request of a client needs no check, and a loop on `Next.ToString()` checks `HasMore`. The text is safe in a URL and is encoded, not signed or encrypted: it carries the key
 values of the last item, as `LastEvaluatedKey` does. It starts with the version of its format, on a page and a fan-out alike, so `Parse` tells a token of another format, older or newer, from one it can read: that is a `FormatException` that says so, quotes nothing, and asks to start the read again. `TryParse` is false for it. There is no limit on the length: a token of a page is as long as a key, and one of a fan-out grows with its partitions. `ToKey()` and `FromKey(key)` convert to and from a key of the request API.
 

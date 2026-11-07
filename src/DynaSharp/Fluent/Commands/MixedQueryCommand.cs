@@ -89,15 +89,15 @@ public readonly ref struct MixedQueryCommand<TMixed> : IFilterable<MixedQueryCom
         return _command.PagesAsync(cancellationToken);
     }
 
-    /// <inheritdoc cref="QueryCommand{T}.PageAsync(ContinuationToken, CancellationToken)"/>
-    public ValueTask<Page<TMixed>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default)
+    /// <inheritdoc cref="QueryCommand{T}.PageAsync(ContinuationToken?, CancellationToken)"/>
+    public ValueTask<Page<TMixed>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default)
     {
         CompleteProjection();
         return _command.PageAsync(after, cancellationToken);
     }
 
     /// <inheritdoc cref="QueryCommand{T}.PageAsync(CancellationToken)"/>
-    public ValueTask<Page<TMixed>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
+    public ValueTask<Page<TMixed>> PageAsync(CancellationToken cancellationToken) => PageAsync(null, cancellationToken);
 
     /// <inheritdoc cref="QueryCommand{T}.ToRequestJson"/>
     public string ToRequestJson()

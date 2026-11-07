@@ -10,7 +10,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Scan</c> under construction: every item of a table or index, in no useful order, at the cost of reading them all. Chain the options and end with
-/// <see cref="ItemsAsync"/>, <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
+/// <see cref="ItemsAsync"/>, <see cref="PagesAsync"/>, <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <example>
 /// <code>
@@ -277,7 +277,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// Reads one page, for paging that a client drives across requests: build the same scan each time and pass the position of the page before. The page can be
     /// empty and still have a next one, so a client that wants items keeps going while <see cref="Page{T}.HasMore"/> holds.
     /// </summary>
-    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same scan, and the same segment. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
+    /// <param name="after">The position to continue from, the <see cref="Page{T}.Next"/> of the page before, or <c>null</c> for the first page, as is a <c>default</c> token. It must come from the same scan, and the same segment.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
@@ -287,10 +287,10 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<T>> PageAsync(ContinuationToken after = default, CancellationToken cancellationToken = default) =>
-        PagedRead<ScanPageOperation<T>, T>.PageAsync(Prepare(), after, cancellationToken);
+    public ValueTask<Page<T>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default) =>
+        PagedRead<ScanPageOperation<T>, T>.PageAsync(Prepare(), after.GetValueOrDefault(), cancellationToken);
 
-    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken, CancellationToken)"/> does at the default position, for a caller that has a token and no position yet.</summary>
+    /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
@@ -299,7 +299,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<T>> PageAsync(CancellationToken cancellationToken) => PageAsync(default, cancellationToken);
+    public ValueTask<Page<T>> PageAsync(CancellationToken cancellationToken) => PageAsync(null, cancellationToken);
 
     /// <summary>
     /// Counts the items of all pages with <c>Select: COUNT</c>, so no item travels. It costs the capacity of reading the whole table, as many calls as a scan

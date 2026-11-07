@@ -1689,6 +1689,32 @@ public sealed class QueryCommandTests
     }
 
     [Test]
+    public async Task PageAsync_NullableToken_StartsAtNullAndFollowsNext()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(More("1"));
+        handler.Enqueue(Last("2"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        ContinuationToken? token = null;
+        var pages = 0;
+
+        // Act
+        Page<Item> page;
+        do
+        {
+            page = await shop.Query("a").PageAsync(token);
+            token = page.Next;
+            pages++;
+        }
+        while (page.HasMore);
+
+        // Assert
+        await Assert.That((pages, handler.Requests[0].BodyText.Contains("ExclusiveStartKey", StringComparison.Ordinal), handler.Requests[1].BodyText.EndsWith(",\"ExclusiveStartKey\":" + Key("1") + "}", StringComparison.Ordinal))).IsEqualTo((2, false, true));
+    }
+
+    [Test]
     public async Task PageAsync_ConsumedCapacity_IsOnThePage()
     {
         // Arrange

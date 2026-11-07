@@ -9,7 +9,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A <c>Query</c> of several partitions at once, merged by sort key, the read of write shards and time buckets: <c>orders.Query(shards, SortKeyCondition.Ge(from)).Descending().ItemsAsync(ct)</c>.
-/// Chain the options and end with <see cref="ItemsAsync"/>, <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
+/// Chain the options and end with <see cref="ItemsAsync"/>, <see cref="PageAsync(int, ContinuationToken?, CancellationToken)"/> or <see cref="CountAsync"/> in one expression.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -102,7 +102,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page of each partition</em>, before the filter. It does not limit the result, and it is not the size of a merged page, which
-    /// <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/> takes. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which stops when it has them. A small limit reads less ahead of what the merge gives out, and costs more calls.
+    /// <see cref="PageAsync(int, ContinuationToken?, CancellationToken)"/> takes. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which stops when it has them. A small limit reads less ahead of what the merge gives out, and costs more calls.
     /// </summary>
     /// <param name="items">The most items per page of a partition.</param>
     /// <returns>The command, which replaces this one.</returns>
@@ -158,7 +158,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     }
 
     /// <summary>
-    /// Asks for the consumed capacity of each call, for the span of that call and the capacity metric. <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/> also adds up its calls in
+    /// Asks for the consumed capacity of each call, for the span of that call and the capacity metric. <see cref="PageAsync(int, ContinuationToken?, CancellationToken)"/> also adds up its calls in
     /// <see cref="Page{T}.ConsumedCapacity"/>: units add, details add by the name of the index, and a number that a response leaves out counts as zero. That includes pages whose
     /// items did not make it into the result, so it is what the page cost, and a read again on the next page is charged again. The other ways of sending it have no result to put it on.
     /// </summary>
@@ -208,7 +208,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// </summary>
     /// <remarks>
     /// The first failure stops the requests in flight and surfaces once, from <c>MoveNextAsync</c>, as the exception it is. Cancelling stops them too. Items that were merged before
-    /// that have been given out, and there is no way to continue: for that, read in pages with <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/>.
+    /// that have been given out, and there is no way to continue: for that, read in pages with <see cref="PageAsync(int, ContinuationToken?, CancellationToken)"/>.
     /// </remarks>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per item.</param>
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
@@ -234,7 +234,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// </para>
     /// </remarks>
     /// <param name="pageSize">The items of the page.</param>
-    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same query. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
+    /// <param name="after">The position to continue from, the <see cref="Page{T}.Next"/> of the page before, or <c>null</c> for the first page, as is a <c>default</c> token. It must come from the same query.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageSize"/> is below 1.</exception>
@@ -245,13 +245,13 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<T>> PageAsync(int pageSize, ContinuationToken after = default, CancellationToken cancellationToken = default)
+    public ValueTask<Page<T>> PageAsync(int pageSize, ContinuationToken? after = null, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-        return FanOutRead<T>.PageAsync(Prepare(), _plan!, pageSize, after, cancellationToken);
+        return FanOutRead<T>.PageAsync(Prepare(), _plan!, pageSize, after.GetValueOrDefault(), cancellationToken);
     }
 
-    /// <summary>Reads the first page, as <see cref="PageAsync(int, ContinuationToken, CancellationToken)"/> does at the default position, for a caller that has a token and no position yet.</summary>
+    /// <summary>Reads the first page, as <see cref="PageAsync(int, ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="pageSize">The items of the page.</param>
     /// <param name="cancellationToken">Cancels the read. It has no default, because <c>PageAsync(pageSize)</c> belongs to the overload with the position.</param>
     /// <returns>The page. Await it once.</returns>
@@ -262,7 +262,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<Page<T>> PageAsync(int pageSize, CancellationToken cancellationToken) => PageAsync(pageSize, default, cancellationToken);
+    public ValueTask<Page<T>> PageAsync(int pageSize, CancellationToken cancellationToken) => PageAsync(pageSize, null, cancellationToken);
 
     /// <summary>
     /// Counts the items of all partitions with <c>Select: COUNT</c>, so no item travels. It reads every partition to its end, up to <see cref="MaxConcurrency"/> at once, at the
