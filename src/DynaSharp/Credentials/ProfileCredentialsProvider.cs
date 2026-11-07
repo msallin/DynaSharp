@@ -1,5 +1,4 @@
 using DynaSharp.Configuration;
-using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.Credentials;

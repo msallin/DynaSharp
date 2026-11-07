@@ -1,5 +1,4 @@
 using DynaSharp.Configuration;
-using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

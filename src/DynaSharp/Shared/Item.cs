@@ -368,7 +368,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     /// <returns><see langword="true"/> if the item holds the discriminator of <typeparamref name="T"/>.</returns>
     /// <exception cref="ArgumentException"><typeparamref name="T"/> is written by hand and claims a discriminator that its <see cref="DynamoDbEntityInfo"/> does not have.</exception>
     public bool Is<T>()
-        where T : IDynamoDbDiscriminated<T> => Fluent.MixedSchema.Of<T>.Schema.FindType(this) == 0;
+        where T : IDynamoDbDiscriminated<T> => DiscriminatorSchema.Of<T>.Schema.FindType(this) == 0;
 
     /// <summary>Gets an enumerator over the attributes.</summary>
     /// <returns>The enumerator.</returns>

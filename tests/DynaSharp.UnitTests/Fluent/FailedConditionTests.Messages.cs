@@ -316,14 +316,14 @@ public sealed partial class FailedConditionTests
     {
         for (var i = 0; i < 64; i++)
         {
-            DynaSharp.Fluent.FailedCondition.Explain(failure, "PutItem", table, DynaSharp.Fluent.ConditionParts.NoItem);
+            DynaSharp.Fluent.FailedCondition.Explain(failure, "PutItem", table, DynaSharp.ConditionParts.NoItem);
         }
 
         var smallest = long.MaxValue;
         for (var i = 0; i < 16; i++)
         {
             var before = GC.GetAllocatedBytesForCurrentThread();
-            DynaSharp.Fluent.FailedCondition.Explain(failure, "PutItem", table, DynaSharp.Fluent.ConditionParts.NoItem);
+            DynaSharp.Fluent.FailedCondition.Explain(failure, "PutItem", table, DynaSharp.ConditionParts.NoItem);
             smallest = Math.Min(smallest, GC.GetAllocatedBytesForCurrentThread() - before);
         }
 

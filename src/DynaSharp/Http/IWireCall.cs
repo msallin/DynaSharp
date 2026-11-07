@@ -9,7 +9,7 @@ namespace DynaSharp.Http;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="RequestCall{TOperation, TRequest, TResponse}"/> runs an <see cref="Operations.IOperation{TRequest, TResponse}"/> of the
+/// <see cref="Operations.RequestCall{TOperation, TRequest, TResponse}"/> runs an <see cref="Operations.IOperation{TRequest, TResponse}"/> of the
 /// request API: it serializes a request object and reads a response object. <see cref="RawCall"/> sends JSON the caller wrote and
 /// returns the response JSON. The command API of the table layer is a third kind: its call holds a body that is already written, in a
 /// segment of a pooled state, and reads its response itself. A batch or a transaction of that API is a fourth, whose call names several

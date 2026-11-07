@@ -7,7 +7,6 @@ using System.Text.Json;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Errors;
-using DynaSharp.Operations;
 using DynaSharp.Retries;
 using DynaSharp.Serialization;
 using DynaSharp.Signing;
@@ -95,17 +94,6 @@ internal sealed class DynamoDbPipeline : IDisposable
 
     /// <summary>Gets what the client reports about its operations, for the layers that report more than a call, such as the shards of a stream.</summary>
     public OperationTelemetry Telemetry { get; }
-
-    /// <summary>Runs an operation of the request API.</summary>
-    /// <typeparam name="TOperation">The operation.</typeparam>
-    /// <typeparam name="TRequest">The request type of the operation.</typeparam>
-    /// <typeparam name="TResponse">The response type of the operation.</typeparam>
-    /// <param name="request">The request.</param>
-    /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>The response.</returns>
-    public Task<TResponse> ExecuteAsync<TOperation, TRequest, TResponse>(TRequest request, CancellationToken cancellationToken)
-        where TOperation : IOperation<TRequest, TResponse> =>
-        SendAsync<RequestCall<TOperation, TRequest, TResponse>, TResponse>(new RequestCall<TOperation, TRequest, TResponse>(request), cancellationToken).AsTask();
 
     /// <summary>
     /// Runs a call: the one retry loop of the pipeline, for every kind of call. The state machine comes from a pool, so the returned
@@ -286,12 +274,6 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <param name="elapsed">The time since the failure that started the outage.</param>
     /// <param name="retries">How many times the shard was tried again.</param>
     public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => ClientLog.ShardRecovered(_logger, shardId, elapsed, retries);
-
-    /// <summary>Logs that a table that <c>CreateTable().IfNotExists()</c> found differs from what the command declares, once per command, since the program that meets it is usually not the one that can fix it.</summary>
-    /// <param name="tableName">The table.</param>
-    /// <param name="drift">The differences, at least one. They name the schema alone: tables, indexes and attributes.</param>
-    public void LogTableDrift(string tableName, IReadOnlyList<TableDrift> drift) =>
-        ClientLog.TableDrift(_logger, tableName, drift.Count, string.Join(" ", drift.Select(static difference => difference.Description)));
 
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>

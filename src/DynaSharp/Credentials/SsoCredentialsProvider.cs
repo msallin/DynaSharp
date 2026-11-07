@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using DynaSharp.Configuration;
-using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.Credentials;

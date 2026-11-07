@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
-using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

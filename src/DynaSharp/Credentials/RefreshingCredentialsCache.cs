@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
-using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.Credentials;

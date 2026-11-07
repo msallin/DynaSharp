@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using DynaSharp.Configuration;
 using DynaSharp.Fluent;
-using DynaSharp.Operations;
 using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 
@@ -25,9 +24,10 @@ internal sealed class ClientCore : IDisposable
     private readonly string _serviceName;
     private bool _disposed;
 
-    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options)
+    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options, ILogger logger)
     {
         TimeProvider = timeProvider;
+        Logger = logger;
         Options = options;
         _http = http;
         _pipeline = pipeline;
@@ -42,6 +42,9 @@ internal sealed class ClientCore : IDisposable
 
     /// <summary>Gets the clock of the client, for what waits outside the pipeline.</summary>
     public TimeProvider TimeProvider { get; }
+
+    /// <summary>Gets the logger of the client, for the events outside a single request that the layers above the pipeline report.</summary>
+    public ILogger Logger { get; }
 
     /// <summary>Gets the idle states of the commands of this client.</summary>
     public CommandPool Commands { get; }
@@ -90,28 +93,7 @@ internal sealed class ClientCore : IDisposable
         var buffers = pool ?? ArrayPool<byte>.Shared;
         var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, random ?? Random.Shared, maxResponseLength);
         var resolved = options with { Region = configuration.Region, ServiceUrl = configuration.ChosenEndpoint, Credentials = configuration.Credentials };
-        return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved);
-    }
-
-    /// <summary>
-    /// Runs an operation of a public client. Not asynchronous itself: a null request and a disposed client throw at the call, not in
-    /// the returned task.
-    /// </summary>
-    /// <typeparam name="TOperation">The operation.</typeparam>
-    /// <typeparam name="TRequest">The request type of the operation.</typeparam>
-    /// <typeparam name="TResponse">The response type of the operation.</typeparam>
-    /// <param name="request">The request.</param>
-    /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>The response.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
-    public Task<TResponse> ExecuteAsync<TOperation, TRequest, TResponse>(TRequest request, CancellationToken cancellationToken)
-        where TOperation : IOperation<TRequest, TResponse>
-        where TRequest : class
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        ObjectDisposedException.ThrowIf(_disposed, _clientType);
-        return _pipeline.ExecuteAsync<TOperation, TRequest, TResponse>(request, cancellationToken);
+        return new ClientCore(http, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved, logger);
     }
 
     /// <summary>
@@ -194,11 +176,6 @@ internal sealed class ClientCore : IDisposable
     /// <param name="elapsed">The time since the failure that started the outage.</param>
     /// <param name="retries">How many times the shard was tried again.</param>
     public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => _pipeline.LogShardRecovered(shardId, elapsed, retries);
-
-    /// <summary>Logs the drift of a table that a create found, see <see cref="DynamoDbPipeline.LogTableDrift"/>.</summary>
-    /// <param name="tableName">The table.</param>
-    /// <param name="drift">The differences.</param>
-    public void LogTableDrift(string tableName, IReadOnlyList<TableDrift> drift) => _pipeline.LogTableDrift(tableName, drift);
 
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>

@@ -1,4 +1,3 @@
-using System.Text;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
@@ -44,7 +43,7 @@ internal static class FailedCondition
 
     /// <summary>
     /// Gives the exception what the line of its message is made of, which says which condition did not hold. It is names and kinds that the write rules noted, and the line is made only when the message is read,
-    /// see <see cref="Line"/>. A write without a part keeps the message as it is.
+    /// see <see cref="ConditionalCheckFailedException.Message"/>. A write without a part keeps the message as it is.
     /// </summary>
     /// <param name="failure">The failure.</param>
     /// <param name="operation">The operation, <c>PutItem</c>, <c>UpdateItem</c> or <c>DeleteItem</c>, which are the ones with a condition.</param>
@@ -56,61 +55,6 @@ internal static class FailedCondition
         {
             failure.Explain(operation, table.Name, table.Writes?.VersionAttributeName, parts);
         }
-    }
-
-    /// <summary>
-    /// Makes the line that says which condition did not hold: "The condition of this Update on Users did not hold: the version check on Revision." It names the version by its attribute and the rest by kind,
-    /// and never a value. DynamoDB does not say which part failed, so with several the line names them all.
-    /// </summary>
-    /// <param name="operation">The operation, whose name ends in <c>Item</c>.</param>
-    /// <param name="tableName">The table.</param>
-    /// <param name="versionAttributeName">The version attribute, which a part of the version has.</param>
-    /// <param name="parts">The parts of the condition, at least one.</param>
-    /// <returns>The line.</returns>
-    public static string Line(string operation, string tableName, string? versionAttributeName, ConditionParts parts)
-    {
-        // Version 0 and IfNotExists are one condition, and IfNotExists asked for it in so many words.
-        var newVersion = (parts & (ConditionParts.NewVersion | ConditionParts.NoItem)) == ConditionParts.NewVersion;
-        var named = new List<string>(4);
-        if (newVersion || (parts & ConditionParts.Version) != 0)
-        {
-            named.Add("the version check on " + versionAttributeName);
-        }
-
-        if ((parts & ConditionParts.NoItem) != 0)
-        {
-            named.Add("the check that no item has this key");
-        }
-
-        if ((parts & ConditionParts.ItemExists) != 0)
-        {
-            named.Add("the check that an item has this key");
-        }
-
-        if ((parts & ConditionParts.Caller) != 0)
-        {
-            named.Add("your own condition");
-        }
-
-        // PutItem gives Put.
-        var line = new StringBuilder("The condition of this ").Append(operation, 0, operation.Length - "Item".Length).Append(" on ").Append(tableName).Append(" did not hold: ");
-        for (var i = 0; i < named.Count; i++)
-        {
-            if (i > 0)
-            {
-                line.Append(i == named.Count - 1 ? " or " : ", ");
-            }
-
-            line.Append(named[i]);
-        }
-
-        line.Append(named.Count > 1 ? ", and DynamoDB does not say which." : ".");
-        if (newVersion)
-        {
-            line.Append(" The version this write expects marks a new item, so the check asks that no item has this key. To write over the stored item, use the version last read from it, or call IgnoreVersion() to write without the check.");
-        }
-
-        return line.ToString();
     }
 
     // {"pk":{"S":"USER#alice"},"sk":{"S":"PROFILE"},"name":{"S":"Alice"}} with the names pk and sk gives the first two, and name is never reached. A name twice is DynamoDB's to reject, so a

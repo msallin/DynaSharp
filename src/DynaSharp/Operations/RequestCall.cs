@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using DynaSharp.Operations;
+using DynaSharp.Http;
 using DynaSharp.Serialization;
 
-namespace DynaSharp.Http;
+namespace DynaSharp.Operations;
 
 /// <summary>
 /// A call of the request API: an <see cref="IOperation{TRequest, TResponse}"/> and its request object. Every member forwards to the

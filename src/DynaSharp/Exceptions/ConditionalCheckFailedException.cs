@@ -1,5 +1,5 @@
 using System.Net;
-using DynaSharp.Fluent;
+using System.Text;
 
 namespace DynaSharp;
 
@@ -39,7 +39,7 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// <summary>Gets the message of the service, followed for a command by a line that says which condition the write sent.</summary>
     public override string Message => _parts == ConditionParts.None
         ? base.Message
-        : $"{base.Message}{Environment.NewLine}{_explanation ??= FailedCondition.Line(_operation!, _tableName!, _versionAttributeName, _parts)}";
+        : $"{base.Message}{Environment.NewLine}{_explanation ??= Line(_operation!, _tableName!, _versionAttributeName, _parts)}";
 
     /// <summary>
     /// Gets the item the condition was evaluated against, when the request set
@@ -86,7 +86,7 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// <param name="key">The key attributes.</param>
     internal void Describe(Item key) => Key = key;
 
-    /// <summary>Attaches what the line that says which condition the write sent is made of, see <see cref="FailedCondition.Line"/>.</summary>
+    /// <summary>Attaches what the line that says which condition the write sent is made of, see <see cref="Line"/>.</summary>
     /// <param name="operation">The operation.</param>
     /// <param name="tableName">The table.</param>
     /// <param name="versionAttributeName">The version attribute of the table, if it has one.</param>
@@ -97,5 +97,60 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
         _tableName = tableName;
         _versionAttributeName = versionAttributeName;
         _parts = parts;
+    }
+
+    /// <summary>
+    /// Makes the line that says which condition did not hold: "The condition of this Update on Users did not hold: the version check on Revision." It names the version by its attribute and the rest by kind,
+    /// and never a value. DynamoDB does not say which part failed, so with several the line names them all.
+    /// </summary>
+    /// <param name="operation">The operation, whose name ends in <c>Item</c>.</param>
+    /// <param name="tableName">The table.</param>
+    /// <param name="versionAttributeName">The version attribute, which a part of the version has.</param>
+    /// <param name="parts">The parts of the condition, at least one.</param>
+    /// <returns>The line.</returns>
+    private static string Line(string operation, string tableName, string? versionAttributeName, ConditionParts parts)
+    {
+        // Version 0 and IfNotExists are one condition, and IfNotExists asked for it in so many words.
+        var newVersion = (parts & (ConditionParts.NewVersion | ConditionParts.NoItem)) == ConditionParts.NewVersion;
+        var named = new List<string>(4);
+        if (newVersion || (parts & ConditionParts.Version) != 0)
+        {
+            named.Add("the version check on " + versionAttributeName);
+        }
+
+        if ((parts & ConditionParts.NoItem) != 0)
+        {
+            named.Add("the check that no item has this key");
+        }
+
+        if ((parts & ConditionParts.ItemExists) != 0)
+        {
+            named.Add("the check that an item has this key");
+        }
+
+        if ((parts & ConditionParts.Caller) != 0)
+        {
+            named.Add("your own condition");
+        }
+
+        // PutItem gives Put.
+        var line = new StringBuilder("The condition of this ").Append(operation, 0, operation.Length - "Item".Length).Append(" on ").Append(tableName).Append(" did not hold: ");
+        for (var i = 0; i < named.Count; i++)
+        {
+            if (i > 0)
+            {
+                line.Append(i == named.Count - 1 ? " or " : ", ");
+            }
+
+            line.Append(named[i]);
+        }
+
+        line.Append(named.Count > 1 ? ", and DynamoDB does not say which." : ".");
+        if (newVersion)
+        {
+            line.Append(" The version this write expects marks a new item, so the check asks that no item has this key. To write over the stored item, use the version last read from it, or call IgnoreVersion() to write without the check.");
+        }
+
+        return line.ToString();
     }
 }

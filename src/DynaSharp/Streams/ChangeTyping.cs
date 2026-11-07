@@ -1,4 +1,3 @@
-using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 
 namespace DynaSharp.Streams;
@@ -40,7 +39,7 @@ internal static class ChangeTyping
             return -1;
         }
 
-        var schema = MixedSchema.Of<T>.Schema;
+        var schema = DiscriminatorSchema.Of<T>.Schema;
         return schema.TellsApart ? schema.FindType(image) : 0;
     }
 
@@ -48,7 +47,7 @@ internal static class ChangeTyping
     /// <param name="schema">The schema of the mix.</param>
     /// <param name="image">The image, or <see langword="null"/>.</param>
     /// <returns>The index of the type, or -1.</returns>
-    public static int FindType(MixedSchema schema, Item? image) => image is null ? -1 : schema.FindType(image);
+    public static int FindType(DiscriminatorSchema schema, Item? image) => image is null ? -1 : schema.FindType(image);
 
     /// <summary>Reads the change of a <typeparamref name="T"/> from a record whose images say which sides are one.</summary>
     /// <typeparam name="T">The entity.</typeparam>

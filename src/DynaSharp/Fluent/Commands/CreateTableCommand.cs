@@ -395,7 +395,7 @@ public sealed class CreateTableCommand
 
         if (drift.Count > 0)
         {
-            _table.Core.LogTableDrift(_table.Name, drift);
+            TableAdministration.LogDrift(_table, drift);
         }
 
         progress?.At("describing the table");

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace DynaSharp.Telemetry;
+namespace DynaSharp.Credentials;
 
 /// <summary>
 /// Log messages of the credential providers. Only events outside a single request are logged: which source the default chain and a profile
