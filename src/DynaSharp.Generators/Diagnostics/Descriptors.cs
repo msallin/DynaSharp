@@ -744,7 +744,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor EntityLeftOutOfTable = new(
         "DYNA240",
         "Entity of the table left out of CreateTable",
-        "CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each, or IncludingAll().",
+        "CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each.",
         Commands,
         DiagnosticSeverity.Warning,
         true,

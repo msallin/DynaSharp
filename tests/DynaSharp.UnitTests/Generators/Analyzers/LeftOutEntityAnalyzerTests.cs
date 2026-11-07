@@ -211,7 +211,7 @@ public sealed class LeftOutEntityAnalyzerTests
     }
 
     private static string Text(string owner, string table, string missing) =>
-        $"CreateTable() of '{owner}' leaves out entities that declare the table '{table}' as well: {missing}. The table is created without what they declare, such as their indexes. Add Including<T>() for each, or IncludingAll().";
+        $"CreateTable() of '{owner}' leaves out entities that declare the table '{table}' as well: {missing}. The table is created without what they declare, such as their indexes. Add Including<T>() for each.";
 
     private static async Task<ImmutableArray<Diagnostic>> DiagnosticsAsync(string source, params MetadataReference[] references)
     {

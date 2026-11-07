@@ -1323,6 +1323,9 @@ From the update of the apps to 0.6.0 (reads, table names, describe, streams)
 - [x] `Table<T>.DescribeTableAsync(timeout, ct)` and `client.DescribeTableAsync(name, timeout, ct)`: a bound on the clock of the client that throws a `TimeoutException` naming the table, as `CreateTable().Timeout` does (four health checks linked a token on a timer, customer-adapter's `DynamoDbHealthCheck` among them). The check of the timeout moved to `TableAdministration.ThrowIfNoBound`, shared with `CreateTableCommand.Timeout`.
 - [x] `Descending(bool)` beside `Descending()` on a query, a fan-out and a mixed query (data-pond `MessageHistoryReader` picks the direction per call: `newestFirst ? query.Descending() : query`).
 
+From the update of the apps to 0.7.0
+- [x] `DYNA240` names only `Including<T>()` as the remedy, in its message and on the page: the owner prefers the explicit list to `IncludingAll()`. A chain with `IncludingAll()` is still not reported.
+
 ## Decisions
 
 | Date | Decision |
