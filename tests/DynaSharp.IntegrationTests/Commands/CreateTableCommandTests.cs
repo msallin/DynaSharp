@@ -80,7 +80,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(shop, shop.CreateTable().WaitUntilActive());
-        var description = await shop.DescribeAsync();
+        var description = await shop.DescribeTableAsync();
 
         // Assert
         await Assert.That(string.Join(",", description.AttributeDefinitions.Select(static attribute => $"{attribute.AttributeName}:{attribute.AttributeType}"))).IsEqualTo("pk:String,sk:String");
@@ -112,7 +112,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(purchases, purchases.CreateTable().Provisioned(read: 5, write: 7).WaitUntilActive());
-        var capacity = (await purchases.DescribeAsync()).ProvisionedThroughput;
+        var capacity = (await purchases.DescribeTableAsync()).ProvisionedThroughput;
 
         // Assert
         await Assert.That((capacity?.ReadCapacityUnits, capacity?.WriteCapacityUnits)).IsEqualTo(((long?)5, (long?)7));
@@ -129,7 +129,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(purchases, purchases.CreateTable().Provisioned(read: 5, write: 7).WaitUntilActive());
-        var indexes = (await purchases.DescribeAsync()).GlobalSecondaryIndexes;
+        var indexes = (await purchases.DescribeTableAsync()).GlobalSecondaryIndexes;
 
         // Assert
         await Assert.That(string.Join(",", indexes.Select(static index => $"{index.ProvisionedThroughput?.ReadCapacityUnits}/{index.ProvisionedThroughput?.WriteCapacityUnits}"))).IsEqualTo("5/7,5/7");
@@ -326,7 +326,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(shop, shop.CreateTable().Stream(StreamViewType.NewAndOldImages).WaitUntilActive());
-        var stream = (await shop.DescribeAsync()).StreamSpecification;
+        var stream = (await shop.DescribeTableAsync()).StreamSpecification;
 
         // Assert
         await Assert.That((stream?.StreamEnabled, stream?.StreamViewType)).IsEqualTo(((bool?)true, (StreamViewType?)StreamViewType.NewAndOldImages));
@@ -342,7 +342,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await Tables.SendAsync(shop.CreateTable().Stream(StreamViewType.KeysOnly).IfNotExists());
-        var stream = (await shop.DescribeAsync()).StreamSpecification;
+        var stream = (await shop.DescribeTableAsync()).StreamSpecification;
 
         // Assert
         await Assert.That(stream?.StreamEnabled == true).IsFalse();
@@ -453,7 +453,7 @@ public sealed class CreateTableCommandTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(request);
-        var description = await shop.DescribeAsync();
+        var description = await shop.DescribeTableAsync();
 
         // Assert
         await Assert.That(description.StreamSpecification?.StreamEnabled == true).IsTrue();
@@ -504,7 +504,7 @@ public sealed class CreateTableCommandTests(Backend backend)
         {
             while (true)
             {
-                await table.DescribeAsync(timeout.Token);
+                await table.DescribeTableAsync(timeout.Token);
             }
         }
         catch (ResourceNotFoundException)

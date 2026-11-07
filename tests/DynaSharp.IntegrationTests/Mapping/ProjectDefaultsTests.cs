@@ -19,7 +19,7 @@ public sealed class ProjectDefaultsTests(Backend backend)
 
         // Act
         await sandbox.CreateTableAsync(guests, guests.CreateTable().WaitUntilActive());
-        var description = await guests.DescribeAsync();
+        var description = await guests.DescribeTableAsync();
 
         // Assert
         await Assert.That(description.AttributeDefinitions.Single().AttributeName).IsEqualTo("guest_id");

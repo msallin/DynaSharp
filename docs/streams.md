@@ -105,7 +105,7 @@ await foreach (var change in orders.ReadStreamAsync(streams, ShardIteratorType.L
 
 - **A new stream.** A stream that is switched off and on again is a new stream with a new ARN. A loop that starts after that reads the new one, so a reader that starts its loop again, after a failure for instance, follows the table. A loop that runs reads its stream until that ends.
 - **No stream.** A table whose stream is off, or that never had one, throws `InvalidOperationException` when the loop starts, with the name of the table.
-- **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`. [`ReadChangesAsync`](#typed-changes), the typed reading, checks it.
+- **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeTableAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`. [`ReadChangesAsync`](#typed-changes), the typed reading, checks it.
 - **The clients.** The table describes itself through its own client, so the two clients go to the same account and region, as [the options of one client make the other](#creating-the-client). The reading takes `dynamodb:DescribeTable` besides the permissions of the stream.
 - **The rest.** `emptyPageDelay` and `onJoined` are those of `ReadStreamRequest`, and everything else is as above.
 

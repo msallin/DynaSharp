@@ -25,7 +25,7 @@ public static class TableStreamExtensions
     /// until that ends. The table takes <c>dynamodb:DescribeTable</c> for this, besides the permissions of the stream.
     /// </para>
     /// <para>
-    /// The view of the stream is not checked: with <see cref="StreamViewType.KeysOnly"/> a record has no image, and <see cref="Table{T}.DescribeAsync"/> tells the view,
+    /// The view of the stream is not checked: with <see cref="StreamViewType.KeysOnly"/> a record has no image, and <see cref="Table{T}.DescribeTableAsync"/> tells the view,
     /// <see cref="StreamSpecification.StreamViewType"/>. Arguments are checked at the call, and nothing is requested until the first record is asked for.
     /// </para>
     /// </remarks>
@@ -147,7 +147,7 @@ public static class TableStreamExtensions
         [EnumeratorCancellation] CancellationToken cancellationToken)
         where T : IDynamoDbDocument<T>
     {
-        var description = await table.DescribeAsync(cancellationToken).ConfigureAwait(false);
+        var description = await table.DescribeTableAsync(cancellationToken).ConfigureAwait(false);
 
         // LatestStreamArn stays after the stream was switched off, so the specification tells whether it is on.
         if (description.StreamSpecification?.StreamEnabled != true || description.LatestStreamArn is not { } streamArn)

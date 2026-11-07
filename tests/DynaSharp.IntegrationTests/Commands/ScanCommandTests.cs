@@ -315,13 +315,13 @@ public sealed class ScanCommandTests(Backend backend)
     }
 
     [Test]
-    public async Task DescribeAsync_Table_DescribesIt()
+    public async Task DescribeTableAsync_Table_DescribesIt()
     {
         // Arrange
         await using var sandbox = await ReadSandbox.StartAsync(backend);
 
         // Act
-        var description = await sandbox.Shop.DescribeAsync();
+        var description = await sandbox.Shop.DescribeTableAsync();
 
         // Assert
         await Assert.That((description.TableName, description.TableStatus, description.GlobalSecondaryIndexes.Single().IndexName)).IsEqualTo((sandbox.TableName, TableStatus.Active, ReadSandbox.GlobalIndex));

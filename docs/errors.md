@@ -150,7 +150,7 @@ A role needs the IAM action of each operation a call sends, on the ARN of each t
 | `TransactGet()` | `dynamodb:GetItem` |
 | `CreateTable()` | `dynamodb:CreateTable` and `dynamodb:DescribeTable`. With `IfNotExists()`, an existing table takes `dynamodb:DescribeTable` alone |
 | `CreateTable().TimeToLive(...)`, or `CreateTable()` of an entity with `[TimeToLive]` | Also `dynamodb:DescribeTimeToLive`, and `dynamodb:UpdateTimeToLive` while time to live is not on yet |
-| `WaitUntilActive()`, `WaitUntilActiveAsync`, `DescribeAsync`, `client.DescribeTableAsync` | `dynamodb:DescribeTable` |
+| `WaitUntilActive()`, `WaitUntilActiveAsync`, `DescribeTableAsync`, `client.DescribeTableAsync` | `dynamodb:DescribeTable` |
 | `client.UpdateTableAsync`, for an index or a stream on an existing table | `dynamodb:UpdateTable` |
 | `client.DeleteTableAsync` | `dynamodb:DeleteTable` |
 | `ToRequest()` of `CreateTable()` with `Tags`, sent by `client.CreateTableAsync` | Also `dynamodb:TagResource` |
@@ -184,6 +184,6 @@ An index has its own ARN, so a policy on the table alone lets no query read an i
 }
 ```
 
-Without `CreateTable()`, leave out `dynamodb:CreateTable`, `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`, and keep `dynamodb:DescribeTable` only for `WaitUntilActiveAsync` or `DescribeAsync`.
+Without `CreateTable()`, leave out `dynamodb:CreateTable`, `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive`, and keep `dynamodb:DescribeTable` only for `WaitUntilActiveAsync` or `DescribeTableAsync`.
 
 **IRSA on EKS.** The web identity provider exchanges the pod's token with `AssumeRoleWithWebIdentity`, an unsigned call, so no pod policy grants it. The role's trust policy does: it allows `sts:AssumeRoleWithWebIdentity` to the cluster's OIDC provider, with conditions on the service account in `sub` and on `sts.amazonaws.com` in `aud`. EKS Pod Identity uses the container endpoint instead; its role trusts `pods.eks.amazonaws.com` with `sts:AssumeRole` and `sts:TagSession`. [Use IRSA on EKS](credentials.md#use-irsa-on-eks) says how the client finds the token.

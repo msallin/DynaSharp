@@ -219,7 +219,7 @@ public sealed class DynamoDbClient : IDisposable
     /// <remarks>
     /// <para>
     /// It is <see cref="DynamoDbRequests.DescribeTableAsync(DynamoDbClient, DescribeTableRequest, CancellationToken)"/> without a request to build and without <c>using DynaSharp.Requests;</c>, and it returns
-    /// what that returns. A <see cref="DynaSharp.Table{T}"/> at hand has <see cref="DynaSharp.Table{T}.DescribeAsync"/>.
+    /// what that returns. A <see cref="DynaSharp.Table{T}"/> at hand has <see cref="DynaSharp.Table{T}.DescribeTableAsync"/>.
     /// </para>
     /// <para>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="DynaSharp.Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</para>
     /// </remarks>

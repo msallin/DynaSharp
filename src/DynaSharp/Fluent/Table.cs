@@ -171,7 +171,7 @@ public sealed partial class Table<T>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist, or it was created a moment ago: this call is eventually consistent.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
-    public ValueTask<TableDescription> DescribeAsync(CancellationToken cancellationToken = default) =>
+    public ValueTask<TableDescription> DescribeTableAsync(CancellationToken cancellationToken = default) =>
         TableAdministration.DescribeAsync(Model, cancellationToken);
 
     /// <summary>
@@ -241,7 +241,7 @@ public sealed partial class Table<T>
     /// <remarks>
     /// <para>
     /// The table is gone only some time later, and this call does not wait for that: it returns the description of a table that is normally <see cref="TableStatus.Deleting"/>, and while it is, creating a table
-    /// of that name fails with <see cref="ResourceInUseException"/>. It is gone when <see cref="DescribeAsync"/> throws <see cref="ResourceNotFoundException"/>.
+    /// of that name fails with <see cref="ResourceInUseException"/>. It is gone when <see cref="DescribeTableAsync"/> throws <see cref="ResourceNotFoundException"/>.
     /// </para>
     /// <para>
     /// A table with deletion protection cannot be deleted. A repeat after a lost response can fail with <see cref="ResourceNotFoundException"/> or <see cref="ResourceInUseException"/>, because the table is

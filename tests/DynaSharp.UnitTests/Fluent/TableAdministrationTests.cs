@@ -17,28 +17,28 @@ public sealed class TableAdministrationTests
     private static readonly TimeSpan Forever = TimeSpan.FromDays(30);
 
     [Test]
-    public async Task DescribeAsync_Table_AsksForItsName()
+    public async Task DescribeTableAsync_Table_AsksForItsName()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.Json(Active));
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").DescribeAsync();
+        var description = await client.Table("Shop", "pk").DescribeTableAsync();
 
         // Assert
         await Assert.That((description.TableStatus, handler.Requests.Single().Operation, handler.Requests.Single().BodyText)).IsEqualTo((TableStatus.Active, "DescribeTable", """{"TableName":"Shop"}"""));
     }
 
     [Test]
-    public async Task DescribeAsync_ResponseWithoutATable_ReturnsTheNameAndNoStatus()
+    public async Task DescribeTableAsync_ResponseWithoutATable_ReturnsTheNameAndNoStatus()
     {
         // Arrange (the service model requires nothing of a response)
         using var handler = new StubHandler(_ => StubResponse.Json("{}"));
         using var client = TestClient.Create(handler);
 
         // Act
-        var description = await client.Table("Shop", "pk").DescribeAsync();
+        var description = await client.Table("Shop", "pk").DescribeTableAsync();
 
         // Assert
         await Assert.That((description.TableName, description.TableStatus)).IsEqualTo(("Shop", TableStatus.Unknown));
@@ -77,7 +77,7 @@ public sealed class TableAdministrationTests
     }
 
     [Test]
-    public async Task DescribeAsync_Missing_ThrowsThatException()
+    public async Task DescribeTableAsync_Missing_ThrowsThatException()
     {
         // Arrange
         using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ResourceNotFoundException", "Gone."));
@@ -85,7 +85,7 @@ public sealed class TableAdministrationTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await shop.DescribeAsync());
+        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await shop.DescribeTableAsync());
 
         // Assert
         await Assert.That(failure).IsNotNull();
