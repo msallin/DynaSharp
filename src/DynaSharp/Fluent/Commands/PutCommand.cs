@@ -16,6 +16,8 @@ namespace DynaSharp;
 /// await orders.Put(order).IfNotExists().SendAsync(ct);
 ///
 /// var replaced = await orders.Put(order).ReturnOld().SendAsync(ct);
+///
+/// var saved = await carts.Put(seen with { Lines = lines }).ReturnNew().SendAsync(ct);
 /// </code>
 /// </example>
 /// <remarks>See <see cref="GetCommand{T}"/> for what a command is and what it cannot do.</remarks>
@@ -105,6 +107,36 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     {
         var state = Enter();
         state.ReturnValues = ReturnValue.AllOld;
+        state.ReturnsWrittenItem = false;
+        return new(state, state.Table);
+    }
+
+    /// <summary>
+    /// Returns the item as this put stored it in <see cref="WriteResult{T}.Item"/>, a new instance read from what the put sent, which holds what a read gives back: for an entity with a
+    /// <see cref="VersionAttribute"/> it holds the new version, and the entity passed to the put stays as it was. It costs no capacity and no read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>No ALL_NEW on the wire.</b> DynamoDB returns nothing new for a put, because a put stores the item it is given, whole. The item is read back from the request after the response, with the
+    /// reader of <typeparamref name="T"/>, so what the type does not map, and what a getter computes, comes back as a read gives it. <see cref="ReturnOld"/> and this replace each other.
+    /// </para>
+    /// <para>
+    /// <b>The next write.</b> A record takes the item as it is for its next write, and code that held the entity passes the item on instead: <c>cart = result.Item!;</c>. A failed condition of
+    /// <see cref="TrySendAsync"/> stored nothing and gives no such item.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var saved = await carts.Put(seen with { Lines = lines }).ReturnNew().SendAsync(ct);
+    /// Cart current = saved.Item!;
+    /// </code>
+    /// </example>
+    /// <returns>The command, which replaces this one.</returns>
+    public PutCommand<T> ReturnNew()
+    {
+        var state = Enter();
+        state.ReturnValues = default;
+        state.ReturnsWrittenItem = true;
         return new(state, state.Table);
     }
 
@@ -173,7 +205,7 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
     /// <remarks>
     /// <para>
     /// The request is the one <see cref="SendAsync"/> sends, and every other error throws as there. <see cref="ReturnOldOnFailure"/> stays a choice: without it a failed condition gives no item.
-    /// <see cref="ReturnOld"/> gives nothing on a failed condition, because DynamoDB returns nothing then.
+    /// <see cref="ReturnOld"/> and <see cref="ReturnNew"/> give nothing on a failed condition, because nothing was stored and DynamoDB returns nothing then.
     /// </para>
     /// <para>
     /// A retry of the client after a lost response meets what its first attempt wrote, and a condition that rules out the write's own result then fails. That is the same answer a second delivery of the same

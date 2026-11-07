@@ -78,6 +78,10 @@ internal sealed class CommandState
     // Where the object of the key of the action that is being written starts in the body.
     private int _keyStart;
 
+    // Where the object of the item of a put starts and ends in the body, for ReturnsWrittenItem. The end is known once the item is closed.
+    private int _itemStart;
+    private int _itemEnd;
+
     // Where the body of a paged read ends before its start key. Zero until the first page is written.
     private int _pageMark;
 
@@ -138,6 +142,12 @@ internal sealed class CommandState
 
     /// <summary>Gets or sets what a write returns.</summary>
     public ReturnValue ReturnValues { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a put returns the item it wrote, read back from <see cref="Body"/> after the response, see <see cref="ReadWrittenItem{T}"/>. DynamoDB has no
+    /// <c>ALL_NEW</c> for a put, and the item it stores is the one the request holds.
+    /// </summary>
+    public bool ReturnsWrittenItem { get; set; }
 
     /// <summary>Gets or sets what a failed condition returns.</summary>
     public ReturnValuesOnConditionCheckFailure ReturnOnFailure { get; set; }
@@ -325,9 +335,21 @@ internal sealed class CommandState
     public DynamoDbWriter StartItem()
     {
         Body.Append(",\"Item\":"u8);
+        _itemStart = Body.WrittenCount;
         BodyJson.WriteStartObject();
         _itemOpen = true;
         return new DynamoDbWriter(BodyJson);
+    }
+
+    /// <summary>Reads the item of a put as the request holds it, which is what DynamoDB stored. The body is whole during the call, and the item closed.</summary>
+    /// <typeparam name="T">How the item is read.</typeparam>
+    /// <returns>A new instance of the item.</returns>
+    public T ReadWrittenItem<T>()
+        where T : IDynamoDbDocument<T>
+    {
+        var reader = new DynamoDbReader(Body.WrittenSpan[_itemStart.._itemEnd]);
+        reader.ReadStartItem();
+        return T.ReadAttributes(ref reader);
     }
 
     /// <summary>Writes the rest of the body: the open item, the expressions and the options. Everything is written once and the bytes do not change after this.</summary>
@@ -518,10 +540,13 @@ internal sealed class CommandState
         Table = null!;
         _itemOpen = false;
         _keyStart = 0;
+        _itemStart = 0;
+        _itemEnd = 0;
         _pageMark = 0;
         MaxAttempts = 0;
         MaxStalledRounds = 0;
         ReturnValues = default;
+        ReturnsWrittenItem = false;
         ReturnOnFailure = default;
         ToleratesFailedCondition = false;
         ReturnCapacity = default;
@@ -602,6 +627,7 @@ internal sealed class CommandState
             BodyJson.WriteEndObject();
             EndWrite(BodyJson);
             _itemOpen = false;
+            _itemEnd = Body.WrittenCount;
         }
     }
 

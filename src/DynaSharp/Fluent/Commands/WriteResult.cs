@@ -30,7 +30,7 @@ public readonly struct WriteResult<T>
     public bool ConditionMet => !ConditionFailed;
 
     /// <summary>
-    /// Gets the item that <c>ReturnOld</c> or <c>ReturnNew</c> asked for, or the default value of <typeparamref name="T"/> if there is none: nothing
+    /// Gets the item that <c>ReturnOld</c> or <c>ReturnNew</c> asked for, which for a put is the item as it stored it, or the default value of <typeparamref name="T"/> if there is none: nothing
     /// was asked for, or <c>ReturnOld</c> found no item under the key. When <see cref="ConditionMet"/> is <see langword="false"/>, it is the item the condition saw, if
     /// <c>ReturnOldOnFailure()</c> asked for it and an item had the key; <c>ReturnOld</c> and <c>ReturnNew</c> give nothing then.
     /// </summary>
@@ -53,7 +53,7 @@ public readonly struct WriteResult<T>
     /// Gets the version the write stored for a <see cref="Mapping.VersionAttribute"/> entity, which is what the next write expects: a put stores the version of its
     /// entity plus one, also with <c>.IgnoreVersion()</c>, and an update the one of <c>.IfVersion(n)</c> plus one. <see langword="null"/> if it stored
     /// none it knows: a delete, an update with <c>.IgnoreVersion()</c>, which advances a version it does not know, a type without a version, or a write of <c>TrySendAsync</c> whose condition did not hold, which wrote nothing.
-    /// The entity of a put stays as it was.
+    /// The entity of a put stays as it was; <see cref="PutCommand{T}.ReturnNew"/> gives the item as stored, at this version, in <see cref="Item"/>.
     /// </summary>
     /// <remarks>
     /// Whether a write stores a version depends on the chain and, for <c>TrySendAsync</c>, on the answer, so the type cannot say it, and the value is the one place that does.

@@ -51,6 +51,23 @@ public sealed class OptimisticLockingTests(Backend backend)
     }
 
     [Test]
+    public async Task Put_ReturnNew_GivesTheItemAsARead_ForTheNextWrite()
+    {
+        // Arrange (the entity of the put keeps its version, the item of ReturnNew holds the stored one)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var accounts = sandbox.Shop.Of<Account>();
+        var opened = new Account { Id = Alice };
+
+        // Act
+        var saved = (await accounts.Put(opened).ReturnNew().SendAsync()).Item!;
+        var next = (await accounts.Put(saved with { Balance = 5m }).ReturnNew().SendAsync()).Item!;
+        var read = await accounts.Get(Account.Keys.Of(Alice)).Consistent().ItemAsync();
+
+        // Assert
+        await Assert.That((opened.Revision, saved.Revision, read == next)).IsEqualTo((0L, 1L, true));
+    }
+
+    [Test]
     public async Task Update_NoWordOnTheVersion_ThrowsBeforeItIsSent()
     {
         // Arrange (enforced per write: a key does not carry a version, so the write has to say)

@@ -37,3 +37,4 @@ DynaSharp.ReturnResult<TValue>
 DynaSharp.ReturnResult<TValue>.ConditionMet.get -> bool
 DynaSharp.ReturnResult<TValue>.ReturnResult() -> void
 DynaSharp.ReturnResult<TValue>.Value.get -> TValue?
+DynaSharp.PutCommand<T>.ReturnNew() -> DynaSharp.PutCommand<T>

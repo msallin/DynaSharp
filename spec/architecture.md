@@ -181,7 +181,7 @@ transaction and `TransactGetCommand.Get` take a `Table<Item>` for the values of 
 
 ### Body and expressions
 
-The fixed parts go to `CommandState.Body` as they are known. An item goes through `DynamoDbWriter` on `BodyJson` and stays open until `Finish`, so `With` can add attributes.
+The fixed parts go to `CommandState.Body` as they are known. An item goes through `DynamoDbWriter` on `BodyJson` and stays open until `Finish`, so `With` can add attributes. `StartItem` and `CloseItem` note where its object starts and ends, so that `ReturnNew()` of a put reads the item back from the body after the response with `ReadWrittenItem<T>`, in `WriteResponse.Read`: DynamoDB has no `ALL_NEW` for a put, and what it stored is what the body holds.
 Expressions go to separate segments, because one call feeds a clause and two maps at once. `Finish` closes the item and appends options and expressions in one pass: `WriteMembers`, then `}`.
 
 `ExpressionWriter` assembles clauses: it holds one buffer per `Clause` (`Set`, `Remove`, `Add`, `Delete`, `Condition`, `KeyCondition`, `Filter`, `Projection`), a pending buffer and the maps, and it has three parts that can be tested alone.

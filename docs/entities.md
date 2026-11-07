@@ -294,7 +294,14 @@ public partial record ClubMember
 }
 ```
 
-A put stores `Revision + 1` and leaves the instance you passed as it was, so the item read back differs from it in `Revision`. What a write needs, `IfVersion(n)` or `IgnoreVersion()`, and how a counter on such an item behaves, are under [Optimistic locking](commands.md#optimistic-locking).
+A put never changes the entity it is given, so the entity that went in still holds the old version, and an item read back afterwards is not equal to it. `ReturnNew()` on the put returns the item as it was stored, at the new version, read from what the put sent, at no cost; an update has `ReturnNew()` too, which DynamoDB answers. Take that item for the next write:
+
+```csharp
+var saved = await carts.Put(seen with { Lines = lines }).ReturnNew().SendAsync(ct);
+Cart current = saved.Item!;
+```
+
+What a write needs, `IfVersion(n)` or `IgnoreVersion()`, and how a counter on such an item behaves, are under [Optimistic locking](commands.md#optimistic-locking).
 
 ## Converters
 

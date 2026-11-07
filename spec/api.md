@@ -498,7 +498,7 @@ the partition key: both on Put and Update, `IfExists()` on Delete.
 | Clause | Result |
 |---|---|
 | `ReturnOld()` | Put, Update, Delete: `ALL_OLD` in `WriteResult<T>.Item` |
-| `ReturnNew()` | Update: `ALL_NEW` in `Item` |
+| `ReturnNew()` | Update: `ALL_NEW` in `Item`. Put: the item as the put stored it, in `Item`, read with `T.ReadAttributes` from the item of the request after the response, so it sends no `ReturnValues`, costs nothing and holds the next version of a `[Version]` entity; the entity of the call stays as it was. `ReturnOld()` and `ReturnNew()` of a put replace each other |
 | `Return(attr)` | Update: `UPDATED_NEW` of one attribute. Returns `ReturnCommand<,>`, which only sends, and `SendAsync` gives the value. A missing attribute throws `DynamoDbMappingException`, never a default |
 | `ReturnOldOnFailure()` | Put, Update, Delete and transaction steps: the item on `ConditionalCheckFailedException.Item`, on `WriteResult<T>.Item` with `TrySendAsync`, or through `ItemFor` in a transaction |
 | `StoreKeyInputs()` | Update of an entity and `UpdateStep`: stores the inputs of the key of the table as attributes, section 8. On a `Table<Item>` it does not compile, and on a step of one it throws `InvalidOperationException` |

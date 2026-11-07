@@ -14,8 +14,9 @@ namespace DynaSharp.Mapping;
 /// <see cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
 /// </para>
 /// <para>
-/// <b>The instance you passed.</b> A put stores the version of the entity plus 1 and does not change the entity, so an item read back after it differs from the instance in the version, and
-/// a record compared with it is not equal. The next write takes <see cref="WriteResult{T}.Version"/> or the entity read again.
+/// <b>The entity as written.</b> The entity passed to a put keeps the version it was read with, so it is not equal to the item read back afterwards, which holds the next one.
+/// <see cref="PutCommand{T}.ReturnNew"/> returns the item as the put stored it, a new instance at the new version, without a read, and an update has <c>ReturnNew()</c> too: that item is what the
+/// next write takes, <c>cart = (await carts.Put(cart).ReturnNew().SendAsync(ct)).Item!;</c>.
 /// </para>
 /// <para>
 /// <b>A counter on a versioned item.</b> A bump with <c>Add</c> and <c>.IgnoreVersion()</c> needs no read, but it advances the version as every write does, so each bump makes the copies

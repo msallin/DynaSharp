@@ -23,7 +23,9 @@ internal static class WriteResponse
     {
         var envelope = WriteEnvelope<T>.Read(ref reader);
         state.ResponseCapacity = envelope.ConsumedCapacity;
-        return new WriteResult<T>(envelope.Attributes, envelope.HasAttributes, envelope.ConsumedCapacity, envelope.ItemCollectionMetrics, state.Write.StoredVersion, conditionMet: true);
+        return state.ReturnsWrittenItem
+            ? new WriteResult<T>(state.ReadWrittenItem<T>(), hasItem: true, envelope.ConsumedCapacity, envelope.ItemCollectionMetrics, state.Write.StoredVersion, conditionMet: true)
+            : new WriteResult<T>(envelope.Attributes, envelope.HasAttributes, envelope.ConsumedCapacity, envelope.ItemCollectionMetrics, state.Write.StoredVersion, conditionMet: true);
     }
 
     /// <summary>
