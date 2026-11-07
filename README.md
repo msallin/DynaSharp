@@ -36,6 +36,15 @@ using DynaSharp;
 using var client = new DynamoDbClient();
 ```
 
+Without a region it throws `InvalidOperationException`. To try the code below offline, with no AWS account and no Docker, take a client of `FakeDynamoDb`, the in-memory DynamoDB of [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html#a-fake-dynamodb), instead:
+
+```csharp
+using DynaSharp.Testing;
+
+var fake = new FakeDynamoDb();
+using var client = fake.CreateClient();
+```
+
 Declare a `partial` type and say how it maps. The generator writes the code that reads and writes the item, plus `Keys`, which builds keys, and `Attrs`, a typed handle per attribute. [Entities and keys](https://msallin.github.io/DynaSharp/entities.html) has the rest.
 
 ```csharp
