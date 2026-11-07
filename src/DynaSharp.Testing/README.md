@@ -10,6 +10,13 @@ Test support for [DynaSharp](https://github.com/msallin/DynaSharp). It fakes the
 
 ## A client for a test
 
+A test needs both namespaces: `DynaSharp` holds the client, the tables and the extensions of their commands, such as `Query(pk, sk)` of an entity table, which a file with only `using DynaSharp.Testing;` does not see, and the compiler then names no missing `using` (CS1501, CS0315).
+
+```csharp
+using DynaSharp;
+using DynaSharp.Testing;
+```
+
 `StubHandler` answers requests and records them. `StubClient.Create` makes a client over it: region `us-east-1`, static fake credentials, one attempt per call, no attempt timeout, and nothing read from the environment or the shared AWS files. `StubClient.CreateStreams` does the same for DynamoDB Streams.
 
 ```csharp
@@ -101,7 +108,7 @@ var stored = fake.Get<Customer>(StubResponse.KeyOf(Customer.Keys.Of("alice")));
 
 Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)`, `fake.CreateTable<T>()`, which creates the table the entity declares with its keys and indexes as its `CreateTable()` would, `fake.CreateTable<T>(name)`, the same under another name, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
 
-A table of several entities is best created the way the application creates it, through a client of the fake. Where the application calls `CreateTable().IncludingAll()`, the method the generator writes for an assembly whose entities share the keys of one table, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity of that assembly, see [Every entity of an assembly](https://msallin.github.io/DynaSharp/tables.html#every-entity-of-an-assembly). `fake.CreateTable<T>(name)` declares one entity, and the test project's own `IncludingAll()` names the test project's entities, not the application's.
+A table of several entities is best created the way the application creates it, through a client of the fake. Where the application names its entities, as in `orders.CreateTable().Including<Customer>().Including<Cart>()`, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity named, see [Creating a table](https://msallin.github.io/DynaSharp/tables.html#creating-a-table). `fake.CreateTable<T>(name)` declares one entity.
 
 The forms without a table name, `CreateTable<T>()`, `Put(entity)`, `Get<T>(key)` and `Items<T>()`, use the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or the default of its assembly, and throw `InvalidOperationException` for an entity that declares none. They take the name as declared: the fake knows no `TableNaming`, so a test whose client sets one, or that wants a table of its own, passes the name, as in `fake.CreateTable<Customer>("dev-Shop")`.
 
