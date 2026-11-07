@@ -286,7 +286,7 @@ Their type parameter has `allows ref struct`, so a generic helper costs no box. 
 |---|---|
 | `GetCommand<T>` | `SendAsync`, `ItemAsync`, `ToRequestJson` |
 | `PutCommand<T>`, `UpdateCommand<T>`, `DeleteCommand<T>` | `SendAsync`, `TrySendAsync`, `ToRequestJson` |
-| `ReturnCommand<,>` | `SendAsync`, `ToRequestJson` |
+| `ReturnCommand<,>` | `SendAsync`, `TrySendAsync`, `ToRequestJson` |
 | `QueryCommand<T>` | `ItemsAsync`, `ItemAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `ScanCommand<T>` | `ItemsAsync`, `PageAsync(after, ct)`, `PageAsync(ct)`, `PagesAsync`, `CountAsync`, `ToRequestJson` |
 | `GetSelectCommand<,>` | `SendAsync`, `ToRequestJson` |
@@ -514,8 +514,9 @@ if (!result.ConditionMet) { /* old news, or stored already: compare result.Item!
 `TrySendAsync` on `PutCommand<T>`, `UpdateCommand<T>` and `DeleteCommand<T>` sends what `SendAsync` sends and takes a `ConditionalCheckFailedException` as its answer: `ConditionMet` is false, and
 `Item` and `HasItem` hold the item the condition saw when `ReturnOldOnFailure()` asked for it, read with the entity's reader, so an item that does not fit throws `DynamoDbMappingException`.
 `Version`, `ConsumedCapacity` and `ItemCollectionMetrics` are null then. `ConditionMet` is true on every result of `SendAsync`, and on the
-default value. Every other error throws as from `SendAsync`. `ReturnOldOnFailure()` stays a choice, and `ReturnOld()` and `ReturnNew()` give nothing for a failed condition. `ReturnCommand<,>`
-and transactions have no `TrySendAsync`. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync`, no error on the span, which gets `dynasharp.condition_met` = `false`,
+default value. Every other error throws as from `SendAsync`. `ReturnOldOnFailure()` stays a choice, and `ReturnOld()` and `ReturnNew()` give nothing for a failed condition. `TrySendAsync` of
+`ReturnCommand<,>` returns `ReturnResult<TValue>`: `ConditionMet`, and `Value`, the attribute as `SendAsync` reads it when the condition held, the default value when it did not; an item of
+`ReturnOldOnFailure()` is not part of it, and the default value of the struct reads as a condition that held, as `WriteResult<T>` does. Transactions have no `TrySendAsync`. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync`, no error on the span, which gets `dynasharp.condition_met` = `false`,
 and no `error.type` on the duration. After a lost response the retry of the client fails against its own first attempt; that is the same on the wire as a second delivery of the change, and the
 library does not claim to tell them apart: the item of `ReturnOldOnFailure()`, compared with what the write sent, says that the change is stored.
 

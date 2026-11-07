@@ -32,3 +32,8 @@ DynaSharp.Table<T>.DescribeTableAsync(System.TimeSpan timeout, System.Threading.
 static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.BatchWriteCommand<T> command, T entity) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.EntityTableExtensions.DeleteAll<T>(this DynaSharp.BatchWriteCommand<T> command, System.Collections.Generic.IEnumerable<T>! entities) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.TransactWriteExtensions.PutAll<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<T>! items) -> DynaSharp.TransactWriteCommand
+DynaSharp.ReturnCommand<TValue, TConverter>.TrySendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.ReturnResult<TValue>>
+DynaSharp.ReturnResult<TValue>
+DynaSharp.ReturnResult<TValue>.ConditionMet.get -> bool
+DynaSharp.ReturnResult<TValue>.ReturnResult() -> void
+DynaSharp.ReturnResult<TValue>.Value.get -> TValue?

@@ -76,6 +76,7 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`, what a `[Version]` entity stored, or null; `ConsumedCapacity` and `ItemCollectionMetrics`; `ConditionMet`, always true |
 | `Put`, `Update`, `Delete` with `TrySendAsync(ct)` | `WriteResult<T>` | The same, or for a condition that did not hold `ConditionMet` false, with `Item` what the condition saw if `ReturnOldOnFailure()` asked for it, and no `Version`, capacity or metrics |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
+| `Update(...).Return(handle).TrySendAsync(ct)` | `ReturnResult<TValue>` | `ConditionMet`, and `Value`, the attribute after the update, when it is true |
 | `PageAsync(...)` of a read | `Page<T>` | `Items`, `Count`, `ScannedCount`, `ConsumedCapacity`, `HasMore` and `Next` |
 | `BatchWrite()`, `BatchGet()` | `BatchWriteResult`, `BatchGetResult<T>` | `Written` or `Items`, `Requests` and `ConsumedCapacity` |
 | `TransactWrite()`, `TransactGet()` | `TransactWriteResult`, `TransactGetResult` | `ConsumedCapacity`, and `Read(slot)` of a get, which gives a `GetResult<T>` |
@@ -134,7 +135,18 @@ if (!result.ConditionMet)
 }
 ```
 
-`ReturnOld()` and `ReturnNew()` give nothing for a failed condition; only `ReturnOldOnFailure()` does. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync` and no error on the span. A retry of the client after a lost response can fail against its own first attempt, which looks the same as a second delivery of the change, see [Where a retry applies a write twice](errors.md#where-a-retry-applies-a-write-twice). `TrySendAsync` is on `Put`, `Update` and `Delete`, not on `Return(handle)` or a transaction.
+`ReturnOld()` and `ReturnNew()` give nothing for a failed condition; only `ReturnOldOnFailure()` does. A failed condition of `TrySendAsync` is no conflict to `RetryOnConflictAsync` and no error on the span. A retry of the client after a lost response can fail against its own first attempt, which looks the same as a second delivery of the change, see [Where a retry applies a write twice](errors.md#where-a-retry-applies-a-write-twice). `TrySendAsync` is on `Put`, `Update`, `Delete` and `Return(handle)`, not on a transaction.
+
+After `Return(handle)` it gives a `ReturnResult<TValue>`: `Value` is the attribute after the update when `ConditionMet` is true, and there is none when the condition did not hold, which takes no `try` around a lock or a claim:
+
+```csharp
+var claimed = await products.Update(Product.Keys.Of("KB-01"))
+    .Add(Product.Attrs.Stock, -1)
+    .If(Product.Attrs.Stock.Gt(0))
+    .Return(Product.Attrs.Stock)
+    .TrySendAsync(ct);
+int? left = claimed.ConditionMet ? claimed.Value : null;
+```
 
 `ConditionalCheckFailedException.Key` says which item it was, as it is stored. It is for code that does not hold the key, such as a wrapper around a write it was handed. No message and no log of the client contains it.
 

@@ -653,6 +653,7 @@ public sealed class CommandTelemetryTests
     [Arguments("PutItem")]
     [Arguments("UpdateItem")]
     [Arguments("DeleteItem")]
+    [Arguments("Return")]
     public async Task TrySendAsync_ConditionFailed_TagsThatTheConditionWasNotMet(string operation)
     {
         // Arrange
@@ -664,14 +665,28 @@ public sealed class CommandTelemetryTests
             var users = client.Table("Users", "pk");
             _ = operation switch
             {
-                "PutItem" => await users.Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync(),
-                "UpdateItem" => await users.Update("a").Set("n", 1).IfExists().TrySendAsync(),
-                _ => await users.Delete("a").IfExists().TrySendAsync(),
+                "PutItem" => (await users.Put(new Item { ["pk"] = "a" }).IfNotExists().TrySendAsync()).ConditionMet,
+                "UpdateItem" => (await users.Update("a").Set("n", 1).IfExists().TrySendAsync()).ConditionMet,
+                "Return" => (await users.Update("a").Add("n", 1).IfExists().Return(Attr<int>("n")).TrySendAsync()).ConditionMet,
+                _ => (await users.Delete("a").IfExists().TrySendAsync()).ConditionMet,
             };
         });
 
         // Assert
-        await Assert.That((span.OperationName, span.GetTagItem("dynasharp.condition_met"))).IsEqualTo(("DynamoDB." + operation, (object?)false));
+        await Assert.That((span.OperationName, span.GetTagItem("dynasharp.condition_met"))).IsEqualTo(("DynamoDB." + (operation == "Return" ? "UpdateItem" : operation), (object?)false));
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionOfAReturnHeld_HasNoConditionTag()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Attributes":{"n":{"N":"2"}}}"""));
+
+        // Act
+        var span = await RunAsync(handler, async client => await client.Table("Users", "pk").Update("a").Add("n", 1).IfExists().Return(Attr<int>("n")).TrySendAsync());
+
+        // Assert
+        await Assert.That(span.GetTagItem("dynasharp.condition_met")).IsNull();
     }
 
     [Test]

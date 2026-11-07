@@ -348,6 +348,20 @@ public sealed class ItemCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task UpdateReturnTrySend_LockTakenOnceThenHeld_ReturnsTheGenerationThenNoValue()
+    {
+        // Arrange (a lock that is free takes the first owner, and refuses the second)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+
+        // Act
+        var first = await sandbox.Shop.Update("lock", "s").Set("owner", "a").Add("generation", 1).If(Attr("owner").NotExists()).Return(Attr<long>("generation")).TrySendAsync();
+        var second = await sandbox.Shop.Update("lock", "s").Set("owner", "b").Add("generation", 1).If(Attr("owner").NotExists()).Return(Attr<long>("generation")).TrySendAsync();
+
+        // Assert
+        await Assert.That((first.ConditionMet, first.Value, second.ConditionMet, (await sandbox.ReadAsync("lock"))!.GetString("owner"))).IsEqualTo((true, 1L, false, (string?)"a"));
+    }
+
+    [Test]
     public async Task Update_Return_ReadsTheCounter()
     {
         // Arrange

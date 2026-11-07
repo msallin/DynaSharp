@@ -34,6 +34,75 @@ public sealed class ReturnCommandTests
     }
 
     [Test]
+    public async Task TrySendAsync_ConditionHeld_ReturnsTheValue()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Attributes":{"count":{"N":"7"}}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").Update("a").Add("count", 1).If(Attr("owner").NotExists()).Return(Attr<int>("count")).TrySendAsync();
+
+        // Assert
+        await Assert.That((result.ConditionMet, result.Value)).IsEqualTo((true, 7));
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionFailed_ReturnsNoValue()
+    {
+        // Arrange (the item of ReturnOldOnFailure is not part of the answer)
+        using var handler = new StubHandler(_ => StubResponse.ConditionalCheckFailed(new Item { ["pk"] = "a", ["count"] = 3 }));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var result = await client.Table("Shop", "pk").Update("a").Add("count", 1).If(Attr("owner").NotExists()).ReturnOldOnFailure().Return(Attr<long>("count")).TrySendAsync();
+
+        // Assert
+        await Assert.That((result.ConditionMet, result.Value, handler.Requests.Count)).IsEqualTo((false, 0L, 1));
+    }
+
+    [Test]
+    public async Task TrySendAsync_OtherError_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.DynamoDbError("ValidationException", "bad"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await client.Table("Shop", "pk").Update("a").Add("count", 1).Return(Attr<int>("count")).TrySendAsync());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("bad");
+    }
+
+    [Test]
+    public async Task TrySendAsync_ConditionHeldWithoutTheAttribute_ThrowsAsSendAsyncDoes()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Attributes":{}}"""));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await client.Table("Shop", "pk").Update("a").Remove("count").Return(Attr<int>("count")).TrySendAsync());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("count");
+    }
+
+    [Test]
+    public async Task ReturnResult_Default_ReadsAsAConditionThatHeld()
+    {
+        // Arrange
+        var result = default(ReturnResult<int>);
+
+        // Act
+        var met = result.ConditionMet;
+
+        // Assert
+        await Assert.That(met).IsTrue();
+    }
+
+    [Test]
     public async Task SendAsync_GeneratedHandle_ReturnsItTyped()
     {
         // Arrange

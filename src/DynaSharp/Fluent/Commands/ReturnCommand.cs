@@ -10,7 +10,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// An update that returns one attribute, as <see cref="UpdateCommand{T}.Return{TValue, TConverter}(Attr{TValue, TConverter})"/> leaves it. Nothing can be
-/// added any more, which the type enforces: all that is left is to send it.
+/// added any more, which the type enforces: all that is left is to send it, with <see cref="SendAsync"/>, or with <see cref="TrySendAsync"/> where a failed condition is an answer.
 /// </summary>
 /// <remarks>The consumed capacity of such an update reaches the capacity metric and no other place: the result is the value.</remarks>
 /// <typeparam name="TValue">The type of the attribute.</typeparam>
@@ -54,6 +54,40 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<TValue> SendAsync(CancellationToken cancellationToken = default) =>
         Enter().Settle().SendAsync<UpdateValueOperation<TValue, TConverter>, TValue>(cancellationToken);
+
+    /// <summary>
+    /// Sends the command as <see cref="SendAsync"/> does, and takes a failed condition as an answer instead of throwing <see cref="ConditionalCheckFailedException"/>: <see cref="ReturnResult{TValue}.ConditionMet"/>
+    /// is then <see langword="false"/>, nothing was written, and there is no value. It is for an update whose failed condition is routine, such as a lock that another holder has.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var claimed = await products.Update(Product.Keys.Of("sku-1")).Add(Product.Attrs.Stock, -1).If(Product.Attrs.Stock.Gt(0)).Return(Product.Attrs.Stock).TrySendAsync(ct);
+    /// if (!claimed.ConditionMet) { Console.WriteLine("sold out"); }
+    /// </code>
+    /// </example>
+    /// <remarks>
+    /// <para>
+    /// <b>The same request.</b> It is the one <see cref="SendAsync"/> sends, and every other error throws as there. An item that <c>ReturnOldOnFailure()</c> asked for is not part of the result.
+    /// </para>
+    /// <inheritdoc cref="UpdateCommand{T}.TrySendAsync" path="/remarks/para[2]"/>
+    /// <inheritdoc cref="UpdateCommand{T}.TrySendAsync" path="/remarks/para[3]"/>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Whether the condition held, and then the attribute as it is after the update. Await it once.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The command was already sent, extended or rendered, an entity with a <see cref="VersionAttribute"/> has neither <c>IfVersion</c> nor <c>IgnoreVersion</c>, version 0 stands beside <c>IfExists</c> without <see cref="VersionMissing.Allow"/>, or a change by handle cannot
+    /// leave a key consistent, see <see cref="IUpdatable{TSelf}.Set{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="DynamoDbMappingException">
+    /// The condition held and the response does not hold the attribute, because the update did not change it, or it cannot be read as <typeparamref name="TValue"/>. The update
+    /// has been applied, so it must not simply be repeated.
+    /// </exception>
+    /// <exception cref="ValidationException">DynamoDB rejects the request; the exception shows the expressions.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
+    public ValueTask<ReturnResult<TValue>> TrySendAsync(CancellationToken cancellationToken = default) =>
+        Enter().Settle().TrySendAsync<ReturnValueOperation<TValue, TConverter>, ReturnResult<TValue>>(cancellationToken);
 
     /// <summary>Lets <c>await</c> send the command. There is no cancellation that way; <see cref="SendAsync"/> takes a token.</summary>
     /// <returns>The awaiter of the sent command.</returns>
