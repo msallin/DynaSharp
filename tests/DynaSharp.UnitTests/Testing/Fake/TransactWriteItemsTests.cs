@@ -159,13 +159,131 @@ public sealed class TransactWriteItemsTests
             "TransactWriteItems",
             $$$$$"""
             {"TransactItems":[{{{{{PutA}}}}},{"Delete":{"TableName":"Users","Key":{"pk":{"S":"b"}}}},
-              {"Put":{"TableName":"Users","Item":{"pk":{"S":"c"},"v":{"S":"{{{{{FakeWrites.Text(410_000)}}}}}"}}}}]}
+              {"Update":{"TableName":"Users","Key":{"pk":{"S":"c"}},"UpdateExpression":"SET v = :v","ExpressionAttributeValues":{":v":{"S":"{{{{{FakeWrites.Text(410_000)}}}}}"}}}}]}
             """);
 
         // Assert
         await Assert.That((FakeCalls.SameJson(
             """[{"Code":"None"},{"Code":"None"},{"Code":"ValidationError","Message":"Item size has exceeded the maximum allowed size"}]""",
             body.GetProperty("CancellationReasons")), fake.Items("Users").Single()["v"].AsString())).IsEqualTo((true, "old"));
+    }
+
+    [Test]
+    public async Task Handle_PutOverTheSizeLimit_AnswersValidationAndWritesNothing()
+    {
+        // Arrange: the item of a put is too large whatever the table holds, so both emulators fail the request, not one action
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            $$$$$"""{"TransactItems":[{{{{{PutA}}}}},{"Put":{"TableName":"Users","Item":{"pk":{"S":"c"},"v":{"S":"{{{{{FakeWrites.Text(410_000)}}}}}"}}}}]}""");
+
+        // Assert
+        await Assert.That((answer, fake.Items("Users").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "Item size has exceeded the maximum allowed size"), 0));
+    }
+
+    [Test]
+    public async Task Handle_PutOfAnIndexKeyOfAnotherTypeUnderAFailingCondition_CancelsWithValidationErrorForThePut()
+    {
+        // Arrange: both emulators check the index keys of a put before its condition, and still report the other actions
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var (_, body) = FakeCalls.Send(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Put":{"TableName":"Forum","Item":{"pk":{"S":"a"},"sk":{"S":"1"},"author":{"N":"1"}},"ConditionExpression":"attribute_exists(pk)"}},
+              {"ConditionCheck":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}},"ConditionExpression":"attribute_exists(pk)"}}]}
+            """);
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(
+            """
+            [{"Code":"ValidationError","Message":"One or more parameter values were invalid: Type mismatch for Index Key author Expected: S Actual: N IndexName: ByAuthor"},
+             {"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]
+            """,
+            body.GetProperty("CancellationReasons"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_UpdateToAnIndexKeyOfAnotherTypeWhileAnotherConditionFails_CancelsWithValidationErrorForTheUpdate()
+    {
+        // Arrange: both emulators try the update before they decide, so the reason of the update is not None
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var (_, body) = FakeCalls.Send(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Update":{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET author = :n","ExpressionAttributeValues":{":n":{"N":"1"}}}},
+              {"ConditionCheck":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}},"ConditionExpression":"attribute_exists(pk)"}}]}
+            """);
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson(
+            """
+            [{"Code":"ValidationError","Message":"One or more parameter values were invalid: Type mismatch for Index Key author Expected: S Actual: N IndexName: ByAuthor"},
+             {"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]
+            """,
+            body.GetProperty("CancellationReasons"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_UpdateWhoseConditionFailsToAnIndexKeyOfAnotherType_CancelsWithConditionalCheckFailed()
+    {
+        // Arrange: the condition of an update comes first
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var (_, body) = FakeCalls.Send(
+            fake,
+            "TransactWriteItems",
+            """{"TransactItems":[{"Update":{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET author = :n","ConditionExpression":"attribute_exists(pk)","ExpressionAttributeValues":{":n":{"N":"1"}}}}]}""");
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]""", body.GetProperty("CancellationReasons"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_UpdateToAnEmptyIndexKeyWhileAnotherConditionFails_AnswersValidation()
+    {
+        // Arrange: an empty index key fails the request in both emulators, also where another action is cancelled
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Update":{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET author = :e","ExpressionAttributeValues":{":e":{"S":""}}}},
+              {"ConditionCheck":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}},"ConditionExpression":"attribute_exists(pk)"}}]}
+            """);
+
+        // Assert
+        await Assert.That((answer.Code, answer.Message.Contains("secondary index key", StringComparison.Ordinal))).IsEqualTo(("ValidationException", true));
+    }
+
+    [Test]
+    public async Task Handle_UpdateThatFailsOnItsItemWhileAnotherConditionFails_LeavesItsReasonNone()
+    {
+        // Arrange: a path into a missing map fails only when the update is applied, which a cancelled transaction never does
+        var fake = FakeCalls.With(FakeWrites.Forum);
+
+        // Act
+        var (_, body) = FakeCalls.Send(
+            fake,
+            "TransactWriteItems",
+            """
+            {"TransactItems":[{"Update":{"TableName":"Forum","Key":{"pk":{"S":"a"},"sk":{"S":"1"}},"UpdateExpression":"SET m.k = :n","ExpressionAttributeValues":{":n":{"N":"1"}}}},
+              {"ConditionCheck":{"TableName":"Forum","Key":{"pk":{"S":"b"},"sk":{"S":"1"}},"ConditionExpression":"attribute_exists(pk)"}}]}
+            """);
+
+        // Assert
+        await Assert.That(FakeCalls.SameJson("""[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}]""", body.GetProperty("CancellationReasons"))).IsTrue();
     }
 
     [Test]

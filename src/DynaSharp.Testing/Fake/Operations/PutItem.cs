@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace DynaSharp.Testing.Fake;
 
 /// <summary>
-/// A <c>PutItem</c>: under its condition, the item replaces the one with its key, after the checks of its keys, the keys of the indexes and its size, and every index follows at once.
-/// <c>ReturnValues</c> takes <c>NONE</c> and <c>ALL_OLD</c>.
+/// A <c>PutItem</c>: under its condition, the item replaces the one with its key, and every index follows at once. Its keys, the keys of the indexes and its size are checked first,
+/// so an item DynamoDB does not store is a <c>ValidationException</c> also where the condition fails. <c>ReturnValues</c> takes <c>NONE</c> and <c>ALL_OLD</c>.
 /// </summary>
 internal static class PutItem
 {
@@ -34,7 +34,7 @@ internal static class PutItem
         var item = RequestJson.ReadItem(RequestJson.Required(request, "Item"), "Item");
         var options = SingleWrite.Read(request, Name);
         var table = db.GetTable(tableName);
-        var key = table.KeySchema.KeyOf(item);
+        var key = table.KeySchema.KeyOf(table.Check(item));
         options.ThrowIfConditionFails(table.Get(key));
         var old = table.Put(item);
         options.Answer(response, table, new WriteOutcome(key, old, table.Get(key)));

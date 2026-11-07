@@ -271,6 +271,23 @@ public sealed class PutItemTests
     }
 
     [Test]
+    [Arguments("""{"author":{"N":"1"}}""", "One or more parameter values were invalid: Type mismatch for Index Key author Expected: S Actual: N IndexName: ByAuthor")]
+    [Arguments("""{"author":{"S":""}}""", "One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty string value. IndexName: ByAuthor, IndexKey: author")]
+    [Arguments("""{"v":{"S":"big"}}""", "Item size has exceeded the maximum allowed size")]
+    public async Task Handle_ItemDynamoDbDoesNotStoreUnderAFailingCondition_AnswersValidation(string attributes, string message)
+    {
+        // Arrange: both emulators check the item before the condition, so a condition that fails does not hide it
+        var fake = FakeCalls.With(FakeWrites.Forum);
+        var item = """{"pk":{"S":"a"},"sk":{"S":"1"},""" + attributes[1..].Replace("big", FakeWrites.Text(410_000), StringComparison.Ordinal);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "PutItem", $$$$"""{"TableName":"Forum","Item":{{{{item}}}},"ConditionExpression":"attribute_exists(pk)"}""");
+
+        // Assert
+        await Assert.That((answer, fake.Items("Forum").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", message), 0));
+    }
+
+    [Test]
     [Arguments("author", 2049)]
     [Arguments("date", 1025)]
     public async Task Handle_IndexKeyTooLarge_AnswersValidationAndWritesNothing(string attribute, int length)

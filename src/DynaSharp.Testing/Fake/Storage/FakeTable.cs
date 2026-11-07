@@ -116,14 +116,18 @@ internal sealed class FakeTable
     /// <returns>The stored item, which the caller must not change, or <see langword="null"/>.</returns>
     public Item? Get(ItemKey key) => _items.Get(key.Partition, SlotKey.OfTable(key));
 
-    /// <summary>Puts an item, replacing the one with its key.</summary>
-    /// <param name="item">The item. It is checked and stored in its stored form, as a copy.</param>
-    /// <returns>The item it replaced, or <see langword="null"/>.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c>: a value, the key, a key of an index or the size is not what DynamoDB accepts. Nothing changes then.</exception>
-    public Item? Put(IReadOnlyDictionary<string, AttributeValue> item)
+    /// <summary>Checks an item as <see cref="Put"/> stores it, without storing it: its values, its key, the keys of the indexes and its size.</summary>
+    /// <param name="item">The item.</param>
+    /// <param name="ofRequest">
+    /// Whether the item is the one a request holds, as of <c>PutItem</c>: then a size past the limit is wrong whatever the table holds, an error of the input that fails a transaction as a whole.
+    /// An item an update made is too large only because of the item it started from.
+    /// </param>
+    /// <returns>The item in its stored form, a copy.</returns>
+    /// <exception cref="FakeError">A <c>ValidationException</c>: a value, the key, a key of an index or the size is not what DynamoDB accepts.</exception>
+    public Item Check(IReadOnlyDictionary<string, AttributeValue> item, bool ofRequest = false)
     {
         var stored = AttributeRules.Normalize(item);
-        var key = KeySchema.KeyOf(stored);
+        _ = KeySchema.KeyOf(stored);
         foreach (var index in GlobalIndexes.Concat(LocalIndexes))
         {
             index.KeySchema.ThrowIfInvalidIndexKey(stored, index.Name);
@@ -131,9 +135,21 @@ internal sealed class FakeTable
 
         if (ItemSize.Of(stored) > ItemSize.MaxItemBytes)
         {
-            throw FakeError.Validation("Item size has exceeded the maximum allowed size");
+            const string TooLarge = "Item size has exceeded the maximum allowed size";
+            throw ofRequest ? FakeError.InvalidInput(TooLarge) : FakeError.Validation(TooLarge);
         }
 
+        return stored;
+    }
+
+    /// <summary>Puts an item, replacing the one with its key.</summary>
+    /// <param name="item">The item. It is checked as by <see cref="Check"/> and stored in its stored form, as a copy.</param>
+    /// <returns>The item it replaced, or <see langword="null"/>.</returns>
+    /// <exception cref="FakeError">A <c>ValidationException</c>: a value, the key, a key of an index or the size is not what DynamoDB accepts. Nothing changes then.</exception>
+    public Item? Put(IReadOnlyDictionary<string, AttributeValue> item)
+    {
+        var stored = Check(item);
+        var key = KeySchema.KeyOf(stored);
         stored.MakeReadOnly();
         var old = Get(key);
         _items.Set(key.Partition, SlotKey.OfTable(key), stored);

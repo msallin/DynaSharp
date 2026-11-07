@@ -6,9 +6,10 @@ namespace DynaSharp.Testing.Fake;
 /// <summary>
 /// A <c>TransactWriteItems</c>: up to 100 condition checks, puts, deletes and updates over several tables, all or nothing. Every condition is checked against the items as they are
 /// before any write; if one fails, the transaction is cancelled with one reason per action in its order, <c>ConditionalCheckFailed</c> where a condition failed, with the item when
-/// the action asked for it with <c>ALL_OLD</c>, and <c>None</c> for the others. A write the table rejects, such as an update that makes an item over 400 KB, cancels it with
-/// <c>ValidationError</c> and takes back the writes before it, and so does a key that does not match the schema of its table. One item twice is a <c>ValidationException</c>, and so is
-/// an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes, and an index key that is too large.
+/// the action asked for it with <c>ALL_OLD</c>, <c>ValidationError</c> for a key that does not match the schema of its table, a put of an index key of another type than the index
+/// defines (whatever its condition) and an update whose result has one (once its condition holds), and <c>None</c> for the others. A write the table rejects once every action passed,
+/// such as an update that makes an item over 400 KB, cancels it with <c>ValidationError</c> and takes back the writes before it. One item twice is a <c>ValidationException</c>, and so is
+/// a put of an item over 400 KB, and an empty string or binary as a value of a key: of the key of an action, or of an index key that a put or an update writes, and an index key that is too large.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,8 +22,9 @@ namespace DynaSharp.Testing.Fake;
 /// <c>INDEXES</c> repeats the units as <c>WriteCapacityUnits</c>, and on a replay as <c>ReadCapacityUnits</c>, as DynamoDB answers it.
 /// </para>
 /// <para>
-/// An empty or too large index key comes to light only when the action is applied, after every condition is checked. If the condition of another action fails, the fake answers the cancellation
-/// where DynamoDB may answer the <c>ValidationException</c>.
+/// An update is tried on its item before the transaction is decided, so that the keys of the indexes it writes count for the reasons, as both emulators answer it. Any other error of an update,
+/// such as a path into a missing map, comes to light only when the actions are applied; if the condition of another action fails, its reason is <c>None</c>. DynamoDB Local answers a
+/// <c>ValidationException</c> for it then and Dynoxide a <c>ValidationError</c>, so which DynamoDB does is open.
 /// </para>
 /// </remarks>
 internal static class TransactWriteItems
@@ -152,11 +154,12 @@ internal static class TransactWriteItems
         FakeError? rejected = null;
         try
         {
-            key = item is not null ? table.KeySchema.KeyOf(item) : table.KeySchema.ReadKey(keyMap!);
+            key = item is not null ? table.KeySchema.KeyOf(table.Check(item, ofRequest: true)) : table.KeySchema.ReadKey(keyMap!);
         }
         catch (FakeError error) when (!error.IsInputError)
         {
-            // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json.
+            // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json, and both emulators
+            // do so for an index key of another type than the index defines.
             rejected = error;
         }
 
@@ -208,12 +211,48 @@ internal static class TransactWriteItems
                 continue;
             }
 
+            if (action.Kind == ActionKind.Update && IndexKeyRejected(action, current) is { } indexError)
+            {
+                reasons[i] = ValidationError(indexError);
+                cancelled = true;
+                continue;
+            }
+
             reasons[i] = None;
         }
 
         if (cancelled)
         {
             throw FakeError.TransactionCanceled(reasons);
+        }
+    }
+
+    // The update tried on its item, for the keys of the indexes its result holds: one of another type is the reason of the action, an empty one fails the request. Every other error
+    // of the update waits for the apply, see the remarks of the class.
+    private static FakeError? IndexKeyRejected(Action action, Item? current)
+    {
+        Item image;
+        try
+        {
+            image = action.Update!.Apply(current, action.Table.KeySchema.ToItem(action.Key)).NewImage;
+        }
+        catch (FakeError)
+        {
+            return null;
+        }
+
+        try
+        {
+            foreach (var index in action.Table.GlobalIndexes.Concat(action.Table.LocalIndexes))
+            {
+                index.KeySchema.ThrowIfInvalidIndexKey(image, index.Name);
+            }
+
+            return null;
+        }
+        catch (FakeError error) when (!error.IsInputError)
+        {
+            return error;
         }
     }
 
@@ -237,12 +276,8 @@ internal static class TransactWriteItems
             }
             catch (FakeError error) when (error.Code == "ValidationException")
             {
+                // An error of the input, such as an empty index key, failed the request before: Read checks the puts and IndexKeyRejected the updates.
                 journal.Undo();
-                if (error.IsInputError)
-                {
-                    throw;
-                }
-
                 var reasons = Enumerable.Repeat(None, actions.Count).ToArray();
                 reasons[i] = ValidationError(error);
                 throw FakeError.TransactionCanceled(reasons);
