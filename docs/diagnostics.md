@@ -21,7 +21,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA011` | `[Version]` on something that is no single integer property | Put it on one such property, without a converter |
 | `DYNA012` | An attribute only an entity can have, on a document | Remove it, or make the type an entity |
 | `DYNA013` | A type is an entity and a document | Keep one |
-| `DYNA014` | A member clashes with generated code, such as `Keys` | Rename the member |
+| `DYNA014` | A member clashes with generated code, such as `Keys`; a type outside it named so is `DYNA043` | Rename the member |
 | `DYNA015` | The project is below C# 11 | Raise `LangVersion` |
 | `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity |
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
@@ -108,6 +108,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 - **Fix.** Take the parameter by value or as `in`, or mark another constructor with `[DynamoDbConstructor]`.
 - **Not reported.** An `in` parameter, and a constructor the read does not use.
+
+`DYNA043` (error): a name inside a mapped type that names a type or a namespace outside it by the name of a class generated into the type: `Attrs` in any mapped type, `Keys` in an entity, and `Indexes` in an entity with an index. With `public enum Keys { None, Enter }`, `public Keys Key { get; set; }` inside an entity would name the generated `Shortcut.Keys` instead of the enum, and the build would fail with `CS0722` and other errors in your file and in the generated one. Reported on each such name; the type generates no code.
+
+- **Fix.** Write the name in full, `public Shop.Keys Key { get; set; }` or `global::Shop.Keys`, or give the type another name with a using alias, `using KeyCode = Shop.Keys;`.
+- **Not reported.** A name after a dot, such as `Shop.Keys` or `dictionary.Keys`, and a name of a class the type does not get: `Keys` in a document, `Indexes` in an entity without an index. A member of the type with such a name is `DYNA014`.
 
 ## Key templates
 

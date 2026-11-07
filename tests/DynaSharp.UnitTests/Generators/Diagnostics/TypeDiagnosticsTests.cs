@@ -8,6 +8,8 @@ namespace DynaSharp.UnitTests.Generators.Diagnostics;
 /// </summary>
 public sealed class TypeDiagnosticsTests
 {
+    private const string Entity = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { """;
+
     private const string Dyna035OfInitializer = "Remove the initializer, or make the property non-nullable";
 
     private const string LenientWind = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n";
@@ -1079,6 +1081,7 @@ public sealed class TypeDiagnosticsTests
     [Arguments("public void [|Keys|]() { }", "Keys")]
     [Arguments("public int [|Indexes|] { get; set; }", "Indexes")]
     [Arguments("public static class [|Indexes|] { }", "Indexes")]
+    [Arguments("public enum [|Keys|] { A } public Keys K { get; set; }", "Keys")]
     public async Task Build_MemberNamedLikeAGeneratedOne_ReportsDyna014(string member, string name)
     {
         // Arrange
@@ -1132,6 +1135,82 @@ public sealed class TypeDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA025 Error: Type '{name}' has the name of a class that is generated into it, which C# does not allow. Rename the type."));
+    }
+
+    [Test]
+    [Arguments("public enum Keys { None, Enter }", Entity + "public [|Keys|] Key { get; set; } }", "Keys", "global::Shop.Keys", "E")]
+    [Arguments("public enum Keys { None, Enter }", Entity + "public List<[|Keys|]> Many { get; set; } = []; }", "Keys", "global::Shop.Keys", "E")]
+    [Arguments("public enum Keys { None, Enter }", Entity + "public static int Code() => (int)[|Keys|].Enter; }", "Keys", "global::Shop.Keys", "E")]
+    [Arguments("public static class Keys { public enum Code { A } }", Entity + "public [|Keys|].Code Key { get; set; } }", "Keys", "global::Shop.Keys", "E")]
+    [Arguments("public enum Attrs { A }", "[DynamoDbDocument] public partial class D { public [|Attrs|] X { get; set; } }", "Attrs", "global::Shop.Attrs", "D")]
+    [Arguments("public enum Indexes { A }", """[DynamoDbEntity, Discriminator("E"), PartitionKey("E"), GlobalIndexKey("GSI1", PartitionKey = "A")] public partial class E { public [|Indexes|] X { get; set; } }""", "Indexes", "global::Shop.Indexes", "E")]
+    public async Task Build_NameThatAGeneratedClassTakesOver_ReportsDyna043(string outside, string type, string name, string full, string owner)
+    {
+        // Arrange (a simple name inside the type finds the nested generated class first, and the build would fail with CS0722 and others)
+        var source = outside + "\n" + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, TakenOver(name, full, owner)));
+    }
+
+    [Test]
+    [Arguments(Entity + "public Shop.Keys Key { get; set; } }")]
+    [Arguments(Entity + "public global::Shop.Keys Key { get; set; } = global::Shop.Keys.None; }")]
+    [Arguments(Entity + "public static int Count(Dictionary<int, int> map) => map.Keys.Count; }")]
+    [Arguments(Entity + "public static int Code(int Keys) => Keys; }")]
+    [Arguments("[DynamoDbDocument] public partial class D { public Keys Key { get; set; } }")]
+    [Arguments(Entity + "public Indexes X { get; set; } }")]
+    public async Task Build_NameAGeneratedClassDoesNotTakeOver_ReportsNothing(string type)
+    {
+        // Arrange
+        var source = "public enum Keys { None, Enter }\npublic enum Indexes { A }\n" + type;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_NameAfterTheGlobalAlias_ReportsNothing()
+    {
+        // Arrange
+        const string Source = """
+            using DynaSharp.Mapping;
+            public enum Keys { None }
+            namespace Shop
+            {
+                [DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { public global::Keys Key { get; set; } }
+            }
+            """;
+
+        // Act
+        var report = Analysis.ReportOfWholeFile(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Run_NameThatAGeneratedClassTakesOver_ReportsOnlyDyna043()
+    {
+        // Arrange (the type generates nothing, so neither the file of the user nor a generated one has an error of the compiler)
+        const string Source = """
+            namespace Shop;
+            public enum Keys { None, Enter }
+            [DynaSharp.Mapping.DynamoDbEntity, DynaSharp.Mapping.Discriminator("SHORTCUT")]
+            public partial class Shortcut { [DynaSharp.Mapping.PartitionKey] public required string Id { get; init; } public Keys Key { get; set; } }
+            """;
+
+        // Act
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That((output.Problems.Length, output.Problems[0].Contains("error DYNA043", StringComparison.Ordinal), output.Result.GeneratedTrees.Length)).IsEqualTo((1, true, 0));
     }
 
     [Test]
@@ -1911,6 +1990,9 @@ public sealed class TypeDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    private static string TakenOver(string name, string full, string owner) =>
+        $"DYNA043 Error: '{name}' names '{full}' here, but inside '{owner}' the generated class {owner}.{name} takes that name over. Write the name in full, as {full}, or give the type another name with a using alias.";
 
     private static string Oblivious(string property, string type, string shown) =>
         $"DYNA041 Error: '{property}' of '{type}' is declared where nullable annotations are disabled, so its type '{shown}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{type}' declares it, and mark with '?' what can be null.";

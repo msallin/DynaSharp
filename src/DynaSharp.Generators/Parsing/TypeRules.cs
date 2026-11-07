@@ -67,6 +67,7 @@ internal static class TypeRules
             bag.Report(Descriptors.NamedLikeGeneratedClass, spot, type.Name);
         }
 
+        CheckTakenOverNames(type, kind, context.SemanticModel.Compilation, bag);
         return true;
     }
 
@@ -163,6 +164,51 @@ internal static class TypeRules
 
         return true;
     }
+
+    // The classes generated into the type: Attrs into each, Keys into an entity, and Indexes into an entity with an index of its own or of a base.
+    private static string[] GeneratedClasses(INamedTypeSymbol type, MappedKind kind)
+    {
+        if (kind == MappedKind.Document)
+        {
+            return [AttrsClass];
+        }
+
+        return DeclaresIndex(type) || HidesIndexes(type) ? [AttrsClass, KeysClass, IndexesClass] : [AttrsClass, KeysClass];
+    }
+
+    // DYNA043. Inside the type a simple name finds the generated class before a type of that name outside it, so with an enum Keys, `public Keys Key { get; set; }` would name the class.
+    // The generated class is not in this compilation, so a name that binds to a type or a namespace outside the type is one it would take over.
+    private static void CheckTakenOverNames(INamedTypeSymbol type, MappedKind kind, Compilation compilation, DiagnosticBag bag)
+    {
+        var generated = GeneratedClasses(type, kind);
+        foreach (var reference in type.DeclaringSyntaxReferences)
+        {
+            var declaration = reference.GetSyntax();
+            SemanticModel? model = null;
+            foreach (var name in declaration.DescendantNodes().OfType<IdentifierNameSyntax>())
+            {
+                if (Array.IndexOf(generated, name.Identifier.ValueText) < 0 || IsAfterADot(name))
+                {
+                    continue;
+                }
+
+                model ??= compilation.GetSemanticModel(declaration.SyntaxTree);
+                if (model.GetSymbolInfo(name).Symbol is INamespaceOrTypeSymbol target && !SymbolEqualityComparer.Default.Equals(target.ContainingSymbol, type))
+                {
+                    bag.Report(Descriptors.NameTakenOverByGeneratedClass, Spot.Of(name.GetLocation()), name.Identifier.ValueText, target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), type.Name);
+                }
+            }
+        }
+    }
+
+    // Only a name that starts a lookup can be taken over: `Shop.Keys` and `x.Keys` look in what stands before the dot, and the alias of `alias::Keys` is no type.
+    private static bool IsAfterADot(IdentifierNameSyntax name) => name.Parent switch
+    {
+        QualifiedNameSyntax qualified => qualified.Right == name,
+        MemberAccessExpressionSyntax access => access.Name == name,
+        AliasQualifiedNameSyntax => true,
+        _ => false,
+    };
 
     private static void CheckReservedMember(INamedTypeSymbol type, string name, DiagnosticBag bag, Spot spot)
     {
