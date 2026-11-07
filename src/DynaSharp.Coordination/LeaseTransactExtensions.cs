@@ -31,7 +31,7 @@ public static class LeaseTransactExtensions
     /// </summary>
     /// <remarks>
     /// The lease is taken when the step is added. Work that outlives its term keeps the lease that ended, and the transaction fails at DynamoDB, as fencing should.
-    /// A lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync"/> is never current: pass it to
+    /// A lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync(string, TimeSpan, CancellationToken)"/> is never current: pass it to
     /// <see cref="IsHeld{TChain}(TChain, Lease)"/>. <see cref="Lease.Current"/> says where else it is <see langword="null"/>.
     /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>

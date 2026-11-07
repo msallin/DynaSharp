@@ -22,6 +22,13 @@ The table is opened without a model, and its key attributes must be strings. A t
 var locks = LockTable.For(client.Table<Order>("Shop"));
 ```
 
+A table that holds only locks needs no key names at all. `LockTable.Open` opens it with the string partition key `pk`, `LockTable.PartitionKeyName`, and no sort key, and `CreateTable()` creates it on demand, with time to live on the attribute of `TimeToLiveAttribute` if the options name one:
+
+```csharp
+var locks = LockTable.Open(client, "Locks");
+await locks.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
+```
+
 The item of the lock `nightly-report` has the partition key `LOCK#nightly-report` and, if the table has a sort key, the sort key `LOCK`. Its attributes have fixed names, because every process that contends for a lock must read the item the same way:
 
 | Attribute | Holds |
@@ -68,17 +75,15 @@ The trade-off: a lock whose item was deleted starts its fencing token at 1 again
 
 `AcquireAsync` waits until it has the lock, `TryAcquireAsync` tries once and returns `null` if another holder has it. Disposing the lease releases the lock.
 
-A process that runs once and stops, such as a scheduled job, a function or a command line tool, uses `AcquireAsync` with a timeout a little longer than one lease. That gives up on a live holder, and still takes over the lock of a holder that crashed, which needs a whole lease of waiting:
+A process that runs once and stops, such as a scheduled job, a function or a command line tool, gives `AcquireAsync` a wait a little longer than one lease. That gives up on a live holder with a `TimeoutException` that names the lock, and still takes over the lock of a holder that crashed, which needs a whole lease of waiting. The wait runs on the `TimeProvider` of the client, and it never cuts off a request: the last try is the one at the end of the wait. A retry of the same `LockTable`, such as the next delivery of a message, keeps what the try before saw of the holder:
 
 ```csharp
-using var wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
-wait.CancelAfter(TimeSpan.FromSeconds(40));
 Lease lease;
 try
 {
-    lease = await locks.AcquireAsync("nightly-report", TimeSpan.FromSeconds(30), wait.Token);
+    lease = await locks.AcquireAsync("nightly-report", TimeSpan.FromSeconds(30), wait: TimeSpan.FromSeconds(40), ct);
 }
-catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+catch (TimeoutException)
 {
     return; // Another process runs the report.
 }
@@ -323,7 +328,19 @@ The log category is `DynaSharp.Coordination.LockTable`, and it logs what no call
 
 ## Testing
 
-A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep. `fake.CreateTable("Shop", "pk", "sk")` creates a table with string keys for it.
+A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep. `fake.CreateTable("Shop", "pk", "sk")` creates a table with string keys for it, and `fake.CreateTable(locks.CreateTable())` the table of its own of `LockTable.Open`, from the command the service sends, at once and without a request:
+
+```csharp
+using DynaSharp.Coordination;
+using DynaSharp.Testing;
+
+var fake = new FakeDynamoDb();
+using var client = fake.CreateClient();
+var locks = LockTable.Open(client, "Locks");
+fake.CreateTable(locks.CreateTable());
+```
+
+A test that sets up the fake before it has a `LockTable` writes `fake.CreateTable("Locks", LockTable.PartitionKeyName)`.
 
 What other processes do to a lock, a test does with the extensions of `DynaSharp.Coordination.Testing`, without knowing the format of the item. They write through the table of the `LockTable`, so they work on the fake and on an emulator alike:
 

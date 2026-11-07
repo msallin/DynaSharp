@@ -21,7 +21,7 @@ internal static class Leadership
             Lease lease;
             try
             {
-                lease = await locks.ContendAsync(name, leaseDuration, answered, cancellationToken).ConfigureAwait(false);
+                lease = await locks.ContendAsync(name, leaseDuration, null, answered, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested && IsTransient(exception))
             {

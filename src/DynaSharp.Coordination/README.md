@@ -11,7 +11,7 @@ await using var lease = await locks.AcquireAsync("nightly-report", TimeSpan.From
 await client.TransactWrite().IsHeld(lease).Put(orders, order).SendAsync(ct);
 ```
 
-The lock is one item in a table you already have; `LockTable.For(client.Table<Order>("Shop"))` takes a typed table without restating its keys. The lease renews itself every third of its duration, `lease.Ended` is cancelled once it is no longer held, and disposing it releases the lock. `IsHeld(lease)` lets a transaction commit only while the lease holds the lock, and `lease.FencingToken` rises with every acquire, for a system outside DynamoDB that checks it.
+The lock is one item in a table you already have; `LockTable.For(client.Table<Order>("Shop"))` takes a typed table without restating its keys. A table of locks alone is `LockTable.Open(client, "Locks")`, whose `CreateTable()` creates it. `AcquireAsync(name, lease, wait)` gives up with a `TimeoutException` after the wait. The lease renews itself every third of its duration, `lease.Ended` is cancelled once it is no longer held, and disposing it releases the lock. `IsHeld(lease)` lets a transaction commit only while the lease holds the lock, and `lease.FencingToken` rises with every acquire, for a system outside DynamoDB that checks it.
 
 ## Leader election
 

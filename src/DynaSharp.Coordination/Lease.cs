@@ -5,7 +5,7 @@ using static DynaSharp.Expr;
 namespace DynaSharp.Coordination;
 
 /// <summary>
-/// A held lock: the lease that <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync"/> handed out. It renews itself every third of
+/// A held lock: the lease that <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync(string, TimeSpan, CancellationToken)"/> handed out. It renews itself every third of
 /// its duration until it is disposed or lost, and <see cref="Ended"/> says when it ends. Dispose it to release the lock: <c>await using var lease = ...</c>.
 /// </summary>
 /// <example>
@@ -93,7 +93,7 @@ public sealed class Lease : IAsyncDisposable
     /// <para>
     /// The leader sets it before it calls the work and clears it when the term ends. It flows as an <see cref="AsyncLocal{T}"/> does: into everything the work
     /// calls, awaits or starts with <see cref="Task.Run(Func{Task})"/> during the term, and never back to the caller of <see cref="LockTable.RunAsLeaderAsync"/>.
-    /// There is no setter: a lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync"/> is passed to
+    /// There is no setter: a lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync(string, TimeSpan, CancellationToken)"/> is passed to
     /// <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> as it is.
     /// </para>
     /// <para>
