@@ -127,7 +127,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// items of other types away, and only a key condition that stands in for that filter brings the discriminator along.
     /// </para>
     /// <para>
-    /// <b>Last clause.</b> After <c>Select</c> only the send is left, as after <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Descending"/>, <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
+    /// <b>Last clause.</b> After <c>Select</c> only the send is left, as after <c>Return</c>: <see cref="Filter{TCondition}(TCondition)"/>, <see cref="Limit"/>, <see cref="Descending()"/>, <see cref="Consistent"/>, <see cref="ReturnCapacity"/> and <see cref="MaxAttempts"/> come before this, a second <c>Select</c> and a <c>Project</c> after it do not compile, and a <c>Project</c> before it throws.
     /// </para>
     /// <inheritdoc cref="GetCommand{T}.Select{TValue, TConverter}(Attr{TValue, TConverter})" path="/remarks/para[position()>1]"/>
     /// </remarks>
@@ -183,10 +183,18 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
 
     /// <summary>Reads the sort key downwards, so that the newest of a time-ordered partition come first (<c>ScanIndexForward: false</c>). It costs the same.</summary>
     /// <returns>The command, which replaces this one.</returns>
-    public QueryCommand<T> Descending()
+    public QueryCommand<T> Descending() => Descending(true);
+
+    /// <summary>
+    /// Reads the sort key downwards if <paramref name="descending"/> is <see langword="true"/>, and upwards, as without this, if it is not, for a direction the caller decides:
+    /// <c>.Descending(newestFirst)</c>. It costs the same either way.
+    /// </summary>
+    /// <param name="descending">Whether the newest of a time-ordered partition come first. A second call replaces the first.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public QueryCommand<T> Descending(bool descending)
     {
         var state = Enter();
-        state.Read.Descending = true;
+        state.Read.Descending = descending;
         return new(state, state.Table);
     }
 

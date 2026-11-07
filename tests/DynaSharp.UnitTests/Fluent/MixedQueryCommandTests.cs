@@ -11,6 +11,20 @@ public sealed class MixedQueryCommandTests
     private static string OutsideTheEntity => "x";
 
     [Test]
+    public async Task Descending_True_ReadsDownwards()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk", "sk").Query("a").Of<Alpha, Beta>().Descending(true).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("\"ScanIndexForward\":false");
+    }
+
+    [Test]
     public async Task Of_TwoTypes_FiltersOnBothDiscriminators()
     {
         // Arrange

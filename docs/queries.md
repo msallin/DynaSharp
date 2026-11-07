@@ -22,6 +22,8 @@ await foreach (var order in bigOrders)
 
 `BeginsWith(value)` fills the leading fields as the template formats them, so a day under `{At:yyyy-MM}` is the month.
 
+`Descending()` reads the sort key downwards, newest first in a partition ordered by time. `Descending(newestFirst)` takes the direction as a value, for code that decides it at run time, so the query needs no branch around it.
+
 A filter can also be text, as in `.Filter($"{Order.Attrs.Total} > {100}")`, where a handle in a hole stands for the name. Text takes a bare name as it is, so DynamoDB rejects a reserved word such as `Total` or `Value` (`DYNA220`), where `Attrs` needs no care, and a bare name the entity does not have is `DYNA213`.
 
 `Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is, and it stops reading once it has them:

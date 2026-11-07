@@ -18,6 +18,20 @@ public sealed class FanOutQueryCommandTests
     private static readonly AttributeValue[] NoPartitions = [];
 
     [Test]
+    public async Task Descending_FalseAfterDescending_ReadsUpwards()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk", "sk").Query(TwoPartitions).Descending().Descending(false).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).DoesNotContain("ScanIndexForward");
+    }
+
+    [Test]
     public async Task Query_NullList_Throws()
     {
         // Arrange

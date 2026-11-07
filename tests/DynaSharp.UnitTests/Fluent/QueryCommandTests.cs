@@ -56,6 +56,34 @@ public sealed class QueryCommandTests
     }
 
     [Test]
+    public async Task Descending_True_ReadsDownwards()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Query("a").Descending(true).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("\"ScanIndexForward\":false");
+    }
+
+    [Test]
+    public async Task Descending_FalseAfterDescending_ReadsUpwards()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Query("a").Descending().Descending(false).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).DoesNotContain("ScanIndexForward");
+    }
+
+    [Test]
     public async Task Query_NoSortKeyConditionOnATableWithoutSortKey_ReadsThePartition()
     {
         // Arrange

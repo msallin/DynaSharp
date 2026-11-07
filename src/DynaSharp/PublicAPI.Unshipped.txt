@@ -17,3 +17,6 @@ DynaSharp.Streams.Change<T>.At.get -> System.DateTimeOffset?
 DynaSharp.Streams.Change<T>.Id.get -> string?
 DynaSharp.Streams.ChangeRecord.At.get -> System.DateTimeOffset?
 DynaSharp.Streams.ChangeRecord.Id.get -> string?
+DynaSharp.FanOutQueryCommand<T>.Descending(bool descending) -> DynaSharp.FanOutQueryCommand<T>
+DynaSharp.MixedQueryCommand<TMixed>.Descending(bool descending) -> DynaSharp.MixedQueryCommand<TMixed>
+DynaSharp.QueryCommand<T>.Descending(bool descending) -> DynaSharp.QueryCommand<T>

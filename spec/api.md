@@ -310,7 +310,7 @@ command, sends nothing and renders the body with everything enforced, for tests 
 | `Project(paths)`, `Project(attrs)` | Get, Query, Scan, fan-out, mixed reads, `BatchGet`. A typed read adds the discriminator and the keys it needs, and throws `DynamoDbMappingException` for what else the entity needs, which `DYNA208` reports. A path already in the projection is left out; paths that overlap are DynamoDB's `ValidationException` |
 | `Select(handle)` | Get, Query, Scan. One attribute without the entity, section 6. It ends the chain, as `Return(attr)` does, so every other clause comes before it |
 | `Filter`, `Limit(n)` | Query, Scan, fan-out, mixed reads. `Limit` is per page and works before the filter, as DynamoDB means it. A cap on items is `.ItemsAsync(ct).Take(n)`, which reads until it has them and stops |
-| `Descending()` | Query, fan-out, mixed query |
+| `Descending()`, `Descending(bool)` | Query, fan-out, mixed query. `Descending(false)` reads upwards, as without the clause, for a direction decided at run time; a second call replaces the first |
 | `OnMappingFailure(callback)` | Query, Scan, fan-out, mixed reads. Skips an item that the type cannot read and hands its `DynamoDbMappingException` to the callback, section 6 |
 
 ## 6. Reads

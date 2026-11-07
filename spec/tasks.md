@@ -1274,6 +1274,7 @@ From the newcomer studies of 0.6.0 (2026-11-07): six runs built an app against `
 
 From the update of the apps to 0.6.0 (reads, table names, describe, streams)
 - [x] `Change<T>.Id` and `At`, and the same on `ChangeRecord`: the event id, or the sequence number where DynamoDB Local leaves the event id empty, and `ApproximateCreationDateTime` (data-pond `StreamRecords.EventIdOf`, nrt-showcase `YardChangeMapper`). Computed from the record, so equality, `with` and a record a test builds stay as they were.
+- [x] `Descending(bool)` beside `Descending()` on a query, a fan-out and a mixed query (data-pond `MessageHistoryReader` picks the direction per call: `newestFirst ? query.Descending() : query`).
 
 ## Decisions
 

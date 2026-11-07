@@ -18,7 +18,7 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// Items merge in the order DynamoDB gives within a partition: strings and binary values by their bytes, so that <c>Z</c> comes before <c>a</c>, and numbers by value, at their full 38
-/// digits. Items with equal sort keys come by the position of their partition in the list, and <see cref="Descending"/> reverses both. A table or index without a sort key
+/// digits. Items with equal sort keys come by the position of their partition in the list, and <see cref="Descending()"/> reverses both. A table or index without a sort key
 /// has only ties, so its partitions come one after the other.
 /// </para>
 /// <para>
@@ -117,10 +117,18 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
 
     /// <summary>Reads every partition downwards and merges from the top, so the newest of all partitions come first. Items with equal sort keys come by falling position, so the result is the exact reverse of the ascending one.</summary>
     /// <returns>The command, which replaces this one.</returns>
-    public FanOutQueryCommand<T> Descending()
+    public FanOutQueryCommand<T> Descending() => Descending(true);
+
+    /// <summary>
+    /// Reads and merges downwards if <paramref name="descending"/> is <see langword="true"/>, and upwards, as without this, if it is not, for a direction the caller decides:
+    /// <c>.Descending(newestFirst)</c>. See <see cref="Descending()"/>.
+    /// </summary>
+    /// <param name="descending">Whether the newest of all partitions come first. A second call replaces the first.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    public FanOutQueryCommand<T> Descending(bool descending)
     {
         var state = Enter();
-        state.Read.Descending = true;
+        state.Read.Descending = descending;
         return new(state, state.Table, _plan!);
     }
 
