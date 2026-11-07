@@ -31,3 +31,4 @@ DynaSharp.DynamoDbClient.DescribeTableAsync(string! tableName, System.TimeSpan t
 DynaSharp.Table<T>.DescribeTableAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.BatchWriteCommand<T> command, T entity) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.EntityTableExtensions.DeleteAll<T>(this DynaSharp.BatchWriteCommand<T> command, System.Collections.Generic.IEnumerable<T>! entities) -> DynaSharp.BatchWriteCommand<T>
+static DynaSharp.TransactWriteExtensions.PutAll<TChain, T>(this TChain chain, DynaSharp.Table<T>! table, System.Collections.Generic.IEnumerable<T>! items) -> DynaSharp.TransactWriteCommand

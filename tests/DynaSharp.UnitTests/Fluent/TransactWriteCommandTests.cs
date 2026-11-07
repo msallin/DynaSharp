@@ -454,6 +454,112 @@ public sealed class TransactWriteCommandTests
     }
 
     [Test]
+    public async Task PutAll_Items_WritesWhatAChainOfPutsWrites()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+        Customer[] items = [new("a", "Alice"), new("b", "Bob")];
+        var chain = client.TransactWrite().Check(customers, Customer.Keys.Of("lock")).IfExists().Put(customers, items[0]).Put(customers, items[1]).Token("t").ToRequestJson();
+
+        // Act
+        var json = client.TransactWrite().Check(customers, Customer.Keys.Of("lock")).IfExists().PutAll(customers, items).Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(chain);
+    }
+
+    [Test]
+    public async Task PutAll_EntitiesWithAVersion_ChecksTheVersionOfEach()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+        Ticket[] items = [new() { Id = "t1", OpenedAt = new DateOnly(2026, 10, 31), Revision = 1 }, new() { Id = "t2", OpenedAt = new DateOnly(2026, 10, 31), Revision = 4 }];
+        var chain = client.TransactWrite().Put(tickets, items[0]).Put(tickets, items[1]).Token("t").ToRequestJson();
+
+        // Act
+        var json = client.TransactWrite().PutAll(tickets, items).Token("t").ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(chain);
+    }
+
+    [Test]
+    public async Task PutAll_ThenAnotherAction_StartsTheNextAction()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        Item[] items = [new() { ["pk"] = "a" }, new() { ["pk"] = "b" }];
+
+        // Act
+        await client.TransactWrite().PutAll(shop, items).Delete(shop, "c").IfExists().SendAsync();
+
+        // Assert
+        using var document = JsonDocument.Parse(handler.Requests.Single().BodyText);
+        await Assert.That(document.RootElement.GetProperty("TransactItems").GetArrayLength()).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task PutAll_101stAction_ThrowsAClearError()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        var items = Enumerable.Range(0, 100).Select(static i => new Item { ["pk"] = "item-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Delete(shop, "first").PutAll(shop, items));
+
+        // Assert
+        await Assert.That((failure is InvalidOperationException, failure.Message.Contains("at most 100 actions", StringComparison.Ordinal))).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task PutAll_NoItems_AddsNoAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().PutAll(shop, []).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure is InvalidOperationException).IsTrue();
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    public async Task PutAll_NullArgument_ThrowsNamingIt(int which)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        Item[] withNull = [new() { ["pk"] = "a" }, null!];
+
+        // Act
+        var failure = TestClient.Catch(() => _ = which switch
+        {
+            0 => client.TransactWrite().PutAll(null!, withNull),
+            1 => client.TransactWrite().PutAll(shop, null!),
+            _ => client.TransactWrite().PutAll(shop, withNull),
+        });
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo(which == 0 ? "table" : "items");
+    }
+
+    [Test]
     public async Task IfExists_WithAnotherCondition_MeansBoth()
     {
         // Arrange

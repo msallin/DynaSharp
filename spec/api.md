@@ -701,7 +701,9 @@ so `.Add(...)` after `.Put(...)` does not compile. The verbs are extension metho
 `InvalidOperationException`, and so does sending one with none.
 
 Each step converts implicitly to `TransactWriteCommand`, so a loop reads
-`TransactWriteCommand tx = client.TransactWrite(); foreach (...) { tx = tx.Put(table, item).IfNotExists(); }`. `Token(string)` sets the `ClientRequestToken`.
+`TransactWriteCommand tx = client.TransactWrite(); foreach (...) { tx = tx.Put(table, item).IfNotExists(); }`. `PutAll(table, items)` is that loop without clauses of
+the puts, as `PutAll` of a batch is: it returns a `TransactWriteCommand`, so the next verb or the send follows, an entity with a `[Version]` gets the check of its version per item,
+and the put that would be action 101 throws `InvalidOperationException` as any verb does. `Token(string)` sets the `ClientRequestToken`.
 Without it each send generates one, and every retry of that send carries it.
 
 `Unique(table, item, out marker)` is a put with `attribute_not_exists` on the partition key, and `Unique(table, key, out marker)` writes a marker item of

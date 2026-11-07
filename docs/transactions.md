@@ -35,6 +35,18 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 
 `Put` returns a step that takes the clauses of a put, `Update` one of an update, and `Delete` and `Check` one with conditions only. Each step offers the verbs of the next action as well. `Unique(table, item, out marker)` is a put with `attribute_not_exists` on the partition key. `TransactionCanceledException` has `ReasonFor(marker)`, `ItemFor(marker)` and `Failures`, the reason of every action.
 
+`PutAll(table, items)` adds a put of each item, as many `Put` steps without clauses would. The sequence is enumerated at the call, and the put that would be action 101 throws `InvalidOperationException`, so a longer list takes a transaction per chunk:
+
+```csharp
+foreach (var chunk in catalog.Chunk(99))
+{
+    await client.TransactWrite()
+        .Check(customers, Customer.Keys.Of("admin")).IfExists()
+        .PutAll(products, chunk)
+        .SendAsync(ct);
+}
+```
+
 With `DynaSharp.Coordination`, `IsHeld(lease)` is a step too: a condition check on the item of a lock, so the transaction commits only while a lease holds it. See [Fencing](coordination.md#fencing).
 
 ## TransactGetItems

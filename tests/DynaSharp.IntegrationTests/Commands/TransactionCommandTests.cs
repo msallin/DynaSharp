@@ -53,6 +53,26 @@ public sealed class TransactionCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task TransactWrite_PutAllBehindACheck_WritesEveryItemOrNone()
+    {
+        // Arrange (the check holds for the first transaction and fails for the second)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var profiles = sandbox.Shop.Of<Profile>();
+        await sandbox.Shop.Put(new Item { ["pk"] = "guard", ["sk"] = "s", ["remaining"] = 1 }).SendAsync();
+        Profile[] first = [new("a", "A"), new("b", "B")];
+        Profile[] second = [new("c", "C"), new("d", "D")];
+        await sandbox.Client.TransactWrite().Check(sandbox.Shop, "guard", "s").If(Attr("remaining").Gt(0)).PutAll(profiles, first).SendAsync();
+
+        // Act
+        var failure = await Items.FailureOfAsync<TransactionCanceledException>(async () =>
+            await sandbox.Client.TransactWrite().Check(sandbox.Shop, "guard", "s").If(Attr("remaining").Gt(1)).PutAll(profiles, second).SendAsync());
+
+        // Assert
+        var found = (await profiles.BatchGet().GetAll([Profile.Keys.Of("a"), Profile.Keys.Of("b"), Profile.Keys.Of("c"), Profile.Keys.Of("d")]).Consistent().SendAsync()).Items;
+        await Assert.That((failure.Failures.Count, found.Count, found.Any(static profile => profile.Id is "c" or "d"))).IsEqualTo((1, 2, false));
+    }
+
+    [Test]
     public async Task TransactWrite_CommandOfALoopThatFails_CancelsItAllAndTheMarkerTellsWhichRound()
     {
         // Arrange (the second round of the loop finds its key taken)

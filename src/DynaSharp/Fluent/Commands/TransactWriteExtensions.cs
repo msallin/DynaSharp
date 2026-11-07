@@ -54,6 +54,48 @@ public static class TransactWriteExtensions
     }
 
     /// <summary>
+    /// Adds a put of each item, which replaces everything under its key, as <see cref="Put{TChain, T}(TChain, Table{T}, T)"/> does one by one: <c>tx.PutAll(stops, chunk)</c>. The items are written to the
+    /// request here and now, and the transaction holds 100 actions in all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>No clause of a put.</b> What follows is the next action or the send, so these puts carry no condition of their own; an entity with a <see cref="VersionAttribute"/> still gets the check of
+    /// its version, each one. A put that needs a condition or a marker is a <see cref="Put{TChain, T}(TChain, Table{T}, T, out TransactMarker)"/> of its own.
+    /// </para>
+    /// <para>
+    /// <b>101 actions.</b> The put that would be action 101 throws <see cref="InvalidOperationException"/> here, as any verb does, because DynamoDB takes 100. That leaves the command used up, so
+    /// cut a longer sequence into transactions of their own, or use a batch if the puts need not be atomic. An item that fails here, or one that is <see langword="null"/>, ends the command the same way.
+    /// </para>
+    /// <para><b>Enumerated here.</b> The sequence is enumerated once, at the call. A sequence without items adds nothing, and a transaction without actions cannot be sent.</para>
+    /// </remarks>
+    /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
+    /// <typeparam name="T">The type of the items.</typeparam>
+    /// <param name="chain">The command or step before this, which this replaces.</param>
+    /// <param name="table">The table.</param>
+    /// <param name="items">The items, each of which must hold the key attributes.</param>
+    /// <returns>The transaction, to add the next action to or to send.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/>, <paramref name="items"/> or one of the items is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The transaction would hold more than 100 actions.</exception>
+    /// <exception cref="KeyFormatException">A key template rejects a value of an item. It names the placeholder, not the item.</exception>
+    public static TransactWriteCommand PutAll<TChain, T>(this TChain chain, Table<T> table, IEnumerable<T> items)
+        where TChain : ITransactWriteChain<TChain>, allows ref struct
+        where T : IDynamoDbDocument<T>
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(items);
+
+        var state = chain.Enter();
+        foreach (var item in items)
+        {
+            Argument.ThrowIfNull(item, nameof(items));
+            Transaction.AddAction(state, table.Model, "{\"Put\":"u8);
+            WriteRules.WriteItem(state, item);
+        }
+
+        return new TransactWriteCommand(state);
+    }
+
+    /// <summary>
     /// Adds a put of a claim item that makes a value unique, such as an email address: <c>.Unique(emails, new EmailClaim(email, id), out var taken)</c>. The transaction is cancelled if the
     /// item exists.
     /// </summary>
