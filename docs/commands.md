@@ -1,6 +1,6 @@
 # Reading and writing
 
-A command is a chain: the operation, its clauses, and a terminal such as `SendAsync` or `ItemAsync` that sends it. Build and send it in one expression. [Commands](diagnostics.md#commands) on the diagnostics page says what the compiler and the analyzers report when it is not. `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
+A command is a chain: the operation, its clauses, and the last call, such as `SendAsync` or `ItemAsync`, that sends it. Build and send it in one expression. [Commands](diagnostics.md#commands) on the diagnostics page says what the compiler and the analyzers report when it is not. `orders`, `customers`, `products` and `carts` are the tables of [the shop](getting-started.md#the-shop).
 
 ## GetItem
 
@@ -207,7 +207,7 @@ That suits a counter that changes now and then. A hot counter, one that changes 
 
 ## Retry on a conflict
 
-`RetryOnConflictAsync` of a table runs a read-modify-write again when it loses to another writer: 5 runs in all, with a short random wait between them, and the failure of the last run is rethrown. The delegate reads again itself, or the next run changes nothing. Nothing ties a run to the table it is called on: it can write other tables and send a transaction.
+`RetryOnConflictAsync` of a table runs a read-modify-write again when it loses to another writer: 5 runs in all, or what `maxAttempts` says, with a short random wait between them, and the failure of the last run is rethrown. `onConflict`, below, hears of each run that lost. The delegate reads again itself, or the next run changes nothing. Nothing ties a run to the table it is called on: it can write other tables and send a transaction.
 
 ```csharp
 await carts.RetryOnConflictAsync(async token =>

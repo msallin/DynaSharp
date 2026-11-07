@@ -8,10 +8,10 @@ A transaction writes or reads up to 100 items as one step: all of it or nothing,
 
 Everything is written together or not at all. A marker tells which action failed, and each step type only offers what that action can do, so `.Add` after `.Put` does not compile.
 
-A value that must be unique gets a claim item, whose key is that value. All entities of one table share its key shape, or `Including` throws that they "cannot share a table", so a claim has a constant `[SortKey]`. `emails` is `client.Table<EmailClaim>("Shop")`.
+A value that must be unique gets a claim item, whose key is that value. All entities of one table share its key shape, or `Including` throws that they "cannot share a table", so a claim has a constant `[SortKey]`, as `EmailClaim` of [the shop](getting-started.md#the-shop) has:
 
 ```csharp
-[DynamoDbEntity]
+[DynamoDbEntity(Table = ShopTable.Name)]
 [Discriminator("EMAIL")]
 [PartitionKey("EMAIL#{Email}")]
 [SortKey("CLAIM")]

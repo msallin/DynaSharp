@@ -59,7 +59,7 @@ The timeout of `WaitUntilActiveAsync` and `WaitUntilActive()` runs on that clock
 | Tables and streams | the one call each describes, such as `TableUpdated` for `UpdateTable` |
 | `ResourceNotFound`, `ResourceInUse`, `DynamoDbError`, `Json`, `new StubResponse()` | any operation |
 
-`TablesListed` with `lastEvaluatedTableName` is a page with more to follow. `Table<T>(name)` lists the entity's keys and indexes as active, so a wait for its indexes ends on it; a table of several entities takes `Table(name, status, indexes)`.
+`TablesListed` with `lastEvaluatedTableName` is a page with more to follow. `Table<T>()` describes the table the entity declares, and `Table<T>(name)` the one it is given; both list the entity's keys and indexes as active, so a wait for its indexes ends on it; a table of several entities takes `Table(name, status, indexes)`.
 
 `StreamDescription(table, shards)` describes an `ENABLED` stream, and an enabled stream can still open shards, so `ReadStreamAsync` keeps looking for the children of a closed shard and never ends. A closed stream must say `DISABLED`: a script whose last shard closes answers `StreamDescription(table, StreamStatus.Disabled, shards)`, which ends the reading.
 

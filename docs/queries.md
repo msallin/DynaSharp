@@ -148,6 +148,14 @@ await foreach (var order in byStatus.Query(open).Descending().ItemsAsync(ct))
 }
 ```
 
+A fan-out has no `Take`. `PageAsync(pageSize, after)` gives one page of the merge for a client that pages across requests: build the same query, with the same partitions in the same order, and pass the `Next` of the page before. It reads on through empty pages until the page is full, so only a page with fewer items than `pageSize` is sure to be the last.
+
+```csharp
+PartitionKey<Order>[] open = [Order.Keys.ByStatusPk.Of(OrderStatus.Placed), Order.Keys.ByStatusPk.Of(OrderStatus.Shipped)];
+var first = await byStatus.Query(open).Descending().PageAsync(25, ct);
+var second = await byStatus.Query(open).Descending().PageAsync(25, first.Next, ct);
+```
+
 ## Skip items that fail to map
 
 An item that its type cannot read, such as one with an enum value a newer deployment wrote, ends the read with `DynamoDbMappingException`, which names the attribute and holds the key of the item in `Key`. That is the default, because such an item is a bug of the model or of a writer. `OnMappingFailure` skips it instead and hands the exception to a callback, which decides what to do with the key:
@@ -160,7 +168,7 @@ await foreach (var order in orders.Query(Order.Keys.Pk.Of("alice")).OnMappingFai
 }
 ```
 
-`OnMappingFailure(static _ => { })` skips without a callback of its own. Query, scan, fan-out and mixed reads have it, and it covers every terminal that reads items, including a `Select` after it, whose response has no key, so `Key` is null there. `ReadChangesAsync` of a stream skips the same way with `onMappingFailure`, whose callback also gets the record with its shard and sequence number, see [Streams](streams.md#skip-changes-that-fail-to-map).
+`OnMappingFailure(static _ => { })` skips without a callback of its own. Query, scan, fan-out and mixed reads have it, and it covers every call that sends a read of items, including a `Select` after it, whose response has no key, so `Key` is null there. `ReadChangesAsync` of a stream skips the same way with `onMappingFailure`, whose callback also gets the record with its shard and sequence number, see [Streams](streams.md#skip-changes-that-fail-to-map).
 
 - The callback runs once per skipped item, after its page arrived and before the items of that page are given out. An exception it throws ends the read as it is, and no retry repeats it. A parallel scan and a fan-out read pages on several threads at once, so there it can run concurrently.
 - `Page.Items` leaves the item out. `Page.Count` is still the count DynamoDB sent, so `Count - Items.Count` is what the page skipped, except on a fan-out, whose page counts what it gives.

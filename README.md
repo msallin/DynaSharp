@@ -12,7 +12,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 - **Single-table first, one table per entity just as well:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions across tables with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
 - **No AWS SDK:** no runtime package dependencies.
-- **Testable:** every request to DynamoDB goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire. Credential requests do not, so a test sets `Credentials` too.
+- **Testable:** every request to DynamoDB goes through an `HttpMessageHandler`, and `DynaSharp.Testing` fakes the wire, with a client that reads nothing from the environment.
 
 ## Getting started
 
@@ -62,7 +62,7 @@ public partial record Order
 }
 ```
 
-Open the table the entity declares once and keep it, create it if it is not there, and send commands. Every chain ends in the terminal that sends it.
+Open the table the entity declares once and keep it, create it if it is not there, and send commands. A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`.
 
 ```csharp
 var orders = client.Table<Order>();

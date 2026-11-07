@@ -94,7 +94,7 @@ What happens:
 
 - **The entity.** `TodoItem` is `partial`, and the source generator writes the code that reads and writes it as an [item](glossary.md#item), plus `Keys`, which builds its keys, and `Attrs`, a typed handle per [attribute](glossary.md#attribute). The [partition key](glossary.md#partition-key) of both items is `USER#alice`, and the [sort key](glossary.md#sort-key) is `TODO#000001` and `TODO#000002`, so they sit in one partition in the order of their numbers. `_type` holds `TODO`, which tells them apart from other types in the same table. [Entities and keys](entities.md) has the rest.
 - **The table.** `Table = "Todos"` declares the table the entity lives in, and `client.Table<TodoItem>()` opens it; `client.Table<TodoItem>("Todos-test")` opens another, as given. Opening a table makes no request. `CreateTable()` creates it from what the entity declares, `IfNotExists()` leaves a table that is there alone, so the program runs again, and `WaitUntilActive()` waits until the table takes writes. [Tables](tables.md) says more.
-- **The commands.** Every chain ends in the terminal that sends it. A `Put` replaces the whole item, `ItemAsync` gives null when there is none, and `ItemsAsync` follows the pages of the `Query` for you. The terminals take a `CancellationToken`. [Reading and writing](commands.md) and [Queries and scans](queries.md) go on from here.
+- **The commands.** A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`, each of which takes a `CancellationToken`. A `Put` replaces the whole item, `ItemAsync` gives null when there is none, and `ItemsAsync` follows the pages of the `Query` for you. [Reading and writing](commands.md) and [Queries and scans](queries.md) go on from here.
 
 ## Configure the client
 
@@ -116,10 +116,12 @@ using var client = new DynamoDbClient(new DynamoDbClientOptions
 {
     Region = AwsRegion.FromName("eu-central-1"),
     Credentials = new ProfileCredentialsProvider("shop"),
-    MaxAttempts = 4,
-    AttemptTimeout = TimeSpan.FromSeconds(30),
+    MaxAttempts = 4,                            // the default
+    AttemptTimeout = TimeSpan.FromSeconds(30),  // the default
 });
 ```
+
+`MaxAttempts` and `AttemptTimeout` stand at their defaults here; [Retries](errors.md#retries) and [Timeouts and cancellation](errors.md#timeouts-and-cancellation) say what they bound.
 
 `HttpHandler`, `TimeProvider` and `LoggerFactory` are there too, for tests and logging, and `TableNaming` turns the table an entity declares into the one of an environment, such as `dev-Shop`, see [A table per environment](tables.md#a-table-per-environment). A handler of your own follows the rules in [Observability](observability.md#a-handler-of-your-own).
 

@@ -14,9 +14,9 @@ DynaSharp has no context that loads and saves objects: a table takes commands na
 | `DeleteAsync<Order>(id, number)` | `DeleteItemAsync<Order>(pk, sk)` | `orders.Delete(Order.Keys.Of(id, number)).SendAsync(ct)` |
 | `ScanAsync<Customer>(conditions)` | `Scan<Customer>().WithFilterExpression(...)` | `customers.Scan().Filter(Customer.Attrs.Email.Eq(email)).ItemsAsync(ct)` |
 | `CreateBatchWrite<Product>()`, `AddPutItems`, `ExecuteAsync` | `BatchWrite().WithItems(Batch.PutItem(...))` | `products.BatchWrite().PutAll(catalog).SendAsync(ct)` |
-| `Add(entity)` and `SaveChanges()` of a unit of work, as in EF Core | No such pattern | None: every command is sent at its terminal. `client.TransactWrite()` writes several items all or nothing, see [Transactions and batches](transactions.md) |
+| `Add(entity)` and `SaveChanges()` of a unit of work, as in EF Core | No such pattern | None: a command goes out with its last call, `SendAsync`, `ItemAsync` or `ItemsAsync`. `client.TransactWrite()` writes several items all or nothing, see [Transactions and batches](transactions.md) |
 
-`orders` is `client.Table<Order>("Shop")`, opened once, see [Tables](tables.md#opening-a-table). `ItemsAsync` streams the items across pages; the SDK's `QueryAsync` needs `GetRemainingAsync` or `GetNextSetAsync`.
+`orders` opens the table that `Order` declares, once, see [Tables](tables.md#opening-a-table). `ItemsAsync` streams the items across pages; the SDK's `QueryAsync` needs `GetRemainingAsync` or `GetNextSetAsync`.
 
 ## From the AWS SDK
 
@@ -125,6 +125,8 @@ public partial record Shipment
 
 | What you wrote | What to write |
 |---|---|
+| `[DynamoDBTable("Shop")]` on the class | `[DynamoDbEntity(Table = "Shop")]`, and `client.Table<Order>()` opens it. `client.Table<Order>(name)` opens another table, as an override, see [Declaring the table](tables.md#declaring-the-table). |
+| `DynamoDBContextConfig.TableNamePrefix = "dev-"` | `TableNaming = name => $"dev-{name}"` in `DynamoDbClientOptions`, see [A table per environment](tables.md#a-table-per-environment). |
 | `[DynamoDBHashKey]`, `[DynamoDBRangeKey]` | `[PartitionKey]`, `[SortKey]` on the property. `[DynamoDBHashKey("id")]` is `[PartitionKey(AttributeName = "id")]`. |
 | `[DynamoDBProperty("total")]`, `[DynamoDBIgnore]` | `[DynamoDbAttribute("total")]`, `[DynamoDbIgnore]`. |
 | `[DynamoDBProperty(typeof(MyConverter))]` with an `IPropertyConverter` | `[DynamoDbConverter(typeof(MyConverter))]` with an `IDynamoDbConverter<T>`. |
@@ -159,7 +161,7 @@ DynaSharp shares EfficientDynamoDb's aim: UTF-8 on the wire, little allocation, 
 
 | What you wrote | What to write |
 |---|---|
-| `[DynamoDbTable("Shop")]` on the class | The name where the table is opened, `client.Table<Order>("Shop")`. An entity is not bound to one table. |
+| `[DynamoDbTable("Shop")]` on the class | `[DynamoDbEntity(Table = "Shop")]`, and `client.Table<Order>()` opens it. `client.Table<Order>(name)` opens another table, as an override, see [Declaring the table](tables.md#declaring-the-table). |
 | `[DynamoDbProperty("pk", DynamoDbAttributeType.PartitionKey)]` on a string the code fills | `[PartitionKey("CUSTOMER#{CustomerId}")]` on the type, a template filled from properties, or `[PartitionKey(AttributeName = "pk")]` on a property, a plain key. The same for `[SortKey]`. |
 | `[DynamoDbProperty("total")]` | `[DynamoDbAttribute("total")]`, or nothing when the name is the property's. |
 | A `DdbConverter<T>` under `[DynamoDbConverter(typeof(...))]` | An `IDynamoDbConverter<T>`, with static members, under `[DynamoDbConverter(typeof(...))]` of `DynaSharp.Mapping`. See [Converters](entities.md#converters). |
