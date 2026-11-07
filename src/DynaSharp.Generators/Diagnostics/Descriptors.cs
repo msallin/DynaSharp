@@ -213,7 +213,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor NamedLikeEntitiesClass = new(
         "DYNA038",
         "Type has a name the generated class DynamoDbEntities needs",
-        "Type '{0}' has the name '{1}', which the generated class DynamoDbEntities of this assembly needs for itself or for its namespace, the name of the assembly. Rename the type.",
+        "Type '{0}' has the name of the class that the generator writes for IncludingAll() of this assembly. Rename the type.",
         Mapping,
         DiagnosticSeverity.Error,
         true,

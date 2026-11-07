@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
-using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace DynaSharp.Generators;
 
@@ -14,45 +12,41 @@ internal static class RegistryBuilder
     /// <summary>The name of the generated class.</summary>
     public const string ClassName = "DynamoDbEntities";
 
+    /// <summary>
+    /// The namespace of the generated class. The class is internal, so the same name in another assembly does not clash with it, and code that has <c>using DynaSharp;</c> finds it
+    /// wherever it stands, the global namespace of top-level statements included.
+    /// </summary>
+    public const string Namespace = "DynaSharp";
+
     /// <summary>What the registry takes of an entity.</summary>
     /// <param name="type">The model of the entity.</param>
     /// <returns>The entry.</returns>
     public static RegisteredEntity Entry(TypeModel type) =>
         new(type.FullName, type.Entity!.PartitionKey.AttributeName, type.Entity.SortKey?.AttributeName, type.Reach, type.Entity.TableName, MetadataName(type));
 
-    /// <summary>Finds the namespace of the class and what in the assembly takes a name it needs. It runs on every edit, and its few lookups are by name.</summary>
+    /// <summary>
+    /// Finds a type of the assembly that has the name of the class (CS0101). It runs on every edit, and its one lookup is by name. A type named <c>DynaSharp</c> needs no check:
+    /// it hides the namespace of the attributes, so the assembly has no entities.
+    /// </summary>
     /// <param name="compilation">The compilation.</param>
-    /// <returns>The home.</returns>
-    public static AssemblyHome Home(Compilation compilation)
+    /// <returns><c>DYNA038</c>, or null.</returns>
+    public static DiagnosticInfo? Clash(Compilation compilation)
     {
-        var segments = NamespaceSegments(compilation.AssemblyName ?? string.Empty);
-
-        // A type of the name of a part of the namespace clashes with the namespace, and one of the name of the class with the class (CS0101 either way).
-        var taken = new List<string>();
-        for (var count = 1; count <= segments.Count; count++)
+        const string Name = Namespace + "." + ClassName;
+        if (compilation.Assembly.GetTypeByMetadataName(Name) is not { } type)
         {
-            taken.Add(string.Join(".", segments.Take(count)));
+            return null;
         }
 
-        taken.Add(taken[taken.Count - 1] + "." + ClassName);
-        var @namespace = string.Join(".", segments.Select(Names.Identifier));
-        foreach (var name in taken)
-        {
-            if (compilation.Assembly.GetTypeByMetadataName(name) is { } type)
-            {
-                var spot = Spot.Of(type, new Spot(string.Empty, default));
-                return new AssemblyHome(@namespace, new DiagnosticInfo(Descriptors.NamedLikeEntitiesClass.Id, new EquatableArray<string>([type.ToDisplayString(), name]), spot.FilePath, spot.Span));
-            }
-        }
-
-        return new AssemblyHome(@namespace, null);
+        var spot = Spot.Of(type, new Spot(string.Empty, default));
+        return new DiagnosticInfo(Descriptors.NamedLikeEntitiesClass.Id, new EquatableArray<string>([type.ToDisplayString()]), spot.FilePath, spot.Span);
     }
 
     /// <summary>Decides whether the class exists, and says why when it does not.</summary>
     /// <param name="entities">The entities of the assembly, in any order.</param>
-    /// <param name="home">The namespace.</param>
+    /// <param name="clash">What in the assembly takes a name the class needs, or null.</param>
     /// <returns>The registry.</returns>
-    public static EntityRegistry Build(ImmutableArray<RegisteredEntity> entities, AssemblyHome home)
+    public static EntityRegistry Build(ImmutableArray<RegisteredEntity> entities, DiagnosticInfo? clash)
     {
         if (entities.IsEmpty)
         {
@@ -73,13 +67,12 @@ internal static class RegistryBuilder
             return Without($"they declare the keys of more than one table, {string.Join(", ", keys)}", conflicts);
         }
 
-        if (home.Clash is { } clash)
+        if (clash is not null)
         {
             return new EntityRegistry(null, new EquatableArray<DiagnosticInfo>([clash]));
         }
 
-        var accessibility = ordered.TrueForAll(static entity => entity.Reach == Accessibility.Public) ? "public" : "internal";
-        return new EntityRegistry(new EntitiesClass(home.Namespace, accessibility, new EquatableArray<string>([.. ordered.Select(static entity => entity.FullName)])), default);
+        return new EntityRegistry(new EntitiesClass(new EquatableArray<string>([.. ordered.Select(static entity => entity.FullName)])), default);
     }
 
     /// <summary>
@@ -109,25 +102,6 @@ internal static class RegistryBuilder
         }
 
         return found;
-    }
-
-    /// <summary>
-    /// The parts of the namespace an assembly name gives, each a valid name: <c>Lps.LabelPrintServer</c> stays, <c>My-App.2</c> gives <c>My_App</c> and <c>_2</c>. A keyword keeps its text and
-    /// needs an <c>@</c> as code, which <see cref="Names.Identifier"/> adds.
-    /// </summary>
-    /// <param name="assemblyName">The name of the assembly.</param>
-    /// <returns>The parts, at least one.</returns>
-    public static IReadOnlyList<string> NamespaceSegments(string assemblyName) => [.. assemblyName.Split('.').Select(Segment)];
-
-    private static string Segment(string text)
-    {
-        var segment = new StringBuilder();
-        foreach (var character in text)
-        {
-            segment.Append(SyntaxFacts.IsIdentifierPartCharacter(character) ? character : '_');
-        }
-
-        return segment.Length > 0 && SyntaxFacts.IsIdentifierStartCharacter(segment[0]) ? segment.ToString() : "_" + segment.ToString();
     }
 
     private static string Describe(string partitionKey, string? sortKey) => sortKey is null ? $"'{partitionKey}'" : $"'{partitionKey}' and '{sortKey}'";

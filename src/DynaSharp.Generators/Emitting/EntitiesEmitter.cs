@@ -29,11 +29,11 @@ internal static class EntitiesEmitter
     {
         var file = new StringBuilder(Header);
         var code = new IndentedCode(file, depth: 0);
-        code.Line($"namespace {entities.Namespace};");
+        code.Line($"namespace {RegistryBuilder.Namespace};");
         code.Blank();
         code.Line("/// <summary>The entities of this assembly, for <see cref=\"global::DynaSharp.CreateTableCommand\"/>.</summary>");
         code.Line(CodeText.GeneratedCode);
-        code.Line($"{entities.Accessibility} static class {RegistryBuilder.ClassName}");
+        code.Line($"internal static class {RegistryBuilder.ClassName}");
         code.Open();
         code.Line("/// <summary>");
         code.Line("/// Includes every <c>[DynamoDbEntity]</c> of this assembly, as an <see cref=\"global::DynaSharp.CreateTableCommand.Including{TOther}\"/> of each does, so that none of their indexes is left out:");

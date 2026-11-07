@@ -33,11 +33,11 @@ public sealed class DynaSharpGenerator : IIncrementalGenerator
             context.RegisterSourceOutput(models.Combine(clashes), static (output, input) => EntityEmitter.Emit(output, input.Left!, HintNames.Of(input.Left!, input.Right)));
         }
 
-        // IncludingAll() of the assembly: all entities at once, beside a name of the assembly that changes only with the project. Both are values, so an edit that changes no entity reruns nothing.
+        // IncludingAll() of the assembly: all entities at once, beside a type of the assembly that takes its name, which changes only with an edit of such a type. Both are values, so an edit that changes no entity reruns nothing.
         var registry = entities
             .Select(static (type, _) => RegistryBuilder.Entry(type!))
             .Collect()
-            .Combine(context.CompilationProvider.Select(static (compilation, _) => RegistryBuilder.Home(compilation)))
+            .Combine(context.CompilationProvider.Select(static (compilation, _) => RegistryBuilder.Clash(compilation)))
             .Select(static (input, _) => RegistryBuilder.Build(input.Left, input.Right))
             .WithTrackingName(TrackingNames.Registry);
         context.RegisterSourceOutput(registry, static (output, built) => EntitiesEmitter.Emit(output, built.Class));

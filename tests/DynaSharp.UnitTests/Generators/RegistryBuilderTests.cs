@@ -13,20 +13,6 @@ public sealed class RegistryBuilderTests
         """;
 
     [Test]
-    [Arguments("Lps.LabelPrintServer", "Lps.LabelPrintServer")]
-    [Arguments("My-App.2", "My_App._2")]
-    [Arguments("a..b", "a._.b")]
-    [Arguments("", "_")]
-    public async Task NamespaceSegments_AssemblyName_GivesValidNames(string assemblyName, string expected)
-    {
-        // Arrange, Act
-        var segments = RegistryBuilder.NamespaceSegments(assemblyName);
-
-        // Assert
-        await Assert.That(string.Join(".", segments)).IsEqualTo(expected);
-    }
-
-    [Test]
     public async Task Run_EntitiesOfTwoTables_ReportsDyna037()
     {
         // Arrange
@@ -67,27 +53,25 @@ public sealed class RegistryBuilderTests
     }
 
     [Test]
-    [Arguments("namespace GeneratorInput { public static class [|DynamoDbEntities|] { } }", "GeneratorInput.DynamoDbEntities", "GeneratorInput.DynamoDbEntities")]
-    [Arguments("public class [|GeneratorInput|] { }", "GeneratorInput", "GeneratorInput")]
-    public async Task Run_TypeWithANameTheClassNeeds_ReportsDyna038(string clash, string type, string name)
+    public async Task Run_TypeWithANameTheClassNeeds_ReportsDyna038()
     {
         // Arrange
-        var source = "using DynaSharp.Mapping;\nnamespace Shop { " + Order + " }\n" + clash;
+        const string Source = "using DynaSharp.Mapping;\nnamespace Shop { " + Order + " }\nnamespace DynaSharp { public static class [|DynamoDbEntities|] { } }";
 
         // Act
-        var report = Analysis.ReportOfWholeFile(source);
+        var report = Analysis.ReportOfWholeFile(Source);
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.ExpectOfWholeFile(
-            source,
-            $"DYNA038 Error: Type '{type}' has the name '{name}', which the generated class DynamoDbEntities of this assembly needs for itself or for its namespace, the name of the assembly. Rename the type."));
+            Source,
+            "DYNA038 Error: Type 'DynaSharp.DynamoDbEntities' has the name of the class that the generator writes for IncludingAll() of this assembly. Rename the type."));
     }
 
     [Test]
     public async Task Run_TypeWithANameTheClassNeeds_GeneratesNoClass()
     {
         // Arrange
-        var source = "using DynaSharp.Mapping;\nnamespace Shop { " + Order + " }\nnamespace GeneratorInput { public static class DynamoDbEntities { } }";
+        var source = "using DynaSharp.Mapping;\nnamespace Shop { " + Order + " }\nnamespace DynaSharp { public static class DynamoDbEntities { } }";
 
         // Act
         var result = GeneratorRun.Generate(source, new DynaSharpGenerator(), LanguageVersion.Latest);
@@ -102,7 +86,7 @@ public sealed class RegistryBuilderTests
         // Arrange (there is no class to clash with)
         var source = "using DynaSharp.Mapping;\nnamespace Shop { " + Order
             + "[DynamoDbEntity, Discriminator(\"S\"), PartitionKey(\"S#{Id}\")] public partial class Session { public string Id { get; set; } = \"id\"; } }\n"
-            + "namespace GeneratorInput { public static class DynamoDbEntities { } }";
+            + "namespace DynaSharp { public static class DynamoDbEntities { } }";
 
         // Act
         var report = Analysis.ReportOfWholeFile(source);

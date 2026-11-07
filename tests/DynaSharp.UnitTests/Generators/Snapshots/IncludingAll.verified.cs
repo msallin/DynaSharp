@@ -2,15 +2,15 @@
 #nullable enable
 #pragma warning disable CS0612, CS0618
 
-namespace GeneratorInput;
+namespace DynaSharp;
 
 /// <summary>The entities of this assembly, for <see cref="global::DynaSharp.CreateTableCommand"/>.</summary>
 [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
-public static class DynamoDbEntities
+internal static class DynamoDbEntities
 {
     /// <summary>
     /// Includes every <c>[DynamoDbEntity]</c> of this assembly, as an <see cref="global::DynaSharp.CreateTableCommand.Including{TOther}"/> of each does, so that none of their indexes is left out:
-    /// <see cref="global::Shop.Order"/>.
+    /// <see cref="global::Shop.Accounts.Customer"/>, <see cref="global::Shop.Order"/>.
     /// </summary>
     /// <param name="command">The command.</param>
     /// <returns>The command.</returns>
@@ -21,6 +21,7 @@ public static class DynamoDbEntities
     {
         global::System.ArgumentNullException.ThrowIfNull(command);
         return command
+            .Including<global::Shop.Accounts.Customer>()
             .Including<global::Shop.Order>();
     }
 }

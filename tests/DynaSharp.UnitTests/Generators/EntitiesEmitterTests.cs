@@ -48,7 +48,6 @@ public sealed class EntitiesEmitterTests
             using System.Threading;
             using System.Threading.Tasks;
             using DynaSharp;
-            using GeneratorInput;
 
             public static class Code
             {
@@ -58,15 +57,33 @@ public sealed class EntitiesEmitterTests
         """;
 
     [Test]
-    [Arguments("Public", Order)]
-    [Arguments("Internal", Order + Customer)]
-    public void Run_Entities_MatchesTheVerifiedSnapshot(string name, string source)
+    public void Run_Entities_MatchesTheVerifiedSnapshot()
     {
         // Arrange, Act
-        var result = GeneratorRun.Generate(source, new DynaSharpGenerator(), LanguageVersion.Latest);
+        var result = GeneratorRun.Generate(Order + Customer, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        SnapshotComparer.Verify($"IncludingAll.{name}", Generated(result));
+        SnapshotComparer.Verify("IncludingAll", Generated(result));
+    }
+
+    [Test]
+    public async Task Run_CodeInTheGlobalNamespace_FindsIncludingAllWithUsingDynaSharp()
+    {
+        // Arrange (the global namespace is where top-level statements stand, which no namespace of the assembly covers)
+        const string Global = """
+            using DynaSharp;
+
+            public static class Setup
+            {
+                public static CreateTableCommand Command(DynamoDbClient client) => client.Table("Shop", "pk", "sk").CreateTable().IncludingAll();
+            }
+            """;
+
+        // Act
+        var output = GeneratorRun.Run(Global + Order + Customer, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That(output.Problems).IsEmpty();
     }
 
     [Test]
@@ -95,9 +112,10 @@ public sealed class EntitiesEmitterTests
     }
 
     [Test]
-    [Arguments("Lps.LabelPrintServer", "namespace Lps.LabelPrintServer;")]
-    [Arguments("My-App.2.class", "namespace My_App._2.@class;")]
-    public async Task Run_AssemblyName_IsTheNamespaceAsValidCode(string assemblyName, string expected)
+    [Arguments("Lps.LabelPrintServer")]
+    [Arguments("My-App.2.class")]
+    [Arguments(null)]
+    public async Task Run_AnyAssemblyName_PutsTheClassInDynaSharp(string? assemblyName)
     {
         // Arrange
         var compilation = GeneratorRun.CreateCompilation(Order, LanguageVersion.Latest).WithAssemblyName(assemblyName);
@@ -107,20 +125,7 @@ public sealed class EntitiesEmitterTests
 
         // Assert (and it compiles)
         var errors = output.GetDiagnostics().Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error) + diagnostics.Length;
-        await Assert.That((Generated(output).Contains(expected, StringComparison.Ordinal), errors)).IsEqualTo((true, 0));
-    }
-
-    [Test]
-    public async Task Run_CompilationWithoutAName_GeneratesTheClassInTheNamespaceUnderscore()
-    {
-        // Arrange (a compilation of a script or of a tool may have no name)
-        var compilation = GeneratorRun.CreateCompilation(Order, LanguageVersion.Latest).WithAssemblyName(null);
-
-        // Act
-        GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest).RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
-
-        // Assert
-        await Assert.That(Generated(output)).Contains("namespace _;");
+        await Assert.That((Generated(output).Contains("namespace DynaSharp;", StringComparison.Ordinal), errors)).IsEqualTo((true, 0));
     }
 
     [Test]

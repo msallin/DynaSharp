@@ -84,9 +84,9 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Nothing has to change: name the entities of each table with `Including<T>()`. For `IncludingAll()`, keep the entities of one table in an assembly of their own, or make a hidden one `internal`.
 - **Not reported.** An assembly without entities. A suppression goes into `.editorconfig` (`dotnet_diagnostic.DYNA037.severity = none`), since there is no line for a `#pragma`.
 
-`DYNA038` (error): a type of the assembly has the name the generated class `DynamoDbEntities` needs: the class itself in the namespace named after the assembly, such as `Shop.DynamoDbEntities` in an assembly `Shop`, or a part of that namespace, such as a class `Shop` in the global namespace. C# allows no namespace and type of one name, so the class is not generated.
+`DYNA038` (error): a type of the assembly has the name the generated class needs, `DynaSharp.DynamoDbEntities`. C# allows no two types of one name in an assembly, so the class is not generated.
 
-- **Fix.** Rename the type, or the assembly (`AssemblyName` in the project file).
+- **Fix.** Rename the type.
 - **Not reported.** An assembly for which no `IncludingAll()` would be generated, see `DYNA037`.
 
 `DYNA039` (error): a table name that DynamoDB would reject, in `[DynamoDbEntity(Table = "...")]` or `[assembly: DynamoDbDefaults(Table = "...")]`: an empty name, one shorter than 3 or longer than 255 characters, or one with a character other than `a-z`, `A-Z`, `0-9`, `_`, `-` and `.`, such as `"app data"`. The entity generates no code; a bad default is reported once, on the attribute of the assembly.

@@ -144,16 +144,16 @@ See [Expressions](expressions.md) for what a handle can do.
 
 ## DynamoDbEntities
 
-Beside the members of each type, an assembly whose entities all have the keys of one table gets one class, named after the assembly. For the sample, whose project is `DynaSharp.Sample`:
+Beside the members of each type, an assembly whose entities all have the keys of one table gets one class, `internal` and in the namespace `DynaSharp`, so that a file with `using DynaSharp;` finds it. For the sample:
 
 ```text
-namespace DynaSharp.Sample;
+namespace DynaSharp;
 
-public static class DynamoDbEntities
+internal static class DynamoDbEntities
 {
     public static CreateTableCommand IncludingAll(this CreateTableCommand command)
         => command.Including<Cart>().Including<Customer>().Including<EmailClaim>().Including<Order>().Including<Product>();
 }
 ```
 
-`orders.CreateTable().IncludingAll()` names every entity of the assembly, so none of their indexes is left out of the table, see [Every entity of an assembly](tables.md#every-entity-of-an-assembly). The class is `internal` when an entity is, and there is none, with the info diagnostic `DYNA037`, when the entities declare the keys of more than one table or one is nested in a `private` type. The file is `DynaSharp-DynamoDbEntities.g.cs`.
+`orders.CreateTable().IncludingAll()` names every entity of the assembly, so none of their indexes is left out of the table, see [Every entity of an assembly](tables.md#every-entity-of-an-assembly). Each assembly has its own, which no other assembly sees, so another assembly names the entities with `Including<T>()`, see [Every entity of an assembly](tables.md#every-entity-of-an-assembly) for `InternalsVisibleTo`. There is none, with the info diagnostic `DYNA037`, when the entities declare the keys of more than one table or one is nested in a `private` type. The file is `DynaSharp-DynamoDbEntities.g.cs`.
