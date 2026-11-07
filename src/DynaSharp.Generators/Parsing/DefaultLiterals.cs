@@ -7,7 +7,7 @@ namespace DynaSharp.Generators;
 internal static class DefaultLiterals
 {
     /// <summary>
-    /// Gives the default as code, or null when the parameter has none. <c>decimal m = 1.5m</c> gives <c>1.5m</c>, and
+    /// Gives the default as code, or null when the parameter has none. <c>decimal m = 1.5m</c> gives <c>1.5m</c>, <c>double d = 1.5</c> gives <c>1.5d</c>, and
     /// <c>Color c = Color.Red</c> gives <c>(global::Shop.Color)(1)</c>: the parentheses keep a negative value a cast. <c>byte b = 1</c> gives <c>(byte)(1)</c>.
     /// </summary>
     public static string? Of(IParameterSymbol parameter)
@@ -34,11 +34,12 @@ internal static class DefaultLiterals
         {
             decimal => text + "m",
             float => FloatingPoint(text, "float", "f"),
-            double => FloatingPoint(text, "double", string.Empty),
+            double => FloatingPoint(text, "double", "d"),
             _ => text,
         };
     }
 
+    // The suffix keeps the literal a floating one: -0.0 shows as -0, which as an int is 0 and loses its sign.
     private static string FloatingPoint(string text, string keyword, string suffix) => text switch
     {
         "NaN" => keyword + ".NaN",

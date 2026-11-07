@@ -812,6 +812,16 @@ public sealed class EntityReadTests
     }
 
     [Test]
+    public async Task ReadAttributes_MissingAttributesWithANegativeZeroDefault_KeepTheSign()
+    {
+        // Arrange, Act
+        var offset = EntityJson.Read<Offset>("""{"Name":{"S":"n"}}""");
+
+        // Assert
+        await Assert.That((double.IsNegative(offset.Value), float.IsNegative(offset.Scale))).IsEqualTo((true, true));
+    }
+
+    [Test]
     public async Task ReadAttributes_RecordStructWithAPropertyOutsideItsConstructor_ChainsToTheConstructor()
     {
         // Arrange, Act
