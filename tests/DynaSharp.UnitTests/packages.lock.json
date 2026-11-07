@@ -57,6 +57,29 @@
           "TUnit.Engine": "1.76.45"
         }
       },
+      "TUnit.FsCheck": {
+        "type": "Direct",
+        "requested": "[1.76.45, )",
+        "resolved": "1.76.45",
+        "contentHash": "8Jb4tNQzY6W6uEYDpzWn+aYH1tOGa1IqYqblrl3ZA2MTdjZB3CP4+Xr58sLmSgiLZxxUtZ64FF/E3+3amcUZcg==",
+        "dependencies": {
+          "FsCheck": "3.6.0",
+          "TUnit": "1.76.45"
+        }
+      },
+      "FsCheck": {
+        "type": "Transitive",
+        "resolved": "3.6.0",
+        "contentHash": "XjZ5sWf/QKLqB9aMKG7FvrT/8Ak2fPo0ygRstindBWZWU8P3EcmvYJ5UkX0daIL4+bZeaiD9ThkftGlIx3ZewQ==",
+        "dependencies": {
+          "FSharp.Core": "5.0.2"
+        }
+      },
+      "FSharp.Core": {
+        "type": "Transitive",
+        "resolved": "5.0.2",
+        "contentHash": "DpcajqENgb3VXaHw1FKfVS+TWwEzck1PCajqLwBAVrtd1lfxd7T8JISVZBdV1mX9+2g48+tIgpNaVJWObdMrBw=="
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "2.14.1",

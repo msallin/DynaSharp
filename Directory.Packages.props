@@ -21,6 +21,8 @@
 
     <!-- tests -->
     <PackageVersion Include="TUnit" Version="1.76.45" />
+    <!-- Unit tests only: property-based tests. Released with TUnit, so it takes the same version. -->
+    <PackageVersion Include="TUnit.FsCheck" Version="1.76.45" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <!-- Integration tests only: starts the emulator containers. -->
     <PackageVersion Include="Testcontainers" Version="4.16.0" />
