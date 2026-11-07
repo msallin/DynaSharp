@@ -5,3 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
+DYNA240 | DynaSharp.Commands | Warning | Entity of the table left out of CreateTable

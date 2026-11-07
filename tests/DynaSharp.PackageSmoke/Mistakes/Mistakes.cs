@@ -66,6 +66,8 @@ public static class Code
 
     public static CreateTableCommand Dyna225() => Orders.CreateTable().Including<Shipment>();
 
+    public static string Dyna240(DynamoDbClient client) => client.Table<Shelf>().CreateTable().ToRequestJson();
+
     public static void Dyna215() => Invoices.Scan().Filter(Order.Attrs.Total.Gt(1m));
 
     public static void Dyna216() => Orders.Update(Order.Keys.Of("a")).If($"contains({Order.Attrs.Total}, {1})");

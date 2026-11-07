@@ -85,6 +85,7 @@
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA236'))" Text="DYNA236 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA237'))" Text="DYNA237 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('error DYNA239'))" Text="DYNA239 did not appear. The compiler printed: $(_MistakesOutput)" />
+    <Error Condition="!$(_MistakesOutput.Contains('warning DYNA240'))" Text="DYNA240 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA026'))" Text="DYNA026 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA031'))" Text="DYNA031 did not appear. The compiler printed: $(_MistakesOutput)" />
     <Error Condition="!$(_MistakesOutput.Contains('warning DYNA032'))" Text="DYNA032 did not appear. The compiler printed: $(_MistakesOutput)" />

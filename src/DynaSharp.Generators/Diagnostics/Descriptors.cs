@@ -741,6 +741,15 @@ internal static class Descriptors
         true,
         helpLinkUri: CommandHelp);
 
+    public static readonly DiagnosticDescriptor EntityLeftOutOfTable = new(
+        "DYNA240",
+        "Entity of the table left out of CreateTable",
+        "CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each, or IncludingAll().",
+        Commands,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: CommandHelp);
+
     public static readonly IReadOnlyList<DiagnosticDescriptor> All =
     [
         NotPartial, NoPartitionKey, UnsupportedType, DuplicateAttributeName, NoUsableConstructor, UnboundParameter, UnmappableType,
@@ -752,7 +761,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass, EntityLeftOutOfTable,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

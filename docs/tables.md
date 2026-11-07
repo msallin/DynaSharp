@@ -136,6 +136,8 @@ Without an `Including`, such a table has string keys and no index. Either start 
 
 The result is a `CreateTableResult`: `Table` is the description after the call, `Created` says whether this call created the table, `TimeToLiveEnabled` whether this call turned time to live on, and `Drift` how a table that `IfNotExists()` found differs from what the command declares, see [A table that exists](#a-table-that-exists).
 
+A chain that leaves out an entity that declares the same table, in this project or in one it references, is the warning [`DYNA240`](diagnostics.md#commands), whose code fix adds the missing `Including<T>()` calls. It checks the chain as written, up to `SendAsync`, `ToRequest`, `ToRequestJson` or an `await`; a command kept in a variable or passed to a method of your own is not checked.
+
 ### Every entity of an assembly
 
 An entity left out of the chain is an index left out of the table, and with `IfNotExists()` an index that [the drift report](#a-table-that-exists) cannot show, because it compares the table with the entities the chain names. So the generator writes `IncludingAll()` for each assembly whose entities all have the keys of one table: an `Including<T>()` of every `[DynamoDbEntity]` of the assembly, in the order of their full names, a direct call per type with nothing looked up at run time. It lives in an `internal` class `DynamoDbEntities` in the namespace `DynaSharp`, so a file with `using DynaSharp;` finds it, top-level statements in the global namespace included. The [sample](https://github.com/msallin/DynaSharp/blob/main/samples/DynaSharp.Sample/Program.cs) creates its table with it:

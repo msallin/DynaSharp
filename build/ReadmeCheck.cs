@@ -109,6 +109,8 @@ File.WriteAllText(project, """
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DebugType>none</DebugType>
+        <!-- The blocks of every page are one assembly, where the entities of several pages declare the table Shop, so a CreateTable() chain of one page leaves out those of the others. -->
+        <NoWarn>$(NoWarn);DYNA240</NoWarn>
       </PropertyGroup>
       <ItemGroup>
         <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />

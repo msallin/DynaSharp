@@ -100,6 +100,7 @@ DYNA239 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA041 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA042 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA043 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA240 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -202,3 +203,4 @@ DYNA239 | Error | DynaSharp.Commands | Write by key that does not say how it tre
 DYNA041 | Error | DynaSharp.Mapping | Property is outside a nullable context | '{0}' of '{1}' is declared where nullable annotations are disabled, so its type '{2}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{1}' declares it, and mark with '?' what can be null.
 DYNA042 | Error | DynaSharp.Mapping | Constructor parameter is passed by reference | Constructor parameter '{0}' is {1}, which a read cannot pass. Take it by value or as 'in', or mark another constructor with [DynamoDbConstructor].
 DYNA043 | Error | DynaSharp.Mapping | A generated class takes over a type name | '{0}' names '{1}' here, but inside '{2}' the generated {3} {2}.{0} takes that name over. Write the name in full, as {1}.
+DYNA240 | Warning | DynaSharp.Commands | Entity of the table left out of CreateTable | CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each, or IncludingAll().
