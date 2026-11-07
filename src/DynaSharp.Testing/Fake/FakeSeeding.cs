@@ -89,6 +89,52 @@ public sealed partial class FakeDynamoDb
     public T? Get<T>(Item key)
         where T : IDynamoDbEntity<T> => Get<T>(DeclaredTable.Of<T>(), key);
 
+    /// <summary>Gets an item by a generated key from the table the entity declares, and reads it as the entity: <c>fake.Get(Customer.Keys.Of("alice"))</c>.</summary>
+    /// <remarks>An item of another entity on that key throws, as <see cref="Get{T}(string, Item)"/> explains.</remarks>
+    /// <typeparam name="T">The entity of the key, which declares its table.</typeparam>
+    /// <param name="key">The key, such as <c>Customer.Keys.Of("alice")</c>.</param>
+    /// <returns>The entity, or the default of <typeparamref name="T"/> if there is no item: <see langword="null"/> for a class.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
+    /// <exception cref="DynamoDbMappingException">The item is not one the entity can read, also when it is of another entity.</exception>
+    public T? Get<T>(IKey<T> key)
+        where T : IDynamoDbEntity<T> => Get<T>(DeclaredTable.Of<T>(), StubResponse.KeyOf(key));
+
+    /// <summary>Deletes an item by a generated key from the table the entity declares, as a <c>DeleteItem</c> without a condition does: <c>fake.Delete(Customer.Keys.Of("alice"))</c>.</summary>
+    /// <typeparam name="T">The entity of the key, which declares its table.</typeparam>
+    /// <param name="key">The key, such as <c>Customer.Keys.Of("alice")</c>.</param>
+    /// <returns><see langword="true"/> if there was an item.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
+    public bool Delete<T>(IKey<T> key)
+        where T : IDynamoDbEntity<T> => Delete(DeclaredTable.Of<T>(), StubResponse.KeyOf(key));
+
+    /// <summary>Deletes the item of an entity, by its key, from the table it declares, as a <c>DeleteItem</c> without a condition does. A version of the entity is not compared.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <param name="entity">The entity, whose key names the item.</param>
+    /// <returns><see langword="true"/> if there was an item.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entity"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
+    public bool Delete<T>(T entity)
+        where T : IDynamoDbEntity<T> => Delete(DeclaredTable.Of<T>(), StubResponse.KeyOf(entity));
+
+    /// <summary>
+    /// Gets every item of the table the entity declares, of whatever entity, as <see cref="Items(string)"/> gives them: a table of several entities gives all of them, as raw items.
+    /// <see cref="Items{T}()"/> reads only those of <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">An entity of the table, which declares it.</typeparam>
+    /// <returns>Copies of the items, a snapshot.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    public IReadOnlyList<Item> TableItems<T>()
+        where T : IDynamoDbEntity<T> => Items(DeclaredTable.Of<T>());
+
     /// <summary>Gets the items of the entity from the table it declares, as <see cref="Items{T}(string)"/> does.</summary>
     /// <typeparam name="T">The entity, which declares its table.</typeparam>
     /// <returns>The entities, a snapshot.</returns>

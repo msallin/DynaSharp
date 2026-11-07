@@ -103,16 +103,25 @@ using var client = fake.CreateClient();
 
 await client.Table<Customer>().Put(customer).SendAsync(ct);
 
-var stored = fake.Get<Customer>(StubResponse.KeyOf(Customer.Keys.Of("alice")));
+var stored = fake.Get(Customer.Keys.Of("alice"));
+var sent = fake.Requests.Select(request => request.Operation); // PutItem
 ```
 
-Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(request)`, `fake.CreateTable<T>()`, which creates the table the entity declares with its keys and indexes as its `CreateTable()` would, `fake.CreateTable<T>(name)`, the same under another name, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
+Create a table with a `CreateTable` over the wire, `CreateTable().SendAsync`, `fake.CreateTable(command)`, which applies the `CreateTableCommand` of the code under test at once, `fake.CreateTable(request)`, `fake.CreateTable<T>()`, which creates the table the entity declares with its keys and indexes as its `CreateTable()` would, `fake.CreateTable<T>(name)`, the same under another name, or `fake.CreateTable(name, "pk", "sk")` for the table of `client.Table(name, "pk", "sk")`, without a model, whose keys are strings, such as the table of the locks of `DynaSharp.Coordination`. Any other table is `ResourceNotFoundException`. A table and its indexes are `ACTIVE` in the answer that creates them, and `DeleteTable` frees the name at once.
 
-A table of several entities is best created the way the application creates it, through a client of the fake. Where the application names its entities, as in `orders.CreateTable().Including<Customer>().Including<Cart>()`, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity named, see [Creating a table](https://msallin.github.io/DynaSharp/tables.html#creating-a-table). `fake.CreateTable<T>(name)` declares one entity.
+A table of several entities is best created the way the application creates it. `fake.CreateTable(command)` takes the command the application builds and sends at start-up, unsent, and applies it at once and without a request: its keys, the indexes of every `Including`, its stream, and time to live on the attribute of `TimeToLive(...)` or of an entity. With `IfNotExists()` it keeps a table that exists. So the test builds the table from the code that builds it in production, without an `await` in a constructor:
 
-The forms without a table name, `CreateTable<T>()`, `Put(entity)`, `Get<T>(key)` and `Items<T>()`, use the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or the default of its assembly, and throw `InvalidOperationException` for an entity that declares none. They take the name as declared: the fake knows no `TableNaming`, so a test whose client sets one, or that wants a table of its own, passes the name, as in `fake.CreateTable<Customer>("dev-Shop")`.
+```csharp
+var fake = new FakeDynamoDb();
+using var client = fake.CreateClient();
+fake.CreateTable(client.Table<Customer>().CreateTable().Including<Order>().IfNotExists());
+```
 
-`Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `DescribeTable`, `DeleteTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
+The application's own code can also run over a client of the fake. Where the application names its entities, as in `orders.CreateTable().Including<Customer>().Including<Cart>()`, the test runs that same code over `fake.CreateClient()`, and the fake gets every index of every entity named, see [Creating a table](https://msallin.github.io/DynaSharp/tables.html#creating-a-table). `fake.CreateTable<T>(name)` declares one entity.
+
+The forms without a table name, `CreateTable<T>()`, `DescribeTable<T>()`, `EnableStream<T>(viewType)`, `DisableStream<T>()`, `Put(entity)`, `Get(key)`, `Delete(key)`, `Delete(entity)`, `Items<T>()` and `TableItems<T>()`, use the table the entity declares, with `[DynamoDbEntity(Table = "...")]` or the default of its assembly, and throw `InvalidOperationException` for an entity that declares none. They take the name as declared: the fake knows no `TableNaming`, so a test whose client sets one, or that wants a table of its own, passes the name, as in `fake.CreateTable<Customer>("dev-Shop")`.
+
+`Put`, `Get`, `Delete`, `Items` and their entity forms set up and read items without a client, through the checks of a request: a key that does not match the schema throws the `ValidationException` a client would get. `Get(Customer.Keys.Of("alice"))` and `Delete(Customer.Keys.Of("alice"))` take a generated key, `Delete(customer)` the key of an entity, and `TableItems<Customer>()` gives every item of the table of `Customer`, of whatever entity, as raw items. `DescribeTable`, `DeleteTable`, `TableNames` and `Reset` do the same for tables. The fake is thread-safe, holds no static state and needs no disposing: make one per test with `new`.
 
 On a table of several entities, `Items<T>` gives the items of `T` and skips the others, as a typed `Scan()` does, so a single-table design reads back one entity at a time:
 
@@ -127,7 +136,7 @@ IReadOnlyList<Customer> stored = fake.Items<Customer>();
 
 An item of `T` that `T` cannot read still throws `DynamoDbMappingException`, and so does `Get<T>` for an item of another entity on that key. [What the fake does](https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does) has the rules.
 
-`fake.CreateClient()` is `StubClient.Create(fake.CreateHandler())`, a `StubHandler` whose responder is the fake. `Requests` records what the client sent, and a response queued with `Enqueue` answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB.
+`fake.Requests` holds what the clients of `fake.CreateClient()` and `fake.CreateStreamsClient()` sent, all of them in one list in the order sent, however many clients the code under test makes. `fake.Enqueue(response)` answers the next request of one of them instead of the fake, which never sees it: a queued throttle changes no state, as on DynamoDB. With a stream reader polling in the background, its next request could take that response, so such a test plans the failure with `FailNext`, which names the operation. `Reset()` empties both. `fake.CreateHandler()` gives a `StubHandler` of its own over the fake, with its own `Requests` and queue, for a client made another way.
 
 The constructor's clock dates the tables. Time to live is stored and reported, but nothing expires by itself: `fake.ExpireItems()` runs DynamoDB's background sweep when the test says, deleting every item whose time to live attribute is a number of epoch seconds at or before that clock. An expiry more than five years before the clock is left alone, as on DynamoDB. The sweep reads tables with time to live on: `fake.CreateTable<T>` turns it on for an entity with a `[TimeToLive]` property, as `CreateTable()` of the client does, and a table of another kind gets it from an `UpdateTimeToLive`, or from `CreateTable().TimeToLive(...)` through a client of the fake.
 
@@ -191,7 +200,7 @@ fake.FailNext("GetRecords", StubResponse.DynamoDbError("ThrottlingException", "R
 
 - **Which requests.** A request takes the first planned failure of its operation, `GetRecords` or its whole target, that `when` accepts, such as `request => request.BodyJson.GetProperty("TableName").GetString() == "Orders"` for one table; `when` runs under the lock of the fake and must not call it. `times` is how many requests get it.
 - **Threads.** The shard readers of `ReadStreamAsync` send at once; each failure is taken by one request, under the lock of the fake.
-- **The handler first.** A response queued with `Enqueue` on a handler still answers before the fake is asked, so before a planned failure.
+- **The queue first.** A response queued with `fake.Enqueue`, or with `Enqueue` on a handler, still answers before the fake is asked, so before a planned failure.
 - **Reset.** `Reset()` drops the failures no request took. The direct API, `Put` or `Items`, is no request and takes none.
 
 For a write whose response is lost, the write must happen and the client must see an error, which `FailNext` does not do. Let the fake answer and return an error instead:

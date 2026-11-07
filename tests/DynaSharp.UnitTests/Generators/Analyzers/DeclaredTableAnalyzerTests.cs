@@ -29,6 +29,12 @@ public sealed class DeclaredTableAnalyzerTests
     [Arguments("fake.[|Put|](order);", "Put")]
     [Arguments("_ = fake.[|Get<Order>|](key);", "Get")]
     [Arguments("_ = fake.[|Items<Order>|]();", "Items")]
+    [Arguments("_ = fake.[|Delete|](order);", "Delete")]
+    [Arguments("_ = fake.[|DescribeTable<Order>|]();", "DescribeTable")]
+    [Arguments("_ = fake.[|EnableStream<Order>|](DynaSharp.Requests.StreamViewType.NewImage);", "EnableStream")]
+    [Arguments("_ = fake.[|DisableStream<Order>|]();", "DisableStream")]
+    [Arguments("_ = fake.[|TableItems<Order>|]();", "TableItems")]
+    [Arguments("_ = DynaSharp.Testing.StubResponse.[|Table<Order>|]();", "Table")]
     public async Task Analyze_EntityWithoutATable_ReportsTheCall(string statement, string method)
     {
         // Arrange
@@ -48,6 +54,7 @@ public sealed class DeclaredTableAnalyzerTests
     [Arguments("_ = client.Table<Order>(\"orders\");")]
     [Arguments("fake.CreateTable<Order>(\"orders\");")]
     [Arguments("fake.Put(\"orders\", order);")]
+    [Arguments("_ = DynaSharp.Testing.StubResponse.Table<Order>(\"orders\");")]
     [Arguments("_ = client.Table<Hand>();")]
     [Arguments("_ = client.Table(\"orders\", \"pk\");")]
     [Arguments("_ = client.TransactWrite();")]

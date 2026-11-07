@@ -15,10 +15,10 @@ namespace DynaSharp.Testing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Clients.</b> <see cref="CreateClient"/> gives a client over the fake, <see cref="CreateStreamsClient"/> one of DynamoDB Streams, and <c>StubClient.Create(fake.CreateHandler())</c> is the same: <see cref="CreateHandler"/> returns a
-/// <see cref="StubHandler"/> whose responder is <see cref="Answer(RecordedRequest)"/>, so <see cref="StubHandler.Requests"/> records what the client sent, and a response queued with
-/// <see cref="StubHandler.Enqueue"/> answers the next request instead of the fake, which never sees it: a queued throttle changes no state, as a throttle of DynamoDB does not. Every handler
-/// of one fake shares its state. A test of a write whose response is lost wraps the fake in a responder of its own that answers, and then returns an error in place of the answer.
+/// <b>Clients.</b> <see cref="CreateClient"/> gives a client over the fake and <see cref="CreateStreamsClient"/> one of DynamoDB Streams. <see cref="Requests"/> holds what they sent, and a response
+/// given to <see cref="Enqueue"/> answers the next request of one of them instead of the fake, which never sees it: a queued throttle changes no state, as a throttle of DynamoDB does not.
+/// <see cref="CreateHandler"/> returns a <see cref="StubHandler"/> of its own, whose responder is <see cref="Answer(RecordedRequest)"/>, for a client made otherwise. Every handler of one fake shares its
+/// state. A test of a write whose response is lost wraps the fake in a responder of its own that answers, and then returns an error in place of the answer.
 /// </para>
 /// <para>
 /// <b>What it answers.</b> <c>CreateTable</c>, <c>DescribeTable</c>, <c>UpdateTable</c>, <c>DeleteTable</c>, <c>ListTables</c>, <c>DescribeTimeToLive</c>, <c>UpdateTimeToLive</c>,
@@ -40,31 +40,50 @@ namespace DynaSharp.Testing;
 /// and nothing to dispose. It is thread-safe, and each request runs under one lock from start to end.
 /// </para>
 /// <para>
-/// <b>The direct API.</b> <see cref="CreateTable(CreateTableRequest)"/>, <see cref="Put(string, Item)"/>, <see cref="Get(string, Item)"/>, <see cref="Delete"/>, <see cref="Items(string)"/> and the
+/// <b>The direct API.</b> <see cref="CreateTable(CreateTableCommand)"/>, <see cref="CreateTable(CreateTableRequest)"/>, <see cref="Put(string, Item)"/>, <see cref="Get(string, Item)"/>, <see cref="Delete"/>, <see cref="Items(string)"/> and the
 /// rest set up and read state without a client, and go through the same checks as a request: a key that does not match the schema throws the <see cref="ValidationException"/> a client would get.
 /// </para>
 /// </remarks>
 /// <example>
 /// <code>
 /// var fake = new FakeDynamoDb();
-/// fake.CreateTable&lt;Customer&gt;("Shop");
+/// fake.CreateTable&lt;Customer&gt;();
 /// using var client = fake.CreateClient();
 ///
-/// await client.Table&lt;Customer&gt;("Shop").Put(customer).SendAsync(ct); // the code under test
+/// await client.Table&lt;Customer&gt;().Put(customer).SendAsync(ct); // the code under test
 ///
-/// var stored = fake.Get&lt;Customer&gt;("Shop", StubResponse.KeyOf(Customer.Keys.Of("alice")));
+/// var stored = fake.Get(Customer.Keys.Of("alice"));
+/// var sent = fake.Requests.Select(request => request.Operation);
 /// </code>
 /// </example>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "A StubHandler holds nothing to release, and the fake has nothing to dispose.")]
 public sealed partial class FakeDynamoDb
 {
     private readonly FakeDatabase _db;
+
+    // The handler of every client of CreateClient and CreateStreamsClient, so that one list holds what all of them sent, however many the code under test made.
+    private readonly StubHandler _handler;
 
     /// <summary>Initializes a new instance of the <see cref="FakeDynamoDb"/> class, without tables.</summary>
     /// <param name="timeProvider">The clock of creation times, of time to live, of the 10 minutes a client request token of a transaction holds and of the streams, <see cref="TimeProvider.System"/> if <see langword="null"/>.</param>
     public FakeDynamoDb(TimeProvider? timeProvider = null)
     {
         _db = new FakeDatabase(timeProvider ?? TimeProvider.System);
+        _handler = new StubHandler(Answer);
     }
+
+    /// <summary>
+    /// Gets the requests the clients of <see cref="CreateClient"/> and <see cref="CreateStreamsClient"/> sent, oldest first, as <see cref="StubHandler.Requests"/> records them. The list is a snapshot;
+    /// get it again after more requests.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>One list per fake.</b> Every client of those two methods sends through the same handler, so a test sees what the code under test sent however many clients it made, in the order it sent
+    /// it. A request answered by <see cref="Enqueue"/> or <see cref="FailNext"/> is in it too. The direct API, such as <see cref="Put(string, Item)"/>, sends no request and adds none, and neither does a client
+    /// over <see cref="CreateHandler"/>, whose handler records its own. <see cref="Reset"/> empties it.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<RecordedRequest> Requests => _handler.Requests;
 
     /// <summary>Gets the names of the tables, in ordinal order, as <c>ListTables</c> gives them.</summary>
     public IReadOnlyList<string> TableNames
@@ -79,18 +98,23 @@ public sealed partial class FakeDynamoDb
     }
 
     /// <summary>Creates a handler that answers every request from this fake, for <see cref="StubClient.Create"/> or for <see cref="DynamoDbClientOptions.HttpHandler"/>.</summary>
-    /// <returns>A new <see cref="StubHandler"/> whose responder is <see cref="Answer(RecordedRequest)"/>. It holds nothing that needs disposing.</returns>
+    /// <returns>
+    /// A new <see cref="StubHandler"/> whose responder is <see cref="Answer(RecordedRequest)"/>, with requests and a queue of its own, apart from <see cref="Requests"/> and <see cref="Enqueue"/>. It holds nothing
+    /// that needs disposing.
+    /// </returns>
     public StubHandler CreateHandler() => new(Answer);
 
-    /// <summary>Creates a client over a new handler of this fake, as <see cref="StubClient.Create"/> makes it: <c>us-east-1</c>, static fake credentials, one attempt per call.</summary>
+    /// <summary>
+    /// Creates a client over this fake, as <see cref="StubClient.Create"/> makes it: <c>us-east-1</c>, static fake credentials, one attempt per call. What it sends is in <see cref="Requests"/>.
+    /// </summary>
     /// <param name="configure">Adjusts the options with a <c>with</c> expression, or <see langword="null"/> to keep them.</param>
     /// <returns>The client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
-    public DynamoDbClient CreateClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) => StubClient.Create(CreateHandler(), configure);
+    public DynamoDbClient CreateClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null) => StubClient.Create(_handler, configure);
 
     /// <summary>
-    /// Creates a client of DynamoDB Streams over a new handler of this fake, as <see cref="StubClient.CreateStreams"/> makes it: it reads the streams of the tables of this fake, and
-    /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> work over it as over DynamoDB.
+    /// Creates a client of DynamoDB Streams over this fake, as <see cref="StubClient.CreateStreams"/> makes it: it reads the streams of the tables of this fake, and
+    /// <see cref="DynamoDbStreamsClient.ReadShardAsync"/> and <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> work over it as over DynamoDB. What it sends is in <see cref="Requests"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -112,10 +136,25 @@ public sealed partial class FakeDynamoDb
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> returns <see langword="null"/>.</exception>
     public DynamoDbStreamsClient CreateStreamsClient(Func<DynamoDbClientOptions, DynamoDbClientOptions>? configure = null)
     {
-        var client = StubClient.CreateStreams(CreateHandler(), options => configure is null ? options with { TimeProvider = _db.Clock } : configure(options with { TimeProvider = _db.Clock }));
+        var client = StubClient.CreateStreams(_handler, options => configure is null ? options with { TimeProvider = _db.Clock } : configure(options with { TimeProvider = _db.Clock }));
         client.NextStreamChange = _db.NextStreamChange;
         return client;
     }
+
+    /// <summary>
+    /// Queues a canned response for the next request of a client of <see cref="CreateClient"/> or <see cref="CreateStreamsClient"/>, which gets it instead of the answer of the fake: the fake never sees
+    /// that request, so a queued error changes no state.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>In order, for any operation.</b> Each response answers one request, in the order queued, as <see cref="StubHandler.Enqueue"/> does: a response of a <see cref="StubResponse"/> factory that is the
+    /// answer to another operation makes the request throw <see cref="InvalidOperationException"/>. It comes before a failure of <see cref="FailNext"/>. While a reader of a stream polls in the background, its next
+    /// request may take the response, so such a test plans the failure with <see cref="FailNext"/>, which names the operation. <see cref="Reset"/> drops the responses no request took.
+    /// </para>
+    /// </remarks>
+    /// <param name="response">The response, such as <c>StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded")</c>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="response"/> is <see langword="null"/>.</exception>
+    public void Enqueue(StubResponse response) => _handler.Enqueue(response);
 
     /// <summary>Answers a request a <see cref="StubHandler"/> received: the operation from <c>X-Amz-Target</c>, and the body as sent.</summary>
     /// <param name="request">The request.</param>
@@ -180,6 +219,42 @@ public sealed partial class FakeDynamoDb
     }
 
     /// <summary>
+    /// Creates a table as a <see cref="CreateTableCommand"/> of the code under test would, at once and without a request: its keys, the indexes of every entity of its <c>Including</c>, its stream, and time
+    /// to live <c>ENABLED</c> on the attribute of <c>TimeToLive</c> or of an entity. A test builds its tables from the command the application sends at start-up.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>What it applies.</b> The request of <see cref="CreateTableCommand.ToRequest"/>, with the checks of <see cref="CreateTable(CreateTableRequest)"/>, and then time to live. With
+    /// <see cref="CreateTableCommand.IfNotExists"/> a table of that name is kept as it is, and gets time to live only if it has none, as the command leaves a table with time to live on another attribute.
+    /// A wait and a timeout of the command have nothing to wait for. Nothing goes to <see cref="Requests"/>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var fake = new FakeDynamoDb();
+    /// using var client = fake.CreateClient();
+    /// fake.CreateTable(client.Table&lt;Customer&gt;().CreateTable().Including&lt;Order&gt;().IfNotExists());
+    /// </code>
+    /// </example>
+    /// <param name="command">The command, as the code under test builds it, unsent.</param>
+    /// <returns>The description, as <c>DescribeTable</c> gives it.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="command"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ResourceInUseException">A table of that name exists, and the command has no <see cref="CreateTableCommand.IfNotExists"/>.</exception>
+    /// <exception cref="ValidationException">DynamoDB would reject the request.</exception>
+    public TableDescription CreateTable(CreateTableCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        var request = command.ToRequest();
+        var timeToLive = command.TimeToLiveAttributeName;
+        return Direct(TableOperations.CreateTableName, request.TableName, () =>
+        {
+            var table = command.KeepsExistingTable && _db.Tables.TryGetValue(request.TableName, out var found) ? found : TableOperations.Create(_db, request);
+            table.TimeToLiveAttribute ??= timeToLive;
+            return Describe(table);
+        });
+    }
+
+    /// <summary>
     /// Creates the table an entity declares, as <see cref="CreateTable{T}(string)"/> does under that name: <see cref="DynamoDbEntityAttribute.Table"/>, or the default of its assembly.
     /// </summary>
     /// <remarks>
@@ -234,6 +309,14 @@ public sealed partial class FakeDynamoDb
         return Direct(TableOperations.DescribeTableName, tableName, () => Describe(_db.DescribeTable(tableName)));
     }
 
+    /// <summary>Describes the table an entity declares, as <see cref="DescribeTable(string)"/> does under that name.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <returns>The description.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    public TableDescription DescribeTable<T>()
+        where T : IDynamoDbEntity<T> => DescribeTable(DeclaredTable.Of<T>());
+
     /// <summary>Deletes a table with its items. The name is free at once.</summary>
     /// <param name="tableName">The table.</param>
     /// <exception cref="ArgumentNullException"><paramref name="tableName"/> is <see langword="null"/>.</exception>
@@ -248,6 +331,7 @@ public sealed partial class FakeDynamoDb
     /// <summary>
     /// Drops every table with its items and streams, forgets every client request token, and drops the failures planned with <see cref="FailNext"/> that no request took. The handlers and clients of this fake stay valid and see no tables. A stream enabled
     /// afterwards gets another ARN than the streams before, also on the same clock, so a shard iterator from before is <c>ResourceNotFoundException</c>.
+    /// It also empties <see cref="Requests"/> and drops the responses of <see cref="Enqueue"/> that no request took.
     /// </summary>
     public void Reset()
     {
@@ -256,6 +340,8 @@ public sealed partial class FakeDynamoDb
             _db.Reset();
             _failures.Clear();
         }
+
+        _handler.Clear();
     }
 
     /// <summary>Puts an item, as a <c>PutItem</c> without a condition does: it replaces the item with its key, after the checks of the keys, the keys of the indexes and the size, and the indexes follow.</summary>
@@ -401,6 +487,26 @@ public sealed partial class FakeDynamoDb
         ArgumentNullException.ThrowIfNull(tableName);
         return UpdateStream(tableName, new StreamSpecification { StreamEnabled = false });
     }
+
+    /// <summary>Enables a stream on the table an entity declares, as <see cref="EnableStream(string, StreamViewType)"/> does under that name.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <param name="viewType">What a record holds of the item.</param>
+    /// <returns>The description, with the new stream in <c>LatestStreamArn</c>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="viewType"/> is <see cref="StreamViewType.Unspecified"/> or undefined.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The table has an enabled stream.</exception>
+    public TableDescription EnableStream<T>(StreamViewType viewType)
+        where T : IDynamoDbEntity<T> => EnableStream(DeclaredTable.Of<T>(), viewType);
+
+    /// <summary>Disables the stream of the table an entity declares, as <see cref="DisableStream(string)"/> does under that name.</summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <returns>The description, without <c>StreamSpecification</c>.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
+    /// <exception cref="ValidationException">The table has no enabled stream.</exception>
+    public TableDescription DisableStream<T>()
+        where T : IDynamoDbEntity<T> => DisableStream(DeclaredTable.Of<T>());
 
     private static TableDescription Describe(FakeTable table)
     {

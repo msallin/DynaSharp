@@ -517,6 +517,13 @@ public sealed class FakeDynamoDbTests
             () => fake.Put(subscriber),
             () => fake.Get<Subscriber>(new Item { ["pk"] = "s-1" }),
             () => fake.Items<Subscriber>(),
+            () => fake.TableItems<Subscriber>(),
+            () => fake.DescribeTable<Subscriber>(),
+            () => fake.EnableStream<Subscriber>(StreamViewType.NewImage),
+            () => fake.DisableStream<Subscriber>(),
+            () => fake.Delete(subscriber),
+            () => fake.Delete(new SubscriberKey("s-1")),
+            () => fake.Get(new SubscriberKey("s-1")),
         ];
 #pragma warning restore DYNA238
 
@@ -768,7 +775,8 @@ public sealed class FakeDynamoDbTests
         // Act
         Action[] calls =
         [
-            () => fake.CreateTable(null!),
+            () => fake.CreateTable((CreateTableRequest)null!),
+            () => fake.CreateTable((CreateTableCommand)null!),
             () => fake.CreateTable<Subscriber>(null!),
             () => fake.DescribeTable(null!),
             () => fake.DeleteTable(null!),
@@ -779,10 +787,259 @@ public sealed class FakeDynamoDbTests
             () => fake.Delete(null!, []),
             () => fake.Delete("Users", null!),
             () => fake.Items(null!),
+            () => fake.Get((DynaSharp.Mapping.IKey<Patron>)null!),
+            () => fake.Delete((DynaSharp.Mapping.IKey<Patron>)null!),
+            () => fake.Delete((Patron)null!),
         ];
 
         // Assert
         await Assert.That(calls.Count(call => Throws<ArgumentNullException>(call))).IsEqualTo(calls.Length);
+    }
+
+    [Test]
+    public async Task Requests_TwoClientsOfTheFake_RecordsWhatBothSentInOrder()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable(Users);
+        using var first = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        await first.PutItemAsync(new PutItemRequest { TableName = "Users", Item = AliceKey });
+        await streams.ListStreamsAsync(new ListStreamsRequest());
+
+        // Assert
+        await Assert.That(string.Join(",", fake.Requests.Select(static request => request.Operation))).IsEqualTo("PutItem,ListStreams");
+    }
+
+    [Test]
+    public async Task Requests_DirectApiAndAHandlerOfItsOwn_RecordsNothing()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable(Users);
+        using var handler = fake.CreateHandler();
+        using var client = StubClient.Create(handler);
+
+        // Act
+        fake.Put("Users", AliceKey);
+        await client.GetItemAsync(new GetItemRequest { TableName = "Users", Key = AliceKey });
+
+        // Assert
+        await Assert.That((fake.Requests.Count, handler.Requests.Count)).IsEqualTo((0, 1));
+    }
+
+    [Test]
+    public async Task Enqueue_Throttle_AnswersTheNextRequestInsteadOfTheFakeAndChangesNothing()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable(Users);
+        using var client = fake.CreateClient();
+        fake.Enqueue(StubResponse.DynamoDbError("ProvisionedThroughputExceededException", "slow down"));
+
+        // Act
+        await TestClient.CaptureAsync<ProvisionedThroughputExceededException>(() => client.PutItemAsync(new PutItemRequest { TableName = "Users", Item = AliceKey }));
+        await client.PutItemAsync(new PutItemRequest { TableName = "Users", Item = AliceKey });
+
+        // Assert
+        await Assert.That((fake.Items("Users").Count, fake.Requests.Count)).IsEqualTo((1, 2));
+    }
+
+    [Test]
+    public async Task Enqueue_Null_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+
+        // Act
+        var act = () => fake.Enqueue(null!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("response");
+    }
+
+    [Test]
+    public async Task Reset_RequestsAndAQueuedResponse_EmptiesBoth()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable(Users);
+        using var client = fake.CreateClient();
+        await client.ListTablesAsync(new ListTablesRequest());
+        fake.Enqueue(StubResponse.DynamoDbError("ThrottlingException", "Rate exceeded"));
+
+        // Act
+        fake.Reset();
+        var tables = await client.ListTablesAsync(new ListTablesRequest());
+
+        // Assert
+        await Assert.That((tables.TableNames.Count, fake.Requests.Count)).IsEqualTo((0, 1));
+    }
+
+    [Test]
+    public async Task CreateTable_Command_AppliesKeysIndexesOfEveryEntityStreamAndTimeToLiveWithoutARequest()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        using var client = fake.CreateClient();
+        var command = client.Table<SchemaSession>("Shop").CreateTable().Including<SchemaCustomer>().Stream(StreamViewType.NewImage);
+
+        // Act
+        var description = fake.CreateTable(command);
+
+        // Assert
+        await Assert.That((
+                string.Join(",", description.KeySchema.Select(static key => key.AttributeName)),
+                string.Join(",", description.GlobalSecondaryIndexes.Select(static index => index.IndexName).Order(StringComparer.Ordinal)),
+                description.StreamSpecification?.StreamViewType,
+                fake.Items("Shop").Count,
+                fake.Requests.Count))
+            .IsEqualTo(("pk,sk", "ByEmail,GSI1", (StreamViewType?)StreamViewType.NewImage, 0, 0));
+    }
+
+    [Test]
+    public async Task CreateTable_CommandWithTimeToLive_TurnsItOnSoThatTheSweepDeletes()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        using var client = fake.CreateClient();
+        fake.CreateTable(client.Table("Users", "pk").CreateTable().TimeToLive("expires"));
+        fake.Put("Users", new Item { ["pk"] = "alice", ["expires"] = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds() });
+
+        // Act
+        var expired = fake.ExpireItems();
+
+        // Assert
+        await Assert.That(expired).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task CreateTable_CommandIfNotExistsOnATableWithoutTimeToLive_KeepsTheItemsAndTurnsTimeToLiveOn()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable("Shop", "pk", "sk");
+        fake.Put("Shop", new Item { ["pk"] = "SESSION#a", ["sk"] = "SESSION", ["expires"] = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds() });
+        using var client = fake.CreateClient();
+
+        // Act
+        fake.CreateTable(client.Table<SchemaSession>("Shop").CreateTable().IfNotExists());
+
+        // Assert
+        await Assert.That(fake.ExpireItems()).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task CreateTable_CommandIfNotExistsOnATableWithTimeToLiveElsewhere_LeavesItThere()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        using var client = fake.CreateClient();
+        fake.CreateTable(client.Table("Shop", "pk", "sk").CreateTable().TimeToLive("gone"));
+
+        // Act
+        fake.CreateTable(client.Table<SchemaSession>("Shop").CreateTable().IfNotExists());
+        var answer = await client.DescribeTimeToLiveAsync(new DescribeTimeToLiveRequest { TableName = "Shop" });
+
+        // Assert
+        await Assert.That(answer.TimeToLiveDescription!.AttributeName).IsEqualTo("gone");
+    }
+
+    [Test]
+    public async Task CreateTable_CommandWithoutIfNotExistsOnATableThatExists_ThrowsResourceInUse()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable(Users);
+        using var client = fake.CreateClient();
+        var command = client.Table("Users", "pk").CreateTable();
+
+        // Act
+        var act = () => fake.CreateTable(command);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ResourceInUseException>();
+    }
+
+    [Test]
+    public async Task GetOfAKey_StoredEntity_ReadsItFromTheDeclaredTable()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        var patron = new Patron("p-1", "Ada");
+        fake.Put(patron);
+
+        // Act
+        var read = fake.Get(Patron.Keys.Of("p-1"));
+
+        // Assert
+        await Assert.That(read).IsEqualTo(patron);
+    }
+
+    [Test]
+    public async Task DeleteOfAKeyAndOfAnEntity_StoredAndMissing_SayWhetherThereWasOne()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        var ada = new Patron("p-1", "Ada");
+        var grace = new Patron("p-2", "Grace");
+        fake.Put(ada);
+        fake.Put(grace);
+
+        // Act
+        var deleted = (fake.Delete(Patron.Keys.Of("p-1")), fake.Delete(grace), fake.Delete(grace));
+
+        // Assert
+        await Assert.That((deleted, fake.Items("patrons").Count)).IsEqualTo(((true, true, false), 0));
+    }
+
+    [Test]
+    public async Task TableItems_TableOfSeveralEntities_GivesEveryItemRaw()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+        fake.Put(new Patron("p-1", "Ada"));
+        fake.Put("patrons", new Item { ["pk"] = "other", ["_type"] = "OTHER" });
+
+        // Act
+        var items = fake.TableItems<Patron>();
+
+        // Assert
+        await Assert.That(items.Select(static item => item["pk"].AsString())).IsEquivalentTo(["other", "p-1"]);
+    }
+
+    [Test]
+    public async Task DescribeTableOfT_DeclaredTable_DescribesIt()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+
+        // Act
+        var description = fake.DescribeTable<Patron>();
+
+        // Assert
+        await Assert.That(description.TableName).IsEqualTo("patrons");
+    }
+
+    [Test]
+    public async Task EnableStreamOfTThenDisableStreamOfT_DeclaredTable_TurnsTheStreamOnAndOff()
+    {
+        // Arrange
+        var fake = new FakeDynamoDb();
+        fake.CreateTable<Patron>();
+
+        // Act
+        var enabled = fake.EnableStream<Patron>(StreamViewType.KeysOnly);
+        var disabled = fake.DisableStream<Patron>();
+
+        // Assert
+        await Assert.That((enabled.StreamSpecification?.StreamViewType, disabled.StreamSpecification)).IsEqualTo(((StreamViewType?)StreamViewType.KeysOnly, (StreamSpecification?)null));
     }
 
     private static T Capture<T>(Action call)

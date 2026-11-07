@@ -363,6 +363,21 @@ public sealed class StubResponseTableTests
     }
 
     [Test]
+    public async Task Table_EntityWithoutAName_DescribesTheDeclaredTableWithTheStatus()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var client = StubClient.Create(stub);
+        stub.Enqueue(StubResponse.Table<Consumer.Patron>(TableStatus.Creating));
+
+        // Act
+        var table = (await client.DescribeTableAsync(TestClient.DescribeTable("patrons"))).Table!;
+
+        // Assert
+        await Assert.That((table.TableName, table.TableStatus)).IsEqualTo(("patrons", TableStatus.Creating));
+    }
+
+    [Test]
     public async Task Table_EntityNullName_Throws()
     {
         // Arrange

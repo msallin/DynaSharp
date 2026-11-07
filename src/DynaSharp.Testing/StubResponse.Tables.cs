@@ -24,7 +24,7 @@ public sealed partial class StubResponse
     /// </summary>
     /// <remarks>
     /// A table reads <c>ACTIVE</c> while an index it was given later is built, which is what a wait looks at: <c>Table("Orders", TableStatus.Active, GlobalIndex("ByCustomer", IndexStatus.Creating))</c>, queued in front of
-    /// <c>Table("Orders", TableStatus.Active, GlobalIndex("ByCustomer"))</c>. <see cref="Table{T}"/> takes the key and the indexes from an entity. Other values, such as <c>LatestStreamArn</c>, are a body for <see cref="Json"/>.
+    /// <c>Table("Orders", TableStatus.Active, GlobalIndex("ByCustomer"))</c>. <see cref="Table{T}(string, TableStatus)"/> takes the key and the indexes from an entity. Other values, such as <c>LatestStreamArn</c>, are a body for <see cref="Json"/>.
     /// </remarks>
     /// <param name="name">The table name.</param>
     /// <param name="status">The status of the table.</param>
@@ -55,31 +55,20 @@ public sealed partial class StubResponse
         where T : IDynamoDbEntity<T>
     {
         ArgumentNullException.ThrowIfNull(name);
-
-        // Through the schema of CreateTable, so that this table is the one the entity would have created, with types and the projection included.
-        const string Entity = "The entity";
-        var schema = new TableSchema(Entity, T.Info.PartitionKeyName, T.Info.SortKeyName);
-        schema.Add(Entity, T.Info);
-        var request = schema.ToRequest(name, null, null);
-        return TableAnswer(For.DescribeTable, "Table", new TableDescription
-        {
-            TableName = name,
-            TableStatus = status,
-            AttributeDefinitions = request.AttributeDefinitions,
-            KeySchema = request.KeySchema,
-            LocalSecondaryIndexes = [.. request.LocalSecondaryIndexes!.Select(static index => new LocalSecondaryIndexDescription { IndexName = index.IndexName, KeySchema = index.KeySchema, Projection = index.Projection })],
-            GlobalSecondaryIndexes =
-            [
-                .. request.GlobalSecondaryIndexes!.Select(static index => new GlobalSecondaryIndexDescription
-                {
-                    IndexName = index.IndexName,
-                    IndexStatus = IndexStatus.Active,
-                    KeySchema = index.KeySchema,
-                    Projection = index.Projection,
-                }),
-            ],
-        });
+        return EntityTable<T>(name, status);
     }
+
+    /// <summary>
+    /// Creates the answer to a <c>DescribeTable</c> of the table an entity declares, as <see cref="Table{T}(string, TableStatus)"/> does under that name: the answer a wait of
+    /// <c>client.Table&lt;T&gt;().CreateTable().WaitUntilActive()</c> ends on.
+    /// </summary>
+    /// <typeparam name="T">The entity, which declares its table.</typeparam>
+    /// <param name="status">The status of the table.</param>
+    /// <returns>The response.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="status"/> is <see cref="TableStatus.Unknown"/>, which has no name on the wire, or not a member of the enum.</exception>
+    public static StubResponse Table<T>(TableStatus status = TableStatus.Active)
+        where T : IDynamoDbEntity<T> => EntityTable<T>(DeclaredTable.Of<T>(), status);
 
     /// <summary>
     /// Creates a global index for <see cref="Table(string, TableStatus, ReadOnlySpan{GlobalSecondaryIndexDescription})"/>, projecting all attributes, with one string key attribute named after it, <c>ByCustomer_pk</c>. A wait reads the name and
@@ -209,6 +198,34 @@ public sealed partial class StubResponse
             json.WriteBoolean("Enabled", enabled);
             json.WriteEndObject();
         }));
+    }
+
+    private static StubResponse EntityTable<T>(string name, TableStatus status)
+        where T : IDynamoDbEntity<T>
+    {
+        // Through the schema of CreateTable, so that this table is the one the entity would have created, with types and the projection included.
+        const string Entity = "The entity";
+        var schema = new TableSchema(Entity, T.Info.PartitionKeyName, T.Info.SortKeyName);
+        schema.Add(Entity, T.Info);
+        var request = schema.ToRequest(name, null, null);
+        return TableAnswer(For.DescribeTable, "Table", new TableDescription
+        {
+            TableName = name,
+            TableStatus = status,
+            AttributeDefinitions = request.AttributeDefinitions,
+            KeySchema = request.KeySchema,
+            LocalSecondaryIndexes = [.. request.LocalSecondaryIndexes!.Select(static index => new LocalSecondaryIndexDescription { IndexName = index.IndexName, KeySchema = index.KeySchema, Projection = index.Projection })],
+            GlobalSecondaryIndexes =
+            [
+                .. request.GlobalSecondaryIndexes!.Select(static index => new GlobalSecondaryIndexDescription
+                {
+                    IndexName = index.IndexName,
+                    IndexStatus = IndexStatus.Active,
+                    KeySchema = index.KeySchema,
+                    Projection = index.Projection,
+                }),
+            ],
+        });
     }
 
     private static StubResponse TableNamesPage(ReadOnlySpan<string> tableNames, string? lastEvaluatedTableName)

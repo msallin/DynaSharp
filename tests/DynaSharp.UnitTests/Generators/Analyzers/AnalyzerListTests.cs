@@ -68,7 +68,9 @@ public sealed class AnalyzerListTests
             .Order(StringComparer.Ordinal);
 
         // Act
-        var list = DeclaredTableAnalyzer.Members.SelectMany(static pair => pair.Value.Select(name => $"{pair.Key}.{name}")).Order(StringComparer.Ordinal);
+        // StubResponse is listed for Table<T>() alone: its other members of an entity take the entity or its items, not a table.
+        var list = DeclaredTableAnalyzer.Members.Where(static pair => pair.Key != "DynaSharp.Testing.StubResponse")
+            .SelectMany(static pair => pair.Value.Select(name => $"{pair.Key}.{name}")).Order(StringComparer.Ordinal);
 
         // Assert
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', opening));

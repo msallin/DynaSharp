@@ -1,1 +1,12 @@
 #nullable enable
+DynaSharp.Testing.FakeDynamoDb.CreateTable(DynaSharp.CreateTableCommand! command) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.Delete<T>(DynaSharp.Mapping.IKey<T>! key) -> bool
+DynaSharp.Testing.FakeDynamoDb.Delete<T>(T entity) -> bool
+DynaSharp.Testing.FakeDynamoDb.DescribeTable<T>() -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.DisableStream<T>() -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.EnableStream<T>(DynaSharp.Requests.StreamViewType viewType) -> DynaSharp.Requests.TableDescription!
+DynaSharp.Testing.FakeDynamoDb.Enqueue(DynaSharp.Testing.StubResponse! response) -> void
+DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Mapping.IKey<T>! key) -> T?
+DynaSharp.Testing.FakeDynamoDb.Requests.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Testing.RecordedRequest!>!
+DynaSharp.Testing.FakeDynamoDb.TableItems<T>() -> System.Collections.Generic.IReadOnlyList<DynaSharp.Item!>!
+static DynaSharp.Testing.StubResponse.Table<T>(DynaSharp.TableStatus status = DynaSharp.TableStatus.Active) -> DynaSharp.Testing.StubResponse!

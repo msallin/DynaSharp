@@ -187,6 +187,17 @@ public sealed class StubHandler : HttpMessageHandler
         }
     }
 
+    /// <summary>Forgets the recorded requests and drops the queued responses, for <c>FakeDynamoDb.Reset</c>.</summary>
+    internal void Clear()
+    {
+        lock (_gate)
+        {
+            _requests.Clear();
+            _queued.Clear();
+            _taken = 0;
+        }
+    }
+
     /// <inheritdoc/>
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

@@ -42,8 +42,6 @@ public sealed class CreateTableCommand
 
     private ProvisionedThroughput? _capacity;
 
-    private bool _ifNotExists;
-
     private TimeSpan? _activeTimeout;
 
     private StreamViewType? _stream;
@@ -64,6 +62,12 @@ public sealed class CreateTableCommand
             _schema.Add(entity, info);
         }
     }
+
+    /// <summary>Gets a value indicating whether <see cref="IfNotExists"/> was called, for <c>FakeDynamoDb.CreateTable(command)</c>.</summary>
+    internal bool KeepsExistingTable { get; private set; }
+
+    /// <summary>Gets the attribute this command turns time to live on for, of <see cref="TimeToLive(string)"/> or of an entity, or <see langword="null"/>, for <c>FakeDynamoDb.CreateTable(command)</c>.</summary>
+    internal string? TimeToLiveAttributeName => _timeToLive ?? _schema.TimeToLiveAttributeName;
 
     /// <summary>
     /// Adds what another entity on this table declares, so that its indexes exist too. The result is the union: an index two entities declare exists once, and several templates over the same attributes, an
@@ -265,7 +269,7 @@ public sealed class CreateTableCommand
     /// <returns>This command.</returns>
     public CreateTableCommand IfNotExists()
     {
-        _ifNotExists = true;
+        KeepsExistingTable = true;
         return this;
     }
 
@@ -426,7 +430,7 @@ public sealed class CreateTableCommand
                     .ConfigureAwait(false);
                 return (response.TableDescription, true);
             }
-            catch (ResourceInUseException exception) when (_ifNotExists)
+            catch (ResourceInUseException exception) when (KeepsExistingTable)
             {
                 inUse = exception;
             }
@@ -451,7 +455,7 @@ public sealed class CreateTableCommand
     // A table that is going away is none: the create loop finds out what it is once it is gone.
     private async ValueTask<TableDescription?> FindExistingAsync(CancellationToken cancellationToken)
     {
-        if (!_ifNotExists)
+        if (!KeepsExistingTable)
         {
             return null;
         }

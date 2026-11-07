@@ -11,7 +11,7 @@ namespace DynaSharp.Generators;
 /// assembly. The call compiles and throws <c>InvalidOperationException</c>; the overload that takes a name is fine.
 /// </summary>
 /// <remarks>
-/// It covers every member of the library that opens the table of an entity without a name, which <see cref="Members"/> lists: those of the client and of the fake of <c>DynaSharp.Testing</c>. A type
+/// It covers every member of the library that opens the table of an entity without a name, which <see cref="Members"/> lists: those of the client, of the fake of <c>DynaSharp.Testing</c> and of its <c>StubResponse</c>. A type
 /// without <c>[DynamoDbEntity]</c>, such as one written by hand, says its table in code, so it is not reported, nor is a type parameter.
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -21,7 +21,8 @@ internal sealed class DeclaredTableAnalyzer : DiagnosticAnalyzer
     public static readonly IReadOnlyDictionary<string, ImmutableArray<string>> Members = new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal)
     {
         ["DynaSharp.DynamoDbClient"] = ["Table"],
-        ["DynaSharp.Testing.FakeDynamoDb"] = ["CreateTable", "Get", "Items", "Put"],
+        ["DynaSharp.Testing.FakeDynamoDb"] = ["CreateTable", "Delete", "DescribeTable", "DisableStream", "EnableStream", "Get", "Items", "Put", "TableItems"],
+        ["DynaSharp.Testing.StubResponse"] = ["Table"],
     };
 
     /// <inheritdoc/>

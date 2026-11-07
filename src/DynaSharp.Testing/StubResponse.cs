@@ -24,7 +24,7 @@ namespace DynaSharp.Testing;
 /// attributes, which is how a test gives the partial answer of <c>UPDATED_NEW</c>. <see cref="Count(int, int?)"/> answers a <c>Select: COUNT</c>.
 /// </para>
 /// <para>
-/// Table administration has <see cref="Table(string, TableStatus, ReadOnlySpan{Requests.GlobalSecondaryIndexDescription})"/> and <see cref="Table{T}"/> for <c>DescribeTable</c>, <see cref="TableCreated"/>, <see cref="TableUpdated"/>, <see cref="TableDeleted"/>,
+/// Table administration has <see cref="Table(string, TableStatus, ReadOnlySpan{Requests.GlobalSecondaryIndexDescription})"/> and <see cref="Table{T}(string, TableStatus)"/> for <c>DescribeTable</c>, <see cref="TableCreated"/>, <see cref="TableUpdated"/>, <see cref="TableDeleted"/>,
 /// <see cref="TablesListed(ReadOnlySpan{string})"/> for <c>ListTables</c>, <see cref="TimeToLive"/>, <see cref="TimeToLiveUpdated"/>, <see cref="ResourceNotFound"/> and <see cref="ResourceInUse"/>. DynamoDB Streams has <see cref="StreamDescription(string, ReadOnlySpan{Streams.Shard})"/>,
 /// <see cref="ShardIterator"/> and <see cref="Records"/>. What such an answer holds beyond its arguments is fixed: the region of <see cref="StubClient"/>, an account, a creation time of 2026-01-01, so a test can
 /// compare it and no answer depends on the clock.
