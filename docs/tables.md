@@ -254,7 +254,7 @@ await orders.CreateTable()
 3. `UpdateTableAsync`, from `DynaSharp.Requests`, adds one index per call, and `AttributeDefinitions` holds the keys of that index. A second index is a call of its own after the wait on `shop`. So is a stream on a table that exists, with `StreamSpecification`, before the wait of step 4, because it puts the table back into updating.
 4. Only now does a typed wait end, once DynamoDB lists the index, has allocated it and has backfilled it. The allocation takes minutes on any table, often more than the default of five, and the backfill as long as the table is large, so give the wait half an hour for a small table and more for a large one. Every `TimeToLive` implies that wait, with a default of five minutes, which is why it comes last.
 
-`UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait. A backfill finds the items that hold the attributes of the index; an older item enters it when a write gives it them.
+`UpdateTable` of a table that is updating throws `ResourceInUseException`. Several instances can each run this: one that loses the race catches it, and the `ValidationException` of an index that got there first, and goes on to the typed wait. A backfill finds the items that hold the attributes of the index; an older item enters it when a write gives it them, see [Changing a model](migrating.md#changing-a-model).
 
 ## One table per entity
 

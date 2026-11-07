@@ -10,6 +10,8 @@
     href: ../glossary.md
   - name: Entities and keys
     href: ../entities.md
+  - name: Tables
+    href: ../tables.md
   - name: Reading and writing
     href: ../commands.md
   - name: Queries and scans
@@ -20,8 +22,6 @@
     href: ../transactions.md
   - name: Errors and retries
     href: ../errors.md
-  - name: Tables
-    href: ../tables.md
   - name: Without a model
     href: ../without-a-model.md
   - name: Streams

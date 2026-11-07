@@ -173,3 +173,34 @@ DynaSharp shares EfficientDynamoDb's aim: UTF-8 on the wire, little allocation, 
 | `DynamoDbContextConfig` with a `RegionEndpoint` and `AwsCredentials` | `DynamoDbClientOptions` with `Region` and `Credentials`, or nothing and the environment, see [Getting started](getting-started.md#configure-the-client). |
 
 The stored formats differ in places: compare items as for the AWS SDK above. A converter covers each difference, and the [rules for a table that exists](adopting.md) cover items without `_type` or a version.
+
+## Changing a model
+
+An entity is the format of the items it has stored, so a change that compiles can still fail on them. [Compatibility](compatibility.md) says what a release of DynaSharp changes; this is what a change of yours does.
+
+- **A new property.** An item written before has no attribute for it. A property that is not `required` reads as its initial value, null or what its initializer gives, so `public int Points { get; init; }` is safe. A `required` one has nothing to read, and every old item throws `DynamoDbMappingException`, naming the attribute, on its first read. Add it with a default, backfill, and make it `required` only once every item holds it; meanwhile a read can skip such items with [`OnMappingFailure`](queries.md#skip-items-that-fail-to-map).
+- **A renamed property.** A stored attribute is named after its property, so a rename moves it: old items keep the old name, and the new property reads as missing. `[DynamoDbAttribute("OldName")]` on the renamed property keeps the stored name. A change of `Naming` in [project defaults](entities.md#project-defaults) renames every attribute the same way.
+- **A changed key template.** The key is where an item is: under a new template of the table key, `Get` builds a key no old item has, and a `Put` writes a second item beside the old one. Copy each item to its new key and delete the old one, or move to a new table. A changed index key moves nothing: old items keep the old format until a write gives them the new one, so backfill before a query relies on it.
+- **A new index.** A global index takes the items that hold its key attributes, see [Adding an index](tables.md#adding-an-index); an older item enters it when a `Put` writes them.
+- **A removed property or enum member.** A `Put` drops the attribute, and an `Update` leaves it. A stored enum name that no longer exists is covered under [Converters](entities.md#converters).
+
+A backfill reads every item and writes it again: a `Put` of an entity as read writes it in the current format, with the defaults of new properties and the keys of new indexes. `Parallel(segments)` scans that many segments at once, and the batch cuts the writes into requests:
+
+```csharp
+var rewrite = new List<Customer>(1000);
+await foreach (var stored in customers.Scan().Parallel(4).ItemsAsync(ct))
+{
+    rewrite.Add(stored);
+    if (rewrite.Count == rewrite.Capacity)
+    {
+        await customers.BatchWrite().PutAll(rewrite).SendAsync(ct);
+        rewrite.Clear();
+    }
+}
+
+await customers.BatchWrite().PutAll(rewrite).SendAsync(ct);
+```
+
+- **Live writers.** A batch replaces each item, so a change that another writer made between the scan and the batch is lost. Run it while nothing else writes the entity, or put each item on its own: on a `[Version]` entity, which a batch takes only with `IgnoreVersion()`, `Put(stored).TrySendAsync(ct)` gives `ConditionMet` false for an item that another writer has written since, in the current format already.
+- **Capacity.** A typed scan of a shared table reads only the items of the entity but pays for every item of the table, and the batch writes each item once more. On a provisioned table, fewer segments spread the cost.
+- **Restarts.** A parallel scan cannot resume. A long backfill reads one segment at a time with `Scan().Segment(segment, of)` and its pages, and keeps the `Next` of each segment to continue from.

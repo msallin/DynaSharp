@@ -169,6 +169,14 @@ What a condition can say, typed or as text, is on [Expressions](expressions.md).
 
 A `[Version]` property turns every write of the entity into a compare-and-swap. A `Put` takes the version from its entity: 0 says that no item has the key, any other value must be the stored one, and otherwise it throws `ConditionalCheckFailedException`. An `Update` or a `Delete` by key names the version with `IfVersion(n)`, or gives the check up with `IgnoreVersion()`, and throws before anything is sent without either, which the build reports as [`DYNA239`](diagnostics.md#commands) where it can see the whole write. A batch has only `IgnoreVersion()`.
 
+| The write | Write | What it does |
+|---|---|---|
+| An edit of what the user saw | `Update(key)...IfVersion(seen.Revision)`, `Delete(key).IfVersion(seen.Revision)`, or `Put(seen with { ... })` | Fails if anyone wrote since `seen` was read |
+| A counter, an import, an overwrite that does not depend on a read | `IgnoreVersion()` | Writes without the check, and still advances the version |
+| A create | `Put` of a new entity, at version 0 | Fails if an item has the key |
+
+`seen` is the copy the decision was made on: the item a `Get` returned when the user opened the cart, or the version the user's client sent back with the edit.
+
 ```csharp
 var saved = await carts.Update(Cart.Keys.Of("bob"))
     .Set(Cart.Attrs.Lines, lines)
@@ -246,7 +254,7 @@ await carts.RetryOnConflictAsync(
     cancellationToken: ct);
 ```
 
-A run whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, see [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
+A run whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once, see [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
 
 ## See what goes over the wire
 

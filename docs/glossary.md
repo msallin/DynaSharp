@@ -4,7 +4,7 @@ The terms of DynamoDB that the guide uses, each with where DynaSharp meets it. T
 
 ## Item
 
-A record in a table, up to 400 KB, found by its primary key: the partition key, or the partition key and the sort key together. An entity is a C# type that maps to an item, see [Entities and keys](entities.md#defining-an-entity).
+A record in a table, up to 400 KB, found by its primary key: the partition key, or the partition key and the sort key together. An entity is a C# type that maps to an item, see [Entities and keys](entities.md#defining-an-entity). [Limits](errors.md#limits) lists the sizes and counts DynamoDB allows.
 
 ## Attribute
 
@@ -52,7 +52,7 @@ A write with a condition that DynamoDB checks in the same atomic step, such as "
 
 ## Transaction
 
-Up to 100 writes, or up to 100 reads, as one step: all of them or none, at twice the capacity. See [TransactWriteItems](transactions.md#transactwriteitems).
+Up to 100 writes, or up to 100 reads, and 4 MB, as one step: all of them or none, at twice the capacity. See [TransactWriteItems](transactions.md#transactwriteitems) and [Limits](errors.md#limits).
 
 ## Time to live (TTL)
 

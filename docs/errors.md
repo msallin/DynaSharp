@@ -132,6 +132,28 @@ catch (OperationCanceledException) when (!ct.IsCancellationRequested)
 
 Neither tells whether a write was applied, see [above](#where-a-retry-applies-a-write-twice). A wait for a table has its own timeout, see [A table that exists](tables.md#a-table-that-exists).
 
+## Limits
+
+These are DynamoDB's limits, as AWS documents them under [Quotas in Amazon DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html). Where the client does not act on one, DynamoDB rejects the request, mostly with a `ValidationException`, which is not retried.
+
+| Limit | DynamoDB | What DynaSharp does |
+|---|---|---|
+| Item | 400 KB, names and values counted | Sends it; DynamoDB rejects a larger one with `ValidationException` |
+| Partition key, sort key | 2048 bytes, 1024 bytes, also of an index | Sends it; DynamoDB rejects a longer one with `ValidationException` |
+| Nesting of a document | 32 levels | A `JsonElement` deeper than that throws `ArgumentException` on the write, see [JSON of a contract](entities.md#json-of-a-contract) |
+| `TransactWriteItems`, `TransactGetItems` | 100 actions, 4 MB of items | The step that would be action 101 throws `InvalidOperationException`, also inside `PutAll`, and leaves the command used up. A transaction above 4 MB is sent, and DynamoDB rejects it with `ValidationException` |
+| `BatchWriteItem` | 25 puts and deletes, 16 MB per request | Any number: `BatchWrite()` cuts them into requests of 25 that fit in 16 MB, sends them one after the other and resends what DynamoDB left unprocessed |
+| `BatchGetItem` | 100 keys per request, 16 MB per response | Any number: `BatchGet()` cuts them into requests of 100 and asks again for the keys a response left out |
+| `Query`, `Scan` | 1 MB read per page, before the filter | `ItemsAsync` and `PagesAsync` follow the pages; `PageAsync` gives one, see [Page by page](queries.md#page-by-page) |
+| Global secondary indexes | 20 per table, a default quota AWS can raise | Declares what the entities declare; DynamoDB rejects the `CreateTable` or `UpdateTable` |
+| Local secondary indexes | 5 per table, created with the table only | The same. An existing table cannot get one, see [Local indexes](entities.md#local-indexes) |
+| Item collection of a table with a local index | 10 GB per partition key value | DynamoDB rejects the write with `ItemCollectionSizeLimitExceededException`, see [What throws](#what-throws) |
+| Expression | 4 KB per expression string | Sends it; DynamoDB rejects a longer one with `ValidationException` |
+| Attribute name | 64 KB, and 255 characters for a key attribute of a secondary index and a projected attribute of a local one | Sends it; DynamoDB rejects a longer one with `ValidationException` |
+| Table and index name | 3 to 255 of `a-z`, `A-Z`, `0-9`, `_`, `-` and `.` | A declared name outside that is the build error [`DYNA039`](diagnostics.md#entities) |
+
+The request API of `DynaSharp.Requests` sends what it is given: a `TransactWriteItemsRequest` of 101 actions or a `BatchWriteItemRequest` of 26 writes goes out, and DynamoDB rejects it with `ValidationException`.
+
 ## What a call needs
 
 A role needs the IAM action of each operation a call sends, on the ARN of each table it names (`arn:aws:dynamodb:<region>:<account>:table/Shop`) unless the row says otherwise.

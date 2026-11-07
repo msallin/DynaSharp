@@ -8,7 +8,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 - **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 9 % less than EfficientDynamoDb and a seventh of `DynamoDBContext`.
 - **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
-- **Native AOT:** no reflection and no runtime code generation.
+- **Native AOT:** no reflection and no runtime code generation, see [Native AOT](https://msallin.github.io/DynaSharp/getting-started.html#native-aot).
 - **Single-table first, one table per entity just as well:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions across tables with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
 - **No AWS SDK:** no runtime package dependencies.
@@ -62,7 +62,7 @@ public partial record Order
 }
 ```
 
-Open the table the entity declares once and keep it, create it if it is not there, and send commands. A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`.
+Open the table the entity declares once and keep it, create it if it is not there, and send commands. A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`. The commands are extension methods of the namespace `DynaSharp`: without `using DynaSharp;` the compiler says CS1501 or CS0315 and names no missing `using`.
 
 ```csharp
 var orders = client.Table<Order>();
@@ -77,7 +77,7 @@ await foreach (var placed in orders.Query(Order.Keys.Pk.Of("alice")).ItemsAsync(
 }
 ```
 
-The guide and the examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), with `orders`, `customers`, `carts`, `emails` and `shop`. The full version is a runnable tour: start with [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples).
+The guide and the examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), which [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples) runs as a tour.
 
 ### Coming from the AWS SDK or EfficientDynamoDb
 
@@ -133,7 +133,7 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 }
 ```
 
-**Several types in one query**, each item as its own type. [Several types in one query](https://msallin.github.io/DynaSharp/queries.html#several-types-in-one-query)
+**Several types in one query**, each item as its own type. [Mixed reads](https://msallin.github.io/DynaSharp/queries.html#several-types-in-one-query)
 
 ```csharp
 await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Order>().ItemsAsync(ct))
@@ -144,7 +144,7 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 
 **Optimistic locking, and a retry on a conflict.** With `[Version]` on a property, a write of a copy that changed since it was read throws `ConditionalCheckFailedException`, and `RetryOnConflictAsync` runs the read-modify-write again with a fresh read. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking), [Retry on a conflict](https://msallin.github.io/DynaSharp/commands.html#retry-on-a-conflict)
 
-**Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, the index that `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
+**Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, which `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
 
 ```csharp
 ContinuationToken? position = null;
@@ -172,7 +172,7 @@ using var client = StubClient.Create(handler);
 
 ## API levels
 
-There is one client and one pipeline, with four ways in. Use the highest level that fits. You can drop down for one call: all levels share a client, its retries and its telemetry. [API levels](https://msallin.github.io/DynaSharp/api-levels.html) says more.
+One client and one pipeline, with four ways in. Use the highest level that fits, and drop down for one call: all levels share a client, its retries and its telemetry, see [API levels](https://msallin.github.io/DynaSharp/api-levels.html).
 
 | Level | You write | Use it for |
 |---|---|---|
@@ -246,7 +246,7 @@ dotnet test --project tests/DynaSharp.IntegrationTests   # the in-memory fake; D
 dotnet stryker                                           # mutation testing
 ```
 
-The documentation site is built with DocFX from `docs/`: `dotnet build src/DynaSharp.Testing -c Release` and `dotnet build src/DynaSharp.Coordination -c Release`, then `dotnet docfx docs/docfx.json --serve`.
+The documentation site is built with DocFX from `docs/`: build `src/DynaSharp.Testing` and `src/DynaSharp.Coordination` with `-c Release`, then `dotnet docfx docs/docfx.json --serve`.
 
 ## License
 
