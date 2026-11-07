@@ -312,7 +312,7 @@ internal sealed class ModelBuilder
             return _defaults.Table;
         }
 
-        if (TableNames.Problem(name) is { } problem)
+        if (ResourceNames.Problem(name, "table") is { } problem)
         {
             var attribute = AttributeReader.Find(_type, WellKnownNames.EntityAttribute)!;
             _bag.Report(Descriptors.InvalidTableName, Spot.Argument(attribute, WellKnownNames.TableArgument, _spot), name, problem);

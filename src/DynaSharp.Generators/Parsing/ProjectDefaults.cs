@@ -28,7 +28,7 @@ internal sealed class ProjectDefaults
             DiscriminatorOptOut = AttributeReader.Flag(defaults, DiscriminatorOptOutArgument);
             OmitEmpty = AttributeReader.Flag(defaults, OmitEmptyArgument);
             Table = AttributeReader.Named(defaults, WellKnownNames.TableArgument);
-            if (Table is not null && TableNames.Problem(Table) is { } problem)
+            if (Table is not null && ResourceNames.Problem(Table, "table") is { } problem)
             {
                 _bag.Report(Descriptors.InvalidTableName, Spot.Argument(defaults, WellKnownNames.TableArgument, default), Table, problem);
             }

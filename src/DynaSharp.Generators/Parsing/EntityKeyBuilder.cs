@@ -380,10 +380,8 @@ internal sealed class EntityKeyBuilder(
 
     private bool IsValidIndexName(string name, AttributeData attribute)
     {
-        const int MinLength = 3;
-        const int MaxLength = 255;
-        var isValid = name.Length is >= MinLength and <= MaxLength
-            && name.All(static character => character is '_' or '-' or '.' || (character < 128 && char.IsLetterOrDigit(character)));
+        // The diagnostic of an index states the whole rule, whichever part the name breaks.
+        var isValid = ResourceNames.Problem(name, "index") is null;
         if (!isValid)
         {
             ReportIndex(name, "its name must be 3 to 255 of a-z, A-Z, 0-9, '_', '-' and '.'", attribute);
