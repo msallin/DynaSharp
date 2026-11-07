@@ -104,6 +104,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Enable nullable reference types where the property is declared, and mark with `?` what can be null. For a base type from a library compiled without them, map a type of your own.
 - **Not reported.** A value type such as `int`, which needs no annotation, a property that is not stored, such as one with `[DynamoDbIgnore]`, and a type that `DYNA019` already reports.
 
+`DYNA042` (error): a parameter of the constructor a read uses that is `ref`, `out` or `ref readonly`, such as `public Counter(ref int count)`. A read passes the value it read, which only a parameter by value or `in` takes.
+
+- **Fix.** Take the parameter by value or as `in`, or mark another constructor with `[DynamoDbConstructor]`.
+- **Not reported.** An `in` parameter, and a constructor the read does not use.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.

@@ -496,6 +496,35 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
+    [Arguments("ref int [|x|]", "x = 1;", "x", "ref")]
+    [Arguments("out int [|x|]", "x = 1;", "x", "out")]
+    [Arguments("ref readonly int [|x|]", "", "x", "ref readonly")]
+    public async Task Build_ConstructorParameterByReference_ReportsDyna042(string parameter, string body, string name, string modifier)
+    {
+        // Arrange (the generated read would pass a value, CS1620 for ref and out, CS9192 for ref readonly)
+        var source = $"[DynamoDbDocument] public partial class A {{ public A({parameter}) {{ {body} X = 1; }} public int X {{ get; }} }}";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA042 Error: Constructor parameter '{name}' is {modifier}, which a read cannot pass. Take it by value or as 'in', or mark another constructor with [DynamoDbConstructor]."));
+    }
+
+    [Test]
+    public async Task Run_ConstructorParameterIn_Compiles()
+    {
+        // Arrange
+        const string Source = "namespace Shop; [DynaSharp.Mapping.DynamoDbDocument] public partial class A { public A(in int x) { X = x; } public int X { get; } }";
+
+        // Act
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.Latest);
+
+        // Assert
+        await Assert.That((string.Join(", ", output.Problems), output.Result.GeneratedTrees.Length)).IsEqualTo((string.Empty, 1));
+    }
+
+    [Test]
     [Arguments("[DynamoDbDocument] public abstract partial class [|A|] { }", "it is abstract")]
     [Arguments("[DynamoDbDocument] public static partial class [|A|] { }", "it is static")]
     [Arguments("[DynamoDbDocument] public partial class [|A|]<T> { }", "it is generic")]

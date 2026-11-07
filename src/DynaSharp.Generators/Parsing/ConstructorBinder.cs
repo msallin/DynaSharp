@@ -18,6 +18,13 @@ internal static class ConstructorBinder
 
         foreach (var parameter in constructor.Parameters)
         {
+            // The generated read passes a value, which `in` takes and these do not.
+            if (parameter.RefKind is RefKind.Ref or RefKind.Out or RefKind.RefReadOnlyParameter)
+            {
+                bag.Report(Descriptors.ByReferenceParameter, Spot.Of(parameter, typeSpot), parameter.Name, Modifier(parameter.RefKind));
+                continue;
+            }
+
             var property = FindProperty(parameter, properties);
             if (property is null)
             {
@@ -31,6 +38,13 @@ internal static class ConstructorBinder
 
         return constructor;
     }
+
+    private static string Modifier(RefKind kind) => kind switch
+    {
+        RefKind.Ref => "ref",
+        RefKind.Out => "out",
+        _ => "ref readonly",
+    };
 
     private static IMethodSymbol? Choose(INamedTypeSymbol type)
     {
