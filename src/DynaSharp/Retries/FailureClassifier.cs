@@ -68,7 +68,7 @@ internal static class FailureClassifier
 
     /// <summary>
     /// Tells whether a failure means that the operation lost to another writer, so that reading again and writing again can pass. This is what
-    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> runs its delegate again on. It has nothing to do with
+    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> runs its delegate again on. It has nothing to do with
     /// <see cref="Classify"/>: to the pipeline all of these are permanent, because the same request meets the same condition.
     /// </summary>
     /// <param name="exception">The failure.</param>

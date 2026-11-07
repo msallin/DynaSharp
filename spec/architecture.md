@@ -117,7 +117,7 @@ Retries are AWS standard mode, tuned: `FailureClassifier` lists what is throttli
 description, so a change in one changes the other. `FailureClassifier.IsTransient` answers `DynamoDbException.IsTransient` from `Classify`, plus the conflicts of a transaction, so the two cannot disagree. `RetryPolicy` holds the numbers. The per-call `.MaxAttempts(n)` reaches the loop through `IWireCall<T>.MaxAttempts`, with 0 for
 the client's value.
 
-`RetryOnConflictAsync`, on `DynamoDbClient` and on `Table<T>`, which reaches the same `ClientCore` through its `TableModel`, is the one retry a caller has to ask for, and it sits above the pipeline, which never sees it: `ConflictRetry` runs a delegate, `FailureClassifier.IsConflict` says what runs it
+`RetryOnConflictAsync` of `Table<T>`, which reaches the `ClientCore` of its client through its `TableModel`, is the one retry a caller has to ask for, and it sits above the pipeline, which never sees it: `ConflictRetry` runs a delegate, `FailureClassifier.IsConflict` says what runs it
 again, of the `ConflictKind` the call names, and `RetryPolicy.GetConflictDelay` says how long it waits, on the client's clock, with the jitter of the policy and nothing from the quota. A run is any number of calls with their own attempts. A delegate with or without the number of the run goes into one loop as state with a static invoker, so neither shape allocates a closure of its own. The remarks of the method are the contract.
 
 Telemetry is one span per request (`DynamoDB.GetItem`), `db.client.operation.duration`, `dynasharp.client.operation.retries` and `.throttles`,

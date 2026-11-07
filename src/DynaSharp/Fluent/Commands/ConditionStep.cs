@@ -77,7 +77,7 @@ public readonly ref struct ConditionStep : ITransactWriteStep<ConditionStep>
     /// <remarks>
     /// A key does not carry a version, so a delete of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or <see cref="IgnoreVersion"/>, and the next action throws
     /// <see cref="InvalidOperationException"/> without it. A condition check needs neither, and this makes it a check on the version.
-    /// <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats a transaction together with the read of the version.
+    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> repeats a transaction together with the read of the version.
     /// </remarks>
     /// <param name="version">The version last read. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. With <see cref="Mapping.VersionMissing.Allow"/> it stands for what reads as 0, an item without a version attribute or with 0 in it, or none.</param>
     /// <returns>The step, which replaces this one.</returns>

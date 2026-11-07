@@ -25,7 +25,7 @@ A `Put` fails with `ConditionalCheckFailedException` if the stored version moved
 
 ```csharp
 var accounts = shop.Of<Account>();
-await client.RetryOnConflictAsync(async token =>
+await accounts.RetryOnConflictAsync(async token =>
 {
     var account = await accounts.Get(Account.Keys.Of("alice")).Consistent().ItemAsync(token);
     await accounts.Put(account! with { Balance = account.Balance + 10m }).SendAsync(token);
@@ -85,7 +85,7 @@ public partial record HandleClaim
 ```csharp
 var outcome = await RegisterAsync(new Registrant { Id = "bob", Email = "bob@example.ch", Handle = "bobby" });
 
-Task<Registration> RegisterAsync(Registrant user) => client.RetryOnConflictAsync(async token =>
+Task<Registration> RegisterAsync(Registrant user) => shop.RetryOnConflictAsync(async token =>
 {
     TransactMarker emailTaken = default;
     TransactMarker handleTaken = default;
@@ -166,7 +166,7 @@ var now = DateTimeOffset.UtcNow;
 var requestKey = "request-1";
 var chargeId = "charge-1";
 
-string answer = await client.RetryOnConflictAsync(async token =>
+string answer = await records.RetryOnConflictAsync(async token =>
 {
     TransactMarker answered = default;
     try

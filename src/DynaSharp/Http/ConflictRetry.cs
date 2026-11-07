@@ -3,7 +3,7 @@ using DynaSharp.Retries;
 namespace DynaSharp.Http;
 
 /// <summary>
-/// The loop behind <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> and the methods of that name on a table, whose remarks are its contract. It sits above the
+/// The loop behind <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> and the methods of that name on a table, whose remarks are its contract. It sits above the
 /// pipeline and shares nothing with its retries: one run of the delegate is any number of calls, each with its own attempts, and this loop only sees what comes out of a run.
 /// </summary>
 internal static class ConflictRetry

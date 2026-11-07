@@ -26,7 +26,7 @@ public sealed class HyperLogLogTests(Backend backend)
         var sketches = sandbox.Shop.Of<VisitorSketch>();
 
         // Act
-        await Task.WhenAll(Enumerable.Range(0, 4).Select(writer => MergeAsync(sandbox.Client, sketches, Sketch(writer * 500, 1000))));
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(writer => MergeAsync(sketches, Sketch(writer * 500, 1000))));
         var stored = await sketches.Get(VisitorSketch.Keys.Of(Today)).Consistent().ItemAsync();
 
         // Assert (the standard error of 1024 registers is 3 %, and the values are fixed, so this holds on every run)
@@ -39,11 +39,11 @@ public sealed class HyperLogLogTests(Backend backend)
         // Arrange
         await using var sandbox = await CommandSandbox.StartAsync(backend);
         var sketches = sandbox.Shop.Of<VisitorSketch>();
-        await MergeAsync(sandbox.Client, sketches, Sketch(0, 1000));
+        await MergeAsync(sketches, Sketch(0, 1000));
         var before = await sketches.Get(VisitorSketch.Keys.Of(Today)).Consistent().ItemAsync();
 
         // Act
-        await MergeAsync(sandbox.Client, sketches, Sketch(0, 1000));
+        await MergeAsync(sketches, Sketch(0, 1000));
         var after = await sketches.Get(VisitorSketch.Keys.Of(Today)).Consistent().ItemAsync();
 
         // Assert
@@ -51,8 +51,8 @@ public sealed class HyperLogLogTests(Backend backend)
     }
 
     // A writer that merges first makes this one merge with that. Four writers need four runs at most, which the default allows.
-    private static Task MergeAsync(DynamoDbClient client, Table<VisitorSketch> sketches, byte[] local) =>
-        client.RetryOnConflictAsync(async ct =>
+    private static Task MergeAsync(Table<VisitorSketch> sketches, byte[] local) =>
+        sketches.RetryOnConflictAsync(async ct =>
         {
             var stored = await sketches.Get(VisitorSketch.Keys.Of(Today)).Consistent().ItemAsync(ct) ?? new VisitorSketch { Day = Today, Registers = new byte[Registers] };
             var merged = new byte[Registers];

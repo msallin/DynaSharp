@@ -50,7 +50,7 @@ public sealed class DeclaredTableAnalyzerTests
     [Arguments("fake.Put(\"orders\", order);")]
     [Arguments("_ = client.Table<Hand>();")]
     [Arguments("_ = client.Table(\"orders\", \"pk\");")]
-    [Arguments("_ = client.RetryOnConflictAsync<int>(_ => new ValueTask<int>(1));")]
+    [Arguments("_ = client.TransactWrite();")]
     [Arguments("_ = Item.From(order);")]
     public async Task Analyze_DeclaredTableOrExplicitName_ReportsNothing(string statement)
     {

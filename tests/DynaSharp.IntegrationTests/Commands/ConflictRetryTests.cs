@@ -24,27 +24,6 @@ public sealed class ConflictRetryTests(Backend backend)
         var tallies = await StartAsync(sandbox);
 
         // Act
-        var results = await RunWritersAsync(() => sandbox.Client.RetryOnConflictAsync(
-            async ct =>
-            {
-                var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);
-                await tallies.Put(tally! with { Count = tally.Count + 1 }).SendAsync(ct);
-                return tally.Count + 1;
-            },
-            maxAttempts: Writers));
-
-        // Assert
-        await Assert.That((results, await StoredAsync(tallies))).IsEqualTo((OnePerWriter, (Writers, Writers + 1L)));
-    }
-
-    [Test]
-    public async Task RetryOnConflictAsync_ConcurrentPutsOnATable_GiveEachWriterOneResult()
-    {
-        // Arrange
-        await using var sandbox = await CommandSandbox.StartAsync(backend);
-        var tallies = await StartAsync(sandbox);
-
-        // Act
         var results = await RunWritersAsync(() => tallies.RetryOnConflictAsync(
             async ct =>
             {
@@ -66,7 +45,7 @@ public sealed class ConflictRetryTests(Backend backend)
         var tallies = await StartAsync(sandbox);
 
         // Act
-        var results = await RunWritersAsync(() => sandbox.Client.RetryOnConflictAsync(
+        var results = await RunWritersAsync(() => tallies.RetryOnConflictAsync(
             async ct =>
             {
                 var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);
@@ -88,7 +67,7 @@ public sealed class ConflictRetryTests(Backend backend)
         var entries = sandbox.Shop.Of<TallyEntry>();
 
         // Act (a transaction fails as a whole, so an entry exists for exactly the runs that got through)
-        var results = await RunWritersAsync(() => sandbox.Client.RetryOnConflictAsync(
+        var results = await RunWritersAsync(() => tallies.RetryOnConflictAsync(
             async ct =>
             {
                 var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);
@@ -119,7 +98,7 @@ public sealed class ConflictRetryTests(Backend backend)
         {
             try
             {
-                await sandbox.Client.RetryOnConflictAsync(async ct => await tallies.Put(held! with { Count = 1 }).SendAsync(ct), maxAttempts: 1);
+                await tallies.RetryOnConflictAsync(async ct => await tallies.Put(held! with { Count = 1 }).SendAsync(ct), maxAttempts: 1);
                 return true;
             }
             catch (ConditionalCheckFailedException)
@@ -141,7 +120,7 @@ public sealed class ConflictRetryTests(Backend backend)
         var stale = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync();
         await tallies.Put(stale! with { Count = 1 }).SendAsync();
         var runs = 0;
-        Task WriteAsync(Tally held) => sandbox.Client.RetryOnConflictAsync(
+        Task WriteAsync(Tally held) => tallies.RetryOnConflictAsync(
             async ct =>
             {
                 runs++;
@@ -165,7 +144,7 @@ public sealed class ConflictRetryTests(Backend backend)
         var writes = flaky.Client.Table<Tally>(sandbox.Shop.Name);
 
         // Act
-        await flaky.Client.RetryOnConflictAsync(
+        await writes.RetryOnConflictAsync(
             async ct =>
             {
                 var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);
@@ -186,7 +165,7 @@ public sealed class ConflictRetryTests(Backend backend)
         var writes = flaky.Client.Table<Tally>(sandbox.Shop.Name);
 
         // Act
-        var failure = await Items.FailureOfAsync<HttpRequestException>(() => flaky.Client.RetryOnConflictAsync(
+        var failure = await Items.FailureOfAsync<HttpRequestException>(() => writes.RetryOnConflictAsync(
             async ct =>
             {
                 var tally = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync(ct);

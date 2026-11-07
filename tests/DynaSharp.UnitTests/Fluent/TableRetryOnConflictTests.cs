@@ -2,7 +2,7 @@ using DynaSharp.Testing;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-/// <summary>What <c>RetryOnConflictAsync</c> on a table adds to the one on a client, which is the reach. What makes a run run again is in <see cref="DynamoDbClientConflictRetryTests"/>, because it is one loop.</summary>
+/// <summary>What <c>RetryOnConflictAsync</c> of a table does on the wire, through a stub. What makes a run run again is in <see cref="ConflictRetryTests"/>, which drives the loop with delegates that throw.</summary>
 internal sealed class TableRetryOnConflictTests
 {
     [Test]

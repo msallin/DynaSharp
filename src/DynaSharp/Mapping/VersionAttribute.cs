@@ -15,7 +15,7 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// <b>A lost race.</b> A write that loses fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>, whose marker of the
-/// action says why. Nothing is read or retried by itself: <see cref="DynamoDbClient.RetryOnConflictAsync{T}(Func{CancellationToken, ValueTask{T}}, CancellationToken)"/> repeats code that
+/// action says why. Nothing is read or retried by itself: <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> repeats code that
 /// reads the version again.
 /// </para>
 /// <para>

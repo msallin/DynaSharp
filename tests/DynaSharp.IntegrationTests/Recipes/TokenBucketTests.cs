@@ -26,7 +26,7 @@ public sealed class TokenBucketTests(Backend backend)
         await buckets.Put(new RateBucket { Caller = Caller, Tokens = Capacity, LastRefill = Noon }).SendAsync();
 
         // Act
-        var taken = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => TryTakeAsync(sandbox.Client, buckets, clock)));
+        var taken = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => TryTakeAsync(buckets, clock)));
 
         // Assert
         await Assert.That(taken.Count(static got => got)).IsEqualTo(3);
@@ -40,13 +40,13 @@ public sealed class TokenBucketTests(Backend backend)
         var buckets = sandbox.Shop.Of<RateBucket>();
         var clock = new ManualClock(Noon);
         await buckets.Put(new RateBucket { Caller = Caller, Tokens = 0m, LastRefill = Noon }).SendAsync();
-        var empty = await TryTakeAsync(sandbox.Client, buckets, clock);
+        var empty = await TryTakeAsync(buckets, clock);
 
         // Act
         clock.Advance(TimeSpan.FromSeconds(2));
-        var first = await TryTakeAsync(sandbox.Client, buckets, clock);
-        var second = await TryTakeAsync(sandbox.Client, buckets, clock);
-        var third = await TryTakeAsync(sandbox.Client, buckets, clock);
+        var first = await TryTakeAsync(buckets, clock);
+        var second = await TryTakeAsync(buckets, clock);
+        var third = await TryTakeAsync(buckets, clock);
 
         // Assert
         await Assert.That((empty, first, second, third)).IsEqualTo((false, true, true, false));
@@ -63,7 +63,7 @@ public sealed class TokenBucketTests(Backend backend)
         clock.Advance(TimeSpan.FromHours(1));
 
         // Act
-        await TryTakeAsync(sandbox.Client, buckets, clock);
+        await TryTakeAsync(buckets, clock);
 
         // Assert
         await Assert.That((await buckets.Get(RateBucket.Keys.Of(Caller)).Consistent().ItemAsync())!.Tokens).IsEqualTo(Capacity - 1);
@@ -71,8 +71,8 @@ public sealed class TokenBucketTests(Backend backend)
 
     // Someone who takes a token since the read makes this count again from what is there now, and an empty bucket is then the answer. Each failure is a token gone, so three
     // tokens on a frozen clock take four runs at most, which the default allows.
-    private static Task<bool> TryTakeAsync(DynamoDbClient client, Table<RateBucket> buckets, TimeProvider clock) =>
-        client.RetryOnConflictAsync(async ct =>
+    private static Task<bool> TryTakeAsync(Table<RateBucket> buckets, TimeProvider clock) =>
+        buckets.RetryOnConflictAsync(async ct =>
         {
             var bucket = (await buckets.Get(RateBucket.Keys.Of(Caller)).Consistent().ItemAsync(ct))!;
             var now = clock.GetUtcNow();

@@ -86,7 +86,7 @@ public sealed class UniquenessConstraintTests(Backend backend)
 
     // Only a transaction in the way runs it again: another registration of the same value is in flight, and only asking again tells who got it. A failed IfNotExists of the record is the answer,
     // because nothing is read that could change it. Ten runs rather than five, because eight contenders meet on one value in a test, and a transaction in the way can fail too.
-    private static Task<Registration> RegisterAsync(CommandSandbox sandbox, Registrant user) => sandbox.Client.RetryOnConflictAsync(
+    private static Task<Registration> RegisterAsync(CommandSandbox sandbox, Registrant user) => sandbox.Shop.RetryOnConflictAsync(
         async ct =>
         {
             TransactMarker emailTaken = default;

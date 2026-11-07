@@ -183,7 +183,7 @@ The entity of a `Put` stays as it was, and the result says what was stored: `Ver
 
 ## Retry on a conflict
 
-`RetryOnConflictAsync`, on the client or on a table, runs a read-modify-write again when it loses to another writer: 5 runs in all, with a short random wait between them, and the failure of the last run is rethrown. The delegate reads again itself, or the next run changes nothing.
+`RetryOnConflictAsync` of a table runs a read-modify-write again when it loses to another writer: 5 runs in all, with a short random wait between them, and the failure of the last run is rethrown. The delegate reads again itself, or the next run changes nothing. Nothing ties a run to the table it is called on: it can write other tables and send a transaction.
 
 ```csharp
 await carts.RetryOnConflictAsync(async token =>

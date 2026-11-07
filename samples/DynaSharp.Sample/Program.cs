@@ -337,7 +337,7 @@ if (await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(ct) is { } seenB
 // The second tab need not give up. Nothing repeats a failed condition by itself, but RetryOnConflictAsync does when asked: it runs this code
 // again if it loses to another writer, up to five times, and a little apart. The read belongs inside, because the next run needs the
 // version that won. It also decides again: this one keeps what the first tab saved, and adds its line.
-var added = await client.RetryOnConflictAsync(
+var added = await carts.RetryOnConflictAsync(
     async ct =>
     {
         var current = await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(ct);

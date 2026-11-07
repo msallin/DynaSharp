@@ -51,7 +51,7 @@ public sealed class GaplessSequenceTests(Backend backend)
     {
         var counter = sandbox.Shop.Of<InvoiceSeries>();
         var key = InvoiceSeries.Keys.Of(Series);
-        return sandbox.Client.RetryOnConflictAsync<long?>(
+        return counter.RetryOnConflictAsync<long?>(
             async ct =>
             {
                 var last = (await counter.Get(key).Consistent().ItemAsync(ct))!.Last;

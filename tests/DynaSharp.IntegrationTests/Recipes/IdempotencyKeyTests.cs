@@ -82,7 +82,7 @@ public sealed class IdempotencyKeyTests(Backend backend)
     {
         var records = sandbox.Shop.Of<IdempotencyRecord>();
         var now = clock.GetUtcNow();
-        return sandbox.Client.RetryOnConflictAsync(async ct =>
+        return records.RetryOnConflictAsync(async ct =>
         {
             TransactMarker answered = default;
             try

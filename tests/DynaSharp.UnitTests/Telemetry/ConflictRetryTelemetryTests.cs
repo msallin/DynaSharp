@@ -95,7 +95,7 @@ public sealed class ConflictRetryTelemetryTests
         var (first, second) = (client.Table(UniqueTable(), "pk"), client.Table(UniqueTable(), "pk"));
 
         // Act
-        await client.RetryOnConflictAsync(async ct => await client.TransactWrite().Put(first, new Item { ["pk"] = "a" }).Put(second, new Item { ["pk"] = "b" }).SendAsync(ct));
+        await first.RetryOnConflictAsync(async ct => await client.TransactWrite().Put(first, new Item { ["pk"] = "a" }).Put(second, new Item { ["pk"] = "b" }).SendAsync(ct));
 
         // Assert
         await Assert.That(counters.Single().TagText).IsEqualTo($"db.operation.name=TransactWriteItems,error.type=TransactionCanceledException,server.address={host}");
@@ -112,7 +112,7 @@ public sealed class ConflictRetryTelemetryTests
         using var client = Create(handler, serviceUrl: new Uri($"https://{host}"), loggerFactory: loggers, random: FixedRandom.Zero);
 
         // Act
-        await CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync<int>(static _ => throw new ConditionalCheckFailedException("Made here."), maxAttempts: 2));
+        await CaptureAsync<ConditionalCheckFailedException>(() => client.Table(UniqueTable(), "pk").RetryOnConflictAsync<int>(static _ => throw new ConditionalCheckFailedException("Made here."), maxAttempts: 2));
 
         // Assert
         await Assert.That((counters.All.Count(static measurement => measurement.Tags["db.operation.name"] is "(unknown operation)"), loggers.Entries.Single().Message)).IsEqualTo((
@@ -165,7 +165,7 @@ public sealed class ConflictRetryTelemetryTests
         var shop = client.Table(table, "pk");
 
         // Act
-        await CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey }).IfNotExists().SendAsync(ct), ConflictKind.TransactionConflict));
+        await CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey }).IfNotExists().SendAsync(ct), ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That(counters.All.Count).IsEqualTo(0);
@@ -234,6 +234,6 @@ public sealed class ConflictRetryTelemetryTests
     private static Task<WriteResult<Item>> PutAsync(DynamoDbClient client, string table, int maxAttempts = 5)
     {
         var shop = client.Table(table, "pk");
-        return client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey, ["secret"] = "value-5d1a3e9b" }).IfNotExists().SendAsync(ct), maxAttempts: maxAttempts);
+        return shop.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey, ["secret"] = "value-5d1a3e9b" }).IfNotExists().SendAsync(ct), maxAttempts: maxAttempts);
     }
 }

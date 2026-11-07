@@ -26,7 +26,7 @@ public sealed class OptimisticLockingTests(Backend backend)
         await accounts.Put(new Account { Id = Alice }).SendAsync();
 
         // Act
-        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => DepositAsync(sandbox.Client, accounts, Alice, 10m)));
+        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => DepositAsync(accounts, Alice, 10m)));
 
         // Assert
         var account = await accounts.Get(Account.Keys.Of(Alice)).Consistent().ItemAsync();
@@ -67,8 +67,8 @@ public sealed class OptimisticLockingTests(Backend backend)
     }
 
     // Someone who writes since the read makes the deposit start over, from what is there now.
-    private static Task DepositAsync(DynamoDbClient client, Table<Account> accounts, string id, decimal amount) =>
-        client.RetryOnConflictAsync(
+    private static Task DepositAsync(Table<Account> accounts, string id, decimal amount) =>
+        accounts.RetryOnConflictAsync(
             async ct =>
             {
                 var account = await accounts.Get(Account.Keys.Of(id)).Consistent().ItemAsync(ct);

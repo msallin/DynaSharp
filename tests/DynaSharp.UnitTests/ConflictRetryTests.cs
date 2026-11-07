@@ -6,7 +6,7 @@ namespace DynaSharp.UnitTests;
 
 // What makes a run of RetryOnConflictAsync run again, what ends it, how long it waits and what it leaves alone. A failure either comes from a delegate that throws it, or through
 // a stub, where the wire is what is being tested. The clock is manual and the jitter fixed, so nothing here waits.
-internal sealed class DynamoDbClientConflictRetryTests
+internal sealed class ConflictRetryTests
 {
     private const string TableName = "Shop";
 
@@ -102,7 +102,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync);
 
         // Assert
         await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
@@ -114,10 +114,10 @@ internal sealed class DynamoDbClientConflictRetryTests
         // Arrange (what the docs say about a follow-up write in the delegate: the inner retry that gave up counts as a conflict of the outer one; a delegate in a variable is not what DYNA217 follows)
         var script = new Script([.. Enumerable.Repeat<Exception>(new ConditionalCheckFailedException("The conditional request failed."), 25)]);
         using var client = NewClient();
-        Func<CancellationToken, Task<int>> inner = ct => client.RetryOnConflictAsync(script.RunAsync, ct);
+        Func<CancellationToken, Task<int>> inner = ct => Shop(client).RetryOnConflictAsync(script.RunAsync, ct);
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(ct => new ValueTask<int>(inner(ct))));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(ct => new ValueTask<int>(inner(ct))));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(25);
@@ -131,7 +131,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => client.RetryOnConflictAsync<int>(_ => throw conflict.Exception));
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => Shop(client).RetryOnConflictAsync<int>(_ => throw conflict.Exception));
 
         // Assert
         await Assert.That(FailureClassifier.IsConflict(failure, ConflictKind.Any)).IsTrue();
@@ -151,7 +151,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var table = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(async ct =>
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(async ct =>
         {
             await table.Put().With("pk", "secret-key").IfNotExists().SendAsync(ct);
             return 1;
@@ -170,7 +170,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(script.RunWithoutResultAsync);
+        await Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync);
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(2);
@@ -185,7 +185,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<Exception>(() => client.RetryOnConflictAsync(script.RunAsync));
+        var failure = await TestClient.CaptureAsync<Exception>(() => Shop(client).RetryOnConflictAsync(script.RunAsync));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, other.Exception), script.Runs)).IsEqualTo((true, 1));
@@ -200,7 +200,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<ValidationException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync));
+        var failure = await TestClient.CaptureAsync<ValidationException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, other), script.Runs)).IsEqualTo((true, 1));
@@ -214,7 +214,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync<int>(_ => ++runs == 1 ? throw new ConditionalCheckFailedException("The conditional request failed.") : new ValueTask<int>(runs));
+        var result = await Shop(client).RetryOnConflictAsync<int>(_ => ++runs == 1 ? throw new ConditionalCheckFailedException("The conditional request failed.") : new ValueTask<int>(runs));
 
         // Assert
         await Assert.That(result).IsEqualTo(2);
@@ -229,7 +229,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time);
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync);
 
         // Assert
         await Assert.That((result, script.Runs, time.TimersCreated)).IsEqualTo((1, 1, 0));
@@ -244,7 +244,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => client.RetryOnConflictAsync(script.RunAsync));
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, other), script.Runs)).IsEqualTo((true, 3));
@@ -259,7 +259,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync));
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, last), script.Runs)).IsEqualTo((true, 5));
@@ -274,7 +274,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync));
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, last), script.Runs)).IsEqualTo((true, 5));
@@ -288,7 +288,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync);
 
         // Assert
         await Assert.That(result).IsEqualTo(5);
@@ -301,7 +301,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(ThrowingRunAsync, maxAttempts: 2));
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(ThrowingRunAsync, maxAttempts: 2));
 
         // Assert (unchanged also means that it was not thrown anew, from where the loop caught it)
         await Assert.That(failure.StackTrace).Contains(nameof(ThrowingRunAsync), StringComparison.Ordinal);
@@ -318,7 +318,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -335,7 +335,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -349,7 +349,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync, maxAttempts: int.MaxValue);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: int.MaxValue);
 
         // Assert
         await Assert.That(result).IsEqualTo(2);
@@ -366,7 +366,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -380,7 +380,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -394,7 +394,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         Func<CancellationToken, ValueTask<int>>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -408,7 +408,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         Func<CancellationToken, ValueTask>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -423,7 +423,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync((run, ct) =>
+        var result = await Shop(client).RetryOnConflictAsync((run, ct) =>
         {
             seen.Add(run);
             return script.RunAsync(ct);
@@ -442,7 +442,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(async (run, ct) =>
+        await Shop(client).RetryOnConflictAsync(async (run, ct) =>
         {
             seen.Add(run);
             await script.RunWithoutResultAsync(ct);
@@ -460,7 +460,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.TransactionConflict, 5));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.TransactionConflict, 5));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(1);
@@ -474,7 +474,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), ConflictKind.Any, 2));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), ConflictKind.Any, 2));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(2);
@@ -488,7 +488,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         Func<int, CancellationToken, ValueTask<int>>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -502,7 +502,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         Func<int, CancellationToken, ValueTask>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -516,7 +516,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.Any, 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.Any, 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -530,7 +530,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(async ct => await script.RunAsync(ct));
+        var result = await Shop(client).RetryOnConflictAsync(async ct => await script.RunAsync(ct));
 
         // Assert
         await Assert.That(result).IsEqualTo(1);
@@ -547,7 +547,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(
+        await Shop(client).RetryOnConflictAsync(
             ct =>
             {
                 seen.Add(ct);
@@ -570,7 +570,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(
+        await Shop(client).RetryOnConflictAsync(
             ct =>
             {
                 seen.Add(ct);
@@ -604,8 +604,8 @@ internal sealed class DynamoDbClientConflictRetryTests
         }
 
         // Act
-        await client.RetryOnConflictAsync((_, ct) => Counted(ct), token);
-        await client.RetryOnConflictAsync((_, ct) => Noted(ct), token);
+        await Shop(client).RetryOnConflictAsync((_, ct) => Counted(ct), token);
+        await Shop(client).RetryOnConflictAsync((_, ct) => Noted(ct), token);
 
         // Assert
         await Assert.That(seen.Count == 2 && seen.All(ct => ct == token)).IsTrue();
@@ -621,7 +621,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(
+        await Shop(client).RetryOnConflictAsync(
             ct =>
             {
                 seen = ct;
@@ -643,7 +643,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: FixedRandom.One);
 
         // Act
-        var call = client.RetryOnConflictAsync(script.RunAsync);
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync);
         var delays = await RetryTestSupport.AdvanceThroughDelaysAsync(call, time, AttemptTimeout);
 
         // Assert
@@ -659,7 +659,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: new FixedRandom(0.5));
 
         // Act
-        var call = client.RetryOnConflictAsync(script.RunAsync);
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync);
         var delays = await RetryTestSupport.AdvanceThroughDelaysAsync(call, time, AttemptTimeout);
 
         // Assert
@@ -675,7 +675,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: FixedRandom.One);
 
         // Act
-        var call = client.RetryOnConflictAsync(script.RunAsync, maxAttempts: 10);
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: 10);
         var delays = await RetryTestSupport.AdvanceThroughDelaysAsync(call, time, AttemptTimeout);
 
         // Assert
@@ -689,7 +689,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var time = new ManualTimeProvider();
         var script = new Script(Lost());
         using var client = NewClient(time: time, random: FixedRandom.One);
-        var call = client.RetryOnConflictAsync(script.RunAsync);
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync);
 
         // Act
         time.Advance(TimeSpan.FromMilliseconds(9));
@@ -710,7 +710,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: FixedRandom.One);
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
-        var call = client.RetryOnConflictAsync(script.RunAsync, token);
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync, token);
 
         // Act (the clock stands still: only the cancellation can end the wait)
         await cancellation.CancelAsync();
@@ -729,7 +729,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: FixedRandom.One);
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
-        var call = client.RetryOnConflictAsync(script.RunWithoutResultAsync, token);
+        var call = Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, token);
 
         // Act
         await cancellation.CancelAsync();
@@ -751,7 +751,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: new ManualTimeProvider(), random: new FixedRandom(jitter));
 
         // Act
-        await TestClient.CaptureAsync<OperationCanceledException>(() => client.RetryOnConflictAsync(script.RunAsync, cancellation.Token));
+        await TestClient.CaptureAsync<OperationCanceledException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, cancellation.Token));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(1);
@@ -764,7 +764,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler, random: FixedRandom.Zero, maxAttempts: 2);
         var script = new Script([.. Enumerable.Range(0, 120).Select(static _ => Lost())]);
-        await client.RetryOnConflictAsync(script.RunAsync, maxAttempts: 200);
+        await Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: 200);
         handler.Enqueue(RetryTestSupport.ServerError());
         handler.Enqueue(RetryTestSupport.Success());
 
@@ -787,7 +787,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var shop = client.Table(TableName, "pk");
 
         // Act
-        await client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = "a" }).SendAsync(ct));
+        await Shop(client).RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = "a" }).SendAsync(ct));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(3);
@@ -804,7 +804,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var shop = client.Table(TableName, "pk");
 
         // Act
-        await client.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = "a" }).IfNotExists().SendAsync(ct));
+        await Shop(client).RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = "a" }).IfNotExists().SendAsync(ct));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(2);
@@ -821,7 +821,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var shop = client.Table(TableName, "pk");
 
         // Act
-        var got = await client.RetryOnConflictAsync(async ct => await shop.Get("a").SendAsync(ct));
+        var got = await Shop(client).RetryOnConflictAsync(async ct => await shop.Get("a").SendAsync(ct));
 
         // Assert
         await Assert.That((got.Found, handler.Requests.Count)).IsEqualTo((true, 2));
@@ -840,7 +840,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
 
         // Act
-        await client.RetryOnConflictAsync(ct => SendTransactionAsync(client, ct));
+        await Shop(client).RetryOnConflictAsync(ct => SendTransactionAsync(client, ct));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(2);
@@ -858,7 +858,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
 
         // Act
-        await TestClient.CaptureAsync<TransactionCanceledException>(() => client.RetryOnConflictAsync(ct => SendTransactionAsync(client, ct)));
+        await TestClient.CaptureAsync<TransactionCanceledException>(() => Shop(client).RetryOnConflictAsync(ct => SendTransactionAsync(client, ct)));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(1);
@@ -875,7 +875,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var shop = client.Table(TableName, "pk");
 
         // Act
-        var accepted = await client.RetryOnConflictAsync(
+        var accepted = await Shop(client).RetryOnConflictAsync(
             async ct =>
             {
                 TransactMarker refused = default;
@@ -903,7 +903,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var call = context.Start(() => client.RetryOnConflictAsync(_ => new ValueTask<int>(run.Task)));
+        var call = context.Start(() => Shop(client).RetryOnConflictAsync(_ => new ValueTask<int>(run.Task)));
         run.SetResult(1);
         await call;
 
@@ -920,7 +920,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var call = context.Start(() => client.RetryOnConflictAsync(_ => new ValueTask(run.Task)));
+        var call = context.Start(() => Shop(client).RetryOnConflictAsync(_ => new ValueTask(run.Task)));
         run.SetResult();
         await call;
 
@@ -938,7 +938,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient(time: time, random: FixedRandom.One);
 
         // Act
-        var call = context.Start(() => client.RetryOnConflictAsync(script.RunAsync));
+        var call = context.Start(() => Shop(client).RetryOnConflictAsync(script.RunAsync));
         time.Advance(TimeSpan.FromMilliseconds(10));
         await call;
 
@@ -955,7 +955,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync, named.RetryOn);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, named.RetryOn);
 
         // Assert
         await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
@@ -970,7 +970,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => client.RetryOnConflictAsync(script.RunAsync, unnamed.RetryOn));
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, unnamed.RetryOn));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, unnamed.Exception), script.Runs)).IsEqualTo((true, 1));
@@ -985,7 +985,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await client.RetryOnConflictAsync(script.RunAsync, ConflictKind.Any);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.Any);
 
         // Assert
         await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
@@ -1000,7 +1000,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<Exception>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.Any));
+        var failure = await TestClient.CaptureAsync<Exception>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.Any));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, other.Exception), script.Runs)).IsEqualTo((true, 1));
@@ -1015,7 +1015,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await client.RetryOnConflictAsync(script.RunWithoutResultAsync, named.RetryOn);
+        await Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, named.RetryOn);
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(2);
@@ -1029,7 +1029,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.TransactionConflict));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(1);
@@ -1046,7 +1046,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<TransactionConflictException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, maxAttempts));
+        await TestClient.CaptureAsync<TransactionConflictException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -1063,7 +1063,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.ConditionalCheckFailed, maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.ConditionalCheckFailed, maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -1077,7 +1077,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.ConditionalCheckFailed));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.ConditionalCheckFailed));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(5);
@@ -1097,7 +1097,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, (ConflictKind)value));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, (ConflictKind)value));
 
         // Assert
         await Assert.That((failure.ParamName, failure.ActualValue, script.Runs)).IsEqualTo(("retryOn", (object?)(ConflictKind)value, 0));
@@ -1111,7 +1111,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunWithoutResultAsync, default(ConflictKind), 3));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, default(ConflictKind), 3));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("retryOn", 0));
@@ -1125,7 +1125,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => client.RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -1139,7 +1139,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         Func<CancellationToken, ValueTask>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => client.RetryOnConflictAsync(operation!, default(ConflictKind)));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!, default(ConflictKind)));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -1156,7 +1156,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         var shop = client.Table(TableName, "pk");
 
         // Act
-        var registered = await client.RetryOnConflictAsync(
+        var registered = await Shop(client).RetryOnConflictAsync(
             async ct =>
             {
                 TransactMarker claim = default;
@@ -1185,7 +1185,7 @@ internal sealed class DynamoDbClientConflictRetryTests
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
 
         // Act
-        var failure = await TestClient.CaptureAsync<TransactionCanceledException>(() => client.RetryOnConflictAsync(ct => SendTransactionAsync(client, ct), ConflictKind.TransactionConflict));
+        var failure = await TestClient.CaptureAsync<TransactionCanceledException>(() => Shop(client).RetryOnConflictAsync(ct => SendTransactionAsync(client, ct), ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That((failure.Failures.Single().Reason, handler.Requests.Count)).IsEqualTo((TransactionFailure.ConditionalCheckFailed, 1));
@@ -1195,6 +1195,9 @@ internal sealed class DynamoDbClientConflictRetryTests
         new($"TransactionCanceledException with {string.Join(", ", codes)}", new TransactionCanceledException("Transaction cancelled.", [.. codes.Select(static code => new CancellationReason { Code = code })]));
 
     private static ConditionalCheckFailedException Lost() => new("The conditional request failed.");
+
+    // The loop runs on the table it is called on, and a run may touch any other.
+    private static Table<Item> Shop(DynamoDbClient client) => client.Table(TableName, "pk");
 
     private static DynamoDbClient NewClient(TimeProvider? time = null, Random? random = null) =>
         TestClient.Create(new DelegateHandler(static (_, _) => throw new InvalidOperationException("A test of the loop sends nothing.")), time, attemptTimeout: AttemptTimeout, random: random ?? FixedRandom.Zero);

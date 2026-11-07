@@ -70,12 +70,12 @@ public static class Code
 
     public static void Dyna216() => Orders.Update(Order.Keys.Of("a")).If($"contains({Order.Attrs.Total}, {1})");
 
-    public static Task Dyna217(DynamoDbClient client) => client.RetryOnConflictAsync(ct => new ValueTask<int>(client.RetryOnConflictAsync(_ => new ValueTask<int>(1), ct)));
+    public static Task Dyna217() => Orders.RetryOnConflictAsync(ct => new ValueTask<int>(Orders.RetryOnConflictAsync(_ => new ValueTask<int>(1), ct)));
 
-    public static async Task Dyna218(DynamoDbClient client)
+    public static async Task Dyna218()
     {
         var order = await Orders.Get(Order.Keys.Of("a")).Consistent().ItemAsync();
-        await client.RetryOnConflictAsync(async ct => await Orders.Put(order!).SendAsync(ct));
+        await Orders.RetryOnConflictAsync(async ct => await Orders.Put(order!).SendAsync(ct));
     }
 
     public static void Dyna230() => Orders.Get(Shipment.Keys.Of("a"));
