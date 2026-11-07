@@ -95,6 +95,40 @@ public sealed class AnalyzerListTests
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', byKey));
     }
 
+    [Test]
+    public async Task EntityIndexes_OfEntityCommandAnalyzer_IsTheClassWhoseIndexTakesTheNameAnEntityDeclares()
+    {
+        // Arrange
+        var declaring = typeof(DynamoDbClient).Assembly.GetExportedTypes()
+            .Where(static type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Any(static method => method.Name == "Index" && method.IsGenericMethodDefinition && method.GetParameters() is [_, { Name: "name" }]))
+            .Select(static type => type.Name);
+
+        // Act
+        var list = new[] { EntityCommandAnalyzer.EntityIndexes };
+
+        // Assert
+        await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', declaring));
+    }
+
+    [Test]
+    public async Task ItemWriters_OfConflictRetryAnalyzer_AreTheTypesWhosePutOrDeleteTakesAnEntity()
+    {
+        // Arrange (a batch is left out: it sends no version, which is what DYNA218 looks for)
+        var writers = typeof(DynamoDbClient).Assembly.GetExportedTypes()
+            .Where(static type => type != typeof(BatchWriteCommand<>) && type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Any(static method => method.Name is "Put" or "Delete"
+                    && method.GetParameters().Any(static parameter => parameter.Name is "item" or "entity" && parameter.ParameterType.IsGenericParameter)))
+            .Select(static type => type.Name.Split('`')[0])
+            .Order(StringComparer.Ordinal);
+
+        // Act
+        var list = ConflictRetryAnalyzer.ItemWriters.Order(StringComparer.Ordinal);
+
+        // Assert
+        await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', writers));
+    }
+
     private static IEnumerable<MethodInfo> HandleWrites() => typeof(IUpdatable<>).GetMethods().Where(IsByHandle);
 
     private static bool IsByHandle(MethodInfo method) =>

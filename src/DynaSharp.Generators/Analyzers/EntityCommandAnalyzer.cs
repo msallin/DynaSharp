@@ -24,6 +24,9 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     /// <summary>The parameter that takes the handle in a write of <see cref="WriteMethods"/>.</summary>
     internal const string HandleParameter = "attribute";
 
+    /// <summary>The static class of the library whose <c>Index</c> takes the name of an index an entity declares.</summary>
+    internal const string EntityIndexes = "EntityTableExtensions";
+
     /// <summary>The members of <c>IUpdatable&lt;TSelf&gt;</c> that take a handle, by name.</summary>
     internal static readonly HashSet<string> WriteMethods = ["Set", "SetIfNotNull", "Add", "Remove", "SetIfNotExists", "Delete"];
 
@@ -49,8 +52,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     private const string HandlesClass = "Attrs";
 
     private const string StepVerbs = "TransactWriteExtensions";
-
-    private const string EntityIndexes = "TableExtensions";
 
     private const string NestedPath = "At";
 

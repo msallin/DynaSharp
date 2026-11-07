@@ -342,7 +342,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""orders.Get("1");""", "CS0311")]
     [Arguments("""orders.Get(1);""", "CS0315")]
     [Arguments("""orders.Query("a", SortKeyCondition.Ge("b"));""", "CS1501")]
-    [Arguments("""orders.Index("x", "y").Query("a");""", "CS1929")]
+    [Arguments("""orders.Index("x", "y").Query("a");""", "CS1503")]
     [Arguments("""client.TransactWrite().Update(orders, "a", "b");""", "CS1503")]
     [Arguments("""client.Table<Plain>("x");""", "CS0311")]
     [Arguments("""client.Table<Item>("x");""", "CS0311")]

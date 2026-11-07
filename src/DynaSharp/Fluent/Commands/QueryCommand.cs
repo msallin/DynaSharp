@@ -363,6 +363,14 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => Prepare().RenderJson();
 
+    /// <summary>Starts a query of one partition of a table or index, its key condition and the filter of the discriminator written.</summary>
+    /// <param name="read">The table or index that is read.</param>
+    /// <param name="partitionKey">The partition key as it is stored.</param>
+    /// <param name="sortKey">The condition on the sort key, or the default value to read the whole partition.</param>
+    /// <returns>The command.</returns>
+    /// <exception cref="ArgumentException">The key is empty, or there is a condition on a sort key and the table or index has none.</exception>
+    internal static QueryCommand<T> Start(TableModel read, AttributeValue partitionKey, SortKeyCondition sortKey) => new(read.BeginQuery(partitionKey, sortKey), read);
+
     private CommandState Selecting(string attribute)
     {
         Fluent.Selection.ThrowIfNoAttribute(attribute);

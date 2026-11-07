@@ -9,7 +9,7 @@ namespace DynaSharp.Generators;
 /// What a query names against the keys of what it reads. DYNA221: a <c>Filter</c> on a property that a key of the read holds without loss where the key condition decides it: any placeholder of the partition key,
 /// which the query pins, the first placeholder of the sort key, and a plain key, which DynamoDB refuses in a filter along with the attribute of any key of the read. On a key of the table a filter also drops
 /// every item that an update created, which has the key and not the attribute. DYNA222: the same where the key holds the property with loss, as <c>{IssuedOn:yyyy-MM}</c> holds a day, at Info, because a
-/// filter finer than the key is correct. DYNA224: a key from the builder of one attribute in a query that reads another, which <c>TableExtensions.ThrowIfOtherAttribute</c> throws for at the partition key,
+/// filter finer than the key is correct. DYNA224: a key from the builder of one attribute in a query that reads another, which <c>EntityTableExtensions.ThrowIfOtherAttribute</c> throws for at the partition key,
 /// and which compares text of another template at the sort key, or throws when the read has no sort key.
 /// </summary>
 /// <remarks>

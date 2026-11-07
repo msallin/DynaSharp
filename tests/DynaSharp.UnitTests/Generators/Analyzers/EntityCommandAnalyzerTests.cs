@@ -463,7 +463,7 @@ public sealed class EntityCommandAnalyzerTests
     [Arguments("""_ = customers.Index([|"Any"|]);""", "Customer", "Any")]
     [Arguments("""const string Name = "Alertz"; _ = events.Index([|Name|]);""", "DeviceEvent", "Alertz")]
     [Arguments("""_ = shop.Index<DeviceEvent>([|"Alertz"|]);""", "DeviceEvent", "Alertz")]
-    [Arguments("""_ = TableExtensions.Index(events, [|"Alertz"|]);""", "DeviceEvent", "Alertz")]
+    [Arguments("""_ = EntityTableExtensions.Index(events, [|"Alertz"|]);""", "DeviceEvent", "Alertz")]
     public async Task Analyze_ConstantIndexThatTheEntityDoesNotDeclare_ReportsTheName(string statement, string entity, string index)
     {
         // Arrange

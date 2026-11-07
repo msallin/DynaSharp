@@ -11,7 +11,7 @@ namespace DynaSharp.UnitTests.Fluent;
 
 // What the types of the API rule out: each statement is compiled against the library as a consumer would write it, and must fail with the
 // error pinned here, so that a mistake in this source cannot pass for the guard. An error that disappears means a misuse has come back that
-// only DynamoDB would report. The extension methods of TableExtensions decide some of the codes: on an Index, Get and Delete find them and
+// only DynamoDB would report. The extension methods of ItemTableExtensions and EntityTableExtensions decide some of the codes: on an Index, Get and Delete find them and
 // fail on their constraint, with no member of the Index to bind to. The rows of a test share a compilation, see Batch.
 public sealed class CompileGuardTests
 {
@@ -363,7 +363,7 @@ public sealed class CompileGuardTests
     [Arguments("""orders.Query(1, default);""", "CS1501")]
     [Arguments("""orders.Query(shards);""", "CS0311")]
     [Arguments("""orders.Query(["a", "b"]);""", "CS0411")]
-    [Arguments("""indexOfInvoices.Query("a");""", "CS1929")]
+    [Arguments("""indexOfInvoices.Query("a");""", "CS1503")]
     [Arguments("""client.TransactWrite().Update(orders, "a", "b");""", "CS1503")]
     [Arguments("""orders.Update("a");""", "CS0311")]
     [Arguments("""orders.Delete("a", "b");""", "CS1501")]

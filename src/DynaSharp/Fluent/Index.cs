@@ -12,7 +12,7 @@ namespace DynaSharp;
 /// <para><b>Hold it in a field,</b> as a <see cref="Table{T}"/>. Instances are immutable and thread-safe.</para>
 /// <para>
 /// <b>Queries take a key builder.</b> An index of an entity is queried by the partition key builder of the index, <c>byStatus.Query(Order.Keys.ByStatusPk.Of(status))</c>, and an index of a
-/// table without a schema by the values of its partition key as well, <c>shop.Index("GSI1", "gsi1pk", "gsi1sk").Query("STATUS#open")</c>; both are in <see cref="TableExtensions"/>.
+/// table without a schema by the values of its partition key as well, <c>shop.Index("GSI1", "gsi1pk", "gsi1sk").Query("STATUS#open")</c>; they are in <see cref="EntityTableExtensions"/> and <see cref="ItemTableExtensions"/>.
 /// </para>
 /// <para>
 /// <b>Consistency.</b> A global secondary index is always eventually consistent, so a write shows up here a moment after it succeeded; a local secondary index can be read

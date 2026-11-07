@@ -31,7 +31,7 @@ namespace DynaSharp;
 /// </para>
 /// <para>
 /// <b>A table of an entity takes the keys its generator built,</b> <c>Order.Keys.Of(...)</c> and <c>Order.Keys.Pk.Of(...)</c>, which format the values the way the item stores them. The values of a
-/// key as they are stored, such as <c>shop.Get("USER#1", "PROFILE")</c>, go to a table without a schema, which <c>client.Table(name, partitionKey, sortKey)</c> opens, see <see cref="TableExtensions"/>.
+/// key as they are stored, such as <c>shop.Get("USER#1", "PROFILE")</c>, go to a table without a schema, which <c>client.Table(name, partitionKey, sortKey)</c> opens, see <see cref="ItemTableExtensions"/>.
 /// </para>
 /// <para>
 /// <b>Hold it in a field.</b> A table holds what never changes; it is immutable and thread-safe. It makes no request of its own, so opening a table that does not exist succeeds, and
@@ -113,7 +113,7 @@ public sealed partial class Table<T>
     /// <summary>
     /// Starts a put of a whole item. The item is written to the request here and now, so changing it afterwards changes nothing. A put replaces
     /// everything under the key; <see cref="PutCommand{T}.IfNotExists"/> makes it a create. An entity with a <see cref="VersionAttribute"/> adds the condition on its version and stores
-    /// the next one, see there, unless <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/> says otherwise. It takes the version from the entity, so a put has no <c>IfVersion</c>: put the entity as it was read.
+    /// the next one, see there, unless <see cref="EntityWriteExtensions.IgnoreVersion{T}(PutCommand{T})"/> says otherwise. It takes the version from the entity, so a put has no <c>IfVersion</c>: put the entity as it was read.
     /// </summary>
     /// <param name="item">The item, which must hold the key attributes.</param>
     /// <returns>The command.</returns>

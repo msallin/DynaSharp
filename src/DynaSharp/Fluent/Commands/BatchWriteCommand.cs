@@ -200,7 +200,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <b>The whole batch.</b> It holds for every write of the batch, wherever in the chain it stands. The version of what the batch writes is not checked, and each item is stored with the version
     /// of its entity plus one, as a put stores it, so an entity at 0 is stored at 1.
     /// </para>
-    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para[1]"/>
+    /// <inheritdoc cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para[1]"/>
     /// </remarks>
     /// <returns>The command, which replaces this one.</returns>
     public BatchWriteCommand<T> IgnoreVersion()

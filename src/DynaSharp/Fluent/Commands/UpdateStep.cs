@@ -276,10 +276,10 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <summary>
     /// Stores the inputs of the key of the table as attributes of the item, as a <c>Put</c> does, for an update that may create the item: without it, an item an update created holds the
-    /// key alone. See <see cref="TableExtensions.StoreKeyInputs{T}(UpdateCommand{T})"/>.
+    /// key alone. See <see cref="EntityWriteExtensions.StoreKeyInputs{T}(UpdateCommand{T})"/>.
     /// </summary>
     /// <remarks>
-    /// <inheritdoc cref="TableExtensions.StoreKeyInputs{T}(UpdateCommand{T})" path="/remarks/para"/>
+    /// <inheritdoc cref="EntityWriteExtensions.StoreKeyInputs{T}(UpdateCommand{T})" path="/remarks/para"/>
     /// <para>In a transaction such a throw comes from the next action, where this action settles.</para>
     /// </remarks>
     /// <returns>The step, which replaces this one.</returns>
@@ -293,10 +293,10 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
 
     /// <summary>
     /// Lets this update go out without the check of the version, and still stores the next version, so that a copy read before it fails its next checked write. See
-    /// <see cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
+    /// <see cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
     /// </summary>
     /// <remarks>
-    /// <inheritdoc cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para"/>
+    /// <inheritdoc cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})" path="/remarks/para"/>
     /// </remarks>
     /// <returns>The step, which replaces this one.</returns>
     /// <exception cref="InvalidOperationException">This update already has <c>IfVersion</c>, whose condition cannot be taken back.</exception>

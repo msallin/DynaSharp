@@ -55,7 +55,7 @@ public sealed class CommandLifetimeAnalyzerTests
     [Arguments("""static async Task Run() { await [|shop.Update("a").Set("y", 1)|].Set("x", await ValueAsync()).SendAsync(); }""", "CS4007")]
     [Arguments("""static async Task Run() { var c = shop.Update("a"); await [|c|].Set("x", await ValueAsync()).SendAsync(); }""", "CS4007")]
     [Arguments("""static async Task Run() { await [|shop.Update("a")|].If($"{Attr("a")} = {await ValueAsync()}").SendAsync(); }""", "CS4007")]
-    [Arguments("""static async Task Run() { await TableExtensions.With([|shop.Put()|], "a", await ValueAsync()).SendAsync(); }""", "CS4007")]
+    [Arguments("""static async Task Run() { await ItemTableExtensions.With([|shop.Put()|], "a", await ValueAsync()).SendAsync(); }""", "CS4007")]
     [Arguments("""static async Task Run(DynamoDbClient client) { var s = client.TransactWrite().Delete(shop, "a"); await Task.Delay(1); await [|s|].SendAsync(); }""", "CS4007")]
     [Arguments("""static async Task Run(DynamoDbClient client) { var s = client.TransactWrite(); await Task.Delay(1); [|s|].Delete(shop, "a"); }""", "CS4007")]
     [Arguments("""static async Task Run(DynamoDbClient client) { TransactWriteCommand t = client.TransactWrite(); t = t.Delete(shop, "a"); await Task.Delay(1); await [|t|].SendAsync(); }""", "CS4007")]

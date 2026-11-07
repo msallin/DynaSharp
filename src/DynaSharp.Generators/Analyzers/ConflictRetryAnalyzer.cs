@@ -32,6 +32,9 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
     /// <summary><c>ConflictKind.ConditionalCheckFailed</c>, which this assembly cannot take from the library, as the number it is.</summary>
     internal const int ConditionalCheckFailed = 1;
 
+    /// <summary>The types of the library whose <c>Put</c> and <c>Delete</c> take an item or an entity, whose version a run would send.</summary>
+    internal static readonly HashSet<string> ItemWriters = ["Table", "EntityTableExtensions", "TransactWriteExtensions"];
+
     private const string MaxAttemptsParameter = "maxAttempts";
 
     private const string VersionParameter = "version";
@@ -45,8 +48,6 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
     private const string ConfigureAwait = "ConfigureAwait";
 
     private static readonly HashSet<string> ItemWrites = ["Put", Delete];
-
-    private static readonly HashSet<string> ItemWriters = ["Table", "TableExtensions", "TransactWriteExtensions"];
 
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.NestedConflictRetry, Descriptors.VersionReadBeforeRetry];

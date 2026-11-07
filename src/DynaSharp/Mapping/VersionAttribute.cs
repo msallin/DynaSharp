@@ -11,7 +11,7 @@ namespace DynaSharp.Mapping;
 /// entity, so the next write takes <see cref="WriteResult{T}.Version"/>, or the entity read again. A key does not carry a version, so <c>Update</c> and a <c>Delete</c> by key need
 /// <c>.IfVersion(n)</c>, or <c>.IgnoreVersion()</c>, and sending without either throws <see cref="InvalidOperationException"/>. A <see cref="BatchWriteCommand{T}"/> cannot carry a condition, so it
 /// takes <c>.IgnoreVersion()</c> only. Every write of the entity but a delete advances the version, also without the check, so a copy read before it fails its next checked write, see
-/// <see cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
+/// <see cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
 /// </para>
 /// <para>
 /// <b>A lost race.</b> A write that loses fails with <see cref="ConditionalCheckFailedException"/>, or in a transaction with a <see cref="TransactionCanceledException"/>, whose marker of the
@@ -20,7 +20,7 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// <b>Without the check.</b> <c>.IgnoreVersion()</c> writes without the condition on the version, for an import or a migration; see
-/// <see cref="TableExtensions.IgnoreVersion{T}(PutCommand{T})"/> and <see cref="TableExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
+/// <see cref="EntityWriteExtensions.IgnoreVersion{T}(PutCommand{T})"/> and <see cref="EntityWriteExtensions.IgnoreVersion{T}(UpdateCommand{T})"/>.
 /// </para>
 /// <para>
 /// <b>Version 0.</b> It checks the key and never looks at the version attribute: every 0, on a <c>Put</c>, in <c>.IfVersion(0)</c>, on a <c>Delete</c> of an entity and on a step of a transaction,
