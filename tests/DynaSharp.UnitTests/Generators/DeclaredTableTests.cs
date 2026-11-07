@@ -213,7 +213,7 @@ public sealed class DeclaredTableTests
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.ExpectOfWholeFile(
             source,
-            "DYNA040 Warning: 'Shop.Session' is in the table 'appdata' with the keys 'id', and 'Shop.Cart' is in it with 'pk' and 'sk'. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.")
+            "DYNA040 Warning: 'Shop.Session' is in the table 'appdata' with the keys 'id', and 'Shop.Cart' is in it with 'pk' and 'sk'. A table has one key schema: name their key attributes the same, or put one of them in a table of its own.")
             + "\n" + Dyna037("'pk' and 'sk' of Shop.Cart, 'id' of Shop.Session"));
     }
 
@@ -232,7 +232,7 @@ public sealed class DeclaredTableTests
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(
             Source,
-            "DYNA040 Warning: 'Shop.B' is in the table 'shared' with the keys 'pk', and 'Shop.A' is in it with 'id'. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.")
+            "DYNA040 Warning: 'Shop.B' is in the table 'shared' with the keys 'pk', and 'Shop.A' is in it with 'id'. A table has one key schema: name their key attributes the same, or put one of them in a table of its own.")
             + "\n" + Dyna037("'id' of Shop.A, 'pk' of Shop.B"));
     }
 
@@ -273,7 +273,7 @@ public sealed class DeclaredTableTests
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(
             Source,
-            "DYNA040 Warning: 'Shop.Tests.Row' is in the table 'shared' with the keys 'pk', and 'Shop.A' is in it with 'pk' and 'sk'. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.")
+            "DYNA040 Warning: 'Shop.Tests.Row' is in the table 'shared' with the keys 'pk', and 'Shop.A' is in it with 'pk' and 'sk'. A table has one key schema: name their key attributes the same, or put one of them in a table of its own.")
             + "\nDYNA037 Info [0..0]: No IncludingAll() is generated for the entities of this assembly: 'Shop.Tests.Row' is private to a type around it, so no class outside that type can name it. Name the entities of a table with Including<T>().");
     }
 

@@ -98,7 +98,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor NoDiscriminator = new(
         "DYNA020",
         "Entity has no discriminator",
-        "Entity '{0}' has no discriminator. Add [Discriminator(\"{1}\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.",
+        "Entity '{0}' has no discriminator: the value stored in each item that tells which entity the item is, so that several entities can share a table. Add [Discriminator(\"{1}\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.",
         Mapping,
         DiagnosticSeverity.Error,
         true,
@@ -225,7 +225,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor TableKeysDiffer = new(
         "DYNA040",
         "Entities of one table with other keys",
-        "'{0}' is in the table '{1}' with the keys {2}, and '{3}' is in it with {4}. A table has one key schema: give the entities the same names of their keys, or one of them a table of its own.",
+        "'{0}' is in the table '{1}' with the keys {2}, and '{3}' is in it with {4}. A table has one key schema: name their key attributes the same, or put one of them in a table of its own.",
         Mapping,
         DiagnosticSeverity.Warning,
         true,

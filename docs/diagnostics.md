@@ -27,7 +27,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context; a property outside one in a type that is inside is `DYNA041` | Enable nullable reference types |
-| `DYNA020` | An entity has no discriminator | Add the suggested `[Discriminator("EMAIL_CLAIM")]` (for `EmailClaim`: its name in upper snake case), or `[Discriminator(OptOut = true)]` for a table other tools write. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, also named in the message, does that for every entity of a project |
+| `DYNA020` | An entity has no discriminator, the value stored in each item that tells which entity the item is, so that several entities can share a table | Add the suggested `[Discriminator("EMAIL_CLAIM")]` (for `EmailClaim`: its name in upper snake case), or `[Discriminator(OptOut = true)]` for a table other tools write. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, also named in the message, does that for every entity of a project |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |
@@ -96,7 +96,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA040` (warning): two entities of the compilation are in one table, by their own `Table` or by the default of the assembly, and name their keys differently, such as `pk` and `sk` on `Cart` and `id` on `Session` under `[assembly: DynamoDbDefaults(Table = "appdata")]`. A table has one key schema, so the commands of one of them fail on DynamoDB with a `ValidationException`. Reported on the `[DynamoDbEntity]` of each entity whose keys differ from those most entities of the table have (on a tie, those of the entity first by name), naming one that has them.
 
-- **Fix.** Give the entities the same names of their keys, with `AttributeName`, or give one a table of its own: `[DynamoDbEntity(Table = "sessions")]`.
+- **Fix.** Name their key attributes the same, with `AttributeName`, or put one of them in a table of its own: `[DynamoDbEntity(Table = "sessions")]`.
 - **Not reported.** An entity without a declared table, an entity of another assembly, and the types of a key, which the names alone do not show.
 
 `DYNA041` (error): a mapped property whose type was written where nullable annotations are disabled, though the type itself is declared in an enabled context, which `DYNA019` checks: a `#nullable disable` region inside the type, a part of a partial type in a file with nullable disabled, or a base type compiled with nullable disabled. There `string` says nothing about null, so the generated code takes it as never null and throws `ArgumentNullException` on a null. Reported on the property, or on the type for a base type from a compiled assembly.

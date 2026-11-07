@@ -218,7 +218,7 @@ public sealed class ProjectDefaultsTests
         var report = Analysis.ReportOfWholeFile(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.ExpectOfWholeFile(source, "DYNA020 Error: Entity 'E' has no discriminator. Add [Discriminator(\"E\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project."));
+        await Assert.That(report).IsEqualTo(Analysis.ExpectOfWholeFile(source, "DYNA020 Error: Entity 'E' has no discriminator: the value stored in each item that tells which entity the item is, so that several entities can share a table. Add [Discriminator(\"E\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project."));
     }
 
     [Test]

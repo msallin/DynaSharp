@@ -134,7 +134,7 @@ public sealed class DynaSharpGeneratorTests
         var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.Latest);
 
         // Assert
-        await Assert.That(string.Join("\n", output.Problems)).IsEqualTo("(7,26): error DYNA020: Entity 'TransportRecord' has no discriminator. Add [Discriminator(\"TRANSPORT_RECORD\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.");
+        await Assert.That(string.Join("\n", output.Problems)).IsEqualTo("(7,26): error DYNA020: Entity 'TransportRecord' has no discriminator: the value stored in each item that tells which entity the item is, so that several entities can share a table. Add [Discriminator(\"TRANSPORT_RECORD\")]. For a table written by other tools, opt out with [Discriminator(OptOut = true)], or with [assembly: DynamoDbDefaults(DiscriminatorOptOut = true)] for every entity of the project.");
     }
 
     [Test]
