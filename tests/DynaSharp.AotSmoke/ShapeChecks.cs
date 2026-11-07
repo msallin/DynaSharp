@@ -276,7 +276,7 @@ internal static class ShapeChecks
         check(written.Written == 4, "a batch mixes entities and generated keys");
 
         handler.Enqueue(StubResponse.Json("{\"Responses\":{\"Shop\":[" + Item.From(order) + "]}}"));
-        var found = await orders.BatchGet().Key(key).Project(KeyedOrder.Attrs.CreatedAt, KeyedOrder.Attrs.Status, KeyedOrder.Attrs.Total).SendAsync();
+        var found = await orders.BatchGet().Get(key).Project(KeyedOrder.Attrs.CreatedAt, KeyedOrder.Attrs.Status, KeyedOrder.Attrs.Total).SendAsync();
         check(found.Items.Single().Status == Plan.Pro, "BatchGet takes a generated key and a handle");
 
         handler.Enqueue(StubResponse.Json("{\"Responses\":[" + stored + ",{\"Item\":" + Item.From(point) + "}]}"));

@@ -31,7 +31,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, keys).Select(static i => new TextKey("id-" + i));
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Keys(ids).SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().GetAll(ids).SendAsync();
 
         // Assert
         await Assert.That((handler.Requests.Count, result.Requests, result.Items.Count, handler.Requests.Sum(CountKeys))).IsEqualTo((requests, requests, keys, keys));
@@ -45,7 +45,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Keys(Array.Empty<TextKey>()).SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().GetAll(Array.Empty<TextKey>()).SendAsync();
 
         // Assert
         await Assert.That((handler.Requests.Count, result.Items.Count, result.Requests, result.ConsumedCapacity.Count)).IsEqualTo((0, 0, 0, 0));
@@ -59,7 +59,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Key("a");
+        var result = await client.Table("Shop", "pk").BatchGet().Get("a");
 
         // Assert
         await Assert.That(result.Items.Single().GetString("pk")).IsEqualTo("a");
@@ -74,7 +74,7 @@ public sealed class BatchGetCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var result = await customers.BatchGet().Key(Customer.Keys.Of("a")).Key(Customer.Keys.Of("b")).SendAsync();
+        var result = await customers.BatchGet().Get(Customer.Keys.Of("a")).Get(Customer.Keys.Of("b")).SendAsync();
 
         // Assert
         await Assert.That(result.Items).IsEquivalentTo([new Customer("a", "Alice"), new Customer("b", "Bob")]);
@@ -89,7 +89,7 @@ public sealed class BatchGetCommandTests
 
         // Act
         await client.Table("Shop", "pk", "sk").BatchGet()
-            .Key("a", "b")
+            .Get("a", "b")
             .Consistent()
             .Project("status", "address.city")
             .Project(Customer.Attrs.FullName)
@@ -109,7 +109,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var json = client.Table<Customer>("Shop").BatchGet().Key(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).ToRequestJson();
+        var json = client.Table<Customer>("Shop").BatchGet().Get(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).ToRequestJson();
 
         // Assert
         await Assert.That(json).IsEqualTo(
@@ -124,7 +124,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table<Customer>("Shop").BatchGet().Key(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).SendAsync();
+        await client.Table<Customer>("Shop").BatchGet().Get(Customer.Keys.Of("a")).Project(Customer.Attrs.FullName).SendAsync();
 
         // Assert
         await Assert.That(handler.Requests.Single().BodyText).Contains("""#n0, #n1, #n2, #n3""");
@@ -139,7 +139,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, 101).Select(static i => new TextKey("id-" + i));
 
         // Act
-        await client.Table("Shop", "pk").BatchGet().Keys(ids).Consistent().Project("a").SendAsync();
+        await client.Table("Shop", "pk").BatchGet().GetAll(ids).Consistent().Project("a").SendAsync();
 
         // Assert
         await Assert.That(handler.Requests.Count(static request => request.BodyText.Contains("\"ConsistentRead\":true,\"ProjectionExpression\":\"#n0\"", StringComparison.Ordinal))).IsEqualTo(2);
@@ -154,7 +154,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, 101).Select(static i => new TextKey("id-" + i));
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Keys(ids).ReturnCapacity().SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().GetAll(ids).ReturnCapacity().SendAsync();
 
         // Assert
         await Assert.That(result.ConsumedCapacity.Sum(static capacity => capacity.CapacityUnits)).IsEqualTo(100.0);
@@ -168,7 +168,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Key("a").SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().Get("a").SendAsync();
 
         // Assert
         await Assert.That(result.Items.Count).IsEqualTo(1);
@@ -185,7 +185,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Key("a").Key("b").Consistent().Project("v").ReturnCapacity().SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().Get("a").Get("b").Consistent().Project("v").ReturnCapacity().SendAsync();
 
         // Assert
         await Assert.That((handler.Requests[1].BodyText, result.Items.Count, result.Requests)).IsEqualTo(("{\"RequestItems\":" + Left + ",\"ReturnConsumedCapacity\":\"TOTAL\"}", 2, 2));
@@ -206,7 +206,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, Keys).Select(static i => new TextKey("id-" + i));
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Keys(ids).SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().GetAll(ids).SendAsync();
 
         // Assert
         await Assert.That((result.Items.Count, result.Requests)).IsEqualTo((Keys, Keys));
@@ -223,7 +223,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         await Assert.That((handler.Requests.Count, failure.Items.Count, failure.UnprocessedKeys["Shop"].Keys.Count)).IsEqualTo((BatchDriver.MaxStalledRounds + 1, 1, 50));
@@ -242,7 +242,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).Consistent().SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).Consistent().SendAsync());
 
         // Assert
         var left = failure.UnprocessedKeys["Shop"];
@@ -258,7 +258,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Key("a").Project("v").SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Get("a").Project("v").SendAsync());
 
         // Assert
         await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.UnprocessedKeys["Shop"].ProjectionExpression, failure.OperationName, failure.TableName)).IsEqualTo((1, (string?)"#n0", "BatchGetItem", (string?)"Shop"));
@@ -271,7 +271,7 @@ public sealed class BatchGetCommandTests
         using var handler = new StubHandler(LeaveAllKeys);
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
         var shop = client.Table("Shop", "pk");
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Key("a").Consistent().Project("v").SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Get("a").Consistent().Project("v").SendAsync());
         handler.DefaultResponse = StubResponse.Json("{}");
         var sent = handler.Requests.Count;
 
@@ -294,7 +294,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is ProvisionedThroughputExceededException)).IsEqualTo((50, 1, true));
@@ -312,7 +312,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is ResourceNotFoundException, handler.Requests.Count)).IsEqualTo((50, 1, true, 2));
@@ -329,7 +329,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is TimeoutException)).IsEqualTo((50, 1, true));
@@ -358,7 +358,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<OperationCanceledException>(async () => await shop.BatchGet().Keys(ids).SendAsync(token));
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(async () => await shop.BatchGet().GetAll(ids).SendAsync(token));
 
         // Assert
         await Assert.That((failure.CancellationToken == token, handler.Requests.Count)).IsEqualTo((true, 2));
@@ -372,7 +372,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await client.Table("Shop", "pk").BatchGet().Key("a").SendAsync());
+        var failure = await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await client.Table("Shop", "pk").BatchGet().Get("a").SendAsync());
 
         // Assert
         await Assert.That(failure.OperationName).IsEqualTo("BatchGetItem");
@@ -388,7 +388,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         await Assert.That((failure.UnprocessedKeys["Shop"].Keys.Count, failure.Items.Count, failure.InnerException is TimeoutException)).IsEqualTo((150, 0, true));
@@ -402,7 +402,7 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await client.Table("Shop", "pk").BatchGet().Key("a").Key("a").SendAsync());
+        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await client.Table("Shop", "pk").BatchGet().Get("a").Get("a").SendAsync());
 
         // Assert
         await Assert.That((CountKeys(handler.Requests.Single()), failure.Message)).IsEqualTo((2, "Provided list of item keys contains duplicates"));
@@ -417,7 +417,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, 101).Select(static i => new TextKey("id-" + (i % 100)));
 
         // Act
-        var result = await client.Table("Shop", "pk").BatchGet().Keys(ids).SendAsync();
+        var result = await client.Table("Shop", "pk").BatchGet().GetAll(ids).SendAsync();
 
         // Assert
         await Assert.That(result.Items.Count(static item => item.GetString("pk") == "id-0")).IsEqualTo(2);
@@ -432,7 +432,7 @@ public sealed class BatchGetCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await customers.BatchGet().Key(Customer.Keys.Of("a")).SendAsync());
+        var failure = await TestClient.CaptureAsync<DynamoDbMappingException>(async () => await customers.BatchGet().Get(Customer.Keys.Of("a")).SendAsync());
 
         // Assert
         await Assert.That(failure.EntityType).IsEqualTo(nameof(Customer));
@@ -449,7 +449,7 @@ public sealed class BatchGetCommandTests
         var customers = client.Table<Customer>("Shop");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Customer>>(async () => await customers.BatchGet().Key(Customer.Keys.Of("a")).Key(Customer.Keys.Of("b")).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Customer>>(async () => await customers.BatchGet().Get(Customer.Keys.Of("a")).Get(Customer.Keys.Of("b")).SendAsync());
 
         // Assert
         var unprocessed = string.Join(',', failure.UnprocessedKeys["Shop"].Keys.Select(static key => key["pk"].AsString()));
@@ -469,7 +469,7 @@ public sealed class BatchGetCommandTests
 
         // Act
         var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Customer>>(
-            async () => await customers.BatchGet().Key(Customer.Keys.Of("a")).Key(Customer.Keys.Of("b")).Key(Customer.Keys.Of("c")).SendAsync());
+            async () => await customers.BatchGet().Get(Customer.Keys.Of("a")).Get(Customer.Keys.Of("b")).Get(Customer.Keys.Of("c")).SendAsync());
 
         // Assert
         var unprocessed = string.Join(',', failure.UnprocessedKeys["Shop"].Keys.Select(static key => key["pk"].AsString()));
@@ -488,7 +488,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Keys(ids).SendAsync());
+        var failure = await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().GetAll(ids).SendAsync());
 
         // Assert
         var left = failure.UnprocessedKeys["Shop"].Keys;
@@ -538,7 +538,7 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
-    public async Task Key_EmptyKey_ThrowsAtTheCall()
+    public async Task Get_EmptyKey_ThrowsAtTheCall()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -546,14 +546,14 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.BatchGet().Key(string.Empty));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Get(string.Empty));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentException>();
     }
 
     [Test]
-    public async Task Key_NullKey_Throws()
+    public async Task Get_NullKey_Throws()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -561,14 +561,14 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.BatchGet().Key((TextKey)null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().Get((TextKey)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
     }
 
     [Test]
-    public async Task Keys_NullElement_NamesTheCollection()
+    public async Task GetAll_NullElement_NamesTheCollection()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -577,14 +577,14 @@ public sealed class BatchGetCommandTests
         var keys = new TextKey[] { null! };
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.BatchGet().Keys(keys));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().GetAll(keys));
 
         // Assert
         await Assert.That((failure as ArgumentNullException)?.ParamName).IsEqualTo("keys");
     }
 
     [Test]
-    public async Task Keys_Null_Throws()
+    public async Task GetAll_Null_Throws()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -592,7 +592,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.BatchGet().Keys((IEnumerable<TextKey>)null!));
+        var failure = TestClient.Catch(() => _ = shop.BatchGet().GetAll((IEnumerable<TextKey>)null!));
 
         // Assert
         await Assert.That(failure).IsTypeOf<ArgumentNullException>();
@@ -640,7 +640,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Key("a").MaxStalledRounds(1).SendAsync());
+        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Get("a").MaxStalledRounds(1).SendAsync());
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(1);
@@ -656,7 +656,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Key("a").MaxStalledRounds(Rounds).SendAsync());
+        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Get("a").MaxStalledRounds(Rounds).SendAsync());
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(Rounds);
@@ -671,7 +671,7 @@ public sealed class BatchGetCommandTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Key("a").MaxAttempts(1).SendAsync());
+        await TestClient.CaptureAsync<BatchGetIncompleteException<Item>>(async () => await shop.BatchGet().Get("a").MaxAttempts(1).SendAsync());
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(BatchDriver.MaxStalledRounds);
@@ -686,7 +686,7 @@ public sealed class BatchGetCommandTests
         var ids = Enumerable.Range(0, 101).Select(static i => new TextKey("id-" + i));
 
         // Act
-        var json = client.Table("Shop", "pk").BatchGet().Keys(ids).ToRequestJson();
+        var json = client.Table("Shop", "pk").BatchGet().GetAll(ids).ToRequestJson();
 
         // Assert
         await Assert.That(JsonElement.Parse(json).GetProperty("RequestItems").GetProperty("Shop").GetProperty("Keys").GetArrayLength()).IsEqualTo(100);
@@ -726,14 +726,14 @@ public sealed class BatchGetCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        var text = client.Table("Shop", "pk").BatchGet().Key("a").DebuggerText;
+        var text = client.Table("Shop", "pk").BatchGet().Get("a").DebuggerText;
 
         // Assert
         await Assert.That(text).IsEqualTo("""BatchGetItem on Shop: {"pk":{"S":"a"}}""");
     }
 
     private static Task<BatchGetResult<Item>> Send(Table<Item> table, CancellationToken cancellationToken) =>
-        table.BatchGet().Key("a").SendAsync(cancellationToken).AsTask();
+        table.BatchGet().Get("a").SendAsync(cancellationToken).AsTask();
 
     // A key of an untyped table, which a caller writes by hand; a class, so that it can be null.
     private sealed class TextKey(string partitionKey) : IKey<Item>

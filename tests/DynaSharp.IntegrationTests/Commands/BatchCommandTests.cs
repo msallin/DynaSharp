@@ -17,7 +17,7 @@ public sealed class BatchCommandTests(Backend backend)
 
         // Act
         var result = await Puts(sandbox.Shop, 60).SendAsync();
-        var stored = await sandbox.Shop.BatchGet().Keys(Keys(60)).Consistent().SendAsync();
+        var stored = await sandbox.Shop.BatchGet().GetAll(Keys(60)).Consistent().SendAsync();
 
         // Assert
         await Assert.That((result.Written, result.Requests, stored.Items.Count)).IsEqualTo((60, 3, 60));
@@ -73,7 +73,7 @@ public sealed class BatchCommandTests(Backend backend)
         // Act
         var written = await profiles.BatchWrite().PutAll(names.Select(static name => new Profile(name, name))).SendAsync();
         var deleted = await profiles.BatchWrite().DeleteAll(names.Skip(1).Select(Profile.Keys.Of)).SendAsync();
-        var left = await profiles.BatchGet().Keys(names.Select(Profile.Keys.Of)).Consistent().SendAsync();
+        var left = await profiles.BatchGet().GetAll(names.Select(Profile.Keys.Of)).Consistent().SendAsync();
 
         // Assert
         await Assert.That((written.Written, deleted.Written, left.Items.Single().FullName)).IsEqualTo((30, 29, "user-0"));
@@ -129,7 +129,7 @@ public sealed class BatchCommandTests(Backend backend)
         await Puts(sandbox.Shop, 250).SendAsync();
 
         // Act
-        var result = await sandbox.Shop.BatchGet().Keys(Keys(250)).Consistent().ReturnCapacity().SendAsync();
+        var result = await sandbox.Shop.BatchGet().GetAll(Keys(250)).Consistent().ReturnCapacity().SendAsync();
 
         // Assert
         await Assert.That((result.Items.Count, result.Requests, result.ConsumedCapacity.Count, result.Items.Select(static item => item.GetNumber<int>("v")).Distinct().Count())).IsEqualTo((250, 3, 3, 250));
@@ -143,7 +143,7 @@ public sealed class BatchCommandTests(Backend backend)
         await sandbox.Shop.Put(new Item { ["pk"] = "a", ["sk"] = "s" }).SendAsync();
 
         // Act
-        var result = await sandbox.Shop.BatchGet().Key("a", "s").Key("missing", "s").Consistent().SendAsync();
+        var result = await sandbox.Shop.BatchGet().Get("a", "s").Get("missing", "s").Consistent().SendAsync();
 
         // Assert
         await Assert.That(result.Items.Single().GetString("pk")).IsEqualTo("a");
@@ -158,7 +158,7 @@ public sealed class BatchCommandTests(Backend backend)
         await profiles.BatchWrite().Put(new Profile("alice", "Alice", 1)).Put(new Profile("bob", "Bob", 2)).SendAsync();
 
         // Act
-        var result = await profiles.BatchGet().Key(Profile.Keys.Of("alice")).Keys([Profile.Keys.Of("bob")]).Consistent().SendAsync();
+        var result = await profiles.BatchGet().Get(Profile.Keys.Of("alice")).GetAll([Profile.Keys.Of("bob")]).Consistent().SendAsync();
 
         // Assert
         await Assert.That(result.Items.OrderBy(static profile => profile.Id, StringComparer.Ordinal)).IsEquivalentTo([new Profile("alice", "Alice", 1), new Profile("bob", "Bob", 2)], TUnit.Assertions.Enums.CollectionOrdering.Matching);
@@ -172,7 +172,7 @@ public sealed class BatchCommandTests(Backend backend)
         await sandbox.Shop.Put(new Item { ["pk"] = "a", ["sk"] = "s", ["status"] = "open", ["other"] = "dropped" }).SendAsync();
 
         // Act
-        var result = await sandbox.Shop.BatchGet().Key("a", "s").Consistent().Project("pk", "status").SendAsync();
+        var result = await sandbox.Shop.BatchGet().Get("a", "s").Consistent().Project("pk", "status").SendAsync();
 
         // Assert
         await Assert.That(result.Items.Single().Keys.Order(StringComparer.Ordinal)).IsEquivalentTo(["pk", "status"]);
@@ -185,7 +185,7 @@ public sealed class BatchCommandTests(Backend backend)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
 
         // Act
-        var failure = await Items.FailureOfAsync<ValidationException>(async () => await sandbox.Shop.BatchGet().Key("a", "s").Key("a", "s").SendAsync());
+        var failure = await Items.FailureOfAsync<ValidationException>(async () => await sandbox.Shop.BatchGet().Get("a", "s").Get("a", "s").SendAsync());
 
         // Assert
         await Assert.That(failure.Message).Contains("duplicates", StringComparison.Ordinal);
@@ -198,7 +198,7 @@ public sealed class BatchCommandTests(Backend backend)
         await using var sandbox = await CommandSandbox.StartAsync(backend);
 
         // Act
-        var failure = await Items.FailureOfAsync<ValidationException>(async () => await sandbox.Shop.BatchGet().Key("a", "s").Project("a", "a.b").SendAsync());
+        var failure = await Items.FailureOfAsync<ValidationException>(async () => await sandbox.Shop.BatchGet().Get("a", "s").Project("a", "a.b").SendAsync());
 
         // Assert
         await Assert.That(failure.ExpressionNames!.Values).Contains("a");
@@ -217,7 +217,7 @@ public sealed class BatchCommandTests(Backend backend)
         await BigPuts(sandbox.Shop, Count, big).SendAsync();
 
         // Act
-        var result = await sandbox.Shop.BatchGet().Keys(Keys(Count)).Consistent().SendAsync();
+        var result = await sandbox.Shop.BatchGet().GetAll(Keys(Count)).Consistent().SendAsync();
 
         // Assert
         await Assert.That((result.Items.Count, result.Requests >= 2, result.Items.Select(static item => item.GetString("pk")).Distinct().Count())).IsEqualTo((Count, true, Count));

@@ -246,7 +246,7 @@ public sealed class RejectedRequestTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await shop.BatchGet().Key("a").Project("status").SendAsync());
+        var failure = await TestClient.CaptureAsync<ValidationException>(async () => await shop.BatchGet().Get("a").Project("status").SendAsync());
 
         // Assert
         await Assert.That((failure.Expressions!["RequestItems.Shop.ProjectionExpression"], failure.ExpressionNames!["RequestItems.Shop.#n0"])).IsEqualTo(("#n0", "status"));

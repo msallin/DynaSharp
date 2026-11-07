@@ -84,15 +84,15 @@ public sealed partial class CommandVectorTests
         [("Scan", "SegmentBounds")] = client => client.Table("Users", "pk").Scan().Segment(999999, of: 1000000).ToRequestJson(),
         [("Scan", "LimitIntMax")] = client => client.Table("Users", "pk").Scan().Limit(int.MaxValue).ToRequestJson(),
         [("Scan", "SecondaryIndex")] = client => client.Table("Orders", "pk").Index("ByStatus", "pk", "status").Scan().Consistent().ToRequestJson(),
-        [("BatchGetItem", "Minimal")] = client => client.Table("Users", "pk").BatchGet().Key("user-1").ToRequestJson(),
-        [("BatchGetItem", "TableArnAsKey")] = client => client.Table(OperationVectors.TableArn, "pk").BatchGet().Key("user-1").ReturnCapacity().ToRequestJson(),
+        [("BatchGetItem", "Minimal")] = client => client.Table("Users", "pk").BatchGet().Get("user-1").ToRequestJson(),
+        [("BatchGetItem", "TableArnAsKey")] = client => client.Table(OperationVectors.TableArn, "pk").BatchGet().Get("user-1").ReturnCapacity().ToRequestJson(),
         [("BatchGetItem", "BinaryAndNumberKeys")] = client => client.Table("Blobs", "pk", "sk").BatchGet()
-            .Key(new byte[] { 0, 255, 107, 101, 121 }, AttributeValue.FromNumber("-42.5"))
-            .Key(new byte[] { 1 }, AttributeValue.FromNumber("1E+3"))
+            .Get(new byte[] { 0, 255, 107, 101, 121 }, AttributeValue.FromNumber("-42.5"))
+            .Get(new byte[] { 1 }, AttributeValue.FromNumber("1E+3"))
             .ToRequestJson(),
         [("BatchGetItem", "HundredKeys")] = client => Numbered(client.Table("Users", "pk", "sk").BatchGet(), 100).ToRequestJson(),
         [("BatchGetItem", "SpecialCharacters")] = client => client.Table(OperationVectors.SpecialText, OperationVectors.SpecialText).BatchGet()
-            .Key(OperationVectors.SpecialText)
+            .Get(OperationVectors.SpecialText)
             .Project(EscapedPath)
             .ToRequestJson(),
         [("BatchWriteItem", "Minimal")] = client => client.Table("Users", "pk").BatchWrite().Put(new Item { ["pk"] = "user-1" }).ToRequestJson(),
@@ -339,7 +339,7 @@ public sealed partial class CommandVectorTests
         for (var i = 0; i < count; i++)
         {
             var key = OperationVectors.NumberedKey(i);
-            command = command.Key(key["pk"], key["sk"]);
+            command = command.Get(key["pk"], key["sk"]);
         }
 
         return command;

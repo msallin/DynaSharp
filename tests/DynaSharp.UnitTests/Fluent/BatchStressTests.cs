@@ -186,7 +186,7 @@ public sealed class BatchStressTests
         private async Task ReadAsync(string marker)
         {
             var keys = Enumerable.Range(0, 120).Select(i => new TextKey(marker + i));
-            var result = await _shop.BatchGet().Keys(keys).Consistent().Project("pk").SendAsync();
+            var result = await _shop.BatchGet().GetAll(keys).Consistent().Project("pk").SendAsync();
             Check(result.Items.Count.ToString(CultureInfo.InvariantCulture), "120");
             foreach (var item in result.Items)
             {

@@ -308,7 +308,7 @@ public static class TableExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
-    public static BatchGetCommand<Item> Key(this BatchGetCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
+    public static BatchGetCommand<Item> Get(this BatchGetCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         var state = command.Enter();
         var table = state.Table;

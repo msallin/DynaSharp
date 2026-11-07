@@ -420,7 +420,7 @@ public partial class TableBenchmarks
         var command = _batchGetTable.BatchGet();
         for (var i = 0; i < BatchGetKeys; i++)
         {
-            command = command.Key("BATCH", BatchKeys[i]);
+            command = command.Get("BATCH", BatchKeys[i]);
         }
 
         return (await command).Items.Count;
@@ -433,7 +433,7 @@ public partial class TableBenchmarks
         var command = _batchGetTyped.BatchGet();
         for (var i = 0; i < BatchGetKeys; i++)
         {
-            command = command.Key(new BenchOrder.Key("BATCH", BatchKeys[i]));
+            command = command.Get(new BenchOrder.Key("BATCH", BatchKeys[i]));
         }
 
         return (await command).Items.Count;

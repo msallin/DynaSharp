@@ -87,7 +87,7 @@ Output.Say($"XX-99 found: {unknown.Found}");
 
 // A batch get cuts the keys into requests of 100. Items come back in no order, and a key without an item contributes nothing.
 string[] basket = ["MS-02", "LP-04", "XX-99"];
-var found = await products.BatchGet().Keys(basket.Select(Product.Keys.Of)).SendAsync(ct);
+var found = await products.BatchGet().GetAll(basket.Select(Product.Keys.Of)).SendAsync(ct);
 Output.Say($"Of {basket.Length} keys, {found.Items.Count} exist: {string.Join(", ", found.Items.Select(product => product.Name).Order(StringComparer.Ordinal))}");
 
 // ------------------------------------------------------------------------------------------------------------------------

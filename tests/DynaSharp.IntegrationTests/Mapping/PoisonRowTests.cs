@@ -58,7 +58,7 @@ public sealed class PoisonRowTests(Backend backend)
         var invoices = sandbox.Shop.Of<TenantInvoice>();
 
         // Act
-        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await invoices.BatchGet().Key(TenantInvoice.Keys.Of("acme", "2026-09", 1)).Key(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Consistent().SendAsync());
+        var failure = await Assert.ThrowsAsync<DynamoDbMappingException>(async () => await invoices.BatchGet().Get(TenantInvoice.Keys.Of("acme", "2026-09", 1)).Get(TenantInvoice.Keys.Of("acme", "2026-09", 2)).Consistent().SendAsync());
 
         // Assert
         await Assert.That(failure!.Key).IsEqualTo(PoisonKey);

@@ -1,4 +1,6 @@
 #nullable enable
+DynaSharp.BatchGetCommand<T>.Get<TKey>(TKey key) -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetCommand<T>.GetAll<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchGetCommand<T>
 DynaSharp.IMixed<TSelf>
 DynaSharp.MixedQueryCommand<TMixed>
 DynaSharp.MixedQueryCommand<TMixed>.Consistent() -> DynaSharp.MixedQueryCommand<TMixed>
@@ -44,6 +46,9 @@ static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.QueryCommand<DynaShar
 static DynaSharp.MixedExtensions.Of<T1, T2>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<DynaSharp.Mixed<T1, T2>>
 static DynaSharp.MixedQueryCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedQueryCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
 static DynaSharp.MixedScanCommand<TMixed>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<TMixed> command) -> DynaSharp.Expressions.CommandHandle
+static DynaSharp.TableExtensions.Get(this DynaSharp.BatchGetCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<DynaSharp.Item!>
+*REMOVED*DynaSharp.BatchGetCommand<T>.Key<TKey>(TKey key) -> DynaSharp.BatchGetCommand<T>
+*REMOVED*DynaSharp.BatchGetCommand<T>.Keys<TKey>(System.Collections.Generic.IEnumerable<TKey>! keys) -> DynaSharp.BatchGetCommand<T>
 *REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
 *REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Consistent() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
 *REMOVED*DynaSharp.MixedQueryCommand<T1, T2, T3, T4>.Descending() -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
@@ -149,6 +154,7 @@ static DynaSharp.MixedScanCommand<TMixed>.implicit operator DynaSharp.Expression
 *REMOVED*DynaSharp.MixedScanCommand<T1, T2>.ReturnCapacity(DynaSharp.ReturnConsumedCapacity detail = DynaSharp.ReturnConsumedCapacity.Total) -> DynaSharp.MixedScanCommand<T1, T2>
 *REMOVED*DynaSharp.MixedScanCommand<T1, T2>.Segment(int segment, int of) -> DynaSharp.MixedScanCommand<T1, T2>
 *REMOVED*DynaSharp.MixedScanCommand<T1, T2>.ToRequestJson() -> string!
+*REMOVED*DynaSharp.Table<T>.DescribeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
 *REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3, T4>
 *REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3, T4>(this DynaSharp.ScanCommand<DynaSharp.Item!> command) -> DynaSharp.MixedScanCommand<T1, T2, T3, T4>
 *REMOVED*static DynaSharp.MixedExtensions.Of<T1, T2, T3>(this DynaSharp.QueryCommand<DynaSharp.Item!> command) -> DynaSharp.MixedQueryCommand<T1, T2, T3>
@@ -161,4 +167,4 @@ static DynaSharp.MixedScanCommand<TMixed>.implicit operator DynaSharp.Expression
 *REMOVED*static DynaSharp.MixedScanCommand<T1, T2, T3, T4>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3, T4> command) -> DynaSharp.Expressions.CommandHandle
 *REMOVED*static DynaSharp.MixedScanCommand<T1, T2, T3>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2, T3> command) -> DynaSharp.Expressions.CommandHandle
 *REMOVED*static DynaSharp.MixedScanCommand<T1, T2>.implicit operator DynaSharp.Expressions.CommandHandle(DynaSharp.MixedScanCommand<T1, T2> command) -> DynaSharp.Expressions.CommandHandle
-*REMOVED*DynaSharp.Table<T>.DescribeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<DynaSharp.Requests.TableDescription!>
+*REMOVED*static DynaSharp.TableExtensions.Key(this DynaSharp.BatchGetCommand<DynaSharp.Item!> command, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey = default(DynaSharp.AttributeValue)) -> DynaSharp.BatchGetCommand<DynaSharp.Item!>

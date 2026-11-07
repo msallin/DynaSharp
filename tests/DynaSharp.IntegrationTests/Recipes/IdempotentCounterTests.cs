@@ -73,7 +73,7 @@ public sealed class IdempotentCounterTests(Backend backend)
 
         // Act
         await CountAsync(tallies, tomorrow, "request-2");
-        var windows = await tallies.BatchGet().Keys([DailyTally.Keys.Of(Signups, Today), DailyTally.Keys.Of(Signups, tomorrow)]).SendAsync();
+        var windows = await tallies.BatchGet().GetAll([DailyTally.Keys.Of(Signups, Today), DailyTally.Keys.Of(Signups, tomorrow)]).SendAsync();
 
         // Assert
         await Assert.That((windows.Items.Sum(static tally => tally.Count), windows.Items.Max(static tally => tally.Seen.Count))).IsEqualTo((2L, 1));

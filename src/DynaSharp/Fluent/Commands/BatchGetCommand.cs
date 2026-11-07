@@ -61,7 +61,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <param name="key">The key.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
-    public BatchGetCommand<T> Key<TKey>(TKey key)
+    public BatchGetCommand<T> Get<TKey>(TKey key)
         where TKey : IKey<T>
     {
         var state = Enter();
@@ -74,7 +74,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <param name="keys">The keys.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="keys"/> or one of them is <see langword="null"/>.</exception>
-    public BatchGetCommand<T> Keys<TKey>(IEnumerable<TKey> keys)
+    public BatchGetCommand<T> GetAll<TKey>(IEnumerable<TKey> keys)
         where TKey : IKey<T>
     {
         ArgumentNullException.ThrowIfNull(keys);

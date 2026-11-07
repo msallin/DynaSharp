@@ -240,7 +240,7 @@ Check(written.Written == 4 && written.Requests == 2, "BatchWrite sends what come
 
 commandHandler.Enqueue(StubResponse.Json("""{"Responses":{"Users":[{"pk":{"S":"v-1"},"visits":{"N":"1"}}]},"UnprocessedKeys":{"Users":{"Keys":[{"pk":{"S":"v-2"}}]}}}"""));
 commandHandler.Enqueue(StubResponse.Json("""{"Responses":{"Users":[{"pk":{"S":"v-2"},"visits":{"N":"2"}}]}}"""));
-var found = await visitors.BatchGet().Key(new Visitor.Key("v-1")).Keys([new Visitor.Key("v-2")]).Consistent().SendAsync();
+var found = await visitors.BatchGet().Get(new Visitor.Key("v-1")).GetAll([new Visitor.Key("v-2")]).Consistent().SendAsync();
 Check(found.Items.Count == 2 && found.Items.Contains(new Visitor("v-2", 2)), "BatchGet reads the entities of every round");
 
 commandHandler.DefaultResponse = StubResponse.Json("""{"UnprocessedItems":{"Users":[{"DeleteRequest":{"Key":{"pk":{"S":"v-1"}}}}]}}""");

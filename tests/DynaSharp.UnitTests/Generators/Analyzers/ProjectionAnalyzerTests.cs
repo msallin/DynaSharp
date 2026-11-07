@@ -410,7 +410,7 @@ public sealed class ProjectionAnalyzerTests
     }
 
     [Test]
-    [Arguments("""_ = orders.BatchGet().Key(key).[|Project|]("sum").SendAsync();""", "Status", "Order")]
+    [Arguments("""_ = orders.BatchGet().Get(key).[|Project|]("sum").SendAsync();""", "Status", "Order")]
     [Arguments("""_ = orders.Query([Order.Keys.Pk.Of("a"), Order.Keys.Pk.Of("b")]).[|Project|]("sum").ItemsAsync();""", "Status", "Order")]
     [Arguments("""_ = shop.Query("a").Of<Device, Parcel>().[|Project|]("Vendor").ItemsAsync();""", "Carrier", "Parcel")]
     [Arguments("""_ = shop.Scan().Of<Parcel, Device>().[|Project|]("Vendor").ItemsAsync();""", "Carrier", "Parcel")]
@@ -446,7 +446,7 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project(Order.Attrs.Status, Order.Attrs.PlacedAt, Order.Attrs.Total).ItemsAsync();""")]
     [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("a")).Project("Status").Project(Order.Attrs.PlacedAt).Project("sum").ItemsAsync();""")]
     [Arguments("""_ = orders.Get(key).Project("Status", "PlacedAt", "sum").ItemAsync();""")]
-    [Arguments("""_ = orders.BatchGet().Key(key).Project("Status", "PlacedAt", "sum").SendAsync();""")]
+    [Arguments("""_ = orders.BatchGet().Get(key).Project("Status", "PlacedAt", "sum").SendAsync();""")]
     [Arguments("""_ = orders.Query([Order.Keys.Pk.Of("a")]).Project("Status", "PlacedAt", "sum").ItemsAsync();""")]
 
     // A nested path keeps the member at its top.

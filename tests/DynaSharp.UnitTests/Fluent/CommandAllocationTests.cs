@@ -941,7 +941,7 @@ public sealed class CommandAllocationTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
-        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(table.BatchGet().Key(PartitionKey, SortKey).Key(PartitionKey, "other").Consistent().Project("a", "b").Handle));
+        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(table.BatchGet().Get(PartitionKey, SortKey).Get(PartitionKey, "other").Consistent().Project("a", "b").Handle));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);

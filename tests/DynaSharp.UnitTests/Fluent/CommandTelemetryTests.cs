@@ -505,7 +505,7 @@ public sealed class CommandTelemetryTests
 
         // Act
         var request = await RunAsync(handler, client => client.BatchGetItemAsync(new BatchGetItemRequest { RequestItems = items }));
-        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").BatchGet().Key("a").SendAsync());
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").BatchGet().Get("a").SendAsync());
 
         // Assert
         await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
@@ -613,7 +613,7 @@ public sealed class CommandTelemetryTests
 
         // Act
         var write = await RunAsync(handler, async client => await client.Table("Users", "pk").BatchWrite().Put(new Item { ["pk"] = "key-secret", ["n"] = "value-secret" }).Delete("key-secret-2").SendAsync());
-        var get = await RunAsync(handler, async client => await client.Table("Users", "pk").BatchGet().Key("key-secret").SendAsync());
+        var get = await RunAsync(handler, async client => await client.Table("Users", "pk").BatchGet().Get("key-secret").SendAsync());
         var transaction = await RunAsync(handler, async client => await client.TransactWrite().Update(client.Table("Users", "pk"), "key-secret").Set("n", "value-secret").SendAsync());
 
         // Assert

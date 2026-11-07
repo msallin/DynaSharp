@@ -502,7 +502,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
                 "Get" or "Update" or "Delete" when tableArgument || SymbolEqualityComparer.Default.Equals(definition, Table) => KeyShape.Item,
                 "Check" when tableArgument => KeyShape.Item,
                 "Query" when !tableArgument && (SymbolEqualityComparer.Default.Equals(definition, Table) || SymbolEqualityComparer.Default.Equals(definition, Index)) => KeyShape.Partition,
-                "Key" when SymbolEqualityComparer.Default.Equals(definition, BatchGet) => KeyShape.Item,
+                "Get" when SymbolEqualityComparer.Default.Equals(definition, BatchGet) => KeyShape.Item,
                 "Delete" when SymbolEqualityComparer.Default.Equals(definition, BatchWrite) => KeyShape.Item,
                 _ => null,
             };
@@ -556,7 +556,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         public ITypeSymbol? TypeOf(ArgumentSyntax argument) => context.SemanticModel.GetTypeInfo(argument.Expression, context.CancellationToken).Type;
 
         // The argument whose parameter is the type parameter or its nullable form, else the first whose parameter holds it: the key of Get<TKey>(TKey key), the value of
-        // Set(handle, TValue? value), the keys of Keys<TKey>(IEnumerable<TKey> keys).
+        // Set(handle, TValue? value), the keys of GetAll<TKey>(IEnumerable<TKey> keys).
         public ArgumentSyntax ArgumentOf(ITypeParameterSymbol parameter) =>
             Arguments.Where(pair => Is(Underlying(pair.Parameter.Type), parameter)).Concat(Arguments.Where(pair => Mentions(pair.Parameter.Type, parameter))).First().Argument;
 

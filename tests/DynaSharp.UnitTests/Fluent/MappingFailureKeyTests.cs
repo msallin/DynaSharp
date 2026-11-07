@@ -118,7 +118,7 @@ public sealed class MappingFailureKeyTests
         handler.Enqueue(StubResponse.Json("""{"Responses":{"Billing":[""" + Poison + "]}}"));
 
         // Act
-        var failure = await Assert.ThrowsAsync<BatchGetIncompleteException<TenantInvoice>>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Key(TenantInvoice.Keys.Of("acme", "2026-09", 1)).Key(TenantInvoice.Keys.Of("acme", "2026-09", 2)).SendAsync());
+        var failure = await Assert.ThrowsAsync<BatchGetIncompleteException<TenantInvoice>>(async () => await client.Table<TenantInvoice>("Billing").BatchGet().Get(TenantInvoice.Keys.Of("acme", "2026-09", 1)).Get(TenantInvoice.Keys.Of("acme", "2026-09", 2)).SendAsync());
 
         // Assert
         await Assert.That((failure!.Items.Count, ((DynamoDbMappingException)failure.InnerException!).Key)).IsEqualTo((1, PoisonKey));

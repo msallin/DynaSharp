@@ -128,9 +128,9 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""client.TransactWrite().Put(orders, new Order { Id = "a", Name = "b" }).Check(orders, [|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""TransactWriteExtensions.Delete(client.TransactWrite(), orders, [|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""client.TransactGet().Get(orders, [|Customer.Keys.Of("a")|], out _);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
-    [Arguments("""orders.BatchGet().Key([|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
+    [Arguments("""orders.BatchGet().Get([|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""orders.BatchWrite().Delete([|Customer.Keys.Of("a")|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
-    [Arguments("""orders.BatchGet().Keys([|new Customer.Keys.PrimaryKey[1]|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
+    [Arguments("""orders.BatchGet().GetAll([|new Customer.Keys.PrimaryKey[1]|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     [Arguments("""orders.BatchWrite().DeleteAll([|new List<Customer.Keys.PrimaryKey>()|]);""", "'Customer.Keys.PrimaryKey' is a key of 'Customer', and this table holds 'Order'. Use a key of Order.Keys.")]
     public async Task Analyze_KeyThatDoesNotFitTheTable_ReportsTheKey(string statement, string message)
     {
@@ -165,7 +165,7 @@ public sealed class TypeArgumentAnalyzerTests
     [Arguments("""client.TransactWrite().Put(orders, new Order { Id = "a", Name = "b" }).Check(orders, [|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
     [Arguments("""client.TransactWrite().Delete(client.Table<Ticket>("x"), [|"a", "b"|], out _);""", """'"a", "b"' is a key given as its stored values, and this table holds 'Ticket', so it takes only the keys of that entity, which apply its key template. Use Ticket.Keys.Of("a", "b").""")]
     [Arguments("""client.TransactGet().Get(orders, [|"a"|], out _);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
-    [Arguments("""orders.BatchGet().Key([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
+    [Arguments("""orders.BatchGet().Get([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
     [Arguments("""orders.BatchWrite().Delete([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
     [Arguments("""shop.BatchWrite().Delete(orders, [|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Order', so it takes only the keys of that entity, which apply its key template. Use Order.Keys.Of("a").""")]
     [Arguments("""client.Table<Hand>("x").Get([|"a"|]);""", """'"a"' is a key given as its stored values, and this table holds 'Hand', so it takes only the keys of that entity, which apply its key template. Pass a key that implements IKey<Hand>.""")]

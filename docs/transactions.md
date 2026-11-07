@@ -56,7 +56,7 @@ Customer? buyer = snapshot.Read(buyerSlot).Item;
 
 ```csharp
 var written = await products.BatchWrite().PutAll(catalog).SendAsync(ct);
-var found = await products.BatchGet().Keys(skus.Select(Product.Keys.Of)).SendAsync(ct);
+var found = await products.BatchGet().GetAll(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
 `written` is a `BatchWriteResult` with `Written`, `Requests` and `ConsumedCapacity`. Getting it means every write was applied, and what cannot be written ends in a `BatchIncompleteException`.

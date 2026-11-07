@@ -87,7 +87,7 @@ internal sealed class SubscriberDirectory(DynamoDbClient client)
         var read = _subscribers.BatchGet();
         foreach (var id in ids)
         {
-            read = read.Key(new SubscriberKey(id));
+            read = read.Get(new SubscriberKey(id));
         }
 
         return (await read.SendAsync()).Items;
