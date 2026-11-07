@@ -581,9 +581,11 @@ internal sealed class ExpressionParser
     }
 
     // A word in the place of a name: status in status = :v and in a.status = :v. DynamoDB rejects a reserved one wherever it stands, and only the first name of a path is an attribute of the item.
+    // The function name size is the exception: DynamoDB takes it as a name where no parenthesis follows, while Size and SIZE stay reserved.
     private void NoteName(ExpressionToken token, bool isRoot)
     {
-        if (ReservedWords.Contains(_parts[token.Part].Text, token.Start, token.Length))
+        var text = _parts[token.Part].Text;
+        if (ReservedWords.Contains(text, token.Start, token.Length) && !(token.Length == 4 && string.CompareOrdinal(text, token.Start, "size", 0, 4) == 0))
         {
             _problems.Add(new ExpressionProblem(ExpressionProblemKind.ReservedWord, token.Part, token.Start, token.Length, TextOf(token)));
         }

@@ -376,4 +376,4 @@ In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text
 `DYNA220` (warning): a DynamoDB reserved word as a bare name in an expression's text, such as `orders.Scan().Filter($"Total > {100}")`, where `total` is reserved. DynamoDB rejects the request with a `ValidationException`, in any case of the word and at any depth of a path, so `info.year` fails too. AWS's list has 573 words, among them `name`, `status`, `value`, `data`, `count`, `type`, `key`, `user`, `order` and `ttl`: [Reserved words in DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html).
 
 - **Fix.** Write the name as a hole, `{Attr("total")}` or a handle such as `{Order.Attrs.Total}`, which DynaSharp sends as a `#name` placeholder. Your own `#name` in the text is `DYNA211`.
-- **Not reported.** A reserved word as a function, `size(...)`, or as a grammar keyword, which is no name.
+- **Not reported.** A reserved word as a function, `size(...)`, or as a grammar keyword, which is no name. A bare `size` in lower case, which DynamoDB takes as a name (`size = {1}`, `REMOVE size`); `Size` and `SIZE` are reported.
