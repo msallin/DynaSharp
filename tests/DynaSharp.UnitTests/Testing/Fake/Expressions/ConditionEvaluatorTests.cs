@@ -23,7 +23,7 @@ public sealed class ConditionEvaluatorTests
          ":b123":{"B":"AQID"},":b12":{"B":"AQI="},":b23":{"B":"AgM="},":b2":{"B":"Ag=="},":b13":{"B":"AQM="},
          ":t":{"BOOL":true},":f":{"BOOL":false},":l":{"L":[{"S":"x"},{"N":"1.00"}]},":l2":{"L":[{"N":"1"},{"S":"x"}]},
          ":S":{"S":"S"},":N":{"S":"N"},":B":{"S":"B"},":BOOL":{"S":"BOOL"},":NULL":{"S":"NULL"},":L":{"S":"L"},":M":{"S":"M"},
-         ":SS":{"S":"SS"},":NS":{"S":"NS"},":BS":{"S":"BS"}}
+         ":SS":{"S":"SS"},":NS":{"S":"NS"},":BS":{"S":"BS"},":ssba":{"SS":["b","a"]}}
         """;
 
     [Test]
@@ -42,7 +42,7 @@ public sealed class ConditionEvaluatorTests
     [Arguments("l = :l2", false)]
     [Arguments("t = :t", true)]
     [Arguments("t = :f", false)]
-    [Arguments("ss = ss", true)]
+    [Arguments("ss = :ssba", true)]
     [Arguments(":abc = :abc", true)]
     [Arguments("n < :twenty", true)]
     [Arguments("n < :five", false)]

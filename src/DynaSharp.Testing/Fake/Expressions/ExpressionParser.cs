@@ -257,6 +257,7 @@ internal sealed class ExpressionParser
         {
             var comparator = ComparatorOf(keyword);
             var right = ParseOperandInParentheses();
+            ThrowIfRepeated(keyword, operand, [right]);
             if (comparator is not (Comparator.Equal or Comparator.NotEqual))
             {
                 // An order holds between strings, numbers and binaries only; DynamoDB Local rejects s < :l with a list before the item (Vectors/conditions.json).
@@ -280,6 +281,7 @@ internal sealed class ExpressionParser
 
         Advance();
         var upper = ParseOperandInParentheses();
+        ThrowIfRepeated("BETWEEN", operand, [lower, upper]);
         if (lower.ConstantValue is { } low && upper.ConstantValue is { } high)
         {
             var bounds = $"lower bound operand: AttributeValue: {Show(low)}, upper bound operand: AttributeValue: {Show(high)}";
@@ -312,6 +314,8 @@ internal sealed class ExpressionParser
         {
             throw FakeError.Validation($"Invalid {_member}: The IN operator is provided with too many operands; number of operands: {candidates.Count}");
         }
+
+        ThrowIfRepeated("IN", operand, candidates);
 
         return new ConditionNode.In(operand, candidates);
     }
@@ -378,12 +382,9 @@ internal sealed class ExpressionParser
             throw FakeError.Validation($"Invalid {_member}: Incorrect number of operands for operator or function; operator or function: {name}, number of operands: {operands.Count}");
         }
 
-        if (shape == FunctionShape.Contains
-            && operands[0] is Operand.Attribute { Path: var first }
-            && operands[1] is Operand.Attribute { Path: var second }
-            && first.ToString() == second.ToString())
+        if (shape is FunctionShape.Contains or FunctionShape.BeginsWith)
         {
-            throw FakeError.Validation($"Invalid {_member}: The first operand must be distinct from the remaining operands for this operator or function; operator: contains, first operand: {first}");
+            ThrowIfRepeated(name, operands[0], [operands[1]]);
         }
 
         return shape switch
@@ -399,6 +400,17 @@ internal sealed class ExpressionParser
         };
 
         static Term Test(ConditionFunction kind, string name, params Operand[] operands) => Term.Test(new ConditionNode.Function(kind, name, operands));
+    }
+
+    // An operator or function whose first operand is a path may not take that path again, as in a = a, a BETWEEN a AND :v or begins_with(a, a); DynamoDB Local
+    // rejects them before it reads an item. Two placeholders that name one attribute are one path. A value placeholder twice, :v = :v, is allowed.
+    private void ThrowIfRepeated(string operation, Operand first, IReadOnlyList<Operand> others)
+    {
+        if (first is Operand.Attribute { Path: var path } && others.Any(other => other is Operand.Attribute { Path: var again } && again.ToString() == path.ToString()))
+        {
+            throw FakeError.Validation(
+                $"Invalid {_member}: The first operand must be distinct from the remaining operands for this operator or function; operator: {operation}, first operand: {path}");
+        }
     }
 
     private DocumentPath PathOf(Operand operand, string function) =>

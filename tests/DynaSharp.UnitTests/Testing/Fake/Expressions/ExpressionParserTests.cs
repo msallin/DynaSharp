@@ -138,6 +138,12 @@ public sealed class ExpressionParserTests
     [Arguments("((a = :v)) AND b = :v", "The expression has redundant parentheses;")]
     [Arguments("(((a = :v) AND b = :v))", "The expression has redundant parentheses;")]
     [Arguments("contains(a, a)", "The first operand must be distinct from the remaining operands for this operator or function; operator: contains, first operand: [a]")]
+    [Arguments("begins_with(a, a)", "The first operand must be distinct from the remaining operands for this operator or function; operator: begins_with, first operand: [a]")]
+    [Arguments("a = a", "The first operand must be distinct from the remaining operands for this operator or function; operator: =, first operand: [a]")]
+    [Arguments("a.b <> a.b", "The first operand must be distinct from the remaining operands for this operator or function; operator: <>, first operand: [a, b]")]
+    [Arguments("a >= (a)", "The first operand must be distinct from the remaining operands for this operator or function; operator: >=, first operand: [a]")]
+    [Arguments("a BETWEEN :n AND a", "The first operand must be distinct from the remaining operands for this operator or function; operator: BETWEEN, first operand: [a]")]
+    [Arguments("a IN (:v, b, a)", "The first operand must be distinct from the remaining operands for this operator or function; operator: IN, first operand: [a]")]
     public async Task ParseCondition_Rejected_ThrowsValidationWithTheMessage(string expression, string message)
     {
         // Arrange
