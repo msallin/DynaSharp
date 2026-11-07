@@ -543,8 +543,10 @@ internal sealed class ExpressionParser
             throw Syntax(_index);
         }
 
+        // The name of a function is no reserved word: real DynamoDB takes size as a name where no parenthesis follows (size = :v, REMOVE size, a projection size), and the
+        // documentation names Size as reserved (FidelityTests, run 42356511937).
         var word = Text(token);
-        if (ReservedWords.Contains(word))
+        if (ReservedWords.Contains(word) && !ExpressionTokenizer.ConditionFunctions.Contains(word))
         {
             throw FakeError.Validation($"Invalid {_member}: Attribute name is a reserved keyword; reserved keyword: {word}");
         }

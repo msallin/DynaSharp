@@ -28,17 +28,16 @@ public sealed class ExpressionParserTests
     }
 
     [Test]
-    public async Task ParseCondition_ConditionsDynamoDbLocalAccepts_ParseOrNameAReservedWord()
+    public async Task ParseCondition_ConditionsDynamoDbLocalAccepts_Parse()
     {
-        // Arrange (DynamoDB Local's grammar takes these; two name the reserved word size bare, which DynamoDB rejects)
+        // Arrange (DynamoDB Local's grammar takes these, and real DynamoDB takes a bare size as well)
         var expressions = ExpressionCorpus.AcceptedConditions;
 
         // Act
-        var refused = expressions.Select(static expression => (expression, Error: ConditionError(expression))).Where(static result => result.Error is not null).ToList();
+        var refused = expressions.Where(static expression => ConditionError(expression) is not null);
 
         // Assert
-        await Assert.That(refused.All(static result => result.Error!.Contains(ReservedKeyword, StringComparison.Ordinal))).IsTrue();
-        await Assert.That(refused.Select(static result => result.expression)).IsEquivalentTo(["a.size = :v", "size = :v"]);
+        await Assert.That(refused).IsEmpty();
     }
 
     [Test]
@@ -111,6 +110,8 @@ public sealed class ExpressionParserTests
     [Arguments(" \t\r\n", "The expression can not be empty;")]
     [Arguments("status = :v", ReservedKeyword + "; reserved keyword: status")]
     [Arguments("a.Name = :v", ReservedKeyword + "; reserved keyword: Name")]
+    [Arguments("Size = :v", ReservedKeyword + "; reserved keyword: Size")]
+    [Arguments("SIZE = :v", ReservedKeyword + "; reserved keyword: SIZE")]
     [Arguments("#missing = :v", "An expression attribute name used in the document path is not defined; attribute name: #missing")]
     [Arguments("a = :missing", "An expression attribute value used in expression is not defined; attribute value: :missing")]
     [Arguments("unknown(a)", "Invalid function name; function: unknown")]
@@ -209,6 +210,9 @@ public sealed class ExpressionParserTests
     [Arguments("a BETWEEN :n AND b")]
     [Arguments("attribute_type(a, b)")]
     [Arguments("begins_with(a, b)")]
+    [Arguments("size = :n")]
+    [Arguments("attribute_not_exists(size)")]
+    [Arguments("size(size) > :n")]
     public async Task ParseCondition_BoundsOrOperandsKnownOnlyOnTheItem_Parses(string expression)
     {
         // Arrange
@@ -349,6 +353,7 @@ public sealed class ExpressionParserTests
     [Arguments("SET a = :v, b = a")]
     [Arguments("REMOVE a[0], a[1]")]
     [Arguments("SET ab = :v, a = :v")]
+    [Arguments("REMOVE size")]
     public async Task ParseUpdate_PathsApart_Parses(string expression)
     {
         // Arrange
@@ -407,6 +412,19 @@ public sealed class ExpressionParserTests
 
         // Assert
         await Assert.That((projection.Text, string.Join(' ', projection.Paths))).IsEqualTo(("a.b[2], #d , c[0][1]", "[a, b, [2]] [data] [c, [0], [1]]"));
+    }
+
+    [Test]
+    public async Task ParseProjection_BareSize_IsAPath()
+    {
+        // Arrange
+        var scope = Scope();
+
+        // Act
+        var projection = FakeExpressions.ParseProjection("size", scope);
+
+        // Assert
+        await Assert.That(string.Join(' ', projection.Paths)).IsEqualTo("[size]");
     }
 
     private static string? ConditionError(string expression) => Error(() => FakeExpressions.ParseCondition(expression, ScopeFor(expression, """{"S":"S"}""")));
