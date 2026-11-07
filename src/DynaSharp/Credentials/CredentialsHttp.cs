@@ -10,13 +10,18 @@ namespace DynaSharp.Credentials;
 /// </summary>
 internal static class CredentialsHttp
 {
-    /// <summary>The attempts of <see cref="SendWithRetriesAsync"/>, as in the standard retry mode of botocore.</summary>
+    /// <summary>The attempts of <see cref="SendWithRetriesAsync(HttpClient, Func{HttpRequestMessage}, Func{Result, Verdict}, TimeSpan, TimeProvider)"/>, as in the standard retry mode of botocore.</summary>
     public const int MaxAttempts = 3;
+
+    /// <summary>
+    /// How long an attempt may take unless an endpoint says otherwise. 3 attempts and 2 pauses stay below the 30 seconds that a client gives an attempt by default, so that a client
+    /// reports why the fetch failed and not a timeout of its own.
+    /// </summary>
+    public static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(5);
 
     // Credentials documents are about 1.5 KB; anything near this size is not one.
     private const int MaxResponseBytes = 64 * 1024;
 
-    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
     // One client for all providers, as HttpClient is meant to be used. The endpoints are link-local or loopback addresses,
@@ -51,6 +56,19 @@ internal static class CredentialsHttp
         Failed,
     }
 
+    /// <summary>What <see cref="SendWithRetriesAsync(HttpClient, Func{HttpRequestMessage}, Func{Result, Verdict}, TimeSpan, TimeProvider)"/> does with the result of an attempt.</summary>
+    public enum Verdict
+    {
+        /// <summary>The result is the answer: it is returned.</summary>
+        Return,
+
+        /// <summary>The result is transient: another attempt follows after a pause, unless this was the last one, whose result is returned.</summary>
+        Retry,
+
+        /// <summary>The request is sent again at once, and the attempt does not count, such as a token that was replaced on disk since it was read. A judge says it once at most.</summary>
+        SendAgain,
+    }
+
     /// <summary>Returns the shared client, or a client over <paramref name="handler"/> (for tests) if there is one.</summary>
     /// <param name="handler">The handler to send through, or <see langword="null"/> for the shared client.</param>
     /// <returns>The client. Do not dispose it.</returns>
@@ -79,21 +97,38 @@ internal static class CredentialsHttp
     /// <param name="isTransient">Tells whether a result is worth another attempt.</param>
     /// <param name="timeProvider">The clock of the timeouts and the pauses.</param>
     /// <returns>The first result that is not transient, or the last one.</returns>
-    public static async Task<Result> SendWithRetriesAsync(HttpClient client, Func<HttpRequestMessage> createRequest, Func<Result, bool> isTransient, TimeProvider timeProvider)
+    public static Task<Result> SendWithRetriesAsync(HttpClient client, Func<HttpRequestMessage> createRequest, Func<Result, bool> isTransient, TimeProvider timeProvider) =>
+        SendWithRetriesAsync(client, createRequest, result => isTransient(result) ? Verdict.Retry : Verdict.Return, AttemptTimeout, timeProvider);
+
+    /// <summary>The one retry loop of the credential endpoints: sends a request until <paramref name="judge"/> returns it, at most <see cref="MaxAttempts"/> attempts, one second apart.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="createRequest">Creates the request of an attempt: a request can be sent once only, and a signed one carries the time of its signature.</param>
+    /// <param name="judge">Says what to do with a result. It sees every result once, in order, so it may keep what it parsed of the last one.</param>
+    /// <param name="attemptTimeout">How long an attempt may take.</param>
+    /// <param name="timeProvider">The clock of the timeouts and the pauses.</param>
+    /// <returns>The first result to return, or the last one.</returns>
+    public static async Task<Result> SendWithRetriesAsync(HttpClient client, Func<HttpRequestMessage> createRequest, Func<Result, Verdict> judge, TimeSpan attemptTimeout, TimeProvider timeProvider)
     {
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; ;)
         {
             Result result;
             using (var request = createRequest())
             {
-                result = await SendAsync(client, request, AttemptTimeout, timeProvider).ConfigureAwait(false);
+                result = await SendAsync(client, request, attemptTimeout, timeProvider).ConfigureAwait(false);
             }
 
-            if (attempt == MaxAttempts || !isTransient(result))
+            var verdict = judge(result);
+            if (verdict == Verdict.SendAgain)
+            {
+                continue;
+            }
+
+            if (attempt == MaxAttempts || verdict == Verdict.Return)
             {
                 return result;
             }
 
+            attempt++;
             await Task.Delay(RetryDelay, timeProvider).ConfigureAwait(false);
         }
     }

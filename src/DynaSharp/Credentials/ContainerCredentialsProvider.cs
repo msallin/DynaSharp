@@ -53,10 +53,8 @@ public sealed class ContainerCredentialsProvider : IRefreshableCredentialsProvid
     private const string TokenFileVariable = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE";
     private const string RelativeUriBase = "http://169.254.170.2";
     private const string SourceName = "container credentials endpoint";
-    private const int MaxAttempts = 3;
 
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
     private static readonly string[] AllowedHttpHosts = ["169.254.170.2", "169.254.170.23", "fd00:ec2::23", "localhost"];
 
     private readonly Func<string, string?> _getEnvironmentVariable;
@@ -223,33 +221,24 @@ public sealed class ContainerCredentialsProvider : IRefreshableCredentialsProvid
         var endpoint = ResolveEndpoint();
         var authorization = ReadAuthorizationToken();
 
-        var lastFailure = string.Empty;
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        CredentialsDocument document = default;
+        var parsed = false;
+        CredentialsHttp.Verdict Judge(CredentialsHttp.Result result)
         {
-            if (attempt > 1)
-            {
-                await Task.Delay(RetryDelay, _timeProvider).ConfigureAwait(false);
-            }
-
-            using var request = CreateRequest(endpoint, authorization);
-            var result = await CredentialsHttp.SendAsync(_http, request, AttemptTimeout, _timeProvider).ConfigureAwait(false);
-            if (!result.IsOk)
-            {
-                lastFailure = result.DescribeFailure();
-            }
-            else if (!CredentialsDocument.TryParse(result.Body, out var document))
-            {
-                lastFailure = "the response is not a JSON object";
-            }
-            else
-            {
-                return document.TryCreateCredentials(out var credentials) is { } problem
-                    ? throw new CredentialsUnavailableException($"The {SourceName} returned an unusable response: {problem}.")
-                    : credentials!;
-            }
+            parsed = result.IsOk && CredentialsDocument.TryParse(result.Body, out document);
+            return parsed ? CredentialsHttp.Verdict.Return : CredentialsHttp.Verdict.Retry;
         }
 
+        var last = await CredentialsHttp.SendWithRetriesAsync(_http, () => CreateRequest(endpoint, authorization), Judge, AttemptTimeout, _timeProvider).ConfigureAwait(false);
+        if (parsed)
+        {
+            return document.TryCreateCredentials(out var credentials) is { } problem
+                ? throw new CredentialsUnavailableException($"The {SourceName} returned an unusable response: {problem}.")
+                : credentials!;
+        }
+
+        var lastFailure = last.IsOk ? "the response is not a JSON object" : last.DescribeFailure();
         throw new CredentialsUnavailableException(
-            $"The {SourceName} at {endpoint.DnsSafeHost} did not return credentials in {MaxAttempts} attempts. The last attempt: {lastFailure}.");
+            $"The {SourceName} at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.");
     }
 }

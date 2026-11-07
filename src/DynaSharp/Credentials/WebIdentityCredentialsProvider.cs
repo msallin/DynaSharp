@@ -76,18 +76,12 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private const string SessionNameVariable = "AWS_ROLE_SESSION_NAME";
     private const string SourceName = "web identity token file";
     private const string FormContentType = "application/x-www-form-urlencoded";
-    private const int MaxAttempts = 3;
 
     // The codes are those of botocore's sts/2011-06-15/service-2.json, which has ExpiredTokenException with that suffix on the wire. Throttling
     // and AccessDenied are no modeled errors of this operation, yet STS sends them: botocore's retries/standard.py and _retry.json list the former.
     private const string ExpiredTokenCode = "ExpiredTokenException";
     private const string CommunicationErrorCode = "IDPCommunicationError";
     private const string ThrottlingCode = "Throttling";
-
-    // An issuer that is slow to serve its keys makes STS itself take seconds. 3 attempts, 2 pauses and the one resend of an expired token stay below
-    // the 30 seconds that a client gives an attempt by default, so that a client reports why the fetch failed and not a timeout of its own.
-    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
     private readonly Func<string, string?> _getEnvironmentVariable;
     private readonly ReadTextFile _readFile;
@@ -333,7 +327,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private async ValueTask<CredentialsOutcome> FetchOutcomeAsync() => CredentialsOutcome.Found(await FetchAsync().ConfigureAwait(false));
 
     // Credentials or an exception, and nothing that could say "does not apply": that was decided before the fetch, by the variable.
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The clients of CredentialsHttp are shared, and not to be disposed.")]
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The clients of CredentialsHttp are shared, and not to be disposed; SendWithRetriesAsync disposes each request.")]
     private async ValueTask<AwsCredentials> FetchAsync()
     {
         var settings = ResolveSettings();
@@ -345,49 +339,51 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
         var http = CredentialsHttp.GetClientFor(endpoint, _handler);
 
-        var failedAttempts = 0;
+        StsDocument document = default;
+        var parsed = false;
         var expiredTokenSeen = false;
-        while (true)
+        CredentialsHttp.Verdict Judge(CredentialsHttp.Result result)
         {
-            using var request = CreateRequest(endpoint, CreateBody(settings));
-            var result = await CredentialsHttp.SendAsync(http, request, AttemptTimeout, _timeProvider).ConfigureAwait(false);
-
-            StsDocument document = default;
-            var parsed = result.Kind == CredentialsHttp.ResultKind.Response && StsDocument.TryParse(result.Body, out document);
-            var code = document.ErrorCode;
-            if (result.IsOk && parsed && code is null)
+            document = default;
+            parsed = result.Kind == CredentialsHttp.ResultKind.Response && StsDocument.TryParse(result.Body, out document);
+            if (document.ErrorCode == ExpiredTokenCode)
             {
-                return document.CreateCredentials();
-            }
+                if (expiredTokenSeen)
+                {
+                    return CredentialsHttp.Verdict.Return;
+                }
 
-            if (code == ExpiredTokenCode && !expiredTokenSeen)
-            {
                 expiredTokenSeen = true;
                 CredentialsLog.WebIdentityTokenExpired(_logger, SourceName);
-                continue;
+                return CredentialsHttp.Verdict.SendAgain;
             }
 
-            if (code == ExpiredTokenCode)
-            {
-                throw new CredentialsUnavailableException(
-                    $"STS rejected the web identity token with {ExpiredTokenCode}, also after the file was read again: whatever renews the file is behind or has stopped.");
-            }
-
-            if (!IsTransient(result, parsed, code))
-            {
-                throw new CredentialsUnavailableException($"STS rejected the web identity token with {DescribeRejection(code, result.StatusCode)}.");
-            }
-
-            failedAttempts++;
-            if (failedAttempts == MaxAttempts)
-            {
-                var lastFailure = code ?? (result.IsOk ? "the response is not XML" : result.DescribeFailure());
-                throw new CredentialsUnavailableException(
-                    $"STS at {endpoint.DnsSafeHost} did not return credentials in {MaxAttempts} attempts. The last attempt: {lastFailure}.");
-            }
-
-            await Task.Delay(RetryDelay, _timeProvider).ConfigureAwait(false);
+            return IsTransient(result, parsed, document.ErrorCode) ? CredentialsHttp.Verdict.Retry : CredentialsHttp.Verdict.Return;
         }
+
+        // An issuer that is slow to serve its keys makes STS itself take seconds. The one resend of an expired token adds a fourth attempt, and the fetch still stays below
+        // the 30 seconds that a client gives an attempt by default.
+        var last = await CredentialsHttp.SendWithRetriesAsync(http, () => CreateRequest(endpoint, CreateBody(settings)), Judge, CredentialsHttp.AttemptTimeout, _timeProvider).ConfigureAwait(false);
+        var code = document.ErrorCode;
+        if (last.IsOk && parsed && code is null)
+        {
+            return document.CreateCredentials();
+        }
+
+        if (code == ExpiredTokenCode)
+        {
+            throw new CredentialsUnavailableException(
+                $"STS rejected the web identity token with {ExpiredTokenCode}, also after the file was read again: whatever renews the file is behind or has stopped.");
+        }
+
+        if (!IsTransient(last, parsed, code))
+        {
+            throw new CredentialsUnavailableException($"STS rejected the web identity token with {DescribeRejection(code, last.StatusCode)}.");
+        }
+
+        var lastFailure = code ?? (last.IsOk ? "the response is not XML" : last.DescribeFailure());
+        throw new CredentialsUnavailableException(
+            $"STS at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.");
     }
 
     /// <summary>What a fetch needs to know, however it came about.</summary>
