@@ -311,10 +311,10 @@ It also reports a key given as the values it is stored as on a table or an index
 
 - **Fix.** `Set` writes the value. `Add` is for a counter, `Add(Customer.Attrs.OrderCount, 1)`, and a set, `Add(Customer.Attrs.Interests, ["books"])`.
 
-`DYNA234` (error) reports a LINQ method called on a read instead of its items, `orders.Query(pk).Descending().Take(10)`, where the compiler says `CS1061`, that the read has no `Take`, or `CS0411` about `AsyncEnumerable.Take`. A read is a command; only its terminal streams items. It covers every `AsyncEnumerable` and `Enumerable` method the read does not have itself, such as `Take`, `Where`, `FirstAsync` and `ToListAsync`.
+`DYNA234` (error) reports a LINQ method called on a read instead of its items, `orders.Query(pk).Descending().ToListAsync()`, where the compiler says `CS1061`, that the read has no `ToListAsync`, or `CS0411` about `AsyncEnumerable.ToListAsync`. A read is a command; only its terminal streams items. It covers every `AsyncEnumerable` and `Enumerable` method the read does not have itself, such as `Where`, `FirstAsync`, `ToListAsync`, and `Take` after `Select` or on a fan-out, which have no `Take` of their own.
 
-- **Fix.** Call `ItemsAsync()` first, `orders.Query(pk).Descending().ItemsAsync().Take(10)`, or `ValuesAsync()` after `Select`. `Limit(n)` differs: it sets how many items DynamoDB reads per page, not how many the read returns.
-- **Not reported.** A method the read has, such as `Limit` or `Select`, and your own extension method that binds.
+- **Fix.** Call `ItemsAsync()` first, `orders.Query(pk).Descending().ItemsAsync().ToListAsync()`, or `ValuesAsync()` after `Select`. A query and a scan have a `Take(n)` of their own, a clause before the terminal, which caps the items of the read and sizes its pages. `Limit(n)` differs: it sets how many items DynamoDB reads per page, not how many the read returns.
+- **Not reported.** A method the read has, such as `Limit`, `Take` or `Select`, and your own extension method that binds.
 
 `DYNA235` (error) reports `IfVersion` on a `Put`, `carts.Put(cart).IfVersion(3)`, in a transaction too, where the compiler says `CS1061`, that the command has no `IfVersion`, or `CS0411` about the `IfVersion` of an update. A put takes the version from the entity: it writes only where the stored item holds the version of the entity, and stores the next one. It is an error for the reason `DYNA230` to `DYNA234` are: it reports only code that does not compile.
 

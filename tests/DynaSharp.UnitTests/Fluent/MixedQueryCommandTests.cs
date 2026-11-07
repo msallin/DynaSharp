@@ -11,6 +11,20 @@ public sealed class MixedQueryCommandTests
     private static string OutsideTheEntity => "x";
 
     [Test]
+    public async Task Take_Items_LimitsTheFirstPageToThem()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk", "sk").Query("a").Of<Alpha, Beta>().Take(3).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).EndsWith(",\"Limit\":3}");
+    }
+
+    [Test]
     public async Task Descending_True_ReadsDownwards()
     {
         // Arrange

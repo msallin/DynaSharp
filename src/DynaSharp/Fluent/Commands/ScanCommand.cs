@@ -151,7 +151,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
-    /// pages of this size. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty filtered pages, and stops. A small limit is a way to
+    /// pages of this size. A cap on the items of the result is <see cref="Take"/>. A small limit is a way to
     /// spread a scan out over time, because each page is one call.
     /// </summary>
     /// <param name="items">The most items per page; per segment, for a segmented scan.</param>
@@ -162,6 +162,25 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
         ArgumentOutOfRangeException.ThrowIfLessThan(items, 1);
         var state = Enter();
         state.Read.Limit = items;
+        return new(state, state.Table);
+    }
+
+    /// <summary>
+    /// Gives at most <paramref name="items"/> items in all, across pages, and asks each page for no more than are still to come: <c>orders.Scan().Take(100).ItemsAsync(ct)</c>.
+    /// <c>Take(n).PageAsync(ct)</c> gives them as one page, whose <see cref="Page{T}.HasMore"/> tells a cut read.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryCommand{T}.Take" path="/remarks/para"/>
+    /// <para><b>Segments.</b> A <see cref="Segment"/> takes from its own segment. A <see cref="Parallel"/> scan does not take it, because its segments run at once: there, <c>.ItemsAsync(ct).Take(n)</c>.</para>
+    /// </remarks>
+    /// <param name="items">The most items to give, from 1.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="items"/> is below 1.</exception>
+    public ScanCommand<T> Take(int items)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(items, 1);
+        var state = Enter();
+        state.Read.Take = items;
         return new(state, state.Table);
     }
 
@@ -238,7 +257,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// <param name="segments">The number of segments, which is also the most requests in flight at once, from 1 to 1,000,000.</param>
     /// <returns>The command of the parallel scan, which replaces this one.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="segments"/> is outside its range.</exception>
-    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, or <see cref="Segment"/> chose one segment.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered, <see cref="Segment"/> chose one segment, or <see cref="Take"/> caps the items.</exception>
     public ParallelScanCommand<T> Parallel(int segments)
     {
         ThrowIfOutOfRange(segments, nameof(segments));
@@ -246,6 +265,11 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
         if (state.Read.TotalSegments != 0)
         {
             throw new InvalidOperationException($"This Scan on {state.Table.Name} reads one segment already, so it cannot read them all in parallel as well.");
+        }
+
+        if (state.Read.Take != 0)
+        {
+            throw new InvalidOperationException($"This Scan on {state.Table.Name} takes {state.Read.Take} items, which segments read at once cannot stop at. Take them from the items: .ItemsAsync(ct).Take(n).");
         }
 
         state.Read.TotalSegments = segments;

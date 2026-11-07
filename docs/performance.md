@@ -42,7 +42,7 @@ The benchmarks live in [`benchmarks/DynaSharp.Benchmarks`](https://github.com/ms
 
 - **A filter** runs after the read, so a `Query` or a `Scan` pays for every item it reads, whatever the filter leaves: `ScannedCount` against `Count`. A key condition is what reads less. The filter on `_type` that a typed read of a shared table adds costs nothing beyond the read.
 - **A `Scan`** reads the whole table. A lookup that runs often needs a key: an index, or a claim item.
-- **`Limit(n)`** is per page and counts before the filter, so it bounds a request, not the result. `.ItemsAsync(ct).Take(n)` stops reading once it has `n`. `ItemAsync` on a query follows empty filtered pages and adds no limit, so a read without a filter that wants one item says `.Limit(1)`.
+- **`Limit(n)`** is per page and counts before the filter, so it bounds a request, not the result. `Take(n)` stops reading once it has `n`, and asks each page for no more than are still to come, so the last page reads no more than it gives. `ItemAsync` on a query follows empty filtered pages and adds no limit, so a read without a filter that wants one item says `.Limit(1)`.
 - **`CountAsync`** reads like a query of the items and charges for them, without returning them.
 - **`Project` and `Select`** save bandwidth and the cost of reading into the entity, not capacity: DynamoDB charges for the whole item.
 - **`Consistent()`** reads cost twice the capacity of an eventually consistent read.

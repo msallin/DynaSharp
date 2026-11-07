@@ -18,6 +18,21 @@ internal struct ReadOptions
     /// <summary>Gets or sets the limit of items per page of a read, or zero for none.</summary>
     public int Limit { get; set; }
 
+    /// <summary>Gets or sets the most items a read gives in all, across its pages, or zero for no such cap.</summary>
+    public int Take { get; set; }
+
+    /// <summary>Gets or sets how many items a read with <see cref="Take"/> has given so far.</summary>
+    public int Taken { get; set; }
+
+    /// <summary>
+    /// Gets the limit of the next page: <see cref="Limit"/>, and with <see cref="Take"/> no more than the items still to give, so a page never holds more than the read gives out
+    /// and its last evaluated key continues after the last item given. It is at least 1 while the read sends pages.
+    /// </summary>
+    public readonly int PageLimit => Take == 0 || (Limit > 0 && Limit <= Take - Taken) ? Limit : Take - Taken;
+
+    /// <summary>Gets a value indicating whether a read with <see cref="Take"/> has given all it may, so that it sends no further page.</summary>
+    public readonly bool IsTaken => Take > 0 && Taken >= Take;
+
     /// <summary>Gets or sets a value indicating whether a query reads the sort key downwards.</summary>
     public bool Descending { get; set; }
 
@@ -36,7 +51,20 @@ internal struct ReadOptions
     /// <summary>Gets or sets what a read does with an item that its type cannot read: <see langword="null"/> ends the read with the exception, anything else skips the item and gets the exception.</summary>
     public Action<DynamoDbMappingException>? OnMappingFailure { get; set; }
 
-    /// <summary>Writes the members of the request that come from these options.</summary>
+    /// <summary>
+    /// Writes the limit of a read with <see cref="Take"/>, which changes from page to page, so it goes after the members that <see cref="WriteMembers"/> writes once for all pages.
+    /// </summary>
+    /// <param name="body">The request, with at least one member before this.</param>
+    public readonly void WriteTakeLimit(PooledByteBuffer body)
+    {
+        if (Take > 0)
+        {
+            body.Append(",\"Limit\":"u8);
+            body.AppendNumber(PageLimit);
+        }
+    }
+
+    /// <summary>Writes the members of the request that come from these options, all but the limit of a read with <see cref="Take"/>, see <see cref="WriteTakeLimit"/>.</summary>
     /// <param name="body">The request, with at least one member before this.</param>
     /// <exception cref="ArgumentOutOfRangeException"><see cref="Select"/> holds a value that is not a member of its enum.</exception>
     public readonly void WriteMembers(PooledByteBuffer body)
@@ -46,7 +74,7 @@ internal struct ReadOptions
             body.Append(",\"ConsistentRead\":true"u8);
         }
 
-        if (Limit > 0)
+        if (Take == 0 && Limit > 0)
         {
             body.Append(",\"Limit\":"u8);
             body.AppendNumber(Limit);

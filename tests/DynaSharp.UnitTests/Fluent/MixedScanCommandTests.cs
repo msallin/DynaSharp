@@ -10,6 +10,20 @@ public sealed class MixedScanCommandTests
     private static string OutsideTheEntity => "x";
 
     [Test]
+    public async Task Take_Items_LimitsTheFirstPageToThem()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk", "sk").Scan().Of<Alpha, Beta>().Take(3).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).EndsWith(",\"Limit\":3}");
+    }
+
+    [Test]
     public async Task Of_TwoTypes_FiltersOnBothDiscriminators()
     {
         // Arrange

@@ -164,8 +164,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
 
     /// <summary>
     /// Limits the items DynamoDB reads <em>per page</em>, before the filter. It does not limit the result: <see cref="ItemsAsync"/> reads on until the end, in
-    /// pages of this size, and with a filter a page holds fewer items than this. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty
-    /// filtered pages, and stops. To read one page, use <see cref="PageAsync(ContinuationToken?, CancellationToken)"/>.
+    /// pages of this size, and with a filter a page holds fewer items than this. A cap on the items of the result is <see cref="Take"/>. To read one page, use <see cref="PageAsync(ContinuationToken?, CancellationToken)"/>.
     /// </summary>
     /// <remarks>
     /// <inheritdoc cref="QueryCommand{T}" path="/remarks/para[2]"/>
@@ -178,6 +177,44 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         ArgumentOutOfRangeException.ThrowIfLessThan(items, 1);
         var state = Enter();
         state.Read.Limit = items;
+        return new(state, state.Table);
+    }
+
+    /// <summary>
+    /// Gives at most <paramref name="items"/> items in all, across pages, and asks each page for no more than are still to come, so the newest ten read ten:
+    /// <c>orders.Query(pk).Descending().Take(10).ItemsAsync(ct)</c>. <c>Take(n).PageAsync(ct)</c> gives them as one page, whose <see cref="Page{T}.HasMore"/> tells a cut read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Over the <c>Take</c> of LINQ.</b> <c>.ItemsAsync(ct).Take(n)</c> stops as well, but each page reads up to 1 MB, so its last page reads, and costs, more than it gives.
+    /// This sets the <c>Limit</c> of each request to the items still to give, and never above a <see cref="Limit"/> of the command, which stays the most per page.
+    /// </para>
+    /// <para>
+    /// <b>Filters.</b> <see cref="Limit"/> counts the items DynamoDB reads, before the filter; <c>Take</c> counts the items given. The items of other entities, which the filter of the
+    /// discriminator drops, and the items that <see cref="OnMappingFailure"/> skips, are read and not given, so a page gives fewer than it asked for, and the read goes on with a
+    /// smaller page for the rest. A filter that passes few items so takes many small calls; there the <c>Take</c> of LINQ reads in fewer, larger pages.
+    /// </para>
+    /// <para>
+    /// <b>The ends of the command.</b> <see cref="ItemsAsync"/>, a <c>ValuesAsync</c> after <c>Select</c>, and <see cref="PagesAsync"/> stop after <paramref name="items"/> items.
+    /// <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> reads as many pages as it takes and gives them as one, as a page of a fan-out does: up to <paramref name="items"/> items,
+    /// <see cref="Page{T}.Count"/>, <see cref="Page{T}.ScannedCount"/> and <see cref="Page{T}.ConsumedCapacity"/> summed, and <see cref="Page{T}.Next"/> after the last item given,
+    /// so a client pages in steps of <paramref name="items"/>. <see cref="CountAsync"/> counts up to <paramref name="items"/>, and <see cref="ItemAsync"/> reads with a limit of
+    /// <paramref name="items"/>.
+    /// </para>
+    /// <para>
+    /// <b>Was it cut.</b> <see cref="Page{T}.HasMore"/> says that DynamoDB has more to read. A page that stops at its limit has a next key even when no item follows, so a read of
+    /// exactly <paramref name="items"/> items says so too. To know, take one more and look: <c>Take(max + 1)</c>, then <c>page.Items.Count &gt; max</c>.
+    /// </para>
+    /// <para>A second call replaces the first.</para>
+    /// </remarks>
+    /// <param name="items">The most items to give, from 1.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="items"/> is below 1.</exception>
+    public QueryCommand<T> Take(int items)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(items, 1);
+        var state = Enter();
+        state.Read.Take = items;
         return new(state, state.Table);
     }
 

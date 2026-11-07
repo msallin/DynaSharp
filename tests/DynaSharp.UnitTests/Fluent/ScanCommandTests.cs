@@ -199,6 +199,52 @@ public sealed class ScanCommandTests
     }
 
     [Test]
+    public async Task Parallel_AfterTake_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => Task.FromResult(shop.Scan().Take(10).Parallel(2).DebuggerText));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("takes 10 items");
+    }
+
+    [Test]
+    public async Task Take_BelowOne_Throws()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentOutOfRangeException>(() => Task.FromResult(shop.Scan().Take(0).ToRequestJson()));
+
+        // Assert
+        await Assert.That(failure.ParamName).IsEqualTo("items");
+    }
+
+    [Test]
+    public async Task ItemsAsync_Take_AsksEachPageForWhatIsLeft()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(More("1", "2"));
+        handler.Enqueue(More("3"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var items = await client.Table("Shop", "pk", "sk").Scan().Take(3).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That((items.SortKeys(), handler.Requests[1].BodyText.Contains("\"Limit\":1,", StringComparison.Ordinal))).IsEqualTo(("1,2,3", true));
+    }
+
+    [Test]
     public async Task Parallel_AfterSegment_Throws()
     {
         // Arrange

@@ -2,7 +2,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// One page of a <c>Query</c> or <c>Scan</c>: what one response of DynamoDB holds. A page ends at 1 MB of data read, or at the limit, whichever
-/// comes first. A page of a fan-out is the exception: it is a stretch of the merge, of the size that was asked for, made of as many responses as that took.
+/// comes first. A page of a fan-out, and one of a read with <c>Take</c>, is the exception: it holds as many items as were asked for, made of as many responses as that took.
 /// </summary>
 /// <remarks>
 /// A page can be empty and still have a next one, because a filter runs after the read: <see cref="HasMore"/> is what tells the end, never the number of
@@ -36,10 +36,13 @@ public readonly struct Page<T>
     /// </summary>
     public int ScannedCount { get; }
 
-    /// <summary>Gets the capacity this page consumed, if <c>ReturnCapacity</c> asked for it. For a page of a fan-out it is the sum of all its calls.</summary>
+    /// <summary>Gets the capacity this page consumed, if <c>ReturnCapacity</c> asked for it. For a page of a fan-out or of a read with <c>Take</c> it is the sum of all its calls.</summary>
     public ConsumedCapacity? ConsumedCapacity { get; }
 
-    /// <summary>Gets a value indicating whether DynamoDB has more to read. The next page can turn out empty: DynamoDB does not look ahead.</summary>
+    /// <summary>
+    /// Gets a value indicating whether DynamoDB has more to read. The next page can turn out empty: DynamoDB does not look ahead, so a page that stopped at its limit or at <c>Take</c> says more
+    /// even when nothing follows.
+    /// </summary>
     public bool HasMore => Next.HasValue;
 
     /// <summary>Gets where the next page starts, or the default value at the end of the read. Pass it to <c>PageAsync</c>, or hand <c>Next.ToString()</c> to a client.</summary>

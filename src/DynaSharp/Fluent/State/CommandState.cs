@@ -336,6 +336,7 @@ internal sealed class CommandState
     public ArraySegment<byte> Finish()
     {
         WriteMembers();
+        _read.WriteTakeLimit(Body);
         Body.Append((byte)'}');
         return Body.WrittenSegment;
     }
@@ -393,6 +394,7 @@ internal sealed class CommandState
 
         // ...,"ExclusiveStartKey":{"pk":{"S":"a"},"sk":{"S":"b"}}}
         Body.Truncate(_pageMark);
+        _read.WriteTakeLimit(Body);
         if (PageKey.WrittenCount > 0)
         {
             Body.Append(",\"ExclusiveStartKey\":"u8);

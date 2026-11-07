@@ -45,6 +45,9 @@ public readonly ref struct MixedScanCommand<TMixed> : IFilterable<MixedScanComma
     /// <inheritdoc cref="ScanCommand{T}.Limit"/>
     public MixedScanCommand<TMixed> Limit(int items) => new(_command.Limit(items));
 
+    /// <inheritdoc cref="ScanCommand{T}.Take"/>
+    public MixedScanCommand<TMixed> Take(int items) => new(_command.Take(items));
+
     /// <inheritdoc cref="ScanCommand{T}.Consistent"/>
     public MixedScanCommand<TMixed> Consistent() => new(_command.Consistent());
 

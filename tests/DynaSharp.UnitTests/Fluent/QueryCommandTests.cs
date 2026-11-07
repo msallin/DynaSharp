@@ -8,7 +8,7 @@ using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-public sealed class QueryCommandTests
+public sealed partial class QueryCommandTests
 {
     [Test]
     public async Task Query_EmptyPartitionKey_Throws()

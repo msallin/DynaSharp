@@ -26,14 +26,25 @@ await foreach (var order in bigOrders)
 
 A filter can also be text, as in `.Filter($"{Order.Attrs.Total} > {100}")`, where a handle in a hole stands for the name. Text takes a bare name as it is, so DynamoDB rejects a reserved word such as `Total` or `Value` (`DYNA220`), where `Attrs` needs no care, and a bare name the entity does not have is `DYNA213`.
 
-`Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is, and it stops reading once it has them:
+`Limit(n)` is per page and counts what DynamoDB reads before the filter, so it is no cap on items. `Take(n)` is: it gives at most `n` items across pages, and asks each page for no more than are still to come, so the newest ten read ten and pay for ten:
 
 ```csharp
-var firstTen = orders.Query(Order.Keys.Pk.Of("alice"))
-    .Filter(Order.Attrs.Total.Gt(100m))
-    .ItemsAsync(ct)
-    .Take(10);
+var newestTen = orders.Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.BeginsWith())
+    .Descending()
+    .Take(10)
+    .ItemsAsync(ct);
 ```
+
+`Take(n).PageAsync(ct)` gives the items as one page, read from as many responses as it took, with `Next` after the last item, so a client pages in steps of `n`. `HasMore` tells that the read was cut. DynamoDB does not look ahead, so a page that stops at its limit says more even when nothing follows; to know, take one more and look:
+
+```csharp
+const int max = 100;
+var history = await orders.Query(Order.Keys.Pk.Of("alice"), Order.Keys.Sk.BeginsWith()).Consistent().Take(max + 1).PageAsync(ct);
+var truncated = history.Items.Count > max;
+var shown = history.Items.Take(max).ToList();
+```
+
+`Take` counts the items it gives and `Limit` the items DynamoDB reads, so with a filter a page gives fewer than it asked for and the read goes on with a smaller page for the rest. A filter that passes few items so takes many small calls; there `ItemsAsync(ct).Take(n)` of `System.Linq` reads in pages of up to 1 MB and stops as well, paying for the whole last page. A `Limit` stays the most per page, and `Take` never asks for more. `PagesAsync` stops after `n` items, `CountAsync` counts up to `n`, and a parallel scan does not take it.
 
 `ItemsAsync(ct)` streams page by page: it asks for the next page only once the items of the one before are taken, so a `break` or a `Take(n)` reads no more pages, and memory holds one page. `ToListAsync()` of `System.Linq` takes every page, so it belongs on a read whose size is bounded, such as one partition of a few items or a `Take(n)`. The token goes to `ItemsAsync` once, which hands it to every page it reads: `ItemsAsync(ct).ToListAsync()`, since passing it again to `ToListAsync` changes nothing. Under `AnalysisMode=All`, CA2016 asks to forward the token to `ToListAsync` as well; passing it there too is harmless, because the enumerator links it with the one `ItemsAsync` took, and it silences the rule.
 

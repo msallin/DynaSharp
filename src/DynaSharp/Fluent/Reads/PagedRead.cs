@@ -35,7 +35,7 @@ internal static class PagedRead<TOperation, T>
     public static IAsyncEnumerable<Page<T>> Pages(CommandState state, CancellationToken cancellationToken) =>
         new OnceEnumerable<Page<T>>(state, TOperation.Name, ReadPagesAsync(state, cancellationToken));
 
-    /// <summary>Reads the page after a position.</summary>
+    /// <summary>Reads the page after a position; with <see cref="ReadOptions.Take"/>, as many responses as it takes to give that many items, as one page.</summary>
     /// <param name="state">The state of the read.</param>
     /// <param name="after">The position.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
@@ -48,7 +48,8 @@ internal static class PagedRead<TOperation, T>
         {
             after.ThrowIfNotFor(state, plan: null);
             after.CopyKeyTo(state.PageKey);
-            return ToPage(await SendAsync(state, cancellationToken).ConfigureAwait(false), state);
+            var page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
+            return state.Read.Take == 0 ? ToPage(page, state) : await TakeAsync(page, state, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -135,8 +136,9 @@ internal static class PagedRead<TOperation, T>
             {
                 page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
                 total = checked(total + page.Count);
+                state.Read.Taken = total;
             }
-            while (page.HasMore);
+            while (page.HasMore && !state.Read.IsTaken);
 
             return total;
         }
@@ -170,12 +172,13 @@ internal static class PagedRead<TOperation, T>
         do
         {
             page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
+            state.Read.Taken += page.Items.Length;
             foreach (var item in page.Items)
             {
                 yield return item;
             }
         }
-        while (page.HasMore);
+        while (page.HasMore && !state.Read.IsTaken);
     }
 
     private static async IAsyncEnumerable<Page<T>> ReadPagesAsync(CommandState state, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -184,15 +187,44 @@ internal static class PagedRead<TOperation, T>
         do
         {
             page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
+            state.Read.Taken += page.Items.Length;
             yield return ToPage(page, state);
         }
-        while (page.HasMore);
+        while (page.HasMore && !state.Read.IsTaken);
     }
 
-    private static Page<T> ToPage(PageData<T> page, CommandState state) => new(
-        page.Items,
-        page.Count,
-        page.ScannedCount,
-        state.ResponseCapacity,
-        page.HasMore ? ContinuationToken.FromRawKey(state.PageKey.WrittenSpan, state, plan: null) : default);
+    // Each response is sized to what is still to give, so the items of all of them fit, and the key of the last one continues after the last item given.
+    [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+    private static async ValueTask<Page<T>> TakeAsync(PageData<T> page, CommandState state, CancellationToken cancellationToken)
+    {
+        state.Read.Taken = page.Items.Length;
+        if (!page.HasMore || state.Read.IsTaken)
+        {
+            return ToPage(page, state);
+        }
+
+        var items = new List<T>();
+        var count = 0;
+        var scannedCount = 0;
+        ConsumedCapacity? capacity = null;
+        while (true)
+        {
+            items.AddRange(page.Items);
+            count += page.Count;
+            scannedCount += page.ScannedCount;
+            capacity = CapacitySum.Add(capacity, state.ResponseCapacity);
+            if (!page.HasMore || state.Read.IsTaken)
+            {
+                return new Page<T>(items, count, scannedCount, capacity, NextOf(page, state));
+            }
+
+            page = await SendAsync(state, cancellationToken).ConfigureAwait(false);
+            state.Read.Taken += page.Items.Length;
+        }
+    }
+
+    private static Page<T> ToPage(PageData<T> page, CommandState state) => new(page.Items, page.Count, page.ScannedCount, state.ResponseCapacity, NextOf(page, state));
+
+    private static ContinuationToken NextOf(PageData<T> page, CommandState state) =>
+        page.HasMore ? ContinuationToken.FromRawKey(state.PageKey.WrittenSpan, state, plan: null) : default;
 }

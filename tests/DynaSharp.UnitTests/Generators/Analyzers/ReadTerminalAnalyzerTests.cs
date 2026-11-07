@@ -279,7 +279,7 @@ public sealed class ReadTerminalAnalyzerTests
     }
 
     [Test]
-    [Arguments("""shop.Query("a").Descending().[|Take|](100);""", "Take", "ItemsAsync")]
+    [Arguments("""shop.Query("a").Descending().[|Skip|](100);""", "Skip", "ItemsAsync")]
     [Arguments("""shop.Query(["a", "b"]).Descending().[|Take|](100);""", "Take", "ItemsAsync")]
     [Arguments("""shop.Scan().[|Where|](item => item.Count > 0);""", "Where", "ItemsAsync")]
     [Arguments("""shop.Scan().Parallel(4).[|ToListAsync|]();""", "ToListAsync", "ItemsAsync")]
@@ -301,6 +301,7 @@ public sealed class ReadTerminalAnalyzerTests
     [Test]
     [Arguments("""_ = shop.Query("a").ItemsAsync().Take(100);""")]
     [Arguments("""_ = shop.Query("a").Limit(1);""")]
+    [Arguments("""_ = shop.Query("a").Take(1);""")]
     [Arguments("""_ = shop.Query("a").Select(item => item);""")]
     [Arguments("""_ = shop.Query("a").Nope(1);""")]
     [Arguments("""_ = new List<int>().Take(1);""")]
@@ -323,10 +324,10 @@ public sealed class ReadTerminalAnalyzerTests
         // Arrange
         var source = AnalyzerRun.Member(
             """
-            public static QueryCommand<T> Take<T>(this QueryCommand<T> query, int count)
+            public static QueryCommand<T> Skip<T>(this QueryCommand<T> query, int count)
                 where T : IDynamoDbDocument<T> => query.Limit(count);
 
-            public static void Run() => _ = shop.Query("a").Take(1);
+            public static void Run() => _ = shop.Query("a").Skip(1);
             """);
 
         // Act
@@ -340,7 +341,7 @@ public sealed class ReadTerminalAnalyzerTests
     public async Task Analyze_CompilerErrorOnTake_IsNotSuppressed()
     {
         // Arrange
-        var source = AnalyzerRun.Statements("""shop.Query("a").Take(1);""");
+        var source = AnalyzerRun.Statements("""shop.Query(["a", "b"]).Take(1);""");
 
         // Act
         var errors = AnalyzerRun.CompilerErrors(source);

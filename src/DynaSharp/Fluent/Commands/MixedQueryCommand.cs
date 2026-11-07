@@ -57,6 +57,9 @@ public readonly ref struct MixedQueryCommand<TMixed> : IFilterable<MixedQueryCom
     /// <inheritdoc cref="QueryCommand{T}.Limit"/>
     public MixedQueryCommand<TMixed> Limit(int items) => new(_command.Limit(items));
 
+    /// <inheritdoc cref="QueryCommand{T}.Take"/>
+    public MixedQueryCommand<TMixed> Take(int items) => new(_command.Take(items));
+
     /// <inheritdoc cref="QueryCommand{T}.Descending()"/>
     public MixedQueryCommand<TMixed> Descending() => new(_command.Descending());
 

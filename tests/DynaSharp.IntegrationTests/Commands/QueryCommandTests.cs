@@ -39,6 +39,40 @@ public sealed class QueryCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task PageAsync_TakeOverAFilter_GivesThatManyAndContinuesAfterThem()
+    {
+        // Arrange (the odd orders pass, so each page of what is still to take gives about half)
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 9);
+
+        // Act
+        var first = await sandbox.Shop.Query("a").Filter(Attr("kind").Eq("odd")).Take(3).PageAsync();
+        var second = await sandbox.Shop.Query("a").Filter(Attr("kind").Eq("odd")).Take(3).PageAsync(first.Next);
+
+        // Assert
+        await Assert.That($"{string.Join(",", first.Items.Select(static item => item.GetString("sk")))};{string.Join(",", second.Items.Select(static item => item.GetString("sk")))}")
+            .IsEqualTo("ORDER#001,ORDER#003,ORDER#005;ORDER#007,ORDER#009");
+    }
+
+    [Test]
+    public async Task ItemsAsync_DescendingFalseWithTake_GivesTheFirst()
+    {
+        // Arrange
+        await using var sandbox = await ReadSandbox.StartAsync(backend);
+        await sandbox.PutOrdersAsync("a", 5);
+
+        // Act
+        var items = new List<string?>();
+        await foreach (var item in sandbox.Shop.Query("a").Descending(false).Take(2).ItemsAsync())
+        {
+            items.Add(item.GetString("sk"));
+        }
+
+        // Assert
+        await Assert.That(string.Join(",", items)).IsEqualTo("ORDER#001,ORDER#002");
+    }
+
+    [Test]
     public async Task ItemAsync_FilterThatEmptiesPages_FollowsThemToTheItem()
     {
         // Arrange (a page of one item at a time: the filter leaves all but the last empty)
