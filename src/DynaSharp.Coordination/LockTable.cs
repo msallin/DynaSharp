@@ -66,6 +66,9 @@ public sealed class LockTable
     /// <summary>The longest lease, a day.</summary>
     public static readonly TimeSpan MaxLeaseDuration = TimeSpan.FromDays(1);
 
+    // A sighting older than this many of its leases counts as none and is dropped; see Sighting.IsStale.
+    private const int SightingLifetimeInLeases = 10;
+
     // A contender polls a held lock at least this often, so a lock with a long lease that is released is not left free for hours.
     private static readonly TimeSpan MaxPoll = TimeSpan.FromSeconds(10);
 
@@ -73,6 +76,9 @@ public sealed class LockTable
 
     // The waits of LockTableTesting.WaitForRefusalAsync, by lock name; empty outside tests, which costs a try one check.
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _refusals = new(StringComparer.Ordinal);
+
+    // When the next sweep of stale sightings is due, on the monotonic clock; a sweep runs at most once every MaxPoll.
+    private long _nextSweep;
 
     /// <summary>Initializes a new instance of the <see cref="LockTable"/> class over a table without a model.</summary>
     /// <param name="table">The table, opened with <see cref="DynamoDbClient.Table(string, string, string?)"/>. Its key attributes must be strings.</param>
@@ -100,6 +106,9 @@ public sealed class LockTable
 
     /// <summary>Gets the logger, which logs nothing without a logger factory in the options of the client.</summary>
     internal ILogger Logger { get; }
+
+    /// <summary>Gets how many locks this table holds a sighting of, for the tests of how long it keeps them.</summary>
+    internal int SightingCount => _sightings.Count;
 
     /// <summary>
     /// Makes a lock table over any table, typed or not, for <c>LockTable.For(client.Table&lt;Order&gt;("Shop"))</c>: it needs only the name of the table,
@@ -168,7 +177,8 @@ public sealed class LockTable
     /// <para>
     /// <b>Short-lived processes.</b> A takeover needs a <see cref="LockTable"/> that lives longer than a lease. A process that lives shorter, such as a scheduled job, a function or a
     /// command line tool, never takes over a lock whose holder crashed with this, whatever it waits between its runs: it calls <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>
-    /// with a wait of more than one lease, which waits out a crashed holder and gives up on a live one.
+    /// with a wait of more than one lease, which waits out a crashed holder and gives up on a live one. So does a process that tries less often than every ten leases: a <see cref="LockTable"/> forgets a
+    /// holder that no try has looked at for ten of its leases, so that a contender that gives up on many locks does not remember them all.
     /// </para>
     /// <para>
     /// <b>Requests.</b> A <see cref="LockTable"/> that has not seen the lock held writes at once: one conditional <c>UpdateItem</c> that raises the fencing token with
@@ -248,7 +258,7 @@ public sealed class LockTable
     /// </para>
     /// <para>
     /// <b>Retrying later.</b> A contender that gives up keeps what it saw of the holder, so a later acquire of the same <see cref="LockTable"/>, such as the retry of a message, still counts the time since then
-    /// towards the takeover.
+    /// towards the takeover, as long as it comes within ten leases.
     /// </para>
     /// </remarks>
     /// <param name="name">The name of the lock.</param>
@@ -433,7 +443,7 @@ public sealed class LockTable
 
         // A contender that has seen a holder reads before it writes, so that waiting for a live holder costs no failed conditional write.
         Sighting? due = null;
-        if (_sightings.TryGetValue(name, out var sighting))
+        if (_sightings.TryGetValue(name, out var sighting) && !sighting.IsStale(Time))
         {
             var item = await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             if (LockItem.HolderOf(item, name, Table.Name) is { } holder)
@@ -513,18 +523,51 @@ public sealed class LockTable
         var leaseDuration = holder.LeaseDuration;
         var sighting = _sightings.AddOrUpdate(
             name,
-            static (_, now) => now,
-            static (_, before, now) => before.RecordVersion == now.RecordVersion ? before : now,
-            new Sighting(recordVersion, Time.GetTimestamp(), leaseDuration));
+            static (_, now) => now.Sighting,
+            static (_, before, now) => before.RecordVersion == now.Sighting.RecordVersion && !before.IsStale(now.Time) ? before : now.Sighting,
+            (Sighting: new Sighting(recordVersion, Time.GetTimestamp(), leaseDuration), Time));
+        SweepSightings();
         var left = sighting.LeaseDuration - Time.GetElapsedTime(sighting.Timestamp);
         return TimeSpan.FromTicks(Math.Clamp(left.Ticks, 0, Math.Min(sighting.LeaseDuration.Ticks / 3, MaxPoll.Ticks)));
+    }
+
+    // Drops the stale sightings of every lock, so that a contender that gave up on many locks, one per job, does not keep a sighting of each for ever. At most once every
+    // MaxPoll, so that a table with many contenders does not walk them all on every poll.
+    private void SweepSightings()
+    {
+        // Two threads that both find a sweep due both sweep, which costs a walk and is otherwise harmless.
+        var now = Time.GetTimestamp();
+        if (now < Interlocked.Read(ref _nextSweep))
+        {
+            return;
+        }
+
+        Interlocked.Exchange(ref _nextSweep, now + (long)(MaxPoll.TotalSeconds * Time.TimestampFrequency));
+
+        foreach (var entry in _sightings)
+        {
+            if (entry.Value.IsStale(Time))
+            {
+                // Only if no try replaced it meanwhile.
+                _sightings.TryRemove(entry);
+            }
+        }
     }
 
     /// <summary>What a try gave: a lease, or how long to wait before the next try.</summary>
     private readonly record struct Attempt(Lease? Lease, bool TakeOver, TimeSpan Wait);
 
     /// <summary>A holder as a contender saw it first: its record version, when on the monotonic clock, and the duration of its lease.</summary>
-    private sealed record Sighting(string RecordVersion, long Timestamp, TimeSpan LeaseDuration);
+    private sealed record Sighting(string RecordVersion, long Timestamp, TimeSpan LeaseDuration)
+    {
+        /// <summary>
+        /// Gets whether the sighting is older than ten of its leases, and counts as none. A try that finds a sighting a lease old takes the lock over or replaces it with a newer one, so a sighting that old
+        /// means that no try came for nine leases: its contender gave up. One that comes back after that watches the holder for a whole lease again.
+        /// </summary>
+        /// <param name="time">The monotonic clock.</param>
+        /// <returns><see langword="true"/> if it is stale.</returns>
+        public bool IsStale(TimeProvider time) => time.GetElapsedTime(Timestamp) >= LeaseDuration * SightingLifetimeInLeases;
+    }
 
     /// <summary>A takeover: the sighting that made it due, and the label of the holder it took the lock from.</summary>
     private sealed record TakeOver(Sighting From, string? PreviousHolder);
