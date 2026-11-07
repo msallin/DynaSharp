@@ -634,6 +634,49 @@ public sealed class ExpressionWriterTests
         await Assert.That(Text(first)).IsEqualTo(Text(second));
     }
 
+    [Test]
+    public async Task SetMissingAttribute_NameSpelledLikeThePlaceholderOfAnotherAction_IsSet()
+    {
+        // Arrange (the attribute "#n0" is not the attribute whose placeholder is #n0)
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.Set<int, NumberConverter<int>>("status", 1);
+
+        // Act
+        writer.SetMissingAttribute<string, StringConverter>("#n0", "x");
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Set])).IsEqualTo("SET #n0 = :v0, #n1 = if_not_exists(#n1, :v1)");
+    }
+
+    [Test]
+    public async Task CopyAttribute_NameSpelledLikeThePlaceholderOfAnotherAction_IsCopied()
+    {
+        // Arrange
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.Remove("status");
+
+        // Act
+        writer.CopyAttribute("#n0", "source");
+
+        // Assert
+        await Assert.That((Text(writer[Clause.Set]), Text(writer[Clause.Remove]))).IsEqualTo(("SET #n1 = #n2", "REMOVE #n0"));
+    }
+
+    [Test]
+    public async Task SetMissingAttribute_NameASetSpellsOut_GivesWayToIt()
+    {
+        // Arrange (a raw action names a plain attribute without a placeholder)
+        var writer = new ExpressionWriter(ArrayPool<byte>.Shared);
+        writer.StartPending().Append("total = :v0"u8);
+        writer.CommitPendingSet();
+
+        // Act
+        writer.SetMissingAttribute<int, NumberConverter<int>>("total", 1);
+
+        // Assert
+        await Assert.That(Text(writer[Clause.Set])).IsEqualTo("SET total = :v0");
+    }
+
     private static string Text(PooledByteBuffer buffer) => Encoding.UTF8.GetString(buffer.WrittenSpan);
 
     private static string Members(ExpressionWriter writer)

@@ -706,6 +706,7 @@ internal sealed class ExpressionWriter
     }
 
     // Finds whether an action of a clause changes a name, which is what its path starts with. Raw actions can spell a name out, and anything after the path of an action only reads.
+    // A path that starts with # is a placeholder and never a name spelled out, so an attribute named "#n0" is not the one that placeholder stands for.
     // Clause: SET #n0.#n1 = list_append(#n2, :v0), total = :v1
     // Paths:  #n0, total. #n1 and #n2 are not looked at.
     private static bool HasActionOn(ReadOnlySpan<byte> clause, ReadOnlySpan<byte> placeholder, ReadOnlySpan<byte> name)
@@ -725,7 +726,7 @@ internal sealed class ExpressionWriter
                 }
 
                 var path = clause[start..i];
-                if (path.SequenceEqual(placeholder) || path.SequenceEqual(name))
+                if (path.SequenceEqual(placeholder) || (value != (byte)'#' && path.SequenceEqual(name)))
                 {
                     return true;
                 }
