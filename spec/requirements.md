@@ -290,6 +290,7 @@ against the emulators, which check the ordering claim against something other th
 - Analyzers: `AnalysisLevel=latest-all`, StyleCop, code style enforced in build, warnings as errors.
   BannedApiAnalyzers forbid unsafe code and reflection in `src/`.
 - Tests: TUnit on Microsoft.Testing.Platform. Naming `{Type}Tests` / `Method_Scenario_ExpectedResult`, AAA, FIRST.
+  Property tests use FsCheck through `TUnit.FsCheck`, with a fixed seed and a fixed number of cases.
 - Gates: 100 % line and branch coverage on `src/`; Stryker mutation score >= 90 % (MTP runner, preview).
 - Test layers: unit; in-memory integration (stub and recording handler, the fake); container integration;
   scenario tests across backends. Integration and scenario tests are written once and parametrized by backend:

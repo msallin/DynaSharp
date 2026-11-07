@@ -52,3 +52,9 @@ dotnet_diagnostic.SA1402.severity = none
 dotnet_diagnostic.SA1201.severity = none
 dotnet_diagnostic.SA1402.severity = none
 
+# A property declares its inputs and their generators beside it: an input is a record that holds arrays, nested in the class whose property takes it,
+# and FsCheck passes no null.
+[DynaSharp.UnitTests/**/*PropertyTests.cs]
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1819.severity = none
