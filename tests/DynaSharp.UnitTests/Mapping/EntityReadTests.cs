@@ -802,6 +802,16 @@ public sealed class EntityReadTests
     }
 
     [Test]
+    public async Task ReadAttributes_MissingAttributesWithDefaultsNarrowerThanInt_TakeTheDefaults()
+    {
+        // Arrange, Act
+        var tally = EntityJson.Read<Tally>("""{"Name":{"S":"n"}}""");
+
+        // Assert
+        await Assert.That(tally).IsEqualTo(new Tally("n"));
+    }
+
+    [Test]
     public async Task ReadAttributes_RecordStructWithAPropertyOutsideItsConstructor_ChainsToTheConstructor()
     {
         // Arrange, Act
