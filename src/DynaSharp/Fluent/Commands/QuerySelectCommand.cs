@@ -66,7 +66,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
         PagedRead<QuerySelectPageOperation<TValue, TConverter>, TValue>.Pages(Enter(), cancellationToken);
 
     /// <summary>Reads one page, as <see cref="QueryCommand{T}.PageAsync(ContinuationToken, CancellationToken)"/> does, with the values in <see cref="Page{T}.Items"/>.</summary>
-    /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same query.</param>
+    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same query. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>

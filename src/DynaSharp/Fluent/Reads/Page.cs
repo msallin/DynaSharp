@@ -21,6 +21,10 @@ public readonly struct Page<T>
     }
 
     /// <summary>Gets the items of the page, in the order of the sort key for a query and in no useful order for a scan. It is empty after <c>CountAsync</c>.</summary>
+    /// <remarks>
+    /// <b>Items of other entities.</b> A typed read holds only its own entity. The items of other entities under the same partition key are read, count against the limit and are in
+    /// <see cref="ScannedCount"/>, so a page can hold fewer items than its limit. <see cref="QueryCommand{T}"/> says how a condition on the sort key reads the entity alone.
+    /// </remarks>
     public IReadOnlyList<T> Items { get; }
 
     /// <summary>Gets the number of items after the filter.</summary>

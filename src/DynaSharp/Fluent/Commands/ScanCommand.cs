@@ -277,7 +277,7 @@ public readonly ref struct ScanCommand<T> : IFilterable<ScanCommand<T>>, IRetrya
     /// Reads one page, for paging that a client drives across requests: build the same scan each time and pass the position of the page before. The page can be
     /// empty and still have a next one, so a client that wants items keeps going while <see cref="Page{T}.HasMore"/> holds.
     /// </summary>
-    /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same scan, and the same segment.</param>
+    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same scan, and the same segment. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>

@@ -234,7 +234,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
     /// </para>
     /// </remarks>
     /// <param name="pageSize">The items of the page.</param>
-    /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same query.</param>
+    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same query. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageSize"/> is below 1.</exception>

@@ -32,9 +32,11 @@ namespace DynaSharp;
 /// for what a command is and what it cannot do. Reads are eventually consistent unless <see cref="Consistent"/> says otherwise.
 /// </para>
 /// <para>
-/// A read of an entity with a discriminator filters on it (<c>#_type = :t</c>), so that a table shared by several types gives back its own items, and that
-/// filter is in the request for everyone to see. It adds to <see cref="Page{T}.ScannedCount"/> what it removes from <see cref="Page{T}.Count"/> and changes no
-/// capacity. To read several types at once, read the table as <see cref="Item"/>.
+/// <b>Other entities in the partition.</b> A read of an entity with a discriminator filters on it (<c>#_type = :t</c>), so that a table shared by several types gives back its own items, and that
+/// filter is in the request for everyone to see. DynamoDB applies it after reading, so the items of other entities under the same partition key are still read: they count against
+/// <see cref="Limit"/> and the capacity, and are in <see cref="Page{T}.ScannedCount"/> but not in <see cref="Page{T}.Count"/> or <see cref="Page{T}.Items"/>.
+/// <c>orders.Query(Order.Keys.Pk.Of("dana")).Limit(10)</c> gives 9 orders in its first page when the profile of the customer shares the partition. A condition on the sort key that only
+/// this entity matches, <c>orders.Query(Order.Keys.Pk.Of("dana"), Order.Keys.Sk.BeginsWith())</c>, reads its items alone. To read several types at once, read the table as <see cref="Item"/>.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">How the items are read.</typeparam>
@@ -165,6 +167,9 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// pages of this size, and with a filter a page holds fewer items than this. A cap on items is <c>.ItemsAsync(ct).Take(n)</c>, which reads until it has them, across empty
     /// filtered pages, and stops. To read one page, use <see cref="PageAsync(ContinuationToken, CancellationToken)"/>.
     /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryCommand{T}" path="/remarks/para[2]"/>
+    /// </remarks>
     /// <param name="items">The most items per page.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="items"/> is below 1.</exception>
@@ -308,7 +313,10 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// Reads one page, for paging that a client drives across requests: build the same query each time and pass the position of the page before. The page can be
     /// empty and still have a next one, so a client that wants items keeps going while <see cref="Page{T}.HasMore"/> holds.
     /// </summary>
-    /// <param name="after">The position to continue from, or the default value for the first page. It must come from the same query.</param>
+    /// <remarks>
+    /// <inheritdoc cref="QueryCommand{T}" path="/remarks/para[2]"/>
+    /// </remarks>
+    /// <param name="after">The position to continue from, or <c>default</c> for the first page. It must come from the same query. A <c>ContinuationToken?</c> passes as <c>after ?? default</c>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page. Await it once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
