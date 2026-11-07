@@ -17,44 +17,47 @@ internal static class ConflictRetry
     /// <param name="operation">The delegate.</param>
     /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
+    /// <param name="onConflict">Hears of each run that lost and is followed by another, before the wait, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>What the last run returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task<T> StartAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
+    public static Task<T> StartAsync<T>(ClientCore core, Func<CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, Action<int, DynamoDbException>? onConflict, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         Check(retryOn, maxAttempts);
-        return RunAsync(core, static (operation, _, token) => operation(token), operation, retryOn, maxAttempts, cancellationToken);
+        return RunAsync(core, static (operation, _, token) => operation(token), operation, retryOn, maxAttempts, onConflict, cancellationToken);
     }
 
-    /// <summary>Runs a read-modify-write whose delegate takes the number of the run, 1 for the first, as <see cref="StartAsync{T}(ClientCore, Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/> does.</summary>
+    /// <summary>Runs a read-modify-write whose delegate takes the number of the run, 1 for the first, as <see cref="StartAsync{T}(ClientCore, Func{CancellationToken, ValueTask{T}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/> does.</summary>
     /// <typeparam name="T">What the delegate returns.</typeparam>
     /// <param name="core">The client: its clock, its jitter and its telemetry.</param>
     /// <param name="operation">The delegate, with the number of the run.</param>
     /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
+    /// <param name="onConflict">Hears of each run that lost and is followed by another, before the wait, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>What the last run returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task<T> StartAsync<T>(ClientCore core, Func<int, CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
+    public static Task<T> StartAsync<T>(ClientCore core, Func<int, CancellationToken, ValueTask<T>> operation, ConflictKind retryOn, int maxAttempts, Action<int, DynamoDbException>? onConflict, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         Check(retryOn, maxAttempts);
-        return RunAsync(core, static (operation, run, token) => operation(run, token), operation, retryOn, maxAttempts, cancellationToken);
+        return RunAsync(core, static (operation, run, token) => operation(run, token), operation, retryOn, maxAttempts, onConflict, cancellationToken);
     }
 
-    /// <summary>Runs a read-modify-write that returns nothing, as <see cref="StartAsync{T}(ClientCore, Func{CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/> does.</summary>
+    /// <summary>Runs a read-modify-write that returns nothing, as <see cref="StartAsync{T}(ClientCore, Func{CancellationToken, ValueTask{T}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/> does.</summary>
     /// <param name="core">The client: its clock, its jitter and its telemetry.</param>
     /// <param name="operation">The delegate.</param>
     /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
+    /// <param name="onConflict">Hears of each run that lost and is followed by another, before the wait, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task StartAsync(ClientCore core, Func<CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
+    public static Task StartAsync(ClientCore core, Func<CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, Action<int, DynamoDbException>? onConflict, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         return StartAsync(
@@ -66,19 +69,21 @@ internal static class ConflictRetry
             },
             retryOn,
             maxAttempts,
+            onConflict,
             cancellationToken);
     }
 
-    /// <summary>Runs a read-modify-write that returns nothing and takes the number of the run, as <see cref="StartAsync{T}(ClientCore, Func{int, CancellationToken, ValueTask{T}}, ConflictKind, int, CancellationToken)"/> does.</summary>
+    /// <summary>Runs a read-modify-write that returns nothing and takes the number of the run, as <see cref="StartAsync{T}(ClientCore, Func{int, CancellationToken, ValueTask{T}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/> does.</summary>
     /// <param name="core">The client: its clock, its jitter and its telemetry.</param>
     /// <param name="operation">The delegate, with the number of the run.</param>
     /// <param name="retryOn">The conflicts that run it again.</param>
     /// <param name="maxAttempts">The number of runs.</param>
+    /// <param name="onConflict">Hears of each run that lost and is followed by another, before the wait, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Goes to each run, and ends a wait.</param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> names no conflict or something else, or <paramref name="maxAttempts"/> is below 1.</exception>
-    public static Task StartAsync(ClientCore core, Func<int, CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
+    public static Task StartAsync(ClientCore core, Func<int, CancellationToken, ValueTask> operation, ConflictKind retryOn, int maxAttempts, Action<int, DynamoDbException>? onConflict, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         return StartAsync(
@@ -90,6 +95,7 @@ internal static class ConflictRetry
             },
             retryOn,
             maxAttempts,
+            onConflict,
             cancellationToken);
     }
 
@@ -105,7 +111,13 @@ internal static class ConflictRetry
 
     // The delegate of the caller goes in as state, so that a run of either shape costs no closure of its own.
     private static async Task<T> RunAsync<T, TOperation>(
-        ClientCore core, Func<TOperation, int, CancellationToken, ValueTask<T>> invoke, TOperation operation, ConflictKind retryOn, int maxAttempts, CancellationToken cancellationToken)
+        ClientCore core,
+        Func<TOperation, int, CancellationToken, ValueTask<T>> invoke,
+        TOperation operation,
+        ConflictKind retryOn,
+        int maxAttempts,
+        Action<int, DynamoDbException>? onConflict,
+        CancellationToken cancellationToken)
     {
         var run = 1;
         while (true)
@@ -128,6 +140,9 @@ internal static class ConflictRetry
                 }
 
                 core.CountConflictRetry(conflict);
+
+                // Inside the catch, so that what the hook throws ends the loop in place of the conflict.
+                onConflict?.Invoke(run, conflict);
             }
 
             await core.ConflictBackoffAsync(run, cancellationToken).ConfigureAwait(false);

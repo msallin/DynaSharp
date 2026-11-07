@@ -230,6 +230,19 @@ await carts.RetryOnConflictAsync(async (run, token) =>
 }, ct);
 ```
 
+`onConflict` hears of each run that lost and is followed by another, with the number of the run and its exception, before the wait, so a log needs no `catch` and rethrow inside the delegate. It is not called for the last run, whose exception surfaces, and what it throws ends the retries with that exception.
+
+```csharp
+await carts.RetryOnConflictAsync(
+    async token =>
+    {
+        var cart = await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+        await carts.Put(cart! with { Lines = lines }).SendAsync(token);
+    },
+    onConflict: (run, conflict) => Console.WriteLine($"Run {run} lost with {conflict.ErrorCode}, trying again"),
+    cancellationToken: ct);
+```
+
 A run that reads nothing, and whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once. See [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
 
 ## See what goes over the wire

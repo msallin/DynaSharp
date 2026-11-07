@@ -635,6 +635,83 @@ internal sealed class ConflictRetryTests
     }
 
     [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    public async Task RetryOnConflictAsync_OnConflict_HearsOfEachRunThatLostButTheLast(int shape)
+    {
+        // Arrange (three runs lose and the limit is three, so the third conflict surfaces and the hook hears of two)
+        Exception first = Lost(), second = Lost(), last = Lost();
+        var script = new Script(first, second, last);
+        var heard = new List<(int Run, DynamoDbException Conflict)>();
+        Action<int, DynamoDbException> onConflict = (run, conflict) => heard.Add((run, conflict));
+        using var client = NewClient();
+        var shop = Shop(client);
+
+        // Act
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shape switch
+        {
+            0 => shop.RetryOnConflictAsync(script.RunAsync, maxAttempts: 3, onConflict: onConflict),
+            1 => shop.RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: 3, onConflict: onConflict),
+            2 => shop.RetryOnConflictAsync((_, ct) => script.RunAsync(ct), maxAttempts: 3, onConflict: onConflict),
+            _ => shop.RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), maxAttempts: 3, onConflict: onConflict),
+        });
+
+        // Assert
+        await Assert.That((heard.Count, heard[0].Run, heard[1].Run, ReferenceEquals(heard[0].Conflict, first), ReferenceEquals(heard[1].Conflict, second))).IsEqualTo((2, 1, 2, true, true));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_OnConflict_RunsBeforeTheWait()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new Script(Lost());
+        var heard = 0;
+        using var client = NewClient(time: time, random: FixedRandom.One);
+
+        // Act
+        var call = Shop(client).RetryOnConflictAsync(script.RunAsync, onConflict: (_, _) => heard++);
+        var beforeTheWait = (heard, script.Runs);
+        time.Advance(TimeSpan.FromMilliseconds(10));
+        await call;
+
+        // Assert
+        await Assert.That((beforeTheWait, heard, script.Runs)).IsEqualTo(((1, 1), 1, 2));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_OnConflictThrows_SurfacesThatAndRunsNoMore()
+    {
+        // Arrange
+        var script = new Script(Lost(), Lost());
+        var stop = new InvalidOperationException("Enough.");
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, onConflict: (_, _) => throw stop));
+
+        // Assert
+        await Assert.That((ReferenceEquals(failure, stop), script.Runs)).IsEqualTo((true, 1));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_OnConflictAndAnotherFailure_HearsNothing()
+    {
+        // Arrange
+        var script = new Script(new ValidationException("The expression does not parse."));
+        var heard = 0;
+        using var client = NewClient();
+
+        // Act
+        await TestClient.CaptureAsync<ValidationException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, onConflict: (_, _) => heard++));
+
+        // Assert
+        await Assert.That(heard).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_WaitsBetweenRuns_DoubleFromASmallBaseOnTheClockOfTheClient()
     {
         // Arrange (the jitter at its largest, so these are the ceilings; nothing waits before the first run or after the last)

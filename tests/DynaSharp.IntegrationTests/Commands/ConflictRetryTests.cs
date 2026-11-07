@@ -135,6 +135,27 @@ public sealed class ConflictRetryTests(Backend backend)
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_OnConflict_HearsOfEachLostRunWithTheErrorOfTheService()
+    {
+        // Arrange (a stale version loses every run, so the hook hears of every run but the last, whose conflict surfaces)
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var tallies = await StartAsync(sandbox);
+        var stale = await tallies.Get(Tally.Keys.Of(Shared)).Consistent().ItemAsync();
+        await tallies.Put(stale! with { Count = 1 }).SendAsync();
+        var heard = new List<string>();
+        Task WriteAsync(Tally held) => tallies.RetryOnConflictAsync(
+            async ct => await tallies.Put(held with { Count = 2 }).SendAsync(ct),
+            maxAttempts: 3,
+            onConflict: (run, conflict) => heard.Add(run + ":" + conflict.ErrorCode));
+
+        // Act
+        await Items.FailureOfAsync<ConditionalCheckFailedException>(() => WriteAsync(stale));
+
+        // Assert
+        await Assert.That(string.Join(",", heard)).IsEqualTo("1:ConditionalCheckFailedException,2:ConditionalCheckFailedException");
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_LostResponseOfAConditionalWrite_AppliesTheChangeTwice()
     {
         // Arrange (only the writes go through the client that loses a response: the first attempt takes effect, the second fails on it, and the delegate runs on top of its own write)
