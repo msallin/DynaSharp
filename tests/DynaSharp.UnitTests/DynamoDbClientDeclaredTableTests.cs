@@ -47,19 +47,72 @@ public sealed class DynamoDbClientDeclaredTableTests
     }
 
     [Test]
-    [Arguments(null, "null")]
-    [Arguments("", "an empty name")]
-    public async Task Table_TableNamingReturnsNoName_ThrowsInvalidOperationException(string? returned, string described)
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task Table_TableNamingReturnsNoName_OpensTheDeclaredTable(string? returned)
     {
         // Arrange
-        using var client = Create(_ => returned!);
+        using var client = Create(_ => returned);
 
         // Act
-        var exception = Assert.Throws<InvalidOperationException>(() => client.Table<Patron>());
+        var patrons = client.Table<Patron>();
 
         // Assert
-        await Assert.That(exception.Message).IsEqualTo(
-            $"TableNaming of the client returned {described} for the table 'patrons' that DynaSharp.UnitTests.Testing.Consumer.Patron declares. Return the name of a table, or leave TableNaming null to open 'patrons' itself.");
+        await Assert.That(patrons.Name).IsEqualTo("patrons");
+    }
+
+    [Test]
+    public async Task ResolveTableName_TableNaming_GivesTheNameItReturns()
+    {
+        // Arrange
+        using var client = Create(static name => $"dev-{name}");
+
+        // Act
+        var name = client.ResolveTableName("Shop");
+
+        // Assert
+        await Assert.That(name).IsEqualTo("dev-Shop");
+    }
+
+    [Test]
+    public async Task ResolveTableName_NoTableNaming_GivesTheDeclaredName()
+    {
+        // Arrange
+        using var client = Create(null);
+
+        // Act
+        var name = client.ResolveTableName("Shop");
+
+        // Assert
+        await Assert.That(name).IsEqualTo("Shop");
+    }
+
+    [Test]
+    public async Task ResolveTableName_TableNamingThatRenamesSomeTables_KeepsTheOthers()
+    {
+        // Arrange
+        using var client = Create(static name => name == "Shop" ? "dev-Shop" : null);
+
+        // Act
+        var names = (client.ResolveTableName("Shop"), client.ResolveTableName("Locks"));
+
+        // Assert
+        await Assert.That(names).IsEqualTo(("dev-Shop", "Locks"));
+    }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task ResolveTableName_NoName_ThrowsArgumentException(string? declared)
+    {
+        // Arrange
+        using var client = Create(null);
+
+        // Act
+        var exception = Assert.Throws<ArgumentException>(() => client.ResolveTableName(declared!));
+
+        // Assert
+        await Assert.That(exception.ParamName).IsEqualTo("declaredName");
     }
 
     [Test]
@@ -94,6 +147,6 @@ public sealed class DynamoDbClientDeclaredTableTests
         await Assert.That(fake.Items<Patron>("dev-patrons")).IsEquivalentTo([patron]);
     }
 
-    private static DynamoDbClient Create(Func<string, string>? naming) =>
+    private static DynamoDbClient Create(Func<string, string?>? naming) =>
         new(TestClient.Options(new StubHandler()) with { TableNaming = naming }, static _ => null, null, null);
 }

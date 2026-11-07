@@ -121,7 +121,7 @@ public sealed class DynamoDbClient : IDisposable
     /// Opens a table without a schema, which reads and writes <see cref="Item"/>. It makes no request, so a table that does not exist shows up
     /// with the first command. Hold the result in a field: it is immutable and thread-safe.
     /// </summary>
-    /// <param name="name">The table name, or its ARN.</param>
+    /// <param name="name">The table name as deployed, or its ARN, used exactly as given: <see cref="DynamoDbClientOptions.TableNaming"/> does not apply, and <see cref="ResolveTableName"/> applies it to a declared name.</param>
     /// <param name="partitionKey">The attribute name of the partition key.</param>
     /// <param name="sortKey">The attribute name of the sort key, or <see langword="null"/> if the table has none.</param>
     /// <returns>The table.</returns>
@@ -143,7 +143,7 @@ public sealed class DynamoDbClient : IDisposable
     /// not exist shows up with the first command. Hold the result in a field: it is immutable and thread-safe.
     /// </summary>
     /// <typeparam name="T">The entity. A nested document has no key, so it does not fit here, which the constraint enforces, and neither does <see cref="Item"/>: a table without a schema is opened with <see cref="Table(string, string, string)"/>.</typeparam>
-    /// <param name="name">The table name, or its ARN.</param>
+    /// <param name="name">The table name as deployed, or its ARN, used exactly as given: <see cref="DynamoDbClientOptions.TableNaming"/> does not apply. <see cref="Table{T}()"/> opens the table the entity declares.</param>
     /// <returns>The table.</returns>
     /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
     public Table<T> Table<T>(string name)
@@ -172,7 +172,7 @@ public sealed class DynamoDbClient : IDisposable
     /// </remarks>
     /// <typeparam name="T">The entity, which declares its table.</typeparam>
     /// <returns>The table.</returns>
-    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table, or <see cref="DynamoDbClientOptions.TableNaming"/> returned <see langword="null"/> or an empty name.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
     /// <example>
     /// <code>
     /// // Order declares [DynamoDbEntity(Table = "Shop")], or the assembly [assembly: DynamoDbDefaults(Table = "Shop")].
@@ -182,22 +182,30 @@ public sealed class DynamoDbClient : IDisposable
     /// </code>
     /// </example>
     public Table<T> Table<T>()
-        where T : IDynamoDbEntity<T>
+        where T : IDynamoDbEntity<T> => CreateTable<T>(Core, ResolveTableName(DeclaredTable.Of<T>()));
+
+    /// <summary>
+    /// Gives the name of the table this client opens for a declared name, after <see cref="DynamoDbClientOptions.TableNaming"/>, for code that has the name and no entity:
+    /// <c>client.DescribeTableAsync(client.ResolveTableName("Shop"), ct)</c>. Without <see cref="DynamoDbClientOptions.TableNaming"/> it is the declared name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The same as <see cref="Table{T}()"/>.</b> It is the name that <see cref="Table{T}()"/> opens for an entity that declares <paramref name="declaredName"/>, so a health check or an
+    /// administration script that names the table as the entities declare it reaches the table of the environment. The members that take a table name, such as
+    /// <see cref="DescribeTableAsync(string, CancellationToken)"/>, <see cref="Table(string, string, string)"/> and the requests of <c>DynaSharp.Requests</c>, take the name as deployed and do not apply it.
+    /// </para>
+    /// <para>
+    /// <b>Every call runs the function.</b> A result of <see langword="null"/> or an empty name gives <paramref name="declaredName"/>, any other result is returned unchecked, and an exception
+    /// of the function reaches the caller as it is.
+    /// </para>
+    /// </remarks>
+    /// <param name="declaredName">The name as an entity declares it, in <see cref="DynamoDbEntityAttribute.Table"/> or <see cref="DynamoDbDefaultsAttribute.Table"/>.</param>
+    /// <returns>The name of the table to open, or its ARN.</returns>
+    /// <exception cref="ArgumentException"><paramref name="declaredName"/> is <see langword="null"/> or empty.</exception>
+    public string ResolveTableName(string declaredName)
     {
-        var declared = DeclaredTable.Of<T>();
-        if (Core.Options.TableNaming is not { } naming)
-        {
-            return CreateTable<T>(Core, declared);
-        }
-
-        var name = naming(declared);
-        if (string.IsNullOrEmpty(name))
-        {
-            throw new InvalidOperationException(
-                $"TableNaming of the client returned {(name is null ? "null" : "an empty name")} for the table '{declared}' that {typeof(T)} declares. Return the name of a table, or leave TableNaming null to open '{declared}' itself.");
-        }
-
-        return CreateTable<T>(Core, name);
+        ArgumentException.ThrowIfNullOrEmpty(declaredName);
+        return Core.Options.TableNaming?.Invoke(declaredName) is { Length: > 0 } name ? name : declaredName;
     }
 
     /// <summary>
@@ -223,7 +231,9 @@ public sealed class DynamoDbClient : IDisposable
     /// </para>
     /// <para>The result is eventually consistent: right after creating a table it may still be reported as missing, which <see cref="DynaSharp.Table{T}.WaitUntilActiveAsync(CancellationToken)"/> bears with.</para>
     /// </remarks>
-    /// <param name="tableName">The table name, or its ARN.</param>
+    /// <param name="tableName">
+    /// The table name as deployed, or its ARN, used exactly as given: <see cref="DynamoDbClientOptions.TableNaming"/> does not apply, so a declared name goes through <see cref="ResolveTableName"/> first.
+    /// </param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The response. <see cref="DescribeTableResponse.Table"/> holds the description, and is <see langword="null"/> only if the response omits it.</returns>
     /// <exception cref="ArgumentException"><paramref name="tableName"/> is <see langword="null"/> or empty.</exception>

@@ -200,20 +200,22 @@ public sealed record DynamoDbClientOptions
     public ContinuationTokenSigner? TokenSigner { get; init; }
 
     /// <summary>
-    /// Gets the function that turns the table an entity declares into the table the client opens, such as <c>name => $"{environment}-{name}"</c>. When <see langword="null"/>, a declared name is used as it is.
+    /// Gets the function that turns the table an entity declares into the table the client opens, such as <c>name => $"{environment}-{name}"</c>. When <see langword="null"/>, or where it returns
+    /// <see langword="null"/> or an empty name, a declared name is used as it is.
     /// </summary>
     /// <remarks>
     /// <para>
     /// <b>Only declared names.</b> <see cref="DynamoDbClient.Table{T}()"/> passes the name of <see cref="Mapping.DynamoDbEntityAttribute.Table"/>, or of <see cref="Mapping.DynamoDbDefaultsAttribute.Table"/>,
-    /// through it on every call. An explicit name, as in <see cref="DynamoDbClient.Table{T}(string)"/> and <see cref="DynamoDbClient.Table(string, string, string?)"/>, is used exactly as given, so
-    /// it can be an ARN, or a table of a test.
+    /// through it on every call, and <see cref="DynamoDbClient.ResolveTableName"/> does for code that has a declared name and no entity. An explicit name, as in <see cref="DynamoDbClient.Table{T}(string)"/>,
+    /// <see cref="DynamoDbClient.Table(string, string, string?)"/> and <see cref="DynamoDbClient.DescribeTableAsync(string, CancellationToken)"/>, is used exactly as given, so it can be an ARN, or a table of a test.
     /// </para>
     /// <para>
-    /// <b>A name or an exception.</b> The result may be a name or an ARN, which the client does not check: DynamoDB rejects one it does not know with the first command. A result that is
-    /// <see langword="null"/> or empty makes <see cref="DynamoDbClient.Table{T}()"/> throw <see cref="InvalidOperationException"/>, and an exception of the function reaches the caller as it is.
+    /// <b>A name, or the declared one.</b> The result may be a name or an ARN, which the client does not check: DynamoDB rejects one it does not know with the first command. A result that is
+    /// <see langword="null"/> or empty keeps the declared name, so a function can rename only some tables: <c>name => name == "Shop" ? $"{environment}-Shop" : null</c>. An exception of the
+    /// function reaches the caller as it is.
     /// </para>
     /// </remarks>
-    public Func<string, string>? TableNaming { get; init; }
+    public Func<string, string?>? TableNaming { get; init; }
 
     /// <summary>
     /// Creates options for an emulator such as DynamoDB Local or Dynoxide: <paramref name="serviceUrl"/> as <see cref="ServiceUrl"/>, the region <c>us-east-1</c> unless

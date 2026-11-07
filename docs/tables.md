@@ -88,7 +88,13 @@ using var staged = new DynamoDbClient(new DynamoDbClientOptions
 var accounts = staged.Table<LedgerAccount>(); // dev-Ledger
 ```
 
-It applies only to declared names. A function that returns null or an empty name makes `Table<T>()` throw `InvalidOperationException`; any other result is opened as it is, so it can be an ARN, and DynamoDB answers a table it does not know with the first command.
+It applies only to declared names. A function that returns null or an empty name keeps the declared name, so it can rename only some tables, `name => name == "Ledger" ? $"{environment}-Ledger" : null`; any other result is opened as it is, so it can be an ARN, and DynamoDB answers a table it does not know with the first command.
+
+Code that names a table and knows no entity, such as a health check, asks the client for the name it opens with `ResolveTableName`. `DescribeTableAsync(name)` of the client, like every member that takes a name, takes the name as deployed and applies no `TableNaming`:
+
+```csharp
+var ledger = await client.DescribeTableAsync(client.ResolveTableName("Ledger"), ct); // dev-Ledger, under the TableNaming above
+```
 
 ### An explicit name
 

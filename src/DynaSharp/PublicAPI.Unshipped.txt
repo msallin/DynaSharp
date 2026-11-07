@@ -24,3 +24,6 @@ DynaSharp.MixedQueryCommand<TMixed>.Take(int items) -> DynaSharp.MixedQueryComma
 DynaSharp.MixedScanCommand<TMixed>.Take(int items) -> DynaSharp.MixedScanCommand<TMixed>
 DynaSharp.QueryCommand<T>.Take(int items) -> DynaSharp.QueryCommand<T>
 DynaSharp.ScanCommand<T>.Take(int items) -> DynaSharp.ScanCommand<T>
+*REMOVED*DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string!>?
+DynaSharp.DynamoDbClientOptions.TableNaming.get -> System.Func<string!, string?>?
+DynaSharp.DynamoDbClient.ResolveTableName(string! declaredName) -> string!
