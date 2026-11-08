@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Atomic counter</see>: <c>ADD</c> counts on the server, so concurrent writers need no read and no lock, and each gets a number of its own. A retry after a lost
+/// <see href="../../../docs/patterns.md">Atomic counter</see>: <c>ADD</c> counts on the server, so concurrent writers need no read and no lock, and each gets a number of its own. A retry after a lost
 /// response counts twice, so an exact counter gets one attempt. One item takes about 1000 write units a second; beyond that, see the sharded counter.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Uniqueness constraints</see>: DynamoDB keeps only a primary key unique, so a value that must be unique gets an item whose key is that value, written with the record in one
+/// <see href="../../../docs/patterns.md">Uniqueness constraints</see>: DynamoDB keeps only a primary key unique, so a value that must be unique gets an item whose key is that value, written with the record in one
 /// transaction. With several values the caller has to learn which one failed, which is what a marker says.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

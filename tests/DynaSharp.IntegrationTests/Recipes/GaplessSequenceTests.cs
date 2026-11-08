@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Gapless sequence</see>: numbers without holes, as invoices need. The counter moves in the same transaction as the record that takes the number, so a cancelled record burns none. It is
+/// <see href="../../../docs/patterns.md">Gapless sequence</see>: numbers without holes, as invoices need. The counter moves in the same transaction as the record that takes the number, so a cancelled record burns none. It is
 /// serialized on one item, so concurrent writers retry, and the throughput is that of the item.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

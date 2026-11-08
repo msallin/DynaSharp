@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Optimistic locking</see>: a read-modify-write stays correct without a lock, because the write holds only if nobody wrote since the read. <c>[Version]</c> turns it on per
+/// <see href="../../../docs/patterns.md">Optimistic locking</see>: a read-modify-write stays correct without a lock, because the write holds only if nobody wrote since the read. <c>[Version]</c> turns it on per
 /// type and every write of that type must then say how it treats the version. What to do about a conflict is up to the caller: nothing retries by itself.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

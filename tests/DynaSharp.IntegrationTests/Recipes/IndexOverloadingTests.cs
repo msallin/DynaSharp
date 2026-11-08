@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Index overloading</see>: a table has few global indexes, so each type gives the same key attributes a meaning of its own, and one index answers several questions. Each type declares
+/// <see href="../../../docs/patterns.md">Index overloading</see>: a table has few global indexes, so each type gives the same key attributes a meaning of its own, and one index answers several questions. Each type declares
 /// its own templates over the same attributes.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

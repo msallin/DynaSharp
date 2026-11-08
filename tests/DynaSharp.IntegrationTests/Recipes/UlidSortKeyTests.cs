@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">ULID / KSUID sort keys</see>: an id that sorts by creation time, so a sort key is unique and chronological at once, and two writes in one millisecond do not collide. Newest first is a backward
+/// <see href="../../../docs/patterns.md">ULID / KSUID sort keys</see>: an id that sorts by creation time, so a sort key is unique and chronological at once, and two writes in one millisecond do not collide. Newest first is a backward
 /// read of the partition (<c>ScanIndexForward=false</c>). A range of time is a range of the leading characters, with the lowest and the highest random part behind them. <see cref="Version7SortKeyTests"/> is the
 /// same with a version-7 <see cref="Guid"/>, which needs no code of its own; this is for a service that has ULIDs already.
 /// </summary>

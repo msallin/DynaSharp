@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Queue via sparse GSI</see>: a pending job is in a sparse index under one of a few shards, so the queue is no hot partition. A worker claims a
+/// <see href="../../../docs/patterns.md">Queue via sparse GSI</see>: a pending job is in a sparse index under one of a few shards, so the queue is no hot partition. A worker claims a
 /// job with a conditional update that takes it out of that index and into a second one of claims, sharded the same way and keyed by the end of the claim,
 /// under an id of its own for that claim; completing deletes it on condition of that id, and a reaper puts a job whose claim ran out back. The index is eventually consistent, so a worker can read a job that is gone: the condition of the claim is what
 /// makes it correct. A queue that needs visibility timeouts per message, delays, a dead-letter queue or FIFO groups is SQS, not a table.

@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Soft delete</see>: an item stays, marked as deleted, and leaves a sparse index that lists what is live, so undo stays possible and list views need no filter. The base table does not know about any of that: a get
+/// <see href="../../../docs/patterns.md">Soft delete</see>: an item stays, marked as deleted, and leaves a sparse index that lists what is live, so undo stays possible and list views need no filter. The base table does not know about any of that: a get
 /// still finds the item, and each reader there has to look at the mark. The owner is in the key of the table, so a restore sets the time alone: DynamoDB cannot build a key from what an item holds, and with the owner outside the key it has to come from the caller.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Autocomplete</see>: suggestions under a sort key in a folded form, and <c>begins_with</c> on what was typed so far, with a <c>Limit</c> for the first few. A key is never folded for you, so the entity stores the
+/// <see href="../../../docs/patterns.md">Autocomplete</see>: suggestions under a sort key in a folded form, and <c>begins_with</c> on what was typed so far, with a <c>Limit</c> for the first few. A key is never folded for you, so the entity stores the
 /// folded text beside the display text. A prefix everyone types needs write shards, and then a fan-out merges them back into order.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

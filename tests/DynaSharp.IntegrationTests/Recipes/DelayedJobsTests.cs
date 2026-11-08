@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Delayed / scheduled jobs</see>: a job waits in the partition of the hour it is due, sorted by time, and a poller reads the hours that have come and claims each job with a delete that only one
+/// <see href="../../../docs/patterns.md">Delayed / scheduled jobs</see>: a job waits in the partition of the hour it is due, sorted by time, and a poller reads the hours that have come and claims each job with a delete that only one
 /// poller can win. TTL is never the timer: it fires days late, and nothing says when.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

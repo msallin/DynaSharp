@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Adjacency list (+ inverted GSI)</see>: a graph in one table. A node and its outgoing edges share a partition, so one query walks them, and a global index with the key the other way
+/// <see href="../../../docs/patterns.md">Adjacency list (+ inverted GSI)</see>: a graph in one table. A node and its outgoing edges share a partition, so one query walks them, and a global index with the key the other way
 /// round walks the edges backwards. A query then holds several types, which is what <c>Of&lt;...&gt;()</c> reads.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

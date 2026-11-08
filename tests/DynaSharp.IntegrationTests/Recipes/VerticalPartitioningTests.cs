@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Vertical partitioning</see>: what changes often or is read alone goes into an item of its own in the same partition, because a read and a write pay for a whole item. The stock of a
+/// <see href="../../../docs/patterns.md">Vertical partitioning</see>: what changes often or is read alone goes into an item of its own in the same partition, because a read and a write pay for a whole item. The stock of a
 /// product with a long manual then costs one unit to change, and one query still reads the product whole.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

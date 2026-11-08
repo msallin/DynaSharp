@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Inverted index</see>: an item per term and document, so a term reads its documents, and several terms intersect on the client. That is trivial scale: no ranking, one query per term, and a write per term of a
+/// <see href="../../../docs/patterns.md">Inverted index</see>: an item per term and document, so a term reads its documents, and several terms intersect on the client. That is trivial scale: no ranking, one query per term, and a write per term of a
 /// document. Beyond that, use OpenSearch. Terms such as <c>C#</c> hold a <c>#</c>, so this table uses <c>|</c> as the delimiter of its keys.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

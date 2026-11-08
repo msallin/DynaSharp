@@ -7,7 +7,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Service registry with liveness</see>: instances register and renew a time to live, and a reader sees those whose time has not run out. TTL only cleans up: DynamoDB deletes an expired item
+/// <see href="../../../docs/patterns.md">Service registry with liveness</see>: instances register and renew a time to live, and a reader sees those whose time has not run out. TTL only cleans up: DynamoDB deletes an expired item
 /// days later, so liveness is a filter on the attribute, never the absence of the item.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

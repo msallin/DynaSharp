@@ -8,7 +8,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Top-N / leaderboard</see>: a global index keeps scores in order, with a few write shards so that a popular game does not throttle the index, and a fan-out reads the top. A change of a score moves the item
+/// <see href="../../../docs/patterns.md">Top-N / leaderboard</see>: a global index keeps scores in order, with a few write shards so that a popular game does not throttle the index, and a fan-out reads the top. A change of a score moves the item
 /// in the index, a delete and an insert for DynamoDB, so the new value must be known here, and an <c>ADD</c> by handle is refused.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

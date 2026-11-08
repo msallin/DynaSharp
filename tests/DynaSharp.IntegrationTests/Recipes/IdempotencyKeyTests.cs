@@ -6,7 +6,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Idempotency keys</see>: a client retries with the key it chose, so the second call does nothing and answers like the first. A record of the key goes in the same transaction as the effect and holds the
+/// <see href="../../../docs/patterns.md">Idempotency keys</see>: a client retries with the key it chose, so the second call does nothing and answers like the first. A record of the key goes in the same transaction as the effect and holds the
 /// answer. TTL cleans the records up and must outlast the retry horizon of the client: after it, the call counts as new. TTL deletes days late, so the condition goes by the time, not by the absence of the record.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

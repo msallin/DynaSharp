@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Hi/lo sequence</see>: one <c>ADD</c> claims a block of numbers, which the process then hands out from memory, so a thousand ids cost a
+/// <see href="../../../docs/patterns.md">Hi/lo sequence</see>: one <c>ADD</c> claims a block of numbers, which the process then hands out from memory, so a thousand ids cost a
 /// write per block. Numbers are unique across processes. A process that stops leaves the rest of its block unused, and a retry of the <c>ADD</c> after a lost
 /// response claims a block twice and wastes one: gaps, which are fine for ids and wrong for invoice numbers (see the gapless sequence).
 /// </summary>

@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Bitemporal sort key</see>: two times, when a fact holds and when it was recorded, both in the key, so a correction is a new item and nothing is overwritten. "What did we believe on that day about that day?" is one
+/// <see href="../../../docs/patterns.md">Bitemporal sort key</see>: two times, when a fact holds and when it was recorded, both in the key, so a correction is a new item and nothing is overwritten. "What did we believe on that day about that day?" is one
 /// backward read: the newest valid time up to the day, and a filter on the recording time.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

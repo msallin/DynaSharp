@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Version-0 item (history)</see>: the current state is the item at version 0, and each change also writes an immutable item of its own. A transaction keeps the two together, with the
+/// <see href="../../../docs/patterns.md">Version-0 item (history)</see>: the current state is the item at version 0, and each change also writes an immutable item of its own. A transaction keeps the two together, with the
 /// version check on the current item deciding between writers. It costs twice: two items, each at the price of a transactional write.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

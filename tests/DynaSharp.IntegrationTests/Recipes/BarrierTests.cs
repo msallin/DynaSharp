@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Barrier / rendezvous</see>: n parties wait for each other, and the last to arrive starts the next step. Each adds its name to a set in one item. A set makes a repeated arrival harmless, and the
+/// <see href="../../../docs/patterns.md">Barrier / rendezvous</see>: n parties wait for each other, and the last to arrive starts the next step. Each adds its name to a set in one item. A set makes a repeated arrival harmless, and the
 /// new item comes back with the write, so exactly one party sees the set complete.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

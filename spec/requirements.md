@@ -52,7 +52,7 @@ Fix:
 - **Fan-out query**: query a set of partition keys (write shards, time buckets) and merge results by sort key, with a
   composite continuation token.
 - **TTL**: converter for epoch seconds, so TTL attributes work.
-- **Pattern support** (see `patterns.md`): every pattern of the catalog is expressible with the core primitives and
+- **Pattern support** (the DynamoDB Design Pattern Catalog; user pages in `../docs/patterns.md`): every pattern of the catalog is expressible with the core primitives and
   shipped as a recipe in the scenario tests (executable documentation). First-class types only where subtle bugs live,
   in a separate package `DynaSharp.Coordination`: lease/lock with fencing tokens, and leader election on top of it.
   Nothing else: the queue over a sparse GSI and the hi/lo allocator are recipes (decision of 2026-11-04 in `tasks.md`).
@@ -91,7 +91,7 @@ Fix:
 - CRC32 response validation (TLS guarantees integrity).
 - PartiQL, DAX, other target frameworks.
 - Lambda stream-event deserialization (deferred, revisit on demand).
-- One class per design pattern. Patterns are recipes over primitives; see `patterns.md`.
+- One class per design pattern. Patterns are recipes over primitives, in `tests/DynaSharp.IntegrationTests/Recipes/`.
 
 ## HOW
 

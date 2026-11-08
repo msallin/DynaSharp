@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Pub/sub via subscription items</see>: a topic lists its subscribers as items, and publishing copies the message into an inbox per subscriber, so each reads and deletes at its own pace. Streams are
+/// <see href="../../../docs/patterns.md">Pub/sub via subscription items</see>: a topic lists its subscribers as items, and publishing copies the message into an inbox per subscriber, so each reads and deletes at its own pace. Streams are
 /// change data capture and no bus: a shard takes about two readers. MQTT topics hold <c>#</c>, so these keys use <c>|</c> as the delimiter.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

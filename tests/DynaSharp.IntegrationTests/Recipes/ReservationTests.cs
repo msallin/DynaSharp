@@ -7,7 +7,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Reservation with auto-release</see>: a seat is held for a few minutes while the customer pays. Nothing has to release it: the hold is a time in the item, a later condition treats a past time as free, and
+/// <see href="../../../docs/patterns.md">Reservation with auto-release</see>: a seat is held for a few minutes while the customer pays. Nothing has to release it: the hold is a time in the item, a later condition treats a past time as free, and
 /// paying is a transaction that holds only while the hold does.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

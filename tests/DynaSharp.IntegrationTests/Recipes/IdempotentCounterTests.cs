@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Idempotent counter</see>: a counter that a retry cannot count twice, because the item remembers the ids it has counted, and the write holds only for a new id. Every write pays for the whole
+/// <see href="../../../docs/patterns.md">Idempotent counter</see>: a counter that a retry cannot count twice, because the item remembers the ids it has counted, and the write holds only for a new id. Every write pays for the whole
 /// item, and the set of ids grows, so the set is windowed: an item per day starts empty.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

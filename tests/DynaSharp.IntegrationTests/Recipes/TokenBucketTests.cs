@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Token bucket</see>: a rate with bursts. The refill is computed on the client from the time since <c>lastRefill</c>, and the write holds only if that is still what the item says, so two callers cannot
+/// <see href="../../../docs/patterns.md">Token bucket</see>: a rate with bursts. The refill is computed on the client from the time since <c>lastRefill</c>, and the write holds only if that is still what the item says, so two callers cannot
 /// both refill. Two callers can read one instant, though, and then <c>lastRefill</c> does not tell them apart, so the condition also holds the tokens they saw.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

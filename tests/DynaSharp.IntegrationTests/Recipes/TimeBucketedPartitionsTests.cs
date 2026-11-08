@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Time-bucketed partitions</see>: a stream of samples must not grow one partition without end, so time is cut into buckets, and a read of a range asks each bucket it touches and merges them.
+/// <see href="../../../docs/patterns.md">Time-bucketed partitions</see>: a stream of samples must not grow one partition without end, so time is cut into buckets, and a read of a range asks each bucket it touches and merges them.
 /// The bucket size is a parameter: a smaller one spreads writes and costs more queries per read. A format in the key template would fix it at compile time, so here it is a number.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

@@ -8,7 +8,7 @@ using static DynaSharp.Expr;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Documents of an external contract</see>: a service keeps an event whose schema another team owns, such as a message of a Kafka topic, as the
+/// <see href="../../../docs/patterns.md">Documents of an external contract</see>: a service keeps an event whose schema another team owns, such as a message of a Kafka topic, as the
 /// JSON it is. A <see cref="JsonElement"/> property stores it as a native map, so a filter, a projection and an update reach into it by path, which a JSON string in one attribute does not
 /// allow, and the contract is serialized with a source-generated context, so it is safe under Native AOT. Dates stay the text the contract wrote. Numbers keep their value, and DynamoDB
 /// keeps them in a canonical form, so <c>1.50</c> reads back as <c>1.5</c> (DynamoDB Local keeps the text).

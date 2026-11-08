@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Time-ordered sort keys</see> with version-7 GUIDs: <see cref="Guid.CreateVersion7(DateTimeOffset)"/> starts with the time in milliseconds, and DynaSharp stores a
+/// <see href="../../../docs/patterns.md">Time-ordered sort keys</see> with version-7 GUIDs: <see cref="Guid.CreateVersion7(DateTimeOffset)"/> starts with the time in milliseconds, and DynaSharp stores a
 /// <see cref="Guid"/> as lowercase text, so a sort key is unique and chronological at once, and two writes in one millisecond do not collide. Newest first is a backward read of the partition
 /// (<c>ScanIndexForward=false</c>), and a range of time is <c>Keys.Sk.Between</c> of the first and the last version-7 value of two milliseconds.
 /// </summary>

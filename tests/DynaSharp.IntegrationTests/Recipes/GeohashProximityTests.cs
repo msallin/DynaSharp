@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Geohash proximity</see>: a place goes into the partition of its grid cell, and "near here" reads the cell of a point and the eight around it. The grid breaks at the edges of the map: longitude must wrap at the
+/// <see href="../../../docs/patterns.md">Geohash proximity</see>: a place goes into the partition of its grid cell, and "near here" reads the cell of a point and the eight around it. The grid breaks at the edges of the map: longitude must wrap at the
 /// antimeridian, where neighbours share no prefix, and near a pole a cell is as narrow as a street, so the eight neighbours do not reach around it.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

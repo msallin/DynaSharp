@@ -9,7 +9,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">HyperLogLog</see>: distinct counts of any size in a fixed kilobyte, stored as a binary attribute. DynamoDB cannot merge bytes, so a writer merges on the client, and <c>[Version]</c> keeps two
+/// <see href="../../../docs/patterns.md">HyperLogLog</see>: distinct counts of any size in a fixed kilobyte, stored as a binary attribute. DynamoDB cannot merge bytes, so a writer merges on the client, and <c>[Version]</c> keeps two
 /// merges from losing each other.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

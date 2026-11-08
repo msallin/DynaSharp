@@ -6,7 +6,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Fixed-window rate limit</see>: a counter per caller and minute, raised with a condition on the limit, so concurrent calls cannot pass it. The next minute is another item, and TTL takes the old ones away.
+/// <see href="../../../docs/patterns.md">Fixed-window rate limit</see>: a counter per caller and minute, raised with a condition on the limit, so concurrent calls cannot pass it. The next minute is another item, and TTL takes the old ones away.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
 public sealed class FixedWindowRateLimitTests(Backend backend)

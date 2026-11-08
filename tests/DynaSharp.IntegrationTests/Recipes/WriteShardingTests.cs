@@ -7,7 +7,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Write sharding</see>: a partition takes about 1000 writes a second, so a hot key is spread over several by a suffix. A random suffix spreads best, and a read has to ask every shard; a
+/// <see href="../../../docs/patterns.md">Write sharding</see>: a partition takes about 1000 writes a second, so a hot key is spread over several by a suffix. A random suffix spreads best, and a read has to ask every shard; a
 /// suffix hashed from an id lets a read find its one shard. The hash must be stable: <see cref="string.GetHashCode()"/> differs per process.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

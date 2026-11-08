@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Sparse index</see>: an index holds only the items that have its key attributes, so a rare state of a large table can be read at the cost of what is in that state. Membership is the
+/// <see href="../../../docs/patterns.md">Sparse index</see>: an index holds only the items that have its key attributes, so a rare state of a large table can be read at the cost of what is in that state. Membership is the
 /// presence of those attributes, and it needs no primitive of its own: <c>SET</c> takes an item in, <c>REMOVE</c> takes it out.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

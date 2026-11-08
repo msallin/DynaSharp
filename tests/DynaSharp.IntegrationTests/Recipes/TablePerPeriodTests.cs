@@ -7,7 +7,7 @@ using DynaSharp.Requests;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Table per period</see>: data with a shelf life goes into a table per month, and a month is dropped as a whole, for free, where deleting its items would cost a write each. The price is that code
+/// <see href="../../../docs/patterns.md">Table per period</see>: data with a shelf life goes into a table per month, and a month is dropped as a whole, for free, where deleting its items would cost a write each. The price is that code
 /// knows how tables are named, and a read across periods asks each table on its own: a fan-out covers one table.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

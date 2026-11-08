@@ -6,7 +6,7 @@ using DynaSharp.Serialization;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Counting semaphore</see>: at most n holders of something across processes. A counter with a condition is the short form, and a holder that crashes leaks its permit for good. One item per
+/// <see href="../../../docs/patterns.md">Counting semaphore</see>: at most n holders of something across processes. A counter with a condition is the short form, and a holder that crashes leaks its permit for good. One item per
 /// permit with a lease survives that: a permit whose lease ran out is free for the next conditional write.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

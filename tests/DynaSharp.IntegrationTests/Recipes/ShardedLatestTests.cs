@@ -7,7 +7,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Sharded "latest across everything"</see>: "the newest n of the whole table", which no partition holds. A global index with a few write shards as partitions keeps it cheap, and a fan-out that
+/// <see href="../../../docs/patterns.md">Sharded "latest across everything"</see>: "the newest n of the whole table", which no partition holds. A global index with a few write shards as partitions keeps it cheap, and a fan-out that
 /// reads each shard backwards and stops at n gives the answer. The shard is an attribute and not a computed property, so that no update of what it would be made of is refused for it.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

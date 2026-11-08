@@ -3,7 +3,7 @@
 ## Specs and planning
 - `spec/requirements.md` is the source of truth for WHY, WHAT and HOW. Read it before starting work.
 - `spec/api.md` is the binding contract of the public API, and `spec/architecture.md` describes the code as it is today. A change that makes either wrong corrects it in the same commit.
-- `docs/diagnostics.md` is the page behind the help links of the analyzers (published at https://msallin.github.io/DynaSharp/diagnostics.html), so its headings are stable. `docs/` holds user documentation, `spec/` holds specs. `spec/patterns.md` is the catalog of design patterns.
+- `docs/diagnostics.md` is the page behind the help links of the analyzers (published at https://msallin.github.io/DynaSharp/diagnostics.html), so its headings are stable. `docs/` holds user documentation, `spec/` holds specs.
 - `spec/tasks.md` is the shared blackboard: claim a task before starting it, keep its status current, record decisions and findings there.
 - Specs, plans, designs and decisions go into `spec/`. Nowhere else.
 - `README.md` is the overview for users: intro, installation, a short getting started, a few examples, API levels, design principles, benchmarks. Plans and status of work stay out of it, its examples must compile, and its numbers come from a benchmark run. The full guide is in `docs/`, published with DocFX (`docs/docfx.json`, `.github/workflows/docs.yml`) at https://msallin.github.io/DynaSharp/, whose home page is the README. Its examples compile too, and a link between pages is relative (`tables.md#adding-an-index`), so that it works on the site and on GitHub. The README ships in the package, so it links to the site with absolute URLs.

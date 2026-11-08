@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Transactional outbox</see>: a state change and the event about it are written in one transaction, so neither happens without the other, and a relay publishes what it finds and deletes it. It
+/// <see href="../../../docs/patterns.md">Transactional outbox</see>: a state change and the event about it are written in one transaction, so neither happens without the other, and a relay publishes what it finds and deletes it. It
 /// delivers at least once, so a consumer goes by the event id. Often the stream of the table already is this outbox, which saves the item and the relay.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

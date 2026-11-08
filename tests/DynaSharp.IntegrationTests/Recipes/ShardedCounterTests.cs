@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Sharded counter</see>: a counter hotter than one item can take is spread over several, each with a random increment, and a read sums them. Writes get cheap and scale, and a read costs one query
+/// <see href="../../../docs/patterns.md">Sharded counter</see>: a counter hotter than one item can take is spread over several, each with a random increment, and a read sums them. Writes get cheap and scale, and a read costs one query
 /// per shard.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

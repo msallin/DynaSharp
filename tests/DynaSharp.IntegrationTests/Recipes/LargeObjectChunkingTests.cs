@@ -7,7 +7,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Large object pointer / chunking</see>: an item holds at most 400 KB, so a larger value is cut into chunks in one partition, with a manifest that is written last. A reader that finds
+/// <see href="../../../docs/patterns.md">Large object pointer / chunking</see>: an item holds at most 400 KB, so a larger value is cut into chunks in one partition, with a manifest that is written last. A reader that finds
 /// the manifest finds every chunk. Beyond a few MB, a pointer to S3 is the better item.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]

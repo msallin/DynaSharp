@@ -6,7 +6,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Status-keyed GSI ("my open items")</see>: a global index over owner and status, with the age behind it, reads "my open items, oldest first". The age is a
+/// <see href="../../../docs/patterns.md">Status-keyed GSI ("my open items")</see>: a global index over owner and status, with the age behind it, reads "my open items, oldest first". The age is a
 /// version-7 id, which starts with the time it was made and is an input of the key of the table, so a change of the status rewrites the key of the index without a read: the update knows the id from
 /// its key. An index key with a time of its own needs that time from the caller, because DynamoDB cannot build a key from what an item holds.
 /// </summary>

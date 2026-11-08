@@ -5,7 +5,7 @@ using DynaSharp.Mapping;
 namespace DynaSharp.IntegrationTests.Recipes;
 
 /// <summary>
-/// <see href="../../../spec/patterns.md#patterns">Composite / hierarchical sort keys</see>: one partition holds a hierarchy, and a <c>begins_with</c> on a prefix reads it at any depth. The key is text, so order is byte order:
+/// <see href="../../../docs/patterns.md">Composite / hierarchical sort keys</see>: one partition holds a hierarchy, and a <c>begins_with</c> on a prefix reads it at any depth. The key is text, so order is byte order:
 /// numbers need a fixed width, which zero-padding gives only to non-negative ones, and times need UTC in one format.
 /// </summary>
 [MethodDataSource(typeof(BackendSelection), nameof(BackendSelection.Selected))]
