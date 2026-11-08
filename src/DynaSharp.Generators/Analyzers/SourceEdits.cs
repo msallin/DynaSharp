@@ -154,7 +154,9 @@ internal static class SourceEdits
         }
     }
 
-    /// <summary>The name to write for an attribute of DynaSharp at a place: the short one where it binds there, else the name in full.</summary>
+    /// <summary>
+    /// The name to write for an attribute of DynaSharp at a place: the short one where it binds there, also where its constructor needs arguments the probe lacks, else the name in full.
+    /// </summary>
     /// <param name="model">The semantic model of the document.</param>
     /// <param name="position">Where the attribute goes.</param>
     /// <param name="metadataName">Its metadata name, such as <see cref="WellKnownNames.IgnoreAttribute"/>.</param>
@@ -162,8 +164,47 @@ internal static class SourceEdits
     {
         var full = metadataName.Substring(0, metadataName.Length - nameof(Attribute).Length);
         var simple = full.Substring(full.LastIndexOf('.') + 1);
-        var probe = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(simple));
-        return model.GetSpeculativeSymbolInfo(position, probe).Symbol?.ContainingType.ToDisplayString() == metadataName ? simple : "global::" + full;
+        var info = model.GetSpeculativeSymbolInfo(position, SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(simple)));
+        return (info.Symbol ?? info.CandidateSymbols.FirstOrDefault())?.ContainingType.ToDisplayString() == metadataName ? simple : "global::" + full;
+    }
+
+    /// <summary>The name to write for a type of DynaSharp at a place: the short one where it binds there, else the name in full.</summary>
+    /// <param name="model">The semantic model of the document.</param>
+    /// <param name="position">Where the name goes.</param>
+    /// <param name="metadataName">The type, such as <c>DynaSharp.Serialization.EpochSecondsConverter</c>.</param>
+    public static string TypeName(SemanticModel model, int position, string metadataName)
+    {
+        var name = metadataName.Substring(metadataName.LastIndexOf('.') + 1);
+        var symbol = model.GetSpeculativeSymbolInfo(position, SyntaxFactory.IdentifierName(name), SpeculativeBindingOption.BindAsTypeOrNamespace).Symbol;
+        return SymbolEqualityComparer.Default.Equals(symbol, model.Compilation.GetTypeByMetadataName(metadataName)) ? name : "global::" + metadataName;
+    }
+
+    /// <summary>
+    /// An attribute right after <paramref name="anchor"/>. In a list of several, or one with a target such as <c>property:</c>, it goes into the list after the anchor, spaced as the attribute that
+    /// follows it. An anchor alone in its list gets a list of its own after it: on a line of its own with the same indent where the list ends its line, else on that line.
+    /// </summary>
+    /// <param name="anchor">The attribute to follow.</param>
+    /// <param name="attribute">The attribute without brackets, such as <c>Discriminator("ORDER")</c>.</param>
+    public static TextChange InsertAfter(AttributeSyntax anchor, string attribute)
+    {
+        var list = (AttributeListSyntax)anchor.Parent!;
+        var items = list.Attributes;
+        var at = items.IndexOf(anchor);
+        if (items.Count == 1 && list.Target is null)
+        {
+            var lineEnd = list.GetTrailingTrivia().FirstOrDefault(static trivia => trivia.IsKind(SyntaxKind.EndOfLineTrivia));
+            return lineEnd == default
+                ? new TextChange(new TextSpan(list.Span.End, 0), " [" + attribute + "]")
+                : new TextChange(new TextSpan(list.FullSpan.End, 0), Indent(list.GetLeadingTrivia()) + "[" + attribute + "]" + lineEnd.ToFullString());
+        }
+
+        if (at + 1 < items.Count)
+        {
+            var next = items[at + 1];
+            return new TextChange(new TextSpan(next.FullSpan.Start, 0), next.GetLeadingTrivia().ToFullString() + attribute + items.GetSeparator(at).ToFullString());
+        }
+
+        return new TextChange(new TextSpan(anchor.Span.End, 0), ", " + attribute);
     }
 
     /// <summary>An attribute with a named argument set to a value: the one it has, or one added after its other arguments.</summary>
@@ -184,6 +225,10 @@ internal static class SourceEdits
     /// <summary>The change that sets a named argument of an attribute.</summary>
     public static TextChange SetNamedArgument(AttributeSyntax attribute, string name, string value) =>
         new(attribute.Span, WithNamedArgument(attribute, name, value).ToString());
+
+    // The spaces that end a leading trivia, the indent of what follows.
+    private static string Indent(SyntaxTriviaList trivia) =>
+        string.Concat(trivia.Reverse().TakeWhile(static item => item.IsKind(SyntaxKind.WhitespaceTrivia)).Reverse().Select(static item => item.ToFullString()));
 
     // The line break the line before has, which is the one of the file around the place; the first line takes its own.
     private static string LineBreakBefore(SourceText text, TextLine line)

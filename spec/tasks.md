@@ -83,7 +83,7 @@ Analyzers and docs:
 - [x] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
 - [x] `DYNA123` (a): add `[KeyOnly]` to the property.
 - [x] `DYNA110` (a): remove `Sparse = true`.
-- [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
+- [x] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
 - [x] `DYNA043` (a): write the name in full, the `{1}` of the message.
 - [x] `DYNA016` (a): give the type the accessibility of the entity, where the type is in source.
 - [x] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.

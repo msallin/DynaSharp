@@ -20,6 +20,8 @@ internal sealed class EntityKeyBuilder(
     EnumRegistry enums,
     DiagnosticBag bag)
 {
+    private const string DateTimeOffsetType = "global::System.DateTimeOffset";
+
     private static readonly KeySlot PartitionSlot = new(WellKnownNames.PartitionKeyAttribute, "PartitionKey", "pk", "Pk", default);
 
     private static readonly KeySlot SortSlot = new(WellKnownNames.SortKeyAttribute, "SortKey", "sk", "Sk", new KeyRole(IsSortKey: true, IsIndex: false, IsSparse: false));
@@ -561,7 +563,9 @@ internal sealed class EntityKeyBuilder(
             }
             else
             {
-                bag.Report(Descriptors.InvalidTimeToLive, Spot.Of(property.TimeToLive!, property.Spot), property.Name, problem);
+                // A DateTimeOffset without a converter of its own is what EpochSecondsConverter is for, where its [TimeToLive] is in source; a converter it has already is the author's to replace.
+                var converts = found is null && property is { IsStored: true, Converter: null, TimeToLive.ApplicationSyntaxReference: not null } && Names.Of(Types.Unwrap(property.Type).Inner) == DateTimeOffsetType;
+                bag.Report(Descriptors.InvalidTimeToLive, Spot.Of(property.TimeToLive!, property.Spot), converts ? property.Name : null, [property.Name, problem]);
             }
         }
 

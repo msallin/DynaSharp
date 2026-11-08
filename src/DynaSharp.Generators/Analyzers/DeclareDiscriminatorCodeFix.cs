@@ -68,12 +68,7 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
         var type = root.FindToken(span.Start).Parent!.FirstAncestorOrSelf<TypeDeclarationSyntax>()!;
         var entity = type.AttributeLists.SelectMany(list => list.Attributes).First(attribute => IsAttribute(model, attribute, WellKnownNames.EntityAttribute));
         var probe = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("Discriminator"), SyntaxFactory.ParseAttributeArgumentList(arguments));
-
-        // Parsed, so that no elastic trivia leads the formatter of the IDE to respace what is around it.
-        var list = SyntaxFactory.ParseMemberDeclaration("[" + NameAt(model, entity, probe) + arguments + "] class C { }")!.AttributeLists[0];
-        var added = list.Attributes[0];
-        var entityList = (AttributeListSyntax)entity.Parent!;
-        return document.WithSyntaxRoot(entityList.Attributes.Count == 1 ? root.InsertNodesAfter(entityList, [ListAfter(entityList, list)]) : root.ReplaceNode(entityList, Inserted(entityList, entity, added)));
+        return await SourceEdits.ApplyAsync(document, [SourceEdits.InsertAfter(entity, NameAt(model, entity, probe) + arguments)], token).ConfigureAwait(false);
     }
 
     // The short name where it binds to DynaSharp's attribute. Otherwise the file names the attributes of DynaSharp in full, as it does [DynamoDbEntity], or another type takes the name.
@@ -91,27 +86,6 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
 
     private static bool Binds(SemanticModel model, int position, AttributeSyntax attribute, string name) =>
         model.GetSpeculativeSymbolInfo(position, attribute).Symbol?.ContainingType.ToDisplayString() == name;
-
-    // [DynamoDbEntity] alone in its list: a list of its own after it, on a line of its own where the list ends its line, with the same indent.
-    private static AttributeListSyntax ListAfter(AttributeListSyntax list, AttributeListSyntax added)
-    {
-        var lineEnd = list.GetTrailingTrivia().FirstOrDefault(trivia => trivia.IsKind(SyntaxKind.EndOfLineTrivia));
-        var indent = list.GetLeadingTrivia().Reverse().TakeWhile(trivia => trivia.IsKind(SyntaxKind.WhitespaceTrivia));
-        return added
-            .WithLeadingTrivia(lineEnd == default ? [] : indent.Reverse())
-            .WithTrailingTrivia(lineEnd == default ? SyntaxFactory.Space : lineEnd);
-    }
-
-    // [DynamoDbEntity, PartitionKey(...)]: right after it in the list, spaced as the attribute that follows it, with a copy of the comma between them.
-    private static AttributeListSyntax Inserted(AttributeListSyntax list, AttributeSyntax entity, AttributeSyntax added)
-    {
-        var items = list.Attributes.GetWithSeparators();
-        var at = items.IndexOf(entity) + 1;
-        items = at < items.Count
-            ? items.InsertRange(at + 1, [added.WithLeadingTrivia(items[at + 1].GetLeadingTrivia()), items[at]])
-            : items.InsertRange(at, [SyntaxFactory.Token(default, SyntaxKind.CommaToken, default), added.WithLeadingTrivia(SyntaxFactory.Space)]);
-        return list.WithAttributes(SyntaxFactory.SeparatedList<AttributeSyntax>(items));
-    }
 
     /// <summary>
     /// Where the opt-out of a project goes: the <c>[assembly: DynamoDbDefaults]</c> it has, else beside the other attributes of the assembly in source, else into the document of the entity.

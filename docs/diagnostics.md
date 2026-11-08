@@ -76,7 +76,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA036` (error): `[TimeToLive]` on a property that DynamoDB cannot read as an expiry, or on a second property of the type. DynamoDB deletes by a number of seconds since 1970 and ignores an item that holds anything else, so `[TimeToLive] public DateTimeOffset ExpiresAt { get; init; }`, which is stored as an ISO 8601 string, would never expire. A property that is not stored, such as one with `[DynamoDbIgnore]` or a getter alone, holds no expiry, and a table has time to live on one attribute.
 
-- **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type.
+- **Fix.** Add `[DynamoDbConverter(typeof(EpochSecondsConverter))]` to a `DateTimeOffset`, or store the seconds in an integer. Keep one `[TimeToLive]` per type. The code fix adds the converter to a `DateTimeOffset` that has no converter of its own.
 - **Not reported.** A custom converter that implements `IAddableConverter`, which says that it writes a number, whatever it holds. Two entities of one table that name different attributes, which `CreateTable().Including<T>()` finds at run time and throws `ArgumentException` for. On a document it is `DYNA012`.
 
 `DYNA037` (info): the generator writes no [`IncludingAll()`](tables.md#every-entity-of-an-assembly) for the entities of this assembly, because they declare the keys of more than one table, such as `pk` and `sk` on `Order` and `id` on `Session`, or an entity is nested in a type that hides it, such as a `private` record inside a test class; the message says which. Reported once per compilation, on no file.
