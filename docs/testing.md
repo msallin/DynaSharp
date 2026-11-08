@@ -4,7 +4,7 @@ This page is the [README of DynaSharp.Testing](https://github.com/msallin/DynaSh
 
 ## What the fake does
 
-`FakeDynamoDb` is for functional tests: state a test sets up and reads back through the client. For DynamoDB's fine print (validation order, messages, limits), test against an emulator or DynamoDB, see [Run a local emulator](getting-started.md#run-a-local-emulator). The fake is measured against tiers 1 and 2 of the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance).
+`FakeDynamoDb` is for functional tests: state a test sets up and reads back through the client. For DynamoDB's finest print, test against an emulator or DynamoDB, see [Run a local emulator](getting-started.md#run-a-local-emulator). The fake is measured against the [Parity Suite](https://github.com/paritysuite/dynamodb-conformance): it passes the core operations (tier 1) but one member it refuses, and answers the order and the wording of the validation errors that the suite recorded of DynamoDB.
 
 ### Operations
 
@@ -37,6 +37,7 @@ Every item operation, batch and transaction below also takes `ReturnConsumedCapa
 
 - **Consistency.** Every read, and every index, sees the last write, with or without `ConsistentRead`.
 - **Keys and sizes.** A key with an attribute too many, too few or of the wrong type is `The provided key element does not match the schema`, also in `BatchWriteItem`; an item of `PutItem` or a transaction gets `Missing the key pk in the item` or the type mismatch. Empty strings and binaries in a key, and an index key attribute of another type than its definition, are a `ValidationException`. Limits: partition key 2048 bytes, sort key 1024, of the table and of an index, item 400 KB, sized as the Developer Guide counts.
+- **Limits of a request.** An expression is at most 4096 bytes, measured on the text as sent (`Expression size has exceeded the maximum allowed size;`, with the size for the condition of an action of a transaction). A value nests at most 32 levels, and a request nested far deeper is still answered with `Nesting Levels have exceeded supported limits`, not as a body that cannot be read. The items of a `TransactWriteItems` are at most 4 MB together. A number is sized as DynamoDB sizes it: a byte, a byte for each two digits of the integer part and each two of the fraction, one more if it is negative, so `3.14159` is 5 bytes and `123456` is 4. A number is read with its exponent in full, so `1e126` overflows, `0e126` overflows and `0e125` is `0`.
 - **Indexes.** An item is in a secondary index if it holds all of the index's key attributes, projected by `ALL`, `KEYS_ONLY` or `INCLUDE`. A global index created by `UpdateTable` leaves out items whose index key is of another type, empty or too large.
 - **Numbers and sets.** Numbers keep 38 significant digits, from `1E-130` to below `1E+126`, and return in canonical plain digits: `01.50` as `1.5`, `1E+2` as `100`; key `1.0` is key `1`, and a `BatchGetItem` with both returns the item once. Sets return strings and binaries in byte order, numbers by value. Sets with a duplicate and documents nested deeper than 32 levels are rejected.
 - **Order.** Sort keys order strings by UTF-8 bytes, binaries by bytes, numbers by value. Partition order is fixed per run; do not depend on it.
@@ -68,7 +69,7 @@ Every item operation, batch and transaction below also takes `ReturnConsumedCapa
 - No PartiQL, backups, point-in-time recovery, export or import, tags, resource policies, global tables, warm throughput, Contributor Insights or Kinesis destinations.
 - Shards split only when `SplitStreamShards` says so, never by themselves. A stream is `ENABLED` or `DISABLED` at once, never `ENABLING` or `DISABLING`.
 - Not concurrent: no `TransactionConflict` or `TransactionInProgress`, and a batch is as atomic as a transaction.
-- Not the fine print: the exact validation order, the wording of every message, the 10 GB item collection limit and its exact size estimate, the 16 MB batch limit, `x-amz-crc32` as a checksum.
+- Not all of the fine print: the wording of a message where the suite has not recorded DynamoDB's, the 10 GB item collection limit and its exact size estimate, the 16 MB batch limit, the size an `UpdateItem` charges for each clause of its expression, `x-amz-crc32` as a checksum.
 
 ### How it answers what it does not do
 
@@ -76,6 +77,7 @@ It fails loudly, never silently.
 
 - An operation it does not answer, such as PartiQL: HTTP 400 with `UnknownOperationException` and `FakeDynamoDb does not implement <Op>. It is not supported.`
 - A member it does not implement in an operation it answers: HTTP 400 with the code `UnsupportedByFakeException` (in `DynamoDbException.ErrorCode`) and a message naming the member and the operation. In item operations, batches, transactions and reads these are the legacy parameters: `AttributesToGet`, `AttributeUpdates`, `Expected`, `KeyConditions`, `QueryFilter` and `ScanFilter`. In table operations: tags, and any member the fake does not know, such as `WarmThroughput` or `ReplicaUpdates`.
+- The model of a request is checked before the request is read any further, and the violations DynamoDB reports together come in one message, in its order: `2 validation errors detected: Value 'BOGUS' at 'returnConsumedCapacity' failed to satisfy constraint: Member must satisfy enum value set: [INDEXES, TOTAL, NONE]; Value '' at 'tableName' ...`. A malformed table name of a write is reported alone, `UpdateItem` reports the first bad enum alone, and the lists of a batch and the actions of a transaction are checked with their paths (`RequestItems.Shop.member`, `transactItems.1.member.put.tableName`). A transaction reads every action, expressions before items, before it looks for any table.
 - A value DynamoDB rejects gets DynamoDB's `ValidationException`, also where the fake implements little: an enum value DynamoDB lacks, such as `"AttributeType":"BOOL"`; `ExpressionAttributeNames` or `ExpressionAttributeValues` without an expression; a legacy parameter together with an expression (`Can not use both expression and non-expression parameters in the same request`).
 
 ## Locks

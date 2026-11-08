@@ -68,8 +68,7 @@
           },
           "status": 400,
           "code": "ValidationException",
-          "message": "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.",
-          "compareMessage": true
+          "message": "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present."
         },
         {
           "operation": "CreateTable",

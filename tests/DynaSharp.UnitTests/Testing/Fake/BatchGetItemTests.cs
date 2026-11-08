@@ -57,13 +57,13 @@ public sealed class BatchGetItemTests
     }
 
     [Test]
-    [Arguments("""{"RequestItems":{}}""", "1 validation error detected: Value at 'requestItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
-    [Arguments("""{"RequestItems":{"Users":{"Keys":[]}}}""", "1 validation error detected: Value at 'keys' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"RequestItems":{}}""", "1 validation error detected: Value at 'RequestItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"RequestItems":{"Users":{"Keys":[]}}}""", "1 validation error detected: Value at 'RequestItems.Users.member.Keys' failed to satisfy constraint: Member must have length greater than or equal to 1")]
     [Arguments("""{"RequestItems":{"Users":{}}}""", "1 validation error detected: Value null at 'keys' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}},{"pk":{"S":"a"}}]}}}""", "Provided list of item keys contains duplicates")]
     [Arguments("""{"RequestItems":{"Orders":{"Keys":[{"pk":{"S":"o"},"sk":{"N":"1.0"}},{"sk":{"N":"1.0"},"pk":{"S":"o"}}]}}}""", "Provided list of item keys contains duplicates")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"},"x":{"S":"b"}}]}}}""", "The provided key element does not match the schema")]
-    [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}}],"ExpressionAttributeNames":{"#n":"name"}}}}""", "ExpressionAttributeNames can only be specified when using expressions")]
+    [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}}],"ExpressionAttributeNames":{"#n":"name"}}}}""", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions")]
     [Arguments("""{"RequestItems":{"Users":{"Keys":[{"pk":{"S":"a"}}],"ProjectionExpression":"#n"}}}""", "Invalid ProjectionExpression: An expression attribute name used in the document path is not defined; attribute name: #n")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string request, string message)
     {

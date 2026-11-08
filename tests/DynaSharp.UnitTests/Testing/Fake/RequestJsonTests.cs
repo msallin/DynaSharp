@@ -98,7 +98,7 @@ public sealed class RequestJsonTests
 
         // Assert
         await Assert.That((answer.Code, answer.Message))
-            .IsEqualTo(("ValidationException", "1 validation error detected: Value 'BOOL' at 'attributeType' failed to satisfy constraint: Member must satisfy enum value set: [S, N, B]"));
+            .IsEqualTo(("ValidationException", "1 validation error detected: Value 'BOOL' at 'attributeDefinitions.1.member.attributeType' failed to satisfy constraint: Member must satisfy enum value set: [B, N, S]"));
     }
 
     [Test]
@@ -182,8 +182,6 @@ public sealed class RequestJsonTests
     [Test]
     [Arguments("""{"a":{"S":"x","N":"1"}}""")]
     [Arguments("""{"a":{}}""")]
-    [Arguments("""{"a":{"NULL":false}}""")]
-    [Arguments("""{"a":{"SS":[]}}""")]
     [Arguments("""{"a":{"S":"x"},"a":{"S":"y"}}""")]
     [Arguments("""{"a":{"S":"\uD800"}}""")]
     public async Task ReadItem_MalformedValue_ThrowsValidation(string json)

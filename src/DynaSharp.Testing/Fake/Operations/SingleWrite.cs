@@ -34,7 +34,7 @@ internal sealed record SingleWrite(
         var onFailure = Enum(request, "ReturnValuesOnConditionCheckFailure", WireNames.ReturnValuesOnConditionCheckFailures);
         var capacity = Enum(request, "ReturnConsumedCapacity", WireNames.ReturnConsumedCapacities);
         var metrics = Enum(request, "ReturnItemCollectionMetrics", WireNames.ReturnItemCollectionMetricsValues);
-        var (condition, update) = ExpressionMembers.ReadWrite(request, operation == UpdateItem.Name);
+        var (condition, update) = ExpressionMembers.ReadWrite(request, operation == UpdateItem.Name, single: true);
         return new SingleWrite(condition, update, returnValues, onFailure, capacity, metrics);
     }
 

@@ -204,12 +204,15 @@ Real DynamoDB is the spec; the emulators are witnesses with quirks. Tools: `test
 
 ### Parity Suite score
 
-`parity.yml` run 41811905906 on `aba8754`, suite `7a5d72f` v3.9.0, `!cloud-only`, 2026-11-04. Divergence is failed of total; the grade adds a third of the skipped.
+`build/parity.sh tier1 tier2 tier3`, suite `7a5d72f` v3.9.0, `!cloud-only`, 2026-11-08. Divergence is failed of total; the grade adds a third of the skipped.
 
 | Tier | Total | Passed | Failed | Skipped | Divergence | With a third of skipped |
 |---|---|---|---|---|---|---|
 | tier1 | 497 | 496 | 1 | 0 | 0.2 % (A) | 0.2 % (A) |
 | tier2 | 452 | 101 | 0 | 351 | 0 % (A) | 25.9 % |
+| tier3 | 729 | 464 | 80 | 185 | 11 % | 19.4 % |
+
+Tier 3 was 303 passed, 241 failed, 185 skipped before the messages and limits below. Of its 80 failures, 37 are `legacy-api`, 16 more send a legacy parameter (refused by decision), 26 are `limits/itemSizeBySurface` (the size an `UpdateItem` charges per clause: 19 bytes for a second `SET`, 37 for `list_append`, measured in one region, out as fine print; two of them send `AttributeUpdates` too), and 1 is `deepRequests`: "ReturnValues can only be ALL_OLD or NONE" bare, which DynamoDB words so only for a request with a value nested far past the limit (the suite uses 100 levels) and inside the envelope otherwise, as `error-messages/deleteItem` pins.
 
 The failure is `AttributesToGet` in `getItem/projection`, refused by decision. Skipped in tier2: `partiql` 275, `vectorSearch` 32, `multiAttributeKeys` 14, `tags` 8, `backups` 5, `account`, `contributorInsights`, `export` and `resourcePolicy` 2 each, `kinesis` 1. The suite's `results/dynamodb*.json` are answers of real AWS; 12 item bodies of its captures are in `real_aws_responses.json` (attribution in `NOTICE`).
 
@@ -239,6 +242,12 @@ The fake's tests and `Vectors/*.json` pin each of these; listed so nobody "fixes
 - Streams: records commit at the end of a request and drop with it; no record for an unchanged item; records trimmed after 24 hours, a closed stream gone 24 hours after closing, iterators expire after 15 minutes (exactly 15 is expired); `ListStreams` of something unknown answers `"Streams":[]`; `UpdateTable` checks the shape of `StreamSpecification` before the table's state.
 - `OnDemandThroughput`: described only when a maximum is set; `-1` removes one; one member alone is allowed; 0, below -1 and above 40,000 are rejected; with provisioned capacity it is rejected.
 
+Where DynamoDB Local and the Parity Suite (real AWS) word a message differently, the fake follows the suite; four vector cases keep Local's message and no longer compare it.
+- Model checks (`RequestModel`): the failures DynamoDB reports together are one message in its order. A malformed table name of a write alone; the enums of a write together, `UpdateItem` the first alone; a write without its key everything in member order (returnConsumedCapacity, tableName, returnValues, key); a batch and a transaction the enums with the table names and the lengths of their lists; `CreateTable` the global indexes before the local ones. The values of an enum are listed in DynamoDB's order (`EnumOrders`, none of them evident; unrecorded enums keep the declared order). Paths: `RequestItems.<table>.member[.Keys]`, `transactItems.<n>.member.<action>.tableName`, `keySchema.<n>.member.keyType`, `attributeDefinitions.<n>.member.attributeType`, `globalSecondaryIndexes.<n>.member.indexName`. `Value at 'Limit'` and `'Segment'` carry no value and a capital. A table name of an item operation has at least one character, of a table operation three.
+- Wording: `Requested resource not found` for a table an item operation names; `Query condition missed key schema element: <partition key>`; `The provided starting key is invalid` alone; `1 validation error detected:` around the empty or unused maps and expressions of `PutItem`, `UpdateItem`, `DeleteItem`; `Invalid KeySchema: Some index key attribute have no definition`; `Item size to update has exceeded the maximum allowed size` and, for an empty index key, `The update expression attempted to update a secondary index key to a value that is not supported.` when an update made the item.
+- Values (`ItemShape`, `ItemLayer`): an attribute without a name (`Empty attribute name`), an empty set, `NULL` false and more than 32 levels are refused on the JSON, so a request nested far past the 128 levels of the client's reader (`FakeWire.MaxBodyDepth` 1024) is the nesting error. The nesting wording depends on where the value stands: inside the envelope up to 63 levels for the single-item operations and bare beyond, the key named for a value of `ExpressionAttributeValues` past 63 levels; in a batch or a transaction bare, naming the key past 60. Numbers and sets that DynamoDB rejects are inside the envelope for `PutItem`, `UpdateItem`, `DeleteItem` and bare elsewhere; a set with a member twice lists those before the first repeat in byte order, the repeat, the rest as sent (a number set none).
+- Limits: an expression is at most 4096 bytes (the size is named only for the condition of an action of a transaction); the items of a `TransactWriteItems` at most 4 MB; a number is read with its exponent in full (past 64 bits it is no number, zero is range-checked by its exponent) and sized as DynamoDB sizes it (`DecimalNumber.ByteSize`: `3.14159` is 5 bytes, `123456` 4; Dynoxide follows the Developer Guide and differs).
+
 ### Emulator quirks (not followed)
 
 Each is a rule in `KnownDivergences` or a row of `Gaps.cs`.
@@ -256,5 +265,5 @@ Only real DynamoDB answers these; the fake's current choice is in brackets.
 - Encryption: `SSEType: AES256` in `CreateTable` [reports `KMS`]; `Enabled: false` with a key; an alias as `KMSMasterKeyId` [reported as the alias's ARN]; `SSESpecification` in `UpdateTable` naming the current encryption [accepted]; the description after switching back to the AWS-owned key [`SSEDescription` dropped].
 - Streams: a sequence number above the last record of an open shard [`ValidationException`]; an unknown `ExclusiveStartStreamArn` while streams exist [empty page]; the message of a missing `SequenceNumber`; reading a child at its starting sequence number (Open).
 - Numbers and names: exponent forms such as `1E-07` as `N` text (emulators accept and normalize; `+5`, `.5`, `5.`, `0005` pass, whitespace, `0x10`, `1_000`, `1,5` do not); a bare name starting with `_` [syntax error].
-- Messages not mimicked: empty sets, duplicates in a set, an update past 400 KB; which fault of several is reported first differs in places (`docs/testing.md` lists the validation order as fine print).
+- Tier 3 thresholds and wording: the wording of the 4 MB limit of a transaction [`Transaction request cannot contain items of more than 4 MB together`; the suite pins only the exception] and whether its items count those a `ConditionCheck` and a `Delete` find [yes]; the nesting thresholds of 60 and 63 levels are the two values the suite brackets, not measured edges.
 - Harness limits: no local secondary index, no stream reads, no `ReturnItemCollectionMetrics`, GSI sort numbers from a small pool, the 1 MB cut compared only on ordered queries.

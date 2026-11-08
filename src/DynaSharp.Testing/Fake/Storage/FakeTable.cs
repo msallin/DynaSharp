@@ -122,21 +122,22 @@ internal sealed class FakeTable
     /// Whether the item is the one a request holds, as of <c>PutItem</c>: then a size past the limit is wrong whatever the table holds, an error of the input that fails a transaction as a whole.
     /// An item an update made is too large only because of the item it started from.
     /// </param>
+    /// <param name="byUpdate">Whether the item is the one an update made, whose faults DynamoDB words as the update's.</param>
     /// <returns>The item in its stored form, a copy.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c>: a value, the key, a key of an index or the size is not what DynamoDB accepts.</exception>
-    public Item Check(IReadOnlyDictionary<string, AttributeValue> item, bool ofRequest = false)
+    public Item Check(IReadOnlyDictionary<string, AttributeValue> item, bool ofRequest = false, bool byUpdate = false)
     {
         var stored = AttributeRules.Normalize(item);
         _ = KeySchema.KeyOf(stored);
         foreach (var index in GlobalIndexes.Concat(LocalIndexes))
         {
-            index.KeySchema.ThrowIfInvalidIndexKey(stored, index.Name);
+            index.KeySchema.ThrowIfInvalidIndexKey(stored, index.Name, byUpdate);
         }
 
         if (ItemSize.Of(stored) > ItemSize.MaxItemBytes)
         {
-            const string TooLarge = "Item size has exceeded the maximum allowed size";
-            throw ofRequest ? FakeError.InvalidInput(TooLarge) : FakeError.Validation(TooLarge);
+            var tooLarge = byUpdate ? "Item size to update has exceeded the maximum allowed size" : "Item size has exceeded the maximum allowed size";
+            throw ofRequest ? FakeError.InvalidInput(tooLarge) : FakeError.Validation(tooLarge);
         }
 
         return stored;
@@ -144,11 +145,12 @@ internal sealed class FakeTable
 
     /// <summary>Puts an item, replacing the one with its key.</summary>
     /// <param name="item">The item. It is checked as by <see cref="Check"/> and stored in its stored form, as a copy.</param>
+    /// <param name="byUpdate">Whether the item is the one an update made.</param>
     /// <returns>The item it replaced, or <see langword="null"/>.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c>: a value, the key, a key of an index or the size is not what DynamoDB accepts. Nothing changes then.</exception>
-    public Item? Put(IReadOnlyDictionary<string, AttributeValue> item)
+    public Item? Put(IReadOnlyDictionary<string, AttributeValue> item, bool byUpdate = false)
     {
-        var stored = Check(item);
+        var stored = Check(item, byUpdate: byUpdate);
         var key = KeySchema.KeyOf(stored);
         stored.MakeReadOnly();
         var old = Get(key);

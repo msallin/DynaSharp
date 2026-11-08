@@ -50,7 +50,8 @@ internal sealed class PlaceholderScope(IReadOnlyDictionary<string, string>? name
     {
         if (Values is null || !Values.TryGetValue(placeholder, out var value))
         {
-            throw FakeError.Validation($"Invalid {member}: An expression attribute value used in expression is not defined; attribute value: {placeholder}");
+            var message = $"Invalid {member}: An expression attribute value used in expression is not defined; attribute value: {placeholder}";
+            throw member == "ConditionExpression" ? FakeError.Enveloped(message) : FakeError.Validation(message);
         }
 
         _usedValues.Add(placeholder);
@@ -77,7 +78,7 @@ internal sealed class PlaceholderScope(IReadOnlyDictionary<string, string>? name
 
         if (map.Count == 0)
         {
-            throw FakeError.Validation($"{member} must not be empty");
+            throw FakeError.Enveloped($"{member} must not be empty");
         }
 
         foreach (var key in map.Keys)

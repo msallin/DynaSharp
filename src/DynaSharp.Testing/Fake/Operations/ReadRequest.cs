@@ -11,7 +11,8 @@ namespace DynaSharp.Testing.Fake;
 /// <param name="ConsistentRead">The <c>ConsistentRead</c>.</param>
 /// <param name="ReturnConsumedCapacity">The <c>ReturnConsumedCapacity</c>.</param>
 /// <param name="Scope">The placeholders of the request.</param>
-internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit, SelectKind Select, bool ConsistentRead, ReturnConsumedCapacity ReturnConsumedCapacity, PlaceholderScope Scope)
+/// <param name="KeyCondition">The parsed <c>KeyConditionExpression</c> of a <c>Query</c>, or <see langword="null"/>.</param>
+internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit, SelectKind Select, bool ConsistentRead, ReturnConsumedCapacity ReturnConsumedCapacity, PlaceholderScope Scope, ConditionNode? KeyCondition = null)
 {
     /// <summary>Gets the key the read goes by: that of the index, or of the table.</summary>
     public KeySchema KeySchema => Index?.KeySchema ?? Table.KeySchema;
@@ -19,19 +20,16 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
     /// <summary>Reads the members both operations have, except the expressions.</summary>
     /// <param name="db">The state.</param>
     /// <param name="request">The request.</param>
+    /// <param name="query"><see langword="true"/> for a <c>Query</c>, whose key condition is parsed before the table is looked up.</param>
     /// <returns>The read.</returns>
     /// <exception cref="FakeError">A <c>ResourceNotFoundException</c> for the table, a <c>ValidationException</c> for an index the table does not have, a <c>Limit</c> below 1 or a consistent read of a global index.</exception>
-    public static ReadRequest Read(FakeDatabase db, JsonElement request)
+    public static ReadRequest Read(FakeDatabase db, JsonElement request, bool query = false)
     {
         ArgumentNullException.ThrowIfNull(db);
-        var tableName = TableOperations.ReadTableName(request);
+        RequestModel.CheckRead(request);
+        var tableName = TableOperations.ReadItemTableName(request);
         var indexName = RequestJson.Optional(request, "IndexName") is { } indexValue ? RequestJson.ReadString(indexValue, "IndexName") : null;
         int? limit = RequestJson.Optional(request, "Limit") is { } limitValue ? RequestJson.ReadInt(limitValue, "Limit") : null;
-        if (limit < 1)
-        {
-            throw FakeError.Validation($"1 validation error detected: Value '{limit}' at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1");
-        }
-
         var select = RequestJson.Optional(request, "Select") is { } selectValue ? RequestJson.ReadEnum(selectValue, "Select", WireNames.Selects) : SelectKind.Unspecified;
         var consistent = RequestJson.Optional(request, "ConsistentRead") is { } consistentValue && RequestJson.ReadBool(consistentValue, "ConsistentRead");
         var capacity = RequestJson.Optional(request, "ReturnConsumedCapacity") is { } capacityValue
@@ -39,6 +37,10 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
             : ReturnConsumedCapacity.None;
         var names = RequestJson.Optional(request, "ExpressionAttributeNames") is { } namesValue ? RequestJson.ReadStringMap(namesValue, "ExpressionAttributeNames") : null;
         var values = RequestJson.Optional(request, "ExpressionAttributeValues") is { } valuesValue ? RequestJson.ReadItem(valuesValue, "ExpressionAttributeValues") : null;
+        var scope = new PlaceholderScope(names, values);
+        var keyCondition = query && RequestJson.Optional(request, Expressions.KeyConditionExpression) is { } keyText
+            ? Expressions.ParseKeyCondition(RequestJson.ReadString(keyText, Expressions.KeyConditionExpression), scope)
+            : null;
         var table = db.GetTable(tableName);
         var index = indexName is null ? null : table.FindIndex(indexName) ?? throw FakeError.Validation($"The table does not have the specified index: {indexName}");
         if (consistent && index is { IsGlobal: true })
@@ -46,7 +48,7 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
             throw FakeError.Validation("Consistent reads are not supported on global secondary indexes");
         }
 
-        return new ReadRequest(table, index, limit, select, consistent, capacity, new PlaceholderScope(names, values));
+        return new ReadRequest(table, index, limit, select, consistent, capacity, scope, keyCondition);
     }
 
     /// <summary>Parses <c>FilterExpression</c> and <c>ProjectionExpression</c> and checks that the expressions of the request used every placeholder.</summary>

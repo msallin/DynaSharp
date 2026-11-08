@@ -95,18 +95,24 @@ public sealed class PutItemTests
     }
 
     [Test]
-    [Arguments("""{"ExpressionAttributeNames":{"#f":"ForumName"}}""", "ExpressionAttributeNames can only be specified when using expressions")]
-    [Arguments("""{"ExpressionAttributeValues":{":v":{"S":"x"}}}""", "ExpressionAttributeValues can only be specified when using expressions")]
+    [Arguments("""{"ExpressionAttributeNames":{"#f":"ForumName"}}""", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions")]
+    [Arguments("""{"ExpressionAttributeValues":{":v":{"S":"x"}}}""", "1 validation error detected: ExpressionAttributeValues can only be specified when using expressions")]
     [Arguments("""{"Item":{"ForumName":{"S":"a"}}}""", "One or more parameter values were invalid: Missing the key Subject in the item")]
     [Arguments("""{"Item":{"ForumName":{"N":"1"},"Subject":{"S":"a"}}}""", "One or more parameter values were invalid: Type mismatch for key ForumName expected: S actual: N")]
-    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Views":{"N":"1e999"}}}""", "Number overflow. Attempting to store a number with magnitude larger than supported range")]
-    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Tags":{"SS":["x","x"]}}}""", "One or more parameter values were invalid: Input collection [x, x] contains duplicates.")]
-    [Arguments("""{"ReturnValues":"SOME"}""", "1 validation error detected: Value 'SOME' at 'returnValues' failed to satisfy constraint: Member must satisfy enum value set: [NONE, ALL_OLD, UPDATED_OLD, ALL_NEW, UPDATED_NEW]")]
-    [Arguments("""{"ReturnValues":"ALL_NEW"}""", "Return values set to invalid value")]
-    [Arguments("""{"ConditionExpression":"#v > :v","ExpressionAttributeNames":{"#v":"Views"}}""", "Invalid ConditionExpression: An expression attribute value used in expression is not defined; attribute value: :v")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Views":{"N":"1e999"}}}""", "1 validation error detected: Number overflow. Attempting to store a number with magnitude larger than supported range")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Tags":{"SS":["x","x"]}}}""", "1 validation error detected: One or more parameter values were invalid: Input collection [\"x\", \"x\"] contains duplicates.")]
+    [Arguments("""{"ReturnValues":"SOME"}""", "1 validation error detected: Value 'SOME' at 'returnValues' failed to satisfy constraint: Member must satisfy enum value set: [ALL_NEW, UPDATED_OLD, ALL_OLD, NONE, UPDATED_NEW]")]
+    [Arguments("""{"ReturnValues":"ALL_NEW"}""", "1 validation error detected: ReturnValues can only be ALL_OLD or NONE")]
+    [Arguments("""{"ConditionExpression":"#v > :v","ExpressionAttributeNames":{"#v":"Views"}}""", "1 validation error detected: Invalid ConditionExpression: An expression attribute value used in expression is not defined; attribute value: :v")]
     [Arguments("""{"ConditionExpression":"attribute_exists(ForumName)","ExpressionAttributeValues":{":v":{"N":"1"}}}""", "Value provided in ExpressionAttributeValues unused in expressions: keys: {:v}")]
     [Arguments("""{"Expected":{"ForumName":{"Exists":false}},"ConditionExpression":"attribute_not_exists(ForumName)"}""", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {Expected} Expression parameters: {ConditionExpression}")]
-    [Arguments("""{"TableName":"ab"}""", "1 validation error detected: Value 'ab' at 'tableName' failed to satisfy constraint: Member must have length greater than or equal to 3")]
+    [Arguments("""{"TableName":""}""", "1 validation error detected: Value '' at 'tableName' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"ConditionExpression":""}""", "1 validation error detected: Invalid ConditionExpression: The expression can not be empty;")]
+    [Arguments("""{"ReturnConsumedCapacity":"ALL","ReturnValues":"SOME"}""", "2 validation errors detected: Value 'ALL' at 'returnConsumedCapacity' failed to satisfy constraint: Member must satisfy enum value set: [INDEXES, TOTAL, NONE]; Value 'SOME' at 'returnValues' failed to satisfy constraint: Member must satisfy enum value set: [ALL_NEW, UPDATED_OLD, ALL_OLD, NONE, UPDATED_NEW]")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"":{"S":"x"}}}""", "Empty attribute name")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Tags":{"SS":[]}}}""", "One or more parameter values were invalid: An string set  may not be empty")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Tags":{"BS":["AQ==","AQ=="]}}}""", "1 validation error detected: One or more parameter values were invalid: Input collection [\"AQ==\",\"AQ==\"]of type BS contains duplicates.")]
+    [Arguments("""{"Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"Tags":{"NS":["1","1.0"]}}}""", "1 validation error detected: One or more parameter values were invalid: Input collection contains duplicates.")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string change, string message)
     {
         // Arrange
@@ -147,7 +153,7 @@ public sealed class PutItemTests
         var answer = FakeCalls.Error(fake, "PutItem", $$$$$"""{"TableName":"Thread","Item":{{{{{Item}}}}}}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Cannot do operations on a non-existent table"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found"));
     }
 
     [Test]
@@ -313,5 +319,36 @@ public sealed class PutItemTests
 
         // Assert
         await Assert.That(fake.Items("Forum").Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Handle_ItemNestedFarPastTheLimit_AnswersTheNestingErrorAndNotABodyThatCannotBeRead()
+    {
+        // Arrange: 100 maps around a string are 400 levels of JSON, far past what the reader of the client takes
+        var fake = FakeCalls.With(Thread);
+        var deep = string.Concat(Enumerable.Repeat("""{"M":{"n":""", 100)) + """{"S":"leaf"}""" + new string('}', 200);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "PutItem", $$$$$"""{"TableName":"Thread","Item":{"ForumName":{"S":"a"},"Subject":{"S":"b"},"d":{{{{{deep}}}}}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "Nesting Levels have exceeded supported limits: Attributes in the item have nested levels beyond supported limit"));
+    }
+
+    [Test]
+    public async Task Handle_ConditionOver4096Bytes_AnswersTheSizeInsideTheEnvelopeAndNoSize()
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+        var condition = "attribute_not_exists(a)" + string.Concat(Enumerable.Repeat(" AND attribute_not_exists(a)", 160));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "PutItem", $$$$$"""{"TableName":"Thread","Item":{{{{{Item}}}}},"ConditionExpression":"{{{{{condition}}}}}"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "1 validation error detected: Invalid ConditionExpression: Expression size has exceeded the maximum allowed size;"));
     }
 }

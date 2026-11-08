@@ -96,8 +96,8 @@ public sealed class BatchWriteItemTests
     }
 
     [Test]
-    [Arguments("""{"RequestItems":{}}""", "1 validation error detected: Value at 'requestItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
-    [Arguments("""{"RequestItems":{"Users":[]}}""", "1 validation error detected: Value at 'requestItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"RequestItems":{}}""", "1 validation error detected: Value at 'RequestItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"RequestItems":{"Users":[]}}""", "1 validation error detected: Value at 'RequestItems.Users.member' failed to satisfy constraint: Member must have length greater than or equal to 1")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"a"}}}},{"DeleteRequest":{"Key":{"pk":{"S":"a"}}}}]}}""", "Provided list of item keys contains duplicates")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"a"}}},"DeleteRequest":{"Key":{"pk":{"S":"b"}}}}]}}""", "Supplied WriteRequest must have exactly one of PutRequest or DeleteRequest")]
     [Arguments("""{"RequestItems":{"Users":[{}]}}""", "Supplied WriteRequest must have exactly one of PutRequest or DeleteRequest")]
@@ -107,7 +107,7 @@ public sealed class BatchWriteItemTests
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"N":"1"}}}}]}}""", "The provided key element does not match the schema")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"L":[{"S":"a"}]}}}}]}}""", "The provided key element does not match the schema")]
     [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":""}}}}]}}""", "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: pk")]
-    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"a"}}}}]},"ReturnItemCollectionMetrics":"ALL"}""", "1 validation error detected: Value 'ALL' at 'returnItemCollectionMetrics' failed to satisfy constraint: Member must satisfy enum value set: [NONE, SIZE]")]
+    [Arguments("""{"RequestItems":{"Users":[{"PutRequest":{"Item":{"pk":{"S":"a"}}}}]},"ReturnItemCollectionMetrics":"ALL"}""", "1 validation error detected: Value 'ALL' at 'returnItemCollectionMetrics' failed to satisfy constraint: Member must satisfy enum value set: [SIZE, NONE]")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string request, string message)
     {
         // Arrange
@@ -146,7 +146,7 @@ public sealed class BatchWriteItemTests
         var answer = FakeCalls.Error(fake, "BatchWriteItem", $$$$$"""{"RequestItems":{"Users":[{{{{{users}}}}}]}}""");
 
         // Assert
-        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'requestItems' failed to satisfy constraint: Member must have length less than or equal to 25");
+        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'RequestItems.Users.member' failed to satisfy constraint: Member must have length less than or equal to 25");
     }
 
     [Test]

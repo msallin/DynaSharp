@@ -72,16 +72,16 @@ internal static class Scan
         if (totalSegments is < 1 or > MaxTotalSegments)
         {
             var bound = totalSegments < 1 ? "greater than or equal to 1" : $"less than or equal to {MaxTotalSegments}";
-            throw FakeError.Validation($"1 validation error detected: Value '{totalSegments}' at 'totalSegments' failed to satisfy constraint: Member must have value {bound}");
+            throw FakeError.Enveloped(RequestModel.Violation("TotalSegments", $"Member must have value {bound}"));
         }
 
         if (index < 0)
         {
-            throw FakeError.Validation($"1 validation error detected: Value '{index}' at 'segment' failed to satisfy constraint: Member must have value greater than or equal to 0");
+            throw FakeError.Enveloped(RequestModel.Violation("Segment", "Member must have value greater than or equal to 0"));
         }
 
         return index < totalSegments
             ? (index, totalSegments)
-            : throw FakeError.Validation($"The Segment parameter is zero-based and must be less than parameter TotalSegments: Segment: {index} is not less than TotalSegments: {totalSegments}");
+            : throw FakeError.Validation("The Segment parameter is zero-based and must be less than parameter TotalSegments");
     }
 }

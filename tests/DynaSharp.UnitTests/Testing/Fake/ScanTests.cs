@@ -103,17 +103,17 @@ public sealed class ScanTests
     [Test]
     [Arguments(""","Segment":0""", "The TotalSegments parameter is required but was not present in the request when Segment parameter is present")]
     [Arguments(""","TotalSegments":2""", "The Segment parameter is required but was not present in the request when parameter TotalSegments is present")]
-    [Arguments(""","Segment":0,"TotalSegments":0""", "1 validation error detected: Value '0' at 'totalSegments' failed to satisfy constraint: Member must have value greater than or equal to 1")]
-    [Arguments(""","Segment":0,"TotalSegments":1000001""", "1 validation error detected: Value '1000001' at 'totalSegments' failed to satisfy constraint: Member must have value less than or equal to 1000000")]
-    [Arguments(""","Segment":-1,"TotalSegments":2""", "1 validation error detected: Value '-1' at 'segment' failed to satisfy constraint: Member must have value greater than or equal to 0")]
-    [Arguments(""","Segment":2,"TotalSegments":2""", "The Segment parameter is zero-based and must be less than parameter TotalSegments: Segment: 2 is not less than TotalSegments: 2")]
-    [Arguments(""","Limit":0""", "1 validation error detected: Value '0' at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1")]
+    [Arguments(""","Segment":0,"TotalSegments":0""", "1 validation error detected: Value at 'TotalSegments' failed to satisfy constraint: Member must have value greater than or equal to 1")]
+    [Arguments(""","Segment":0,"TotalSegments":1000001""", "1 validation error detected: Value at 'TotalSegments' failed to satisfy constraint: Member must have value less than or equal to 1000000")]
+    [Arguments(""","Segment":-1,"TotalSegments":2""", "1 validation error detected: Value at 'Segment' failed to satisfy constraint: Member must have value greater than or equal to 0")]
+    [Arguments(""","Segment":2,"TotalSegments":2""", "The Segment parameter is zero-based and must be less than parameter TotalSegments")]
+    [Arguments(""","Limit":0""", "1 validation error detected: Value at 'Limit' failed to satisfy constraint: Member must have value greater than or equal to 1")]
     [Arguments(""","IndexName":"Nope" """, "The table does not have the specified index: Nope")]
     [Arguments(""","IndexName":"ByCustomer","ConsistentRead":true""", "Consistent reads are not supported on global secondary indexes")]
-    [Arguments(""","ExpressionAttributeNames":{"#a":"a"}""", "ExpressionAttributeNames can only be specified when using expressions")]
-    [Arguments(""","ExpressionAttributeValues":{":a":{"S":"a"}}""", "ExpressionAttributeValues can only be specified when using expressions")]
-    [Arguments(""","Select":"SPECIFIC_ATTRIBUTES" """, "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES")]
-    [Arguments(""","ExclusiveStartKey":{}""", "The provided starting key is invalid: The provided key element does not match the schema")]
+    [Arguments(""","ExpressionAttributeNames":{"#a":"a"}""", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions")]
+    [Arguments(""","ExpressionAttributeValues":{":a":{"S":"a"}}""", "1 validation error detected: ExpressionAttributeValues can only be specified when using expressions")]
+    [Arguments(""","Select":"SPECIFIC_ATTRIBUTES" """, "1 validation error detected: Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES")]
+    [Arguments(""","ExclusiveStartKey":{}""", "The provided starting key is invalid")]
     [Arguments(""","ScanFilter":{"a":{"ComparisonOperator":"NULL"}},"FilterExpression":"attribute_exists(a)" """, "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {ScanFilter} Expression parameters: {FilterExpression}")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string options, string message)
     {
@@ -172,7 +172,7 @@ public sealed class ScanTests
         var answer = FakeCalls.Error(fake, "Scan", """{"TableName":"Shop"}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Cannot do operations on a non-existent table"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found"));
     }
 
     [Test]

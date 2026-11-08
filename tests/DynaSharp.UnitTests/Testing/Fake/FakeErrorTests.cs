@@ -13,6 +13,8 @@ internal sealed class FakeErrorTests
         const string Prefix = "com.amazonaws.dynamodb.v20120810#";
         yield return () => (FakeError.Validation("bad"), $$"""{"__type":"{{Prefix}}ValidationException","message":"bad"}""");
         yield return () => (FakeError.Serialization("odd"), $$"""{"__type":"{{Prefix}}SerializationException","message":"odd"}""");
+        yield return () => (FakeError.Enveloped("bad"), $$"""{"__type":"{{Prefix}}ValidationException","message":"1 validation error detected: bad"}""");
+        yield return () => (FakeError.Violations(["a", "b"]), $$"""{"__type":"{{Prefix}}ValidationException","message":"2 validation errors detected: a; b"}""");
         yield return () => (FakeError.ResourceNotFound(), $$"""{"__type":"{{Prefix}}ResourceNotFoundException","message":"Requested resource not found"}""");
         yield return () => (FakeError.ResourceInUse("busy"), $$"""{"__type":"{{Prefix}}ResourceInUseException","message":"busy"}""");
         yield return () => (FakeError.LimitExceeded("much"), $$"""{"__type":"{{Prefix}}LimitExceededException","message":"much"}""");
@@ -38,6 +40,17 @@ internal sealed class FakeErrorTests
 
         // Assert
         await Assert.That(FakeCalls.SameJson(body, JsonElement.Parse(rendered))).IsTrue();
+    }
+
+    [Test]
+    public async Task Violations_Null_ThrowsArgumentNullException()
+    {
+        // Arrange
+        // Act
+        var act = () => FakeError.Violations(null!);
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentNullException>();
     }
 
     [Test]

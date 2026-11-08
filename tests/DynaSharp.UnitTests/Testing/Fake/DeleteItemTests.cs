@@ -85,7 +85,7 @@ public sealed class DeleteItemTests
         var answer = FakeCalls.Error(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ReturnValues":"UPDATED_NEW"}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Return values set to invalid value"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "1 validation error detected: ReturnValues can only be ALL_OLD or NONE"));
     }
 
     [Test]

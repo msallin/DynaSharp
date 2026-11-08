@@ -2,27 +2,9 @@ using System.Text.Json;
 
 namespace DynaSharp.Testing.Fake;
 
-/// <summary>What the batches and the transactions read alike: the length of their lists, the one action of an element, and keys that come twice.</summary>
+/// <summary>What the batches and the transactions read alike: the one action of an element, and keys that come twice.</summary>
 internal static class Batches
 {
-    /// <summary>Checks the length of a list of a request.</summary>
-    /// <param name="count">The length.</param>
-    /// <param name="member">The member, as DynamoDB names it in the message: <c>transactItems</c>.</param>
-    /// <param name="max">The largest length DynamoDB takes.</param>
-    /// <exception cref="FakeError">A <c>ValidationException</c> for an empty list or a longer one.</exception>
-    public static void ThrowIfLength(int count, string member, int max)
-    {
-        if (count < 1)
-        {
-            throw FakeError.Validation($"1 validation error detected: Value at '{member}' failed to satisfy constraint: Member must have length greater than or equal to 1");
-        }
-
-        if (count > max)
-        {
-            throw FakeError.Validation($"1 validation error detected: Value at '{member}' failed to satisfy constraint: Member must have length less than or equal to {max}");
-        }
-    }
-
     /// <summary>Gets the one action of an element, such as the <c>Put</c> of <c>{"Put":{...}}</c>.</summary>
     /// <param name="value">The element.</param>
     /// <param name="where">What it is, for the message.</param>

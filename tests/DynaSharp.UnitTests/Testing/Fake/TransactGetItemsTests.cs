@@ -90,10 +90,10 @@ public sealed class TransactGetItemsTests
     }
 
     [Test]
-    [Arguments("""{"TransactItems":[]}""", "1 validation error detected: Value at 'transactItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"TransactItems":[]}""", "1 validation error detected: Value at 'TransactItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
     [Arguments("""{"TransactItems":[{}]}""", "1 validation error detected: Value null at 'get' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"TransactItems":[{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}}}},{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}}}}]}""", "Transaction request cannot include multiple operations on one item")]
-    [Arguments("""{"TransactItems":[{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}},"ExpressionAttributeNames":{"#a":"a"}}}]}""", "ExpressionAttributeNames can only be specified when using expressions")]
+    [Arguments("""{"TransactItems":[{"Get":{"TableName":"Users","Key":{"pk":{"S":"a"}},"ExpressionAttributeNames":{"#a":"a"}}}]}""", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string request, string message)
     {
         // Arrange
@@ -138,7 +138,7 @@ public sealed class TransactGetItemsTests
         var answer = FakeCalls.Error(fake, "TransactGetItems", $$$$$"""{"TransactItems":[{{{{{gets}}}}}]}""");
 
         // Assert
-        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'transactItems' failed to satisfy constraint: Member must have length less than or equal to 100");
+        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'TransactItems' failed to satisfy constraint: Member must have length less than or equal to 100");
     }
 
     [Test]

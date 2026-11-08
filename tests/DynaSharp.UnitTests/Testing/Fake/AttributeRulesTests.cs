@@ -5,11 +5,14 @@ namespace DynaSharp.UnitTests.Testing.Fake;
 // Developer Guide, "Naming rules and data types": sets hold no duplicates, documents nest up to 32 levels, numbers have 38 digits.
 public sealed class AttributeRulesTests
 {
-    public static IEnumerable<Func<(AttributeValue Set, string Listed)>> Duplicates()
+    // The members DynamoDB names: those before the first repeat in byte order, the repeat, and the rest as sent.
+    public static IEnumerable<Func<(AttributeValue Set, string Message)>> Duplicates()
     {
-        yield return () => (AttributeValue.FromNumberSet(["1", "1.0"]), "1, 1.0");
-        yield return () => (AttributeValue.WrapStringSet(["a", "a"]), "a, a");
-        yield return () => (AttributeValue.WrapBinarySet([new byte[] { 1 }, new byte[] { 1 }]), "AQ==, AQ==");
+        yield return () => (AttributeValue.FromNumberSet(["1", "1.0"]), "Input collection contains duplicates.");
+        yield return () => (AttributeValue.WrapStringSet(["a", "a"]), "Input collection [\"a\", \"a\"] contains duplicates.");
+        yield return () => (AttributeValue.WrapStringSet(["b", "a", "b", "c"]), "Input collection [\"a\", \"b\", \"b\", \"c\"] contains duplicates.");
+        yield return () => (AttributeValue.WrapBinarySet([new byte[] { 255 }, new byte[] { 0 }, new byte[] { 0 }]), "Input collection [\"AA==\",\"/w==\",\"AA==\"]of type BS contains duplicates.");
+        yield return () => (AttributeValue.WrapBinarySet([new byte[] { 2 }, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }]), "Input collection [\"AQ==\",\"Ag==\",\"Ag==\",\"Aw==\"]of type BS contains duplicates.");
     }
 
     public static IEnumerable<Func<(AttributeValue Set, string Expected)>> Unordered()
@@ -58,7 +61,7 @@ public sealed class AttributeRulesTests
 
     [Test]
     [MethodDataSource(nameof(Duplicates))]
-    public async Task Normalize_SetWithADuplicate_ThrowsValidation(AttributeValue set, string listed)
+    public async Task Normalize_SetWithADuplicate_ThrowsValidation(AttributeValue set, string message)
     {
         // Arrange
         var item = new Item { ["set"] = set };
@@ -67,7 +70,7 @@ public sealed class AttributeRulesTests
         var act = () => AttributeRules.Normalize(item);
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage($"One or more parameter values were invalid: Input collection [{listed}] contains duplicates.", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("One or more parameter values were invalid: " + message, StringComparison.Ordinal);
     }
 
     [Test]

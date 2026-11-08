@@ -9,7 +9,7 @@ namespace DynaSharp.Testing.Fake;
 /// <remarks>
 /// <see cref="ReadKey"/> is for a request that names an item by its key, <c>Key</c> of <c>GetItem</c>, which must hold the key attributes and nothing else. <see cref="KeyOf"/> is for an item
 /// that is written, which holds the key attributes among others. Both check the type, that a string or a binary is not empty, and the sizes: 2048 bytes for a partition key, 1024 for a sort key.
-/// <see cref="ThrowIfInvalidIndexKey(IReadOnlyDictionary{string, AttributeValue}, string)"/> checks the same of the key attributes of an index that an item holds. An empty value, of the table key or of an index key, and an index key
+/// <see cref="ThrowIfInvalidIndexKey(IReadOnlyDictionary{string, AttributeValue}, string, bool)"/> checks the same of the key attributes of an index that an item holds. An empty value, of the table key or of an index key, and an index key
 /// value too large are <see cref="FakeError.InvalidInput"/>, which a transaction does not turn into a cancellation reason.
 /// </remarks>
 /// <param name="PartitionKeyName">The attribute of the partition key.</param>
@@ -76,14 +76,15 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     /// </summary>
     /// <param name="item">The item, in its stored form.</param>
     /// <param name="indexName">The index, for the message.</param>
+    /// <param name="byUpdate"><see langword="true"/> for the item an update made, whose empty key DynamoDB words as the update's.</param>
     /// <exception cref="FakeError">A <c>ValidationException</c>, <c>Size limit exceeded</c> for a value too large.</exception>
-    public void ThrowIfInvalidIndexKey(IReadOnlyDictionary<string, AttributeValue> item, string indexName)
+    public void ThrowIfInvalidIndexKey(IReadOnlyDictionary<string, AttributeValue> item, string indexName, bool byUpdate = false)
     {
         ArgumentNullException.ThrowIfNull(item);
-        ThrowIfInvalidIndexKey(item, PartitionKeyName, PartitionKeyType, MaxPartitionKeyBytes, indexName);
+        ThrowIfInvalidIndexKey(item, PartitionKeyName, PartitionKeyType, MaxPartitionKeyBytes, indexName, byUpdate);
         if (SortKeyName is not null)
         {
-            ThrowIfInvalidIndexKey(item, SortKeyName, SortKeyType!.Value, MaxSortKeyBytes, indexName);
+            ThrowIfInvalidIndexKey(item, SortKeyName, SortKeyType!.Value, MaxSortKeyBytes, indexName, byUpdate);
         }
     }
 
@@ -142,7 +143,7 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
 
     private static bool Fits(AttributeValue value, int maxBytes) => !IsEmpty(value) && ItemSize.Of(value) <= maxBytes;
 
-    private static void ThrowIfInvalidIndexKey(IReadOnlyDictionary<string, AttributeValue> item, string name, ScalarAttributeType type, int maxBytes, string indexName)
+    private static void ThrowIfInvalidIndexKey(IReadOnlyDictionary<string, AttributeValue> item, string name, ScalarAttributeType type, int maxBytes, string indexName, bool byUpdate)
     {
         if (!item.TryGetValue(name, out var value))
         {
@@ -157,8 +158,9 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
 
         if (IsEmpty(value))
         {
-            throw FakeError.InvalidInput(
-                $"One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty {Kind(value)} value. IndexName: {indexName}, IndexKey: {name}");
+            throw FakeError.InvalidInput(byUpdate
+                ? $"One or more parameter values are not valid. The update expression attempted to update a secondary index key to a value that is not supported. The AttributeValue for a key attribute cannot contain an empty {Kind(value)} value."
+                : $"One or more parameter values are not valid. A value specified for a secondary index key is not supported. The AttributeValue for a key attribute cannot contain an empty {Kind(value)} value. IndexName: {indexName}, IndexKey: {name}");
         }
 
         if (ItemSize.Of(value) > maxBytes)

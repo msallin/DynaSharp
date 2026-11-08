@@ -9,9 +9,9 @@ public sealed class QueryTests
 
     [Test]
     [Arguments("", "Either the KeyConditions or KeyConditionExpression parameter must be specified in the request.")]
-    [Arguments(""","KeyConditionExpression":"pk = :pk","Limit":0""", "1 validation error detected: Value '0' at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1")]
-    [Arguments(""","KeyConditionExpression":"pk = :pk","IndexName":"Nope" """, "The table does not have the specified index: Nope")]
-    [Arguments(""","KeyConditionExpression":"customer = :c","IndexName":"ByCustomer","ConsistentRead":true""", "Consistent reads are not supported on global secondary indexes")]
+    [Arguments(""","KeyConditionExpression":"pk = :pk","Limit":0""", "1 validation error detected: Value at 'Limit' failed to satisfy constraint: Member must have value greater than or equal to 1")]
+    [Arguments(""","KeyConditionExpression":"pk = :pk","ExpressionAttributeValues":{":pk":{"S":"a"}},"IndexName":"Nope" """, "The table does not have the specified index: Nope")]
+    [Arguments(""","KeyConditionExpression":"customer = :c","ExpressionAttributeValues":{":c":{"S":"a"}},"IndexName":"ByCustomer","ConsistentRead":true""", "Consistent reads are not supported on global secondary indexes")]
     [Arguments(""","KeyConditions":{"pk":{"ComparisonOperator":"EQ","AttributeValueList":[{"S":"a"}]}},"KeyConditionExpression":"pk = :pk" """, "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {KeyConditions} Expression parameters: {KeyConditionExpression}")]
     public async Task Handle_RequestDynamoDbRejectsBeforeTheKeyCondition_AnswersValidation(string options, string message)
     {
@@ -68,7 +68,7 @@ public sealed class QueryTests
         var answer = FakeCalls.Error(fake, "Query", """{"TableName":"Shop","KeyConditionExpression":"pk = :pk","ExpressionAttributeValues":{":pk":{"S":"a"}}}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Cannot do operations on a non-existent table"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found"));
     }
 
     [Test]
@@ -288,7 +288,7 @@ public sealed class QueryTests
     [Test]
     [Arguments("""{"pk":{"S":"b"},"sk":{"N":"1"}}""", "The provided starting key is outside query boundaries based on provided conditions")]
     [Arguments("""{"pk":{"S":"a"},"sk":{"N":"9"}}""", "The provided starting key does not match the range key predicate")]
-    [Arguments("""{"pk":{"S":"a"}}""", "The provided starting key is invalid: The provided key element does not match the schema")]
+    [Arguments("""{"pk":{"S":"a"}}""", "The provided starting key is invalid")]
     public async Task Handle_StartKeyOutsideTheKeyCondition_AnswersValidation(string start, string message)
     {
         // Arrange
@@ -441,5 +441,37 @@ public sealed class QueryTests
 
         // Assert
         await Assert.That(string.Join(",", ReadTables.Keys(body))).IsEqualTo("a/2");
+    }
+
+    [Test]
+    public async Task Handle_KeyConditionWithABadOperandOnAMissingTable_AnswersTheOperandAheadOfTheTable()
+    {
+        // Arrange
+        var fake = FakeCalls.With(ReadTables.Shop);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "Query",
+            """{"TableName":"Nope","KeyConditionExpression":"pk = :p AND begins_with(sk, :n)","ExpressionAttributeValues":{":p":{"S":"q"},":n":{"N":"1"}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "Invalid KeyConditionExpression: Incorrect operand type for operator or function; operator or function: begins_with, operand type: N"));
+    }
+
+    [Test]
+    public async Task Handle_WellFormedKeyConditionOnAMissingTable_AnswersResourceNotFound()
+    {
+        // Arrange
+        var fake = FakeCalls.With(ReadTables.Shop);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "Query", """{"TableName":"Nope","KeyConditionExpression":"pk = :p","ExpressionAttributeValues":{":p":{"S":"q"}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found"));
     }
 }

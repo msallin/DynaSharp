@@ -135,8 +135,8 @@ public sealed class PlaceholderScopeTests
     }
 
     [Test]
-    [Arguments("{}", null, "ExpressionAttributeNames must not be empty")]
-    [Arguments(null, "{}", "ExpressionAttributeValues must not be empty")]
+    [Arguments("{}", null, "1 validation error detected: ExpressionAttributeNames must not be empty")]
+    [Arguments(null, "{}", "1 validation error detected: ExpressionAttributeValues must not be empty")]
     [Arguments("""{"a":"a"}""", null, "ExpressionAttributeNames contains invalid key: Syntax error; key: \"a\"")]
     [Arguments("""{"#":"a"}""", null, "ExpressionAttributeNames contains invalid key: Syntax error; key: \"#\"")]
     [Arguments("""{"#a-b":"a"}""", null, "ExpressionAttributeNames contains invalid key: Syntax error; key: \"#a-b\"")]

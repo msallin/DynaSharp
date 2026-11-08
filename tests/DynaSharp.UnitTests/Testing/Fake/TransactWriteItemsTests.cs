@@ -164,7 +164,7 @@ public sealed class TransactWriteItemsTests
 
         // Assert
         await Assert.That((FakeCalls.SameJson(
-            """[{"Code":"None"},{"Code":"None"},{"Code":"ValidationError","Message":"Item size has exceeded the maximum allowed size"}]""",
+            """[{"Code":"None"},{"Code":"None"},{"Code":"ValidationError","Message":"Item size to update has exceeded the maximum allowed size"}]""",
             body.GetProperty("CancellationReasons")), fake.Items("Users").Single()["v"].AsString())).IsEqualTo((true, "old"));
     }
 
@@ -490,9 +490,9 @@ public sealed class TransactWriteItemsTests
     }
 
     [Test]
-    [Arguments("""{"TransactItems":[]}""", "1 validation error detected: Value at 'transactItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
-    [Arguments("""{"TransactItems":[{}]}""", "TransactItems can only contain one of Check, Put, Update or Delete")]
-    [Arguments("""{"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}},"Delete":{"TableName":"Users","Key":{"pk":{"S":"b"}}}}]}""", "TransactItems can only contain one of Check, Put, Update or Delete")]
+    [Arguments("""{"TransactItems":[]}""", "1 validation error detected: Value at 'TransactItems' failed to satisfy constraint: Member must have length greater than or equal to 1")]
+    [Arguments("""{"TransactItems":[{}]}""", "1 validation error detected: Value '' at 'transactItems' failed to satisfy constraint: TransactWriteRequest should contain Delete or Put or Update or ConditionCheck")]
+    [Arguments("""{"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}},"Delete":{"TableName":"Users","Key":{"pk":{"S":"b"}}}}]}""", "1 validation error detected: Value '' at 'transactItems' failed to satisfy constraint: TransactWriteRequest should contain Delete or Put or Update or ConditionCheck")]
     [Arguments("""{"TransactItems":[{"Put":{"TableName":"Users","Item":{"pk":{"S":"a"}}}},{"Delete":{"TableName":"Users","Key":{"pk":{"S":"a"}}}}]}""", "Transaction request cannot include multiple operations on one item")]
     [Arguments("""{"TransactItems":[{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":"a"}}}}]}""", "1 validation error detected: Value null at 'conditionExpression' failed to satisfy constraint: Member must not be null")]
     [Arguments("""{"TransactItems":[{"Update":{"TableName":"Users","Key":{"pk":{"S":"a"}}}}]}""", "1 validation error detected: Value null at 'updateExpression' failed to satisfy constraint: Member must not be null")]
@@ -581,7 +581,7 @@ public sealed class TransactWriteItemsTests
         var answer = FakeCalls.Error(fake, "TransactWriteItems", $$$$$"""{"TransactItems":[{{{{{puts}}}}}]}""");
 
         // Assert
-        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'transactItems' failed to satisfy constraint: Member must have length less than or equal to 100");
+        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value at 'TransactItems' failed to satisfy constraint: Member must have length less than or equal to 100");
     }
 
     [Test]
@@ -646,5 +646,142 @@ public sealed class TransactWriteItemsTests
 
         // Assert
         await Assert.That((answer, fake.Items("Forum").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "One or more parameter values were invalid: Size limit exceeded"), 0));
+    }
+
+    [Test]
+    public async Task Handle_SetOfAnEmptyIndexKey_WordsItAsTheUpdateDoes()
+    {
+        // Arrange
+        var fake = FakeCalls.With(ReadTables.Shop);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Shop","Item":{"pk":{"S":"a"},"sk":{"N":"1"},"customer":{"S":"k"}}}""");
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """{"TransactItems":[{"Update":{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET customer = :e","ExpressionAttributeValues":{":e":{"S":""}}}}]}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "One or more parameter values are not valid. The update expression attempted to update a secondary index key to a value that is not supported. The AttributeValue for a key attribute cannot contain an empty string value."));
+    }
+
+    [Test]
+    public async Task Handle_ExpressionOfALaterActionAndMissingTableOfAnEarlierOne_AnswersTheExpression()
+    {
+        // Arrange: DynamoDB reads every action before it looks for any table
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            """{"TransactItems":[{"Put":{"TableName":"Nope","Item":{"pk":{"S":"a"}}}},{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":"b"}},"ConditionExpression":"attribute_not_exists("}}]}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Invalid ConditionExpression: Syntax error; token: \"<EOF>\", near: \"(\""));
+    }
+
+    [Test]
+    public async Task Handle_ExpressionBeforeTheKeyOfTheSameAction_AnswersTheExpression()
+    {
+        // Arrange: the key is nested too deep, but the condition fails to parse first
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var deep = string.Concat(Enumerable.Repeat("""{"M":{"n":""", 40)) + """{"S":"leaf"}""" + new string('}', 80);
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            $$$$$"""{"TransactItems":[{"Delete":{"TableName":"Users","Key":{"pk":{{{{{deep}}}}}},"ConditionExpression":"a = = b"}}]}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Invalid ConditionExpression: Syntax error; token: \"=\", near: \"= = b\""));
+    }
+
+    [Test]
+    public async Task Handle_ConditionOver4096Bytes_AnswersTheSizeOfIt()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var condition = "attribute_exists(a)" + string.Concat(Enumerable.Repeat(" AND attribute_exists(a)", 200));
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            $$$$$"""{"TransactItems":[{"ConditionCheck":{"TableName":"Users","Key":{"pk":{"S":"a"}},"ConditionExpression":"{{{{{condition}}}}}"}}]}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            $"Invalid ConditionExpression: Expression size has exceeded the maximum allowed size; expression size: {condition.Length}"));
+    }
+
+    [Test]
+    public async Task Handle_UpdateExpressionOver4096Bytes_AnswersTheSizeWithoutIt()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var update = "SET a0 = :v" + string.Concat(Enumerable.Range(1, 500).Select(i => $", a{i} = :v"));
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "TransactWriteItems",
+            $$$$$"""{"TransactItems":[{"Update":{"TableName":"Users","Key":{"pk":{"S":"a"}},"UpdateExpression":"{{{{{update}}}}}","ExpressionAttributeValues":{":v":{"S":"x"}}}}]}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Invalid UpdateExpression: Expression size has exceeded the maximum allowed size;"));
+    }
+
+    [Test]
+    public async Task Handle_PutsOf4MBTogether_AnswersValidationAndWritesNothing()
+    {
+        // Arrange: twelve items of 350,000 bytes are 4.2 MB, ten are 3.5 MB
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var puts = string.Join(",", Enumerable.Range(0, 12).Select(i => $$$$$"""{"Put":{"TableName":"Users","Item":{"pk":{"S":"k{{{{{i}}}}}"},"v":{"S":"{{{{{FakeWrites.Text(350_000)}}}}}"}}}}"""));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "TransactWriteItems", $$$$$"""{"TransactItems":[{{{{{puts}}}}}]}""");
+
+        // Assert
+        await Assert.That((answer, fake.Items("Users").Count)).IsEqualTo(((HttpStatusCode.BadRequest, "ValidationException", "Transaction request cannot contain items of more than 4 MB together"), 0));
+    }
+
+    [Test]
+    public async Task Handle_PutsUnder4MBTogether_Writes()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var puts = string.Join(",", Enumerable.Range(0, 10).Select(i => $$$$$"""{"Put":{"TableName":"Users","Item":{"pk":{"S":"k{{{{{i}}}}}"},"v":{"S":"{{{{{FakeWrites.Text(350_000)}}}}}"}}}}"""));
+
+        // Act
+        FakeCalls.Ok(fake, "TransactWriteItems", $$$$$"""{"TransactItems":[{{{{{puts}}}}}]}""");
+
+        // Assert
+        await Assert.That(fake.Items("Users").Count).IsEqualTo(10);
+    }
+
+    [Test]
+    public async Task Handle_DeletesOfItemsThatAre4MBTogether_AnswersValidationAndDeletesNothing()
+    {
+        // Arrange: the items a transaction finds count as well as the items it puts
+        var fake = FakeCalls.With(FakeCalls.Users);
+        for (var i = 0; i < 14; i++)
+        {
+            FakeCalls.Ok(fake, "PutItem", $$$$$"""{"TableName":"Users","Item":{"pk":{"S":"k{{{{{i}}}}}"},"v":{"S":"{{{{{FakeWrites.Text(300_000)}}}}}"}}}""");
+        }
+
+        var deletes = string.Join(",", Enumerable.Range(0, 14).Select(i => $$$$$"""{"Delete":{"TableName":"Users","Key":{"pk":{"S":"k{{{{{i}}}}}"}}}}"""));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "TransactWriteItems", $$$$$"""{"TransactItems":[{{{{{deletes}}}}}]}""");
+
+        // Assert
+        await Assert.That((answer.Message, fake.Items("Users").Count)).IsEqualTo(("Transaction request cannot contain items of more than 4 MB together", 14));
     }
 }

@@ -20,7 +20,7 @@ public sealed class WriteReturnsTests
         var act = () => WriteReturns.Check(operation, returnValues);
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("Return values set to invalid value", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("1 validation error detected: ReturnValues can only be ALL_OLD or NONE", StringComparison.Ordinal);
     }
 
     [Test]

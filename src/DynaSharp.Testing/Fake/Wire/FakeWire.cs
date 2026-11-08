@@ -26,6 +26,9 @@ internal static class FakeWire
     /// <summary>The operations the client can send and the fake does not answer: none, every operation of the client has a handler.</summary>
     public static readonly FrozenSet<string> NotImplemented = [];
 
+    // Far more than the reader of the client takes: a value nested past the 32 levels DynamoDB stores is answered with the nesting error, not as a body that cannot be read.
+    private const int MaxBodyDepth = 1024;
+
     private static readonly FrozenDictionary<string, OperationHandler> Handlers = new Dictionary<string, OperationHandler>(StringComparer.Ordinal)
     {
         [GetItem.Name] = GetItem.Handle,
@@ -135,7 +138,7 @@ internal static class FakeWire
         JsonDocument document;
         try
         {
-            document = JsonDocument.Parse(body.ToArray(), new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
+            document = JsonDocument.Parse(body.ToArray(), new JsonDocumentOptions { MaxDepth = MaxBodyDepth });
         }
         catch (JsonException exception)
         {

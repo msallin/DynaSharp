@@ -120,9 +120,9 @@ internal static class PageBuilder
             _ = table.KeySchema.ReadKey(Subset(key, table.KeySchema));
             _ = index?.KeySchema.ReadKey(Subset(key, index.KeySchema));
         }
-        catch (FakeError error)
+        catch (FakeError)
         {
-            throw FakeError.Validation("The provided starting key is invalid: " + error.Message);
+            throw FakeError.Validation("The provided starting key is invalid");
         }
 
         return key;
@@ -161,7 +161,7 @@ internal static class PageBuilder
 
         if (select == SelectKind.SpecificAttributes)
         {
-            return hasProjection ? select : throw FakeError.Validation("Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES");
+            return hasProjection ? select : throw FakeError.Enveloped("Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES");
         }
 
         if (hasProjection)

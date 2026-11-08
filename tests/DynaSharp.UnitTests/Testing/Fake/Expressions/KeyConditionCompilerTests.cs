@@ -23,7 +23,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition("pk = :p", scope, Table);
+        var range = Parse("pk = :p", scope, Table);
 
         // Assert
         await Assert.That(range).IsEqualTo(new KeyRange("user-1", null));
@@ -49,7 +49,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values, """{"#p":"pk","#s":"sk"}""");
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition(expression, scope, Table);
+        var range = Parse(expression, scope, Table);
 
         // Assert
         await Assert.That(range).IsEqualTo(new KeyRange("user-1", new SortKeyRange(Enum.Parse<SortKeyOperator>(expected), AttributeValue.FromNumber("5"))));
@@ -62,7 +62,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition("sk BETWEEN :n AND :m AND pk = :p", scope, Table);
+        var range = Parse("sk BETWEEN :n AND :m AND pk = :p", scope, Table);
 
         // Assert
         await Assert.That(range).IsEqualTo(new KeyRange("user-1", new SortKeyRange(SortKeyOperator.Between, AttributeValue.FromNumber("5"), AttributeValue.FromNumber("9"))));
@@ -75,7 +75,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition("gpk = :p AND begins_with(gsk, :s)", scope, Index);
+        var range = Parse("gpk = :p AND begins_with(gsk, :s)", scope, Index);
 
         // Assert
         await Assert.That(range).IsEqualTo(new KeyRange("user-1", new SortKeyRange(SortKeyOperator.BeginsWith, "a")));
@@ -96,15 +96,16 @@ public sealed class KeyConditionCompilerTests
     [Arguments(":p = :p", "Invalid condition in KeyConditionExpression: No key attribute specified")]
     [Arguments("pk = :p AND :n BETWEEN :n AND :m", "Invalid condition in KeyConditionExpression: No key attribute specified")]
     [Arguments("pk.a = :p", "Invalid KeyConditionExpression: KeyConditionExpressions cannot have conditions on nested attributes")]
-    [Arguments("pk = :p AND pk = :p", "KeyConditionExpressions must only contain one condition per key")]
-    [Arguments("pk = :p AND sk > :n AND sk < :m", "Conditions can be of length 1 or 2 only")]
-    [Arguments("sk > :n AND sk < :m", "KeyConditionExpressions must only contain one condition per key")]
+    [Arguments("pk = :p AND pk = :p", "Invalid KeyConditionExpression: KeyConditionExpressions must only contain one condition per key")]
+    [Arguments("pk = :p AND sk > :n AND sk < :m", "Invalid KeyConditionExpression: KeyConditionExpressions must only contain one condition per key")]
+    [Arguments("pk = :p AND sk > :n AND extra = :m", "The number of query conditions (3) exceeds the number of key attributes defined in the schema (2)")]
+    [Arguments("sk > :n AND sk < :m", "Invalid KeyConditionExpression: KeyConditionExpressions must only contain one condition per key")]
     [Arguments("pk > :p", "Query key condition not supported")]
-    [Arguments("pk = :p AND begins_with(pk, :p)", "KeyConditionExpressions must only contain one condition per key")]
+    [Arguments("pk = :p AND begins_with(pk, :p)", "Invalid KeyConditionExpression: KeyConditionExpressions must only contain one condition per key")]
     [Arguments("pk BETWEEN :p AND :p", "Query key condition not supported")]
-    [Arguments("extra = :p", "Query condition missed key schema element")]
-    [Arguments("pk = :p AND extra = :n", "Query condition missed key schema element")]
-    [Arguments("sk = :n", "Query condition missed key schema element")]
+    [Arguments("extra = :p", "Query condition missed key schema element: pk")]
+    [Arguments("pk = :p AND extra = :n", "Query condition missed key schema element: pk")]
+    [Arguments("sk = :n", "Query condition missed key schema element: pk")]
     [Arguments("pk = :n", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
     [Arguments("pk = :p AND sk = :s", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
     [Arguments("pk = :bin", "One or more parameter values were invalid: Condition parameter type does not match schema type")]
@@ -119,7 +120,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        void Act() => FakeExpressions.ParseKeyCondition(expression, scope, Table);
+        void Act() => Parse(expression, scope, Table);
 
         // Assert
         await Assert.That(Act).Throws<FakeError>().WithMessage(message, StringComparison.Ordinal);
@@ -132,7 +133,7 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        void Act() => FakeExpressions.ParseKeyCondition("gpk = :p AND gsk = :empty", scope, Index);
+        void Act() => Parse("gpk = :p AND gsk = :empty", scope, Index);
 
         // Assert
         await Assert.That(Act).Throws<FakeError>()
@@ -146,7 +147,7 @@ public sealed class KeyConditionCompilerTests
         var schema = new KeySchema("pk", ScalarAttributeType.Binary);
 
         // Act
-        void Act() => FakeExpressions.ParseKeyCondition("pk = :bin", Scope(Values), schema);
+        void Act() => Parse("pk = :bin", Scope(Values), schema);
 
         // Assert
         await Assert.That(Act).Throws<FakeError>()
@@ -160,10 +161,10 @@ public sealed class KeyConditionCompilerTests
         var schema = new KeySchema("pk", ScalarAttributeType.String);
 
         // Act
-        void Act() => FakeExpressions.ParseKeyCondition("pk = :p AND sk = :n", Scope(Values), schema);
+        void Act() => Parse("pk = :p AND sk = :n", Scope(Values), schema);
 
         // Assert
-        await Assert.That(Act).Throws<FakeError>().WithMessage("Query condition missed key schema element", StringComparison.Ordinal);
+        await Assert.That(Act).Throws<FakeError>().WithMessage("Query condition missed key schema element: pk", StringComparison.Ordinal);
     }
 
     [Test]
@@ -173,7 +174,7 @@ public sealed class KeyConditionCompilerTests
         var schema = new KeySchema("pk", ScalarAttributeType.Number);
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition("pk = :n", Scope(Values), schema);
+        var range = Parse("pk = :n", Scope(Values), schema);
 
         // Assert
         await Assert.That(range).IsEqualTo(new KeyRange(AttributeValue.FromNumber("5"), null));
@@ -186,9 +187,12 @@ public sealed class KeyConditionCompilerTests
         var scope = Scope(Values);
 
         // Act
-        var range = FakeExpressions.ParseKeyCondition("pk = :p AND sk = :n2", scope, Table);
+        var range = Parse("pk = :p AND sk = :n2", scope, Table);
 
         // Assert
         await Assert.That(range.Sort!.Value).IsEqualTo(AttributeValue.FromNumber("5"));
     }
+
+    private static KeyRange Parse(string text, PlaceholderScope scope, KeySchema keySchema) =>
+        FakeExpressions.CompileKeyCondition(FakeExpressions.ParseKeyCondition(text, scope), keySchema);
 }

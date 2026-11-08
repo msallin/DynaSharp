@@ -148,7 +148,7 @@ public sealed class GetItemTests
         await Assert.That(answer).IsEqualTo((
             HttpStatusCode.BadRequest,
             "ValidationException",
-            "1 validation error detected: Value 'ALL' at 'returnConsumedCapacity' failed to satisfy constraint: Member must satisfy enum value set: [NONE, TOTAL, INDEXES]"));
+            "1 validation error detected: Value 'ALL' at 'returnConsumedCapacity' failed to satisfy constraint: Member must satisfy enum value set: [INDEXES, TOTAL, NONE]"));
     }
 
     [Test]
@@ -161,7 +161,7 @@ public sealed class GetItemTests
         var answer = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ExpressionAttributeNames":{"#t":"total"}}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "ExpressionAttributeNames can only be specified when using expressions"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions"));
     }
 
     [Test]
@@ -200,7 +200,7 @@ public sealed class GetItemTests
         var answer = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"}}}""");
 
         // Assert
-        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Cannot do operations on a non-existent table"));
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ResourceNotFoundException", "Requested resource not found"));
     }
 
     [Test]

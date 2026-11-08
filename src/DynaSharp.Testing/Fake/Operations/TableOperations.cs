@@ -147,7 +147,7 @@ internal static class TableOperations
 
         if (request.StreamSpecification is { } stream)
         {
-            ThrowIfInvalidStreamSpecification(stream);
+            ThrowIfInvalidStreamSpecification(stream, creating: true);
         }
 
         var types = Types(request.AttributeDefinitions);
@@ -337,20 +337,26 @@ internal static class TableOperations
     /// <summary>Checks the name of a table or an index: 3 to 255 characters of <c>a-z</c>, <c>A-Z</c>, <c>0-9</c>, <c>_</c>, <c>-</c> and <c>.</c>.</summary>
     /// <param name="name">The name.</param>
     /// <param name="member">The member in camel case, for the message: <c>tableName</c>, <c>indexName</c>.</param>
+    /// <param name="minimum">The least length, 3 where the table operations take it.</param>
     /// <exception cref="FakeError">A <c>ValidationException</c>.</exception>
-    public static void ThrowIfInvalidName(string name, string member)
+    public static void ThrowIfInvalidName(string name, string member, int minimum = 3)
     {
         ArgumentNullException.ThrowIfNull(name);
-        var problem = name.Length switch
+        if (RequestModel.TableNameViolation(name, member, minimum) is { } violation)
         {
-            < 3 => "Member must have length greater than or equal to 3",
-            > 255 => "Member must have length less than or equal to 255",
-            _ => name.All(static c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.') ? null : "Member must satisfy regular expression pattern: [a-zA-Z0-9_.-]+",
-        };
-        if (problem is not null)
-        {
-            throw FakeError.Validation($"1 validation error detected: Value '{name}' at '{member}' failed to satisfy constraint: {problem}");
+            throw FakeError.Enveloped(violation);
         }
+    }
+
+    /// <summary>Reads <c>TableName</c> of an item operation, which takes a name of any length that DynamoDB lets through: it answers the table that does not exist.</summary>
+    /// <param name="request">The request.</param>
+    /// <returns>The name.</returns>
+    /// <exception cref="FakeError">A <c>ValidationException</c> for a missing or malformed name.</exception>
+    public static string ReadItemTableName(JsonElement request)
+    {
+        var name = RequestJson.ReadString(RequestJson.Required(request, "TableName"), "TableName");
+        ThrowIfInvalidName(name, "tableName", minimum: 1);
+        return name;
     }
 
     /// <summary>Reads <c>TableName</c>, checked as DynamoDB checks it.</summary>
@@ -373,7 +379,7 @@ internal static class TableOperations
         { KMSMasterKeyId: { } id } => FakeTable.KmsArnPrefix + "key/" + id,
     };
 
-    private static void ThrowIfInvalidStreamSpecification(StreamSpecification stream)
+    private static void ThrowIfInvalidStreamSpecification(StreamSpecification stream, bool creating = false)
     {
         if (stream.StreamEnabled && stream.StreamViewType == StreamViewType.Unspecified)
         {
@@ -382,7 +388,9 @@ internal static class TableOperations
 
         if (!stream.StreamEnabled && stream.StreamViewType != StreamViewType.Unspecified)
         {
-            throw FakeError.Validation("Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.");
+            throw FakeError.Validation(creating
+                ? Invalid + "Table is being created with a stream disabled, UpdateViewType should not be specified"
+                : "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present.");
         }
     }
 
@@ -472,7 +480,7 @@ internal static class TableOperations
 
         if (elements.Count == 2 && elements[0].AttributeName == elements[1].AttributeName)
         {
-            throw FakeError.Validation("Both the Hash Key and the Range Key element in the KeySchema have the same name");
+            throw FakeError.Validation("Invalid KeySchema: Some index key attribute have no definition");
         }
 
         var missing = elements.Where(element => !types.ContainsKey(element.AttributeName)).ToList();
@@ -630,6 +638,7 @@ internal static class TableOperations
             "TableClass",
             "DeletionProtectionEnabled",
             "OnDemandThroughput");
+        RequestModel.CheckCreateTable(request);
         return new CreateTableRequest
         {
             AttributeDefinitions = ReadDefinitions(RequestJson.Required(request, "AttributeDefinitions"), CreateTableName),

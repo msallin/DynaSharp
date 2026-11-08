@@ -26,7 +26,11 @@ internal static class KeyConditionCompiler
         Flatten(condition, clauses);
         if (clauses.Count > 2)
         {
-            throw FakeError.Validation("Conditions can be of length 1 or 2 only");
+            var attributes = clauses.Select(static clause => Clause(clause).Name).Distinct(StringComparer.Ordinal).Count();
+            var keyAttributes = keySchema.Names.Count();
+            throw attributes > keyAttributes
+                ? FakeError.Validation($"The number of query conditions ({clauses.Count}) exceeds the number of key attributes defined in the schema ({keyAttributes})")
+                : OneConditionPerKey();
         }
 
         AttributeValue? partition = null;
@@ -54,13 +58,13 @@ internal static class KeyConditionCompiler
             }
             else
             {
-                throw MissedKey();
+                throw MissedKey(keySchema);
             }
         }
 
         if (partition is not { } partitionValue)
         {
-            throw MissedKey();
+            throw MissedKey(keySchema);
         }
 
         ThrowIfEmpty(partitionValue, keySchema.PartitionKeyName);
@@ -145,9 +149,11 @@ internal static class KeyConditionCompiler
     {
         if (seen)
         {
-            throw FakeError.Validation("KeyConditionExpressions must only contain one condition per key");
+            throw OneConditionPerKey();
         }
     }
+
+    private static FakeError OneConditionPerKey() => FakeError.Validation($"Invalid {Member}: KeyConditionExpressions must only contain one condition per key");
 
     private static void ThrowIfOtherType(SortKeyRange range, ScalarAttributeType type)
     {
@@ -172,6 +178,6 @@ internal static class KeyConditionCompiler
 
     private static FakeError NotSupported() => FakeError.Validation("Query key condition not supported");
 
-    // DynamoDB Local names no attribute, also where the condition names one that is no key (Vectors/messages.json).
-    private static FakeError MissedKey() => FakeError.Validation("Query condition missed key schema element");
+    // It names the partition key, also where the condition names an attribute that is no key (Parity tier3/error-messages/query).
+    private static FakeError MissedKey(KeySchema keySchema) => FakeError.Validation($"Query condition missed key schema element: {keySchema.PartitionKeyName}");
 }

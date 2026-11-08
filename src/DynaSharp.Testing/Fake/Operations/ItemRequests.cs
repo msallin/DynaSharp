@@ -17,13 +17,13 @@ internal static class ItemRequests
         if (RequestJson.Optional(request, "ExpressionAttributeNames") is { } names)
         {
             _ = RequestJson.ReadStringMap(names, "ExpressionAttributeNames");
-            throw FakeError.Validation("ExpressionAttributeNames can only be specified when using expressions");
+            throw FakeError.Enveloped("ExpressionAttributeNames can only be specified when using expressions");
         }
 
         if (RequestJson.Optional(request, "ExpressionAttributeValues") is { } values)
         {
             _ = RequestJson.ReadItem(values, "ExpressionAttributeValues");
-            throw FakeError.Validation("ExpressionAttributeValues can only be specified when using expressions");
+            throw FakeError.Enveloped("ExpressionAttributeValues can only be specified when using expressions");
         }
     }
 

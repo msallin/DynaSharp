@@ -25,35 +25,80 @@ internal static class Expressions
     /// <summary>The member of a projection.</summary>
     public const string ProjectionExpression = "ProjectionExpression";
 
+    /// <summary>The most bytes of an expression, measured on the text as sent: placeholders are not replaced, and the values of the request are not counted.</summary>
+    public const int MaxBytes = 4096;
+
+    /// <summary>Gets the message of DynamoDB for an expression that is empty.</summary>
+    /// <param name="member">The member the expression came from.</param>
+    /// <returns>The message.</returns>
+    public static string EmptyMessage(string member) => $"Invalid {member}: The expression can not be empty;";
+
+    /// <summary>Checks the size of an expression.</summary>
+    /// <param name="text">The expression.</param>
+    /// <param name="member">The member the expression came from, which the message names.</param>
+    /// <param name="enveloped"><see langword="true"/> for a write of its own, which DynamoDB answers inside its request validation.</param>
+    /// <param name="withSize"><see langword="true"/> to name the size, as DynamoDB does for the condition of an action of a transaction.</param>
+    /// <exception cref="FakeError">A <c>ValidationException</c> for an expression of more than <see cref="MaxBytes"/> bytes.</exception>
+    public static void ThrowIfTooLarge(string text, string member, bool enveloped = false, bool withSize = false)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var size = System.Text.Encoding.UTF8.GetByteCount(text);
+        if (size > MaxBytes)
+        {
+            var message = $"Invalid {member}: Expression size has exceeded the maximum allowed size;{(withSize ? $" expression size: {size}" : string.Empty)}";
+            throw enveloped ? FakeError.Enveloped(message) : FakeError.Validation(message);
+        }
+    }
+
     /// <summary>Parses a condition: <c>ConditionExpression</c> or <c>FilterExpression</c>.</summary>
     /// <param name="text">The expression.</param>
     /// <param name="scope">The placeholders of the request.</param>
     /// <param name="member">The member the expression came from, <see cref="ConditionExpression"/> or <see cref="FilterExpression"/>, which the messages name.</param>
     /// <returns>The condition.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
-    public static ParsedCondition ParseCondition(string text, PlaceholderScope scope, string member = ConditionExpression) =>
-        new(text, ExpressionParser.ParseCondition(text, member, scope));
+    public static ParsedCondition ParseCondition(string text, PlaceholderScope scope, string member = ConditionExpression)
+    {
+        ThrowIfTooLarge(text, member);
+        return new(text, ExpressionParser.ParseCondition(text, member, scope));
+    }
 
     /// <summary>Parses an <c>UpdateExpression</c>.</summary>
     /// <param name="text">The expression.</param>
     /// <param name="scope">The placeholders of the request.</param>
     /// <returns>The update.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
-    public static ParsedUpdate ParseUpdate(string text, PlaceholderScope scope) => new(text, ExpressionParser.ParseUpdate(text, scope));
+    public static ParsedUpdate ParseUpdate(string text, PlaceholderScope scope)
+    {
+        ThrowIfTooLarge(text, "UpdateExpression");
+        return new(text, ExpressionParser.ParseUpdate(text, scope));
+    }
 
-    /// <summary>Parses a <c>KeyConditionExpression</c> against the key it queries.</summary>
+    /// <summary>Parses a <c>KeyConditionExpression</c>, which DynamoDB does before it looks at the table.</summary>
     /// <param name="text">The expression.</param>
     /// <param name="scope">The placeholders of the request.</param>
+    /// <returns>The condition, to be compiled against the key it queries with <see cref="CompileKeyCondition"/>.</returns>
+    /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
+    public static ConditionNode ParseKeyCondition(string text, PlaceholderScope scope)
+    {
+        ThrowIfTooLarge(text, KeyConditionExpression);
+        return ExpressionParser.ParseCondition(text, KeyConditionExpression, scope);
+    }
+
+    /// <summary>Compiles a parsed <c>KeyConditionExpression</c> against the key it queries.</summary>
+    /// <param name="condition">The condition from <see cref="ParseKeyCondition"/>.</param>
     /// <param name="keySchema">The key of the table or the index.</param>
     /// <returns>The partition and the condition on the sort key.</returns>
-    /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
-    public static KeyRange ParseKeyCondition(string text, PlaceholderScope scope, KeySchema keySchema) =>
-        KeyConditionCompiler.Compile(ExpressionParser.ParseCondition(text, KeyConditionExpression, scope), keySchema);
+    /// <exception cref="FakeError">A <c>ValidationException</c> for a condition the key does not take.</exception>
+    public static KeyRange CompileKeyCondition(ConditionNode condition, KeySchema keySchema) => KeyConditionCompiler.Compile(condition, keySchema);
 
     /// <summary>Parses a <c>ProjectionExpression</c>.</summary>
     /// <param name="text">The expression.</param>
     /// <param name="scope">The placeholders of the request.</param>
     /// <returns>The projection.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects.</exception>
-    public static ParsedProjection ParseProjection(string text, PlaceholderScope scope) => new(text, ExpressionParser.ParseProjection(text, scope));
+    public static ParsedProjection ParseProjection(string text, PlaceholderScope scope)
+    {
+        ThrowIfTooLarge(text, ProjectionExpression);
+        return new(text, ExpressionParser.ParseProjection(text, scope));
+    }
 }

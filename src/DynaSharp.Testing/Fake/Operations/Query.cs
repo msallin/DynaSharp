@@ -34,11 +34,11 @@ internal static class Query
             "ScanIndexForward",
             "ExclusiveStartKey",
             "ReturnConsumedCapacity");
-        var read = ReadRequest.Read(db, request);
+        var read = ReadRequest.Read(db, request, query: true);
         var forward = RequestJson.Optional(request, "ScanIndexForward") is not { } forwardValue || RequestJson.ReadBool(forwardValue, "ScanIndexForward");
-        var keyCondition = RequestJson.Optional(request, "KeyConditionExpression")
+        var keyCondition = read.KeyCondition
             ?? throw FakeError.Validation("Either the KeyConditions or KeyConditionExpression parameter must be specified in the request.");
-        var range = Expressions.ParseKeyCondition(RequestJson.ReadString(keyCondition, "KeyConditionExpression"), read.Scope, read.KeySchema);
+        var range = Expressions.CompileKeyCondition(keyCondition, read.KeySchema);
         var options = read.ParseOptions(request, read.KeySchema);
         var start = PageBuilder.ReadStartKey(request, read.Table, read.Index);
         if (start is not null)

@@ -31,8 +31,8 @@ internal static class TransactGetItems
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
         RequestJson.Members(request, Name, "TransactItems", "ReturnConsumedCapacity");
+        RequestModel.CheckTransaction(request, writes: false);
         var elements = RequestJson.ReadArray(RequestJson.Required(request, "TransactItems"), "TransactItems");
-        Batches.ThrowIfLength(elements.Count, "transactItems", MaxActions);
         var capacity = SingleWrite.Enum(request, "ReturnConsumedCapacity", WireNames.ReturnConsumedCapacities);
 
         var gets = new List<(FakeTable Table, ItemKey Key, ParsedProjection? Projection)>(elements.Count);
@@ -45,8 +45,8 @@ internal static class TransactGetItems
             RequestJson.Members(element, "TransactItems of " + Name, "Get");
             var get = RequestJson.Required(element, "Get");
             RequestJson.Members(get, "Get of " + Name, "TableName", "Key", "ProjectionExpression", "ExpressionAttributeNames");
-            var table = db.GetTable(TableOperations.ReadTableName(get));
-            var keyMap = RequestJson.ReadItem(RequestJson.Required(get, "Key"), "Key");
+            var table = db.GetTable(TableOperations.ReadItemTableName(get));
+            var keyMap = RequestJson.ReadItem(RequestJson.Required(get, "Key"), "Key", ItemLayer.Element);
             var projection = ExpressionMembers.ReadProjection(get);
             reasons[i] = new CancellationReason { Code = "None" };
             ItemKey key;

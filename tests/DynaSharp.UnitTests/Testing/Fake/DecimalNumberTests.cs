@@ -15,7 +15,6 @@ public sealed class DecimalNumberTests
     [Arguments("0", "0")]
     [Arguments("-0", "0")]
     [Arguments("0.000", "0")]
-    [Arguments("0e999999", "0")]
     [Arguments("007", "7")]
     [Arguments("+3", "3")]
     [Arguments("1.50", "1.5")]
@@ -91,6 +90,9 @@ public sealed class DecimalNumberTests
     [Arguments("1E+99999999999", Overflow)]
     [Arguments("1E-131", Underflow)]
     [Arguments("1E-99999999999", Underflow)]
+    [Arguments("0e126", Overflow)]
+    [Arguments("0e-131", Underflow)]
+    [Arguments("1e2147483647", Overflow)]
     public async Task Parse_BeyondTheLimits_ThrowsValidation(string text, string message)
     {
         // Arrange
@@ -99,6 +101,83 @@ public sealed class DecimalNumberTests
 
         // Assert
         await Assert.That(act).Throws<FakeError>().WithMessage(message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("0e125")]
+    [Arguments("0e-130")]
+    public async Task Parse_ZeroWithAnExponentInsideTheRange_IsZero(string text)
+    {
+        // Arrange
+        // Act
+        var number = DecimalNumber.Parse(text).ToString();
+
+        // Assert
+        await Assert.That(number).IsEqualTo("0");
+    }
+
+    [Test]
+    [Arguments("1e9223372036854775808")]
+    [Arguments("1e-9223372036854775808")]
+    [Arguments("0e99999999999999999999")]
+    public async Task Parse_ExponentPast64Bits_IsNoNumber(string text)
+    {
+        // Arrange
+        // Act
+        var act = () => DecimalNumber.Parse(text);
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(NotANumber + text, StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("1e9223372036854775807")]
+    [Arguments("-1e9223372036854775807")]
+    public async Task Parse_ExponentOfTheLargest64BitInteger_IsReadAndOutOfRange(string text)
+    {
+        // Arrange
+        // Act
+        var act = () => DecimalNumber.Parse(text);
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(Overflow, StringComparison.Ordinal);
+    }
+
+    // The literals measured against DynamoDB (Parity tier3/limits/numberByteSize, eu-west-2, 2026-08-18) and what each cost in an item.
+    [Test]
+    [Arguments("0", 1)]
+    [Arguments("1", 2)]
+    [Arguments("12", 2)]
+    [Arguments("123", 3)]
+    [Arguments("1234", 3)]
+    [Arguments("12345678901234567890123456789012345678", 20)]
+    [Arguments("0042", 2)]
+    [Arguments("100", 2)]
+    [Arguments("1010", 3)]
+    [Arguments("0.0000001", 2)]
+    [Arguments("1E125", 2)]
+    [Arguments("1E-100", 2)]
+    [Arguments("1.5", 3)]
+    [Arguments("15", 2)]
+    [Arguments("1.2", 3)]
+    [Arguments("1.200", 3)]
+    [Arguments("1.234", 4)]
+    [Arguments("3.14159", 5)]
+    [Arguments("123456", 4)]
+    [Arguments("100.5", 4)]
+    [Arguments("0.15", 2)]
+    [Arguments("-42", 3)]
+    [Arguments("-0", 1)]
+    public async Task ByteSize_NumberMeasuredOnDynamoDb_IsWhatItCost(string text, int bytes)
+    {
+        // Arrange
+        var number = DecimalNumber.Parse(text);
+
+        // Act
+        var size = number.ByteSize;
+
+        // Assert
+        await Assert.That(size).IsEqualTo(bytes);
     }
 
     [Test]

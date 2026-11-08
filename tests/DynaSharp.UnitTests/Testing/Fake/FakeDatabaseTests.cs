@@ -44,7 +44,7 @@ public sealed class FakeDatabaseTests
         var act = () => db.GetTable("Users");
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("Cannot do operations on a non-existent table", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("Requested resource not found", StringComparison.Ordinal);
     }
 
     [Test]

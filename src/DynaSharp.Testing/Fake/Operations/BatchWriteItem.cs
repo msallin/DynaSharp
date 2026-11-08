@@ -12,7 +12,8 @@ internal static class BatchWriteItem
     /// <summary>The operation.</summary>
     public const string Name = "BatchWriteItem";
 
-    private const int MaxWrites = 25;
+    /// <summary>The most writes in a request.</summary>
+    public const int MaxWrites = 25;
     private const string NoMatch = "The provided key element does not match the schema";
 
     /// <summary>Answers the operation.</summary>
@@ -22,8 +23,8 @@ internal static class BatchWriteItem
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
         RequestJson.Members(request, Name, "RequestItems", "ReturnConsumedCapacity", "ReturnItemCollectionMetrics");
+        RequestModel.CheckBatch(request, writes: true);
         var tables = RequestJson.ReadObject(RequestJson.Required(request, "RequestItems"), "RequestItems");
-        Batches.ThrowIfLength(tables.Count, "requestItems", MaxWrites);
         var capacity = SingleWrite.Enum(request, "ReturnConsumedCapacity", WireNames.ReturnConsumedCapacities);
         var metrics = SingleWrite.Enum(request, "ReturnItemCollectionMetrics", WireNames.ReturnItemCollectionMetricsValues);
         var writes = Read(db, tables);
@@ -63,7 +64,6 @@ internal static class BatchWriteItem
         foreach (var entry in tables)
         {
             var elements = RequestJson.ReadArray(entry.Value, "RequestItems");
-            Batches.ThrowIfLength(elements.Count, "requestItems", MaxWrites);
             if (writes.Count + elements.Count > MaxWrites)
             {
                 throw FakeError.Validation($"Too many items requested for the {Name} call");
@@ -77,7 +77,7 @@ internal static class BatchWriteItem
                 if (action == "PutRequest")
                 {
                     RequestJson.Members(body, "PutRequest of " + Name, "Item");
-                    var item = RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item");
+                    var item = RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item", ItemLayer.Element);
 
                     // Unlike PutItem, a batch answers a missing or mistyped key with the schema message; an empty or oversized value keeps its own.
                     if (!table.KeySchema.Covers(item))
@@ -90,7 +90,7 @@ internal static class BatchWriteItem
                 else
                 {
                     RequestJson.Members(body, "DeleteRequest of " + Name, "Key");
-                    write = (table.KeySchema.ReadKey(RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key")), null);
+                    write = (table.KeySchema.ReadKey(RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key", ItemLayer.Element)), null);
                 }
 
                 Batches.ThrowIfSeen(seen, table, write.Key, "Provided list of item keys contains duplicates");

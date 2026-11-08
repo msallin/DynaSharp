@@ -11,19 +11,37 @@ internal static class ExpressionMembers
     /// <summary>Reads <c>ConditionExpression</c>, and <c>UpdateExpression</c> where the object takes one.</summary>
     /// <param name="value">The request, or an action of a transaction.</param>
     /// <param name="takesUpdate"><see langword="true"/> for <c>UpdateItem</c> and the <c>Update</c> of a transaction.</param>
+    /// <param name="single"><see langword="true"/> for a write of its own, which DynamoDB answers an empty expression for inside its request validation.</param>
     /// <returns>The condition and the update, each <see langword="null"/> when the object has none.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c> for an expression DynamoDB rejects, or maps without an expression.</exception>
-    public static (ParsedCondition? Condition, ParsedUpdate? Update) ReadWrite(JsonElement value, bool takesUpdate)
+    public static (ParsedCondition? Condition, ParsedUpdate? Update) ReadWrite(JsonElement value, bool takesUpdate, bool single = false)
     {
         var condition = Text(value, "ConditionExpression");
         var update = takesUpdate ? Text(value, "UpdateExpression") : null;
+        if (single)
+        {
+            ThrowIfEmpty(condition, "ConditionExpression");
+            ThrowIfEmpty(update, "UpdateExpression");
+        }
+
+        // DynamoDB names the size of the condition of an action of a transaction, and no size anywhere else.
+        if (condition is not null)
+        {
+            Expressions.ThrowIfTooLarge(condition, "ConditionExpression", enveloped: single, withSize: !single);
+        }
+
+        if (update is not null)
+        {
+            Expressions.ThrowIfTooLarge(update, "UpdateExpression", enveloped: single);
+        }
+
         if (condition is null && update is null)
         {
             ItemRequests.ThrowIfMapsWithoutExpression(value);
             return (null, null);
         }
 
-        var scope = Scope(value);
+        var scope = Scope(value, single);
         var parsedUpdate = update is null ? null : Expressions.ParseUpdate(update, scope);
         var parsedCondition = condition is null ? null : Expressions.ParseCondition(condition, scope);
         scope.ThrowIfUnused();
@@ -42,16 +60,24 @@ internal static class ExpressionMembers
             return null;
         }
 
-        var scope = Scope(value);
+        var scope = Scope(value, single: false);
         var parsed = Expressions.ParseProjection(projection, scope);
         scope.ThrowIfUnused();
         return parsed;
     }
 
+    private static void ThrowIfEmpty(string? text, string member)
+    {
+        if (text is { Length: 0 })
+        {
+            throw FakeError.Enveloped(Expressions.EmptyMessage(member));
+        }
+    }
+
     private static string? Text(JsonElement value, string member) =>
         RequestJson.Optional(value, member) is { } text ? RequestJson.ReadString(text, member) : null;
 
-    private static PlaceholderScope Scope(JsonElement value) => new(
+    private static PlaceholderScope Scope(JsonElement value, bool single) => new(
         RequestJson.Optional(value, "ExpressionAttributeNames") is { } names ? RequestJson.ReadStringMap(names, "ExpressionAttributeNames") : null,
-        RequestJson.Optional(value, "ExpressionAttributeValues") is { } values ? RequestJson.ReadItem(values, "ExpressionAttributeValues") : null);
+        RequestJson.Optional(value, "ExpressionAttributeValues") is { } values ? RequestJson.ReadItem(values, "ExpressionAttributeValues", single ? ItemLayer.Enveloped : ItemLayer.Element) : null);
 }

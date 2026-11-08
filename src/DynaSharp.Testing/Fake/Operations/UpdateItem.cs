@@ -31,8 +31,9 @@ internal static class UpdateItem
             "ReturnValuesOnConditionCheckFailure",
             "ReturnConsumedCapacity",
             "ReturnItemCollectionMetrics");
-        var tableName = TableOperations.ReadTableName(request);
-        var keyItem = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");
+        RequestModel.CheckItemWrite(request, Name);
+        var tableName = TableOperations.ReadItemTableName(request);
+        var keyItem = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key", ItemLayer.Enveloped);
         var options = SingleWrite.Read(request, Name);
         var table = db.GetTable(tableName);
         var key = table.KeySchema.ReadKey(keyItem);
@@ -59,7 +60,7 @@ internal static class UpdateItem
         }
 
         var (newImage, updatedOld, updatedNew) = update.Apply(current, keyItem);
-        var old = table.Put(newImage);
+        var old = table.Put(newImage, byUpdate: true);
         return new WriteOutcome(key, old, table.Get(key), updatedOld, updatedNew);
     }
 }

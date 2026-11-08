@@ -31,7 +31,10 @@ internal static class TransactWriteItems
     /// <summary>The operation.</summary>
     public const string Name = "TransactWriteItems";
 
-    private const int MaxTokenLength = 36;
+    /// <summary>The most characters of a client request token.</summary>
+    public const int MaxTokenLength = 36;
+
+    private const long MaxTransactionBytes = 4L * 1024 * 1024;
 
     private enum ActionKind
     {
@@ -50,19 +53,26 @@ internal static class TransactWriteItems
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
         RequestJson.Members(request, Name, "TransactItems", "ReturnConsumedCapacity", "ReturnItemCollectionMetrics", "ClientRequestToken");
+        RequestModel.CheckTransaction(request, writes: true);
         var elements = RequestJson.ReadArray(RequestJson.Required(request, "TransactItems"), "TransactItems");
-        Batches.ThrowIfLength(elements.Count, "transactItems", TransactGetItems.MaxActions);
         var capacity = SingleWrite.Enum(request, "ReturnConsumedCapacity", WireNames.ReturnConsumedCapacities);
         var metrics = SingleWrite.Enum(request, "ReturnItemCollectionMetrics", WireNames.ReturnItemCollectionMetricsValues);
         var token = ReadToken(request);
         var now = db.Clock.GetUtcNow();
         var replay = token is not null && db.Tokens.IsReplay(token, request, now);
 
-        var actions = new List<Action>(elements.Count);
-        var seen = new HashSet<(string, ItemKey)>();
+        // Every action is read before any table is looked up: DynamoDB reports the first problem of the actions in request order, whatever kind it is, ahead of a table that is missing.
+        var parsed = new List<ParsedAction>(elements.Count);
         foreach (var element in elements)
         {
-            var action = Read(db, element);
+            parsed.Add(Parse(element));
+        }
+
+        var actions = new List<Action>(elements.Count);
+        var seen = new HashSet<(string, ItemKey)>();
+        foreach (var part in parsed)
+        {
+            var action = Resolve(db, part);
             if (action.Rejected is null)
             {
                 Batches.ThrowIfSeen(seen, action.Table, action.Key, TransactGetItems.SameItemTwice);
@@ -71,6 +81,7 @@ internal static class TransactWriteItems
             actions.Add(action);
         }
 
+        ThrowIfOverSizeLimit(actions);
         if (replay)
         {
             if (capacity != ReturnConsumedCapacity.None)
@@ -103,6 +114,16 @@ internal static class TransactWriteItems
         }
     }
 
+    // The items a transaction writes or reads together are at most 4 MB: the items of its puts and those its other actions find.
+    private static void ThrowIfOverSizeLimit(List<Action> actions)
+    {
+        var total = actions.Where(static action => action.Rejected is null).Sum(static action => action.Item is { } item ? ItemSize.Of(item) : SizeOf(action.Table.Get(action.Key)));
+        if (total > MaxTransactionBytes)
+        {
+            throw FakeError.Validation("Transaction request cannot contain items of more than 4 MB together");
+        }
+    }
+
     private static string? ReadToken(JsonElement request)
     {
         if (RequestJson.Optional(request, "ClientRequestToken") is not { } value)
@@ -110,18 +131,11 @@ internal static class TransactWriteItems
             return null;
         }
 
-        var token = RequestJson.ReadString(value, "ClientRequestToken");
-        if (token.Length is < 1 or > MaxTokenLength)
-        {
-            throw FakeError.Validation(
-                $"1 validation error detected: Value '{token}' at 'clientRequestToken' failed to satisfy constraint: Member must have length {(token.Length == 0 ? "greater than or equal to 1" : "less than or equal to " + MaxTokenLength)}");
-        }
-
-        return token;
+        return RequestJson.ReadString(value, "ClientRequestToken");
     }
 
     // {"Put":{"TableName":"T","Item":{...},"ConditionExpression":"...","ExpressionAttributeNames":{...},"ExpressionAttributeValues":{...},"ReturnValuesOnConditionCheckFailure":"ALL_OLD"}}
-    private static Action Read(FakeDatabase db, JsonElement element)
+    private static ParsedAction Parse(JsonElement element)
     {
         var (name, body) = Batches.OneOf(
             element,
@@ -146,22 +160,7 @@ internal static class TransactWriteItems
             _ => ["TableName", "Key", "ConditionExpression", "ExpressionAttributeNames", "ExpressionAttributeValues", "ReturnValuesOnConditionCheckFailure"],
         };
         RequestJson.Members(body, where, members);
-        var table = db.GetTable(TableOperations.ReadTableName(body));
-        var item = kind == ActionKind.Put ? RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item") : null;
-        var keyMap = item is null ? RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key") : null;
-        ItemKey key = default;
-        FakeError? rejected = null;
-        try
-        {
-            key = item is not null ? table.KeySchema.KeyOf(table.Check(item, ofRequest: true)) : table.KeySchema.ReadKey(keyMap!);
-        }
-        catch (FakeError error) when (!error.IsInputError)
-        {
-            // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json, and both emulators
-            // do so for an index key of another type than the index defines.
-            rejected = error;
-        }
-
+        var tableName = TableOperations.ReadItemTableName(body);
         if (kind == ActionKind.ConditionCheck)
         {
             _ = RequestJson.Required(body, "ConditionExpression");
@@ -171,10 +170,31 @@ internal static class TransactWriteItems
             _ = RequestJson.Required(body, "UpdateExpression");
         }
 
-        var (condition, update) = ExpressionMembers.ReadWrite(body, kind == ActionKind.Update);
-
+        // The expressions come before the item or the key, as DynamoDB reads them.
+        var (condition, update) = ExpressionMembers.ReadWrite(body, kind == ActionKind.Update, single: false);
+        var item = kind == ActionKind.Put ? RequestJson.ReadItem(RequestJson.Required(body, "Item"), "Item", ItemLayer.Element) : null;
+        var keyMap = item is null ? RequestJson.ReadItem(RequestJson.Required(body, "Key"), "Key", ItemLayer.Element) : null;
         var onFailure = SingleWrite.Enum(body, "ReturnValuesOnConditionCheckFailure", WireNames.ReturnValuesOnConditionCheckFailures);
-        return new Action(kind, table, key, item, condition, update, onFailure, rejected);
+        return new ParsedAction(kind, tableName, item, keyMap, condition, update, onFailure);
+    }
+
+    private static Action Resolve(FakeDatabase db, ParsedAction parsed)
+    {
+        var table = db.GetTable(parsed.TableName);
+        ItemKey key = default;
+        FakeError? rejected = null;
+        try
+        {
+            key = parsed.Item is not null ? table.KeySchema.KeyOf(table.Check(parsed.Item, ofRequest: true)) : table.KeySchema.ReadKey(parsed.KeyMap!);
+        }
+        catch (FakeError error) when (!error.IsInputError)
+        {
+            // DynamoDB Local cancels the transaction with a ValidationError reason for a key that does not match the schema, see Vectors/writes.json, and both emulators
+            // do so for an index key of another type than the index defines.
+            rejected = error;
+        }
+
+        return new Action(parsed.Kind, table, key, parsed.Item, parsed.Condition, parsed.Update, parsed.OnFailure, rejected);
     }
 
     private static void ThrowIfAnyConditionFails(List<Action> actions)
@@ -238,7 +258,7 @@ internal static class TransactWriteItems
         {
             foreach (var index in action.Table.GlobalIndexes.Concat(action.Table.LocalIndexes))
             {
-                index.KeySchema.ThrowIfInvalidIndexKey(image, index.Name);
+                index.KeySchema.ThrowIfInvalidIndexKey(image, index.Name, byUpdate: true);
             }
 
             return null;
@@ -302,6 +322,15 @@ internal static class TransactWriteItems
     private static long SizeOf(Item? item) => item is null ? 0 : ItemSize.Of(item);
 
     private static CancellationReason ValidationError(FakeError error) => new() { Code = "ValidationError", Message = error.Message };
+
+    private sealed record ParsedAction(
+        ActionKind Kind,
+        string TableName,
+        Item? Item,
+        Item? KeyMap,
+        ParsedCondition? Condition,
+        ParsedUpdate? Update,
+        ReturnValuesOnConditionCheckFailure OnFailure);
 
     private sealed record Action(
         ActionKind Kind,

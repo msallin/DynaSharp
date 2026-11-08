@@ -159,9 +159,9 @@ public sealed class UpdateItemTests
     [Test]
     [Arguments("""{"UpdateExpression":"SET pk = :v","ExpressionAttributeValues":{":v":{"S":"x"}}}""", "One or more parameter values were invalid: Cannot update attribute pk. This attribute is part of the key")]
     [Arguments("""{"UpdateExpression":"SET a = :v","ExpressionAttributeValues":{":v":{"S":"x"},":w":{"S":"y"}}}""", "Value provided in ExpressionAttributeValues unused in expressions: keys: {:w}")]
-    [Arguments("""{"ExpressionAttributeNames":{"#a":"a"}}""", "ExpressionAttributeNames can only be specified when using expressions")]
+    [Arguments("""{"ExpressionAttributeNames":{"#a":"a"}}""", "1 validation error detected: ExpressionAttributeNames can only be specified when using expressions")]
     [Arguments("""{"UpdateExpression":"ADD a :v","ExpressionAttributeValues":{":v":{"S":"x"}}}""", "Invalid UpdateExpression: Incorrect operand type for operator or function; operator: ADD, operand type: STRING")]
-    [Arguments("""{"ReturnValues":"SOME"}""", "1 validation error detected: Value 'SOME' at 'returnValues' failed to satisfy constraint: Member must satisfy enum value set: [NONE, ALL_OLD, UPDATED_OLD, ALL_NEW, UPDATED_NEW]")]
+    [Arguments("""{"ReturnValues":"SOME"}""", "1 validation error detected: Value 'SOME' at 'returnValues' failed to satisfy constraint: Member must satisfy enum value set: [ALL_NEW, UPDATED_OLD, ALL_OLD, NONE, UPDATED_NEW]")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidationAndWritesNothing(string members, string message)
     {
         // Arrange
@@ -185,7 +185,7 @@ public sealed class UpdateItemTests
         var answer = FakeCalls.Error(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"UpdateExpression":"SET b = :v","ExpressionAttributeValues":{":v":{"S":"{{{{{FakeWrites.Text(200_000)}}}}}"}}}""");
 
         // Assert
-        await Assert.That((answer.Message, fake.Items("Users")[0].ContainsKey("b"))).IsEqualTo(("Item size has exceeded the maximum allowed size", false));
+        await Assert.That((answer.Message, fake.Items("Users")[0].ContainsKey("b"))).IsEqualTo(("Item size to update has exceeded the maximum allowed size", false));
     }
 
     [Test]
@@ -255,5 +255,72 @@ public sealed class UpdateItemTests
 
         // Assert
         await Assert.That(body.GetProperty("Attributes").GetProperty("l").GetRawText()).IsEqualTo("""{"L":[{"S":"x"},{"S":"y"},{"S":"A"},{"S":"B"}]}""");
+    }
+
+    [Test]
+    [Arguments("""{"UpdateExpression":""}""", "1 validation error detected: Invalid UpdateExpression: The expression can not be empty;")]
+    [Arguments("""{"UpdateExpression":"SET a = :v","ConditionExpression":"","ExpressionAttributeValues":{":v":{"S":"x"}}}""", "1 validation error detected: Invalid ConditionExpression: The expression can not be empty;")]
+    [Arguments("""{"UpdateExpression":"SET a = :v","ConditionExpression":"a = :w","ExpressionAttributeValues":{":v":{"S":"x"}}}""", "1 validation error detected: Invalid ConditionExpression: An expression attribute value used in expression is not defined; attribute value: :w")]
+    public async Task Handle_ExpressionThatFailsInTheEnvelope_AnswersValidationInsideIt(string members, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},{{{{{members[1..^1]}}}}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", message));
+    }
+
+    [Test]
+    public async Task Handle_UpdateExpressionOver4096Bytes_AnswersTheSizeInsideTheEnvelopeAndNoSize()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var update = "SET a0 = :v" + string.Concat(Enumerable.Range(1, 500).Select(i => $", a{i} = :v"));
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"UpdateExpression":"{{{{{update}}}}}","ExpressionAttributeValues":{":v":{"S":"x"}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "1 validation error detected: Invalid UpdateExpression: Expression size has exceeded the maximum allowed size;"));
+    }
+
+    [Test]
+    public async Task Handle_ExpressionValueNested33Levels_AnswersTheNestingErrorInsideTheEnvelope()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var deep = string.Concat(Enumerable.Repeat("""{"M":{"n":""", 32)) + """{"S":"leaf"}""" + new string('}', 64);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"UpdateExpression":"SET d = :deep","ExpressionAttributeValues":{":deep":{{{{{deep}}}}}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "1 validation error detected: Nesting Levels have exceeded supported limits: Attributes in the item have nested levels beyond supported limit"));
+    }
+
+    [Test]
+    public async Task Handle_SetOfAnEmptyIndexKey_WordsItAsTheUpdateDoes()
+    {
+        // Arrange
+        var fake = FakeCalls.With(ReadTables.Shop);
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Shop","Item":{"pk":{"S":"a"},"sk":{"N":"1"},"customer":{"S":"k"}}}""");
+
+        // Act
+        var answer = FakeCalls.Error(
+            fake,
+            "UpdateItem",
+            """{"TableName":"Shop","Key":{"pk":{"S":"a"},"sk":{"N":"1"}},"UpdateExpression":"SET customer = :e","ExpressionAttributeValues":{":e":{"S":""}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((
+            HttpStatusCode.BadRequest,
+            "ValidationException",
+            "One or more parameter values are not valid. The update expression attempted to update a secondary index key to a value that is not supported. The AttributeValue for a key attribute cannot contain an empty string value."));
     }
 }

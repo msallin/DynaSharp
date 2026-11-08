@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace DynaSharp.Testing.Fake;
 
 /// <summary>
@@ -17,6 +19,10 @@ internal static class AttributeRules
 {
     /// <summary>How many levels a value of an item may have in DynamoDB, counting the value at the bottom: an attribute is level 1, a value in a map or a list of it level 2, so 31 maps around a string are the deepest.</summary>
     public const int MaxNesting = 32;
+
+    private static readonly Comparer<string> Utf8Order = Comparer<string>.Create(Utf8Compare);
+
+    private static readonly Comparer<string> ByteOrder = Comparer<string>.Create(ByteCompare);
 
     /// <summary>Checks every value of an item and gives a copy in the stored form.</summary>
     /// <param name="item">The item, or a key, or the values of <c>ExpressionAttributeValues</c>.</param>
@@ -81,30 +87,62 @@ internal static class AttributeRules
 
                 return AttributeValue.WrapMap(map);
             case AttributeType.StringSet:
-                ThrowIfDuplicates(value.AsStringSet(), value.AsStringSet(), StringComparer.Ordinal);
+                if (Repeated(value.AsStringSet(), value.AsStringSet(), Utf8Order) is { } strings)
+                {
+                    throw Duplicates($"Input collection [{Quoted(strings, ", ")}] contains duplicates.");
+                }
+
                 return AttributeSets.Create(value.Type, AttributeSets.Elements(value));
             case AttributeType.NumberSet:
                 string[] numbers = [.. value.AsNumberSet().Select(static number => DecimalNumber.Parse(number).ToString())];
-                ThrowIfDuplicates(value.AsNumberSet(), numbers, StringComparer.Ordinal);
+                if (Repeated(numbers, numbers, StringComparer.Ordinal) is not null)
+                {
+                    throw Duplicates("Input collection contains duplicates.");
+                }
+
                 return AttributeSets.Create(value.Type, numbers.Select(static number => AttributeValue.FromNumber(number)));
             case AttributeType.BinarySet:
                 string[] encoded = [.. value.AsBinarySet().Select(static element => Convert.ToBase64String(element.Span))];
-                ThrowIfDuplicates(encoded, encoded, StringComparer.Ordinal);
+                if (Repeated(encoded, encoded, ByteOrder) is { } binaries)
+                {
+                    throw Duplicates($"Input collection [{Quoted(binaries, ",")}]of type BS contains duplicates.");
+                }
+
                 return AttributeSets.Create(value.Type, AttributeSets.Elements(value));
             default:
                 return value;
         }
     }
 
-    private static void ThrowIfDuplicates(IReadOnlyList<string> given, IReadOnlyList<string> keys, StringComparer comparer)
+    // DynamoDB names the members it found up to the first repeat in byte order, then the repeat, then the rest as sent (Parity tier3/error-messages/valueLayers).
+    private static List<string>? Repeated(IReadOnlyList<string> elements, IReadOnlyList<string> keys, IComparer<string> order)
     {
-        var seen = new HashSet<string>(comparer);
-        foreach (var key in keys)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < keys.Count; i++)
         {
-            if (!seen.Add(key))
+            if (!seen.Add(keys[i]))
             {
-                throw FakeError.Validation($"One or more parameter values were invalid: Input collection [{string.Join(", ", given)}] contains duplicates.");
+                return [.. elements.Take(i).Order(order), elements[i], .. elements.Skip(i + 1)];
             }
         }
+
+        return null;
     }
+
+    private static string Quoted(List<string> elements, string separator)
+    {
+        var text = new StringBuilder();
+        foreach (var element in elements)
+        {
+            text.Append(text.Length == 0 ? string.Empty : separator).Append('"').Append(element).Append('"');
+        }
+
+        return text.ToString();
+    }
+
+    private static FakeError Duplicates(string message) => FakeError.Validation("One or more parameter values were invalid: " + message);
+
+    private static int Utf8Compare(string left, string right) => Encoding.UTF8.GetBytes(left).AsSpan().SequenceCompareTo(Encoding.UTF8.GetBytes(right));
+
+    private static int ByteCompare(string left, string right) => Convert.FromBase64String(left).AsSpan().SequenceCompareTo(Convert.FromBase64String(right));
 }

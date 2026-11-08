@@ -572,7 +572,7 @@ internal sealed class ExpressionParser
     {
         if (At(ExpressionTokenKind.End))
         {
-            throw FakeError.Validation($"Invalid {_member}: The expression can not be empty;");
+            throw FakeError.Validation(Expressions.EmptyMessage(_member));
         }
     }
 

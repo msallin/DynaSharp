@@ -20,7 +20,7 @@ internal static class GetItem
     {
         ItemRequests.ThrowIfLegacyWithExpressions(request);
         RequestJson.Members(request, Name, "TableName", "Key", "ConsistentRead", "ProjectionExpression", "ExpressionAttributeNames", "ReturnConsumedCapacity");
-        var tableName = TableOperations.ReadTableName(request);
+        var tableName = TableOperations.ReadItemTableName(request);
         var key = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");
         var consistent = RequestJson.Optional(request, "ConsistentRead") is { } consistentRead && RequestJson.ReadBool(consistentRead, "ConsistentRead");
         var capacity = RequestJson.Optional(request, "ReturnConsumedCapacity") is { } capacityValue

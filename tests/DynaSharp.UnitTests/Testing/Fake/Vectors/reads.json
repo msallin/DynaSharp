@@ -57,8 +57,7 @@
           },
           "status": 400,
           "code": "ValidationException",
-          "message": "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES",
-          "compareMessage": true
+          "message": "Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES"
         },
         {
           "operation": "Query",

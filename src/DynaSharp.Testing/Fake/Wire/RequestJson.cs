@@ -51,7 +51,7 @@ internal static class RequestJson
     /// <returns>The value.</returns>
     /// <exception cref="FakeError">A <c>ValidationException</c>.</exception>
     public static JsonElement Required(JsonElement value, string member) =>
-        Optional(value, member) ?? throw FakeError.Validation($"1 validation error detected: Value null at '{CamelCase(member)}' failed to satisfy constraint: Member must not be null");
+        Optional(value, member) ?? throw FakeError.Enveloped(RequestModel.NullViolation(CamelCase(member)));
 
     /// <summary>Reads a string.</summary>
     /// <param name="value">The value.</param>
@@ -104,9 +104,10 @@ internal static class RequestJson
     /// <param name="member">The member, for the message.</param>
     /// <param name="names">The spellings, from <see cref="WireNames"/>.</param>
     /// <param name="noneIsDefault"><see langword="true"/> for an enum whose zero member is <c>None</c>, which is <c>NONE</c> on the wire and has no entry in the table.</param>
+    /// <param name="path">The path DynamoDB names in the message, or <see langword="null"/> for the member in camel case.</param>
     /// <returns>The member.</returns>
     /// <exception cref="FakeError">A <c>SerializationException</c> for no string, a <c>ValidationException</c> for a name the enum does not have, which DynamoDB rejects as well.</exception>
-    public static TEnum ReadEnum<TEnum>(JsonElement value, string member, EnumWireNames<TEnum> names, bool noneIsDefault = false)
+    public static TEnum ReadEnum<TEnum>(JsonElement value, string member, EnumWireNames<TEnum> names, bool noneIsDefault = false, string? path = null)
         where TEnum : struct, Enum
     {
         var name = ReadString(value, member);
@@ -120,27 +121,19 @@ internal static class RequestJson
             return parsed;
         }
 
-        // 1 validation error detected: Value 'BOOL' at 'attributeType' failed to satisfy constraint: Member must satisfy enum value set: [S, N, B]
-        IEnumerable<string> spellings = noneIsDefault ? ["NONE"] : [];
-        foreach (var known in Enum.GetValues<TEnum>())
-        {
-            if (names.TryGetName(known, out var spelling))
-            {
-                spellings = spellings.Append(spelling);
-            }
-        }
-
-        throw FakeError.Validation($"1 validation error detected: Value '{name}' at '{CamelCase(member)}' failed to satisfy constraint: Member must satisfy enum value set: [{string.Join(", ", spellings)}]");
+        throw FakeError.Enveloped(RequestModel.EnumViolation(name, path ?? CamelCase(member), RequestModel.EnumSet(member, names, noneIsDefault)));
     }
 
     /// <summary>Reads an item, a key or a map of attribute values, such as <c>ExpressionAttributeValues</c>, and checks every value.</summary>
     /// <param name="value">The value: an object of attribute names and values in DynamoDB JSON.</param>
     /// <param name="member">The member, for the message.</param>
+    /// <param name="layer">Where the map stands in the request, which decides how a value DynamoDB rejects is worded.</param>
     /// <returns>A new item, in its stored form.</returns>
     /// <exception cref="FakeError">A <c>SerializationException</c> for no object, a <c>ValidationException</c> for a value that is malformed or that DynamoDB rejects.</exception>
-    public static Item ReadItem(JsonElement value, string member)
+    public static Item ReadItem(JsonElement value, string member, ItemLayer layer = ItemLayer.Bare)
     {
         ThrowIfNotKind(value, JsonValueKind.Object, member, "an object");
+        ItemShape.Check(value, member, single: layer != ItemLayer.Element);
         Item item;
         try
         {
@@ -152,7 +145,14 @@ internal static class RequestJson
             throw FakeError.Validation($"Supplied AttributeValue is not valid in {member}: {exception.Message}");
         }
 
-        return AttributeRules.Normalize(item);
+        try
+        {
+            return AttributeRules.Normalize(item);
+        }
+        catch (FakeError error) when (layer == ItemLayer.Enveloped)
+        {
+            throw FakeError.Enveloped(error.Message);
+        }
     }
 
     /// <summary>Reads an object of strings, such as <c>ExpressionAttributeNames</c>.</summary>

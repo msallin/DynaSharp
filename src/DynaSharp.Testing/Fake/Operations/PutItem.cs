@@ -30,8 +30,9 @@ internal static class PutItem
             "ReturnValuesOnConditionCheckFailure",
             "ReturnConsumedCapacity",
             "ReturnItemCollectionMetrics");
-        var tableName = TableOperations.ReadTableName(request);
-        var item = RequestJson.ReadItem(RequestJson.Required(request, "Item"), "Item");
+        RequestModel.CheckItemWrite(request, Name);
+        var tableName = TableOperations.ReadItemTableName(request);
+        var item = RequestJson.ReadItem(RequestJson.Required(request, "Item"), "Item", ItemLayer.Enveloped);
         var options = SingleWrite.Read(request, Name);
         var table = db.GetTable(tableName);
         var key = table.KeySchema.KeyOf(table.Check(item));

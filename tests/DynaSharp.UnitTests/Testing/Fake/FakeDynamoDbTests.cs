@@ -63,7 +63,7 @@ public sealed class FakeDynamoDbTests
         var exception = await TestClient.CaptureAsync<ResourceNotFoundException>(() => client.GetItemAsync(new GetItemRequest { TableName = "Users", Key = AliceKey }));
 
         // Assert
-        await Assert.That(exception.Message).IsEqualTo("Cannot do operations on a non-existent table");
+        await Assert.That(exception.Message).IsEqualTo("Requested resource not found");
     }
 
     [Test]

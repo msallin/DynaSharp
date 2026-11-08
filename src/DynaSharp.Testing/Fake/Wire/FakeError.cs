@@ -67,6 +67,20 @@ internal sealed class FakeError : Exception
     /// <returns>The error.</returns>
     public static FakeError Validation(string message) => new(DynamoDbNamespace + "ValidationException", message);
 
+    /// <summary>A <c>ValidationException</c> that DynamoDB reports inside its request validation, as the only error it found: <c>1 validation error detected: ...</c>.</summary>
+    /// <param name="message">The message after the prefix, in the words of DynamoDB where they are known.</param>
+    /// <returns>The error.</returns>
+    public static FakeError Enveloped(string message) => Violations([message]);
+
+    /// <summary>A <c>ValidationException</c> for the violations of the model of a request, which DynamoDB reports together: <c>2 validation errors detected: ...; ...</c>.</summary>
+    /// <param name="violations">The violations, each as DynamoDB words it after the prefix.</param>
+    /// <returns>The error.</returns>
+    public static FakeError Violations(IReadOnlyList<string> violations)
+    {
+        ArgumentNullException.ThrowIfNull(violations);
+        return Validation($"{violations.Count} validation error{(violations.Count == 1 ? string.Empty : "s")} detected: {string.Join("; ", violations)}");
+    }
+
     /// <summary>A <c>ValidationException</c> for a value of the input that DynamoDB rejects whatever the items hold, with <see cref="IsInputError"/> set.</summary>
     /// <param name="message">The message, in the words of DynamoDB where they are known.</param>
     /// <returns>The error.</returns>

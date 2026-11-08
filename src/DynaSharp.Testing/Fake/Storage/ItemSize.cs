@@ -46,5 +46,5 @@ internal static class ItemSize
         _ => 1,
     };
 
-    private static long OfNumber(string text) => ((DecimalNumber.Parse(text).SignificantDigits + 1) / 2) + 1;
+    private static long OfNumber(string text) => DecimalNumber.Parse(text).ByteSize;
 }

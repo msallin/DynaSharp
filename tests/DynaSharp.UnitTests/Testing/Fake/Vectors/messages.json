@@ -649,8 +649,7 @@
           },
           "status": 400,
           "code": "ValidationException",
-          "message": "Query condition missed key schema element",
-          "compareMessage": true
+          "message": "Query condition missed key schema element"
         }
       ]
     },
@@ -699,8 +698,7 @@
           },
           "status": 400,
           "code": "ValidationException",
-          "message": "Query condition missed key schema element",
-          "compareMessage": true
+          "message": "Query condition missed key schema element"
         }
       ]
     },

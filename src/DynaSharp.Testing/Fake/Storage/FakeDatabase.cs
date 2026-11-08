@@ -20,9 +20,6 @@ namespace DynaSharp.Testing.Fake;
 /// <param name="clock">The clock of the creation times, of time to live and of the windows of client request tokens.</param>
 internal sealed class FakeDatabase(TimeProvider clock)
 {
-    /// <summary>What DynamoDB answers an item operation on a table it does not have.</summary>
-    public const string NoSuchTableForItems = "Cannot do operations on a non-existent table";
-
     // Every stream ARN the fake handed out, and how many shards it opened, which Reset keeps: a stream enabled after it has another ARN and shard ids than one before it on the same
     // clock, so an iterator of a stream that is gone finds none.
     private readonly HashSet<string> _streamArns = new(StringComparer.Ordinal);
@@ -54,7 +51,7 @@ internal sealed class FakeDatabase(TimeProvider clock)
     /// <returns>The table.</returns>
     /// <exception cref="FakeError">A <c>ResourceNotFoundException</c>.</exception>
     public FakeTable GetTable(string name) =>
-        Tables.TryGetValue(name, out var table) ? table : throw FakeError.ResourceNotFound(NoSuchTableForItems);
+        Tables.TryGetValue(name, out var table) ? table : throw FakeError.ResourceNotFound();
 
     /// <summary>Gets a table for a table operation, which DynamoDB answers with another message than an item operation.</summary>
     /// <param name="name">The name.</param>

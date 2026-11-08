@@ -111,7 +111,6 @@ public sealed class ExpressionParserTests
     [Arguments("status = :v", ReservedKeyword + "; reserved keyword: status")]
     [Arguments("a.Name = :v", ReservedKeyword + "; reserved keyword: Name")]
     [Arguments("#missing = :v", "An expression attribute name used in the document path is not defined; attribute name: #missing")]
-    [Arguments("a = :missing", "An expression attribute value used in expression is not defined; attribute value: :missing")]
     [Arguments("unknown(a)", "Invalid function name; function: unknown")]
     [Arguments("SIZE(a) > :v", "Invalid function name; function: SIZE")]
     [Arguments("if_not_exists(a, :v) = :v", "The function is not allowed in a condition expression; function: if_not_exists")]
@@ -156,6 +155,34 @@ public sealed class ExpressionParserTests
 
         // Assert
         await Assert.That(Act).Throws<FakeError>().WithMessage("Invalid ConditionExpression: " + message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ParseCondition_UndefinedValue_ThrowsValidationInsideTheEnvelope()
+    {
+        // Arrange
+        var scope = Scope("""{":v":{"S":"abc"}}""");
+
+        // Act
+        void Act() => FakeExpressions.ParseCondition("a = :missing", scope);
+
+        // Assert
+        await Assert.That(Act).Throws<FakeError>()
+            .WithMessage("1 validation error detected: Invalid ConditionExpression: An expression attribute value used in expression is not defined; attribute value: :missing", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ParseCondition_UndefinedValueOfAFilter_ThrowsValidationBare()
+    {
+        // Arrange
+        var scope = Scope("""{":v":{"S":"abc"}}""");
+
+        // Act
+        void Act() => FakeExpressions.ParseCondition("a = :missing", scope, FakeExpressions.FilterExpression);
+
+        // Assert
+        await Assert.That(Act).Throws<FakeError>()
+            .WithMessage("Invalid FilterExpression: An expression attribute value used in expression is not defined; attribute value: :missing", StringComparison.Ordinal);
     }
 
     [Test]

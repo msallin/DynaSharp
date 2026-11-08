@@ -19,7 +19,8 @@ internal static class BatchGetItem
     /// <summary>The operation.</summary>
     public const string Name = "BatchGetItem";
 
-    private const int MaxKeys = 100;
+    /// <summary>The most keys of a table in a request.</summary>
+    public const int MaxKeys = 100;
 
     /// <summary>Answers the operation.</summary>
     /// <param name="db">The state.</param>
@@ -28,8 +29,8 @@ internal static class BatchGetItem
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
         RequestJson.Members(request, Name, "RequestItems", "ReturnConsumedCapacity");
+        RequestModel.CheckBatch(request, writes: false);
         var tables = RequestJson.ReadObject(RequestJson.Required(request, "RequestItems"), "RequestItems");
-        Batches.ThrowIfLength(tables.Count, "requestItems", MaxKeys);
         var capacity = SingleWrite.Enum(request, "ReturnConsumedCapacity", WireNames.ReturnConsumedCapacities);
         var reads = Read(db, tables);
 
@@ -74,7 +75,6 @@ internal static class BatchGetItem
             var where = "RequestItems of " + Name;
             RequestJson.Members(entry.Value, where, "Keys", "ConsistentRead", "ProjectionExpression", "ExpressionAttributeNames");
             var elements = RequestJson.ReadArray(RequestJson.Required(entry.Value, "Keys"), "Keys");
-            Batches.ThrowIfLength(elements.Count, "keys", MaxKeys);
             if (seen.Count + elements.Count > MaxKeys)
             {
                 throw FakeError.Validation($"Too many items requested for the {Name} call");
@@ -86,7 +86,7 @@ internal static class BatchGetItem
             var keys = new HashSet<ItemKey>(elements.Count);
             foreach (var element in elements)
             {
-                var key = table.KeySchema.ReadKey(RequestJson.ReadItem(element, "Keys"));
+                var key = table.KeySchema.ReadKey(RequestJson.ReadItem(element, "Keys", ItemLayer.Element));
                 if (!seen.Add((table.Name, AsWritten(element))))
                 {
                     throw FakeError.Validation("Provided list of item keys contains duplicates");

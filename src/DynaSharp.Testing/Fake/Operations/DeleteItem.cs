@@ -30,8 +30,9 @@ internal static class DeleteItem
             "ReturnValuesOnConditionCheckFailure",
             "ReturnConsumedCapacity",
             "ReturnItemCollectionMetrics");
-        var tableName = TableOperations.ReadTableName(request);
-        var keyItem = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key");
+        RequestModel.CheckItemWrite(request, Name);
+        var tableName = TableOperations.ReadItemTableName(request);
+        var keyItem = RequestJson.ReadItem(RequestJson.Required(request, "Key"), "Key", ItemLayer.Enveloped);
         var options = SingleWrite.Read(request, Name);
         var table = db.GetTable(tableName);
         var key = table.KeySchema.ReadKey(keyItem);

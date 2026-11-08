@@ -23,7 +23,7 @@ internal static class WriteReturns
     {
         if (operation != UpdateItem.Name && returnValues is not (ReturnValue.None or ReturnValue.AllOld))
         {
-            throw FakeError.Validation("Return values set to invalid value");
+            throw FakeError.Enveloped("ReturnValues can only be ALL_OLD or NONE");
         }
     }
 

@@ -147,6 +147,12 @@ def message(step):
     return step + ({"compareMessage": True},)
 
 
+def worded_otherwise(step):
+    """A step whose message DynamoDB Local words otherwise than DynamoDB does, as the Parity Suite recorded of DynamoDB (tier3/error-messages): the fake follows
+    DynamoDB, so the replay compares the code and not the message. The message of Local stays in the file."""
+    return step
+
+
 def selecting(step, select=(), present=()):
     """Records of a success only the values at the paths of select, and whether there is one at the paths of present."""
     return step + ({"select": list(select), "present": list(present)},)
@@ -231,10 +237,10 @@ CASES = [
      [table(sort=True), message(query(":p = :q", {":p": S("a"), ":q": S("a")}))]),
     ("messages", "key-condition-on-a-non-key-attribute",
      "Open 5: a key condition on an attribute that is no key.",
-     [table(sort=True), message(query("pk = :p AND #o = :o", {":p": S("a"), ":o": S("1")}, ExpressionAttributeNames={"#o": "other"}))]),
+     [table(sort=True), worded_otherwise(query("pk = :p AND #o = :o", {":p": S("a"), ":o": S("1")}, ExpressionAttributeNames={"#o": "other"}))]),
     ("messages", "key-condition-without-the-partition-key",
      "Open 5: a key condition on the sort key only.",
-     [table(sort=True), message(query("sk = :s", {":s": S("1")}))]),
+     [table(sort=True), worded_otherwise(query("sk = :s", {":s": S("1")}))]),
     ("messages", "name-starting-with-an-underscore",
      "Finding of P2: a bare name that starts with _ is a syntax error.",
      [table(), message(count("_a = :v", {":v": S("x")}))]),
@@ -262,7 +268,7 @@ CASES = [
     ("reads", "select-rules",
      "P3 open: the messages of Select: SPECIFIC_ATTRIBUTES without a projection, COUNT with one, ALL_ATTRIBUTES on a KEYS_ONLY index, ALL_PROJECTED_ATTRIBUTES on the table.",
      [table(global_index="KEYS_ONLY"),
-      message(query("pk = :p", {":p": S("a")}, Select="SPECIFIC_ATTRIBUTES")),
+      worded_otherwise(query("pk = :p", {":p": S("a")}, Select="SPECIFIC_ATTRIBUTES")),
       message(query("pk = :p", {":p": S("a")}, Select="COUNT", ProjectionExpression="pk")),
       message(query("g = :g", {":g": S("a")}, IndexName="gsi", Select="ALL_ATTRIBUTES")),
       message(query("pk = :p", {":p": S("a")}, Select="ALL_PROJECTED_ATTRIBUTES")),
@@ -301,7 +307,7 @@ CASES = [
      [table(), message(stream_spec(False))]),
     ("streams", "disabled-with-a-view-type",
      "P6 open: StreamEnabled false with a StreamViewType, in CreateTable and in UpdateTable.",
-     [message(stream_table(view="NEW_IMAGE", enabled=False)), stream_table(), message(stream_spec(False, "NEW_IMAGE"))]),
+     [worded_otherwise(stream_table(view="NEW_IMAGE", enabled=False)), stream_table(), message(stream_spec(False, "NEW_IMAGE"))]),
     ("streams", "iterator-with-a-sequence-number",
      "P6 open: GetShardIterator with a SequenceNumber for TRIM_HORIZON and LATEST. (AFTER_SEQUENCE_NUMBER past the last record is an InternalFailure of DynamoDB Local, so it decides nothing.)",
      [stream_table(), selecting(DESCRIBE_STREAM, select=["StreamDescription.StreamStatus"]),

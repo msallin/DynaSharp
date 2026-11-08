@@ -47,6 +47,27 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
     /// <summary>Gets the power of ten the coefficient is multiplied by, 0 for zero.</summary>
     public int Exponent { get; }
 
+    /// <summary>
+    /// Gets the bytes the number takes in an item: one, and a byte for each two significant digits of the integer part and each two of the fraction, and one more if it is negative. A number that
+    /// has digits on both sides of the point costs a byte more than the same digits without it: <c>3.14159</c> is 5 bytes, <c>123456</c> is 4. The exponent is not counted, and zero is one byte, never negative
+    /// (Parity <c>tier3/limits/numberByteSize</c>, measured on DynamoDB).
+    /// </summary>
+    public int ByteSize
+    {
+        get
+        {
+            if (Coefficient.IsZero)
+            {
+                return 1;
+            }
+
+            var digits = SignificantDigits;
+            var point = digits + Exponent;
+            var (integer, fraction) = point <= 0 ? (0, digits) : point >= digits ? (digits, 0) : (point, digits - point);
+            return 1 + ((integer + 1) / 2) + ((fraction + 1) / 2) + (Sign < 0 ? 1 : 0);
+        }
+    }
+
     /// <summary>Gets -1, 0 or 1.</summary>
     public int Sign => Coefficient.Sign;
 
@@ -85,6 +106,13 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
 
         var negative = text[0] == '-';
         var coefficient = digits.Length == 0 ? BigInteger.Zero : BigInteger.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
+
+        // Zero is range-checked by the exponent it is written with: 0e126 overflows, 0e125 is 0.
+        if (coefficient.IsZero)
+        {
+            ThrowIfOutOfRange(exponent);
+        }
+
         return Create(negative ? -coefficient : coefficient, exponent, "Attempting to store more than 38 significant digits in a Number");
     }
 
@@ -176,18 +204,21 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
             throw FakeError.Validation(tooManyDigits);
         }
 
-        var leading = exponent + count - 1;
-        if (leading > MaxLeadingExponent)
+        ThrowIfOutOfRange(exponent + count - 1);
+        return new DecimalNumber(coefficient, (int)exponent);
+    }
+
+    private static void ThrowIfOutOfRange(long leadingExponent)
+    {
+        if (leadingExponent > MaxLeadingExponent)
         {
             throw FakeError.Validation(Overflow);
         }
 
-        if (leading < MinLeadingExponent)
+        if (leadingExponent < MinLeadingExponent)
         {
             throw FakeError.Validation("Number underflow. Attempting to store a number with magnitude smaller than supported range");
         }
-
-        return new DecimalNumber(coefficient, (int)exponent);
     }
 
     private static BigInteger Scale(BigInteger coefficient, int powerOfTen) => powerOfTen == 0 ? coefficient : coefficient * BigInteger.Pow(10, powerOfTen);
@@ -244,7 +275,7 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
         return true;
     }
 
-    // "+3", "-12", "7"; at least one digit and nothing after them. A value past the cap stays at the cap, which is out of range either way.
+    // "+3", "-12", "7"; at least one digit and nothing after them, and no more than fits 64 bits. A value past the cap stays at the cap, which is out of range either way.
     private static bool TryParseExponent(ReadOnlySpan<char> text, out long exponent)
     {
         exponent = 0;
@@ -262,8 +293,18 @@ internal readonly struct DecimalNumber : IEquatable<DecimalNumber>, IComparable<
                 return false;
             }
 
-            exponent = Math.Min(ExponentCap, (exponent * 10) + (c - '0'));
+            var digit = c - '0';
+
+            // An exponent that does not fit 64 bits cannot be read at all, where a smaller one is read and found out of range.
+            if (exponent > (long.MaxValue - digit) / 10)
+            {
+                return false;
+            }
+
+            exponent = (exponent * 10) + digit;
         }
+
+        exponent = Math.Min(ExponentCap, exponent);
 
         exponent = negative ? -exponent : exponent;
         return true;

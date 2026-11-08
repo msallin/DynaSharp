@@ -352,7 +352,7 @@ public sealed class PageBuilderTests
         var act = () => PageBuilder.Build(Read(table), Options(table) with { Select = SelectKind.SpecificAttributes });
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES", StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("1 validation error detected: Must specify the AttributesToGet or ProjectionExpression when choosing to get SPECIFIC_ATTRIBUTES", StringComparison.Ordinal);
     }
 
     [Test]
@@ -430,16 +430,16 @@ public sealed class PageBuilderTests
     }
 
     [Test]
-    [Arguments("{}", null, "The provided key element does not match the schema")]
-    [Arguments("""{"pk":{"S":"c"}}""", null, "The provided key element does not match the schema")]
-    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"},"v":{"N":"1"}}""", null, "The provided key element does not match the schema")]
-    [Arguments("""{"pk":{"S":"c"},"sk":{"S":"1"}}""", null, "The provided key element does not match the schema")]
-    [Arguments("""{"pk":{"S":""},"sk":{"N":"1"}}""", null, "One or more parameter values are not valid. The AttributeValue for a key attribute cannot contain an empty string value. Key: pk")]
-    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"}}""", "ByCustomer", "The provided key element does not match the schema")]
-    [Arguments("""{"customer":{"N":"1"},"pk":{"S":"c"},"sk":{"N":"1"}}""", "ByCustomer", "The provided key element does not match the schema")]
-    [Arguments("""{"customer":{"S":"k"},"pk":{"S":"c"},"other":{"N":"1"}}""", "ByCustomer", "The provided key element does not match the schema")]
-    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"},"other":{"S":"s1"}}""", "ByStatus", "The provided key element does not match the schema")]
-    public async Task ReadStartKey_KeyThatDoesNotFit_AnswersValidation(string key, string? indexName, string reason)
+    [Arguments("{}", null)]
+    [Arguments("""{"pk":{"S":"c"}}""", null)]
+    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"},"v":{"N":"1"}}""", null)]
+    [Arguments("""{"pk":{"S":"c"},"sk":{"S":"1"}}""", null)]
+    [Arguments("""{"pk":{"S":""},"sk":{"N":"1"}}""", null)]
+    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"}}""", "ByCustomer")]
+    [Arguments("""{"customer":{"N":"1"},"pk":{"S":"c"},"sk":{"N":"1"}}""", "ByCustomer")]
+    [Arguments("""{"customer":{"S":"k"},"pk":{"S":"c"},"other":{"N":"1"}}""", "ByCustomer")]
+    [Arguments("""{"pk":{"S":"c"},"sk":{"N":"1"},"other":{"S":"s1"}}""", "ByStatus")]
+    public async Task ReadStartKey_KeyThatDoesNotFit_AnswersValidation(string key, string? indexName)
     {
         // Arrange
         var table = Orders(0);
@@ -449,7 +449,7 @@ public sealed class PageBuilderTests
         var act = () => PageBuilder.ReadStartKey(JsonElement.Parse($$"""{"ExclusiveStartKey":{{key}}}"""), table, index);
 
         // Assert
-        await Assert.That(act).Throws<FakeError>().WithMessage("The provided starting key is invalid: " + reason, StringComparison.Ordinal);
+        await Assert.That(act).Throws<FakeError>().WithMessage("The provided starting key is invalid", StringComparison.Ordinal);
     }
 
     // A table of orders of customer "c" with sort keys 1 to count, a local index by status of keys only and one of all, and global indexes by customer of keys only and of all.
