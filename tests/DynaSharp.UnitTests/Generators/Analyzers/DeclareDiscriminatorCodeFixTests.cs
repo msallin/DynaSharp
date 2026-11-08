@@ -1,10 +1,7 @@
 using System.Collections.Immutable;
 using DynaSharp.Generators;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -20,6 +17,8 @@ public sealed class DeclareDiscriminatorCodeFixTests
     private const string Header = "using DynaSharp.Mapping;\n\nnamespace Shop;\n\n";
 
     private const string Members = " { public required string Id { get; set; } }";
+
+    private static readonly CodeFixRun Run = new(new DeclareDiscriminatorCodeFix(), "DYNA020");
 
     [Test]
     [Arguments(Value, """[DynamoDbEntity, Discriminator("ORDER_LINE"), PartitionKey("LINE#{Id}")]""")]
@@ -342,96 +341,11 @@ public sealed class DeclareDiscriminatorCodeFixTests
 
     private static (string, string)[] One(string declarations) => [("Order.cs", Header + declarations)];
 
-    // The generator's diagnostics come from the compilation of the workspace, so their trees are the documents' own.
-    private static async Task<(Solution Solution, ImmutableArray<Diagnostic> Diagnostics)> RunAsync(params (string Path, string Text)[][] projects)
-    {
-        using var workspace = new AdhocWorkspace();
-        var solution = workspace.CurrentSolution;
-        var references = GeneratorRun.CreateCompilation(string.Empty, LanguageVersion.Latest).References;
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        for (var index = 0; index < projects.Length; index++)
-        {
-            var name = "Consumer" + index;
-            var project = solution.AddProject(name, name, LanguageNames.CSharp)
-                .WithParseOptions(GeneratorRun.ParseOptions(LanguageVersion.Latest))
-                .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable))
-                .AddMetadataReferences(references);
-            foreach (var (path, text) in projects[index])
-            {
-                project = project.AddDocument(path, SourceText.From(text), filePath: name + "/" + path).Project;
-            }
+    private static Task<(Solution Solution, ImmutableArray<Diagnostic> Diagnostics)> RunAsync(params (string Path, string Text)[][] projects) => Run.RunAsync(projects);
 
-            solution = project.Solution;
-            var compilation = (await project.GetCompilationAsync())!;
-            GeneratorRun.CreateDriver(new DynaSharpGenerator(), LanguageVersion.Latest).RunGeneratorsAndUpdateCompilation(compilation, out _, out var found);
-            diagnostics.AddRange(found.Where(diagnostic => diagnostic.Id == "DYNA020"));
-        }
+    private static Task<List<string>> TitlesAsync((string, string)[] files) => Run.TitlesAsync(files);
 
-        return (solution, diagnostics.ToImmutable());
-    }
+    private static Task<Dictionary<string, string>> FixAsync(string key, (string, string)[] files) => Run.FixAsync(key, files);
 
-    private static async Task<List<CodeAction>> ActionsAsync(Solution solution, Diagnostic diagnostic)
-    {
-        var document = solution.GetDocument(diagnostic.Location.SourceTree)!;
-        var actions = new List<CodeAction>();
-        var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), CancellationToken.None);
-        await new DeclareDiscriminatorCodeFix().RegisterCodeFixesAsync(context);
-        return actions;
-    }
-
-    private static async Task<List<string>> TitlesAsync((string, string)[] files)
-    {
-        var (solution, diagnostics) = await RunAsync(files);
-        return [.. (await ActionsAsync(solution, diagnostics.Single())).Select(action => action.Title)];
-    }
-
-    // The documents the fix changed, by name, with their text.
-    private static async Task<Dictionary<string, string>> FixAsync(string key, (string, string)[] files)
-    {
-        var (solution, diagnostics) = await RunAsync(files);
-        var action = (await ActionsAsync(solution, diagnostics.Single())).Single(found => found.EquivalenceKey == key);
-        return await ChangesAsync(solution, action, document => document.Name);
-    }
-
-    // The documents the fix-all changed, by project and name.
-    private static async Task<Dictionary<string, string>> FixAllAsync(string key, FixAllScope scope, (string, string)[][] projects)
-    {
-        var (solution, diagnostics) = await RunAsync(projects);
-        var fix = new DeclareDiscriminatorCodeFix();
-        var document = solution.GetDocument(diagnostics[0].Location.SourceTree)!;
-        var context = new FixAllContext(document, fix, scope, key, ["DYNA020"], new Diagnostics(diagnostics), CancellationToken.None);
-        var action = (await fix.GetFixAllProvider().GetFixAsync(context))!;
-        return await ChangesAsync(solution, action, changed => changed.Project.Name + "/" + changed.Name);
-    }
-
-    private static async Task<Dictionary<string, string>> ChangesAsync(Solution solution, CodeAction action, Func<Document, string> name)
-    {
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-        var result = new Dictionary<string, string>();
-        foreach (var document in changed.Projects.SelectMany(project => project.Documents))
-        {
-            var text = (await document.GetTextAsync()).ToString();
-            if (text != (await solution.GetDocument(document.Id)!.GetTextAsync()).ToString())
-            {
-                result[name(document)] = text;
-            }
-        }
-
-        return result;
-    }
-
-    private sealed class Diagnostics(ImmutableArray<Diagnostic> all) : FixAllContext.DiagnosticProvider
-    {
-        public override async Task<IEnumerable<Diagnostic>> GetDocumentDiagnosticsAsync(Document document, CancellationToken cancellationToken)
-        {
-            var tree = await document.GetSyntaxTreeAsync(cancellationToken);
-            return all.Where(diagnostic => diagnostic.Location.SourceTree == tree);
-        }
-
-        public override Task<IEnumerable<Diagnostic>> GetProjectDiagnosticsAsync(Project project, CancellationToken cancellationToken) => Task.FromResult(Enumerable.Empty<Diagnostic>());
-
-        public override Task<IEnumerable<Diagnostic>> GetAllDiagnosticsAsync(Project project, CancellationToken cancellationToken) =>
-            Task.FromResult(all.Where(diagnostic => project.GetDocument(diagnostic.Location.SourceTree) is not null));
-    }
+    private static Task<Dictionary<string, string>> FixAllAsync(string key, FixAllScope scope, (string, string)[][] projects) => Run.FixAllAsync(key, scope, projects);
 }
