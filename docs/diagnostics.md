@@ -16,7 +16,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA006` | A constructor parameter has no property | Name it after a mapped property |
 | `DYNA007` | The type cannot be mapped, for the reason the message gives: abstract, static, generic, a ref struct, an interface, or file-local, which generated code cannot merge with | Map another type, or change what the message names |
 | `DYNA008` | A converter does not implement `IDynamoDbConverter<T>` for the property, or for the type `[assembly: DynamoDbDefaultConverter]` names | Fix its interface, or make it accessible |
-| `DYNA009` | A key is declared twice | Keep one declaration |
+| `DYNA009` | A key is declared twice | Keep one declaration; the code fix offers each and removes the others |
 | `DYNA010` | An attribute name DynamoDB would refuse | Pick another |
 | `DYNA011` | `[Version]` on something that is no single integer property | Put it on one such property, without a converter |
 | `DYNA012` | An attribute only an entity can have, on a document | Remove it, or make the type an entity. The code fix offers both |
@@ -46,7 +46,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA030` (error): `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.
 
-- **Fix.** Remove the attribute, move the property out of the keys, make the index `Sparse = true`, make the property nullable, or give it a default.
+- **Fix.** Remove the attribute, move the property out of the keys, make the index `Sparse = true`, make the property nullable, or give it a default. The code fix removes the attribute, or, for a string that feeds keys of indexes alone, makes those indexes sparse.
 - **Not reported.** A stored string that feeds nothing but keys of sparse indexes: there an empty value leaves out the attribute and the keys of its indexes, see [Sparse indexes](entities.md#sparse-indexes). `[OmitEmpty]` on a type skips the inputs of keys by itself, sparse or not, and they stay written; `[OmitEmpty(false)]` is not reported either.
 
 `DYNA031` (warning): an entity property whose type is an entity too, or a list, set, dictionary or array of one, such as `public Customer Buyer { get; init; }` on an `Order`. It is stored as a map carrying the customer's keys, index keys and discriminator, which no read of an order takes and no index sees.

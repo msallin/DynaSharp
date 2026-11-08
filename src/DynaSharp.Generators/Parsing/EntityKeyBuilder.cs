@@ -40,6 +40,9 @@ internal sealed class EntityKeyBuilder(
 
     private readonly List<KeyModel> _sparseKeys = [];
 
+    // The index each key of an index belongs to, for the code fix of DYNA030.
+    private readonly Dictionary<KeyModel, string> _indexOfKey = [];
+
     private readonly List<(KeyTemplate Template, Spot Spot, IReadOnlyCollection<string> Fallbacks)> _templates = [];
 
     public EntityModel? Build(DiscriminatorInfo discriminator)
@@ -223,7 +226,7 @@ internal sealed class EntityKeyBuilder(
         // The second declaration is the wrong one, whichever target it is on.
         foreach (var (_, attribute) in onType is null ? onProperties.Skip(1) : onProperties)
         {
-            bag.Report(Descriptors.DuplicateKey, Spot.Of(attribute!, typeSpot), slot.Label);
+            bag.Report(Descriptors.DuplicateKey, Spot.Of(attribute!, typeSpot), DocumentationCommentId.CreateDeclarationId(type), [slot.Label]);
         }
 
         if (onType is not null)
@@ -514,6 +517,11 @@ internal sealed class EntityKeyBuilder(
             _sparseKeys.AddRange(ownKeys.OfType<KeyModel>());
         }
 
+        foreach (var key in ownKeys.OfType<KeyModel>())
+        {
+            _indexOfKey[key] = name;
+        }
+
         return new IndexModel(name, partition, sort, sparse, isLocal, all);
     }
 
@@ -639,17 +647,32 @@ internal sealed class EntityKeyBuilder(
                 continue;
             }
 
+            var sparseFix = property.OmitsEmptyByItsOwnAttribute ? SparseFix(property) : null;
             property.OmitsEmpty = false;
             if (property.OmitEmpty is { } attribute && AttributeReader.IsEnabled(attribute) && property.CanBeEmpty)
             {
-                bag.Report(Descriptors.InvalidOmitEmpty, Spot.Of(attribute, property.Spot), property.Name, "it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out");
+                bag.Report(
+                    Descriptors.InvalidOmitEmpty,
+                    Spot.Of(attribute, property.Spot),
+                    sparseFix,
+                    [property.Name, "it feeds a key, and only a stored string that feeds nothing but keys of sparse indexes may leave an empty value out"]);
             }
         }
     }
 
-    private bool FeedsOnlySparseKeys(PropertyFacts property) =>
-        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property.Name))
-            .All(_sparseKeys.Contains);
+    private bool FeedsOnlySparseKeys(PropertyFacts property) => KeysFedBy(property).All(_sparseKeys.Contains);
+
+    // What the code fix of DYNA030 needs where keys of indexes alone are why: the id of the type and the names of those indexes that are not sparse. Null where a key of the table is fed too.
+    private string? SparseFix(PropertyFacts property)
+    {
+        var fed = KeysFedBy(property).ToList();
+        return fed.All(_indexOfKey.ContainsKey)
+            ? string.Join(" ", fed.Where(key => !_sparseKeys.Contains(key)).Select(key => _indexOfKey[key]).Distinct().Prepend(DocumentationCommentId.CreateDeclarationId(type)))
+            : null;
+    }
+
+    private IEnumerable<KeyModel> KeysFedBy(PropertyFacts property) =>
+        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property.Name));
 
     // A property that is a key has only the converter to go by. A read that took it for missing would give an entity with another key, which the next Put writes somewhere else.
     private void KeepKeysFromMissing()

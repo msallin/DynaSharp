@@ -97,8 +97,8 @@ Analyzers and docs:
 - [x] `DYNA012` (b): remove the attribute, or make the type an entity.
 - [x] `DYNA013` (b): remove `[DynamoDbEntity]` or `[DynamoDbDocument]`.
 - [x] `DYNA021` (b): remove `[DynamoDbIgnore]` or the key attribute.
-- [ ] `DYNA009` (b): remove one of the declarations, one action each.
-- [ ] `DYNA030` (b): remove `[OmitEmpty]`, or `Sparse = true` where the index is the reason.
+- [x] `DYNA009` (b): remove one of the declarations, one action each.
+- [x] `DYNA030` (b): remove `[OmitEmpty]`, or `Sparse = true` where the index is the reason.
 - [x] `DYNA033` (b): remove `[DynamoDbEnum]`.
 - [x] `DYNA034` (b): make the setter `protected` where the base is in source, or `[DynamoDbIgnore]`.
 - [ ] `DYNA029` (b): remove the second default, or drop the `?` of the type.
@@ -255,14 +255,14 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA240` | `Including<T>()` for each entity left out (done) |
 | b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) (done) |
 | b | `DYNA005` | `[DynamoDbConstructor]` on one constructor, one action each (done) |
-| b | `DYNA009` | remove one declaration, one action each |
+| b | `DYNA009` | remove one declaration, one action each (done) |
 | b | `DYNA012` | remove the attribute, or make the type an entity (done) |
 | b | `DYNA013` | remove one of the two attributes (done) |
 | b | `DYNA020` | the suggested value, `OptOut = true`, or the project's opt-out (done) |
 | b | `DYNA021` | remove `[DynamoDbIgnore]` or the key (done) |
 | b | `DYNA024` | the property nullable (done) |
 | b | `DYNA029` | remove the second default, or the `?` |
-| b | `DYNA030` | remove `[OmitEmpty]`, or `Sparse = true` |
+| b | `DYNA030` | remove `[OmitEmpty]`, or `Sparse = true` (done) |
 | b | `DYNA033` | remove `[DynamoDbEnum]` (done) |
 | b | `DYNA034` | a `protected` setter, or `[DynamoDbIgnore]` (done) |
 | b | `DYNA035` | remove the initializer, or the property non-nullable (done) |
