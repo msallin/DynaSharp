@@ -164,7 +164,11 @@ internal sealed class EntityKeyBuilder(
         var last = (lastKey?.Template?.Segments ?? default).OfType<PlaceholderSegment>().LastOrDefault();
         if (last?.Encoding is TimestampEncoding { IsLossless: false, IsBucket: false })
         {
-            bag.Report(Descriptors.TruncatedTimestampEndsTableKey, Spot.Argument(AttributeReader.Find(type, slot.Attribute)!, 0, typeSpot), last.Property);
+            bag.Report(
+                Descriptors.TruncatedTimestampEndsTableKey,
+                Spot.Argument(AttributeReader.Find(type, slot.Attribute)!, 0, typeSpot),
+                KeyProblem.Rewrite(last.Property, [(last.Property, null)]),
+                [last.Property]);
         }
     }
 
@@ -325,12 +329,12 @@ internal sealed class EntityKeyBuilder(
         {
             if (problem.KeepsModel)
             {
-                bag.ReportKeepingTheModel(problem.Descriptor, spot, problem.Arguments);
+                bag.ReportKeepingTheModel(problem.Descriptor, spot, problem.Fix, problem.Arguments);
             }
             else
             {
                 // An input of a public builder is as public as the entity.
-                var fix = problem.Descriptor == Descriptors.InaccessibleType ? Types.AccessibilityFix(Types.Effective(type), problem.Arguments[1]) : null;
+                var fix = problem.Descriptor == Descriptors.InaccessibleType ? Types.AccessibilityFix(Types.Effective(type), problem.Arguments[1]) : problem.Fix;
                 bag.Report(problem.Descriptor, spot, fix, problem.Arguments);
             }
         }

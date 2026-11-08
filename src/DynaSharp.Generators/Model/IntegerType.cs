@@ -6,7 +6,22 @@ namespace DynaSharp.Generators;
 /// <param name="IsFullWidth">Whether the type is the reader's type.</param>
 internal sealed record IntegerType(string Keyword, bool IsUnsigned, bool IsFullWidth)
 {
+    private static readonly Dictionary<string, int> Digits = new()
+    {
+        ["sbyte"] = 3,
+        ["byte"] = 3,
+        ["short"] = 5,
+        ["ushort"] = 5,
+        ["int"] = 10,
+        ["uint"] = 10,
+        ["long"] = 19,
+        ["ulong"] = 20,
+    };
+
     public string ReaderType => IsUnsigned ? "ulong" : "long";
+
+    /// <summary>Gets the digits of the type's maximum, the width of a format that holds every value: 10 for <c>int</c>.</summary>
+    public int MaxDigits => Digits[Keyword];
 
     // Input: "t". Output: " && t >= int.MinValue && t <= int.MaxValue", " && t <= byte.MaxValue", or nothing for long and ulong.
     public string RangeCheck(string target)

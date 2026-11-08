@@ -67,7 +67,7 @@ Analyzers and docs:
 - [x] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import (`ReservedWordCodeFix`).
 - [x] `DYNA019` (a): `#nullable enable` at the top of the file (`EnableNullableCodeFix`).
 - [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
-- [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
+- [x] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
 - [x] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);` (`SuggestedEditCodeFix`, where the earlier call is a statement of its own in a block the reuse is in).
 - [x] `DYNA227` (b): `GetValueOrDefault()`, or `result.Found ? result.Value : default` (the test only where the result is a name).
 - [x] `DYNA224` (a): replace the builder with the index's, `Order.Keys.ByStatusPk`, only where it has the same method with parameters of the same names and types.
@@ -78,7 +78,7 @@ Analyzers and docs:
 - [x] `DYNA213` (b): one action per attribute of the type within a small edit distance (one edit per four letters), in a string literal, and in the text where it can stand bare.
 - [x] `DYNA206` (b): the version at 0, or `IgnoreVersion()` after `IfNotExists()`: the two ways the message names. Dropping `IfNotExists()` turns a first write into a checked one that fails for a missing item, so it is not offered.
 - [ ] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
-- [ ] `DYNA104` (b): one action per format the message lists for the type.
+- [x] `DYNA104` (b): one action per format the message lists for the type.
 - [ ] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
 - [ ] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
 - [ ] `DYNA123` (a): add `[KeyOnly]` to the property.
@@ -86,11 +86,11 @@ Analyzers and docs:
 - [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
 - [x] `DYNA043` (a): write the name in full, the `{1}` of the message.
 - [x] `DYNA016` (a): give the type the accessibility of the entity, where the type is in source.
-- [ ] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.
-- [ ] `DYNA116` (b): drop the format (ticks); a tie-breaker is not offered.
+- [x] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.
+- [x] `DYNA116` (b): drop the format (ticks); a tie-breaker is not offered.
 - [x] `DYNA005` (b): `[DynamoDbConstructor]` on each candidate constructor, one action each.
 - [x] `DYNA003` (b): `[DynamoDbIgnore]` (a converter needs a type).
-- [ ] `DYNA102` (b): one action per property within a small edit distance.
+- [x] `DYNA102` (b): one action per property within a small edit distance.
 - [x] `DYNA035` (b): remove the initializer, or make the property non-nullable.
 - [x] `DYNA024` (b): make the property nullable.
 - [x] `DYNA042` (b): remove the modifier (by value), or make it `in`.
@@ -181,6 +181,7 @@ Where `requirements.md`, `api.md` or `architecture.md` section 13 ("Decisions yo
 | 2026-11-08 | The fixes of analyzer rules whose edit is plain text come from the analyzer: it puts each edit on the diagnostic, its span as an additional location and its title and text as the properties `Title<n>` and `Fix<n>` (`SuggestedEdit`), and one `SuggestedEditCodeFix` writes them (`DYNA204`, `DYNA206`, `DYNA207`, `DYNA208`, `DYNA213`, `DYNA224`, `DYNA227`, `DYNA233`, `DYNA235`). The analyzer has the model the edit needs (the declared indexes, the attributes, the builders, the members left out), so fix and message cannot disagree, a text edit keeps the layout and line endings of the file, and the fix needs no semantic model in the IDE. The work runs only when a diagnostic is reported. The equivalence key is the rule and the rank of the edit, so a fix-all takes the first (closest) edit of each. |
 | 2026-11-08 | Code fix of `DYNA001`. `DYNA001`: `partial` goes right before the keyword, the one place C# allows it, on each declaration around the type that lacks it; a type that is not partial has one declaration, so nothing else needs it. The fixes share `SourceEdits` in `src`, and `CodeFixRun` in the tests. |
 | 2026-11-08 | Code fixes of the entity model edit text, not trees (`SourceEdits`: remove or add an attribute with its line or comma, set a named argument, replace an accessibility), so spacing, comments and CRLF stay. Where the place of the diagnostic does not name what to edit, the generator hands it over in `Fix`: the documentation id of the type or property (`DYNA009`, `DYNA012`, `DYNA030`, `DYNA034`), the keyword and property name (`DYNA016`), the name in full (`DYNA043`), the property name (`DYNA035`), the kind of problem (`DYNA029`). Limits: `DYNA003` adds no `[property: DynamoDbIgnore]` to a positional parameter (its constructor parameter would bind nothing, `DYNA006`); `DYNA024` leaves a constructor parameter of the property alone; `DYNA033` is fixed on the attribute only (on a property the attribute still serves the others); `DYNA034` always writes `protected` (only a public property is mapped without `[DynamoDbAttribute]`); `DYNA029` has none for an open generic or `typeof(Nullable<T>)`; nothing is offered where the place is in a generated file or a library. A rule with one action per declaration (`DYNA005`, `DYNA009`) has no fix-all. |
+| 2026-11-08 | Code fixes of keys, indexes and computed properties (`DYNA102` to `DYNA123`, `DYNA032`, `DYNA036`) derive from `TextEditCodeFix`, whose fix-all merges the text edits of every diagnostic of the scope, since one index or one `[ComputedFrom]` can carry several diagnostics that edit the same place: an edit two of them share is applied once, insertions at one place keep their order. A placeholder is rewritten only in a string literal (regular, verbatim or raw), never through a constant. Offered formats hold every value of the type: `d<w>` and `n<i>` with the digits of its maximum (`d<w>` throws for a negative value, which is why `n<i>` stands beside it), `d<w>` of an enum with the digits of its largest value or of all flags together, none for an enum with a negative member; `n<i>.<f>` of a `decimal` is not offered, its scale being a decision. A close spelling is one within `Spelling.TypoDistance`, at most three. |
 
 ## Findings and gotchas
 

@@ -12,6 +12,9 @@ internal sealed class IntegerInput(string typeName, IntegerType type) : KeyInput
 
     private const int MaxFixedPointDigits = 28;
 
+    /// <inheritdoc/>
+    public override IReadOnlyList<string?> Fits { get; } = [null, "d" + type.MaxDigits, "n" + type.MaxDigits];
+
     public override FormatBinding Bind(string? format, string property)
     {
         if (format is null or Plain)

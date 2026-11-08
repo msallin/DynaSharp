@@ -10,6 +10,8 @@ internal static class KeyTemplateBinder
 {
     private const int VariableBufferLength = 256;
 
+    private const int MaxSpellings = 3;
+
     public static KeyBinding Bind(
         string text,
         IReadOnlyList<TemplateNode> nodes,
@@ -48,7 +50,8 @@ internal static class KeyTemplateBinder
     {
         if (!inputs.TryGetValue(node.Property, out var input))
         {
-            problems.Add(new KeyProblem(Descriptors.UnknownProperty, [node.Property]));
+            var spellings = Spelling.Closest(node.Property, inputs.Keys, Spelling.TypoDistance(node.Property)).Take(MaxSpellings).Select(name => (name, node.Format));
+            problems.Add(new KeyProblem(Descriptors.UnknownProperty, [node.Property], Fix: KeyProblem.Rewrite(node.Property, spellings)));
             return null;
         }
 
@@ -74,6 +77,10 @@ internal static class KeyTemplateBinder
         }
 
         var binding = input.Type.Bind(node.Format, input.Property);
+        if (binding.Problem is { } misfit && misfit.Descriptor == Descriptors.FormatDoesNotFit)
+        {
+            binding = binding with { Problem = misfit with { Fix = KeyProblem.Rewrite(input.Property, Fitting(input, endsTemplate)) } };
+        }
 
         // A format that does not fit is a slip in one placeholder: the default encoding of the type keeps the model, so the error is not buried under one per use of the entity.
         if (binding.Problem is { } wrongFormat
@@ -100,11 +107,19 @@ internal static class KeyTemplateBinder
 
         if (role.IsSortKey && node.Format is null && binding.Encoding is PlainIntegerEncoding or PlainDecimalEncoding)
         {
-            problems.Add(new KeyProblem(Descriptors.NumberWithoutFixedFormat, [input.Property]));
+            string[] formats = binding.Encoding is PlainIntegerEncoding { Type: var integer } ? ["d" + integer.MaxDigits, "n" + integer.MaxDigits, "plain"] : ["plain"];
+            problems.Add(new KeyProblem(Descriptors.NumberWithoutFixedFormat, [input.Property], Fix: KeyProblem.Rewrite(input.Property, formats.Select(format => (input.Property, (string?)format)))));
         }
 
         return new PlaceholderSegment(input.Property, input.ParameterName, input.ValueType, binding.Encoding, input.IsNullable || input.OmitsEmpty);
     }
+
+    // The formats of the type that hold every value here: raw only where the placeholder ends the template.
+    private static IEnumerable<(string Property, string? Format)> Fitting(TemplateInput input, bool endsTemplate) =>
+        from format in input.Type.Fits
+        let encoding = input.Type.Bind(format, input.Property).Encoding
+        where encoding is not null && (endsTemplate || encoding is not StringEncoding { IsRaw: true })
+        select (input.Property, format);
 
     // A placeholder that fell back to its default has an error already, and the width of the default says nothing about the one the format meant.
     private static void CheckNeighbours(List<TemplateSegment> segments, KeyRole role, HashSet<string> fallbacks, List<KeyProblem> problems)

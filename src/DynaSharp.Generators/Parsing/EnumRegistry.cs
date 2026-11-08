@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
@@ -18,6 +19,26 @@ internal sealed class EnumRegistry
     {
         var values = new HashSet<object>();
         return AttributeReader.Find(type, FlagsAttribute) is null && Fields(type).All(field => values.Add(field.ConstantValue!));
+    }
+
+    /// <summary>
+    /// The width of a <c>d&lt;w&gt;</c> that holds every value of an enum: the digits of its largest member, or of all its members combined for <c>[Flags]</c>. Null when a member is negative,
+    /// which <c>d&lt;w&gt;</c> cannot write.
+    /// </summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>The width, at least 1, or null.</returns>
+    public static int? DigitsWidth(INamedTypeSymbol type)
+    {
+        var values = Fields(type).Select(static field => Convert.ToDecimal(field.ConstantValue, CultureInfo.InvariantCulture)).ToList();
+        if (values.Exists(static value => value < 0))
+        {
+            return null;
+        }
+
+        var largest = AttributeReader.Find(type, FlagsAttribute) is null
+            ? values.DefaultIfEmpty(0).Max()
+            : values.Aggregate(0UL, static (all, value) => all | (ulong)value);
+        return largest.ToString(CultureInfo.InvariantCulture).Length;
     }
 
     /// <summary>Whether a generated converter can write no value of a type: an enum goes by the name of a member, and this one has none. <c>[Flags]</c> goes by value, and a converter on the enum has its own way.</summary>

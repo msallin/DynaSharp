@@ -122,24 +122,24 @@ The source generator reports these on key templates. The grammar is under [Key g
 |---|---|---|
 | `DYNA100` | A template does not parse | Fix it at the position the message gives |
 | `DYNA101` | A literal holds something other than printable ASCII | Keep literals to that |
-| `DYNA102` | A placeholder names no property | Check the spelling |
+| `DYNA102` | A placeholder names no property | Check the spelling. The code fix offers each property of a close spelling, closest first, with the format kept |
 | `DYNA103` | A property of a type a key cannot hold | Use a type of the format table, or a plain key with a converter |
-| `DYNA104` | A format that does not fit the type | Use one the message lists: `plain`, `d<w>` or `n<i>` for integers, `plain` or `n<i>.<f>` for `decimal`, `yyyy` to `ticks` for timestamps, `d<w>` or none for enums, `raw` or none for `string`, and none for `Guid`, `DateOnly` and custom types |
+| `DYNA104` | A format that does not fit the type | Use one the message lists: `plain`, `d<w>` or `n<i>` for integers, `plain` or `n<i>.<f>` for `decimal`, `yyyy` to `ticks` for timestamps, `d<w>` or none for enums, `raw` or none for `string`, and none for `Guid`, `DateOnly` and custom types. The code fix offers each that holds every value of the type, `d<w>` and `n<i>` with the digits of its maximum; not `n<i>.<f>`, whose scale is yours to choose, nor `raw` before the end |
 | `DYNA105` | A format width out of range | Use a smaller one |
 | `DYNA106` | Two adjacent placeholders with nothing to tell them apart | Put a literal between them, or give the first a fixed width |
 | `DYNA107` | A nullable property in a key that is not sparse | Make the index `Sparse`, or the property required |
-| `DYNA108` (warning) | A number without a fixed width in a sort key, so `10` sorts before `9` | Use `d<w>` or `n<i>`, or `plain` if the order does not matter |
+| `DYNA108` (warning) | A number without a fixed width in a sort key, so `10` sorts before `9` | Use `d<w>` or `n<i>`, or `plain` if the order does not matter. The code fix offers the three, with the digits of the type's maximum, such as `{Qty:d10}` for an `int` (`d<w>` throws for a negative value), and `plain` alone for a `decimal` |
 | `DYNA109` | `[KeyOnly]` that cannot work, as the message says | Hold the value in a key without loss, or store it |
 | `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own |
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
-| `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>` |
+| `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>`. The code fix writes it with the digits of the largest value, all flags together for `[Flags]`, where no member is negative |
 | `DYNA114` | A computed property in an index template, which no update can follow | Add `[ComputedFrom]` naming the stored properties it reads, or use a stored property |
 | `DYNA115` (info) | A string before a delimiter in a sort key, so values with a smaller character sort out of order | Use a delimiter below the values, or accept the rare caveat |
 
 `DYNA116` (warning): a `DateTime` or `DateTimeOffset` in `s`, `ms` or `us` is the last placeholder of the table key. `[SortKey("{At:ms}")]` keeps milliseconds, so two puts 0.5 ms apart write one key, and the second silently replaces the first. The end of the whole key counts: the sort key, or the partition key of a table without one.
 
-- **Fix.** Add a tie-breaking placeholder after the timestamp, such as `{At:ms}#{Id}`, or drop the format: a bare `{At}` is `ticks`, all seven digits.
+- **Fix.** Add a tie-breaking placeholder after the timestamp, such as `{At:ms}#{Id}`, or drop the format: a bare `{At}` is `ticks`, all seven digits. The code fix drops the format.
 - **Not reported.** A partition key ending in a day beside a sort key. An index, which is not unique. A minute or coarser format, such as `{Window:yyyy-MM-ddTHH:mm}` or `{Month:yyyy-MM}`, which means one item per period, as for a counter or summary. A plain `[SortKey]` on the property, which goes through its converter and keeps every digit.
 
 `DYNA117` (warning): a key property starts empty and nothing has to set it, such as `public string EntityPartition { get; set; } = string.Empty;` set later with a `with`. Forgetting it compiles, and the write throws `KeyFormatException` for a template or is rejected by DynamoDB for a plain key. Every key of the entity counts, since a put writes the index keys too.

@@ -30,13 +30,7 @@ internal sealed class DiagnosticBag
     /// </summary>
     /// <param name="descriptor">The descriptor, an error.</param>
     /// <param name="spot">Where it is.</param>
-    /// <param name="arguments">The arguments of the message.</param>
-    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) => ReportKeepingTheModel(descriptor, spot, null, arguments);
-
-    /// <summary>As <see cref="ReportKeepingTheModel(DiagnosticDescriptor, Spot, string[])"/>, with what a code fix needs, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>.</summary>
-    /// <param name="descriptor">The descriptor, an error.</param>
-    /// <param name="spot">Where it is.</param>
-    /// <param name="fix">What the code fix needs; null for no fix.</param>
+    /// <param name="fix">What a code fix needs, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>; null for no fix.</param>
     /// <param name="arguments">The arguments of the message.</param>
     public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, string? fix, string[] arguments) =>
         _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span, Fix: fix));

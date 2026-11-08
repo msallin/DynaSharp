@@ -21,6 +21,9 @@ internal sealed class TimestampInput(string typeName, bool isOffset) : KeyInputT
         ["ticks"] = (TimestampEncoding.LosslessFormat, 28),
     };
 
+    /// <inheritdoc/>
+    public override IReadOnlyList<string?> Fits { get; } = ["yyyy", "yyyy-MM", "yyyy-MM-dd", "yyyy-MM-ddTHH", "yyyy-MM-ddTHH:mm", "s", "ms", "us", null];
+
     public override FormatBinding Bind(string? format, string property) =>
         Formats.TryGetValue(format ?? Default, out var known)
             ? Encoded(new TimestampEncoding(known.Member, known.Width, isOffset))

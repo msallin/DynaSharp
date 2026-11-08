@@ -18,4 +18,7 @@ internal sealed record DiagnosticInfo(string Id, EquatableArray<string> Argument
 {
     /// <summary>The property of a diagnostic that holds <see cref="Fix"/>.</summary>
     public const string FixProperty = "Fix";
+
+    /// <summary>What separates the parts of a <see cref="Fix"/> that has several: a line break, which neither a name nor a key template holds.</summary>
+    public const char FixSeparator = '\n';
 }

@@ -6,6 +6,9 @@ internal sealed class StringInput(string typeName) : KeyInputType(typeName, "no 
 {
     private const string Raw = "raw";
 
+    /// <inheritdoc/>
+    public override IReadOnlyList<string?> Fits { get; } = [null, Raw];
+
     public override FormatBinding Bind(string? format, string property) => format switch
     {
         null => Encoded(new StringEncoding()),

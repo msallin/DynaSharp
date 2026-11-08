@@ -66,6 +66,31 @@ internal static class KeyTemplateParser
         return new TemplateParse(nodes, null);
     }
 
+    /// <summary>
+    /// Where the placeholder of <paramref name="property"/> stands, from its <c>{</c> to its <c>}</c>. The text may be the C# literal of a template, which writes a placeholder as it is:
+    /// <c>"A#{Id:d3}"</c> with <c>Id</c> gives 3 and 7.
+    /// </summary>
+    /// <param name="text">The template, or a literal of it.</param>
+    /// <param name="property">The property the placeholder names.</param>
+    /// <returns>The start and the length, or null when no placeholder names it.</returns>
+    public static (int Start, int Length)? FindPlaceholder(string text, string property)
+    {
+        for (var position = 0; position < text.Length; position++)
+        {
+            var end = position + 1 + property.Length;
+            if (IsDoubled(text, position))
+            {
+                position++;
+            }
+            else if (text[position] == '{' && end < text.Length && string.CompareOrdinal(text, position + 1, property, 0, property.Length) == 0 && text[end] is ':' or '}')
+            {
+                return (position, text.IndexOf('}', end) - position + 1);
+            }
+        }
+
+        return null;
+    }
+
     private static bool IsDoubled(string text, int position) =>
         text[position] is '{' or '}' && position + 1 < text.Length && text[position + 1] == text[position];
 

@@ -5,11 +5,15 @@ namespace DynaSharp.Generators;
 /// <param name="valueType">The enum as code.</param>
 /// <param name="underlying">The underlying type.</param>
 /// <param name="namesAreUnique">False for <c>[Flags]</c> and aliased members, whose names are not one-to-one.</param>
+/// <param name="digitsWidth">The width of a <c>d&lt;w&gt;</c> that holds every value, or null when a member is negative.</param>
 /// <param name="converter">Registers the generated converter and gives its name. It is not needed for <c>d&lt;w&gt;</c>.</param>
-internal sealed class EnumInput(string typeName, string valueType, IntegerType underlying, bool namesAreUnique, Func<string> converter)
+internal sealed class EnumInput(string typeName, string valueType, IntegerType underlying, bool namesAreUnique, int? digitsWidth, Func<string> converter)
     : KeyInputType(typeName, "no format for the member name, or d<w>, such as d3, for its value")
 {
     private const int MaxWidth = 20;
+
+    /// <inheritdoc/>
+    public override IReadOnlyList<string?> Fits { get; } = digitsWidth is { } width ? [null, "d" + width] : [null];
 
     public override FormatBinding Bind(string? format, string property)
     {
@@ -17,7 +21,7 @@ internal sealed class EnumInput(string typeName, string valueType, IntegerType u
         {
             return namesAreUnique
                 ? Encoded(new EnumNameEncoding(converter(), valueType))
-                : new FormatBinding(null, new KeyProblem(Descriptors.EnumNamesNotUnique, [TypeName]));
+                : new FormatBinding(null, new KeyProblem(Descriptors.EnumNamesNotUnique, [TypeName], Fix: digitsWidth is { } digits ? KeyProblem.Rewrite(property, [(property, "d" + digits)]) : null));
         }
 
         var width = ReadNumber(format.Substring(1));

@@ -89,6 +89,22 @@ public sealed class KeyTemplateParserTests
         await Assert.That(Describe(parsed)).IsEqualTo("L(A) P(B)");
     }
 
+    [Test]
+    [Arguments("\"A#{Id:d3}\"", "Id", "3 7")]
+    [Arguments("{Id}", "Id", "0 4")]
+    [Arguments("{{Id}}#{Id}", "Id", "7 4")]
+    [Arguments("{Ids}#{Id:raw}", "Id", "6 8")]
+    [Arguments("}}{Id", "Id", "none")]
+    [Arguments("\\u007BId}", "Id", "none")]
+    public async Task FindPlaceholder_Text_GivesTheSpanOfThePlaceholder(string text, string property, string expected)
+    {
+        // Arrange, Act
+        var found = KeyTemplateParser.FindPlaceholder(text, property);
+
+        // Assert
+        await Assert.That(found is { } span ? span.Start + " " + span.Length : "none").IsEqualTo(expected);
+    }
+
     private static string Describe(TemplateParse parsed) => string.Join(' ', parsed.Nodes.Select(node => node switch
     {
         LiteralNode literal => $"L({literal.Text})",

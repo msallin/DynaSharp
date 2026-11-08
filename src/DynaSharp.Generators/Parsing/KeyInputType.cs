@@ -7,6 +7,9 @@ namespace DynaSharp.Generators;
 /// <param name="formats">What to write instead of a format that does not fit, for the message.</param>
 internal abstract class KeyInputType(string typeName, string formats = "")
 {
+    /// <summary>Gets the formats a code fix offers for one that does not fit, in the order of the message, each with a value that holds every value of the type; null is no format.</summary>
+    public virtual IReadOnlyList<string?> Fits { get; } = [null];
+
     protected string TypeName { get; } = typeName;
 
     /// <summary>Resolves a format, null for the default of the type.</summary>
