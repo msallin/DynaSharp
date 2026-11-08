@@ -31,7 +31,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
 | `DYNA022` | `[Discriminator]` has an empty value, both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |
-| `DYNA024` | An enum without members | Add a member, make the property nullable, or add a converter |
+| `DYNA024` | An enum without members | Add a member, make the property nullable, or add a converter. The code fix makes the property nullable |
 | `DYNA025` | A type is named like a member generated into it, such as `Keys`, or `TableName` for an entity that declares a table | Rename the type |
 
 `DYNA026` (warning): two entities of a compilation have the same discriminator in the same attribute. Typed and mixed reads tell types apart by that value, so on one table the items of one read as the other, or fail to.
