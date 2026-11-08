@@ -75,7 +75,7 @@ One retry loop serves every level: `Table<T>`, `Table<Item>`, the request API an
 - **Attempts.** `MaxAttempts`, 4 by default, counts the first attempt. `.MaxAttempts(n)` on a command sets it per call.
 - **Waits.** A random time between zero and `min(20 s, base * 2^(attempt - 1))`, base 50 ms for throttling and 100 ms otherwise: by default at most 50, 100, 200 ms and 100, 200, 400 ms, so a dependency still starting gets at most 700 ms. Cancelling the call ends a wait at once.
 - **Quota.** A client has 500 tokens for all its requests. A retry takes 5, or 10 after a timeout; a success returns 1, or what its last retry took. With the quota empty, errors surface at once until successes refill it, and the client logs a warning, event 5 under [Observability](observability.md#logs).
-- **Resends.** If DynamoDB rejects a local clock more than 4 minutes off, the client learns the offset and resends at once. If it rejects expired credentials of a provider that can replace them, the provider drops them and the client resends at once, once per call. Both count as an attempt but take no wait and no quota.
+- **Resends.** If DynamoDB rejects a local clock more than 4 minutes off, the client learns the offset and resends at once, and the same goes for the STS call of an assumed role. If it rejects expired credentials of a provider that can replace them, the provider drops them and the client resends at once, once per call. Both count as an attempt but take no wait and no quota.
 - **The end.** The last attempt's error surfaces unchanged, and the client logs a warning, event 4.
 
 The loop never retries a failed condition. `RetryOnConflictAsync` reruns your read-modify-write instead, see [Retry on a conflict](commands.md#retry-on-a-conflict).

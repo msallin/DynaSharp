@@ -45,6 +45,7 @@ aws_secret_access_key = ...
 - **Chains:** a source profile that has a `role_arn` and no keys assumes its own role first, so roles chain. A profile that comes back fails as a loop, unless a profile names itself and has static keys.
 - **Region:** STS is asked in the region of the client, otherwise in `AWS_REGION`, `AWS_DEFAULT_REGION` or the `region` of the profile. `AWS_ENDPOINT_URL_STS` and `AWS_STS_REGIONAL_ENDPOINTS` work as for IRSA.
 - **Refresh:** the session is renewed before it expires, by assuming the role again.
+- **Clock:** if STS rejects a local clock more than 4 minutes off, the signing time is corrected from its answer and the request is sent once more.
 - **MFA:** a profile with `mfa_serial` fails, because the code of the device would be needed at every refresh.
 - **Web identity:** `web_identity_token_file` with `role_arn` in a profile federates like IRSA, with the token of that file.
 

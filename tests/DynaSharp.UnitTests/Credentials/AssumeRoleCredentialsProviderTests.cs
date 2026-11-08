@@ -2,6 +2,7 @@ using System.Net;
 using DynaSharp.Credentials;
 using DynaSharp.Retries;
 using DynaSharp.Testing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
@@ -330,7 +331,7 @@ public sealed class AssumeRoleCredentialsProviderTests
     [Arguments("AccessDenied", "AccessDenied: the trust policy of the role, or a policy of the source, does not allow the source to assume it")]
     [Arguments("ExpiredToken", "ExpiredToken: the source credentials have expired")]
     [Arguments("InvalidClientTokenId", "InvalidClientTokenId: STS does not know the access key of the source credentials")]
-    [Arguments("SignatureDoesNotMatch", "SignatureDoesNotMatch: the secret of the source credentials does not belong to its access key")]
+    [Arguments("SignatureDoesNotMatch", "SignatureDoesNotMatch: the secret of the source credentials does not belong to its access key, or the local clock is off by more than five minutes")]
     [Arguments("RegionDisabledException", "RegionDisabledException: STS is not activated in this region of the account")]
     [Arguments("ValidationError", "ValidationError: a parameter is not valid, such as a duration beyond the maximum session duration of the role")]
     [Arguments("MalformedPolicyDocument", "MalformedPolicyDocument")]
@@ -408,6 +409,148 @@ public sealed class AssumeRoleCredentialsProviderTests
 
         // Assert
         await Assert.That((credentials.AccessKeyId, world.Handler.Requests.Count)).IsEqualTo((AccessKeyId, 2));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ClockTenMinutesOff_SignsAgainWithTheCorrectedTime()
+    {
+        // Arrange (STS answers with its own Date, which is 10 minutes ahead of the clock that signed)
+        var world = new World();
+        var serverTime = world.Time.GetUtcNow().AddMinutes(10);
+        world.Respond(request => world.Handler.Requests.Count == 1 ? Skewed(serverTime) : world.Success());
+
+        // Act
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((world.Handler.Requests.Count, Header(world.Handler.Requests[1], "X-Amz-Date"), credentials.AccessKeyId))
+            .IsEqualTo((2, "20261031T124456Z", AccessKeyId));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ClockTenMinutesOff_LogsTheCorrection()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory();
+        var world = new World(logs: logs);
+        var serverTime = world.Time.GetUtcNow().AddMinutes(10);
+        world.Respond(_ => world.Handler.Requests.Count == 1 ? Skewed(serverTime) : world.Success());
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries.Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())
+            .IsEqualTo((30, LogLevel.Warning, "The local clock differs from the STS clock by 00:10:00. The signing time is corrected and the request is sent again."));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ClockWithinTolerance_FailsNamingTheClockAsACause()
+    {
+        // Arrange
+        var world = new World();
+        var serverTime = world.Time.GetUtcNow().AddMinutes(2);
+        world.Respond(_ => Skewed(serverTime));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessageContaining("or the local clock is off by more than five minutes", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ClockWithinTolerance_SendsOnce()
+    {
+        // Arrange
+        var world = new World();
+        var serverTime = world.Time.GetUtcNow().AddMinutes(2);
+        world.Respond(_ => Skewed(serverTime));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_StsKeepsRejectingTheClock_SendsAgainOnceOnly()
+    {
+        // Arrange (every answer is 10 minutes ahead of the clock that signed the request before it)
+        var world = new World();
+        world.Respond(_ => Skewed(world.Time.GetUtcNow().AddMinutes(10 * world.Handler.Requests.Count)));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RejectionWithoutADate_SendsOnce()
+    {
+        // Arrange
+        var world = new World();
+        world.Respond(_ => Error("SignatureDoesNotMatch", HttpStatusCode.Forbidden));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_OtherRejectionWithASkewedDate_SendsOnce()
+    {
+        // Arrange
+        var world = new World();
+        var serverTime = world.Time.GetUtcNow().AddMinutes(10);
+        world.Respond(_ => Skewed(serverTime, "AccessDenied"));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_AnswerThatIsNotXmlWithASkewedDate_SendsOnce()
+    {
+        // Arrange
+        var world = new World();
+        var serverTime = world.Time.GetUtcNow().AddMinutes(10);
+        world.Respond(_ => new StubResponse { StatusCode = HttpStatusCode.BadRequest, Body = "not xml", Headers = new Dictionary<string, string> { ["Date"] = serverTime.ToString("R", System.Globalization.CultureInfo.InvariantCulture) } });
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_ClockThatCannotBeCorrected_SendsOnce()
+    {
+        // Arrange (a clock of a test, or of a provider that was built with another one)
+        var world = new World(correctsClock: false);
+        var serverTime = world.Time.GetUtcNow().AddMinutes(10);
+        world.Respond(_ => Skewed(serverTime));
+
+        // Act
+        var act = async () => await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Count).IsEqualTo(1);
     }
 
     [Test]
@@ -679,6 +822,13 @@ public sealed class AssumeRoleCredentialsProviderTests
 
     private static string Header(RecordedRequest request, string name) => request.Headers.First(header => string.Equals(header.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
 
+    private static StubResponse Skewed(DateTimeOffset serverTime, string code = "SignatureDoesNotMatch") => new()
+    {
+        StatusCode = HttpStatusCode.Forbidden,
+        Body = Error(code, HttpStatusCode.Forbidden).Body,
+        Headers = new Dictionary<string, string> { ["Date"] = serverTime.ToString("R", System.Globalization.CultureInfo.InvariantCulture) },
+    };
+
     private static StubResponse Error(string code, HttpStatusCode status, string message = "The message.") => new()
     {
         StatusCode = status,
@@ -696,11 +846,16 @@ public sealed class AssumeRoleCredentialsProviderTests
         private int _issued;
         private Func<RecordedRequest, StubResponse> _answer;
 
-        public World(AssumeRoleCredentialsProvider.Settings? settings = null, Func<string, string?>? environment = null, ICredentialsProvider? source = null, CapturingLoggerFactory? logs = null)
+        public World(
+            AssumeRoleCredentialsProvider.Settings? settings = null,
+            Func<string, string?>? environment = null,
+            ICredentialsProvider? source = null,
+            ILoggerFactory? logs = null,
+            bool correctsClock = true)
         {
             _answer = _ => Success();
             Handler = new StubHandler((request, _) => Task.FromResult(_answer(request)));
-            var dependencies = new CredentialsDependencies(environment ?? Env(), NoFiles, NoWrites, CredentialProcess.Runner, Handler, new ClockSkewCorrection(Time), (Microsoft.Extensions.Logging.ILoggerFactory?)logs ?? NullLoggerFactory.Instance);
+            var dependencies = new CredentialsDependencies(environment ?? Env(), NoFiles, NoWrites, CredentialProcess.Runner, Handler, correctsClock ? new ClockSkewCorrection(Time) : Time, logs ?? NullLoggerFactory.Instance);
             Provider = new AssumeRoleCredentialsProvider(source ?? new StaticCredentialsProvider(Source), settings ?? Settings(), dependencies);
         }
 

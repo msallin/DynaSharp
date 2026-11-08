@@ -1,4 +1,5 @@
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -31,6 +32,6 @@ internal sealed record CredentialsDependencies(
         TextFiles.DiskWriter,
         CredentialProcess.Runner,
         null,
-        TimeProvider.System,
+        new ClockSkewCorrection(TimeProvider.System),
         NullLoggerFactory.Instance);
 }

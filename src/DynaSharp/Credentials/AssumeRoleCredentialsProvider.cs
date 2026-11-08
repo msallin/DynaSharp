@@ -4,6 +4,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using DynaSharp.Signing;
 using Microsoft.Extensions.Logging;
 
@@ -50,6 +51,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private readonly ICredentialsProvider _source;
     private readonly Settings _settings;
     private readonly CredentialsDependencies _dependencies;
+    private readonly ILogger _logger;
     private readonly RefreshingCredentialsCache _cache;
 
     /// <summary>
@@ -78,8 +80,8 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         _source = sourceCredentials;
         _settings = settings;
         _dependencies = dependencies;
-        _cache = new RefreshingCredentialsCache(
-            $"role {settings.RoleArn}", dependencies.TimeProvider, dependencies.LoggerFactory.CreateLogger<AssumeRoleCredentialsProvider>(), FetchAsync);
+        _logger = dependencies.LoggerFactory.CreateLogger<AssumeRoleCredentialsProvider>();
+        _cache = new RefreshingCredentialsCache($"role {settings.RoleArn}", dependencies.TimeProvider, _logger, FetchAsync);
     }
 
     /// <summary>
@@ -160,7 +162,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         "AccessDenied" => "AccessDenied: the trust policy of the role, or a policy of the source, does not allow the source to assume it",
         "ExpiredToken" => "ExpiredToken: the source credentials have expired",
         "InvalidClientTokenId" => "InvalidClientTokenId: STS does not know the access key of the source credentials",
-        "SignatureDoesNotMatch" => "SignatureDoesNotMatch: the secret of the source credentials does not belong to its access key",
+        "SignatureDoesNotMatch" => "SignatureDoesNotMatch: the secret of the source credentials does not belong to its access key, or the local clock is off by more than five minutes",
         "RegionDisabledException" => "RegionDisabledException: STS is not activated in this region of the account",
         "ValidationError" => "ValidationError: a parameter is not valid, such as a duration beyond the maximum session duration of the role",
         null or "" => $"HTTP {(int)status}",
@@ -238,6 +240,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         var signer = new SigV4Signer(signingRegion, "sts");
         var authority = SigV4Signer.GetAuthority(endpoint);
         var timeProvider = _dependencies.TimeProvider;
+        var signedAt = default(DateTimeOffset);
 
         HttpRequestMessage CreateRequest()
         {
@@ -246,12 +249,32 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
                 // Renders as "application/x-www-form-urlencoded; charset=utf-8", which the signer has as the content type of a form.
                 Content = new StringContent(body, Encoding.UTF8, FormContentType),
             };
-            signer.SignForm(request, authority, payloadHash, source, timeProvider.GetUtcNow());
+            signedAt = timeProvider.GetUtcNow();
+            signer.SignForm(request, authority, payloadHash, source, signedAt);
             return request;
         }
 
         var http = CredentialsHttp.GetClientFor(endpoint, _dependencies.Handler);
-        var result = await CredentialsHttp.SendWithRetriesAsync(http, CreateRequest, IsTransient, timeProvider).ConfigureAwait(false);
+        var clockCorrected = false;
+        CredentialsHttp.Verdict Judge(CredentialsHttp.Result attempt)
+        {
+            if (!clockCorrected
+                && attempt.Date is { } serverTime
+                && StsDocument.TryParse(attempt.Body, out var rejection)
+                && rejection.ErrorCode is { } code
+                && ClockSkewCorrection.IsClockSkewCode(code)
+                && timeProvider is ClockSkewCorrection clock
+                && clock.TryCorrect(signedAt, serverTime, out var offset))
+            {
+                clockCorrected = true;
+                CredentialsLog.ClockSkewCorrected(_logger, offset);
+                return CredentialsHttp.Verdict.SendAgain;
+            }
+
+            return IsTransient(attempt) ? CredentialsHttp.Verdict.Retry : CredentialsHttp.Verdict.Return;
+        }
+
+        var result = await CredentialsHttp.SendWithRetriesAsync(http, CreateRequest, Judge, CredentialsHttp.AttemptTimeout, timeProvider).ConfigureAwait(false);
         StsDocument document = default;
         var parsed = result.Kind == CredentialsHttp.ResultKind.Response && StsDocument.TryParse(result.Body, out document);
         if (result.IsOk && parsed && document.ErrorCode is null)

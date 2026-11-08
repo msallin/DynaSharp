@@ -59,4 +59,10 @@ internal static partial class CredentialsLog
 
     [LoggerMessage(EventId = 29, Level = LogLevel.Debug, Message = "The cached SSO token of {Token} was refreshed.")]
     public static partial void SsoTokenRefreshed(ILogger logger, string token);
+
+    [LoggerMessage(
+        EventId = 30,
+        Level = LogLevel.Warning,
+        Message = "The local clock differs from the STS clock by {Offset}. The signing time is corrected and the request is sent again.")]
+    public static partial void ClockSkewCorrected(ILogger logger, TimeSpan offset);
 }

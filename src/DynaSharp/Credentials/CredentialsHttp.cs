@@ -152,7 +152,7 @@ internal static class CredentialsHttp
         {
             using var response = await client.SendAsync(request, timeoutSource.Token).ConfigureAwait(false);
             var body = await response.Content.ReadAsByteArrayAsync(timeoutSource.Token).ConfigureAwait(false);
-            return new Result(ResultKind.Response, response.StatusCode, body, null);
+            return new Result(ResultKind.Response, response.StatusCode, body, null, response.Headers.Date);
         }
         catch (OperationCanceledException)
         {
@@ -181,7 +181,8 @@ internal static class CredentialsHttp
     /// <param name="StatusCode">The HTTP status code, when <paramref name="Kind"/> is <see cref="ResultKind.Response"/>.</param>
     /// <param name="Body">The response body, when <paramref name="Kind"/> is <see cref="ResultKind.Response"/>.</param>
     /// <param name="Error">The name of the <see cref="HttpRequestError"/>, when <paramref name="Kind"/> is <see cref="ResultKind.Failed"/>.</param>
-    public readonly record struct Result(ResultKind Kind, HttpStatusCode StatusCode, byte[] Body, string? Error)
+    /// <param name="Date">The <c>Date</c> header of the response, the clock of the server, or <see langword="null"/> without one.</param>
+    public readonly record struct Result(ResultKind Kind, HttpStatusCode StatusCode, byte[] Body, string? Error, DateTimeOffset? Date = null)
     {
         /// <summary>Gets a value indicating whether the server answered with HTTP 200.</summary>
         public bool IsOk => Kind == ResultKind.Response && StatusCode == HttpStatusCode.OK;

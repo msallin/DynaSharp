@@ -166,6 +166,36 @@ public sealed class CredentialsHttpTests
     }
 
     [Test]
+    public async Task SendAsync_ResponseWithADate_ReturnsIt()
+    {
+        // Arrange
+        using var handler = new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Headers = { Date = new DateTimeOffset(2026, 10, 31, 12, 44, 56, TimeSpan.Zero) } }));
+        var client = CredentialsHttp.GetClient(handler);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/creds");
+
+        // Act
+        var result = await CredentialsHttp.SendAsync(client, request, TimeSpan.FromMinutes(5), TimeProvider.System);
+
+        // Assert
+        await Assert.That(result.Date).IsEqualTo(new DateTimeOffset(2026, 10, 31, 12, 44, 56, TimeSpan.Zero));
+    }
+
+    [Test]
+    public async Task SendAsync_ResponseWithoutADate_ReturnsNone()
+    {
+        // Arrange
+        using var handler = new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        var client = CredentialsHttp.GetClient(handler);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/creds");
+
+        // Act
+        var result = await CredentialsHttp.SendAsync(client, request, TimeSpan.FromMinutes(5), TimeProvider.System);
+
+        // Assert
+        await Assert.That(result.Date).IsNull();
+    }
+
+    [Test]
     public async Task SendAsync_ConnectionFails_ReturnsFailedWithTheNameOfTheErrorAndWithoutABody()
     {
         // Arrange

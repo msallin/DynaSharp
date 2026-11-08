@@ -128,6 +128,7 @@ The client logs only what no single caller sees: its configuration, retries that
 | 27 | Warning | Renewing the cached SSO token failed; the cached token is used while it lasts | `Refreshing the cached SSO token of {Token} failed: {Reason}. The cached token is used while it lasts.` |
 | 28 | Warning | The renewed SSO token could not be written back to the token cache | `The refreshed SSO token of {Token} could not be written to the token cache: {Reason}. ...` |
 | 29 | Debug | The cached SSO token was renewed | `The cached SSO token of {Token} was refreshed.` |
+| 30 | Warning | STS rejected the signing time of an `AssumeRole` request; the clock is corrected and the request sent once more | `The local clock differs from the STS clock by {Offset}. The signing time is corrected and the request is sent again.` |
 
 `{Table}` is the table of the call, `{ErrorType}` the error code. A message names no key, token or file content, and of a URL at most its host.
 
