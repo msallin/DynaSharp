@@ -1,4 +1,5 @@
 using DynaSharp.Generators;
+using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -62,6 +63,19 @@ public sealed class EntityOrDocumentCodeFixTests
 
         // Assert
         await Assert.That(titles).IsEquivalentTo(["Remove [DynamoDbEntity]"]);
+    }
+
+    [Test]
+    public async Task GetFixAllProvider_IsTheBatchFixer()
+    {
+        // Arrange
+        var fix = new EntityOrDocumentCodeFix();
+
+        // Act
+        var provider = fix.GetFixAllProvider();
+
+        // Assert
+        await Assert.That(provider).IsSameReferenceAs(WellKnownFixAllProviders.BatchFixer);
     }
 
     [Test]

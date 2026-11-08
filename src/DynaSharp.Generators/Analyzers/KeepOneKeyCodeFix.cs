@@ -21,6 +21,10 @@ internal sealed class KeepOneKeyCodeFix : CodeFixProvider
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.DuplicateKey.Id];
 
     /// <inheritdoc/>
+    /// <remarks>None: each fix chooses a declaration of one key.</remarks>
+    public override FixAllProvider? GetFixAllProvider() => null;
+
+    /// <inheritdoc/>
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var document = context.Document;

@@ -14,8 +14,6 @@ public sealed class OmitEmptyCodeFixTests
 
     private static readonly CodeFixRun Run = new(new OmitEmptyCodeFix(), "DYNA030");
 
-    private static (string, string)[] Entity(string keys) => CodeFixRun.One("[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E#{Id}\"), " + keys + "]" + Members);
-
     [Test]
     public async Task Fix_InputOfAnIndexThatIsNotSparse_MakesTheIndexSparse()
     {
@@ -171,4 +169,6 @@ public sealed class OmitEmptyCodeFixTests
         // Assert
         await Assert.That(ids).IsEquivalentTo(["DYNA030"]);
     }
+
+    private static (string, string)[] Entity(string keys) => CodeFixRun.One("[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E#{Id}\"), " + keys + "]" + Members);
 }

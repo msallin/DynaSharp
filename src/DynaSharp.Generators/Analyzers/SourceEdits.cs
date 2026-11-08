@@ -166,10 +166,6 @@ internal static class SourceEdits
         return model.GetSpeculativeSymbolInfo(position, probe).Symbol?.ContainingType.ToDisplayString() == metadataName ? simple : "global::" + full;
     }
 
-    /// <summary>Whether an attribute binds to the attribute of DynaSharp with that metadata name.</summary>
-    public static bool Is(SemanticModel model, AttributeSyntax attribute, string metadataName, CancellationToken token) =>
-        model.GetSymbolInfo(attribute, token).Symbol?.ContainingType.ToDisplayString() == metadataName;
-
     /// <summary>An attribute with a named argument set to a value: the one it has, or one added after its other arguments.</summary>
     public static AttributeSyntax WithNamedArgument(AttributeSyntax attribute, string name, string value)
     {

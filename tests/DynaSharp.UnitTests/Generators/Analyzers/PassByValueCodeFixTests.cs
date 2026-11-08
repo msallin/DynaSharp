@@ -12,9 +12,6 @@ public sealed class PassByValueCodeFixTests
 
     private static readonly CodeFixRun Run = new(new PassByValueCodeFix(), "DYNA042");
 
-    private static (string, string)[] Document(string parameter) =>
-        CodeFixRun.One("[DynamoDbDocument] public partial class A { public A(" + parameter + ") { Count = 1; } public int Count { get; set; } }");
-
     [Test]
     [Arguments("ref int count", Value, "int count")]
     [Arguments("ref int count", In, "in int count")]
@@ -102,4 +99,7 @@ public sealed class PassByValueCodeFixTests
         // Assert
         await Assert.That(ids).IsEquivalentTo(["DYNA042"]);
     }
+
+    private static (string, string)[] Document(string parameter) =>
+        CodeFixRun.One("[DynamoDbDocument] public partial class A { public A(" + parameter + ") { Count = 1; } public int Count { get; set; } }");
 }

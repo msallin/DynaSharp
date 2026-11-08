@@ -40,7 +40,7 @@ internal sealed class UnreachableSetterCodeFix : CodeFixProvider
             var property = (IPropertySymbol)DocumentationCommentId.GetFirstSymbolForDeclarationId(diagnostic.Properties[DiagnosticInfo.FixProperty]!, compilation)!;
             if (SourceEdits.Editable(solution, property.SetMethod!.DeclaringSyntaxReferences.FirstOrDefault(), token) is { } setter)
             {
-                var changes = SourceEdits.ReplaceAccessibility(setter.Node.SyntaxTree.GetText(token), ((AccessorDeclarationSyntax)setter.Node).Modifiers, "protected").Select(change => (setter.Document.Id, change)).ToList();
+                var changes = SourceEdits.ReplaceAccessibility(await setter.Node.SyntaxTree.GetTextAsync(token).ConfigureAwait(false), ((AccessorDeclarationSyntax)setter.Node).Modifiers, "protected").Select(change => (setter.Document.Id, change)).ToList();
                 context.RegisterCodeFix(CodeAction.Create("Make the setter of " + property.Name + " protected", edit => SourceEdits.ApplyAsync(solution, changes, edit), ProtectedKey), diagnostic);
             }
 

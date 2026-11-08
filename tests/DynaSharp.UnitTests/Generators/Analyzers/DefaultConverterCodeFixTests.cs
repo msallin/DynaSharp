@@ -37,8 +37,6 @@ public sealed class DefaultConverterCodeFixTests
 
     private static readonly CodeFixRun Run = new(new DefaultConverterCodeFix(), "DYNA029");
 
-    private static (string, string)[] Files(string defaults) => [("Defaults.cs", "using DynaSharp;\nusing DynaSharp.Mapping;\nusing DynaSharp.Serialization;\n\n" + defaults + Converters)];
-
     [Test]
     public async Task Fix_SecondDefaultForAType_RemovesItsLine()
     {
@@ -147,4 +145,6 @@ public sealed class DefaultConverterCodeFixTests
         // Assert
         await Assert.That(ids).IsEquivalentTo(["DYNA029"]);
     }
+
+    private static (string, string)[] Files(string defaults) => [("Defaults.cs", "using DynaSharp;\nusing DynaSharp.Mapping;\nusing DynaSharp.Serialization;\n\n" + defaults + Converters)];
 }

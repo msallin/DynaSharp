@@ -68,14 +68,14 @@ internal sealed class AccessibilityCodeFix : CodeFixProvider
     }
 
     // Every part that names an accessibility gets the keyword in its place; where none does, the first part gets it in front of its modifiers.
-    private static IEnumerable<(DocumentId, TextChange)> Raise(List<(Document Document, SyntaxNode Node)> declarations, string keyword, CancellationToken token)
+    private static IEnumerable<(DocumentId Document, TextChange Change)> Raise(List<(Document Document, SyntaxNode Node)> declarations, string keyword, CancellationToken token)
     {
         var named = declarations.Where(static declaration => SourceEdits.NamesAccessibility(Modifiers(declaration.Node))).ToList();
         if (named.Count == 0)
         {
             var (document, node) = declarations[0];
-            var first = Modifiers(node).FirstOrDefault();
-            var start = first == default ? Keyword(node).SpanStart : first.SpanStart;
+            var modifiers = Modifiers(node);
+            var start = modifiers.Count == 0 ? Keyword(node).SpanStart : modifiers[0].SpanStart;
             return [(document.Id, new TextChange(new TextSpan(start, 0), keyword + " "))];
         }
 

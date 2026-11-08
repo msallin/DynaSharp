@@ -1,4 +1,5 @@
 using DynaSharp.Generators;
+using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -115,6 +116,19 @@ public sealed class IgnoredKeyCodeFixTests
 
         // Assert
         await Assert.That(titles).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetFixAllProvider_IsTheBatchFixer()
+    {
+        // Arrange
+        var fix = new IgnoredKeyCodeFix();
+
+        // Act
+        var provider = fix.GetFixAllProvider();
+
+        // Assert
+        await Assert.That(provider).IsSameReferenceAs(WellKnownFixAllProviders.BatchFixer);
     }
 
     [Test]

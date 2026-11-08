@@ -11,8 +11,6 @@ public sealed class MarkConstructorCodeFixTests
 
     private static readonly CodeFixRun Run = new(new MarkConstructorCodeFix(), "DYNA005");
 
-    private static (string, string)[] Document(string constructors) => CodeFixRun.One("[DynamoDbDocument]\npublic partial class A\n{\n    " + constructors + Members);
-
     [Test]
     public async Task RegisterCodeFixes_TwoConstructors_OffersEach()
     {
@@ -140,6 +138,19 @@ public sealed class MarkConstructorCodeFixTests
     }
 
     [Test]
+    public async Task GetFixAllProvider_IsNone()
+    {
+        // Arrange
+        var fix = new MarkConstructorCodeFix();
+
+        // Act
+        var provider = fix.GetFixAllProvider();
+
+        // Assert
+        await Assert.That(provider).IsNull();
+    }
+
+    [Test]
     public async Task FixableDiagnosticIds_IsTheRule()
     {
         // Arrange
@@ -151,4 +162,6 @@ public sealed class MarkConstructorCodeFixTests
         // Assert
         await Assert.That(ids).IsEquivalentTo(["DYNA005"]);
     }
+
+    private static (string, string)[] Document(string constructors) => CodeFixRun.One("[DynamoDbDocument]\npublic partial class A\n{\n    " + constructors + Members);
 }

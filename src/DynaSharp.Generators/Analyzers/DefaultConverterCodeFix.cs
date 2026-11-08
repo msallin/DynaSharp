@@ -39,6 +39,7 @@ internal sealed class DefaultConverterCodeFix : CodeFixProvider
             return;
         }
 
+        var text = await document.GetTextAsync(token).ConfigureAwait(false);
         foreach (var diagnostic in context.Diagnostics)
         {
             // A type that is missing or open generic is the author's to name.
@@ -51,13 +52,13 @@ internal sealed class DefaultConverterCodeFix : CodeFixProvider
             var type = ((TypeOfExpressionSyntax)attribute.ArgumentList!.Arguments[0].Expression).Type;
             if (fix == RemoveKey)
             {
-                var removal = SourceEdits.RemoveAttribute(root.SyntaxTree.GetText(token), attribute);
-                context.RegisterCodeFix(CodeAction.Create("Remove the second default for " + type, edit => SourceEdits.ApplyAsync(document, [removal], edit), RemoveKey), diagnostic);
+                var removal = SourceEdits.RemoveAttribute(text, attribute);
+                context.RegisterCodeFix(CodeAction.Create("Remove the second default for " + type.ToString(), edit => SourceEdits.ApplyAsync(document, [removal], edit), RemoveKey), diagnostic);
             }
             else if (type is NullableTypeSyntax nullable)
             {
                 var change = new TextChange(nullable.QuestionToken.Span, string.Empty);
-                context.RegisterCodeFix(CodeAction.Create("Drop the ? of " + nullable, edit => SourceEdits.ApplyAsync(document, [change], edit), UnwrapKey), diagnostic);
+                context.RegisterCodeFix(CodeAction.Create("Drop the ? of " + nullable.ToString(), edit => SourceEdits.ApplyAsync(document, [change], edit), UnwrapKey), diagnostic);
             }
         }
     }

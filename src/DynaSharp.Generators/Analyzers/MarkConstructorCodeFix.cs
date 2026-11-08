@@ -24,6 +24,10 @@ internal sealed class MarkConstructorCodeFix : CodeFixProvider
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.NoUsableConstructor.Id];
 
     /// <inheritdoc/>
+    /// <remarks>None: each fix chooses a constructor of one type.</remarks>
+    public override FixAllProvider? GetFixAllProvider() => null;
+
+    /// <inheritdoc/>
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var document = context.Document;
@@ -38,7 +42,8 @@ internal sealed class MarkConstructorCodeFix : CodeFixProvider
             var candidates = ConstructorBinder.Candidates(type);
 
             // Where several have the attribute, the fix is to keep it on one of them.
-            var offered = candidates.Count(ConstructorBinder.IsMarked) > 1 ? candidates.Where(ConstructorBinder.IsMarked).ToList() : candidates;
+            List<IMethodSymbol> marked = [.. candidates.Where(ConstructorBinder.IsMarked)];
+            var offered = marked.Count > 1 ? marked : candidates;
             for (var index = 0; index < offered.Count; index++)
             {
                 if (Plan(solution, compilation, offered[index], candidates, token) is { } changes)

@@ -3,7 +3,6 @@ using System.Composition;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DynaSharp.Generators;
 
@@ -30,12 +29,13 @@ internal sealed class RemoveEnumAttributeCodeFix : CodeFixProvider
         var document = context.Document;
         var token = context.CancellationToken;
         var root = (await document.GetSyntaxRootAsync(token).ConfigureAwait(false))!;
+        var text = await document.GetTextAsync(token).ConfigureAwait(false);
         foreach (var diagnostic in context.Diagnostics)
         {
             // The analyzer reports nothing in generated code.
             if (SourceEdits.AttributeAt(root, diagnostic.Location.SourceSpan) is { } attribute)
             {
-                var removal = SourceEdits.RemoveAttribute(root.SyntaxTree.GetText(token), attribute);
+                var removal = SourceEdits.RemoveAttribute(text, attribute);
                 context.RegisterCodeFix(CodeAction.Create("Remove [DynamoDbEnum]", edit => SourceEdits.ApplyAsync(document, [removal], edit), Key), diagnostic);
             }
         }

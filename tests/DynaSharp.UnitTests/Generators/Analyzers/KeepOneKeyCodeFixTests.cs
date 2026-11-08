@@ -101,6 +101,19 @@ public sealed class KeepOneKeyCodeFixTests
     }
 
     [Test]
+    public async Task GetFixAllProvider_IsNone()
+    {
+        // Arrange
+        var fix = new KeepOneKeyCodeFix();
+
+        // Act
+        var provider = fix.GetFixAllProvider();
+
+        // Assert
+        await Assert.That(provider).IsNull();
+    }
+
+    [Test]
     public async Task FixableDiagnosticIds_IsTheRule()
     {
         // Arrange

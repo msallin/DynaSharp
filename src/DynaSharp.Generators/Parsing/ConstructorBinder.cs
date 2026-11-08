@@ -39,18 +39,18 @@ internal static class ConstructorBinder
         return constructor;
     }
 
+    /// <summary>The constructors a read can use, all but the copy constructor of a record.</summary>
+    public static List<IMethodSymbol> Candidates(INamedTypeSymbol type) => [.. type.InstanceConstructors.Where(constructor => !IsCopyConstructor(type, constructor))];
+
+    /// <summary>Whether a constructor has <c>[DynamoDbConstructor]</c>.</summary>
+    public static bool IsMarked(IMethodSymbol constructor) => AttributeReader.Find(constructor, WellKnownNames.ConstructorAttribute) is not null;
+
     private static string Modifier(RefKind kind) => kind switch
     {
         RefKind.Ref => "ref",
         RefKind.Out => "out",
         _ => "ref readonly",
     };
-
-    /// <summary>The constructors a read can use, all but the copy constructor of a record.</summary>
-    public static List<IMethodSymbol> Candidates(INamedTypeSymbol type) => type.InstanceConstructors.Where(constructor => !IsCopyConstructor(type, constructor)).ToList();
-
-    /// <summary>Whether a constructor has <c>[DynamoDbConstructor]</c>.</summary>
-    public static bool IsMarked(IMethodSymbol constructor) => AttributeReader.Find(constructor, WellKnownNames.ConstructorAttribute) is not null;
 
     private static IMethodSymbol? Choose(INamedTypeSymbol type)
     {

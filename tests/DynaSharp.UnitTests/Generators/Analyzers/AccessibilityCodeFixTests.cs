@@ -18,6 +18,7 @@ public sealed class AccessibilityCodeFixTests
     [Arguments("[System.Flags] enum Hidden { One } [DynamoDbAttribute(\"x\")] internal Hidden X { get; set; }", "[System.Flags] internal enum Hidden { One } [DynamoDbAttribute(\"x\")] internal Hidden X { get; set; }")]
     [Arguments("sealed class Hidden { } [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }", "internal sealed class Hidden { } [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }")]
     [Arguments("record Hidden(int V); [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }", "internal record Hidden(int V); [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }")]
+    [Arguments("private enum Hidden { One } [DynamoDbAttribute(\"x\")] internal System.Collections.Generic.Dictionary<Hidden, dynamic> X { get; set; } = [];", "internal enum Hidden { One } [DynamoDbAttribute(\"x\")] internal System.Collections.Generic.Dictionary<Hidden, dynamic> X { get; set; } = [];")]
     [Arguments("delegate int Hidden(); [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }", "internal delegate int Hidden(); [DynamoDbAttribute(\"x\")] internal Hidden? X { get; set; }")]
     public async Task Fix_PropertyOfAPrivateType_MakesTheTypeInternal(string members, string expected)
     {
@@ -29,6 +30,19 @@ public sealed class AccessibilityCodeFixTests
 
         // Assert
         await Assert.That(fixedFiles["Order.cs"]).IsEqualTo(CodeFixRun.Header + "[DynamoDbDocument] public partial class A { " + expected + " }");
+    }
+
+    [Test]
+    public async Task Fix_FileLocalType_MakesItInternal()
+    {
+        // Arrange
+        var files = CodeFixRun.One("file enum Hidden { One }\n[DynamoDbDocument] public partial class A { [DynamoDbAttribute(\"x\")] internal Hidden X { get; set; } }");
+
+        // Act
+        var fixedFiles = await Run.FixAsync(Key, files);
+
+        // Assert
+        await Assert.That(fixedFiles["Order.cs"]).StartsWith(CodeFixRun.Header + "internal enum Hidden { One }\n");
     }
 
     [Test]

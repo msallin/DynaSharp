@@ -16,6 +16,7 @@ public sealed class SourceEditsTests
     [Arguments("class C { [B] [A] int X; }", "class C { [B] int X; }")]
     [Arguments("class C { void M([A]int x) { } }", "class C { void M(int x) { } }")]
     [Arguments("class C { [A, B] int X; }", "class C { [B] int X; }")]
+    [Arguments("class C\n{\n\t[A]\n\tint X;\n}", "class C\n{\n\tint X;\n}")]
     [Arguments("class C { [B, A] int X; }", "class C { [B] int X; }")]
     [Arguments("class C { [B,\n    A,\n    D] int X; }", "class C { [B,\n    D] int X; }")]
     public async Task RemoveAttribute_Attribute_TakesItsListOrCommaAndSpaceWithIt(string source, string expected)
@@ -43,8 +44,8 @@ public sealed class SourceEditsTests
     {
         // Arrange
         var (text, root) = Parse(source);
-        SyntaxNode declaration = root.DescendantNodes().OfType<FieldDeclarationSyntax>().FirstOrDefault() as SyntaxNode
-            ?? root.DescendantNodes().OfType<ParameterSyntax>().FirstOrDefault() as SyntaxNode
+        var declaration = (SyntaxNode?)root.DescendantNodes().OfType<FieldDeclarationSyntax>().FirstOrDefault()
+            ?? (SyntaxNode?)root.DescendantNodes().OfType<ParameterSyntax>().FirstOrDefault()
             ?? root.DescendantNodes().OfType<TypeDeclarationSyntax>().First();
 
         // Act
@@ -117,6 +118,20 @@ public sealed class SourceEditsTests
 
         // Assert
         await Assert.That(generated).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task PropertyOf_PropertyOfABaseType_FindsIt()
+    {
+        // Arrange
+        var compilation = GeneratorRun.CreateCompilation("public class Base { public int X { get; set; } } public class Derived : Base { }", LanguageVersion.Latest);
+        var derived = compilation.GetTypeByMetadataName("Derived")!;
+
+        // Act
+        var property = SourceEdits.PropertyOf(derived, "X");
+
+        // Assert
+        await Assert.That(property.ContainingType.Name).IsEqualTo("Base");
     }
 
     private static (SourceText Text, SyntaxNode Root) Parse(string source)
