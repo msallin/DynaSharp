@@ -58,14 +58,13 @@ internal readonly struct BatchWriteOperation : IBatchOperation<BatchWriteResult>
 
     /// <summary>Writes a delete of a key of attribute values.</summary>
     /// <param name="state">The state of the command.</param>
-    /// <param name="table">The table.</param>
+    /// <param name="table">The table, one without a schema, so it has no version to settle.</param>
     /// <param name="partitionKey">The partition key.</param>
     /// <param name="sortKey">The sort key, or the default value if there is none.</param>
     public static void AddDelete(CommandState state, TableModel table, AttributeValue partitionKey, AttributeValue sortKey)
     {
         // {"DeleteRequest":{"Key":{"pk":{"S":"a"}}}}
         table.CheckKey(partitionKey, sortKey);
-        WriteRules.NoteBatchWrite(state, table);
         var body = state.Body;
         state.Actions.Add(table, body.WrittenCount);
         body.Append("{\"DeleteRequest\":{\"Key\":"u8);

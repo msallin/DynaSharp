@@ -82,7 +82,6 @@ internal static class PageResponse
         OperationJson.ReadStartArray(ref reader);
         var from = reader;
         var fromPosition = 0;
-        var skippedCount = 0;
         var items = new ArrayBuilder<T>(ArrayPool<T>.Shared);
         try
         {
@@ -105,7 +104,7 @@ internal static class PageResponse
                 }
                 catch (DynamoDbMappingException failure)
                 {
-                    var position = items.Count + skippedCount - fromPosition;
+                    var position = items.Count - fromPosition;
                     failure.Key = FailedItem.KeyOf(from, position, state.Table);
                     if (state.Read.OnMappingFailure is null)
                     {
@@ -115,9 +114,8 @@ internal static class PageResponse
                     // The keys of a fan-out go with the items, so the entry of this one goes, and so does what a key that failed wrote of itself.
                     keys?.Truncate(items.Count + 1);
                     (skipped ??= []).Add(failure);
-                    skippedCount++;
                     FailedItem.Skip(ref from, position + 1);
-                    fromPosition = items.Count + skippedCount;
+                    fromPosition = items.Count;
                     reader = from;
                 }
             }

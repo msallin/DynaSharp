@@ -59,9 +59,6 @@ internal sealed class ParallelScan<T>
                     yield return item;
                 }
             }
-
-            // Segments that were stopped end quietly, and from here that looks like the end of the scan.
-            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
