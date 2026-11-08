@@ -39,7 +39,7 @@ internal static partial class CredentialsLog
     [LoggerMessage(
         EventId = 25,
         Level = LogLevel.Warning,
-        Message = "STS is reached at {Host} over plain http. The web identity token in the request and the session token in the response travel unencrypted.")]
+        Message = "STS is reached at {Host} over plain http. The request, its token and the credentials in the response travel unencrypted.")]
     public static partial void UnencryptedStsEndpoint(ILogger logger, string host);
 
     [LoggerMessage(EventId = 26, Level = LogLevel.Debug, Message = "The profile '{Profile}' gets its credentials from {Source}.")]
@@ -65,4 +65,10 @@ internal static partial class CredentialsLog
         Level = LogLevel.Warning,
         Message = "The local clock differs from the STS clock by {Offset}. The signing time is corrected and the request is sent again.")]
     public static partial void ClockSkewCorrected(ILogger logger, TimeSpan offset);
+
+    [LoggerMessage(
+        EventId = 31,
+        Level = LogLevel.Warning,
+        Message = "The IAM Identity Center endpoint {Host} is reached over plain http. The access token, the client secret and the credentials travel unencrypted.")]
+    public static partial void UnencryptedSsoEndpoint(ILogger logger, string host);
 }

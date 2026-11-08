@@ -51,6 +51,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     private readonly CredentialsDependencies _dependencies;
     private readonly ILogger _logger;
     private readonly RefreshingCredentialsCache _cache;
+    private int _unencryptedWarned;
 
     /// <summary>Initializes a new instance of the <see cref="SsoCredentialsProvider"/> class.</summary>
     /// <param name="startUrl">The start URL of the portal, for example <c>https://my-sso-portal.awsapps.com/start</c>: <c>sso_start_url</c>.</param>
@@ -300,14 +301,22 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
 
     private Uri ResolveEndpoint(string variable, Uri regional)
     {
+        Uri endpoint;
         try
         {
-            return ClientConfiguration.FindEndpointInEnvironment(_dependencies.GetEnvironmentVariable, variable).Endpoint ?? regional;
+            endpoint = ClientConfiguration.FindEndpointInEnvironment(_dependencies.GetEnvironmentVariable, variable).Endpoint ?? regional;
         }
         catch (InvalidOperationException exception)
         {
             throw new CredentialsUnavailableException(exception.Message, exception);
         }
+
+        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
+        {
+            CredentialsLog.UnencryptedSsoEndpoint(_logger, endpoint.Host);
+        }
+
+        return endpoint;
     }
 
     // botocore's SSOTokenLoader: the file is named by the SHA-1 of the session name, or of the start URL without a session.

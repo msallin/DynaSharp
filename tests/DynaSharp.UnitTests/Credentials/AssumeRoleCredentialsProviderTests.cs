@@ -554,6 +554,41 @@ public sealed class AssumeRoleCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_HttpEndpointOnRemoteHost_WarnsOnceAcrossFetches()
+    {
+        // Arrange: an STS emulator in docker-compose, reached by its service name
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Settings("s") with { Endpoint = new Uri("http://sts-emulator:4566") }, loggers: logs);
+        var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+        world.Provider.TryInvalidate(first);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert (the drop logs event 23 besides)
+        await Assert.That((world.Handler.Requests.Count, logs.Entries.Where(static entry => entry.EventId.Id != 23).Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())).IsEqualTo((
+            2,
+            (25, LogLevel.Warning, "STS is reached at sts-emulator over plain http. The request, its token and the credentials in the response travel unencrypted.")));
+    }
+
+    [Test]
+    [Arguments("http://localhost:4566")]
+    [Arguments("http://127.0.0.1:4566")]
+    [Arguments("https://sts.example.com")]
+    public async Task GetCredentialsAsync_HttpsOrLoopbackEndpoint_LogsNoWarning(string endpoint)
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Settings("s") with { Endpoint = new Uri(endpoint) }, loggers: logs);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries).IsEmpty();
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_Retried_SignsEachAttemptAnew()
     {
         // Arrange (a signature carries its time, so a resend after a pause has one of its own)

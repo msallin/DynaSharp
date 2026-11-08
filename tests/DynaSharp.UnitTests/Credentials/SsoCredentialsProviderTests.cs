@@ -4,6 +4,7 @@ using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Generators;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
@@ -298,6 +299,41 @@ public sealed class SsoCredentialsProviderTests
         // Assert
         await Assert.That(string.Join('\n', logs.Entries.Select(entry => $"{entry.Level} {entry.EventId.Id} {entry.Message}")))
             .IsEqualTo("Debug 29 The cached SSO token of the sso-session 'my-sso' was refreshed.");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_HttpEndpointsOnRemoteHosts_WarnsOnceForBoth()
+    {
+        // Arrange: emulators in docker-compose, reached by their service names; the token is renewed first, so both endpoints are used
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Session, logs: logs, variables: [("AWS_ENDPOINT_URL_SSO", "http://sso-emulator:4566"), ("AWS_ENDPOINT_URL_SSO_OIDC", "http://oidc-emulator:4566")]);
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddMinutes(14), refreshToken: "old-refresh");
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((world.Handler.Requests.Count, logs.Entries.Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())).IsEqualTo((
+            2,
+            (31, LogLevel.Warning, "The IAM Identity Center endpoint oidc-emulator is reached over plain http. The access token, the client secret and the credentials travel unencrypted.")));
+    }
+
+    [Test]
+    [Arguments("http://localhost:4566")]
+    [Arguments("http://[::1]:4566")]
+    [Arguments("https://sso.example.com")]
+    public async Task GetCredentialsAsync_HttpsOrLoopbackEndpoints_LogsNoWarning(string endpoint)
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Session, logs: logs, variables: [("AWS_ENDPOINT_URL_SSO", endpoint), ("AWS_ENDPOINT_URL_SSO_OIDC", endpoint)]);
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddMinutes(14), refreshToken: "old-refresh");
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((world.Handler.Requests.Count, logs.Entries.Count)).IsEqualTo((2, 0));
     }
 
     [Test]

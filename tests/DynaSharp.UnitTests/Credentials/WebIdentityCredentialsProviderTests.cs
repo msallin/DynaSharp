@@ -836,7 +836,7 @@ public sealed class WebIdentityCredentialsProviderTests
         // Assert (the drop logs event 23 besides)
         await Assert.That((world.Handler.Requests.Count, logs.Entries.Where(static entry => entry.EventId.Id != 23).Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())).IsEqualTo((
             2,
-            (25, LogLevel.Warning, "STS is reached at sts-emulator over plain http. The web identity token in the request and the session token in the response travel unencrypted.")));
+            (25, LogLevel.Warning, "STS is reached at sts-emulator over plain http. The request, its token and the credentials in the response travel unencrypted.")));
     }
 
     [Test]

@@ -53,6 +53,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private readonly CredentialsDependencies _dependencies;
     private readonly ILogger _logger;
     private readonly RefreshingCredentialsCache _cache;
+    private int _unencryptedWarned;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AssumeRoleCredentialsProvider"/> class.
@@ -234,6 +235,11 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private async ValueTask<CredentialsOutcome> FetchAsync()
     {
         var (endpoint, signingRegion) = ResolveEndpoint();
+        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
+        {
+            CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
+        }
+
         var source = await GetSourceCredentialsAsync().ConfigureAwait(false);
         var body = CreateBody();
         var payloadHash = SHA256.HashData(Encoding.UTF8.GetBytes(body));
