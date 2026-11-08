@@ -66,7 +66,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA034` (warning): a property of a base type whose setter the derived entity or document cannot reach, such as `public string Status { get; private set; }` on the base. The base stores it, but the generated code of the derived type cannot assign it, so the derived type leaves it out of its items, and what the base type keeps is lost for the derived one.
 
-- **Fix.** Make the setter `protected`, or `internal` within one assembly, or set the property through a constructor parameter. Where no type is to store it, mark it `[DynamoDbIgnore]`.
+- **Fix.** Make the setter `protected`, or `internal` within one assembly, or set the property through a constructor parameter. Where no type is to store it, mark it `[DynamoDbIgnore]`. The code fix offers the `protected` setter and `[DynamoDbIgnore]` where the base type is in source.
 - **Not reported.** A property without a setter, which is computed, and one with `[DynamoDbAttribute]` or a key attribute, which is written and never read. A base type in a compiled assembly, which shows the compiler no setter that is not public, so the property looks computed.
 
 `DYNA035` (warning): a nullable property that starts with a value, such as `public string? Note { get; set; } = "n/a";`, a `required` one too, or a constructor parameter of one with a default, such as `string? Note = "n/a"` in a positional record. A write leaves null out of the item, and a read of an item without the attribute keeps the initial value, so `Note = null` reads back as `"n/a"`.
