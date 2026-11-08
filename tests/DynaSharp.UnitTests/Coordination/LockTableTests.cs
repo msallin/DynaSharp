@@ -431,6 +431,105 @@ public sealed class LockTableTests
     }
 
     [Test]
+    public async Task TryAcquireAsync_WriteMeetsTheHoldersTransaction_ReturnsNullAfterReadingTheItem()
+    {
+        // Arrange (the holder fences a write with IsHeld, and the acquire meets its transaction on the lock item)
+        using var bench = new LockHarness();
+        await using var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", Lease);
+        bench.Intercept = (request, _) => Task.FromResult<StubResponse?>(request.Operation == "UpdateItem" ? TransactionConflict() : null);
+
+        // Act
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((lease, string.Join(",", bench.Handler.Requests.Select(static request => request.Operation)))).IsEqualTo(((Lease?)null, "UpdateItem,GetItem"));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_WriteMeetsATransactionOnAFreeLock_ReturnsNullAndTriesAgainByWriting()
+    {
+        // Arrange (a transaction holds the item of a free lock, and the read after the conflict finds it free)
+        using var bench = new LockHarness();
+        bench.Intercept = (request, _) => Task.FromResult<StubResponse?>(request.Operation == "UpdateItem" && bench.Handler.Requests.Count == 1 ? TransactionConflict() : null);
+        var first = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Act
+        await using var second = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((first, second?.FencingToken, string.Join(",", bench.Handler.Requests.Select(static request => request.Operation))))
+            .IsEqualTo(((Lease?)null, (long?)1L, "UpdateItem,GetItem,UpdateItem"));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_TakeOverMeetsATransaction_TakesOverOnTheNextTry()
+    {
+        // Arrange (the contender waited out a silent holder; its takeover meets a transaction, which changes no record version)
+        using var bench = new LockHarness();
+        await using var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", Lease);
+        await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Clock.Advance(Lease);
+        var conflicts = 0;
+        bench.Intercept = (request, _) => Task.FromResult<StubResponse?>(request.Operation == "UpdateItem" && conflicts++ == 0 ? TransactionConflict() : null);
+        var refused = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Act
+        await using var taken = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((refused, taken?.FencingToken)).IsEqualTo(((Lease?)null, (long?)2L));
+    }
+
+    [Test]
+    public async Task AcquireAsync_WriteMeetsTheHoldersTransaction_WaitsAndAcquiresOnceReleased()
+    {
+        // Arrange (the first write meets the holder's transaction; the contender waits as for a held lock, and the holder releases)
+        using var bench = new LockHarness();
+        var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", Lease);
+        var conflicts = 0;
+        bench.Intercept = (request, _) => Task.FromResult<StubResponse?>(request.Operation == "UpdateItem" && conflicts++ == 0 ? TransactionConflict() : null);
+        var waiting = bench.Locks.AcquireAsync("job", Lease);
+        SpinWait.SpinUntil(() => bench.Clock.ActiveTimers == 1, TimeSpan.FromSeconds(10));
+        await holder!.DisposeAsync();
+
+        // Act
+        bench.Clock.Advance(Lease / 3);
+        await using var lease = await waiting.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        await Assert.That(lease.FencingToken).IsEqualTo(2L);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_ResponseLostAndRetryMeetsATransaction_HoldsTheLockTheFirstAttemptTook()
+    {
+        // Arrange (the first acquire is applied and its answer lost, and the retry of the client meets a transaction on the item)
+        using var bench = new LockHarness(maxAttempts: 2);
+        var updates = 0;
+        bench.Intercept = (request, _) =>
+        {
+            if (request.Operation != "UpdateItem")
+            {
+                return Task.FromResult<StubResponse?>(null);
+            }
+
+            if (updates++ == 0)
+            {
+                bench.Fake.Answer(request);
+                return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Lost.", HttpStatusCode.InternalServerError));
+            }
+
+            return Task.FromResult<StubResponse?>(TransactionConflict());
+        };
+
+        // Act
+        await using var lease = await bench.RunAsync(bench.Locks.TryAcquireAsync("job", Lease), TimeSpan.FromMilliseconds(10));
+
+        // Assert
+        await Assert.That((lease!.FencingToken, lease.Owner, lease.Ended.IsCancellationRequested)).IsEqualTo((1L, bench.ItemOf("job")!.GetString("owner")!, false));
+    }
+
+    [Test]
     [Arguments("no rvn", "rvn")]
     [Arguments("owner a number", "owner")]
     [Arguments("rvn a number", "rvn")]
@@ -1023,4 +1122,7 @@ public sealed class LockTableTests
         // Assert
         await Assert.That(bench.ItemOf("job")!.Count).IsEqualTo(7);
     }
+
+    private static StubResponse TransactionConflict() =>
+        StubResponse.DynamoDbError("TransactionConflictException", "Transaction is ongoing for the item");
 }

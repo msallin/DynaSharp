@@ -186,6 +186,10 @@ public sealed class LockTable
     /// consistent <c>GetItem</c> first, and writes only if the lock is free or the holder is due for a takeover. So a contender that waits for a live holder
     /// sends reads, and a failed conditional write happens only when contenders race for a lock that is free or due.
     /// </para>
+    /// <para>
+    /// <b>A transaction on the item.</b> A write that meets a transaction on the lock item, such as the holder's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, counts as
+    /// refused, not as an error: it reads the item and returns <see langword="null"/> while the lock is held, and the <see cref="TransactionConflictException"/> does not reach the caller.
+    /// </para>
     /// </remarks>
     /// <param name="name">The name of the lock. Every process that names it contends for the same item.</param>
     /// <param name="leaseDuration">How long the lease lasts without a renewal, from <see cref="MinLeaseDuration"/> to <see cref="MaxLeaseDuration"/>. The lease renews itself every third of it.</param>
@@ -223,7 +227,7 @@ public sealed class LockTable
     /// <para>
     /// <b>Polling.</b> While another holder has the lock it reads the item every third of that holder's lease, or every 10 seconds if that is sooner, and takes the lock over once the
     /// holder has not renewed it for a whole lease, measured on the monotonic clock of the client from the first time this saw that record version. The wait sends one strongly consistent <c>GetItem</c> per poll and no write while the holder renews; it writes when it finds the lock free or the
-    /// holder due, see <see cref="TryAcquireAsync"/>.
+    /// holder due, see <see cref="TryAcquireAsync"/>. A try that meets a transaction on the lock item, such as the holder's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, is refused and waits as for a held lock.
     /// </para>
     /// <para>
     /// <b>Giving up.</b> A process that must not wait for a live holder takes the overload with a wait of a little more than one lease, <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>: that is long enough to take over the
@@ -479,12 +483,13 @@ public sealed class LockTable
             var takenOver = before?.ContainsKey(LockItem.Owner) == true;
             return Acquired(name, owner, LockItem.FencingTokenOf(before, name, Table.Name) + 1, leaseDuration, sent, takenOver ? new(due!, LockItem.HolderLabelOf(before)) : null);
         }
-        catch (ConditionalCheckFailedException exception)
+        catch (DynamoDbException exception) when (exception is ConditionalCheckFailedException or TransactionConflictException)
         {
-            // The item that failed the condition comes with the answer; a service that does not send it, such as an emulator, costs a read. The client
-            // retries a request whose response was lost, and the retry fails the condition that its first attempt met: then the owner is this one, and
-            // the lock is ours.
-            var item = exception.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+            // The item that failed the condition comes with the answer; a service that does not send it, such as an emulator, costs a read. A transaction
+            // that holds the item, such as a holder's IsHeld, is a refusal too, and the read says by whom; it changes no record version, so the watch of
+            // the holder goes on as it was. The client retries a request whose response was lost, and the retry fails the condition that its first
+            // attempt met, or meets a transaction: then the owner is this one, and the lock is ours.
+            var item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
                 ? Acquired(name, owner, LockItem.FencingTokenOf(item, name, Table.Name), leaseDuration, sent, null)

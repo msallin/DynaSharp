@@ -140,7 +140,9 @@ While another holder has the lock, `AcquireAsync` polls every third of that hold
 
 A poll is a read. A `LockTable` that has not seen the lock held yet writes at once, which costs a free lock a single request; if the lock is held, the failed write brings the item along, and from then on each poll is one strongly consistent `GetItem`. It writes again only when it reads the lock free or when the holder is due for a takeover. So a process that waits for a live leader costs one read per poll and no failed conditional write, which keeps `ConditionalCheckFailedRequests` in CloudWatch for real conflicts: a failed write happens when contenders race for a lock that is free or due, and once when a `LockTable` first meets a held lock.
 
-A takeover raises the fencing token, as every acquire does. If an acquire is retried by the client after its response was lost, the retry finds its own owner in the item, and the lease is the one the first attempt took. An acquire that is cancelled after its write reached DynamoDB leaves a lock that nobody holds until its lease runs out.
+An acquire whose write meets a transaction on the lock item, such as the holder's [`IsHeld`](#fencing), gets `TransactionConflictException` from DynamoDB, which the client does not retry. The `LockTable` counts it as refused: it reads the item, `TryAcquireAsync` returns `null` while the lock is held, and `AcquireAsync` waits as for any held lock, or tries again at once if the read finds it free. The transaction changes no record version, so the watch towards a takeover goes on as it was.
+
+A takeover raises the fencing token, as every acquire does. If an acquire is retried by the client after its response was lost, the retry finds its own owner in the item, whether it failed its condition or met a transaction, and the lease is the one the first attempt took. An acquire that is cancelled after its write reached DynamoDB leaves a lock that nobody holds until its lease runs out.
 
 ## Fencing
 

@@ -121,6 +121,7 @@ Git history has the detail; each line says what an area delivered and where it l
 - Streams readers (`src/DynaSharp/Streams`): `ReadShardAsync`, `ReadStreamAsync` (whole stream, transient failures read through), typed `ReadChangesAsync` and `As<T>()`.
 - R1 to R19: signed tokens, `OnMappingFailure`, `DYNA230`-`DYNA234`, sparse-key copy, table drift checks, `ForEmulator`, `[TimeToLive]`, `IncludingAll()`, JSON bridge, declared tables and `TableNaming`, generated keys only on typed tables, R15 without compatibility shapes, property-based tests (`tests/DynaSharp.UnitTests/Properties`).
 - M7 `DynaSharp.Coordination`: `LockTable`, `Lease` with fencing tokens and `IsHeld`, `RunAsLeaderAsync`, `Lease.Current`, `DynaSharp.Coordination.Testing`. Recipes for queue and hi/lo.
+- Coordination: an acquire whose write meets a transaction on the lock item (`TransactionConflictException`, which the client does not retry and which escaped `TryAcquireAsync`/`AcquireAsync`) counts as refused: a consistent read, the usual wait, the sighting kept, and the response-lost retry that meets one still finds its own owner (2026-11-08).
 - Releases 0.1.0 (2026-11-03) to 0.8.0 with trusted publishing; `build/ship-public-api.sh` checked by `release.yml`.
 - Docs site (DocFX): guide, diagnostics page, API reference; the docs pass after 0.8.0.
 - Stryker survivors of `fluent` and `core` on `e78cb67`: verdicts below, what is left under Open.
