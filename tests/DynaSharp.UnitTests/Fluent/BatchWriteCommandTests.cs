@@ -1150,7 +1150,7 @@ public sealed class BatchWriteCommandTests
     [Test]
     public async Task DeleteAll_SequenceOfTheKeyInterface_WritesTheSame()
     {
-        // Arrange (the form history/api-design.md names: a struct key does not convert to it by variance, so each is boxed)
+        // Arrange (a sequence of the key interface: a struct key does not convert to it by variance, so each is boxed)
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var customers = client.Table<Customer>("Shop");

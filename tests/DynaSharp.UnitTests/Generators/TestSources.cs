@@ -47,7 +47,7 @@ internal static class TestSources
         }
         """;
 
-    // The input of history/generator-design.md section 4, and the fixed start of the emitters.
+    // The order model of the shop (keys, indexes, documents, collections), and the fixed start of the emitters.
     public const string SectionFourOrder = """
         using System;
         using System.Collections.Generic;

@@ -16,14 +16,14 @@ namespace DynaSharp.Benchmarks;
 /// <summary>
 /// The command API over canned HTTP, against the request API on the same handler. A call builds what it needs, as a caller does; the entity and its
 /// strings exist already, so what is counted is the cost of the API. The body group stops before the pipeline, so it shows the cost of
-/// building a body alone. The targets are in spec/history/api-layers-proposal.md: 1.41 KB for a write, 2.44 KB for a read of an
+/// building a body alone. The targets, measured when the command API was chosen: 1.41 KB for a write, 2.44 KB for a read of an
 /// <see cref="Item"/> and 2.16 KB for a typed read, and 300 to 400 ns for the update body. The Query group reads one last page of 100 items, as the request API
 /// does at 98.1 KB. The Paging group reads ten pages that a filter left empty, so that what is left is the cost of a page: its <c>Next</c> group mate
 /// is one page, which <see cref="Paging_OneEmptyPage"/> subtracts. A transaction of 2 puts is 2.04 KB with fresh items of 3 and 4
 /// attributes and 1.41 KB with entities the caller holds, a batch of 25 is 6.30 KB with fresh items of 3 attributes and 1.41 KB, and a batch of 60, which takes
 /// 3 requests, is 15.96 KB and 4.24 KB. The items of the untyped rows are the object of the caller, not of the path. The Suspending group answers from a handler that
 /// yields, which moves the state machines to the heap as a network does: 1.55 KB for a put of 8 attributes and 1.67 KB for a get of 3. The read of 3 of 10 attributes of a
-/// page is 98.56 KB untyped and 70.39 KB typed. The proposal has no number for Delete, BatchGet and TransactGet, so these rows stand on their own.
+/// page is 98.56 KB untyped and 70.39 KB typed. There is no target for Delete, BatchGet and TransactGet, so these rows stand on their own.
 /// </summary>
 [MemoryDiagnoser]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
