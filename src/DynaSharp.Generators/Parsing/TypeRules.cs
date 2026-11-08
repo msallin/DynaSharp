@@ -231,7 +231,7 @@ internal static class TypeRules
                 if (model.GetSymbolInfo(name).Symbol is { } target && TakenOverName(target, type) is { } full)
                 {
                     var what = name.Identifier.ValueText == TableNameConstant ? "constant" : "class";
-                    bag.Report(Descriptors.NameTakenOverByGeneratedClass, Spot.Of(name.GetLocation()), name.Identifier.ValueText, full, type.Name, what);
+                    bag.Report(Descriptors.NameTakenOverByGeneratedClass, Spot.Of(name.GetLocation()), full, [name.Identifier.ValueText, full, type.Name, what]);
                 }
             }
         }

@@ -50,6 +50,6 @@ internal sealed class WrapInAttrCodeFix : CodeFixProvider
 
         var model = (await document.GetSemanticModelAsync(token).ConfigureAwait(false))!;
         var updated = root.ReplaceNode(value, wrapped);
-        return document.WithSyntaxRoot(AttrImport.Binds(model, span.Start, wrapped) ? updated : AttrImport.Add(updated));
+        return document.WithSyntaxRoot(SourceEdits.AttrBinds(model, span.Start, wrapped) ? updated : SourceEdits.AddExprImport(updated));
     }
 }

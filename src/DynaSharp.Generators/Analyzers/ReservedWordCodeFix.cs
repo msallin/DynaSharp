@@ -68,10 +68,10 @@ internal sealed class ReservedWordCodeFix : CodeFixProvider
     private static async Task<Document> InHolesAsync(Document document, Edit[] edits, CancellationToken token)
     {
         var model = (await document.GetSemanticModelAsync(token).ConfigureAwait(false))!;
-        var binds = edits.All(edit => AttrImport.Binds(model, edit.Span.Start, edit.Call));
+        var binds = edits.All(edit => SourceEdits.AttrBinds(model, edit.Span.Start, edit.Call));
         var text = (await document.GetTextAsync(token).ConfigureAwait(false)).WithChanges(edits.Select(static edit => new TextChange(edit.Span, edit.Hole)));
         var edited = document.WithText(text);
-        return binds ? edited : edited.WithSyntaxRoot(AttrImport.Add((CompilationUnitSyntax)(await edited.GetSyntaxRootAsync(token).ConfigureAwait(false))!));
+        return binds ? edited : edited.WithSyntaxRoot(SourceEdits.AddExprImport((CompilationUnitSyntax)(await edited.GetSyntaxRootAsync(token).ConfigureAwait(false))!));
     }
 
     /// <summary>A word, the hole that replaces it, and the call in the hole.</summary>

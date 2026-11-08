@@ -8,7 +8,7 @@ public sealed class ReadTerminalCodeFixTests
 {
     private const string Items = ReadTerminalCodeFix.ItemsKey;
 
-    private static readonly CodeFixFixture Fixture = new(string.Empty, new ReadTerminalAnalyzer(), new ReadTerminalCodeFix());
+    private static readonly CodeFixRun Fixture = new(new ReadTerminalCodeFix(), analyzer: new ReadTerminalAnalyzer()) { Model = string.Empty };
 
     [Test]
     [Arguments("""await shop.Query("a");""", new[] { "ItemAsync()", "PageAsync()", "CountAsync()" })]
@@ -43,7 +43,7 @@ public sealed class ReadTerminalCodeFixTests
         var source = Run(statement);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, ReadTerminalCodeFix.TerminalKey + terminal);
+        var fixedSource = await Fixture.FixAsync(ReadTerminalCodeFix.TerminalKey + terminal, source);
 
         // Assert
         await Assert.That((fixedSource, await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((Run(expected), string.Empty, 0));
@@ -59,7 +59,7 @@ public sealed class ReadTerminalCodeFixTests
             """);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, ReadTerminalCodeFix.TerminalKey + "ItemAsync");
+        var fixedSource = await Fixture.FixAsync(ReadTerminalCodeFix.TerminalKey + "ItemAsync", source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("""
@@ -77,7 +77,7 @@ public sealed class ReadTerminalCodeFixTests
         var source = Run(statement);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, Items);
+        var fixedSource = await Fixture.FixAsync(Items, source);
 
         // Assert
         await Assert.That((fixedSource, await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((Run(expected), string.Empty, 0));
@@ -93,7 +93,7 @@ public sealed class ReadTerminalCodeFixTests
             """);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, Items);
+        var fixedSource = await Fixture.FixAsync(Items, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("""
@@ -125,7 +125,7 @@ public sealed class ReadTerminalCodeFixTests
         var source = Run("""await shop.Query("a"); await shop.Scan(); await shop.Scan().Parallel(2);""");
 
         // Act
-        var fixedSource = await Fixture.FixAllAsync(source, ReadTerminalCodeFix.TerminalKey + "CountAsync", scope);
+        var fixedSource = await Fixture.FixAllAsync(ReadTerminalCodeFix.TerminalKey + "CountAsync", scope, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("""await shop.Query("a").CountAsync(); await shop.Scan().CountAsync(); await shop.Scan().Parallel(2);"""));

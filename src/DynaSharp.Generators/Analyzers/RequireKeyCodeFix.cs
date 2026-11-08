@@ -30,7 +30,7 @@ internal sealed class RequireKeyCodeFix : CodeFixProvider
     {
         var document = context.Document;
         var root = (await document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false))!;
-        if (GeneratedFiles.IsGenerated(root.SyntaxTree, context.CancellationToken))
+        if (SourceEdits.IsGenerated(root.SyntaxTree, context.CancellationToken))
         {
             return;
         }

@@ -36,7 +36,7 @@ public sealed class SettleVersionCodeFixTests
 
         """;
 
-    private static readonly CodeFixFixture Fixture = new(Model, new EntityCommandAnalyzer(), new SettleVersionCodeFix());
+    private static readonly CodeFixRun Fixture = new(new SettleVersionCodeFix(), analyzer: new EntityCommandAnalyzer()) { Model = Model };
 
     [Test]
     [Arguments(Ignore, """_ = locks.Update(lockKey).Set(Locked.Attrs.Owner, "o").ToRequestJson();""", """_ = locks.Update(lockKey).IgnoreVersion().Set(Locked.Attrs.Owner, "o").ToRequestJson();""")]
@@ -52,7 +52,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run(statement);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, key);
+        var fixedSource = await Fixture.FixAsync(key, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run(expected));
@@ -69,7 +69,7 @@ public sealed class SettleVersionCodeFixTests
             """);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, Ignore);
+        var fixedSource = await Fixture.FixAsync(Ignore, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("""
@@ -103,7 +103,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run("_ = locks.Delete(lockKey).ToRequestJson();");
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, IfVersion);
+        var fixedSource = await Fixture.FixAsync(IfVersion, source);
 
         // Assert (the placeholder names nothing)
         await Assert.That(await Fixture.CompilerErrorsAsync(fixedSource)).IsEquivalentTo(["CS0103"]);
@@ -116,7 +116,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run("_ = locks.Delete(lockKey).ToRequestJson();");
 
         // Act
-        var fixedSource = (await Fixture.FixAsync(source, IfVersion)).Replace("IfVersion(version)", "IfVersion(held.Revision)", StringComparison.Ordinal);
+        var fixedSource = (await Fixture.FixAsync(IfVersion, source)).Replace("IfVersion(version)", "IfVersion(held.Revision)", StringComparison.Ordinal);
 
         // Assert
         await Assert.That((await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((string.Empty, 0));
@@ -129,7 +129,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run("""_ = locks.Update(lockKey).Set(Locked.Attrs.Owner, "o").ToRequestJson();""");
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, Ignore);
+        var fixedSource = await Fixture.FixAsync(Ignore, source);
 
         // Assert
         await Assert.That((await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((string.Empty, 0));
@@ -144,7 +144,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run(statement);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, Batch);
+        var fixedSource = await Fixture.FixAsync(Batch, source);
 
         // Assert
         await Assert.That((fixedSource, await Fixture.ReportAsync(fixedSource))).IsEqualTo((Run(expected), string.Empty));
@@ -172,7 +172,7 @@ public sealed class SettleVersionCodeFixTests
         var source = Run("_ = client.TransactWrite().Update(locks, lockKey).Delete(locks, lockKey).ToRequestJson(); _ = locks.Delete(lockKey).ToRequestJson();");
 
         // Act
-        var fixedSource = await Fixture.FixAllAsync(source, Ignore, scope);
+        var fixedSource = await Fixture.FixAllAsync(Ignore, scope, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("_ = client.TransactWrite().Update(locks, lockKey).IgnoreVersion().Delete(locks, lockKey).IgnoreVersion().ToRequestJson(); _ = locks.Delete(lockKey).IgnoreVersion().ToRequestJson();"));

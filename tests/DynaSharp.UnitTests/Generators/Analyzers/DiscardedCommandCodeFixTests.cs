@@ -29,7 +29,7 @@ public sealed class DiscardedCommandCodeFixTests
 
         """;
 
-    private static readonly CodeFixFixture Fixture = new(Model, new DiscardedCommandAnalyzer(), new DiscardedCommandCodeFix());
+    private static readonly CodeFixRun Fixture = new(new DiscardedCommandCodeFix(), analyzer: new DiscardedCommandAnalyzer()) { Model = Model };
 
     [Test]
     [Arguments("public static async Task Run() { orders.Put(order); }", new[] { Send, Discard })]
@@ -67,7 +67,7 @@ public sealed class DiscardedCommandCodeFixTests
         var source = AnalyzerRun.Member(Fields + member);
 
         // Act
-        var fixedSource = await Fixture.FixAsync(source, key);
+        var fixedSource = await Fixture.FixAsync(key, source);
 
         // Assert
         await Assert.That((fixedSource, await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((AnalyzerRun.Member(Fields + expected), string.Empty, 0));
@@ -82,7 +82,7 @@ public sealed class DiscardedCommandCodeFixTests
         var source = AnalyzerRun.Member(Fields + """public static async Task Run() { orders.Put(order); orders.Delete(order); shop.Query("a"); }""");
 
         // Act
-        var fixedSource = await Fixture.FixAllAsync(source, DiscardedCommandCodeFix.SendKey, scope);
+        var fixedSource = await Fixture.FixAllAsync(DiscardedCommandCodeFix.SendKey, scope, source);
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(AnalyzerRun.Member(Fields + """public static async Task Run() { await orders.Put(order).SendAsync(); await orders.Delete(order).SendAsync(); shop.Query("a"); }"""));

@@ -39,7 +39,7 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var document = context.Document;
-        var editable = !GeneratedFiles.IsGenerated((await document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false))!, context.CancellationToken);
+        var editable = !SourceEdits.IsGenerated((await document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false))!, context.CancellationToken);
         var project = await TargetAsync(document.Project, editable ? document : null, context.CancellationToken).ConfigureAwait(false);
         foreach (var diagnostic in context.Diagnostics)
         {
@@ -60,10 +60,6 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
 
     private static void Register(CodeFixContext context, Diagnostic diagnostic, string title, string key, Func<CancellationToken, Task<Document>> fix) =>
         context.RegisterCodeFix(CodeAction.Create(title, fix, key), diagnostic);
-
-    // The document of a tree of the compilation that can be edited, or null.
-    private static Document? Editable(Project project, SyntaxTree? tree, CancellationToken token) =>
-        project.GetDocument(tree) is { } document && !GeneratedFiles.IsGenerated(tree!, token) ? document : null;
 
     private static async Task<Document> DeclareAsync(Document document, Microsoft.CodeAnalysis.Text.TextSpan span, string arguments, CancellationToken token)
     {
@@ -126,12 +122,12 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
         var compilation = (await project.GetCompilationAsync(token).ConfigureAwait(false))!;
         if (AttributeReader.Find(compilation.Assembly, WellKnownNames.DefaultsAttribute)?.ApplicationSyntaxReference is { } defaults)
         {
-            return Editable(project, defaults.SyntaxTree, token) is { } document ? new Target(document.Id, defaults.Span) : null;
+            return SourceEdits.Editable(project.Solution, defaults.SyntaxTree, token) is { } document ? new Target(document.Id, defaults.Span) : null;
         }
 
         var beside = compilation.SyntaxTrees
             .Where(tree => ((CompilationUnitSyntax)tree.GetRoot(token)).AttributeLists.Count > 0)
-            .Select(tree => Editable(project, tree, token))
+            .Select(tree => SourceEdits.Editable(project.Solution, tree, token))
             .Where(document => document is not null)
             .OrderBy(document => document!.FilePath, StringComparer.Ordinal)
             .FirstOrDefault();
@@ -145,7 +141,7 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
         if (target.Defaults is { } span)
         {
             var defaults = (AttributeSyntax)root.FindNode(span);
-            return solution.WithDocumentSyntaxRoot(document.Id, root.ReplaceNode(defaults, WithOptOut(defaults)));
+            return solution.WithDocumentSyntaxRoot(document.Id, root.ReplaceNode(defaults, SourceEdits.WithNamedArgument(defaults, OptOutArgument, "true")));
         }
 
         var model = (await document.GetSemanticModelAsync(token).ConfigureAwait(false))!;
@@ -177,21 +173,6 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
         return solution.WithDocumentSyntaxRoot(document.Id, root.AddAttributeLists(list));
     }
 
-    private static AttributeSyntax WithOptOut(AttributeSyntax defaults)
-    {
-        var arguments = defaults.ArgumentList ?? SyntaxFactory.ParseAttributeArgumentList("()")!;
-        var existing = arguments.Arguments.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == OptOutArgument);
-        if (existing is not null)
-        {
-            var value = SyntaxFactory.ParseExpression("true").WithTriviaFrom(existing.Expression);
-            return defaults.ReplaceNode(existing.Expression, value);
-        }
-
-        var added = SyntaxFactory.ParseAttributeArgumentList("(" + OptOutArgument + " = true)")!.Arguments[0];
-        added = arguments.Arguments.Count > 0 ? added.WithLeadingTrivia(SyntaxFactory.Space) : added;
-        return defaults.WithArgumentList(arguments.AddArguments(added));
-    }
-
     /// <summary>Where the opt-out of a project goes: a document, and the span of its <c>[assembly: DynamoDbDefaults]</c>, or null to add one.</summary>
     private sealed record Target(DocumentId Document, Microsoft.CodeAnalysis.Text.TextSpan? Defaults);
 
@@ -220,7 +201,7 @@ internal sealed class DeclareDiscriminatorCodeFix : CodeFixProvider
             {
                 var diagnostics = await context.GetAllDiagnosticsAsync(project).ConfigureAwait(false);
                 var entity = diagnostics
-                    .Select(diagnostic => Editable(project, diagnostic.Location.SourceTree, token))
+                    .Select(diagnostic => SourceEdits.Editable(project.Solution, diagnostic.Location.SourceTree, token))
                     .Where(document => document is not null)
                     .OrderBy(document => document!.FilePath, StringComparer.Ordinal)
                     .FirstOrDefault();

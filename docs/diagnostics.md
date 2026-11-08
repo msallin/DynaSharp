@@ -111,7 +111,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA043` (error): a name inside a mapped type that names a type, a namespace, a field or a property outside it by the name of a member generated into the type: `Attrs` in any mapped type, `Keys` in an entity, `Indexes` in an entity with an index, and `TableName` in an entity that declares a table. With `public enum Keys { None, Enter }`, `public Keys Key { get; set; }` inside an entity would name the generated `Shortcut.Keys` instead of the enum, and the build would fail with `CS0722` and other errors in your file and in the generated one. With `using static Names;`, a `TableName` inside the entity would give the table of the entity instead of `Names.TableName`. Reported on each such name; the type generates no code.
 
-- **Fix.** Write the name in full, `public Shop.Keys Key { get; set; }`, `global::Shop.Keys` or `Names.TableName`, or give a type another name with a using alias, `using KeyCode = Shop.Keys;`.
+- **Fix.** Write the name in full, `public Shop.Keys Key { get; set; }`, `global::Shop.Keys` or `Names.TableName`, or give a type another name with a using alias, `using KeyCode = Shop.Keys;`. The code fix writes the name in full, as the message gives it.
 - **Not reported.** A name after a dot, such as `Shop.Keys` or `dictionary.Keys`, a local or a parameter, which C# finds first, and a name of a member the type does not get: `Keys` in a document, `Indexes` in an entity without an index, `TableName` in an entity without a table. `[DynamoDbEntity(Table = TableName)]`, whose value is the constant's anyway. A member of the type with such a name is `DYNA014`.
 
 ## Key templates
