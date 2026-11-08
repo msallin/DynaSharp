@@ -12,7 +12,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA002` | An entity has no partition key | Add `[PartitionKey]`, or use `[DynamoDbDocument]` for a nested type |
 | `DYNA003` | A property has a type that cannot be stored | Add a `[DynamoDbConverter]`, or `[DynamoDbIgnore]` |
 | `DYNA004` | Two members want one attribute, also after `Naming` converted their names | Rename one with `[DynamoDbAttribute]` or `AttributeName` |
-| `DYNA005` | No single constructor can be used | Mark one with `[DynamoDbConstructor]` |
+| `DYNA005` | No single constructor can be used | Mark one with `[DynamoDbConstructor]`. The code fix offers each constructor, and takes the attribute off the others |
 | `DYNA006` | A constructor parameter has no property | Name it after a mapped property |
 | `DYNA007` | The type cannot be mapped, for the reason the message gives: abstract, static, generic, a ref struct, an interface, or file-local, which generated code cannot merge with | Map another type, or change what the message names |
 | `DYNA008` | A converter does not implement `IDynamoDbConverter<T>` for the property, or for the type `[assembly: DynamoDbDefaultConverter]` names | Fix its interface, or make it accessible |
