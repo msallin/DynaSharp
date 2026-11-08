@@ -62,7 +62,7 @@ Analyzers and docs:
 - [x] `DYNA234` (a): insert `.ItemsAsync()` (`.ValuesAsync()` after `Select`, the `{1}` of the message, to carry in a property) before the LINQ call. Done (`ReadTerminalCodeFix`, property `Terminal`). It writes what the message says, so a synchronous name (`ToList`) stays one that `IAsyncEnumerable` lacks.
 - [x] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members. Done (`ReadTerminalCodeFix`): a member whose name ends in `Async`, offered where the chain binds with it (the arguments of `SendAsync(...)` kept, the calls after it included) and fits: a value under `await`, a stream in `foreach`. A fan-out's `PageAsync(pageSize)` needs a size, so it is not offered.
 - [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
-- [ ] `DYNA117` (a): make the key property `required` and drop its initializer.
+- [x] `DYNA117` (a): make the key property `required` and drop its initializer (`RequireKeyCodeFix`).
 - [x] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose. Done (`DiscardedCommandCodeFix`): the send outside a `lock`, where `SendAsync()` binds, on a chain that does not start at a command (sent, a local would be used up for its next use); the assignment where the chain starts at a local of the result's type; the discard where `_` names nothing.
 - [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
 - [x] `DYNA019` (a): `#nullable enable` at the top of the file (`EnableNullableCodeFix`).
@@ -243,7 +243,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA110` | remove `Sparse = true` |
 | a | `DYNA113` | `:d<w>` with the digits of the largest member |
 | a | `DYNA114` | `[ComputedFrom]` with what the getter reads |
-| a | `DYNA117` | `required`, initializer removed |
+| a | `DYNA117` | `required`, initializer removed (done) |
 | a | `DYNA123` | `[KeyOnly]` |
 | a | `DYNA204` | the result assigned back to the variable (done) |
 | a | `DYNA208` | the missing names into `Project(...)` (done) |

@@ -144,7 +144,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 
 `DYNA117` (warning): a key property starts empty and nothing has to set it, such as `public string EntityPartition { get; set; } = string.Empty;` set later with a `with`. Forgetting it compiles, and the write throws `KeyFormatException` for a template or is rejected by DynamoDB for a plain key. Every key of the entity counts, since a put writes the index keys too.
 
-- **Fix.** Make it `required`, or set it in a constructor.
+- **Fix.** Make it `required`, or set it in a constructor. The code fix makes it `required` and removes the initializer, where its setter is as visible as the type.
 - **Not reported.** Only a default that cannot be a key counts: `""`, `string.Empty`, `null!`, `default!`, and for a binary key `[]` and `Array.Empty<byte>()`. A default such as `"main"` or `Guid.NewGuid().ToString()` is a key, and a property that is `required`, computed, nullable, without initializer, or mentioned by a constructor is not reported.
 
 `DYNA118` (error): a `raw` placeholder that does not end the template, such as `{Key:raw}#{Id}` or `{Key:raw}#x`. A raw value keeps its delimiters, so `Parse` and a read take everything to the end of the key, and anything behind it could not be read back.
