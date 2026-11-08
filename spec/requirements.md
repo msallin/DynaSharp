@@ -26,7 +26,7 @@ Fix:
 
 ### Functional
 
-- **Low-level API**: request/response types mirroring DynamoDB, items as `Dictionary<string, AttributeValue>`.
+- **Low-level API**: request/response types mirroring DynamoDB, items as `IReadOnlyDictionary<string, AttributeValue>` (an `Item` is one).
   Operations: GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan, BatchGetItem, BatchWriteItem,
   TransactGetItems, TransactWriteItems, DescribeTable, ListTables, CreateTable, UpdateTable, DeleteTable, DescribeTimeToLive,
   UpdateTimeToLive.
@@ -43,8 +43,8 @@ Fix:
   vertical partitioning), resolved via a discriminator.
 - **Key grammar**: key templates such as `USER#{Id}` or `COUNTRY#{Country}#CANTON#{Canton}`; the generator emits
   format, parse and prefix builders (prefix at any depth for `begins_with`), with fixed-width padding,
-  order-preserving encoding of negative and decimal numbers, UTC timestamps in fixed format, and escaping or
-  rejection of separators in values.
+  order-preserving encoding of negative and decimal numbers, UTC timestamps in fixed format, and rejection (never
+  escaping) of separators in values.
 - **Concurrency primitives in the core**: optimistic locking via `[Version]` (opt-in per type, then enforced on every
   write, and advanced by every write but a delete, also one that skips the check with `IgnoreVersion()`); typed `ReturnValues` (for example a counter after `ADD`); transaction builder accepting raw marker items,
   a uniqueness helper (marker item with `attribute_not_exists`), and cancellation reasons mapped back to the action
@@ -260,7 +260,7 @@ Interaction with indexes and discriminators:
   null here too. An update setting such an input to null emits `REMOVE` for all of them, never a
   `NULL` value, which DynamoDB rejects on an index key.
 - Overloaded indexes work because several entity types declare different templates over the same attribute names.
-- Updates (M3): an update that sets a template input must also set the derived key attribute, or the index silently goes
+- Updates: an update that sets a template input must also set the derived key attribute, or the index silently goes
   stale. The generated handles know the dependency; an update that lacks the other inputs of that template throws. An
   input of the table's own key cannot be updated, because DynamoDB keys are immutable, and it is known from the key the
   update was given, so a template that repeats it needs no read.
@@ -270,7 +270,7 @@ Interaction with indexes and discriminators:
   by other tools, which also excludes it from mixed queries. A project whose tables other tools write says so once, in
   `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, which opts out and never makes up a value.
 - JSON property order is not guaranteed, so a mixed query copies the reader (a struct, so a cheap checkpoint), finds the
-  attribute, rewinds and dispatches. How a mixed result is declared is an M3 decision.
+  attribute, rewinds and dispatches.
 - A typed read checks `_type` when present and throws `DynamoDbMappingException` naming the type it found, because a query
   over an overloaded prefix can return other types. A typed Query or Scan can add it as a filter. Generated projections
   always include `_type`, the table key and every key that a `[KeyOnly]` property is restored from.
@@ -308,6 +308,6 @@ against the emulators, which check the ordering claim against something other th
 - Conventional Commits, squash merges; PR titles linted. Version derived from commits (`build/next-version.sh`),
   tagged and released by CI on main. nuget.org push disabled until `PUBLISH_TO_NUGET` is set (trusted publishing).
 - Dependabot: NuGet, .NET SDK, GitHub Actions. Package lock files, locked restore in CI.
-- Agent workflow: the lead session owns contracts (public API, module interfaces) and `tasks.md`. Implementers take
+- Roles: the lead owns contracts (public API, module interfaces) and `tasks.md`. Implementers take
   well-specified tasks, in separate git worktrees when working in parallel. Each milestone gets an independent review
   by a second reviewer, given the spec and the diff, not a summary.
