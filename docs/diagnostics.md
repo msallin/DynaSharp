@@ -23,7 +23,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA013` | A type is an entity and a document | Keep one |
 | `DYNA014` | A member clashes with generated code, such as `Keys`, or `TableName` in an entity that declares a table; a type outside it named so is `DYNA043` | Rename the member |
 | `DYNA015` | The project is below C# 11 | Raise `LangVersion` |
-| `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity |
+| `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity. The code fix does, on each type the property's type is made of that is less visible, where all of them are in source |
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context; a property outside one in a type that is inside is `DYNA041` | Enable nullable reference types. The code fix adds `#nullable enable` at the top of the file, or turns the `#nullable disable` above the type into `#nullable enable` |

@@ -44,6 +44,23 @@ internal static class Types
     /// <summary>Whether generated code, parts of which live outside the type, can name it.</summary>
     public static bool IsAccessible(ITypeSymbol type) => Effective(type) >= Accessibility.Internal;
 
+    /// <summary>
+    /// What the code fix of DYNA016 needs: the keyword of the accessibility the types of a property must at least have, <c>public</c> or <c>internal</c>, and the name of the property.
+    /// </summary>
+    /// <param name="needed">The accessibility the place needs, which a type of the entity's key takes from the entity.</param>
+    /// <param name="property">The name of the property.</param>
+    public static string AccessibilityFix(Accessibility needed, string property) => (needed >= Accessibility.ProtectedOrInternal ? "public" : "internal") + " " + property;
+
+    /// <summary>The named types a type is made of, itself, its element, its containing types and its type arguments, whose own accessibility is below <paramref name="needed"/>.</summary>
+    public static IEnumerable<INamedTypeSymbol> Below(ITypeSymbol type, Accessibility needed) => type switch
+    {
+        IArrayTypeSymbol array => Below(array.ElementType, needed),
+        INamedTypeSymbol named => (named.IsFileLocal || named.DeclaredAccessibility < needed ? [named.OriginalDefinition] : Enumerable.Empty<INamedTypeSymbol>())
+            .Concat(named.ContainingType is { } outer ? Below(outer, needed) : [])
+            .Concat(named.TypeArguments.SelectMany(argument => Below(argument, needed))),
+        _ => [],
+    };
+
     private static Accessibility EffectiveOfNamed(INamedTypeSymbol type)
     {
         var result = type.DeclaredAccessibility;

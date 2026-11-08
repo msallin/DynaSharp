@@ -281,7 +281,7 @@ internal sealed class EntityKeyBuilder(
         // Keys.Of takes the value, and it is as public as the entity.
         if (Types.Effective(inner) < Types.Effective(type))
         {
-            bag.Report(Descriptors.InaccessibleType, spot, property.Type.ToDisplayString(), property.Name);
+            bag.Report(Descriptors.InaccessibleType, spot, Types.AccessibilityFix(Types.Effective(type), property.Name), [property.Type.ToDisplayString(), property.Name]);
         }
 
         if (isNullable && !role.IsSparse)
@@ -326,7 +326,9 @@ internal sealed class EntityKeyBuilder(
             }
             else
             {
-                bag.Report(problem.Descriptor, spot, problem.Arguments);
+                // An input of a public builder is as public as the entity.
+                var fix = problem.Descriptor == Descriptors.InaccessibleType ? Types.AccessibilityFix(Types.Effective(type), problem.Arguments[1]) : null;
+                bag.Report(problem.Descriptor, spot, fix, problem.Arguments);
             }
         }
 

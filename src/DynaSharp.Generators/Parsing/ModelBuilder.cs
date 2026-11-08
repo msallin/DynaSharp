@@ -401,7 +401,7 @@ internal sealed class ModelBuilder
 
         if (!Types.IsAccessible(property.Type))
         {
-            _bag.Report(Descriptors.InaccessibleType, property.Spot, property.Type.ToDisplayString(), property.Name);
+            _bag.Report(Descriptors.InaccessibleType, property.Spot, Types.AccessibilityFix(Accessibility.Internal, property.Name), [property.Type.ToDisplayString(), property.Name]);
             return;
         }
 

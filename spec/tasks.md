@@ -85,7 +85,7 @@ Analyzers and docs:
 - [ ] `DYNA110` (a): remove `Sparse = true`.
 - [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
 - [x] `DYNA043` (a): write the name in full, the `{1}` of the message.
-- [ ] `DYNA016` (a): give the type the accessibility of the entity, where the type is in source.
+- [x] `DYNA016` (a): give the type the accessibility of the entity, where the type is in source.
 - [ ] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.
 - [ ] `DYNA116` (b): drop the format (ticks); a tie-breaker is not offered.
 - [ ] `DYNA005` (b): `[DynamoDbConstructor]` on each candidate constructor, one action each.
@@ -235,7 +235,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | Class | Rules | The edit |
 |---|---|---|
 | a | `DYNA001` | `partial` on the type and its containing types (done) |
-| a | `DYNA016` | the entity's accessibility on the type |
+| a | `DYNA016` | the entity's accessibility on the type (done) |
 | a | `DYNA019` | `#nullable enable` at the top of the file (done) |
 | a | `DYNA032` | `nameof(X)` into `[ComputedFrom]` |
 | a | `DYNA036` | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset` |
