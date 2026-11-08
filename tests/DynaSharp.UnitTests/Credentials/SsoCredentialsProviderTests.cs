@@ -593,6 +593,26 @@ public sealed class SsoCredentialsProviderTests
     }
 
     [Test]
+    [Arguments(480)]
+    [Arguments(14)]
+    public async Task GetCredentialsAsync_AnswerComesLater_DoesNotResumeOnTheContextOfTheCaller(int minutesLeft)
+    {
+        // Arrange (with 14 minutes left the token is refreshed first, so the wait for CreateToken is the first that suspends)
+        var answersReady = new TaskCompletionSource();
+        var world = new World(Session, answersReady: answersReady.Task);
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddMinutes(minutesLeft), refreshToken: "rt");
+        var context = new CountingSynchronizationContext();
+        var call = context.Start(() => world.Provider.GetCredentialsAsync(CancellationToken.None).AsTask());
+
+        // Act
+        answersReady.SetResult();
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_CalledTwiceWhileValid_AsksThePortalOnce()
     {
         // Arrange
@@ -705,11 +725,16 @@ public sealed class SsoCredentialsProviderTests
             WriteTextFile? writeFile = null,
             CapturingLoggerFactory? logs = null,
             Func<RecordedRequest, StubResponse>? portal = null,
-            Func<RecordedRequest, StubResponse>? createToken = null)
+            Func<RecordedRequest, StubResponse>? createToken = null,
+            Task? answersReady = null)
         {
             portal ??= _ => RoleCredentials(Time.GetUtcNow().AddHours(1));
             createToken ??= _ => new StubResponse { Body = """{"accessToken":"new-access","tokenType":"Bearer","expiresIn":28800,"refreshToken":"new-refresh"}""" };
-            Handler = new StubHandler((request, _) => Task.FromResult(request.RequestUri!.AbsolutePath == "/token" ? createToken(request) : portal(request)));
+            Handler = new StubHandler(async (request, _) =>
+            {
+                await (answersReady ?? Task.CompletedTask).ConfigureAwait(false);
+                return request.RequestUri!.AbsolutePath == "/token" ? createToken(request) : portal(request);
+            });
             var dependencies = new CredentialsDependencies(
                 Env([("USERPROFILE", Home), .. variables ?? []]),
                 readFile ?? (path => Files.GetValueOrDefault(path)),
