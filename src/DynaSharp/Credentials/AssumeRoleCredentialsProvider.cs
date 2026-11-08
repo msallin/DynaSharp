@@ -197,7 +197,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private (Uri Endpoint, string SigningRegion) ResolveEndpoint()
     {
         var getEnvironmentVariable = _dependencies.GetEnvironmentVariable;
-        var (endpoint, region) = Sts.ResolveEndpoint(getEnvironmentVariable, _settings.Endpoint, () => _settings.Region ?? Sts.ResolveRegion(getEnvironmentVariable, _dependencies.ReadFile));
+        var (endpoint, region) = Sts.ResolveEndpoint(getEnvironmentVariable, _dependencies.ReadFile, _settings.Endpoint, () => _settings.Region ?? Sts.ResolveRegion(getEnvironmentVariable, _dependencies.ReadFile));
         if (endpoint == Sts.GlobalEndpoint)
         {
             return (endpoint, "us-east-1");

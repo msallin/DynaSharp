@@ -40,7 +40,7 @@ public sealed class CredentialsContextTests
                 _ => Respond(InstanceMetadataJson(Expiration)),
             };
         });
-        var provider = new InstanceMetadataCredentialsProvider(Env(), handler, new ManualTimeProvider(), NullLogger.Instance, new Random(1));
+        var provider = new InstanceMetadataCredentialsProvider(Env(), NoFiles, handler, new ManualTimeProvider(), NullLogger.Instance, new Random(1));
         var context = new CountingSynchronizationContext();
         var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
 

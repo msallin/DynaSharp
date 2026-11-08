@@ -18,14 +18,15 @@ namespace DynaSharp.Credentials;
 /// credentials, both with the token. Every request has 1 second and is tried once. If the token request answers 403, 404 or 405,
 /// or times out, the service does not offer IMDSv2 (or the hop limit swallows the answer) and the provider falls back to
 /// IMDSv1, which is the same requests without a token. Any other failure of the token request, such as a refused connection
-/// or a server error, ends the fetch. <c>AWS_EC2_METADATA_V1_DISABLED=true</c> turns the fallback off.
+/// or a server error, ends the fetch. <c>AWS_EC2_METADATA_V1_DISABLED=true</c>, or <c>ec2_metadata_v1_disabled = true</c> in the selected profile, turns the fallback off.
 /// </para>
 /// <para>
 /// <c>AWS_EC2_METADATA_DISABLED=true</c> (not case sensitive) switches the provider off: <see cref="GetCredentialsAsync"/> then
 /// throws a <see cref="CredentialsUnavailableException"/> that says so, without any network traffic.
-/// <c>AWS_EC2_METADATA_SERVICE_ENDPOINT</c> replaces the endpoint <c>http://169.254.169.254</c>; it must be an absolute http or
-/// https URL without user info. The IPv6 endpoint (<c>AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE</c>) is not supported, set the
-/// endpoint instead. Redirects, proxies and cookies are not used.
+/// <c>AWS_EC2_METADATA_SERVICE_ENDPOINT</c>, or <c>ec2_metadata_service_endpoint</c> in the selected profile, replaces the endpoint
+/// <c>http://169.254.169.254</c>; it must be an absolute http or https URL without user info. <c>AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE</c>, or
+/// <c>ec2_metadata_service_endpoint_mode</c>, set to <c>IPv6</c> (not case sensitive) selects <c>http://[fd00:ec2::254]</c> instead, unless an endpoint is set.
+/// The variable goes ahead of the profile. A malformed config file is ignored. Redirects, proxies and cookies are not used.
 /// </para>
 /// <para>
 /// Not being on an EC2 instance is the normal reason for a failure, so every problem of the service (unreachable, no role
@@ -54,7 +55,12 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
     private const string DisabledVariable = "AWS_EC2_METADATA_DISABLED";
     private const string V1DisabledVariable = "AWS_EC2_METADATA_V1_DISABLED";
     private const string EndpointVariable = "AWS_EC2_METADATA_SERVICE_ENDPOINT";
+    private const string EndpointSetting = "ec2_metadata_service_endpoint";
+    private const string EndpointModeVariable = "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE";
+    private const string EndpointModeSetting = "ec2_metadata_service_endpoint_mode";
+    private const string V1DisabledSetting = "ec2_metadata_v1_disabled";
     private const string DefaultEndpoint = "http://169.254.169.254";
+    private const string Ipv6Endpoint = "http://[fd00:ec2::254]";
     private const string TokenPath = "latest/api/token";
     private const string RolePath = "latest/meta-data/iam/security-credentials/";
     private const string SourceName = "EC2 instance metadata service";
@@ -62,6 +68,7 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(1);
 
     private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly ReadTextFile _readFile;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly Random _random;
@@ -72,18 +79,20 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
     /// current process and uses the system clock.
     /// </summary>
     public InstanceMetadataCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, null, TimeProvider.System, NullLogger.Instance, null)
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null)
     {
     }
 
     internal InstanceMetadataCredentialsProvider(
         Func<string, string?> getEnvironmentVariable,
+        ReadTextFile readFile,
         HttpMessageHandler? handler,
         TimeProvider timeProvider,
         ILogger logger,
         Random? random)
     {
         _getEnvironmentVariable = getEnvironmentVariable;
+        _readFile = readFile;
         _http = CredentialsHttp.GetClient(handler);
         _timeProvider = timeProvider;
         _random = random ?? Random.Shared;
@@ -139,13 +148,25 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
 
     private string ResolveBaseUrl()
     {
-        var configured = _getEnvironmentVariable(EndpointVariable);
-        var text = string.IsNullOrEmpty(configured) ? DefaultEndpoint : configured;
+        var text = SharedConfigFiles.ReadSetting(_getEnvironmentVariable, _readFile, EndpointVariable, EndpointSetting) ?? DefaultEndpointOfMode();
 
         // The value is not echoed: it may carry secrets in its user info.
         return Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0
             ? text.TrimEnd('/')
-            : throw new CredentialsUnavailableException($"{EndpointVariable} must be an absolute http or https URL without user info.");
+            : throw new CredentialsUnavailableException($"{EndpointVariable} or {EndpointSetting} must be an absolute http or https URL without user info.");
+    }
+
+    private string DefaultEndpointOfMode()
+    {
+        var mode = SharedConfigFiles.ReadSetting(_getEnvironmentVariable, _readFile, EndpointModeVariable, EndpointModeSetting);
+        if (mode is null || string.Equals(mode, "IPv4", StringComparison.OrdinalIgnoreCase))
+        {
+            return DefaultEndpoint;
+        }
+
+        return string.Equals(mode, "IPv6", StringComparison.OrdinalIgnoreCase)
+            ? Ipv6Endpoint
+            : throw new CredentialsUnavailableException($"{EndpointModeVariable} or {EndpointModeSetting} must be IPv4 or IPv6.");
     }
 
     // A problem of the service counts as "does not apply", because off EC2 that is what it means, and this is the last source of the
@@ -159,9 +180,9 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
             return CredentialsOutcome.DoesNotApply(tokenProblem);
         }
 
-        if (token.Value is null && IsTrue(_getEnvironmentVariable(V1DisabledVariable)))
+        if (token.Value is null && IsTrue(SharedConfigFiles.ReadSetting(_getEnvironmentVariable, _readFile, V1DisabledVariable, V1DisabledSetting)))
         {
-            return CredentialsOutcome.DoesNotApply($"the IMDSv2 token is not available and IMDSv1 is disabled by {V1DisabledVariable}=true");
+            return CredentialsOutcome.DoesNotApply($"the IMDSv2 token is not available and IMDSv1 is disabled by {V1DisabledVariable}=true or {V1DisabledSetting}=true");
         }
 
         var role = await GetAsync($"{baseUrl}/{RolePath}", token.Value).ConfigureAwait(false);

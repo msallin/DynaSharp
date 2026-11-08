@@ -301,7 +301,7 @@ internal sealed class ProfileChain
             "Environment" => new EnvironmentCredentialsProvider(
                 getEnvironmentVariable, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<EnvironmentCredentialsProvider>()).TryGetCredentialsAsync,
             "Ec2InstanceMetadata" => new InstanceMetadataCredentialsProvider(
-                getEnvironmentVariable, _dependencies.Handler, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), null).TryGetCredentialsAsync,
+                getEnvironmentVariable, _dependencies.ReadFile, _dependencies.Handler, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), null).TryGetCredentialsAsync,
             "EcsContainer" => new ContainerCredentialsProvider(
                 getEnvironmentVariable, _dependencies.ReadFile, _dependencies.Handler, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<ContainerCredentialsProvider>()).TryGetCredentialsAsync,
             _ => throw new CredentialsUnavailableException(

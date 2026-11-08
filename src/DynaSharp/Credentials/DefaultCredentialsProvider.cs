@@ -84,7 +84,7 @@ public sealed class DefaultCredentialsProvider : IRefreshableCredentialsProvider
         var container = new ContainerCredentialsProvider(
             getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<ContainerCredentialsProvider>());
         var instanceMetadata = new InstanceMetadataCredentialsProvider(
-            getEnvironmentVariable, handler, timeProvider, loggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), random);
+            getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), random);
 
         // The order is botocore's. To add a source: implement TryGetCredentialsAsync like the
         // providers here, and put it where botocore has it.

@@ -1,4 +1,5 @@
 using System.Net;
+using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Retries;
 using DynaSharp.Testing;
@@ -218,6 +219,49 @@ public sealed class AssumeRoleCredentialsProviderTests
         // Assert
         var request = world.Handler.Requests[0];
         await Assert.That($"{request.RequestUri} {Header(request, "Authorization").Split('/')[2]}").IsEqualTo($"{endpoint} {signingRegion}");
+    }
+
+    [Test]
+    [Arguments("us-east-1", "https://sts.amazonaws.com/")]
+    [Arguments("eu-central-2", "https://sts.eu-central-2.amazonaws.com/")]
+    public async Task GetCredentialsAsync_LegacyRegionalEndpointsInTheProfile_UsesTheGlobalEndpointForTheRegionsOfBotocore(string region, string endpoint)
+    {
+        // Arrange
+        var files = Files(("/home/a/.aws/config", "[default]\nsts_regional_endpoints = legacy\n"));
+        var world = new World(Settings("s") with { Region = AwsRegion.FromName(region) }, Env(("HOME", "/home/a")), files: files);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests[0].RequestUri!.ToString()).IsEqualTo(endpoint);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RegionalInTheVariableLegacyInTheProfile_UsesTheRegionalEndpoint()
+    {
+        // Arrange
+        var files = Files(("/home/a/.aws/config", "[default]\nsts_regional_endpoints = legacy\n"));
+        var world = new World(Settings("s") with { Region = AwsRegion.FromName("us-east-1") }, Env(("HOME", "/home/a"), ("AWS_STS_REGIONAL_ENDPOINTS", "regional")), files: files);
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests[0].RequestUri!.ToString()).IsEqualTo("https://sts.us-east-1.amazonaws.com/");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_MalformedConfigFile_UsesTheRegionalEndpoint()
+    {
+        // Arrange
+        var world = new World(Settings("s") with { Region = AwsRegion.FromName("us-east-1") }, Env(("HOME", "/home/a")), files: Files(("/home/a/.aws/config", "oops\n")));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests[0].RequestUri!.ToString()).IsEqualTo("https://sts.us-east-1.amazonaws.com/");
     }
 
     [Test]
@@ -558,7 +602,7 @@ public sealed class AssumeRoleCredentialsProviderTests
     {
         // Arrange: an STS emulator in docker-compose, reached by its service name
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Settings("s") with { Endpoint = new Uri("http://sts-emulator:4566") }, loggers: logs);
+        var world = new World(Settings("s") with { Endpoint = new Uri("http://sts-emulator:4566") }, logs: logs);
         var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
         world.Provider.TryInvalidate(first);
 
@@ -579,7 +623,7 @@ public sealed class AssumeRoleCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Settings("s") with { Endpoint = new Uri(endpoint) }, loggers: logs);
+        var world = new World(Settings("s") with { Endpoint = new Uri(endpoint) }, logs: logs);
 
         // Act
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
@@ -886,11 +930,12 @@ public sealed class AssumeRoleCredentialsProviderTests
             Func<string, string?>? environment = null,
             ICredentialsProvider? source = null,
             ILoggerFactory? logs = null,
-            bool correctsClock = true)
+            bool correctsClock = true,
+            ReadTextFile? files = null)
         {
             _answer = _ => Success();
             Handler = new StubHandler((request, _) => Task.FromResult(_answer(request)));
-            var dependencies = new CredentialsDependencies(environment ?? Env(), NoFiles, NoWrites, CredentialProcess.Runner, Handler, correctsClock ? new ClockSkewCorrection(Time) : Time, logs ?? NullLoggerFactory.Instance);
+            var dependencies = new CredentialsDependencies(environment ?? Env(), files ?? NoFiles, NoWrites, CredentialProcess.Runner, Handler, correctsClock ? new ClockSkewCorrection(Time) : Time, logs ?? NullLoggerFactory.Instance);
             Provider = new AssumeRoleCredentialsProvider(source ?? new StaticCredentialsProvider(Source), settings ?? Settings(), dependencies);
         }
 

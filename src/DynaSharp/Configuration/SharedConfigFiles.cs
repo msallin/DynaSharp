@@ -114,6 +114,32 @@ internal sealed class SharedConfigFiles
         Load(getEnvironmentVariable, readFile, FindHomeDirectory(getEnvironmentVariable));
 
     /// <summary>
+    /// Reads a setting that the environment and the selected profile can both give, in that order, as the AWS SDKs do. The files are read only
+    /// when the variable is unset or empty. Never throws: a missing, unreadable or malformed file, or a missing profile, means that the setting is not set.
+    /// </summary>
+    /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="readFile">Reads a file.</param>
+    /// <param name="variable">The environment variable.</param>
+    /// <param name="setting">The lower-case name of the setting in the profile.</param>
+    /// <returns>The first value that is not empty, or <see langword="null"/>.</returns>
+    public static string? ReadSetting(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, string variable, string setting)
+    {
+        if (getEnvironmentVariable(variable) is { Length: > 0 } fromEnvironment)
+        {
+            return fromEnvironment;
+        }
+
+        try
+        {
+            return Load(getEnvironmentVariable, readFile).Profiles.TryGetValue(SelectProfileName(getEnvironmentVariable), out var profile) ? profile.GetText(setting) : null;
+        }
+        catch (CredentialsUnavailableException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Looks for the <c>region</c> setting of the selected profile. Never throws: a missing, unreadable or malformed file just
     /// means that no region was found, and <see cref="SharedRegion.Problem"/> says why.
     /// </summary>

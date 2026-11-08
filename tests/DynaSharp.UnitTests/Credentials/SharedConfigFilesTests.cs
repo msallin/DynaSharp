@@ -372,6 +372,73 @@ public sealed class SharedConfigFilesTests
     }
 
     [Test]
+    public async Task ReadSetting_VariableSet_WinsOverTheProfile()
+    {
+        // Arrange
+        var files = Files((DefaultConfigPath, "[default]\nsts_regional_endpoints = legacy\n"));
+
+        // Act
+        var value = SharedConfigFiles.ReadSetting(Env(("HOME", Home), ("AWS_STS_REGIONAL_ENDPOINTS", "regional")), files, "AWS_STS_REGIONAL_ENDPOINTS", "sts_regional_endpoints");
+
+        // Assert
+        await Assert.That(value).IsEqualTo("regional");
+    }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task ReadSetting_VariableUnsetOrEmpty_ReadsTheSelectedProfile(string? variable)
+    {
+        // Arrange
+        var files = Files((DefaultConfigPath, "[default]\nsts_regional_endpoints = regional\n[profile dev]\nsts_regional_endpoints = legacy\n"));
+        var environment = Env(("HOME", Home), ("AWS_PROFILE", "dev"), ("AWS_STS_REGIONAL_ENDPOINTS", variable!));
+
+        // Act
+        var value = SharedConfigFiles.ReadSetting(environment, files, "AWS_STS_REGIONAL_ENDPOINTS", "sts_regional_endpoints");
+
+        // Assert
+        await Assert.That(value).IsEqualTo("legacy");
+    }
+
+    [Test]
+    public async Task ReadSetting_MalformedFile_IsUnset()
+    {
+        // Arrange
+        var files = Files((DefaultConfigPath, "oops\n"));
+
+        // Act
+        var value = SharedConfigFiles.ReadSetting(Env(("HOME", Home)), files, "AWS_STS_REGIONAL_ENDPOINTS", "sts_regional_endpoints");
+
+        // Assert
+        await Assert.That(value).IsNull();
+    }
+
+    [Test]
+    public async Task ReadSetting_NoFile_IsUnset()
+    {
+        // Arrange (nothing to arrange)
+
+        // Act
+        var value = SharedConfigFiles.ReadSetting(Env(("HOME", Home)), NoFiles, "AWS_STS_REGIONAL_ENDPOINTS", "sts_regional_endpoints");
+
+        // Assert
+        await Assert.That(value).IsNull();
+    }
+
+    [Test]
+    public async Task ReadSetting_ProfileWithoutTheSetting_IsUnset()
+    {
+        // Arrange
+        var files = Files((DefaultConfigPath, "[default]\nregion = eu-west-1\n"));
+
+        // Act
+        var value = SharedConfigFiles.ReadSetting(Env(("HOME", Home)), files, "AWS_STS_REGIONAL_ENDPOINTS", "sts_regional_endpoints");
+
+        // Assert
+        await Assert.That(value).IsNull();
+    }
+
+    [Test]
     public async Task FindRegion_MalformedFile_ReturnsTheProblemInsteadOfThrowing()
     {
         // Arrange

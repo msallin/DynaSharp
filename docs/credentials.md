@@ -11,6 +11,15 @@ Without `Credentials` in the options, the client takes the first source of the [
 - **Rotation:** it reads the token file again for each exchange, because the kubelet replaces it.
 - **Other issuers:** any other OpenID Connect issuer that the account trusts takes the same request.
 
+## Use the instance metadata service
+
+The last source of the chain is the role of an EC2 instance, from the instance metadata service. Each setting is read from its environment variable, then from the selected profile, as the AWS CLI does:
+
+- **Endpoint:** `AWS_EC2_METADATA_SERVICE_ENDPOINT` or `ec2_metadata_service_endpoint` replaces `http://169.254.169.254`.
+- **IPv6:** `AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE` or `ec2_metadata_service_endpoint_mode` set to `IPv6` selects `http://[fd00:ec2::254]`, unless an endpoint is set. `IPv4` is the default.
+- **IMDSv1:** `AWS_EC2_METADATA_V1_DISABLED` or `ec2_metadata_v1_disabled` set to `true` refuses the fallback to version 1 when the token request fails.
+- **Config file:** a malformed config file is ignored for these settings.
+
 ## Get credentials from a program
 
 A profile with `credential_process` gets its credentials from a program, as the AWS CLI does:
@@ -43,7 +52,7 @@ aws_secret_access_key = ...
 ```
 
 - **Chains:** a source profile that has a `role_arn` and no keys assumes its own role first, so roles chain. A profile that comes back fails as a loop, unless a profile names itself and has static keys.
-- **Region:** STS is asked in the region of the client, otherwise in `AWS_REGION`, `AWS_DEFAULT_REGION` or the `region` of the profile. `AWS_ENDPOINT_URL_STS` and `AWS_STS_REGIONAL_ENDPOINTS` work as for IRSA.
+- **Region:** STS is asked in the region of the client, otherwise in `AWS_REGION`, `AWS_DEFAULT_REGION` or the `region` of the profile. `AWS_ENDPOINT_URL_STS` and `AWS_STS_REGIONAL_ENDPOINTS` (or `sts_regional_endpoints` in the profile) work as for IRSA.
 - **Refresh:** the session is renewed before it expires, by assuming the role again.
 - **Clock:** if STS rejects a local clock more than 4 minutes off, the signing time is corrected from its answer and the request is sent once more.
 - **MFA:** a profile with `mfa_serial` fails, because the code of the device would be needed at every refresh.

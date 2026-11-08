@@ -54,14 +54,15 @@ internal static class Sts
 
     /// <summary>
     /// Finds the endpoint as botocore does: <paramref name="explicitEndpoint"/>, then <c>AWS_ENDPOINT_URL_STS</c> and <c>AWS_ENDPOINT_URL</c>, then the
-    /// regional endpoint, or the global one for <c>AWS_STS_REGIONAL_ENDPOINTS=legacy</c> and a region of botocore's list.
+    /// regional endpoint, or the global one for <c>AWS_STS_REGIONAL_ENDPOINTS=legacy</c> (or <c>sts_regional_endpoints = legacy</c> in the selected profile) and a region of botocore's list.
     /// </summary>
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="readFile">Reads the shared AWS files.</param>
     /// <param name="explicitEndpoint">An endpoint given in code, or <see langword="null"/>.</param>
     /// <param name="region">The region, or a function that finds it. It is asked only when no endpoint is configured.</param>
     /// <returns>The endpoint, and the region it is in when it came from the region, otherwise <see langword="null"/>.</returns>
     /// <exception cref="CredentialsUnavailableException">An endpoint variable is no valid endpoint, or the region is needed and not known.</exception>
-    public static (Uri Endpoint, AwsRegion? Region) ResolveEndpoint(Func<string, string?> getEnvironmentVariable, Uri? explicitEndpoint, Func<AwsRegion> region)
+    public static (Uri Endpoint, AwsRegion? Region) ResolveEndpoint(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, Uri? explicitEndpoint, Func<AwsRegion> region)
     {
         if ((explicitEndpoint ?? ReadConfiguredEndpoint(getEnvironmentVariable)) is { } configured)
         {
@@ -69,7 +70,7 @@ internal static class Sts
         }
 
         var resolved = region();
-        var endpoint = string.Equals(getEnvironmentVariable(RegionalEndpointsVariable), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, resolved.Name) >= 0
+        var endpoint = string.Equals(SharedConfigFiles.ReadSetting(getEnvironmentVariable, readFile, RegionalEndpointsVariable, "sts_regional_endpoints"), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, resolved.Name) >= 0
             ? GlobalEndpoint
             : resolved.StsEndpoint;
         return (endpoint, resolved);

@@ -299,7 +299,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     // What botocore does: a configured endpoint goes ahead of the region and of the legacy mode, and with one the region does not matter, because the request is not signed.
     // An endpoint passed in code is botocore's endpoint_url, which goes ahead of the configured ones. Only a provider that no client made looks for the region itself.
     private Uri ResolveEndpoint(Settings settings) =>
-        Sts.ResolveEndpoint(_getEnvironmentVariable, settings.Endpoint, () => settings.Region ?? Sts.ResolveRegion(_getEnvironmentVariable, _readFile)).Endpoint;
+        Sts.ResolveEndpoint(_getEnvironmentVariable, _readFile, settings.Endpoint, () => settings.Region ?? Sts.ResolveRegion(_getEnvironmentVariable, _readFile)).Endpoint;
 
     private string ReadToken(string path)
     {

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
     // The first value that Random(Seed) hands out for the jitter of botocore (120 to 600 seconds).
     private static readonly TimeSpan Jitter = TimeSpan.FromSeconds(new Random(Seed).Next(120, 601));
     private static readonly TimeSpan RefreshWindow = TimeSpan.FromMinutes(15) + Jitter;
+    private static readonly string ProfileHome = Path.Combine("/home", "a");
 
     [Test]
     [NotInParallel(TestClient.ProcessEnvironment)]
@@ -257,7 +259,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>()
-            .WithMessage("AWS_EC2_METADATA_SERVICE_ENDPOINT must be an absolute http or https URL without user info.", StringComparison.Ordinal);
+            .WithMessage("AWS_EC2_METADATA_SERVICE_ENDPOINT or ec2_metadata_service_endpoint must be an absolute http or https URL without user info.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -359,7 +361,153 @@ public sealed class InstanceMetadataCredentialsProviderTests
 
         // Assert
         await Assert.That((exception.Message, imds.Handler.Requests.Count))
-            .IsEqualTo(("No credentials from the EC2 instance metadata service: the IMDSv2 token is not available and IMDSv1 is disabled by AWS_EC2_METADATA_V1_DISABLED=true.", 1));
+            .IsEqualTo(("No credentials from the EC2 instance metadata service: the IMDSv2 token is not available and IMDSv1 is disabled by AWS_EC2_METADATA_V1_DISABLED=true or ec2_metadata_v1_disabled=true.", 1));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_TokenUnavailableAndV1DisabledInTheProfile_FailsWithoutFurtherRequests()
+    {
+        // Arrange
+        var imds = new FakeImds { Token = _ => StubResponse.Json("no", HttpStatusCode.Forbidden) };
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome)), files: ProfileFile("ec2_metadata_v1_disabled = true"));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That((exception.Message, imds.Handler.Requests.Count))
+            .IsEqualTo(("No credentials from the EC2 instance metadata service: the IMDSv2 token is not available and IMDSv1 is disabled by AWS_EC2_METADATA_V1_DISABLED=true or ec2_metadata_v1_disabled=true.", 1));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_V1DisabledInTheProfileButNotInTheVariable_FallsBackToV1()
+    {
+        // Arrange (the variable goes ahead of the profile)
+        var imds = new FakeImds { Token = _ => StubResponse.Json("no", HttpStatusCode.Forbidden) };
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome), ("AWS_EC2_METADATA_V1_DISABLED", "false")), files: ProfileFile("ec2_metadata_v1_disabled = true"));
+
+        // Act
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.AccessKeyId).IsEqualTo(AccessKeyId);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointInTheProfile_ReplacesTheEndpoint()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome)), files: ProfileFile("ec2_metadata_service_endpoint = http://profile.internal:8080"));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("profile.internal:8080");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointInTheVariableAndTheProfile_TheVariableWins()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome), ("AWS_EC2_METADATA_SERVICE_ENDPOINT", "http://variable.internal")), files: ProfileFile("ec2_metadata_service_endpoint = http://profile.internal"));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("variable.internal");
+    }
+
+    [Test]
+    [Arguments("IPv6", "[fd00:ec2::254]")]
+    [Arguments("ipv6", "[fd00:ec2::254]")]
+    [Arguments("IPv4", "169.254.169.254")]
+    [Arguments("ipv4", "169.254.169.254")]
+    public async Task GetCredentialsAsync_EndpointModeInTheVariable_SelectsTheDefaultEndpoint(string mode, string authority)
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE", mode)));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo(authority);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointModeInTheProfile_SelectsTheIpv6Endpoint()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome)), files: ProfileFile("ec2_metadata_service_endpoint_mode = IPv6"));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("[fd00:ec2::254]");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointAndMode_TheEndpointWins()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("AWS_EC2_METADATA_SERVICE_ENDPOINT", "http://variable.internal"), ("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE", "IPv6")));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("variable.internal");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_InvalidEndpointMode_FailsNamingTheVariableAndTheSetting()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE", "IPv5")));
+
+        // Act
+        var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>()
+            .WithMessage("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE or ec2_metadata_service_endpoint_mode must be IPv4 or IPv6.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_MalformedConfigFile_UsesTheDefaultEndpoint()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome)), files: Files((Path.Combine(ProfileHome, ".aws", "config"), "oops\n")));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("169.254.169.254");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_NoConfigFile_UsesTheDefaultEndpoint()
+    {
+        // Arrange
+        var imds = new FakeImds();
+        var provider = Create(imds, environment: Env(("HOME", ProfileHome)));
+
+        // Act
+        await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(imds.Handler.Requests[0].RequestUri!.Authority).IsEqualTo("169.254.169.254");
     }
 
     [Test]
@@ -715,7 +863,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
         // Arrange
         var time = new ManualTimeProvider();
         var imds = new FakeImds { Credentials = _ => StubResponse.Json(InstanceMetadataJson(time.GetUtcNow().AddMinutes(5))) };
-        var provider = new InstanceMetadataCredentialsProvider(Env(), imds.Handler, time, NullLogger.Instance, null);
+        var provider = new InstanceMetadataCredentialsProvider(Env(), NoFiles, imds.Handler, time, NullLogger.Instance, null);
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -924,13 +1072,16 @@ public sealed class InstanceMetadataCredentialsProviderTests
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("rejected");
     }
 
+    private static ReadTextFile ProfileFile(string settings) => Files((Path.Combine(ProfileHome, ".aws", "config"), "[default]\n" + settings + "\n"));
+
     private static InstanceMetadataCredentialsProvider Create(
         FakeImds imds,
         ManualTimeProvider? time = null,
         Func<string, string?>? environment = null,
         ILogger? logger = null,
-        Random? random = null) =>
-        new(environment ?? Env(), imds.Handler, time ?? imds.Time, logger ?? NullLogger.Instance, random ?? new Random(Seed));
+        Random? random = null,
+        ReadTextFile? files = null) =>
+        new(environment ?? Env(), files ?? NoFiles, imds.Handler, time ?? imds.Time, logger ?? NullLogger.Instance, random ?? new Random(Seed));
 
     /// <summary>A fake instance metadata service. Each answer can be replaced by the test.</summary>
     private sealed class FakeImds
