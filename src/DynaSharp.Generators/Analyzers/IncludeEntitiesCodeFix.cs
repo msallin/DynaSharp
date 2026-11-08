@@ -3,7 +3,6 @@ using System.Composition;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
@@ -45,18 +44,7 @@ internal sealed class IncludeEntitiesCodeFix : CodeFixProvider
     {
         var root = (await document.GetSyntaxRootAsync(token).ConfigureAwait(false))!;
         var createTable = root.FindNode(span, getInnermostNodeForTie: true).FirstAncestorOrSelf<InvocationExpressionSyntax>()!;
-
-        // The dot of the call after CreateTable() carries the indent of a chain with one call per line, and CreateTable() the line break before it.
-        var indent = createTable.Parent is MemberAccessExpressionSyntax next ? next.OperatorToken.LeadingTrivia : default;
-        var lineEnd = createTable.GetTrailingTrivia();
-        ExpressionSyntax chain = createTable;
-        foreach (var name in names)
-        {
-            var including = SyntaxFactory.GenericName(SyntaxFactory.Identifier(IncludingClause), SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.ParseTypeName(name))));
-            var access = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, chain, SyntaxFactory.Token(SyntaxKind.DotToken).WithLeadingTrivia(indent), including);
-            chain = SyntaxFactory.InvocationExpression(access).WithTrailingTrivia(lineEnd);
-        }
-
+        var chain = ChainSyntax.Append(createTable, names.Select(static name => IncludingClause + "<" + name + ">()"));
         return document.WithSyntaxRoot(root.ReplaceNode(createTable, chain));
     }
 }

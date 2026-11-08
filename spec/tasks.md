@@ -58,7 +58,7 @@ API backlog (build when a service asks):
 Analyzers and docs:
 - [x] Code fixes for the analyzers: the survey of the 103 rules is under [Code fixes](#code-fixes-survey-of-2026-11-08); `DYNA020` is done (`DeclareDiscriminatorCodeFix`). The fixes to build, in the order a newcomer meets the rules:
 - [ ] `DYNA001` (a): add `partial` to the type and to each containing type that lacks it.
-- [ ] `DYNA239` (b): `.IgnoreVersion()` after the verb; `.IfVersion(version)` with the caret on a placeholder name, since only the caller knows the version read.
+- [x] `DYNA239` (b): `.IgnoreVersion()` after the verb; `.IfVersion(version)` with a placeholder, since only the caller knows the version read. Done (`SettleVersionCodeFix`): the placeholder is the first of `version`, `expectedVersion`, `expectedVersion2`... that names nothing at the call, so the code fails with `CS0103` until the version read stands there; a local that happened to be called `version` would compile with a value nobody chose. `CS0103` marks it, which is the pointer to it; DYNA239 stays beside it until then, since an `IfVersion` that does not bind is no clause to the analyzer.
 - [ ] `DYNA234` (a): insert `.ItemsAsync()` (`.ValuesAsync()` after `Select`, the `{1}` of the message, to carry in a property) before the LINQ call.
 - [ ] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members.
 - [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
@@ -66,7 +66,7 @@ Analyzers and docs:
 - [ ] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose.
 - [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
 - [ ] `DYNA019` (a): `#nullable enable` at the top of the file.
-- [ ] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered).
+- [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
 - [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
 - [ ] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);`.
 - [ ] `DYNA227` (b): `GetValueOrDefault()`, or `result.Found ? result.Value : default`.
@@ -225,7 +225,7 @@ Real DynamoDB, from the first runs of `real-aws.yml`:
 
 ## Code fixes (survey of 2026-11-08)
 
-Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA210` (a), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
+Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA210` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
 
 Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` and `DYNA120` to `DYNA122`, which analyzers report) reach a code fix as an analyzer's do: `DiagnosticReporter` places them on a `Spot` in the user's tree (the type's identifier, the attribute or its argument), and `DiagnosticInfo.Fix` carries the one string a fix needs as the property `Fix`. Their fixes are tested from a generator run over a workspace's compilation, whose trees are the documents' (`DeclareDiscriminatorCodeFixTests`). No fix can stand where the place is `Location.None`: `DYNA037` (on no file), and any rule on a base type in another project of an IDE workspace.
 
@@ -276,9 +276,9 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA213` | the attributes of a close spelling |
 | b | `DYNA227` | `GetValueOrDefault()`, or a test of `Found` |
 | b | `DYNA235` | remove `IfVersion`, or `IgnoreVersion()` |
-| b | `DYNA236` | `IgnoreVersion()` on the batch |
+| b | `DYNA236` | `IgnoreVersion()` on the batch (done) |
 | b | `DYNA237` | `DateTimeKind.Utc`, or a `DateOnly` |
-| b | `DYNA239` | `IgnoreVersion()`, or `IfVersion(version)` with a placeholder |
+| b | `DYNA239` | `IgnoreVersion()`, or `IfVersion(version)` with a placeholder (done) |
 | c: a name or a value to invent | `DYNA004`, `DYNA010`, `DYNA014`, `DYNA022`, `DYNA025`, `DYNA026`, `DYNA038`, `DYNA039`, `DYNA100`, `DYNA101`, `DYNA105`, `DYNA122`, `DYNA211`, `DYNA212`, `DYNA214`, `DYNA238` | a name, a value, a table name or a fix of the grammar |
 | c: a design decision | `DYNA002`, `DYNA006`, `DYNA007`, `DYNA008`, `DYNA011`, `DYNA017`, `DYNA018`, `DYNA023`, `DYNA031`, `DYNA040`, `DYNA041`, `DYNA103`, `DYNA106`, `DYNA109`, `DYNA111`, `DYNA112`, `DYNA118`, `DYNA119`, `DYNA120`, `DYNA121`, `DYNA205`, `DYNA209`, `DYNA215`, `DYNA216`, `DYNA217`, `DYNA218`, `DYNA219`, `DYNA221`, `DYNA223`, `DYNA225`, `DYNA226`, `DYNA230`, `DYNA231`, `DYNA232` | the key schema, the model, the command or the read changes shape |
 | c: nothing to change, or no place | `DYNA015` (a project setting), `DYNA037` (no file), `DYNA115`, `DYNA201`, `DYNA222` | information, the project file, or a rewrite of the expression |
