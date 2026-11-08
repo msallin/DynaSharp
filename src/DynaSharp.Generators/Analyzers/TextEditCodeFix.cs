@@ -1,6 +1,8 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
@@ -33,6 +35,23 @@ internal abstract class TextEditCodeFix : CodeFixProvider
     /// <returns>The parts, split at <see cref="DiagnosticInfo.FixSeparator"/>.</returns>
     protected static string[]? FixOf(Diagnostic diagnostic) =>
         diagnostic.Properties.TryGetValue(DiagnosticInfo.FixProperty, out var fix) ? fix!.Split(DiagnosticInfo.FixSeparator) : null;
+
+    /// <summary>
+    /// Where a property of the type around a place is declared, by the name the generator gave: a property declaration, also in another part of the type or in a base type in source, or the
+    /// parameter of a record. Null for a property from metadata or of a generated file.
+    /// </summary>
+    /// <param name="document">The document of the place.</param>
+    /// <param name="span">The place, inside the type.</param>
+    /// <param name="name">The name of the property.</param>
+    /// <param name="token">The cancellation token.</param>
+    /// <returns>The document of the declaration and the declaration, or null.</returns>
+    protected static async Task<(Document Document, SyntaxNode Node)?> PropertyAsync(Document document, TextSpan span, string name, CancellationToken token)
+    {
+        var root = (await document.GetSyntaxRootAsync(token).ConfigureAwait(false))!;
+        var model = (await document.GetSemanticModelAsync(token).ConfigureAwait(false))!;
+        var type = model.GetDeclaredSymbol(root.FindNode(span).FirstAncestorOrSelf<TypeDeclarationSyntax>()!, token)!;
+        return SourceEdits.Editable(document.Project.Solution, SourceEdits.PropertyOf(type, name).DeclaringSyntaxReferences.FirstOrDefault(), token);
+    }
 
     /// <summary>The ways to fix one diagnostic, in the order of its message, none where the diagnostic gives no safe edit.</summary>
     /// <param name="document">The document of the diagnostic.</param>

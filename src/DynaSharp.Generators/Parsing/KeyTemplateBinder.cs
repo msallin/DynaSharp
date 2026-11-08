@@ -73,7 +73,7 @@ internal static class KeyTemplateBinder
 
         if (input.IsNullable && !role.IsSparse)
         {
-            problems.Add(new KeyProblem(Descriptors.NullableInput, [input.Property]));
+            problems.Add(new KeyProblem(Descriptors.NullableInput, [input.Property], Fix: input.Property));
         }
 
         var binding = input.Type.Bind(node.Format, input.Property);

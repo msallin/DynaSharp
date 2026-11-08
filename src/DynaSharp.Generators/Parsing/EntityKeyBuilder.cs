@@ -293,7 +293,7 @@ internal sealed class EntityKeyBuilder(
 
         if (isNullable && !role.IsSparse)
         {
-            bag.Report(Descriptors.NullableInput, spot, property.Name);
+            bag.Report(Descriptors.NullableInput, spot, property.Name, [property.Name]);
         }
 
         if (role.IsIndex && property is { IsComputed: true, ComputedFrom: null })

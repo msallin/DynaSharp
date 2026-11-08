@@ -77,7 +77,7 @@ Analyzers and docs:
 - [x] `DYNA207` (b): one action per declared index, `Order.Indexes.X`, closest spelling first.
 - [x] `DYNA213` (b): one action per attribute of the type within a small edit distance (one edit per four letters), in a string literal, and in the text where it can stand bare.
 - [x] `DYNA206` (b): the version at 0, or `IgnoreVersion()` after `IfNotExists()`: the two ways the message names. Dropping `IfNotExists()` turns a first write into a checked one that fails for a missing item, so it is not offered.
-- [ ] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
+- [x] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
 - [x] `DYNA104` (b): one action per format the message lists for the type.
 - [ ] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
 - [ ] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
