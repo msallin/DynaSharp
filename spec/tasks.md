@@ -65,7 +65,7 @@ Analyzers and docs:
 - [ ] `DYNA117` (a): make the key property `required` and drop its initializer.
 - [x] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose. Done (`DiscardedCommandCodeFix`): the send outside a `lock`, where `SendAsync()` binds, on a chain that does not start at a command (sent, a local would be used up for its next use); the assignment where the chain starts at a local of the result's type; the discard where `_` names nothing.
 - [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
-- [ ] `DYNA019` (a): `#nullable enable` at the top of the file.
+- [x] `DYNA019` (a): `#nullable enable` at the top of the file (`EnableNullableCodeFix`).
 - [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
 - [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
 - [x] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);` (`SuggestedEditCodeFix`, where the earlier call is a statement of its own in a block the reuse is in).
@@ -236,7 +236,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 |---|---|---|
 | a | `DYNA001` | `partial` on the type and its containing types (done) |
 | a | `DYNA016` | the entity's accessibility on the type |
-| a | `DYNA019` | `#nullable enable` at the top of the file |
+| a | `DYNA019` | `#nullable enable` at the top of the file (done) |
 | a | `DYNA032` | `nameof(X)` into `[ComputedFrom]` |
 | a | `DYNA036` | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset` |
 | a | `DYNA043` | the name in full, from the message |
