@@ -137,6 +137,24 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task Heartbeat_RenewMeetsTheLeasesOwnTransaction_RenewsWithoutALog()
+    {
+        // Arrange (the holder's IsHeld transaction holds the lock item when the heartbeat renews)
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var before = bench.ItemOf("job")!.GetString("rvn");
+        bench.Handler.Enqueue(TransactionConflict());
+        var beat = lease!.NextBeat;
+
+        // Act
+        bench.Clock.Advance(Period);
+        await bench.RunAsync(Completion(beat), TimeSpan.FromMilliseconds(10));
+
+        // Assert
+        await Assert.That((lease.Ended.IsCancellationRequested, bench.ItemOf("job")!.GetString("rvn") != before, bench.LockLogs.Count)).IsEqualTo((false, true, 0));
+    }
+
+    [Test]
     public async Task Heartbeat_RenewKeepsFailing_TriesWithGrowingWaitsUntilTheLeaseRunsOut()
     {
         // Arrange (every renewal fails; the release at the end goes through)
@@ -442,6 +460,40 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task RenewAsync_MeetsTheLeasesOwnTransaction_RenewsAfterAShortWait()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Handler.Enqueue(TransactionConflict());
+
+        // Act
+        var renewed = await bench.RunAsync(lease!.RenewAsync(), TimeSpan.FromMilliseconds(10));
+
+        // Assert
+        await Assert.That((renewed, string.Join(",", bench.Handler.Requests.Select(static request => request.Operation)))).IsEqualTo((true, "UpdateItem,UpdateItem,UpdateItem"));
+    }
+
+    [Test]
+    public async Task RenewAsync_MeetsATransactionOnEveryRun_ThrowsAndKeepsTheLease()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        for (var run = 0; run < 5; run++)
+        {
+            bench.Handler.Enqueue(TransactionConflict());
+        }
+
+        // Act
+        var act = () => bench.RunAsync(lease!.RenewAsync(), TimeSpan.FromMilliseconds(100));
+
+        // Assert
+        await Assert.That(act).Throws<TransactionConflictException>();
+        await Assert.That((lease!.Ended.IsCancellationRequested, lease.LossReason)).IsEqualTo((false, (string?)null));
+    }
+
+    [Test]
     public async Task RenewAsync_CallerCancels_ThrowsAndKeepsTheLease()
     {
         // Arrange
@@ -691,6 +743,21 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task DisposeAsync_MeetsTheLeasesOwnTransaction_ReleasesAfterAShortWait()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Handler.Enqueue(TransactionConflict());
+
+        // Act
+        await bench.RunAsync(Completion(lease!.DisposeAsync().AsTask()), TimeSpan.FromMilliseconds(10));
+
+        // Assert
+        await Assert.That((bench.ItemOf("job")!.ContainsKey("owner"), bench.LockLogs.Count)).IsEqualTo((false, 0));
+    }
+
+    [Test]
     public async Task DisposeAsync_ReleaseFails_LogsAWarningInsteadOfThrowing()
     {
         // Arrange
@@ -880,6 +947,9 @@ public sealed class LeaseTests
 
     // Moves the clock to the next renewal of the heartbeat and waits until it is done.
     private static bool LinksTo(IEnumerable<ActivityLink>? links, ActivityTraceId trace) => links?.Any(link => link.Context.TraceId == trace) == true;
+
+    private static StubResponse TransactionConflict() =>
+        StubResponse.DynamoDbError("TransactionConflictException", "Transaction is ongoing for the item");
 
     private static async Task<bool> Completion(Task task)
     {

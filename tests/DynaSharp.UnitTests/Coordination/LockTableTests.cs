@@ -513,13 +513,16 @@ public sealed class LockTableTests
                 return Task.FromResult<StubResponse?>(null);
             }
 
-            if (updates++ == 0)
+            switch (updates++)
             {
-                bench.Fake.Answer(request);
-                return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Lost.", HttpStatusCode.InternalServerError));
+                case 0:
+                    bench.Fake.Answer(request);
+                    return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Lost.", HttpStatusCode.InternalServerError));
+                case 1:
+                    return Task.FromResult<StubResponse?>(TransactionConflict());
+                default:
+                    return Task.FromResult<StubResponse?>(null);
             }
-
-            return Task.FromResult<StubResponse?>(TransactionConflict());
         };
 
         // Act

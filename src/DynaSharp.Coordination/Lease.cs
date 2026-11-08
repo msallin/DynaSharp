@@ -35,6 +35,10 @@ namespace DynaSharp.Coordination;
 /// or the lease runs out. Losing it is final: acquire the lock again for a new lease.
 /// </para>
 /// <para>
+/// <b>Its own transactions.</b> A renewal or release that meets a transaction on the lock item, such as one of this lease's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, is
+/// sent again after a short wait, up to five times, so the lease is never lost to a transaction and a release is not left to the end of the lease.
+/// </para>
+/// <para>
 /// <b>Fencing.</b> A lease guards only what checks it. Code that writes to DynamoDB adds <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/> to the
 /// transaction of the write, and a system outside compares <see cref="FencingToken"/> with the highest one it has seen.
 /// </para>
@@ -187,14 +191,7 @@ public sealed class Lease : IAsyncDisposable
         using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.ReleaseSpan, Locks.Table.Name, Name, _acquiredIn);
         try
         {
-            await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
-                .Remove(LockItem.Owner)
-                .Remove(LockItem.LeaseDuration)
-                .Remove(LockItem.HolderLabel)
-                .Set(LockItem.RecordVersion, LockItem.NewId())
-                .If(Attr(LockItem.Owner).Eq(Owner))
-                .SendAsync()
-                .ConfigureAwait(false);
+            await Locks.Table.RetryOnConflictAsync(SendReleaseAsync, ConflictKind.TransactionConflict, cancellationToken: CancellationToken.None).ConfigureAwait(false);
         }
         catch (ConditionalCheckFailedException)
         {
@@ -271,12 +268,7 @@ public sealed class Lease : IAsyncDisposable
         var sent = Locks.Time.GetTimestamp();
         try
         {
-            await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
-                .Set(LockItem.RecordVersion, LockItem.NewId())
-                .If(Attr(LockItem.Owner).Eq(Owner))
-                .ReturnOldOnFailure()
-                .SendAsync(cancellationToken)
-                .ConfigureAwait(false);
+            await Locks.Table.RetryOnConflictAsync(SendRenewalAsync, ConflictKind.TransactionConflict, cancellationToken: cancellationToken).ConfigureAwait(false);
             CoordinationTelemetry.Renew(this, null);
             return Extend(sent);
         }
@@ -297,6 +289,26 @@ public sealed class Lease : IAsyncDisposable
             throw;
         }
     }
+
+    // A transaction on the item, such as this lease's own IsHeld, is over within moments and leaves the lock as it was, so the write is sent again after a short wait.
+    // A write that met a transaction was not applied, so sending it again is safe.
+    private async ValueTask SendRenewalAsync(CancellationToken cancellationToken) =>
+        await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
+            .Set(LockItem.RecordVersion, LockItem.NewId())
+            .If(Attr(LockItem.Owner).Eq(Owner))
+            .ReturnOldOnFailure()
+            .SendAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    private async ValueTask SendReleaseAsync(CancellationToken cancellationToken) =>
+        await Locks.Stamp(Locks.Table.Update(LockItem.PartitionKey(Name), LockItem.SortKeyOf(Locks.Table)))
+            .Remove(LockItem.Owner)
+            .Remove(LockItem.LeaseDuration)
+            .Remove(LockItem.HolderLabel)
+            .Set(LockItem.RecordVersion, LockItem.NewId())
+            .If(Attr(LockItem.Owner).Eq(Owner))
+            .SendAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     // Records a renewal that failed, and loses the lease for a reason.
     private void Fail(Activity? activity, Exception exception, string? reason)

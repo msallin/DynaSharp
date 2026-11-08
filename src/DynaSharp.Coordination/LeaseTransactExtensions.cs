@@ -14,7 +14,8 @@ public static class LeaseTransactExtensions
     /// not know it yet, is cancelled instead of overwriting the work of the next one. The check reads the item at the moment the transaction commits, which is what makes it safe; <see cref="Lease.Ended"/> is only what this process
     /// knows. A transaction that fails it throws <see cref="TransactionCanceledException"/> with <see cref="TransactionFailure.ConditionalCheckFailed"/> for this
     /// step. A lease that ran out on the local clock still passes while nobody has taken the lock over, which is safe, because nobody else holds it.
-    /// The lock item must be in a table of the same account and region as the other items of the transaction. While the transaction runs, a contender's acquire that meets it counts as refused.
+    /// The lock item must be in a table of the same account and region as the other items of the transaction. While the transaction runs, a contender's acquire that meets it counts as refused,
+    /// and a renewal or release of this lease that meets it is sent again after a short wait, so the lease is not lost to its own transaction.
     /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>

@@ -126,6 +126,8 @@ A release is one conditional `UpdateItem` that removes the owner, on condition t
 - when DynamoDB answers a renewal with `ResourceNotFoundException`;
 - when the lease runs out on the monotonic clock without a renewal that succeeded.
 
+A renewal or release that meets a transaction on the lock item, such as one of the lease's own `IsHeld`, gets `TransactionConflictException`, which the client does not retry. The lease sends it again after a short wait, up to five times, so a lease is never lost to its own transaction, and a release does not leave the lock taken until the lease runs out.
+
 A renewal that fails with any other error, after the retries of the client, is tried again after 100 ms, then after twice as long each time, up to a sixth of the lease, until one succeeds or the lease runs out. So a lease outlasts any number of failed renewals that leave it time. The heartbeat sends the next renewal a third of the lease after the last one that succeeded was sent, not after its answer, so a slow DynamoDB does not push the renewals towards the end of the lease.
 
 Disposing the lease cancels `Ended` too. Losing it is final: acquire the lock again for a new lease. An acquire whose answer arrives only after a whole lease hands out a lease that has ended already.
