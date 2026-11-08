@@ -117,7 +117,7 @@ internal sealed class ProcessCredentialsProvider : IRefreshableCredentialsProvid
                 }
                 else
                 {
-                    reader.Read();
+                    // On a name, Skip passes its value too.
                     reader.Skip();
                 }
             }

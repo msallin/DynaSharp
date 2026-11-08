@@ -237,12 +237,8 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         var reader = new Utf8JsonReader(json);
         try
         {
+            // A name comes only after the brace of an object, so a document that is no object ends the loop at once.
             reader.Read();
-            if (reader.TokenType != JsonTokenType.StartObject)
-            {
-                return null;
-            }
-
             for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
             {
                 var name = reader.GetString();

@@ -198,7 +198,8 @@ internal sealed class SharedConfigFiles
             return home;
         }
 
-        return home.Length > 0 && configured.Length > 1 && configured[0] == '~' && configured[1] is '/' or '\\'
+        // A tilde alone was taken above, so one in front has a character after it.
+        return home.Length > 0 && configured[0] == '~' && configured[1] is '/' or '\\'
             ? Path.Combine(home, configured[2..])
             : configured;
     }

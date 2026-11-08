@@ -65,7 +65,7 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
                 }
                 else
                 {
-                    reader.Read();
+                    // On a name, Skip passes its value too.
                     reader.Skip();
                 }
             }
