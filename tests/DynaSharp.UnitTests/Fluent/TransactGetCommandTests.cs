@@ -155,7 +155,7 @@ public sealed class TransactGetCommandTests
         var failure = TestClient.Catch(() => snapshot.Read(default(TransactSlot<Item>)));
 
         // Assert
-        await Assert.That((failure as ArgumentException)?.ParamName).IsEqualTo("slot");
+        await Assert.That((failure as ArgumentException)?.Message).IsEqualTo("This slot is a default value. A slot comes from a get of a transaction, through its out parameter. (Parameter 'slot')");
     }
 
     [Test]
@@ -231,7 +231,7 @@ public sealed class TransactGetCommandTests
         var failure = await TestClient.CaptureAsync<DynamoDbException>(async () => await client.TransactGet().Get(shop, "a", default, out _).SendAsync());
 
         // Assert
-        await Assert.That(failure.ErrorCode).IsEqualTo("UnrecognizedResponse");
+        await Assert.That((failure.ErrorCode, failure.InnerException?.Message)).IsEqualTo(("UnrecognizedResponse", "Expected an item response or the end of the array but found Number at byte 14."));
     }
 
     [Test]

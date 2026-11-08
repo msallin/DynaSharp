@@ -34,7 +34,7 @@ public sealed partial class PutCommandTests
         var result = await client.Table<Customer>("Shop").Put(Alice).IfNotExists().ReturnOldOnFailure().TrySendAsync();
 
         // Assert
-        await Assert.That(result.Item).IsEqualTo(stored);
+        await Assert.That((result.HasItem, result.Item)).IsEqualTo((true, stored));
     }
 
     [Test]

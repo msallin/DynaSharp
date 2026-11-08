@@ -20,7 +20,7 @@ public sealed partial class PutCommandTests
         var result = await client.Table<Ticket>("Shop").Put(changed).ReturnNew().SendAsync();
 
         // Assert
-        await Assert.That(result.Item).IsEqualTo(changed with { Revision = 4 });
+        await Assert.That((result.HasItem, result.Item)).IsEqualTo((true, changed with { Revision = 4 }));
     }
 
     [Test]

@@ -268,4 +268,19 @@ public sealed partial class PutCommandTests
         // Assert
         await Assert.That(handler.Requests.Single().Operation).IsEqualTo("PutItem");
     }
+
+    [Test]
+    public async Task MaxAttempts_Zero_ThrowsNamingTheParameter()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = shop.Put(new Item { ["pk"] = "a" }).MaxAttempts(0));
+
+        // Assert
+        await Assert.That((failure as ArgumentOutOfRangeException)?.ParamName).IsEqualTo("attempts");
+    }
 }

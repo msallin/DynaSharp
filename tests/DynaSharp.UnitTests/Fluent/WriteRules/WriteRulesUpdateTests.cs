@@ -23,7 +23,7 @@ public sealed class WriteRulesUpdateTests
         var act = () => tickets.Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).IgnoreVersion().ToRequestJson();
 
         // Assert
-        await Assert.That(act).Throws<InvalidOperationException>();
+        await Assert.That(act).Throws<InvalidOperationException>().WithMessage("This write already has IfVersion, which IgnoreVersion cannot take back. Use one of them.", StringComparison.Ordinal);
     }
 
     [Test]

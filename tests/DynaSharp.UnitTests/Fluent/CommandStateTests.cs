@@ -417,6 +417,26 @@ public sealed class CommandStateTests
     }
 
     [Test]
+    public async Task Describe_HandleOfAStateThatServesAnotherCommandNow_SaysItIsStale()
+    {
+        // Arrange (the pool hands the state to the next command)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        CommandHandle handle = shop.Update("a");
+        var state = handle.State!;
+        var version = handle.Version;
+        state.Release(version);
+        CommandHandle next = shop.Update("b");
+
+        // Act
+        var text = state.Describe(version);
+
+        // Assert
+        await Assert.That((next.State == state, text)).IsEqualTo((true, "(sent, extended or rendered)"));
+    }
+
+    [Test]
     public async Task Describe_StaleHandle_SaysSo()
     {
         // Arrange

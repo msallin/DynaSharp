@@ -179,4 +179,19 @@ public sealed partial class DeleteCommandTests
         // Assert
         await Assert.That(handler.Requests.Single().Operation).IsEqualTo("DeleteItem");
     }
+
+    [Test]
+    public async Task MaxAttempts_Zero_ThrowsNamingTheParameter()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = shop.Delete("a").MaxAttempts(0));
+
+        // Assert
+        await Assert.That((failure as ArgumentOutOfRangeException)?.ParamName).IsEqualTo("attempts");
+    }
 }

@@ -390,5 +390,20 @@ public sealed class GetCommandTests
         await Assert.That(failure.Message).Contains("a..b");
     }
 
+    [Test]
+    public async Task MaxAttempts_Zero_ThrowsNamingTheParameter()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = shop.Get("a").MaxAttempts(0));
+
+        // Assert
+        await Assert.That((failure as ArgumentOutOfRangeException)?.ParamName).IsEqualTo("attempts");
+    }
+
     private static string JsonComparerResult(string actual, string expected) => DynaSharp.UnitTests.Operations.JsonComparer.Differences(expected, actual);
 }

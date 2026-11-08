@@ -114,7 +114,67 @@ public sealed class KeyInputChangesTemplateTests
         var failure = Assert.Throws<InvalidOperationException>(() => tickets.Update(TicketKey).IgnoreVersion().Add(Ticket.Attrs.Rank, 1).ToRequestJson());
 
         // Assert
-        await Assert.That(failure.Message).Contains("{Rank:d3}-{Queue}").And.Contains("Add or SetIfNotExists");
+        await Assert.That(failure.Message).Contains("changes Rank by Add or SetIfNotExists").And.Contains("{Rank:d3}-{Queue}");
+    }
+
+    [Test]
+    public async Task ToRequestJson_AddToAnInputInATransaction_ThrowsBecauseTheValueIsNotKnown()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().Add(Ticket.Attrs.Rank, 1).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("changes Rank by Add or SetIfNotExists");
+    }
+
+    [Test]
+    public async Task ToRequestJson_SetIfNotExistsOfAnInputInATransaction_ThrowsBecauseTheValueIsNotKnown()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => client.TransactWrite().Update(tickets, TicketKey).IgnoreVersion().SetIfNotExists(Ticket.Attrs.State, TicketState.Open).ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("changes State by Add or SetIfNotExists");
+    }
+
+    [Test]
+    public async Task ToRequestJson_MissingInputsOneOfWhichNoHandleReaches_AdvisesAPut()
+    {
+        // Arrange (B could be set, Secret cannot, so setting what is missing is no way out)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var partly = client.Table<HalfHiddenKey>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => partly.Update(new StoredKey<HalfHiddenKey>("x")).Set(HalfHiddenKey.Attrs.A, "1").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("and not B, Secret,").And.Contains("Use a Put of the changed entity, or a raw path");
+    }
+
+    [Test]
+    public async Task ToRequestJson_TwoOfManyInputsSet_NamesBothAndEachThatIsMissing()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var wide = client.Table<WideKey>("Shop");
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => wide.Update(new StoredKey<WideKey>("x")).Set(WideKey.Attrs.A, "1").Set(WideKey.Attrs.B, "2").ToRequestJson());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("sets A, B, and not C, D, E, F, of the key template");
     }
 
     [Test]

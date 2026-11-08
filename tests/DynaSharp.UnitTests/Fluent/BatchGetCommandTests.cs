@@ -38,6 +38,21 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
+    public async Task SendAsync_ResponsesWithAnEmptyMapOfUnprocessedKeys_SendTheNextKeys()
+    {
+        // Arrange (DynamoDB answers a request it took whole with an empty map)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Responses":{},"UnprocessedKeys":{}}"""));
+        using var client = TestClient.Create(handler);
+        var ids = Enumerable.Range(0, 101).Select(static i => new TextKey("id-" + i));
+
+        // Act
+        await client.Table("Shop", "pk").BatchGet().GetAll(ids).SendAsync();
+
+        // Assert
+        await Assert.That(CountKeys(handler.Requests[^1])).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task SendAsync_NoKeys_SendsNothingAndReturnsAnEmptyResult()
     {
         // Arrange

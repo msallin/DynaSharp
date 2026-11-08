@@ -72,11 +72,11 @@ public sealed class BatchWriteCommandTests
         var shop = client.Table("Shop", "pk");
         await SendMany(shop, 3000);
 
-        // Act
-        var result = await SendMany(shop, 30);
+        // Act (more writes than the first capacity of the list, so that every offset it keeps again is used)
+        var result = await SendMany(shop, 32);
 
         // Assert
-        await Assert.That((result.Written, CountWrites(handler.Requests[^1]))).IsEqualTo((30, 5));
+        await Assert.That((result.Written, CountWrites(handler.Requests[^1]))).IsEqualTo((32, 7));
     }
 
     [Test]
@@ -705,6 +705,70 @@ public sealed class BatchWriteCommandTests
 
         // Assert
         await Assert.That((failure.Written, failure.UnprocessedItems["Shop"].Count, failure.InnerException is HttpRequestException)).IsEqualTo((25, 2, true));
+    }
+
+    [Test]
+    public async Task SendAsync_FailureOfARequestAfterOneThatWasRead_CountsOnlyTheRequestsThatWereAnswered()
+    {
+        // Arrange
+        var calls = 0;
+        using var handler = new StubHandler(_ => ++calls > 1 ? throw new HttpRequestException("No route.") : StubResponse.Json("{}"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = await TestClient.CaptureAsync<BatchIncompleteException>(async () => await SendMany(shop, 27));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("DynamoDB took 25 of 27 writes in 1 requests and left the rest unprocessed.");
+    }
+
+    [Test]
+    public async Task SendAsync_GivesUp_LogsWhatIsLeftAndTheRequests()
+    {
+        // Arrange (the first request takes one of three, the second none)
+        using var logs = new CapturingLoggerFactory();
+        using var handler = new StubHandler(LeaveAllWrites);
+        handler.Enqueue(StubResponse.Json("""{"UnprocessedItems":{"Shop":[{"PutRequest":{"Item":{"pk":{"S":"item-1"}}}},{"PutRequest":{"Item":{"pk":{"S":"item-2"}}}}]}}"""));
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero, loggerFactory: logs);
+
+        // Act
+        await TestClient.CaptureAsync<BatchIncompleteException>(async () => await client.Table("Shop", "pk").BatchWrite().Put(Numbered(0)).Put(Numbered(1)).Put(Numbered(2)).MaxStalledRounds(1).SendAsync());
+
+        // Assert
+        await Assert.That(logs.Entries.Single(static entry => entry.EventId.Id == 7).Message)
+            .IsEqualTo("DynamoDB BatchWriteItem on table Shop gave up with 2 actions unprocessed after 2 requests. The caller gets them in an exception.");
+    }
+
+    [Test]
+    public async Task SendAsync_ResponsesWithAnEmptyMapOfUnprocessedItems_SendTheNextWrites()
+    {
+        // Arrange (DynamoDB answers a request it took whole with an empty map)
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"UnprocessedItems":{}}"""));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var result = await SendMany(shop, 26);
+
+        // Assert
+        await Assert.That((result.Written, CountWrites(handler.Requests[^1]))).IsEqualTo((26, 1));
+    }
+
+    [Test]
+    public async Task ToRequestJson_Batch_GivesTheStateBackForTheNextCommand()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        var rendered = RenderedState(shop);
+
+        // Act
+        var next = shop.BatchWrite().Put(Numbered(1)).Handle.State;
+
+        // Assert
+        await Assert.That(next == rendered).IsTrue();
     }
 
     [Test]
@@ -1548,6 +1612,20 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
+    public async Task FindEnd_LaterRequestWhoseWritesFillItExactly_KeepsThemTogether()
+    {
+        // Arrange (the commas are those between the writes of this request, not those before it)
+        var actions = Actions(10, 1000, BatchWriteOperation.MaxWriteBytesPerRequest - 1000 - 1);
+        actions.First = 1;
+
+        // Act
+        var end = BatchWriteOperation.FindEnd(actions);
+
+        // Assert
+        await Assert.That(end).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task FindEnd_OneByteBeyondTheLimit_StartsANewRequest()
     {
         // Arrange
@@ -1609,6 +1687,14 @@ public sealed class BatchWriteCommandTests
 
     private static Task<BatchWriteResult> SendWith(Table<Item> table, CancellationToken cancellationToken) =>
         table.BatchWrite().Put(Numbered(0)).SendAsync(cancellationToken).AsTask();
+
+    private static CommandState RenderedState(Table<Item> table)
+    {
+        var command = table.BatchWrite().Put(Numbered(0));
+        var state = command.Handle.State!;
+        _ = command.ToRequestJson();
+        return state;
+    }
 
     private static (Task First, bool SecondThrew) SendTwice(Table<Item> table)
     {
