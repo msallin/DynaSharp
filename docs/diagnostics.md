@@ -130,7 +130,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 | `DYNA107` | A nullable property in a key that is not sparse | Make the index `Sparse`, or the property required. The code fix offers both: `Sparse = true` on an index, and the property `required` without its `?` and its initializer (a parameter of a record without its `?`) |
 | `DYNA108` (warning) | A number without a fixed width in a sort key, so `10` sorts before `9` | Use `d<w>` or `n<i>`, or `plain` if the order does not matter. The code fix offers the three, with the digits of the type's maximum, such as `{Qty:d10}` for an `int` (`d<w>` throws for a negative value), and `plain` alone for a `decimal` |
 | `DYNA109` | `[KeyOnly]` that cannot work, as the message says | Hold the value in a key without loss, or store it |
-| `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own |
+| `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own. The code fix removes `Sparse = true` |
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
 | `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>`. The code fix writes it with the digits of the largest value, all flags together for `[Flags]`, where no member is negative |
