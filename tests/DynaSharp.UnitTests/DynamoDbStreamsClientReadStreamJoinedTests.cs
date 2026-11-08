@@ -47,21 +47,22 @@ public sealed class DynamoDbStreamsClientReadStreamJoinedTests
     [Test]
     public async Task ReadStreamAsync_TrimHorizon_CallsItOnceTheShardsWithoutAListedParentHoldIterators()
     {
-        // Arrange: the child is read after its parent and does not count
+        // Arrange: the child is read after its parent and does not count. By the call the reader of p may already have read on into the child, so the
+        // call is asserted to come once p holds its iterator, not to come before the child holds one.
         var script = new StreamScript();
         script.Answer("list:", Description(StreamStatus.Disabled, null, Closed("p"), Closed("c", "p")));
         script.ClosedShard("p", "p-1");
         script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed("c", "p")));
         script.ClosedShard("c", "c-1");
         using var streams = TestClient.CreateStreams(script.Handler);
-        var iteratorsAtTheCall = new List<int>();
-        var request = FromTrimHorizon() with { OnJoined = () => iteratorsAtTheCall.Add(Positions(script.Handler).Count()) };
+        var firstPositionAtTheCall = new List<string?>();
+        var request = FromTrimHorizon() with { OnJoined = () => firstPositionAtTheCall.Add(Positions(script.Handler).FirstOrDefault()) };
 
         // Act
         await streams.ReadStreamAsync(request).ToListAsync();
 
         // Assert
-        await Assert.That(string.Join(",", iteratorsAtTheCall)).IsEqualTo("1");
+        await Assert.That(string.Join(",", firstPositionAtTheCall)).IsEqualTo("p:TRIM_HORIZON");
     }
 
     [Test]
