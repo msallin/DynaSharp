@@ -62,3 +62,7 @@ packages/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local agent state (worktrees, settings); the project skills are committed
+.claude/*
+!.claude/skills/
