@@ -269,7 +269,7 @@ internal sealed class ModelBuilder
         {
             if (NullableDefault.Of(property, _type, _compilation, _spot) is var (kept, fix, spot))
             {
-                _bag.Report(Descriptors.NullReadsBackAsInitialValue, spot, property.Name, kept, fix);
+                _bag.Report(Descriptors.NullReadsBackAsInitialValue, spot, property.Name, [property.Name, kept, fix]);
             }
         }
     }

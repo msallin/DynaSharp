@@ -71,7 +71,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA035` (warning): a nullable property that starts with a value, such as `public string? Note { get; set; } = "n/a";`, a `required` one too, or a constructor parameter of one with a default, such as `string? Note = "n/a"` in a positional record. A write leaves null out of the item, and a read of an item without the attribute keeps the initial value, so `Note = null` reads back as `"n/a"`.
 
-- **Fix.** Remove the initializer, or make the default of the parameter null, so that a missing attribute reads as null. Where the value is what a missing attribute should mean, make the property non-nullable.
+- **Fix.** Remove the initializer, or make the default of the parameter null, so that a missing attribute reads as null. Where the value is what a missing attribute should mean, make the property non-nullable. The code fix offers both: it removes the initializer or makes the default null, or drops the `?` of each declaration of the type.
 - **Not reported.** `= null`, `= default` and `= null!`, a property that is not nullable, not stored or computed, and a value that a constructor body assigns. A base type in a compiled assembly, which shows no initializer.
 
 `DYNA036` (error): `[TimeToLive]` on a property that DynamoDB cannot read as an expiry, or on a second property of the type. DynamoDB deletes by a number of seconds since 1970 and ignores an item that holds anything else, so `[TimeToLive] public DateTimeOffset ExpiresAt { get; init; }`, which is stored as an ISO 8601 string, would never expire. A property that is not stored, such as one with `[DynamoDbIgnore]` or a getter alone, holds no expiry, and a table has time to live on one attribute.

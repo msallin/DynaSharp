@@ -91,7 +91,7 @@ Analyzers and docs:
 - [x] `DYNA005` (b): `[DynamoDbConstructor]` on each candidate constructor, one action each.
 - [x] `DYNA003` (b): `[DynamoDbIgnore]` (a converter needs a type).
 - [ ] `DYNA102` (b): one action per property within a small edit distance.
-- [ ] `DYNA035` (b): remove the initializer, or make the property non-nullable.
+- [x] `DYNA035` (b): remove the initializer, or make the property non-nullable.
 - [x] `DYNA024` (b): make the property nullable.
 - [ ] `DYNA042` (b): remove the modifier (by value), or make it `in`.
 - [ ] `DYNA012` (b): remove the attribute, or make the type an entity.
@@ -265,7 +265,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA030` | remove `[OmitEmpty]`, or `Sparse = true` |
 | b | `DYNA033` | remove `[DynamoDbEnum]` |
 | b | `DYNA034` | a `protected` setter, or `[DynamoDbIgnore]` |
-| b | `DYNA035` | remove the initializer, or the property non-nullable |
+| b | `DYNA035` | remove the initializer, or the property non-nullable (done) |
 | b | `DYNA042` | by value, or `in` |
 | b | `DYNA102` | the properties of a close spelling |
 | b | `DYNA104` | each format the message lists |
