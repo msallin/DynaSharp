@@ -258,7 +258,7 @@ internal sealed class ModelBuilder
     {
         foreach (var property in properties.Where(property => property.Symbol.SetMethod is not null && property.IsComputed && !property.IsStored && !property.IsIgnored && property.KeyOnly is null))
         {
-            _bag.Report(Descriptors.UnreachableSetter, _spot, property.Name, property.Symbol.ContainingType.Name, _type.Name);
+            _bag.Report(Descriptors.UnreachableSetter, _spot, DocumentationCommentId.CreateDeclarationId(property.Symbol), [property.Name, property.Symbol.ContainingType.Name, _type.Name]);
         }
     }
 
@@ -341,7 +341,7 @@ internal sealed class ModelBuilder
     private void RejectOnDocument(AttributeData attribute)
     {
         var name = attribute.AttributeClass!.Name;
-        _bag.Report(Descriptors.NotValidOnDocument, Spot.Of(attribute, _spot), name.Substring(0, name.Length - nameof(Attribute).Length));
+        _bag.Report(Descriptors.NotValidOnDocument, Spot.Of(attribute, _spot), DocumentationCommentId.CreateDeclarationId(_type), [name.Substring(0, name.Length - nameof(Attribute).Length)]);
     }
 
     // What feeds a key is not known yet, so the keys of an entity take that back in EntityKeyBuilder. A property says more than its type, and a type more than the assembly.

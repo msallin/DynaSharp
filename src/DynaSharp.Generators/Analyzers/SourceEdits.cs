@@ -16,6 +16,8 @@ internal static class SourceEdits
 
     private static readonly string[] GeneratedSuffixes = [".g.cs", ".g.i.cs", ".designer.cs", ".generated.cs"];
 
+    private static readonly SyntaxKind[] AccessibilityKinds = [SyntaxKind.PublicKeyword, SyntaxKind.InternalKeyword, SyntaxKind.ProtectedKeyword, SyntaxKind.PrivateKeyword, SyntaxKind.FileKeyword];
+
     /// <summary>Whether a tool writes the file, which loses an edit when it runs again. The same tests as the compiler's for generated code, by name and by header.</summary>
     public static bool IsGenerated(SyntaxTree tree, CancellationToken token) =>
         GeneratedSuffixes.Any(suffix => tree.FilePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
@@ -31,6 +33,9 @@ internal static class SourceEdits
 
     /// <summary>The innermost node at a span, the one a diagnostic stands on.</summary>
     public static SyntaxNode NodeAt(SyntaxNode root, TextSpan span) => root.FindNode(span, getInnermostNodeForTie: true);
+
+    /// <summary>The attribute a diagnostic stands on, or null where it stands elsewhere, such as on a type in place of an attribute in metadata.</summary>
+    public static AttributeSyntax? AttributeAt(SyntaxNode root, TextSpan span) => NodeAt(root, span).FirstAncestorOrSelf<AttributeSyntax>();
 
     /// <summary>Applies changes to the documents of a solution; those of one document must not overlap.</summary>
     public static async Task<Solution> ApplyAsync(Solution solution, IEnumerable<(DocumentId Document, TextChange Change)> changes, CancellationToken token)
@@ -68,6 +73,23 @@ internal static class SourceEdits
             ? TextSpan.FromBounds(attribute.SpanStart, attributes[index + 1].SpanStart)
             : TextSpan.FromBounds(attributes[index - 1].Span.End, attribute.Span.End);
         return new TextChange(span, string.Empty);
+    }
+
+    /// <summary>The removal of an attribute that a syntax reference points at, in its document, or null where it cannot be edited.</summary>
+    public static (DocumentId Document, TextChange Change)? RemoveAttribute(Solution solution, SyntaxReference? reference, CancellationToken token) =>
+        Editable(solution, reference, token) is { } place ? (place.Document.Id, RemoveAttribute(place.Node.SyntaxTree.GetText(token), (AttributeSyntax)place.Node)) : null;
+
+    /// <summary>The short name of an attribute as the message of a diagnostic writes it: <c>PartitionKey</c> for <c>DynaSharp.Mapping.PartitionKeyAttribute</c>.</summary>
+    public static string ShortName(INamedTypeSymbol attribute) => attribute.Name.Substring(0, attribute.Name.Length - nameof(Attribute).Length);
+
+    /// <summary>Whether modifiers name an accessibility, <c>file</c> included.</summary>
+    public static bool NamesAccessibility(SyntaxTokenList modifiers) => modifiers.Any(static modifier => AccessibilityKinds.Contains(modifier.Kind()));
+
+    /// <summary>The changes that put a keyword, such as <c>private protected</c>, in place of the accessibility that modifiers name, which they must.</summary>
+    public static IEnumerable<TextChange> ReplaceAccessibility(SourceText text, SyntaxTokenList modifiers, string keyword)
+    {
+        var named = modifiers.Where(static modifier => AccessibilityKinds.Contains(modifier.Kind())).ToList();
+        return named.Skip(1).Select(other => Remove(text, other)).Prepend(new TextChange(named[0].Span, keyword));
     }
 
     /// <summary>Removes a node with its space: the whole line where it stands alone on one, else the spaces after it, or before it at the end of a line.</summary>

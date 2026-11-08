@@ -71,13 +71,12 @@ internal sealed class MarkConstructorCodeFix : CodeFixProvider
 
         foreach (var other in candidates.Where(candidate => !SymbolEqualityComparer.Default.Equals(candidate, chosen) && ConstructorBinder.IsMarked(candidate)))
         {
-            var reference = AttributeReader.Find(other, WellKnownNames.ConstructorAttribute)!.ApplicationSyntaxReference;
-            if (SourceEdits.Editable(solution, reference, token) is not { } place)
+            if (SourceEdits.RemoveAttribute(solution, AttributeReader.Find(other, WellKnownNames.ConstructorAttribute)!.ApplicationSyntaxReference, token) is not { } removal)
             {
                 return null;
             }
 
-            changes.Add((place.Document.Id, SourceEdits.RemoveAttribute(place.Node.SyntaxTree.GetText(token), (AttributeSyntax)place.Node)));
+            changes.Add(removal);
         }
 
         return changes;

@@ -19,8 +19,8 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA009` | A key is declared twice | Keep one declaration |
 | `DYNA010` | An attribute name DynamoDB would refuse | Pick another |
 | `DYNA011` | `[Version]` on something that is no single integer property | Put it on one such property, without a converter |
-| `DYNA012` | An attribute only an entity can have, on a document | Remove it, or make the type an entity |
-| `DYNA013` | A type is an entity and a document | Keep one |
+| `DYNA012` | An attribute only an entity can have, on a document | Remove it, or make the type an entity. The code fix offers both |
+| `DYNA013` | A type is an entity and a document | Keep one; the code fix removes either attribute |
 | `DYNA014` | A member clashes with generated code, such as `Keys`, or `TableName` in an entity that declares a table; a type outside it named so is `DYNA043` | Rename the member |
 | `DYNA015` | The project is below C# 11 | Raise `LangVersion` |
 | `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity. The code fix does, on each type the property's type is made of that is less visible, where all of them are in source |

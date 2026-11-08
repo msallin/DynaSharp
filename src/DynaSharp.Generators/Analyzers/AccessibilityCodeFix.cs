@@ -20,8 +20,6 @@ internal sealed class AccessibilityCodeFix : CodeFixProvider
     /// <summary>The equivalence key, the same for every property, so a fix-all raises each type.</summary>
     internal const string Key = "DYNA016.Raise";
 
-    private static readonly SyntaxKind[] AccessibilityKinds = [SyntaxKind.PublicKeyword, SyntaxKind.InternalKeyword, SyntaxKind.ProtectedKeyword, SyntaxKind.PrivateKeyword, SyntaxKind.FileKeyword];
-
     /// <inheritdoc/>
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.InaccessibleType.Id];
 
@@ -72,30 +70,19 @@ internal sealed class AccessibilityCodeFix : CodeFixProvider
     // Every part that names an accessibility gets the keyword in its place; where none does, the first part gets it in front of its modifiers.
     private static IEnumerable<(DocumentId, TextChange)> Raise(List<(Document Document, SyntaxNode Node)> declarations, string keyword, CancellationToken token)
     {
-        var named = declarations.Where(static declaration => AccessibilityOf(declaration.Node).Count > 0).ToList();
+        var named = declarations.Where(static declaration => SourceEdits.NamesAccessibility(Modifiers(declaration.Node))).ToList();
         if (named.Count == 0)
         {
             var (document, node) = declarations[0];
-            var first = ((MemberDeclarationSyntax)node).Modifiers.FirstOrDefault();
+            var first = Modifiers(node).FirstOrDefault();
             var start = first == default ? Keyword(node).SpanStart : first.SpanStart;
-            yield return (document.Id, new TextChange(new TextSpan(start, 0), keyword + " "));
-            yield break;
+            return [(document.Id, new TextChange(new TextSpan(start, 0), keyword + " "))];
         }
 
-        foreach (var (document, node) in named)
-        {
-            var text = node.SyntaxTree.GetText(token);
-            var tokens = AccessibilityOf(node);
-            yield return (document.Id, new TextChange(tokens[0].Span, keyword));
-            foreach (var other in tokens.Skip(1))
-            {
-                yield return (document.Id, SourceEdits.Remove(text, other));
-            }
-        }
+        return named.SelectMany(declaration => SourceEdits.ReplaceAccessibility(declaration.Node.SyntaxTree.GetText(token), Modifiers(declaration.Node), keyword).Select(change => (declaration.Document.Id, change)));
     }
 
-    private static List<SyntaxToken> AccessibilityOf(SyntaxNode node) =>
-        [.. ((MemberDeclarationSyntax)node).Modifiers.Where(static modifier => AccessibilityKinds.Contains(modifier.Kind()))];
+    private static SyntaxTokenList Modifiers(SyntaxNode node) => ((MemberDeclarationSyntax)node).Modifiers;
 
     // The keyword that says what the declaration is: class, struct, record, interface, enum or delegate.
     private static SyntaxToken Keyword(SyntaxNode node) => node switch
