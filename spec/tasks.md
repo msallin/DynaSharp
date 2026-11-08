@@ -59,8 +59,8 @@ Analyzers and docs:
 - [x] Code fixes for the analyzers: the survey of the 103 rules is under [Code fixes](#code-fixes-survey-of-2026-11-08); `DYNA020` is done (`DeclareDiscriminatorCodeFix`). The fixes to build, in the order a newcomer meets the rules:
 - [ ] `DYNA001` (a): add `partial` to the type and to each containing type that lacks it.
 - [x] `DYNA239` (b): `.IgnoreVersion()` after the verb; `.IfVersion(version)` with a placeholder, since only the caller knows the version read. Done (`SettleVersionCodeFix`): the placeholder is the first of `version`, `expectedVersion`, `expectedVersion2`... that names nothing at the call, so the code fails with `CS0103` until the version read stands there; a local that happened to be called `version` would compile with a value nobody chose. `CS0103` marks it, which is the pointer to it; DYNA239 stays beside it until then, since an `IfVersion` that does not bind is no clause to the analyzer.
-- [ ] `DYNA234` (a): insert `.ItemsAsync()` (`.ValuesAsync()` after `Select`, the `{1}` of the message, to carry in a property) before the LINQ call.
-- [ ] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members.
+- [x] `DYNA234` (a): insert `.ItemsAsync()` (`.ValuesAsync()` after `Select`, the `{1}` of the message, to carry in a property) before the LINQ call. Done (`ReadTerminalCodeFix`, property `Terminal`). It writes what the message says, so a synchronous name (`ToList`) stays one that `IAsyncEnumerable` lacks.
+- [x] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members. Done (`ReadTerminalCodeFix`): a member whose name ends in `Async`, offered where the chain binds with it (the arguments of `SendAsync(...)` kept, the calls after it included) and fits: a value under `await`, a stream in `foreach`. A fan-out's `PageAsync(pageSize)` needs a size, so it is not offered.
 - [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
 - [ ] `DYNA117` (a): make the key property `required` and drop its initializer.
 - [ ] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose.
@@ -225,7 +225,7 @@ Real DynamoDB, from the first runs of `real-aws.yml`:
 
 ## Code fixes (survey of 2026-11-08)
 
-Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA210` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
+Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA202` (b), `DYNA210` (a), `DYNA234` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
 
 Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` and `DYNA120` to `DYNA122`, which analyzers report) reach a code fix as an analyzer's do: `DiagnosticReporter` places them on a `Spot` in the user's tree (the type's identifier, the attribute or its argument), and `DiagnosticInfo.Fix` carries the one string a fix needs as the property `Fix`. Their fixes are tested from a generator run over a workspace's compilation, whose trees are the documents' (`DeclareDiscriminatorCodeFixTests`). No fix can stand where the place is `Location.None`: `DYNA037` (on no file), and any rule on a base type in another project of an IDE workspace.
 
@@ -248,7 +248,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA220` | the word in a hole, `{Attr("...")}` |
 | a | `DYNA224` | the index's key builder |
 | a | `DYNA233` | `Add` to `Set` |
-| a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call |
+| a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call (done) |
 | a | `DYNA240` | `Including<T>()` for each entity left out (done) |
 | b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) |
 | b | `DYNA005` | `[DynamoDbConstructor]` on one constructor, one action each |
@@ -269,7 +269,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA107` | `Sparse = true`, or the property `required` and non-nullable |
 | b | `DYNA108` | `:plain`, or `:d<w>` |
 | b | `DYNA116` | drop the format |
-| b | `DYNA202` | each terminal the read has |
+| b | `DYNA202` | each terminal the read has (done) |
 | b | `DYNA203` | send it, assign it back, or `_ =` |
 | b | `DYNA206` | drop `IfNotExists()`, or `IgnoreVersion()` |
 | b | `DYNA207` | each declared index, `T.Indexes.X` |
