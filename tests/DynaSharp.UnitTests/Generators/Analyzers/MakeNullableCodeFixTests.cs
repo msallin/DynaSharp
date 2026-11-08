@@ -8,7 +8,7 @@ public sealed class MakeNullableCodeFixTests
 {
     private const string Key = MakeNullableCodeFix.Key;
 
-    private static readonly CodeFixRun Run = new(() => new MakeNullableCodeFix(), "DYNA024");
+    private static readonly CodeFixRun Run = new(new MakeNullableCodeFix(), "DYNA024");
 
     [Test]
     [Arguments("public partial class A { public Nothing X { get; set; } }", "public partial class A { public Nothing? X { get; set; } }")]
@@ -56,7 +56,7 @@ public sealed class MakeNullableCodeFixTests
     public async Task RegisterCodeFixes_PropertyOfABaseTypeInALibrary_OffersNothing()
     {
         // Arrange (the diagnostic stands on the type, which does not declare the property)
-        var run = new CodeFixRun(() => new MakeNullableCodeFix(), "DYNA024") { Libraries = [Analysis.Library("namespace Lib; public enum Nothing { } public class Base { public Nothing X { get; set; } }")] };
+        var run = new CodeFixRun(new MakeNullableCodeFix(), "DYNA024") { Libraries = [Analysis.Library("namespace Lib; public enum Nothing { } public class Base { public Nothing X { get; set; } }")] };
         var files = CodeFixRun.One("[DynamoDbDocument] public partial class A : Lib.Base { }");
 
         // Act

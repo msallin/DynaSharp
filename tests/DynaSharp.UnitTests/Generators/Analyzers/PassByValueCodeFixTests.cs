@@ -10,7 +10,7 @@ public sealed class PassByValueCodeFixTests
 
     private const string In = PassByValueCodeFix.InKey;
 
-    private static readonly CodeFixRun Run = new(() => new PassByValueCodeFix(), "DYNA042");
+    private static readonly CodeFixRun Run = new(new PassByValueCodeFix(), "DYNA042");
 
     private static (string, string)[] Document(string parameter) =>
         CodeFixRun.One("[DynamoDbDocument] public partial class A { public A(" + parameter + ") { Count = 1; } public int Count { get; set; } }");

@@ -12,7 +12,7 @@ public sealed class OmitEmptyCodeFixTests
 
     private const string Members = " public partial class E { public string Id { get; set; } = \"id\"; [OmitEmpty] public string Owner { get; set; } = \"none\"; }";
 
-    private static readonly CodeFixRun Run = new(() => new OmitEmptyCodeFix(), "DYNA030");
+    private static readonly CodeFixRun Run = new(new OmitEmptyCodeFix(), "DYNA030");
 
     private static (string, string)[] Entity(string keys) => CodeFixRun.One("[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E#{Id}\"), " + keys + "]" + Members);
 
@@ -133,7 +133,7 @@ public sealed class OmitEmptyCodeFixTests
     public async Task RegisterCodeFixes_AttributeOfABaseTypeInALibrary_OffersNothing()
     {
         // Arrange (the diagnostic stands on the type, since the attribute has no place in source)
-        var run = new CodeFixRun(() => new OmitEmptyCodeFix(), "DYNA030")
+        var run = new CodeFixRun(new OmitEmptyCodeFix(), "DYNA030")
         {
             Libraries = [Analysis.Library("namespace Lib; public class Base { [DynaSharp.Mapping.OmitEmpty] public int Count { get; set; } }")],
         };

@@ -12,7 +12,7 @@ public sealed class EntityAttributeOnDocumentCodeFixTests
 
     private const string Address = "[DynamoDbDocument]\npublic partial class Address\n{\n    [PartitionKey]\n    public required string Id { get; set; }\n}";
 
-    private static readonly CodeFixRun Run = new(() => new EntityAttributeOnDocumentCodeFix(), "DYNA012");
+    private static readonly CodeFixRun Run = new(new EntityAttributeOnDocumentCodeFix(), "DYNA012");
 
     [Test]
     [Arguments(Remove, "[DynamoDbDocument]\npublic partial class Address\n{\n    public required string Id { get; set; }\n}")]
@@ -114,7 +114,7 @@ public sealed class EntityAttributeOnDocumentCodeFixTests
     public async Task RegisterCodeFixes_AttributeOfABaseTypeInALibrary_OffersTheEntity()
     {
         // Arrange (the diagnostic stands on the type, since the attribute has no place in source)
-        var run = new CodeFixRun(() => new EntityAttributeOnDocumentCodeFix(), "DYNA012")
+        var run = new CodeFixRun(new EntityAttributeOnDocumentCodeFix(), "DYNA012")
         {
             Libraries = [Analysis.Library("namespace Lib; public class Base { [DynaSharp.Mapping.PartitionKey] public string Id { get; set; } = \"\"; }")],
         };

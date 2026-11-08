@@ -41,7 +41,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA029` (error): an `[assembly: DynamoDbDefaultConverter]` that cannot work: a second default for a type, a nullable type (a default for the type covers its nullable form), or an open generic type (a default is for one closed type). Reported once, on the attribute, whether a type uses it or not.
 
-- **Fix.** Keep one, or name the closed type without its `?`.
+- **Fix.** Keep one, or name the closed type without its `?`; the code fix removes the second default, or drops the `?`.
 - **Not reported.** Nothing else fails with it: a type that would use it takes the first default or the built-in.
 
 `DYNA030` (error): `[OmitEmpty]` on a property that is no string, list, set, dictionary or array, that feeds a key, or that a read cannot do without. An empty value counts as null only where null can be left out, which a key of the table and a key of an index that is not sparse cannot be. A `required` property that is neither nullable nor a set, or such a constructor parameter without a default, could never be read back: the read throws for the attribute the empty value left out.

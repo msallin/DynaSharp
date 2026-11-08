@@ -101,7 +101,7 @@ Analyzers and docs:
 - [x] `DYNA030` (b): remove `[OmitEmpty]`, or `Sparse = true` where the index is the reason.
 - [x] `DYNA033` (b): remove `[DynamoDbEnum]`.
 - [x] `DYNA034` (b): make the setter `protected` where the base is in source, or `[DynamoDbIgnore]`.
-- [ ] `DYNA029` (b): remove the second default, or drop the `?` of the type.
+- [x] `DYNA029` (b): remove the second default, or drop the `?` of the type.
 - [x] A docs section explaining the discriminator ([Discriminator](../docs/entities.md#discriminator)): what `_type` is, why `[Discriminator]` is required, opting out for tables other tools write, and what a typed read and a mixed read do with it.
 
 Services:
@@ -261,7 +261,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA020` | the suggested value, `OptOut = true`, or the project's opt-out (done) |
 | b | `DYNA021` | remove `[DynamoDbIgnore]` or the key (done) |
 | b | `DYNA024` | the property nullable (done) |
-| b | `DYNA029` | remove the second default, or the `?` |
+| b | `DYNA029` | remove the second default, or the `?` (done) |
 | b | `DYNA030` | remove `[OmitEmpty]`, or `Sparse = true` (done) |
 | b | `DYNA033` | remove `[DynamoDbEnum]` (done) |
 | b | `DYNA034` | a `protected` setter, or `[DynamoDbIgnore]` (done) |

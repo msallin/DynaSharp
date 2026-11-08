@@ -10,7 +10,7 @@ public sealed class RemoveEnumAttributeCodeFixTests
 
     private const string Flags = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]\n[System.Flags]\npublic enum Access { None = 0, Read = 1 }";
 
-    private static readonly CodeFixRun Run = new(() => new RemoveEnumAttributeCodeFix(), "DYNA033", new EnumAttributeAnalyzer());
+    private static readonly CodeFixRun Run = new(new RemoveEnumAttributeCodeFix(), "DYNA033", new EnumAttributeAnalyzer());
 
     [Test]
     public async Task Fix_AttributeOfAFlagsEnum_RemovesItsLine()

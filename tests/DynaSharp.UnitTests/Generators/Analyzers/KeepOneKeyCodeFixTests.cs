@@ -7,7 +7,7 @@ public sealed class KeepOneKeyCodeFixTests
 {
     private const string OnTypeAndProperty = "[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E\"), SortKey(\"S\")] public partial class E\n{\n    [SortKey] public string B { get; set; } = \"\";\n}";
 
-    private static readonly CodeFixRun Run = new(() => new KeepOneKeyCodeFix(), "DYNA009");
+    private static readonly CodeFixRun Run = new(new KeepOneKeyCodeFix(), "DYNA009");
 
     [Test]
     public async Task RegisterCodeFixes_KeyOnTypeAndProperty_OffersToKeepEach()
@@ -87,7 +87,7 @@ public sealed class KeepOneKeyCodeFixTests
     public async Task RegisterCodeFixes_KeyOfABaseTypeInALibrary_OffersNothing()
     {
         // Arrange (the diagnostic stands on the type, since the key has no place in source)
-        var run = new CodeFixRun(() => new KeepOneKeyCodeFix(), "DYNA009")
+        var run = new CodeFixRun(new KeepOneKeyCodeFix(), "DYNA009")
         {
             Libraries = [Analysis.Library("namespace Lib; public abstract class Base { [DynaSharp.Mapping.PartitionKey] public string A { get; set; } = \"\"; }")],
         };

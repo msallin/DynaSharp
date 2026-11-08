@@ -10,7 +10,7 @@ public sealed class NullInitialValueCodeFixTests
 
     private const string NonNullable = NullInitialValueCodeFix.NonNullableKey;
 
-    private static readonly CodeFixRun Run = new(() => new NullInitialValueCodeFix(), "DYNA035");
+    private static readonly CodeFixRun Run = new(new NullInitialValueCodeFix(), "DYNA035");
 
     [Test]
     [Arguments(Null, "public string? Note { get; set; }\n")]
@@ -128,7 +128,7 @@ public sealed class NullInitialValueCodeFixTests
     public async Task RegisterCodeFixes_PropertyOfABaseTypeInAnotherProject_OffersNothing()
     {
         // Arrange (the diagnostic stands on the type, whose project does not hold the property)
-        var run = new CodeFixRun(() => new NullInitialValueCodeFix(), "DYNA035") { Chained = true };
+        var run = new CodeFixRun(new NullInitialValueCodeFix(), "DYNA035") { Chained = true };
         (string, string)[] library = [("Base.cs", "namespace Lib;\n\npublic class Base { public string? Note { get; set; } = \"n/a\"; }")];
         var files = CodeFixRun.One("[DynamoDbDocument] public partial class A : Lib.Base { }");
 

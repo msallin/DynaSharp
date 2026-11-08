@@ -7,7 +7,7 @@ public sealed class EntityOrDocumentCodeFixTests
 {
     private const string Both = "[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E#{Id}\")]\n[DynamoDbDocument]\npublic partial class E { public required string Id { get; set; } }";
 
-    private static readonly CodeFixRun Run = new(() => new EntityOrDocumentCodeFix(), "DYNA013");
+    private static readonly CodeFixRun Run = new(new EntityOrDocumentCodeFix(), "DYNA013");
 
     [Test]
     [Arguments(EntityOrDocumentCodeFix.EntityKey, "[DynamoDbEntity, Discriminator(\"E\"), PartitionKey(\"E#{Id}\")]\npublic partial class E { public required string Id { get; set; } }")]

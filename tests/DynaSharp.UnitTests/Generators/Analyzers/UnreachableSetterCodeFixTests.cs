@@ -12,7 +12,7 @@ public sealed class UnreachableSetterCodeFixTests
 
     private const string Derived = "\n[DynamoDbEntity, Discriminator(\"T\"), PartitionKey(\"T#{Id}\")] public partial class T : Root { public required string Id { get; init; } }";
 
-    private static readonly CodeFixRun Run = new(() => new UnreachableSetterCodeFix(), "DYNA034");
+    private static readonly CodeFixRun Run = new(new UnreachableSetterCodeFix(), "DYNA034");
 
     [Test]
     [Arguments("public string Locked { get; private set; } = \"\";", Protected, "public string Locked { get; protected set; } = \"\";")]

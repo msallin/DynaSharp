@@ -102,7 +102,9 @@ internal sealed class ProjectDefaults
         var value = attribute.ConstructorArguments[0].Value as ITypeSymbol;
         if (Problem(value) is { } problem)
         {
-            _bag.Report(Descriptors.InvalidDefaultConverter, spot, value?.ToDisplayString() ?? "null", problem);
+            // The code fix drops the ? of a nullable type.
+            var fix = value is not null && Types.Unwrap(value).IsNullable ? DefaultConverterCodeFix.UnwrapKey : null;
+            _bag.Report(Descriptors.InvalidDefaultConverter, spot, fix, [value?.ToDisplayString() ?? "null", problem]);
             return;
         }
 
@@ -119,7 +121,7 @@ internal sealed class ProjectDefaults
         }
         else if (_converters.ContainsKey(value!))
         {
-            _bag.Report(Descriptors.InvalidDefaultConverter, spot, value!.ToDisplayString(), "another default names the same type");
+            _bag.Report(Descriptors.InvalidDefaultConverter, spot, DefaultConverterCodeFix.RemoveKey, [value!.ToDisplayString(), "another default names the same type"]);
         }
         else
         {

@@ -11,7 +11,7 @@ public sealed class IgnoredKeyCodeFixTests
 
     private const string Entity = "[DynamoDbEntity, Discriminator(\"E\")]\npublic partial class E\n{\n    [PartitionKey]\n    [DynamoDbIgnore]\n    public required string Id { get; set; }\n}";
 
-    private static readonly CodeFixRun Run = new(() => new IgnoredKeyCodeFix(), "DYNA021");
+    private static readonly CodeFixRun Run = new(new IgnoredKeyCodeFix(), "DYNA021");
 
     [Test]
     [Arguments(Ignore, "[DynamoDbEntity, Discriminator(\"E\")]\npublic partial class E\n{\n    [PartitionKey]\n    public required string Id { get; set; }\n}")]
@@ -87,7 +87,7 @@ public sealed class IgnoredKeyCodeFixTests
     public async Task RegisterCodeFixes_KeyOfABaseTypeInALibrary_OffersNothing()
     {
         // Arrange (the diagnostic stands on the type, since the key has no place in source)
-        var run = new CodeFixRun(() => new IgnoredKeyCodeFix(), "DYNA021")
+        var run = new CodeFixRun(new IgnoredKeyCodeFix(), "DYNA021")
         {
             Libraries = [Analysis.Library("namespace Lib; public abstract class Base { [DynaSharp.Mapping.PartitionKey] public virtual string Id { get; set; } = \"\"; }")],
         };
