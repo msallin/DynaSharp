@@ -291,6 +291,55 @@ public sealed class TableStreamExtensionsTests
     }
 
     [Test]
+    public async Task ReadChangesAsync_ModifyOfAnItemThatStaysItsType_IsOneChange()
+    {
+        // Arrange
+        var fake = Shop("Shop");
+        fake.Put("Shop", Item.From(AlphaValue()));
+        fake.Put("Shop", Item.From(AlphaValue() with { Name = "second" }));
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var changes = await client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon).Take(2).ToListAsync();
+
+        // Assert
+        await Assert.That((changes[1].Kind, changes[1].Before!.Name, changes[1].After!.Name)).IsEqualTo((OperationType.Modify, "first", "second"));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TableAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange: the description of the table, which names the stream, comes once the test lets it
+        var described = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answers = new Queue<StubResponse>(
+        [
+            StubResponse.Json($$$"""{"Table":{"TableName":"Shop","StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamArn":"{{{TestClient.StreamArn}}}"}}"""),
+            StubResponse.StreamDescription("Shop", StreamStatus.Disabled),
+        ]);
+        using var handler = new StubHandler(async (_, _) =>
+        {
+            await described.Task.ConfigureAwait(false);
+            lock (answers)
+            {
+                return answers.Dequeue();
+            }
+        });
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+        await using var changes = client.Table("Shop", "pk", "sk").Of<Alpha>().ReadChangesAsync(streams, ShardIteratorType.TrimHorizon).GetAsyncEnumerator();
+        var context = new CountingSynchronizationContext();
+        var step = context.Start(() => changes.MoveNextAsync().AsTask());
+
+        // Act
+        described.SetResult();
+        await step;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task ReadChangesAsync_StreamSwitchedOffAfterTheStart_EndsWithTheStream()
     {
         // Arrange
@@ -561,6 +610,26 @@ public sealed class TableStreamExtensionsTests
     }
 
     [Test]
+    public async Task ReadChangesAsync_ThreeOrFourTypesThatCannotBeToldApart_ThrowArgumentExceptionAtTheCall()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        using var streams = TestClient.CreateStreams(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failures = new[]
+        {
+            Thrown(() => shop.ReadChangesAsync<Alpha, Beta, AlphaTwin>(streams, ShardIteratorType.TrimHorizon)),
+            Thrown(() => shop.ReadChangesAsync<Alpha, Beta, Gamma, AlphaTwin>(streams, ShardIteratorType.TrimHorizon)),
+        };
+
+        // Assert
+        await Assert.That(failures.All(static failure => failure is not null)).IsTrue();
+    }
+
+    [Test]
     public async Task ReadChangesAsync_NullTableOrStreams_ThrowsArgumentNullException()
     {
         // Arrange
@@ -600,6 +669,19 @@ public sealed class TableStreamExtensionsTests
 
     // Pins at compile time which reading a call binds to.
     private static IAsyncEnumerable<TChange> Typed<TChange>(IAsyncEnumerable<TChange> changes) => changes;
+
+    private static ArgumentException? Thrown(Action act)
+    {
+        try
+        {
+            act();
+            return null;
+        }
+        catch (ArgumentException failure)
+        {
+            return failure;
+        }
+    }
 
     private static string? Capture(Action act)
     {

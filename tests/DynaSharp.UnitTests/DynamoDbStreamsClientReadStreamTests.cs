@@ -161,6 +161,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
 
     [Test]
     [Arguments(61, 0)]
+    [Arguments(60, 0)]
     [Arguments(59, 1)]
     public async Task ReadStreamAsync_LatestAndAClosedShardWhoseChildOpenedThatLongAgo_LooksForMoreChildrenOnlyWithinAMinute(int secondsAgo, int looks)
     {
@@ -561,6 +562,8 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     [Arguments("shardId-00000001767225600000x0000000a")]
     [Arguments("shardId-0000000176722560000a-0000000a")]
     [Arguments("shardId-00000999999999999999-0000000a")]
+    [Arguments("shardId-00000001767225600000")]
+    [Arguments("shardId-1")]
     public async Task ReadStreamAsync_ChildWhoseIdTellsNoTime_StartsAtItsFirstSequenceNumber(string child)
     {
         // Arrange
@@ -576,6 +579,25 @@ public sealed class DynamoDbStreamsClientReadStreamTests
 
         // Assert
         await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:AT_SEQUENCE_NUMBER:{ShardStart}");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_ChildOpenedAtTheLastMillisecondATimeCanHold_StartsAtTheTrimHorizon()
+    {
+        // Arrange: 253402300799999 is the last Unix millisecond of the year 9999, and a child that opened after now has lost nothing
+        const string child = "shardId-00000253402300799999-0000000a";
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed(child, "p")));
+        script.ClosedShard(child, "c-1");
+        using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:TRIM_HORIZON");
     }
 
     [Test]
@@ -622,6 +644,29 @@ public sealed class DynamoDbStreamsClientReadStreamTests
 
         // Assert
         await Assert.That(string.Join(",", SequenceNumbers(await reading).Order(StringComparer.Ordinal))).IsEqualTo("c1-1,c2-1,p-1");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_SecondChildListedLate_LogsOnlyThatChildAsLate()
+    {
+        // Arrange: DynamoDB lists the first child on the first look, the second only on the second
+        var time = new ManualTimeProvider();
+        var logs = new CapturingLoggerFactory();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", Description(StreamStatus.Enabled, null, Closed("c1", "p")), Description(StreamStatus.Disabled, null, Closed("c1", "p"), Closed("c2", "p")));
+        script.ClosedShard("c1", "c1-1");
+        script.ClosedShard("c2", "c2-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan, loggerFactory: logs);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(logs.Entries.Where(static entry => entry.EventId.Id == 11).Select(static entry => entry.Message))
+            .IsEquivalentTo(["DynamoDB Streams listed the child shard c2 of shard p only 00:00:05 after the first look for its children."]);
     }
 
     [Test]
@@ -685,7 +730,9 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
-    public async Task ReadStreamAsync_OpenShardIsGone_ThrowsResourceNotFoundException()
+    [Arguments(ShardIteratorType.TrimHorizon)]
+    [Arguments(ShardIteratorType.Latest)]
+    public async Task ReadStreamAsync_OpenShardIsGone_ThrowsResourceNotFoundException(ShardIteratorType position)
     {
         // Arrange
         var script = new StreamScript();
@@ -694,7 +741,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         using var streams = TestClient.CreateStreams(script.Handler);
 
         // Act
-        var act = async () => await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+        var act = async () => await streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = position }).ToListAsync();
 
         // Assert
         await Assert.That(act).ThrowsExactly<ResourceNotFoundException>();
@@ -716,6 +763,62 @@ public sealed class DynamoDbStreamsClientReadStreamTests
 
         // Assert
         await Assert.That(async () => await records.MoveNextAsync()).Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_CancelledWhileRecordsAreHeldForTheConsumer_ThrowsOperationCanceledException()
+    {
+        // Arrange: the first page brings two records, and the consumer cancels once it has the first
+        var script = new StreamScript();
+        var holding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Open("open")));
+        script.Answer("iterator:open", StubResponse.ShardIterator("open/0"));
+        script.Answer("records:open/0", StubResponse.Records("open/1", Insert("open-1"), Insert("open-2")));
+        script.Answer("records:open/1", Hold(holding, new TaskCompletionSource()));
+        using var streams = TestClient.CreateStreams(script.Handler);
+        using var cancellation = new CancellationTokenSource();
+        await using var records = streams.ReadStreamAsync(FromTrimHorizon(), cancellation.Token).GetAsyncEnumerator();
+        await records.MoveNextAsync();
+        await holding.Task;
+
+        // Act
+        await cancellation.CancelAsync();
+
+        // Assert
+        await Assert.That(async () => await records.MoveNextAsync()).Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_ShardFailsWhileTheConsumerHoldsARecord_StopsTheOtherShardsAtOnce()
+    {
+        // Arrange: shard a fails on its second page, while the consumer holds its first record and shard open waits
+        var script = new StreamScript();
+        var holding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handedOver = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Open("open"), Open("a")));
+        script.Answer("iterator:open", StubResponse.ShardIterator("open/0"));
+        script.Answer("records:open/0", Hold(holding, released));
+        script.Answer("iterator:a", async _ =>
+        {
+            await holding.Task;
+            return StubResponse.ShardIterator("a/0");
+        });
+        script.Answer("records:a/0", StubResponse.Records("a/1", Insert("a-1")));
+        script.Answer("records:a/1", async _ =>
+        {
+            await handedOver.Task;
+            return StubResponse.DynamoDbError("ValidationException", "Failure of shard a.");
+        });
+        using var streams = TestClient.CreateStreams(script.Handler);
+        await using var records = streams.ReadStreamAsync(FromTrimHorizon()).GetAsyncEnumerator();
+        await records.MoveNextAsync();
+
+        // Act
+        handedOver.SetResult();
+
+        // Assert: the consumer does not ask for the next record, and the open shard stops all the same
+        await Assert.That(async () => await released.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System)).ThrowsNothing();
     }
 
     [Test]
@@ -862,7 +965,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         var act = () => streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = type });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("ShardIteratorType must be TrimHorizon or Latest.", StringComparison.Ordinal);
     }
 
     [Test]

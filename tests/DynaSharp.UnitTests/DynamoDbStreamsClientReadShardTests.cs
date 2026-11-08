@@ -141,6 +141,47 @@ public sealed class DynamoDbStreamsClientReadShardTests
     }
 
     [Test]
+    public async Task ReadShardAsync_IteratorExpiresAfterARecordOfAReadAtASequenceNumber_RenewsAfterTheLastRecordReturned()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2", Insert("6")));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-3"));
+        stub.Enqueue(StubResponse.Records(null));
+        var request = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.AtSequenceNumber, SequenceNumber = "5" };
+
+        // Act
+        await streams.ReadShardAsync(request).ToListAsync();
+
+        // Assert
+        await Assert.That(Position(stub.Requests[3])).IsEqualTo((TestClient.StreamArn, ShardId, "AFTER_SEQUENCE_NUMBER", "6"));
+    }
+
+    [Test]
+    public async Task ReadShardAsync_RenewedIteratorExpiredAtOnce_ThrowsExpiredIteratorException()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2", Insert("6")));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-3"));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-4"));
+        stub.Enqueue(StubResponse.Records(null));
+
+        // Act
+        var act = async () => await streams.ReadShardAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ExpiredIteratorException>();
+    }
+
+    [Test]
     public async Task ReadShardAsync_IteratorExpiresMidShard_ReturnsEveryRecordOnce()
     {
         // Arrange
@@ -421,7 +462,8 @@ public sealed class DynamoDbStreamsClientReadShardTests
         var act = () => streams.ReadShardAsync(FromTrimHorizon() with { ShardIteratorType = type });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>()
+            .WithMessageContaining("ShardIteratorType must be TrimHorizon, Latest, AtSequenceNumber or AfterSequenceNumber.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -438,7 +480,8 @@ public sealed class DynamoDbStreamsClientReadShardTests
         var act = () => streams.ReadShardAsync(FromTrimHorizon() with { ShardIteratorType = type, SequenceNumber = sequenceNumber });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>();
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessageContaining("AtSequenceNumber and AfterSequenceNumber need a SequenceNumber, and TrimHorizon and Latest take none.", StringComparison.Ordinal);
     }
 
     [Test]

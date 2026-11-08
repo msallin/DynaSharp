@@ -170,6 +170,43 @@ public sealed class DynamoDbStreamsClientReadStreamRetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_LookForChildrenFailsTransiently_WaitsTheBackoffBeforeItLooksAgain()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", ServerError(), Description(StreamStatus.Disabled, null));
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan, random: FixedRandom.One);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(delays).IsEquivalentTo([TimeSpan.FromSeconds(1)]);
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_LookForChildrenAnswersAfterATransientFailure_LogsThatTheShardIsReadAgain()
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
+        script.ClosedShard("p", "p-1");
+        script.Answer("children:p", ServerError(), Description(StreamStatus.Disabled, null));
+        using var streams = TestClient.CreateStreams(script.Handler, loggerFactory: logs, random: FixedRandom.Zero);
+
+        // Act
+        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(logs.Entries.Count(static entry => entry.EventId.Id == 13)).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task ReadStreamAsync_LookForChildrenOfAShardClosedAtTheStartFailsTransiently_LooksAgainAndReadsTheChild()
     {
         // Arrange
@@ -218,6 +255,28 @@ public sealed class DynamoDbStreamsClientReadStreamRetryTests
         var waited = TimeSpan.FromTicks(delays.Sum(static delay => delay.Ticks));
         await Assert.That((waited >= ShardRun.RetryWindow, waited - delays[^1] < ShardRun.RetryWindow, reading.Exception?.InnerException?.GetType()))
             .IsEqualTo((true, true, typeof(InternalServerErrorException)));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_FailureExactlyFifteenMinutesIntoAnOutage_ThrowsIt()
+    {
+        // Arrange: the second attempt fails at the end of the window, and a third would get the record
+        var time = new ManualTimeProvider();
+        var script = OneShard();
+        script.Answer("records:o/0", _ => Task.FromResult(ServerError()));
+        script.Answer("records:o/0", _ =>
+        {
+            time.Advance(ShardRun.RetryWindow);
+            return Task.FromResult(ServerError());
+        });
+        script.Answer("records:o/0", StubResponse.Records(null, Insert("o-1")));
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan, random: FixedRandom.Zero);
+
+        // Act
+        var act = async () => await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InternalServerErrorException>();
     }
 
     [Test]

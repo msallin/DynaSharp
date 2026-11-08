@@ -45,10 +45,11 @@ public sealed class MixedChangeTests
         var changes = Of<MixedChange<Alpha, Beta, Gamma, Delta>>(AlphaImage, BetaImage, GammaImage, DeltaImage);
 
         // Act
-        var answers = (changes[0].Is(out Change<Alpha>? _), changes[1].Is(out Change<Beta>? _), changes[2].Is(out Change<Gamma>? _), changes[3].Is(out Change<Delta>? delta), delta!.After.Sk, changes[3].Is(out Change<Alpha>? _), changes[0].Is(out Change<Delta>? _));
+        var answers = (changes[0].Is(out Change<Alpha>? _), changes[1].Is(out Change<Beta>? _), changes[2].Is(out Change<Gamma>? _), changes[3].Is(out Change<Delta>? delta), delta!.After.Sk, changes[3].Is(out Change<Alpha>? _),
+            changes[0].Is(out Change<Beta>? _), changes[0].Is(out Change<Gamma>? _), changes[0].Is(out Change<Delta>? _));
 
         // Assert
-        await Assert.That(answers).IsEqualTo((true, true, true, true, "1", false, false));
+        await Assert.That(answers).IsEqualTo((true, true, true, true, "1", false, false, false, false));
     }
 
     [Test]
@@ -137,7 +138,8 @@ public sealed class MixedChangeTests
         };
 
         // Assert
-        await Assert.That(failures.All(static failure => failure is InvalidOperationException)).IsTrue();
+        await Assert.That(failures.All(static failure => failure is InvalidOperationException
+            && failure.Message == "This MixedChange is a default value, which holds nothing. Changes of a typed read always hold one of their types.")).IsTrue();
     }
 
     [Test]

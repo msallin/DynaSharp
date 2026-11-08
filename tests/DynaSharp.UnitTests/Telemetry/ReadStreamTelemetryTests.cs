@@ -58,6 +58,33 @@ public sealed class ReadStreamTelemetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_Listener_LinksTheSpanOfAShardWithoutAParentToNothing()
+    {
+        // Arrange
+        using var capture = new ActivityCapture();
+
+        // Act
+        await ReadParentAndChildAsync();
+
+        // Assert
+        await Assert.That(Shard(capture, "p").Links).IsEmpty();
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_EndpointOnAPortOfItsOwn_TagsTheSpanOfAShardWithThePort()
+    {
+        // Arrange
+        using var capture = new ActivityCapture();
+        var host = TestClient.UniqueHost();
+
+        // Act
+        await ReadParentAndChildAsync(serviceUrl: new Uri($"http://{host}:8000"));
+
+        // Assert
+        await Assert.That(Shard(capture, "p").GetTagItem("server.port")).IsEqualTo((object?)8000);
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Listener_PutsTheSpanOfEveryShardUnderTheSpanOfTheCaller()
     {
         // Arrange
