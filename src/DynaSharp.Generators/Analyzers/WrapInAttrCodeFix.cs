@@ -5,7 +5,6 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Formatting;
 
 namespace DynaSharp.Generators;
 
@@ -18,8 +17,6 @@ namespace DynaSharp.Generators;
 internal sealed class WrapInAttrCodeFix : CodeFixProvider
 {
     private const string Title = "Wrap in Attr(...)";
-
-    private const string StaticImport = "DynaSharp.Expr";
 
     private const string AttrMethod = "Attr";
 
@@ -52,16 +49,7 @@ internal sealed class WrapInAttrCodeFix : CodeFixProvider
             .WithTriviaFrom(value);
 
         var model = (await document.GetSemanticModelAsync(token).ConfigureAwait(false))!;
-        var binds = model.GetSpeculativeSymbolInfo(span.Start, wrapped, SpeculativeBindingOption.BindAsExpression).Symbol is not null;
         var updated = root.ReplaceNode(value, wrapped);
-        return document.WithSyntaxRoot(binds ? updated : AddImport(updated));
-    }
-
-    private static CompilationUnitSyntax AddImport(CompilationUnitSyntax root)
-    {
-        var import = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(StaticImport))
-            .WithStaticKeyword(SyntaxFactory.Token(SyntaxKind.StaticKeyword))
-            .WithAdditionalAnnotations(Formatter.Annotation);
-        return root.AddUsings(import);
+        return document.WithSyntaxRoot(AttrImport.Binds(model, span.Start, wrapped) ? updated : AttrImport.Add(updated));
     }
 }

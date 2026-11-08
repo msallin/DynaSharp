@@ -64,7 +64,7 @@ Analyzers and docs:
 - [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
 - [x] `DYNA117` (a): make the key property `required` and drop its initializer (`RequireKeyCodeFix`).
 - [x] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose. Done (`DiscardedCommandCodeFix`): the send outside a `lock`, where `SendAsync()` binds, on a chain that does not start at a command (sent, a local would be used up for its next use); the assignment where the chain starts at a local of the result's type; the discard where `_` names nothing.
-- [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
+- [x] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import (`ReservedWordCodeFix`).
 - [x] `DYNA019` (a): `#nullable enable` at the top of the file (`EnableNullableCodeFix`).
 - [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
 - [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
@@ -248,7 +248,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA204` | the result assigned back to the variable (done) |
 | a | `DYNA208` | the missing names into `Project(...)` (done) |
 | a | `DYNA210` | `Attr(...)` around the string (done) |
-| a | `DYNA220` | the word in a hole, `{Attr("...")}` |
+| a | `DYNA220` | the word in a hole, `{Attr("...")}` (done) |
 | a | `DYNA224` | the index's key builder (done) |
 | a | `DYNA233` | `Add` to `Set` (done) |
 | a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call (done) |
