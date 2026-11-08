@@ -65,9 +65,8 @@ internal sealed class MarkConstructorCodeFix : CodeFixProvider
             }
 
             var node = place.Node;
-            var name = SourceEdits.AttributeName(compilation.GetSemanticModel(node.SyntaxTree), node.SpanStart, WellKnownNames.ConstructorAttribute);
-            var list = node is TypeDeclarationSyntax ? "[method: " + name + "]" : "[" + name + "]";
-            changes.Add((place.Document.Id, SourceEdits.AddAttributeList(node.SyntaxTree.GetText(token), node, list)));
+            var model = compilation.GetSemanticModel(node.SyntaxTree);
+            changes.Add((place.Document.Id, SourceEdits.AddAttribute(model, node, WellKnownNames.ConstructorAttribute, node is TypeDeclarationSyntax ? "method" : null, token)));
         }
 
         foreach (var other in candidates.Where(candidate => !SymbolEqualityComparer.Default.Equals(candidate, chosen) && ConstructorBinder.IsMarked(candidate)))

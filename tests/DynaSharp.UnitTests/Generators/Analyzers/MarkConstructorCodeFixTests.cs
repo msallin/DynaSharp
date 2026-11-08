@@ -9,7 +9,7 @@ public sealed class MarkConstructorCodeFixTests
 
     private const string Members = "\n    public int X { get; set; }\n    public string Note { get; set; } = \"\";\n}";
 
-    private static readonly CodeFixRun Run = new(() => new MarkConstructorCodeFix(), "DYNA005");
+    private static readonly CodeFixRun Run = new(new MarkConstructorCodeFix(), "DYNA005");
 
     private static (string, string)[] Document(string constructors) => CodeFixRun.One("[DynamoDbDocument]\npublic partial class A\n{\n    " + constructors + Members);
 

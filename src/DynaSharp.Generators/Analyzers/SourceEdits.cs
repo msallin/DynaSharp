@@ -108,6 +108,30 @@ internal static class SourceEdits
         return root.AddUsings(import);
     }
 
+    /// <summary>Adds an attribute of DynaSharp in a list of its own in front of a declaration, by its short name where it binds there, as <see cref="AddAttributeList"/> does.</summary>
+    /// <param name="model">The semantic model of the tree of the declaration.</param>
+    /// <param name="declaration">The member, type or parameter.</param>
+    /// <param name="metadataName">The metadata name of the attribute, such as <see cref="WellKnownNames.IgnoreAttribute"/>.</param>
+    /// <param name="target">The target to write, such as <c>method</c>, or null for none.</param>
+    /// <param name="token">The token to cancel.</param>
+    public static TextChange AddAttribute(SemanticModel model, SyntaxNode declaration, string metadataName, string? target, CancellationToken token)
+    {
+        var name = AttributeName(model, declaration.SpanStart, metadataName);
+        return AddAttributeList(declaration.SyntaxTree.GetText(token), declaration, "[" + (target is null ? string.Empty : target + ": ") + name + "]");
+    }
+
+    /// <summary>A property of a type or of a base type by its name, which a diagnostic of the generator named, so there is one.</summary>
+    public static IPropertySymbol PropertyOf(INamedTypeSymbol type, string name)
+    {
+        for (var current = type; ; current = current.BaseType!)
+        {
+            if (current.GetMembers(name).OfType<IPropertySymbol>().FirstOrDefault() is { } property)
+            {
+                return property;
+            }
+        }
+    }
+
     /// <summary>The name to write for an attribute of DynaSharp at a place: the short one where it binds there, else the name in full.</summary>
     /// <param name="model">The semantic model of the document.</param>
     /// <param name="position">Where the attribute goes.</param>

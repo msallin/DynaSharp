@@ -89,7 +89,7 @@ Analyzers and docs:
 - [ ] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.
 - [ ] `DYNA116` (b): drop the format (ticks); a tie-breaker is not offered.
 - [x] `DYNA005` (b): `[DynamoDbConstructor]` on each candidate constructor, one action each.
-- [ ] `DYNA003` (b): `[DynamoDbIgnore]` (a converter needs a type).
+- [x] `DYNA003` (b): `[DynamoDbIgnore]` (a converter needs a type).
 - [ ] `DYNA102` (b): one action per property within a small edit distance.
 - [ ] `DYNA035` (b): remove the initializer, or make the property non-nullable.
 - [ ] `DYNA024` (b): make the property nullable.
@@ -253,7 +253,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA233` | `Add` to `Set` (done) |
 | a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call (done) |
 | a | `DYNA240` | `Including<T>()` for each entity left out (done) |
-| b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) |
+| b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) (done) |
 | b | `DYNA005` | `[DynamoDbConstructor]` on one constructor, one action each (done) |
 | b | `DYNA009` | remove one declaration, one action each |
 | b | `DYNA012` | remove the attribute, or make the type an entity |

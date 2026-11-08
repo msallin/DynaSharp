@@ -10,7 +10,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 |---|---|---|
 | `DYNA001` | The type or a containing type is not `partial` | Make them all `partial`. The code fix adds it to each declaration that lacks it |
 | `DYNA002` | An entity has no partition key | Add `[PartitionKey]`, or use `[DynamoDbDocument]` for a nested type |
-| `DYNA003` | A property has a type that cannot be stored | Add a `[DynamoDbConverter]`, or `[DynamoDbIgnore]` |
+| `DYNA003` | A property has a type that cannot be stored | Add a `[DynamoDbConverter]`, or `[DynamoDbIgnore]`, which the code fix adds to a property (not to a parameter of a positional record, which would have no property left to bind) |
 | `DYNA004` | Two members want one attribute, also after `Naming` converted their names | Rename one with `[DynamoDbAttribute]` or `AttributeName` |
 | `DYNA005` | No single constructor can be used | Mark one with `[DynamoDbConstructor]`. The code fix offers each constructor, and takes the attribute off the others |
 | `DYNA006` | A constructor parameter has no property | Name it after a mapped property |

@@ -52,7 +52,7 @@ internal sealed class AccessibilityCodeFix : CodeFixProvider
     {
         var parts = fix.Split(' ');
         var keyword = parts[0];
-        var property = PropertyOf(type, parts[1]);
+        var property = SourceEdits.PropertyOf(type, parts[1]);
         var types = Types.Below(property.Type, keyword == "public" ? Accessibility.Public : Accessibility.Internal).Distinct<INamedTypeSymbol>(SymbolEqualityComparer.Default).ToList();
         var changes = new List<(DocumentId, TextChange)>();
         foreach (var below in types)
@@ -67,18 +67,6 @@ internal sealed class AccessibilityCodeFix : CodeFixProvider
         }
 
         return (keyword, types, changes);
-    }
-
-    // The generator named a property of the type or of a base type, so there is one.
-    private static IPropertySymbol PropertyOf(INamedTypeSymbol type, string name)
-    {
-        for (var current = type; ; current = current.BaseType!)
-        {
-            if (current.GetMembers(name).OfType<IPropertySymbol>().FirstOrDefault() is { } property)
-            {
-                return property;
-            }
-        }
     }
 
     // Every part that names an accessibility gets the keyword in its place; where none does, the first part gets it in front of its modifiers.
