@@ -1,5 +1,5 @@
 // Summarises the vitest JSON report of a Parity Suite run, for build/parity.sh and build/parity.ps1: passed, failed and skipped per tier,
-// then every file with a failure, its count and the first line of its first failure, which is the row format of the score table in spec/tasks.md.
+// then every file with a failure, its count and the first line of its first failure, which is the row format of the score table in spec/tasks.md ("Fidelity of the fake", "Parity Suite score").
 // Usage: node build/parity-summary.mjs artifacts/parity/fake.json <suite commit>
 // Input:  {"testResults":[{"name":".../tests/tier1/crud/putItem.test.ts","assertionResults":[{"status":"passed"}, ...]}, ...]}
 // Output: "tier1: 480 passed, 9 failed, 0 skipped" per tier, then "tier1/crud/putItem.test.ts: 2 failed - expected ..." per failing file.

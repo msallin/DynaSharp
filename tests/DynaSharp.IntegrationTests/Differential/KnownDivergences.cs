@@ -9,7 +9,7 @@ namespace DynaSharp.IntegrationTests.Differential;
 /// Divergences between the fake and an emulator where the emulator is the one that differs from DynamoDB, or where only real DynamoDB could tell. The list is the counterpart of
 /// <see cref="Gaps"/> for generated sequences: each rule says what the emulator does and why it is not the fake that is wrong. A known divergence of a read, or of the consumed capacity
 /// alone, leaves the tables alike, so its sequence goes on; any other ends its sequence without failing the test. Where the emulators disagreed, <c>Fidelity/FidelityTests</c> asked
-/// real DynamoDB, and the fake follows its answers (<c>spec/tasks.md</c>, R20).
+/// real DynamoDB, and the fake follows its answers (<c>spec/tasks.md</c>, "Fidelity of the fake").
 /// </summary>
 /// <remarks>
 /// Two rules are wide on purpose, and each is covered by the other emulator. Dynoxide skips much of the validation of DynamoDB, so a request the fake rejects and Dynoxide does not is

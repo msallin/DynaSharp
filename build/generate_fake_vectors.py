@@ -2,7 +2,7 @@
 
 The fake must not be its own oracle, so the answers come from DynamoDB Local, the emulator of AWS, in Docker. Each case is a short
 sequence of requests on one table: the setup (CreateTable, PutItem) and the requests that decide an open question of the fake,
-listed in spec/tasks.md under M4. botocore signs every request, as a client of DynamoDB would; the body is sent as written here,
+listed in spec/tasks.md under "Fidelity of the fake". botocore signs every request, as a client of DynamoDB would; the body is sent as written here,
 not through botocore's serializer, so that a request the client model would refuse (a constant of the wrong type, 101 operands)
 still reaches DynamoDB Local.
 

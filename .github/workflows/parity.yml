@@ -1,4 +1,4 @@
-# Runs the Parity Suite against FakeDynamoDb behind tools/DynaSharp.FakeServer, by hand. A measure, not a gate: the score goes into spec/tasks.md.
+# Runs the Parity Suite against FakeDynamoDb behind tools/DynaSharp.FakeServer, by hand. A measure, not a gate: the score goes into spec/tasks.md, "Parity Suite score".
 name: Parity
 
 on:

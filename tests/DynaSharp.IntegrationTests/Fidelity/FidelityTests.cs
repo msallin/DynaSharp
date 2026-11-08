@@ -6,7 +6,7 @@ using DynaSharp.IntegrationTests.Support;
 namespace DynaSharp.IntegrationTests.Fidelity;
 
 /// <summary>
-/// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, R20), asked of real DynamoDB on the raw wire.
+/// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, "Fidelity of the fake"), asked of real DynamoDB on the raw wire.
 /// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937; where that run left the rule open, the test accepts the answers seen and records which one
 /// came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
 /// </summary>
