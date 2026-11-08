@@ -726,4 +726,104 @@ public sealed class TableAdministrationTests
         // Assert
         await Assert.That((failure.CancellationToken == cancellation.Token, handler.Requests.Count)).IsEqualTo((true, 1));
     }
+
+    [Test]
+    public async Task DescribeTableAsync_TimeoutOutOfRange_ThrowsSayingWhatADescribeTableTakes()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ArgumentOutOfRangeException>(async () => await client.Table("Shop", "pk").DescribeTableAsync(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("The timeout of a DescribeTable is more than zero and at most 4294967294 milliseconds, or Timeout.InfiniteTimeSpan for no bound.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task DescribeTableAsync_AnswerLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var held = new HeldResponses(0, StubResponse.Json(Active));
+
+        // Act
+        var posts = await PostsAsync(held, static table => table.DescribeTableAsync().AsTask());
+
+        // Assert
+        await Assert.That(posts).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments(5000L)]
+    [Arguments(-1L)]
+    public async Task DescribeTableAsync_TimeoutAndAnAnswerLater_DoesNotResumeOnTheContextOfTheCaller(long milliseconds)
+    {
+        // Arrange
+        var held = new HeldResponses(0, StubResponse.Json(Active));
+
+        // Act
+        var posts = await PostsAsync(held, table => table.DescribeTableAsync(TimeSpan.FromMilliseconds(milliseconds)).AsTask());
+
+        // Assert
+        await Assert.That(posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DeleteTableAsync_AnswerLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var held = new HeldResponses(0, StubResponse.Json("""{"TableDescription":{"TableName":"Shop","TableStatus":"DELETING"}}"""));
+
+        // Act
+        var posts = await PostsAsync(held, static table => table.DeleteTableAsync().AsTask());
+
+        // Assert
+        await Assert.That(posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_LookThatAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var held = new HeldResponses(0, StubResponse.Json(Active));
+
+        // Act
+        var posts = await PostsAsync(held, static table => table.WaitUntilActiveAsync().AsTask());
+
+        // Assert
+        await Assert.That(posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task WaitUntilActiveAsync_DelayBetweenLooks_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var context = new CountingSynchronizationContext();
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Creating));
+        handler.Enqueue(StubResponse.Json(Active));
+        using var client = TestClient.Create(handler, time);
+        var call = context.Start(() => client.Table("Shop", "pk").WaitUntilActiveAsync().AsTask());
+
+        // Act
+        time.Advance(TimeSpan.FromMilliseconds(100));
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    private static async Task<int> PostsAsync(HeldResponses held, Func<Table<Item>, Task> call)
+    {
+        var context = new CountingSynchronizationContext();
+        using var handler = new StubHandler(held.AnswerAsync);
+        using var client = TestClient.Create(handler, new ManualTimeProvider());
+        var table = client.Table("Shop", "pk");
+        var running = context.Start(() => call(table));
+        held.Release();
+        await running;
+        return context.Posts;
+    }
 }

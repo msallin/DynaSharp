@@ -203,6 +203,20 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
+    public async Task ToRequest_EntityWithANumberKey_DefinesItAsANumber()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var request = client.Table<DynaSharp.UnitTests.Mapping.KeyEntities.NumberKeyed>("Shop").CreateTable().ToRequest();
+
+        // Assert
+        await Assert.That(request.AttributeDefinitions[0].AttributeType).IsEqualTo(ScalarAttributeType.Number);
+    }
+
+    [Test]
     public async Task SendAsync_TableWithoutASortKey_HasOneKeyAttribute()
     {
         // Arrange
@@ -881,6 +895,53 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_TimeoutDuringTheCreate_SaysSo()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new DelegateHandler(static async (_, ct) =>
+        {
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromHours(1));
+        var sending = client.Table("Shop", "pk").CreateTable().Timeout(TimeSpan.FromSeconds(10)).SendAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(sending, time, TimeSpan.FromHours(1));
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.Message).Contains("it was creating the table.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_TimeoutWhileDescribingAfterAResponseWithoutADescription_SaysSo()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new DelegateHandler(async (request, ct) =>
+        {
+            if (request.Headers.GetValues("X-Amz-Target").Single().EndsWith("CreateTable", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage { Content = new StringContent("{}") };
+            }
+
+            await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, ct);
+            return new HttpResponseMessage();
+        });
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromHours(1));
+        var sending = client.Table("Shop", "pk").CreateTable().Timeout(TimeSpan.FromSeconds(10)).SendAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(sending, time, TimeSpan.FromHours(1));
+        var failure = await TestClient.CaptureAsync<TimeoutException>(() => sending);
+
+        // Assert
+        await Assert.That(failure.Message).Contains("it was describing the table.", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task SendAsync_TokenOfTheCallerBeforeTheTimeout_CancelsAsItDid()
     {
         // Arrange
@@ -918,6 +979,7 @@ public sealed partial class CreateTableCommandTests
 
     [Test]
     [Arguments(1000L)]
+    [Arguments(4294967294L)]
     [Arguments(-1L)]
     public async Task SendAsync_TimeoutThatIsNotReachedOrInfinite_ReturnsTheTable(long milliseconds)
     {
@@ -949,6 +1011,21 @@ public sealed partial class CreateTableCommandTests
 
         // Assert
         await Assert.That((((ArgumentOutOfRangeException)failure).ParamName, handler.Requests.Count)).IsEqualTo(("timeout", 0));
+    }
+
+    [Test]
+    public async Task Timeout_Zero_ThrowsSayingWhatACreateTableTakes()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var create = client.Table("Shop", "pk").CreateTable();
+
+        // Act
+        var failure = TestClient.Catch(() => create.Timeout(TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("The timeout of a CreateTable is more than zero and at most 4294967294 milliseconds, or Timeout.InfiniteTimeSpan for no bound.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -1544,6 +1621,21 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
+    public async Task Stream_NoView_ThrowsNamingTheViews()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var command = client.Table("Shop", "pk").CreateTable();
+
+        // Act
+        var failure = TestClient.Catch(() => command.Stream(StreamViewType.Unspecified));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("A stream needs a view: NewImage, OldImage, NewAndOldImages or KeysOnly.", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task SendAsync_TimeToLiveOnANewTable_WaitsForItThenDescribesAndTurnsItOn()
     {
         // Arrange
@@ -1624,6 +1716,20 @@ public sealed partial class CreateTableCommandTests
 
         // Assert
         await Assert.That(handler.Requests[2].BodyText).IsEqualTo("""{"TableName":"Shop","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"other"}}""");
+    }
+
+    [Test]
+    public async Task TimeToLiveAttributeName_ClauseBesideAnEntityWithTimeToLive_IsTheClause()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var name = client.Table<SchemaSession>("Shop").CreateTable().TimeToLive("other").TimeToLiveAttributeName;
+
+        // Assert
+        await Assert.That(name).IsEqualTo("other");
     }
 
     [Test]
@@ -2042,6 +2148,7 @@ public sealed partial class CreateTableCommandTests
     [Test]
     [Arguments("place.expires")]
     [Arguments("lines[0]")]
+    [Arguments("[0]")]
     public async Task TimeToLive_NestedHandle_ThrowsNamingIt(string path)
     {
         // Arrange (DynamoDB would take that for the name of an attribute no item has, and refuse a correction for an hour)
