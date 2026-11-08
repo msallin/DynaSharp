@@ -8,7 +8,7 @@ A record in a table, up to 400 KB, found by its primary key: the partition key, 
 
 ## Attribute
 
-A named value of an item: a string, number, binary, boolean, null, list, map or set. Items of one table need not share their attributes, which is how several types live in one table, told apart by the discriminator `_type`. `Attrs` holds a typed handle per attribute, see [Keys and Attrs](entities.md#keys-and-attrs).
+A named value of an item: a string, number, binary, boolean, null, list, map or set. Items of one table need not share their attributes, which is how several types live in one table, told apart by the [discriminator](entities.md#discriminator) `_type`. `Attrs` holds a typed handle per attribute, see [Keys and Attrs](entities.md#keys-and-attrs).
 
 ## Partition key
 

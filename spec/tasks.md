@@ -102,7 +102,7 @@ Analyzers and docs:
 - [ ] `DYNA033` (b): remove `[DynamoDbEnum]`.
 - [ ] `DYNA034` (b): make the setter `protected` where the base is in source, or `[DynamoDbIgnore]`.
 - [ ] `DYNA029` (b): remove the second default, or drop the `?` of the type.
-- [ ] A docs section explaining the discriminator: what `_type` is, why `[Discriminator]` is required, opting out for tables other tools write, and what a typed read and a mixed read do with it.
+- [x] A docs section explaining the discriminator ([Discriminator](../docs/entities.md#discriminator)): what `_type` is, why `[Discriminator]` is required, opting out for tables other tools write, and what a typed read and a mixed read do with it.
 
 Services:
 - [ ] customer-adapter: migrate the tour lock to `DynaSharp.Coordination` (`LockTable`), deployed with the `Recreate` strategy so no old and new pod hold the lock by different rules at once.

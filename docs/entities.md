@@ -59,6 +59,20 @@ The rules of a template, and what the generator reports when one is broken, are 
 
 `Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `Order.Keys.Pk.TryOf(id) is { } key` checks without an exception. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
 
+## Discriminator
+
+`[Discriminator("ORDER")]` stores `ORDER` in the attribute `_type` of every item of the entity; `AttributeName` names it otherwise, `[Discriminator("ORDER", AttributeName = "kind")]`. It says which entity an item is, which the key cannot:
+
+- **A partition holds several entities.** In a single-table design `CUSTOMER#alice` holds Alice's profile and her orders, as in the table above.
+- **Templates need not differ.** A sort key template needs no literal prefix of its own, and two templates can write the same text.
+- **Keys change.** A new template applies to new items; stored items keep the keys they were written with.
+
+Every write sets it, an `Update` that creates the item included. A typed `Query` or `Scan` of `Table<Order>` filters on it and skips the items of other entities, and so does `fake.Items<Order>()`. A `Get` reads one key and throws `DynamoDbMappingException`, naming the type it found, for an item of another entity. A mixed read, `Of<Customer, Order>()`, picks the type of each item by it, see [Several types in one query](queries.md#several-types-in-one-query), and so do [typed stream changes](streams.md#typed-changes). An index keyed by it reads every item of the entity: `orders.Index("ByType", "_type", "sk").QueryByDiscriminator()`.
+
+**Opting out.** A table of one entity, or one other tools write, has no use for it, or no such attribute: `[Discriminator(OptOut = true)]` on the entity, or `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]` for every entity of the project without `[Discriminator]`. Nothing writes `_type` then, and a query or a scan reads every item as the entity: an item of another shape throws `DynamoDbMappingException`. Such an entity takes no part in a mixed read, and every image of a stream is one of it. See [Items without a discriminator](adopting.md#items-without-a-discriminator).
+
+`DYNA020` reports an entity that has neither, see [Entities](diagnostics.md#entities). Its code fix adds the suggested `[Discriminator("ORDER")]`, `[Discriminator(OptOut = true)]`, or the opt-out of the project.
+
 ## Documents
 
 A `[DynamoDbDocument]` type is a map inside an item, without keys or discriminator, and `partial` like an entity. It nests a type without a converter, alone, in a list or as dictionary values. A handle reaches inside with `.At(...)`: `Customer.Attrs.ShipTo.At(Address.Attrs.City)`.
