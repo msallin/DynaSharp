@@ -198,7 +198,7 @@ Sending a command twice is no compile error. It throws `InvalidOperationExceptio
 
 `DYNA203` (error) reports a statement whose value is a command or transaction step: `orders.Put(order);`, `query.Descending();`, or a helper of your own that returns one. Nothing sends it, and a call on a handle uses that handle up, so a chain with such a statement in the middle throws at its next use. The body of a lambda that returns nothing counts as such a statement: without this rule, `Task.Run(() => orders.Put(order))` is a write that never happens.
 
-- **Fix.** Send it, or keep what the call returns: `query = query.Descending();`. `_ = command;` says dropping it is intended.
+- **Fix.** Send it, or keep what the call returns: `query = query.Descending();`. `_ = command;` says dropping it is intended. The code fix offers `await command.SendAsync()` in an `async` member, `query = query.Descending();` for a command in a local, and `_ =`.
 - **Not reported.** An assignment, a `return` and an `await`, which use the value.
 
 `DYNA204` (warning) reports a call on a command in a variable that an earlier call used up on some path: `var a = q.Limit(1); var b = q.Limit(2);`, or `_ = command.ToRequestJson(); await command.SendAsync();`. It follows branches and loops, so `if (debug) log(command.ToRequestJson());` before the send is reported: that path throws when debug is on. The analysis does not know that two conditions go together, so two separate `if`s on one flag count as a path through both.

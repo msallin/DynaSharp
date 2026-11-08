@@ -63,7 +63,7 @@ Analyzers and docs:
 - [x] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members. Done (`ReadTerminalCodeFix`): a member whose name ends in `Async`, offered where the chain binds with it (the arguments of `SendAsync(...)` kept, the calls after it included) and fits: a value under `await`, a stream in `foreach`. A fan-out's `PageAsync(pageSize)` needs a size, so it is not offered.
 - [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
 - [ ] `DYNA117` (a): make the key property `required` and drop its initializer.
-- [ ] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose.
+- [x] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose. Done (`DiscardedCommandCodeFix`): the send outside a `lock`, where `SendAsync()` binds, on a chain that does not start at a command (sent, a local would be used up for its next use); the assignment where the chain starts at a local of the result's type; the discard where `_` names nothing.
 - [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
 - [ ] `DYNA019` (a): `#nullable enable` at the top of the file.
 - [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
@@ -225,7 +225,7 @@ Real DynamoDB, from the first runs of `real-aws.yml`:
 
 ## Code fixes (survey of 2026-11-08)
 
-Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA202` (b), `DYNA210` (a), `DYNA234` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
+Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA202` (b), `DYNA203` (b), `DYNA210` (a), `DYNA234` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
 
 Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` and `DYNA120` to `DYNA122`, which analyzers report) reach a code fix as an analyzer's do: `DiagnosticReporter` places them on a `Spot` in the user's tree (the type's identifier, the attribute or its argument), and `DiagnosticInfo.Fix` carries the one string a fix needs as the property `Fix`. Their fixes are tested from a generator run over a workspace's compilation, whose trees are the documents' (`DeclareDiscriminatorCodeFixTests`). No fix can stand where the place is `Location.None`: `DYNA037` (on no file), and any rule on a base type in another project of an IDE workspace.
 
@@ -270,7 +270,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA108` | `:plain`, or `:d<w>` |
 | b | `DYNA116` | drop the format |
 | b | `DYNA202` | each terminal the read has (done) |
-| b | `DYNA203` | send it, assign it back, or `_ =` |
+| b | `DYNA203` | send it, assign it back, or `_ =` (done) |
 | b | `DYNA206` | drop `IfNotExists()`, or `IgnoreVersion()` |
 | b | `DYNA207` | each declared index, `T.Indexes.X` |
 | b | `DYNA213` | the attributes of a close spelling |
