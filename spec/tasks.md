@@ -81,7 +81,7 @@ Analyzers and docs:
 - [x] `DYNA104` (b): one action per format the message lists for the type.
 - [x] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
 - [x] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
-- [ ] `DYNA123` (a): add `[KeyOnly]` to the property.
+- [x] `DYNA123` (a): add `[KeyOnly]` to the property.
 - [x] `DYNA110` (a): remove `Sparse = true`.
 - [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
 - [x] `DYNA043` (a): write the name in full, the `{1}` of the message.

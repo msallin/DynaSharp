@@ -173,7 +173,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 
 `DYNA123` (info) reports a property that a `raw` placeholder of the table key holds and that has no `[KeyOnly]`, such as `Key` under `[PartitionKey("appointment#{Key:raw}", AttributeName = "Id")]`. A `Put` stores an input of a template as an attribute of its own as well, and an `Update` does not write it, so a table that both write ends up with the attribute on some items and not on others, and a later `Put` adds it to an item an `Update` created. A raw input is mostly an id that holds the delimiter and that only the key needs, which is what `[KeyOnly]` says: the item holds the key alone, and a read restores the property from it.
 
-- **Fix.** Mark the property `[KeyOnly]`, as in [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter). It then has no handle, so a condition or a filter cannot name it.
+- **Fix.** Mark the property `[KeyOnly]`, as in [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter); the code fix adds it. It then has no handle, so a condition or a filter cannot name it.
 - **Not reported.** A raw placeholder of an index, which the table key does not hold, and a computed input, which `[KeyOnly]` does not take. Information only, because an adopted table whose items hold the attribute needs it: there `[KeyOnly]` would make a `Put` drop it, so suppress the message instead.
 
 ## Commands
