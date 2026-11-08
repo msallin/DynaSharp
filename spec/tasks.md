@@ -93,7 +93,7 @@ Analyzers and docs:
 - [ ] `DYNA102` (b): one action per property within a small edit distance.
 - [x] `DYNA035` (b): remove the initializer, or make the property non-nullable.
 - [x] `DYNA024` (b): make the property nullable.
-- [ ] `DYNA042` (b): remove the modifier (by value), or make it `in`.
+- [x] `DYNA042` (b): remove the modifier (by value), or make it `in`.
 - [x] `DYNA012` (b): remove the attribute, or make the type an entity.
 - [x] `DYNA013` (b): remove `[DynamoDbEntity]` or `[DynamoDbDocument]`.
 - [ ] `DYNA021` (b): remove `[DynamoDbIgnore]` or the key attribute.
@@ -266,7 +266,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA033` | remove `[DynamoDbEnum]` |
 | b | `DYNA034` | a `protected` setter, or `[DynamoDbIgnore]` |
 | b | `DYNA035` | remove the initializer, or the property non-nullable (done) |
-| b | `DYNA042` | by value, or `in` |
+| b | `DYNA042` | by value, or `in` (done) |
 | b | `DYNA102` | the properties of a close spelling |
 | b | `DYNA104` | each format the message lists |
 | b | `DYNA107` | `Sparse = true`, or the property `required` and non-nullable |

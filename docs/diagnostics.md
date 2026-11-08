@@ -106,7 +106,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA042` (error): a parameter of the constructor a read uses that is `ref`, `out` or `ref readonly`, such as `public Counter(ref int count)`. A read passes the value it read, which only a parameter by value or `in` takes.
 
-- **Fix.** Take the parameter by value or as `in`, or mark another constructor with `[DynamoDbConstructor]`.
+- **Fix.** Take the parameter by value or as `in`, or mark another constructor with `[DynamoDbConstructor]`. The code fix offers the first two.
 - **Not reported.** An `in` parameter, and a constructor the read does not use.
 
 `DYNA043` (error): a name inside a mapped type that names a type, a namespace, a field or a property outside it by the name of a member generated into the type: `Attrs` in any mapped type, `Keys` in an entity, `Indexes` in an entity with an index, and `TableName` in an entity that declares a table. With `public enum Keys { None, Enter }`, `public Keys Key { get; set; }` inside an entity would name the generated `Shortcut.Keys` instead of the enum, and the build would fail with `CS0722` and other errors in your file and in the generated one. With `using static Names;`, a `TableName` inside the entity would give the table of the entity instead of `Names.TableName`. Reported on each such name; the type generates no code.
