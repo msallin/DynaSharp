@@ -1,11 +1,5 @@
-using System.Collections.Immutable;
 using DynaSharp.Generators;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -19,6 +13,8 @@ public sealed class WrapInAttrCodeFixTests
         """;
 
     private const string StaticImport = "using static DynaSharp.Expr;\n";
+
+    private static readonly CodeFixRun Run = new(new WrapInAttrCodeFix(), "DYNA210", new ExpressionAnalyzer());
 
     [Test]
     public async Task Fix_FileWithTheImport_WrapsTheString()
@@ -99,16 +95,16 @@ public sealed class WrapInAttrCodeFixTests
     }
 
     [Test]
-    public async Task GetFixAllProvider_FixesAllInOneGo()
+    public async Task FixAll_FileWithoutTheImport_WrapsEachAndAddsTheImportOnce()
     {
         // Arrange
-        var fix = new WrapInAttrCodeFix();
+        var source = Usings + "\n" + Code("""{"status"} = {"open"} AND {"total"} > {1}""");
 
         // Act
-        var provider = fix.GetFixAllProvider();
+        var fixedSource = await Run.FixAllAsync("Wrap in Attr(...)", FixAllScope.Document, source);
 
         // Assert
-        await Assert.That(provider).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
+        await Assert.That((fixedSource.Split("using static DynaSharp.Expr;").Length, fixedSource.Contains("""{Attr("status")} = {"open"} AND {Attr("total")} > {1}""", StringComparison.Ordinal))).IsEqualTo((2, true));
     }
 
     private static string Code(string condition) => $$"""
@@ -121,29 +117,5 @@ public sealed class WrapInAttrCodeFixTests
 
         """;
 
-    private static async Task<string> FixAsync(string source)
-    {
-        using var workspace = new AdhocWorkspace();
-        var references = GeneratorRun.CreateCompilation(string.Empty, LanguageVersion.Latest).References;
-        var document = workspace.CurrentSolution
-            .AddProject("Consumer", "Consumer", LanguageNames.CSharp)
-            .WithParseOptions(GeneratorRun.ParseOptions(LanguageVersion.Latest))
-            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable))
-            .AddMetadataReferences(references)
-            .AddDocument("Code.cs", SourceText.From(source));
-
-        var compilation = (await document.Project.GetCompilationAsync())!;
-        ImmutableArray<DiagnosticAnalyzer> analyzers = [new ExpressionAnalyzer()];
-        var diagnostics = await compilation.WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync();
-        var diagnostic = diagnostics.First(found => found.Id == "DYNA210");
-
-        var actions = new List<CodeAction>();
-        var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), CancellationToken.None);
-        await new WrapInAttrCodeFix().RegisterCodeFixesAsync(context);
-
-        var operations = await actions.Single().GetOperationsAsync(CancellationToken.None);
-        var solution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-        var text = await solution.GetDocument(document.Id)!.GetTextAsync();
-        return text.ToString();
-    }
+    private static Task<string> FixAsync(string source) => Run.FixAsync("Wrap in Attr(...)", source);
 }
