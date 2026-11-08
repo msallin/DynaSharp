@@ -28,7 +28,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
 | `DYNA019` | The type is outside a nullable context; a property outside one in a type that is inside is `DYNA041` | Enable nullable reference types. The code fix adds `#nullable enable` at the top of the file, or turns the `#nullable disable` above the type into `#nullable enable` |
 | `DYNA020` | An entity has no discriminator, the value stored in each item that tells which entity the item is, so that several entities can share a table | Add the suggested `[Discriminator("EMAIL_CLAIM")]` (for `EmailClaim`: its name in upper snake case), or `[Discriminator(OptOut = true)]` for a table other tools write. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, also named in the message, does that for every entity of a project. The code fix offers the three; the last sets `DiscriminatorOptOut = true` on the `[assembly: DynamoDbDefaults]` the project has, or adds one beside its other attributes of the assembly or in the entity's file |
-| `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two |
+| `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two; the code fix offers each |
 | `DYNA022` | `[Discriminator]` has an empty value, both a value and `OptOut`, or neither | Set one |
 | `DYNA023` | A `[Version]` property feeds a key | Take it out of the key: a write changes it |
 | `DYNA024` | An enum without members | Add a member, make the property nullable, or add a converter. The code fix makes the property nullable |
