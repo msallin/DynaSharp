@@ -194,7 +194,9 @@ public ref struct KeyReader
         }
 
         var negative = _remaining[0] == (byte)'N';
-        var point = fractionDigits == 0 ? -1 : 1 + integerDigits;
+
+        // Without fraction digits the text ends before the place of the point.
+        var point = 1 + integerDigits;
 
         // At most 28 digits, so the mantissa fits the 96 bits of a decimal.
         UInt128 mantissa = 0;

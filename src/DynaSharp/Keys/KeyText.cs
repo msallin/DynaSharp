@@ -158,12 +158,7 @@ internal static class KeyText
     /// <returns>The text.</returns>
     internal static ReadOnlySpan<byte> PlainDecimal(decimal value, Span<byte> scratch)
     {
-        if (value == 0m)
-        {
-            // 0.0m and -0.0m equal 0m and must be one key.
-            return "0"u8;
-        }
-
+        // 0.0m and -0.0m equal 0m and must be one key: a decimal zero formats without a sign, and its trailing zeros go below.
         _ = value.TryFormat(scratch, out var length, default, CultureInfo.InvariantCulture);
         var text = scratch[..length];
         return text.Contains((byte)'.') ? text.TrimEnd((byte)'0').TrimEnd((byte)'.') : text;

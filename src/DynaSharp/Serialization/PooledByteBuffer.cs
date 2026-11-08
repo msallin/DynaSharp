@@ -261,11 +261,7 @@ internal sealed class PooledByteBuffer : IBufferWriter<byte>, IDisposable
     /// <summary>Returns the array to the pool. Calling it again has no effect.</summary>
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
+        // Release gives the array back once, so a second call finds none.
         // Not cleared: pool contents stay inside the process, which holds the same data as objects, and clearing costs on every call.
         _disposed = true;
         Release();
