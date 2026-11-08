@@ -68,15 +68,15 @@ Analyzers and docs:
 - [ ] `DYNA019` (a): `#nullable enable` at the top of the file.
 - [x] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered). Done (`SettleVersionCodeFix`), right after the write the diagnostic is on.
 - [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
-- [ ] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);`.
-- [ ] `DYNA227` (b): `GetValueOrDefault()`, or `result.Found ? result.Value : default`.
-- [ ] `DYNA224` (a): replace the builder with the index's, `Order.Keys.ByStatusPk` (the name in a property).
-- [ ] `DYNA233` (a): `Add` becomes `Set`.
-- [ ] `DYNA235` (b): remove `IfVersion(n)`, or replace it with `IgnoreVersion()`.
-- [ ] `DYNA208` (a): append the missing member names to the `Project(...)` (the names in a property).
-- [ ] `DYNA207` (b): one action per declared index, `Order.Indexes.X`, closest spelling first.
-- [ ] `DYNA213` (b): one action per attribute of the type within a small edit distance.
-- [ ] `DYNA206` (b): drop `IfNotExists()`, or add `IgnoreVersion()`.
+- [x] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);` (`SuggestedEditCodeFix`, where the earlier call is a statement of its own in a block the reuse is in).
+- [x] `DYNA227` (b): `GetValueOrDefault()`, or `result.Found ? result.Value : default` (the test only where the result is a name).
+- [x] `DYNA224` (a): replace the builder with the index's, `Order.Keys.ByStatusPk`, only where it has the same method with parameters of the same names and types.
+- [x] `DYNA233` (a): `Add` becomes `Set`.
+- [x] `DYNA235` (b): remove `IfVersion(n)`, or replace it with `IgnoreVersion()` (the second only with a `[Version]`, as the message says).
+- [x] `DYNA208` (a): append the missing members to the `Project(...)`, as strings or handles like the call (none where one has no path: a dot in its name, or a key-restored member by handle).
+- [x] `DYNA207` (b): one action per declared index, `Order.Indexes.X`, closest spelling first.
+- [x] `DYNA213` (b): one action per attribute of the type within a small edit distance (one edit per four letters), in a string literal, and in the text where it can stand bare.
+- [x] `DYNA206` (b): the version at 0, or `IgnoreVersion()` after `IfNotExists()`: the two ways the message names. Dropping `IfNotExists()` turns a first write into a checked one that fails for a missing item, so it is not offered.
 - [ ] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
 - [ ] `DYNA104` (b): one action per format the message lists for the type.
 - [ ] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
@@ -116,7 +116,7 @@ Git history has the detail; each line says what an area delivered and where it l
 - Credentials (`src/DynaSharp/Credentials`): environment (with `AWS_CREDENTIAL_EXPIRATION`), shared files, container, IMDSv2, web identity (IRSA), `credential_process`, assume role, SSO with token renewal; `StubSts` in `DynaSharp.Testing`.
 - Authentication review (2026-11-08) of the signer, the providers, the refresh cache, the shared files and the signing path of the pipeline: no vulnerability. Fixed: the STS clock-skew correction before assuming a role (event 30), the plain-http warnings for STS and IAM Identity Center (events 25 and 31), the IMDS and STS settings of the profile and the IPv6 endpoint mode. Kept: the signing-key cache keyed by reference, since no provider of the library returns a new instance per call. What was checked is under Findings.
 - M1c/M2a/M3 (`src/DynaSharp/Fluent`): `Item`, the command engine, `Table<T>`, reads, batches, transactions, typed keys and conditions, `[Version]`, mixed reads, fan-out, `Select`, `TrySendAsync`, `RetryOnConflictAsync`, `IsTransient`, and the follow-ups G1 to Q18.
-- M2 generator (`src/DynaSharp.Generators`): entities, keys and handles, converters, key grammar with vectors, diagnostics `DYNA0xx`/`DYNA1xx`, analyzers `DYNA2xx` with code fixes (`DYNA210`, `DYNA240`, and `DYNA020` with the three ways of its message).
+- M2 generator (`src/DynaSharp.Generators`): entities, keys and handles, converters, key grammar with vectors, diagnostics `DYNA0xx`/`DYNA1xx`, analyzers `DYNA2xx` with code fixes (`DYNA204`, `DYNA206` to `DYNA208`, `DYNA210`, `DYNA213`, `DYNA224`, `DYNA227`, `DYNA233`, `DYNA235`, `DYNA240`, and `DYNA020` with the three ways of its message).
 - M4 `FakeDynamoDb` (`src/DynaSharp.Testing/Fake`, rules in `architecture.md` section 14): data and control plane, expressions, streams with shard lineage, time to live, `FailNext`; vectors of DynamoDB Local, the Parity Suite runner (`tools/DynaSharp.FakeServer`), differential and fidelity tests (R20).
 - Streams readers (`src/DynaSharp/Streams`): `ReadShardAsync`, `ReadStreamAsync` (whole stream, transient failures read through), typed `ReadChangesAsync` and `As<T>()`.
 - R1 to R19: signed tokens, `OnMappingFailure`, `DYNA230`-`DYNA234`, sparse-key copy, table drift checks, `ForEmulator`, `[TimeToLive]`, `IncludingAll()`, JSON bridge, declared tables and `TableNaming`, generated keys only on typed tables, R15 without compatibility shapes, property-based tests (`tests/DynaSharp.UnitTests/Properties`).
@@ -177,6 +177,7 @@ Where `requirements.md`, `api.md` or `architecture.md` section 13 ("Decisions yo
 | 2026-11-07, 2026-11-08 | Tests: `ConfigureAwait(false)` is behaviour wherever the await can run on the caller's context, killed with `CountingSynchronizationContext` and `HeldResponses`; equivalent only on the pool. An exception message is behaviour: tests assert the message of each argument check and refusal. Property tests (TUnit.FsCheck) and differential tests run from a fixed seed, so CI fails only for a change of the code. The differential harness compares the raw wire, not `Table<Item>`, and messages only of `ConditionalCheckFailedException` and `TransactionCanceledException`. A generator result shared between tests is rebuilt under Stryker (`SharedResult<T>`). Unit tests run with `--project`, not `--solution`. |
 | 2026-11-07 | DynamoDB's limits live in a section of `docs/errors.md`: hitting one is an exception, and that page is where a reader arrives. |
 | 2026-11-08 | A generator diagnostic hands a code fix what it computed through `DiagnosticInfo.Fix`, which becomes the property `Fix` (the suggested discriminator of `DYNA020`), so fix and message cannot disagree. The `DYNA020` fix adds no `using`: `[DynamoDbEntity]` binds where the type is, so where `Discriminator` does not, the file names DynaSharp's attributes in full or another type takes the name, and the fix writes the qualifier of `[DynamoDbEntity]` or `global::DynaSharp.Mapping.`. The opt-out of the project goes on the `[assembly: DynamoDbDefaults]` the project has, else beside the other attributes of the assembly in source (where project-wide settings are looked for; a file with an `<auto-generated>` header, such as the SDK's `AssemblyInfo.cs` in `obj/`, does not count), else after the usings of the entity's file; its fix-all edits each project once, so no second attribute (`CS0579`). Nothing is offered where the edit would be lost: a file named `.g.cs`, `.designer.cs`, `.generated.cs` or with an `<auto-generated>` header. New syntax is parsed, not built with `SyntaxFactory`, whose elastic trivia makes the IDE respace neighbours. |
+| 2026-11-08 | The fixes of analyzer rules whose edit is plain text come from the analyzer: it puts each edit on the diagnostic, its span as an additional location and its title and text as the properties `Title<n>` and `Fix<n>` (`SuggestedEdit`), and one `SuggestedEditCodeFix` writes them (`DYNA204`, `DYNA206`, `DYNA207`, `DYNA208`, `DYNA213`, `DYNA224`, `DYNA227`, `DYNA233`, `DYNA235`). The analyzer has the model the edit needs (the declared indexes, the attributes, the builders, the members left out), so fix and message cannot disagree, a text edit keeps the layout and line endings of the file, and the fix needs no semantic model in the IDE. The work runs only when a diagnostic is reported. The equivalence key is the rule and the rank of the edit, so a fix-all takes the first (closest) edit of each. |
 
 ## Findings and gotchas
 
@@ -225,7 +226,7 @@ Real DynamoDB, from the first runs of `real-aws.yml`:
 
 ## Code fixes (survey of 2026-11-08)
 
-Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA202` (b), `DYNA203` (b), `DYNA210` (a), `DYNA234` (a), `DYNA236` (b), `DYNA239` (b), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
+Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: the rules marked (done) in the table; the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
 
 Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` and `DYNA120` to `DYNA122`, which analyzers report) reach a code fix as an analyzer's do: `DiagnosticReporter` places them on a `Spot` in the user's tree (the type's identifier, the attribute or its argument), and `DiagnosticInfo.Fix` carries the one string a fix needs as the property `Fix`. Their fixes are tested from a generator run over a workspace's compilation, whose trees are the documents' (`DeclareDiscriminatorCodeFixTests`). No fix can stand where the place is `Location.None`: `DYNA037` (on no file), and any rule on a base type in another project of an IDE workspace.
 
@@ -242,12 +243,12 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA114` | `[ComputedFrom]` with what the getter reads |
 | a | `DYNA117` | `required`, initializer removed |
 | a | `DYNA123` | `[KeyOnly]` |
-| a | `DYNA204` | the result assigned back to the variable |
-| a | `DYNA208` | the missing names into `Project(...)` |
+| a | `DYNA204` | the result assigned back to the variable (done) |
+| a | `DYNA208` | the missing names into `Project(...)` (done) |
 | a | `DYNA210` | `Attr(...)` around the string (done) |
 | a | `DYNA220` | the word in a hole, `{Attr("...")}` |
-| a | `DYNA224` | the index's key builder |
-| a | `DYNA233` | `Add` to `Set` |
+| a | `DYNA224` | the index's key builder (done) |
+| a | `DYNA233` | `Add` to `Set` (done) |
 | a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call (done) |
 | a | `DYNA240` | `Including<T>()` for each entity left out (done) |
 | b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) |
@@ -271,11 +272,11 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | b | `DYNA116` | drop the format |
 | b | `DYNA202` | each terminal the read has (done) |
 | b | `DYNA203` | send it, assign it back, or `_ =` (done) |
-| b | `DYNA206` | drop `IfNotExists()`, or `IgnoreVersion()` |
-| b | `DYNA207` | each declared index, `T.Indexes.X` |
-| b | `DYNA213` | the attributes of a close spelling |
-| b | `DYNA227` | `GetValueOrDefault()`, or a test of `Found` |
-| b | `DYNA235` | remove `IfVersion`, or `IgnoreVersion()` |
+| b | `DYNA206` | the version at 0, or `IgnoreVersion()` (done) |
+| b | `DYNA207` | each declared index, `T.Indexes.X` (done) |
+| b | `DYNA213` | the attributes of a close spelling (done) |
+| b | `DYNA227` | `GetValueOrDefault()`, or a test of `Found` (done) |
+| b | `DYNA235` | remove `IfVersion`, or `IgnoreVersion()` (done) |
 | b | `DYNA236` | `IgnoreVersion()` on the batch (done) |
 | b | `DYNA237` | `DateTimeKind.Utc`, or a `DateOnly` |
 | b | `DYNA239` | `IgnoreVersion()`, or `IfVersion(version)` with a placeholder (done) |

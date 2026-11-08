@@ -33,6 +33,8 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 
     private const string Client = "DynamoDbClient";
 
+    private const string AddVerb = "Add";
+
     // Customer.Keys.PrimaryKey, PartitionKey<Customer>, int?: as the type is written in the code of a consumer.
     private static readonly SymbolDisplayFormat TypeName = new(
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
@@ -329,7 +331,10 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     private static Diagnostic AddWithoutNumberOrSet(Inferred inferred)
     {
         var (handle, stored) = inferred.Handle();
-        return Diagnostic.Create(Descriptors.AddWithoutNumberOrSet, handle.Expression.GetLocation(), handle.Expression.ToString(), Display(stored));
+
+        // The name of the method, however the call is written (x.Add, Add, x.Add<int, C>); Set takes the same arguments.
+        var verb = ((InvocationExpressionSyntax)handle.Parent!.Parent!).Expression.DescendantTokens().Last(static token => token.ValueText == AddVerb);
+        return SuggestedEdit.Create(Descriptors.AddWithoutNumberOrSet, handle.Expression.GetLocation(), [new SuggestedEdit("Use Set", verb.Span, "Set")], handle.Expression.ToString(), Display(stored));
     }
 
     // Set(handle, value) where the value does not convert to what the handle holds. The compiler reports the overload for a nullable value type and its constraint,

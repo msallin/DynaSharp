@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -37,7 +38,10 @@ internal sealed class AnalyzerFixture
     public Task<string> ReportAsync(string markedSource) => ReportWithAsync(markedSource, [.. AnalyzerRun.TreeAnalyzers]);
 
     /// <summary>What these analyzers report on the snippet, as <see cref="AnalyzerRun.ReportAsync(string, LanguageVersion)"/> says.</summary>
-    public async Task<string> ReportWithAsync(string markedSource, params DiagnosticAnalyzer[] analyzers)
+    public async Task<string> ReportWithAsync(string markedSource, params DiagnosticAnalyzer[] analyzers) => AnalyzerRun.Describe(await DiagnosticsWithAsync(markedSource, analyzers));
+
+    /// <summary>The diagnostics these analyzers report on the snippet, with their spans in its text without the marks, for a code fix to apply to that text.</summary>
+    public async Task<ImmutableArray<Diagnostic>> DiagnosticsWithAsync(string markedSource, params DiagnosticAnalyzer[] analyzers)
     {
         var snippet = Parse(markedSource);
         var run = _compilation.Value.AddSyntaxTrees(snippet).WithAnalyzers([.. analyzers]);
@@ -45,7 +49,7 @@ internal sealed class AnalyzerFixture
 
         // Not GetAnalyzerSemanticDiagnosticsAsync, which leaves out a diagnostic outside the span of the operation that reports it: DYNA201 on a receiver left of an await, DYNA217 on a retry in another method.
         var result = await run.GetAnalysisResultAsync(run.Compilation.GetSemanticModel(snippet), filterSpan: null, CancellationToken.None);
-        return AnalyzerRun.Describe(result.GetAllDiagnostics());
+        return result.GetAllDiagnostics();
     }
 
     /// <summary>The spans of the errors the compiler has for the snippet, lowering included, by id: <c>CS4007</c>.</summary>

@@ -203,7 +203,7 @@ Sending a command twice is no compile error. It throws `InvalidOperationExceptio
 
 `DYNA204` (warning) reports a call on a command in a variable that an earlier call used up on some path: `var a = q.Limit(1); var b = q.Limit(2);`, or `_ = command.ToRequestJson(); await command.SendAsync();`. It follows branches and loops, so `if (debug) log(command.ToRequestJson());` before the send is reported: that path throws when debug is on. The analysis does not know that two conditions go together, so two separate `if`s on one flag count as a path through both.
 
-- **Fix.** Every call returns the next handle, so assign it: `q = q.Limit(1);`. For a log, build a separate command.
+- **Fix.** Every call returns the next handle, so assign it: `q = q.Limit(1);`. For a log, build a separate command. Where the earlier call is a statement of its own, `q.Limit(1);` or `_ = q.Limit(1);`, in a block the reuse is in, the code fix assigns its result back to the variable.
 - **Not reported.** A call on each side of an `if`, a reassignment in a loop and an early `return`. A handle copied to a second variable is not followed.
 
 `DYNA205` (warning) reports `Set`, `SetIfNotNull`, `Add`, `Remove`, `SetIfNotExists` or `Delete` by the handle of a property the table key is made of, on a command of that entity: `orders.Update(key).Set(Order.Attrs.Number, 2)`. DynamoDB cannot change a key, so the call throws when the command ends, or DynamoDB rejects it for a plain key.
@@ -218,17 +218,17 @@ Sending a command twice is no compile error. It throws `InvalidOperationExceptio
 
 `DYNA206` (warning) reports `IfNotExists()` on a `Put` whose item shows a version above 0 in the chain, also in a transaction: `carts.Put(new Cart { CustomerId = id, Revision = 1 }).IfNotExists()`, or `carts.Put(cart with { Revision = 1 }).IfNotExists()`. An item that does not exist has no version, so the two never both hold, and the command throws `InvalidOperationException` when it ends.
 
-- **Fix.** Leave a first write's version at 0, which already means no item has the key, so `cart with { Revision = 0 }` and `IfNotExists` agree. To write without versions, `IgnoreVersion()` drops the check, and `IfNotExists` is then yours to use.
+- **Fix.** Leave a first write's version at 0, which already means no item has the key, so `cart with { Revision = 0 }` and `IfNotExists` agree. To write without versions, `IgnoreVersion()` drops the check, and `IfNotExists` is then yours to use. The code fix offers both: the version set to 0, or `IgnoreVersion()` after `IfNotExists()`.
 - **Not reported.** Only a constant in an object initializer or a `with` in the chain counts. A version in a variable or from a method is unknown here, and often 0, so the run-time check answers for it.
 
 `DYNA207` (warning) reports a constant name the entity does not declare, in the `Index` that takes the keys from the entity: `orders.Index("ByStatuz")`, or `shop.Index<Order>("ByStatuz")`. It would throw `ArgumentException` at run time.
 
-- **Fix.** Take the name from `T.Indexes`, such as `Order.Indexes.ByStatus`.
+- **Fix.** Take the name from `T.Indexes`, such as `Order.Indexes.ByStatus`. The code fix offers each index the entity declares, the closest spelling first.
 - **Not reported.** A non-constant name, and `Index(name, partitionKey, sortKey)`, which names its keys itself.
 
 `DYNA208` (warning) reports a `Project` on a read of an entity that leaves out what the entity cannot be built without: `orders.Query(pk).Project("Total").ItemsAsync()`, where `Status` is `required`. The item comes back without it, and the read throws `DynamoDbMappingException` for every item. That holds for non-nullable `required` members and constructor parameters without a default. All `Project` calls of a chain count, also on `BatchGet`, a fan-out and a mixed read, where every type counts.
 
-- **Fix.** Include the member, or use `Select(handle)` on a `Get`, `Query` or `Scan`, which reads one attribute without the entity.
+- **Fix.** Include the member, or use `Select(handle)` on a `Get`, `Query` or `Scan`, which reads one attribute without the entity. The code fix adds every member left out to the `Project`, as strings or as handles, the way the call names the others.
 - **Not reported.** A `required string?`, which reads as null, and a required set, which reads as empty, as a write of them leaves. A key input a key of the read restores: a read adds the table keys, and a read of an index the index keys too. So an input only an index key holds is reported on a read of the table, and one a key truncates, such as a timestamp in `{At:yyyy-MM-dd}`, on any read. A nested path such as `"ShipTo.City"`, which keeps its top-level member, whatever the nested document needs. A non-constant value, a chain kept in a variable, returned, or passed through a method of your own, a read of `Item`, and `ToRequestJson()` or `CountAsync()`, which read no item.
 
 `DYNA209` (warning) reports `Select(handle)` of an attribute that an item can lack where a read of the entity goes on. `Select` reads the attribute alone and throws `DynamoDbMappingException`. Three kinds are reported, each with its fix:
@@ -270,7 +270,7 @@ Not reported:
 
 `DYNA224` (warning) reports a key built for one attribute in a query that reads another: `orders.Index(Order.Indexes.ByStatus).Query(Order.Keys.Pk.Of(id))`. A partition key knows its attribute, so the query throws `ArgumentException`. A sort key condition, `Order.Keys.Sk.Between(...)`, does not, and DynamoDB compares the index sort key with text made for another key, which finds the wrong items; on an index without a sort key the query throws.
 
-- **Fix.** Use the index's builder, `Order.Keys.ByStatusPk`.
+- **Fix.** Use the index's builder, `Order.Keys.ByStatusPk`. The code fix writes it where its method takes the same parameters, so the arguments still fit.
 - **Not reported.** A key whose attribute is the one read, as on a local index, which has the table's partition key, and a sort key condition where both keys have the same template (`{At}` and `{At:ticks}` count as one). It determines what the query reads as `DYNA221` does, so an index in a field or variable is not checked, and checks only a key from `Of`, also as a method group in `Select`: not a key from `TryOf` or in a variable, nor `Keys.Pk.Format(...)`, which is text.
 
 `DYNA225` (warning) reports `Including<T>()` of an entity whose key names differ from the table's: `orders.CreateTable().Including<Invoice>()`, where `Order` has `(pk, sk)` and the `Invoice` of [Names of your own](adopting.md#names-of-your-own) `(customer_id, invoice_no)`. `Including` throws `ArgumentException`, since entities on one table share its key attributes. The table has its entity's key; a table of `Item` the key of the first entity included.
@@ -285,7 +285,7 @@ Not reported:
 
 `DYNA227` (info) reports `Value` of a `SelectResult` in a member that never checks `Found`: `(await orders.Get(key).Select(Order.Attrs.Total)).Value`. `Value` throws `InvalidOperationException` when the read found no item, which DynamoDB answers without an error. Info, since code that knows the item exists, as right after writing it, is correct and looks the same.
 
-- **Fix.** Test `Found` first, `result.Found ? result.Value : 0m`, or write `result.GetValueOrDefault(0m)`, or `GetValueOrDefault()` for the type's default.
+- **Fix.** Test `Found` first, `result.Found ? result.Value : 0m`, or write `result.GetValueOrDefault(0m)`, or `GetValueOrDefault()` for the type's default. The code fix offers `GetValueOrDefault()`, and `result.Found ? result.Value : default` where the result is a variable.
 - **Not reported.** A member that reads `Found` of any `SelectResult` anywhere: in a condition, a guard clause, a property pattern such as `{ Found: true, Value: var total }` or a lambda. The rule goes by member, not by flow, so a check of another result or on another path silences it too. `nameof(result.Value)`.
 
 `DYNA230` to `DYNA234` stand beside a compiler error on a call that does not compile. Where the compiler names a constraint, such as `IKey<Order>` or a nullable value type, these say what is wrong and what to write. They are errors, but only on code that already fails to compile.
@@ -309,7 +309,7 @@ It also reports a key given as the values it is stored as on a table or an index
 
 `DYNA233` (error) reports `Add` by a handle that is no number or set, `customers.Update(key).Add(Customer.Attrs.Name, "x")` or `orders.Update(key).Add(Order.Attrs.Lines, lines)`, where the compiler says `CS0315` about `IAddableConverter`. DynamoDB's `ADD` adds only to a number or a set.
 
-- **Fix.** `Set` writes the value. `Add` is for a counter, `Add(Customer.Attrs.OrderCount, 1)`, and a set, `Add(Customer.Attrs.Interests, ["books"])`.
+- **Fix.** `Set` writes the value. `Add` is for a counter, `Add(Customer.Attrs.OrderCount, 1)`, and a set, `Add(Customer.Attrs.Interests, ["books"])`. The code fix turns `Add` into `Set`.
 
 `DYNA234` (error) reports a LINQ method called on a read instead of its items, `orders.Query(pk).Descending().ToListAsync()`, where the compiler says `CS1061`, that the read has no `ToListAsync`, or `CS0411` about `AsyncEnumerable.ToListAsync`. A read is a command; only `ItemsAsync`, the call that sends it, streams items. It covers every `AsyncEnumerable` and `Enumerable` method the read does not have itself, such as `Where`, `FirstAsync`, `ToListAsync`, and `Take` after `Select` or on a fan-out, which have no `Take` of their own.
 
@@ -318,7 +318,7 @@ It also reports a key given as the values it is stored as on a table or an index
 
 `DYNA235` (error) reports `IfVersion` on a `Put`, `carts.Put(cart).IfVersion(3)`, in a transaction too, where the compiler says `CS1061`, that the command has no `IfVersion`, or `CS0411` about the `IfVersion` of an update. A put takes the version from the entity: it writes only where the stored item holds the version of the entity, and stores the next one. It is an error for the reason `DYNA230` to `DYNA234` are: it reports only code that does not compile.
 
-- **Fix.** Put the entity as it was read, with the version it came with, or call `IgnoreVersion()` to write without the check. An entity without a `[Version]` has no version to check: mark a `long` property with `[Version]`, or state the condition with `If(...)`.
+- **Fix.** Put the entity as it was read, with the version it came with, or call `IgnoreVersion()` to write without the check. An entity without a `[Version]` has no version to check: mark a `long` property with `[Version]`, or state the condition with `If(...)`. The code fix removes `IfVersion(...)`, or, for an entity with a `[Version]`, replaces it with `IgnoreVersion()`.
 - **Not reported.** An extension method of your own named `IfVersion`, a put of `Item` or of a document, and a step of a transaction in a variable.
 
 `DYNA236` (warning) reports a write of a batch to a table of an entity with a `[Version]`: `carts.BatchWrite().PutAll(items)`, also `Put`, `Delete` and `DeleteAll`, by key or by entity, and a `Put` or a `Delete` on another table. A batch cannot carry a condition, so it cannot check a version, and it throws `InvalidOperationException` when it is sent. The first such write of a chain is reported.
@@ -363,7 +363,7 @@ In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text
 
 `DYNA213` (warning): a constant path on a command of a mapped type starts with a name the type does not have, such as `orders.Update(key).Set("Totl", 1)`, or a bare name starts a path in an expression's text, `orders.Scan().Filter($"Totl > {1}")`. Under `Naming` of `[assembly: DynamoDbDefaults]` the attribute has the converted name, so `"Total"` is reported where the item holds `total`.
 
-- **Fix.** Check the spelling. An attribute outside the entity is legitimate: suppress the warning there, or pass the path in a variable.
+- **Fix.** Check the spelling. An attribute outside the entity is legitimate: suppress the warning there, or pass the path in a variable. The code fix offers each attribute of the type one or two letters off, in a string literal, and in the text where the name can stand bare.
 - **Not reported.** A path in a variable. In the text only a path's first name counts, so `ShipTo.Stret` is not checked, nor is the text of a transaction step, which has no type, or of your own method that takes the expression.
 
 `DYNA214` (warning): a constant path is not a path. A path is names joined by dots, with list indexes in brackets, such as `a.b[2].c`, so `a..b` and `a[` are not. The same path throws `ArgumentException` when the command is built. An attribute whose name holds a dot or a bracket cannot be addressed by a path at all.

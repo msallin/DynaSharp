@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -123,10 +125,51 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
                 {
                     var name = builder.ContainingType.ContainingType.ContainingType.Name + "." + KeysClass + "." + builder.ContainingType.Name;
                     var reads = isSortKey ? read.SortKey ?? "no sort key" : read.PartitionKey;
-                    context.ReportDiagnostic(Diagnostic.Create(Descriptors.KeyOfAnotherAttribute, syntax.GetLocation(), name, key.AttributeName, read.Name, reads, reason));
+                    var edits = BuilderOfTheRead(builder, syntax, isSortKey ? read.SortKeyModel : read.PartitionKeyModel, read, query.SemanticModel!);
+                    context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.KeyOfAnotherAttribute, syntax.GetLocation(), edits, name, key.AttributeName, read.Name, reads, reason));
                 }
             }
         }
+    }
+
+    // Order.Keys.Pk in Order.Keys.Pk.Of(id) becomes the builder the message names, where that has the same method with parameters of the same names and types, so the arguments still fit and mean the same.
+    private static List<SuggestedEdit> BuilderOfTheRead(IMethodSymbol builder, SyntaxNode syntax, KeyModel? wanted, Read read, SemanticModel model)
+    {
+        var receiver = syntax switch
+        {
+            InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access } => access.Expression,
+            MemberAccessExpressionSyntax access => access.Expression,
+            _ => null,
+        };
+        if (wanted is null || receiver is null)
+        {
+            return [];
+        }
+
+        var signature = Signature(builder);
+        var fits = read.Type.GetTypeMembers(KeysClass)
+            .SelectMany(keys => keys.GetTypeMembers(wanted.BuilderName))
+            .SelectMany(other => other.GetMembers(builder.Name))
+            .OfType<IMethodSymbol>()
+            .Any(method => Signature(method) == signature);
+        if (!fits)
+        {
+            return [];
+        }
+
+        var replacement = read.Type.ToMinimalDisplayString(model, receiver.SpanStart) + "." + KeysClass + "." + wanted.BuilderName;
+        return [new SuggestedEdit("Use " + replacement, receiver.Span, replacement)];
+    }
+
+    private static string Signature(IMethodSymbol method)
+    {
+        var text = new StringBuilder();
+        foreach (var parameter in method.Parameters)
+        {
+            text.Append(parameter.Name).Append(' ').Append(parameter.Type.ToDisplayString()).Append(';');
+        }
+
+        return text.ToString();
     }
 
     private static string? WhyPartitionKeyFails(KeyModel key, Read read)

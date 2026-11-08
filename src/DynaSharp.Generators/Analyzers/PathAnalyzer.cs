@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -66,6 +68,18 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
         };
     }
 
+    // "Totl.Net" becomes "Total.Net" where the path is written as a string literal. A constant of another name is not changed here: other code may use it.
+    private static List<SuggestedEdit> Respelled(SyntaxNode syntax, string path, List<string> names)
+    {
+        if (syntax is not LiteralExpressionSyntax literal)
+        {
+            return [];
+        }
+
+        var rest = path.Substring(PathSyntax.Root(path).Length);
+        return [.. names.Select(name => SymbolDisplay.FormatLiteral(name + rest, quote: true)).Select(text => new SuggestedEdit("Use " + text, literal.Span, text))];
+    }
+
     private static void Check(OperationAnalysisContext context, IOperation value, string path, INamedTypeSymbol command, AttributeCatalog catalog)
     {
         var location = value.Syntax.GetLocation();
@@ -75,7 +89,7 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
         }
         else if (catalog.TypeWithout(command, PathSyntax.Root(path)) is { } mapped)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.PathMatchesNoAttribute, location, path, mapped.Name));
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.PathMatchesNoAttribute, location, Respelled(value.Syntax, path, catalog.CloseTo(command, PathSyntax.Root(path))), path, mapped.Name));
         }
     }
 }

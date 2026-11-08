@@ -55,6 +55,10 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
         });
     }
 
+    // What can replace a bare name in the text as it is: a word DynamoDB does not reserve. Another attribute needs Attr(...) in a hole, which is a choice of the author.
+    private static bool IsBareName(string name) =>
+        !ExpressionLexer.IsDigit(name.FirstOrDefault()) && name.All(ExpressionLexer.IsWordCharacter) && !ReservedWords.Contains(name, 0, name.Length);
+
     private static void Analyze(OperationAnalysisContext context, INamedTypeSymbol handler, ModelCatalog models, AttributeCatalog attributes)
     {
         var creation = (IInterpolatedStringHandlerCreationOperation)context.Operation;
@@ -76,7 +80,11 @@ internal sealed class ExpressionAnalyzer : DiagnosticAnalyzer
             }
             else if (attributes.TypeWithout(command!, problem.Detail) is { } mapped)
             {
-                context.ReportDiagnostic(Diagnostic.Create(Descriptors.PathMatchesNoAttribute, location, problem.Detail, mapped.Name));
+                var edits = attributes.CloseTo(command!, problem.Detail)
+                    .Where(IsBareName)
+                    .Select(name => new SuggestedEdit("Use " + name, location.SourceSpan, name))
+                    .ToList();
+                context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.PathMatchesNoAttribute, location, edits, problem.Detail, mapped.Name));
             }
         }
 

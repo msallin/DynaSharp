@@ -36,6 +36,13 @@ internal sealed class AttributeCatalog(ModelCatalog models)
         return types.FirstOrDefault();
     }
 
+    /// <summary>The attributes of the types a command reads that a typo of a name may have meant, the closest first, for a name <see cref="TypeWithout"/> found on none.</summary>
+    /// <param name="command">The type that declares the parameter the name is given to.</param>
+    /// <param name="root">The first name of the path.</param>
+    /// <returns>The attributes within <see cref="Spelling.TypoDistance"/>.</returns>
+    public List<string> CloseTo(INamedTypeSymbol command, string root) =>
+        Spelling.Closest(root, DynaSharpTypes.TypesReadBy(command).SelectMany(type => NamesOf((INamedTypeSymbol)type)!), Spelling.TypoDistance(root));
+
     private static void AddKey(HashSet<string> names, KeyModel key) => names.Add(key.AttributeName);
 
     private static HashSet<string> NamesIn(TypeModel model)

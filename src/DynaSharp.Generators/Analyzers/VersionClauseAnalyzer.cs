@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -55,7 +56,15 @@ internal sealed class VersionClauseAnalyzer : DiagnosticAnalyzer
         object[] parts = model.VersionProperty is null
             ? [$"'{entity.Name}' has no [Version], so a Put has no version to check", "Mark a long property with [Version], or state the condition with If(...)"]
             : [$"A Put of '{entity.Name}' checks its version by itself: it writes only where the stored item holds the version of the entity, and stores the next one, so it has no IfVersion", "Put the entity as it was read, or call IgnoreVersion() to write without the check"];
-        context.ReportDiagnostic(Diagnostic.Create(Descriptors.IfVersionOnPut, access.Name.GetLocation(), parts));
+
+        // Removed from the end of the receiver, so a clause on a line of its own takes its line with it.
+        List<SuggestedEdit> edits = [new("Remove IfVersion(...)", TextSpan.FromBounds(access.Expression.Span.End, invocation.Span.End), string.Empty)];
+        if (model.VersionProperty is not null)
+        {
+            edits.Add(new("Use IgnoreVersion()", TextSpan.FromBounds(access.Name.SpanStart, invocation.Span.End), "IgnoreVersion()"));
+        }
+
+        context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.IfVersionOnPut, access.Name.GetLocation(), edits, parts));
     }
 
     // A clause of the library that does not apply has no symbol, and a candidate at most of the library: the IfVersion of an update or a delete.

@@ -42,6 +42,11 @@ internal static class ExpressionLexer
     /// <returns><see langword="true"/> for an ASCII letter or digit and for an underscore.</returns>
     internal static bool IsWordCharacter(char character) => character is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_' || IsDigit(character);
 
+    /// <summary>Tells whether a character is an ASCII digit, which no name starts with.</summary>
+    /// <param name="character">The character.</param>
+    /// <returns><see langword="true"/> for 0 to 9.</returns>
+    internal static bool IsDigit(char character) => character is >= '0' and <= '9';
+
     private static void ReadText(string text, int part, List<ExpressionToken> tokens, List<ExpressionProblem> problems)
     {
         var position = 0;
@@ -143,6 +148,4 @@ internal static class ExpressionLexer
             position++;
         }
     }
-
-    private static bool IsDigit(char character) => character is >= '0' and <= '9';
 }

@@ -1,9 +1,11 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -210,7 +212,12 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             && models.ModelOf(entity)?.Entity is { } model
             && !model.Indexes.Any(declared => declared.IndexName == index))
         {
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.UndeclaredIndex, name.Syntax.GetLocation(), entity.Name, index));
+            var type = entity.ToMinimalDisplayString(invocation.SemanticModel!, name.Syntax.SpanStart);
+            var edits = Spelling.Closest(index, model.Indexes.Select(static declared => declared.IndexName), maximum: null)
+                .Select(declared => type + ".Indexes." + Names.IndexConstant(declared))
+                .Select(constant => new SuggestedEdit("Use " + constant, name.Syntax.Span, constant))
+                .ToList();
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.UndeclaredIndex, name.Syntax.GetLocation(), edits, entity.Name, index));
         }
     }
 
@@ -384,11 +391,25 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         if (EntityOf(invocation, PutVerb) is { } entity
             && models.ModelOf(entity)?.Entity?.VersionProperty is { } version
             && !ChainCalls(invocation, IgnoreVersion)
-            && HoldsVersionAboveZero(ItemOfPut(invocation), version))
+            && VersionAboveZero(ItemOfPut(invocation), version) is { } value)
         {
-            var name = ((InvocationExpressionSyntax)invocation.Syntax).Expression.GetLastToken();
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.IfNotExistsOnVersionedPut, name.GetLocation(), entity.Name));
+            var syntax = (InvocationExpressionSyntax)invocation.Syntax;
+            var name = syntax.Expression.GetLastToken();
+            List<SuggestedEdit> edits =
+            [
+                new("Set " + version + " = 0", value.Syntax.Span, "0"),
+                new("Add IgnoreVersion()", new TextSpan(syntax.Span.End, 0), NextCall(syntax, "IgnoreVersion()")),
+            ];
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.IfNotExistsOnVersionedPut, name.GetLocation(), edits, entity.Name));
         }
+    }
+
+    // A call after this one in its chain, on a line of its own with the indent of this one where the chain has one call per line.
+    private static string NextCall(InvocationExpressionSyntax call, string next)
+    {
+        var dot = ((MemberAccessExpressionSyntax)call.Expression).OperatorToken;
+        var lineEnd = dot.GetPreviousToken().TrailingTrivia.LastOrDefault(static trivia => trivia.IsKind(SyntaxKind.EndOfLineTrivia));
+        return lineEnd == default ? "." + next : lineEnd.ToFullString() + dot.LeadingTrivia.ToFullString() + "." + next;
     }
 
     private static IOperation? ItemOfPut(IInvocationOperation invocation)
@@ -402,20 +423,20 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return (call as IInvocationOperation)?.Arguments.Where(static argument => argument.Parameter!.Name == ItemParameter).Select(static argument => argument.Value).FirstOrDefault();
     }
 
-    private static bool HoldsVersionAboveZero(IOperation? item, string version) => item switch
+    // The value above 0 that the item of the put sets its version to, or null.
+    private static IOperation? VersionAboveZero(IOperation? item, string version) => item switch
     {
-        IObjectCreationOperation creation => SetsAboveZero(creation.Initializer, version),
-        IWithOperation copy => SetsAboveZero(copy.Initializer, version),
-        _ => false,
+        IObjectCreationOperation creation => SetAboveZero(creation.Initializer, version),
+        IWithOperation copy => SetAboveZero(copy.Initializer, version),
+        _ => null,
     };
 
-    private static bool SetsAboveZero(IObjectOrCollectionInitializerOperation? initializer, string property) =>
-        initializer is not null
-        && initializer.Initializers.OfType<ISimpleAssignmentOperation>().Any(assignment =>
+    private static IOperation? SetAboveZero(IObjectOrCollectionInitializerOperation? initializer, string property) =>
+        initializer?.Initializers.OfType<ISimpleAssignmentOperation>().FirstOrDefault(assignment =>
             assignment.Target is IPropertyReferenceOperation target
             && target.Property.Name == property
             && assignment.Value.ConstantValue is { HasValue: true, Value: var value }
-            && Convert.ToDecimal(value, CultureInfo.InvariantCulture) > 0);
+            && Convert.ToDecimal(value, CultureInfo.InvariantCulture) > 0)?.Value;
 
     private static void AnalyzeWrite(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
     {

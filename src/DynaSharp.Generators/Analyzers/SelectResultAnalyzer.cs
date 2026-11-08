@@ -45,8 +45,27 @@ internal sealed class SelectResultAnalyzer : DiagnosticAnalyzer
         if (IsMember(reference, ValueProperty, selectResult) && !IsInNameOf(reference) && !AsksFound(MemberOf(reference), selectResult))
         {
             var location = reference.Syntax is MemberAccessExpressionSyntax access ? access.Name.GetLocation() : reference.Syntax.GetLocation();
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.ValueWithoutFound, location));
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.ValueWithoutFound, location, EditsOf(reference.Syntax)));
         }
+    }
+
+    // result.Value: GetValueOrDefault(), and a test of Found where the result is a name, which reads the same twice. A property pattern has no fix.
+    private static List<SuggestedEdit> EditsOf(SyntaxNode syntax)
+    {
+        if (syntax is not MemberAccessExpressionSyntax access)
+        {
+            return [];
+        }
+
+        List<SuggestedEdit> edits = [new("Use GetValueOrDefault()", access.Name.Span, "GetValueOrDefault()")];
+        if (access.Expression is IdentifierNameSyntax result)
+        {
+            var test = result.Identifier.Text + "." + FoundProperty + " ? " + result.Identifier.Text + "." + ValueProperty + " : default";
+            var text = access.Parent is ArgumentSyntax or EqualsValueClauseSyntax ? test : "(" + test + ")";
+            edits.Add(new("Use " + test, access.Span, text));
+        }
+
+        return edits;
     }
 
     private static bool IsMember(IPropertyReferenceOperation reference, string name, INamedTypeSymbol selectResult) =>

@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -142,11 +144,51 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
             {
                 var name = ((InvocationExpressionSyntax)project.Syntax).Expression.GetLastToken();
                 var select = project.Type!.GetMembers(SelectVerb).IsEmpty ? string.Empty : ", or use Select(handle) to read one attribute";
-                context.ReportDiagnostic(Diagnostic.Create(Descriptors.ProjectionLeavesOutRequired, name.GetLocation(), missing.Name, type.Name, select));
+                var edits = WithMissing(project, read.Cast<INamedTypeSymbol>().Zip(types!, static (symbol, model) => (symbol, model!)), names, keys);
+                context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.ProjectionLeavesOutRequired, name.GetLocation(), edits, missing.Name, type.Name, select));
                 return;
             }
         }
     }
+
+    // Every member left out, of every type, after the last path of this Project, in its form: the attribute as a string, or the handle where it takes handles.
+    private static List<SuggestedEdit> WithMissing(IInvocationOperation project, IEnumerable<(INamedTypeSymbol Symbol, TypeModel Model)> types, HashSet<string> names, HashSet<string> keys)
+    {
+        var byHandle = ((INamedTypeSymbol)project.TargetMethod.Parameters[0].Type).TypeArguments[0].SpecialType != SpecialType.System_String;
+        var elements = ElementsOf(project);
+        if (elements.IsEmpty)
+        {
+            return [];
+        }
+
+        var model = project.SemanticModel!;
+        var last = elements[elements.Length - 1].Syntax;
+        var added = new List<string?>();
+        foreach (var (symbol, type) in types)
+        {
+            foreach (var property in type.Properties.Where(property => IsNeeded(property) && !Reaches(property, names, keys)))
+            {
+                added.Add(byHandle ? HandleOf(symbol, property, model, last.SpanStart) : PathOf(property.RestoredFromKey ?? property.AttributeName));
+            }
+        }
+
+        if (added.Contains(null))
+        {
+            return [];
+        }
+
+        var list = string.Join(", ", added.Distinct(StringComparer.Ordinal));
+        return [new SuggestedEdit("Add " + list + " to Project", new TextSpan(last.Span.End, 0), ", " + list)];
+    }
+
+    // "Status". A name with a dot or a bracket would be read as a path into another attribute.
+    private static string? PathOf(string attribute) => attribute.IndexOfAny(['.', '[']) < 0 ? SymbolDisplay.FormatLiteral(attribute, quote: true) : null;
+
+    // Order.Attrs.Status, as the code names it there. A member that a key restores has no attribute, so no handle reaches it.
+    private static string? HandleOf(INamedTypeSymbol type, PropertyModel property, SemanticModel model, int position) =>
+        property.RestoredFromKey is null && type.GetTypeMembers(HandlesClass).Any(handles => !handles.GetMembers(property.Name).IsEmpty)
+            ? type.ToMinimalDisplayString(model, position) + "." + HandlesClass + "." + property.Name
+            : null;
 
     // Follows the chain from this call to its end. Another Project says more, and is the one to look at. What comes after Select is no entity.
     private static INamedTypeSymbol? CommandThatReads(IInvocationOperation project)
@@ -202,15 +244,21 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         return null;
     }
 
-    private static bool AddRoots(IInvocationOperation project, HashSet<string> names, ModelCatalog models)
+    // Project("a", "b"), Project(["a", "b"]) and Project(new[] { "a", "b" }); default for a span from elsewhere.
+    private static ImmutableArray<IOperation> ElementsOf(IInvocationOperation project)
     {
         var value = project.Arguments[0].Value;
-        var elements = (value is IConversionOperation conversion ? conversion.Operand : value) switch
+        return (value is IConversionOperation conversion ? conversion.Operand : value) switch
         {
             IArrayCreationOperation { Initializer: { } initializer } => initializer.ElementValues,
             ICollectionExpressionOperation collection => collection.Elements,
             _ => default,
         };
+    }
+
+    private static bool AddRoots(IInvocationOperation project, HashSet<string> names, ModelCatalog models)
+    {
+        var elements = ElementsOf(project);
         if (elements.IsDefault)
         {
             return false;
