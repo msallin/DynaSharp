@@ -36,7 +36,7 @@ internal sealed class CodeFixRun(CodeFixProvider fix, string? id = null, Diagnos
     public bool Chained { get; init; }
 
     /// <summary>
-    /// Sets the text outside the class <c>Code</c> that the snippets of <see cref="AnalyzerRun.Member"/> and <see cref="AnalyzerRun.Statements"/> use, which sees <see cref="AnalyzerRun.Usings"/>. It is
+    /// Initializes the text outside the class <c>Code</c> that the snippets of <see cref="AnalyzerRun.Member"/> and <see cref="AnalyzerRun.Statements"/> use, which sees <see cref="AnalyzerRun.Usings"/>. It is
     /// compiled once with the output of the generator and referenced as an assembly, as a project references another, so the workspace binds a snippet as an IDE does.
     /// </summary>
     public string Model

@@ -10,11 +10,7 @@ internal sealed class DiagnosticBag
     /// <summary>Gets a value indicating whether the type cannot produce a model.</summary>
     public bool HasErrors { get; private set; }
 
-    public void Report(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments)
-    {
-        _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span));
-        HasErrors |= descriptor.DefaultSeverity == DiagnosticSeverity.Error;
-    }
+    public void Report(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) => Report(descriptor, spot, null, arguments);
 
     /// <summary>As <see cref="Report(DiagnosticDescriptor, Spot, string[])"/>, with what a code fix needs, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>.</summary>
     /// <param name="descriptor">The descriptor.</param>
@@ -35,15 +31,14 @@ internal sealed class DiagnosticBag
     /// <param name="descriptor">The descriptor, an error.</param>
     /// <param name="spot">Where it is.</param>
     /// <param name="arguments">The arguments of the message.</param>
-    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) =>
-        _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span));
+    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) => ReportKeepingTheModel(descriptor, spot, null, arguments);
 
-    /// <summary>As <see cref="ReportKeepingTheModel(DiagnosticDescriptor, Spot, string[])"/>, with the text a code fix writes, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>.</summary>
+    /// <summary>As <see cref="ReportKeepingTheModel(DiagnosticDescriptor, Spot, string[])"/>, with what a code fix needs, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>.</summary>
     /// <param name="descriptor">The descriptor, an error.</param>
     /// <param name="spot">Where it is.</param>
-    /// <param name="fix">What the code fix writes.</param>
+    /// <param name="fix">What the code fix needs; null for no fix.</param>
     /// <param name="arguments">The arguments of the message.</param>
-    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, string fix, string[] arguments) =>
+    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, string? fix, string[] arguments) =>
         _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span, Fix: fix));
 
     /// <summary>Records that the compiler already reports a problem, such as a type that does not resolve, so no model can exist.</summary>
