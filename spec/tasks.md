@@ -56,7 +56,52 @@ API backlog (build when a service asks):
 - [ ] A retry on a lost race without a table: `RetryOnConflictAsync` exists only on `Table<T>`; a form for code that has no table at hand or whose writes span tables (on the client, for example).
 
 Analyzers and docs:
-- [~] Code fixes for the analyzers: survey the 103 rules (`AnalyzerReleases.Shipped.md`) for the ones whose message names a mechanical remedy. `DYNA020` is done (`DeclareDiscriminatorCodeFix`).
+- [x] Code fixes for the analyzers: the survey of the 103 rules is under [Code fixes](#code-fixes-survey-of-2026-11-08); `DYNA020` is done (`DeclareDiscriminatorCodeFix`). The fixes to build, in the order a newcomer meets the rules:
+- [ ] `DYNA001` (a): add `partial` to the type and to each containing type that lacks it.
+- [ ] `DYNA239` (b): `.IgnoreVersion()` after the verb; `.IfVersion(version)` with the caret on a placeholder name, since only the caller knows the version read.
+- [ ] `DYNA234` (a): insert `.ItemsAsync()` (`.ValuesAsync()` after `Select`, the `{1}` of the message, to carry in a property) before the LINQ call.
+- [ ] `DYNA202` (b): one action per terminal the read has (`ItemsAsync`, `ItemAsync`, `PageAsync`, `CountAsync`...), from the read's own members.
+- [ ] `DYNA237` (b): `DateTimeKind.Utc` as the last argument (the seven-argument form for a date), or `new DateOnly(y, m, d)` where the time is midnight and the target takes one.
+- [ ] `DYNA117` (a): make the key property `required` and drop its initializer.
+- [ ] `DYNA203` (b): `await <command>.SendAsync()` in an async member; `x = x.<call>` where the receiver is a variable; `_ = ` to drop it on purpose.
+- [ ] `DYNA220` (a): put the reserved word in a hole, `{Attr("total")}`, with `WrapInAttrCodeFix`'s import.
+- [ ] `DYNA019` (a): `#nullable enable` at the top of the file.
+- [ ] `DYNA236` (b): `.IgnoreVersion()` on the batch (writing one by one with `Put` is a rewrite, not offered).
+- [ ] `DYNA108` (b): `{X:plain}`, or `{X:d<w>}` with the width of the type's maximum.
+- [ ] `DYNA204` (a): assign the call's result back to the variable, `q = q.Limit(1);`.
+- [ ] `DYNA227` (b): `GetValueOrDefault()`, or `result.Found ? result.Value : default`.
+- [ ] `DYNA224` (a): replace the builder with the index's, `Order.Keys.ByStatusPk` (the name in a property).
+- [ ] `DYNA233` (a): `Add` becomes `Set`.
+- [ ] `DYNA235` (b): remove `IfVersion(n)`, or replace it with `IgnoreVersion()`.
+- [ ] `DYNA208` (a): append the missing member names to the `Project(...)` (the names in a property).
+- [ ] `DYNA207` (b): one action per declared index, `Order.Indexes.X`, closest spelling first.
+- [ ] `DYNA213` (b): one action per attribute of the type within a small edit distance.
+- [ ] `DYNA206` (b): drop `IfNotExists()`, or add `IgnoreVersion()`.
+- [ ] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
+- [ ] `DYNA104` (b): one action per format the message lists for the type.
+- [ ] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
+- [ ] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
+- [ ] `DYNA123` (a): add `[KeyOnly]` to the property.
+- [ ] `DYNA110` (a): remove `Sparse = true`.
+- [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.
+- [ ] `DYNA043` (a): write the name in full, the `{1}` of the message.
+- [ ] `DYNA016` (a): give the type the accessibility of the entity, where the type is in source.
+- [ ] `DYNA113` (a): `{X:d<w>}` with the digits of the largest member.
+- [ ] `DYNA116` (b): drop the format (ticks); a tie-breaker is not offered.
+- [ ] `DYNA005` (b): `[DynamoDbConstructor]` on each candidate constructor, one action each.
+- [ ] `DYNA003` (b): `[DynamoDbIgnore]` (a converter needs a type).
+- [ ] `DYNA102` (b): one action per property within a small edit distance.
+- [ ] `DYNA035` (b): remove the initializer, or make the property non-nullable.
+- [ ] `DYNA024` (b): make the property nullable.
+- [ ] `DYNA042` (b): remove the modifier (by value), or make it `in`.
+- [ ] `DYNA012` (b): remove the attribute, or make the type an entity.
+- [ ] `DYNA013` (b): remove `[DynamoDbEntity]` or `[DynamoDbDocument]`.
+- [ ] `DYNA021` (b): remove `[DynamoDbIgnore]` or the key attribute.
+- [ ] `DYNA009` (b): remove one of the declarations, one action each.
+- [ ] `DYNA030` (b): remove `[OmitEmpty]`, or `Sparse = true` where the index is the reason.
+- [ ] `DYNA033` (b): remove `[DynamoDbEnum]`.
+- [ ] `DYNA034` (b): make the setter `protected` where the base is in source, or `[DynamoDbIgnore]`.
+- [ ] `DYNA029` (b): remove the second default, or drop the `?` of the type.
 - [ ] A docs section explaining the discriminator: what `_type` is, why `[Discriminator]` is required, opting out for tables other tools write, and what a typed read and a mixed read do with it.
 
 Services:
@@ -176,6 +221,66 @@ Real DynamoDB, from the first runs of `real-aws.yml`:
 - An index added by `UpdateTable` takes 8.5 to 15 minutes even on a tiny table, and `DeleteTable` is refused (`ResourceInUseException`) meanwhile (`Tables.IndexBuildTime` 30 minutes). A second time-to-live change within an hour is refused; a deleted table stays `DELETING` with its name taken a while; a stream may have several shards (gaps `TimeToLiveChangesAgainAtOnce`, `TableGoneAtOnce`, `OneShardPerStream`).
 - Two `UpdateTable` calls within a second throttled on all four attempts. An exception from `DisposeAsync` under `await using` replaces the test's own: `Sandbox` reports cleanup failures through `CleanupFailures` and its hook.
 - Empty strings are accepted as members of `SS` and `BS`. TTL deletion lags "a few days"; one item takes about 1000 WCU/s; a write is billed on the larger of its before and after images.
+
+## Code fixes (survey of 2026-11-08)
+
+Each rule is (a) one obviously right edit, (b) a choice the message names, one code action per option, or (c) no fix: the edit needs a decision only the author can make, or the diagnostic has no place in source. Done: `DYNA020` (b), `DYNA210` (a), `DYNA240` (a); the rest are under Open in the order to build them. Count: 19 (a), 29 (b), 55 (c).
+
+Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` and `DYNA120` to `DYNA122`, which analyzers report) reach a code fix as an analyzer's do: `DiagnosticReporter` places them on a `Spot` in the user's tree (the type's identifier, the attribute or its argument), and `DiagnosticInfo.Fix` carries the one string a fix needs as the property `Fix`. Their fixes are tested from a generator run over a workspace's compilation, whose trees are the documents' (`DeclareDiscriminatorCodeFixTests`). No fix can stand where the place is `Location.None`: `DYNA037` (on no file), and any rule on a base type in another project of an IDE workspace.
+
+| Class | Rules | The edit |
+|---|---|---|
+| a | `DYNA001` | `partial` on the type and its containing types |
+| a | `DYNA016` | the entity's accessibility on the type |
+| a | `DYNA019` | `#nullable enable` at the top of the file |
+| a | `DYNA032` | `nameof(X)` into `[ComputedFrom]` |
+| a | `DYNA036` | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset` |
+| a | `DYNA043` | the name in full, from the message |
+| a | `DYNA110` | remove `Sparse = true` |
+| a | `DYNA113` | `:d<w>` with the digits of the largest member |
+| a | `DYNA114` | `[ComputedFrom]` with what the getter reads |
+| a | `DYNA117` | `required`, initializer removed |
+| a | `DYNA123` | `[KeyOnly]` |
+| a | `DYNA204` | the result assigned back to the variable |
+| a | `DYNA208` | the missing names into `Project(...)` |
+| a | `DYNA210` | `Attr(...)` around the string (done) |
+| a | `DYNA220` | the word in a hole, `{Attr("...")}` |
+| a | `DYNA224` | the index's key builder |
+| a | `DYNA233` | `Add` to `Set` |
+| a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call |
+| a | `DYNA240` | `Including<T>()` for each entity left out (done) |
+| b | `DYNA003` | `[DynamoDbIgnore]` (a converter needs a type) |
+| b | `DYNA005` | `[DynamoDbConstructor]` on one constructor, one action each |
+| b | `DYNA009` | remove one declaration, one action each |
+| b | `DYNA012` | remove the attribute, or make the type an entity |
+| b | `DYNA013` | remove one of the two attributes |
+| b | `DYNA020` | the suggested value, `OptOut = true`, or the project's opt-out (done) |
+| b | `DYNA021` | remove `[DynamoDbIgnore]` or the key |
+| b | `DYNA024` | the property nullable |
+| b | `DYNA029` | remove the second default, or the `?` |
+| b | `DYNA030` | remove `[OmitEmpty]`, or `Sparse = true` |
+| b | `DYNA033` | remove `[DynamoDbEnum]` |
+| b | `DYNA034` | a `protected` setter, or `[DynamoDbIgnore]` |
+| b | `DYNA035` | remove the initializer, or the property non-nullable |
+| b | `DYNA042` | by value, or `in` |
+| b | `DYNA102` | the properties of a close spelling |
+| b | `DYNA104` | each format the message lists |
+| b | `DYNA107` | `Sparse = true`, or the property `required` and non-nullable |
+| b | `DYNA108` | `:plain`, or `:d<w>` |
+| b | `DYNA116` | drop the format |
+| b | `DYNA202` | each terminal the read has |
+| b | `DYNA203` | send it, assign it back, or `_ =` |
+| b | `DYNA206` | drop `IfNotExists()`, or `IgnoreVersion()` |
+| b | `DYNA207` | each declared index, `T.Indexes.X` |
+| b | `DYNA213` | the attributes of a close spelling |
+| b | `DYNA227` | `GetValueOrDefault()`, or a test of `Found` |
+| b | `DYNA235` | remove `IfVersion`, or `IgnoreVersion()` |
+| b | `DYNA236` | `IgnoreVersion()` on the batch |
+| b | `DYNA237` | `DateTimeKind.Utc`, or a `DateOnly` |
+| b | `DYNA239` | `IgnoreVersion()`, or `IfVersion(version)` with a placeholder |
+| c: a name or a value to invent | `DYNA004`, `DYNA010`, `DYNA014`, `DYNA022`, `DYNA025`, `DYNA026`, `DYNA038`, `DYNA039`, `DYNA100`, `DYNA101`, `DYNA105`, `DYNA122`, `DYNA211`, `DYNA212`, `DYNA214`, `DYNA238` | a name, a value, a table name or a fix of the grammar |
+| c: a design decision | `DYNA002`, `DYNA006`, `DYNA007`, `DYNA008`, `DYNA011`, `DYNA017`, `DYNA018`, `DYNA023`, `DYNA031`, `DYNA040`, `DYNA041`, `DYNA103`, `DYNA106`, `DYNA109`, `DYNA111`, `DYNA112`, `DYNA118`, `DYNA119`, `DYNA120`, `DYNA121`, `DYNA205`, `DYNA209`, `DYNA215`, `DYNA216`, `DYNA217`, `DYNA218`, `DYNA219`, `DYNA221`, `DYNA223`, `DYNA225`, `DYNA226`, `DYNA230`, `DYNA231`, `DYNA232` | the key schema, the model, the command or the read changes shape |
+| c: nothing to change, or no place | `DYNA015` (a project setting), `DYNA037` (no file), `DYNA115`, `DYNA201`, `DYNA222` | information, the project file, or a rewrite of the expression |
 
 ## Stryker verdicts (run on `e78cb67`)
 
