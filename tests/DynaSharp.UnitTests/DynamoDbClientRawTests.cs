@@ -425,7 +425,8 @@ public sealed partial class DynamoDbClientRawTests
         Func<Task> act = () => client.SendRawAsync(operation, "{}"u8.ToArray());
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("operation");
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("The operation name must consist of ASCII letters and digits, for example 'DescribeLimits'. (Parameter 'operation')", StringComparison.Ordinal);
     }
 
     [Test]

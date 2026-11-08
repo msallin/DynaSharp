@@ -71,6 +71,7 @@ public sealed class AttributeValueJsonTests
         ("""{"a":null,"a":1}""", "The name at $.a is in its JSON object twice, and a DynamoDB map holds a name once. (Parameter 'utf8Json')"),
         ("""{"costarring":1,"liquid":2,"costarring":3}""", "The name at $.costarring is in its JSON object twice, and a DynamoDB map holds a name once. (Parameter 'utf8Json')"),
         ("""{"costarring":1,"liquid":2,"liquid":3}""", "The name at $.liquid is in its JSON object twice, and a DynamoDB map holds a name once. (Parameter 'utf8Json')"),
+        ("""{"costarring":1,"x":2,"liquid":3,"liquid":4}""", "The name at $.liquid is in its JSON object twice, and a DynamoDB map holds a name once. (Parameter 'utf8Json')"),
     ];
 
     public static IEnumerable<Func<(byte[] Json, string Message)>> TextThatIsNoText() =>
@@ -460,6 +461,6 @@ public sealed class AttributeValueJsonTests
         };
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("type");
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("Not a DynamoDB attribute type. (Parameter 'type')", StringComparison.Ordinal);
     }
 }

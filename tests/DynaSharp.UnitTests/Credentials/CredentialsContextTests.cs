@@ -97,5 +97,58 @@ public sealed class CredentialsContextTests
         await Assert.That((context.Posts, credentials.AccessKeyId)).IsEqualTo((0, AccessKeyId));
     }
 
+    [Test]
+    public async Task ProcessCredentialsProvider_ProgramAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var answerReady = new TaskCompletionSource();
+        var output = System.Text.Encoding.UTF8.GetBytes($$"""{"Version":1,"AccessKeyId":"{{AccessKeyId}}","SecretAccessKey":"s"}""");
+        async Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> arguments, TimeSpan timeout, TimeProvider timeProvider)
+        {
+            await answerReady.Task.ConfigureAwait(false);
+            return new ProcessResult(ProcessEnd.Exited, 0, output);
+        }
+
+        var provider = new ProcessCredentialsProvider("dev", "creds", false, ProcessCredentialsProvider.Timeout, ProcessCredentialsProviderTests.Dependencies(RunAsync, new ManualTimeProvider()));
+        var context = new CountingSynchronizationContext();
+        var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
+
+        // Act
+        answerReady.SetResult();
+        var credentials = await call;
+
+        // Assert
+        await Assert.That((context.Posts, credentials.AccessKeyId)).IsEqualTo((0, AccessKeyId));
+    }
+
+    [Test]
+    public async Task ProfileCredentialsProvider_ProcessOfTheProfileAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var answerReady = new TaskCompletionSource();
+        var output = System.Text.Encoding.UTF8.GetBytes(ProcessCredentialsProviderTests.Json(Expiration));
+        async Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> arguments, TimeSpan timeout, TimeProvider timeProvider)
+        {
+            await answerReady.Task.ConfigureAwait(false);
+            return new ProcessResult(ProcessEnd.Exited, 0, output);
+        }
+
+        var dependencies = ProcessCredentialsProviderTests.Dependencies(RunAsync, new ManualTimeProvider()) with
+        {
+            GetEnvironmentVariable = Env(("AWS_CONFIG_FILE", "/aws/config"), ("AWS_SHARED_CREDENTIALS_FILE", "/aws/credentials")),
+            ReadFile = Files(("/aws/config", "[profile dev]\ncredential_process = creds\n")),
+        };
+        var provider = new ProfileCredentialsProvider(dependencies, "dev");
+        var context = new CountingSynchronizationContext();
+        var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
+
+        // Act
+        answerReady.SetResult();
+        var credentials = await call;
+
+        // Assert
+        await Assert.That((context.Posts, credentials.AccessKeyId)).IsEqualTo((0, AccessKeyId));
+    }
+
     private static HttpResponseMessage Respond(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body) };
 }

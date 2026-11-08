@@ -3,6 +3,7 @@ using System.Net;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
+using DynaSharp.UnitTests.Generators;
 using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
@@ -38,6 +39,19 @@ public sealed class SsoCredentialsProviderTests
 
         // Assert
         await Assert.That(act).Throws<ArgumentException>().WithParameterName(parameter);
+    }
+
+    [Test]
+    public async Task Constructor_EmptySessionName_ThrowsArgumentExceptionSayingWhatNullMeans()
+    {
+        // Arrange
+
+        // Act
+        var act = () => new SsoCredentialsProvider(StartUrl, SsoRegion, "123456789012", "ReadOnly", string.Empty);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("The session name must not be empty; null means the older form without a session. (Parameter 'sessionName')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -145,6 +159,24 @@ public sealed class SsoCredentialsProviderTests
     }
 
     [Test]
+    [NotInParallel(TestClient.ProcessEnvironment)]
+    [Arguments(Session, "The cached SSO token of the sso-session 'my-sso' does not exist. Run `aws sso login --sso-session my-sso` to sign in again.")]
+    [Arguments(null, "The cached SSO token of the start URL https://my-sso-portal.awsapps.com/start does not exist. Run `aws sso login` with a profile whose sso_start_url is https://my-sso-portal.awsapps.com/start to sign in again.")]
+    public async Task GetCredentialsAsync_PublicConstructorAndNoCachedToken_SaysToSignIn(string? sessionName, string message)
+    {
+        // Arrange (a home folder without a token cache)
+        using var home = new TempDirectory();
+        using var environment = new ScopedEnvironmentVariables(("USERPROFILE", home.Path), ("HOME", home.Path));
+        var provider = new SsoCredentialsProvider(StartUrl, SsoRegion, "123456789012", "ReadOnly", sessionName);
+
+        // Act
+        var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessage(message, StringComparison.Ordinal);
+    }
+
+    [Test]
     [Arguments("not json")]
     [Arguments("""{"expiresAt": "2026-11-03T20:00:00Z"}""")]
     [Arguments("""{"accessToken": "", "expiresAt": "2026-11-03T20:00:00Z"}""")]
@@ -199,6 +231,20 @@ public sealed class SsoCredentialsProviderTests
         // Arrange (a token of the older form has no registration to refresh with)
         var world = new World(null);
         world.Files[world.TokenPath(StartUrlKey)] = Token(Now.AddMinutes(5), refreshToken: "rt");
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(world.Handler.Requests.Select(request => request.RequestUri!.AbsolutePath)).IsEquivalentTo(["/federation/credentials"]);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_SessionTokenWithFifteenMinutesLeft_IsUsedWithoutARefresh()
+    {
+        // Arrange (botocore refreshes a token with less than fifteen minutes left)
+        var world = new World(Session);
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddMinutes(15), refreshToken: "rt");
 
         // Act
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
@@ -332,6 +378,10 @@ public sealed class SsoCredentialsProviderTests
     [Arguments(HttpStatusCode.OK, """{"accessToken":"a","expiresIn":"3600"}""", "the response does not contain accessToken and expiresIn")]
     [Arguments(HttpStatusCode.OK, "not json", "the response does not contain accessToken and expiresIn")]
     [Arguments(HttpStatusCode.OK, "[1]", "the response does not contain accessToken and expiresIn")]
+    [Arguments(HttpStatusCode.OK, """[{"accessToken":"a","expiresIn":3600}]""", "the response does not contain accessToken and expiresIn")]
+    [Arguments(HttpStatusCode.OK, """{"meta":{"accessToken":"a","expiresIn":3600}}""", "the response does not contain accessToken and expiresIn")]
+    [Arguments(HttpStatusCode.OK, """{"accessToken":"a","expiresIn":3600,""", "the response does not contain accessToken and expiresIn")]
+    [Arguments(HttpStatusCode.BadRequest, """{"accessToken":"a","expiresIn":3600}""", "HTTP 400")]
     public async Task GetCredentialsAsync_CreateTokenFails_WarnsWithTheReasonAndUsesTheCachedToken(HttpStatusCode status, string body, string reason)
     {
         // Arrange
@@ -469,6 +519,7 @@ public sealed class SsoCredentialsProviderTests
     [Arguments("[]", "the response is not a JSON object")]
     [Arguments("{}", "the response does not contain roleCredentials with accessKeyId, secretAccessKey, sessionToken, expiration")]
     [Arguments("""{"roleCredentials":null}""", "the response does not contain roleCredentials with accessKeyId, secretAccessKey, sessionToken, expiration")]
+    [Arguments("""{"other":{"accessKeyId":"a","secretAccessKey":"s","sessionToken":"t","expiration":1700000000000}}""", "the response does not contain roleCredentials with accessKeyId, secretAccessKey, sessionToken, expiration")]
     [Arguments("""{"other":{"a":1},"roleCredentials":{"accessKeyId":"a","secretAccessKey":"s","sessionToken":"t","expiration":"1700000000000"}}""", "the response does not contain roleCredentials with expiration")]
     [Arguments("""{"roleCredentials":{"accessKeyId":"a","secretAccessKey":"s","sessionToken":"t","expiration":1.5}}""", "the response does not contain roleCredentials with expiration")]
     [Arguments("""{"roleCredentials":{"accessKeyId":"a","secretAccessKey":"s","sessionToken":"t","expiration":253402300800000}}""", "the response does not contain roleCredentials with expiration")]
@@ -485,6 +536,23 @@ public sealed class SsoCredentialsProviderTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>().WithMessage($"The SSO portal returned an unusable response: {problem}.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_PortalAnswersTheLastMillisecondATimeCanHold_ReturnsCredentialsThatExpireThen()
+    {
+        // Arrange
+        var world = new World(Session, portal: _ => new StubResponse
+        {
+            Body = """{"roleCredentials":{"accessKeyId":"a","secretAccessKey":"s","sessionToken":"t","expiration":253402300799999}}""",
+        });
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddHours(8));
+
+        // Act
+        var credentials = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(credentials.Expiration).IsEqualTo(DateTimeOffset.FromUnixTimeMilliseconds(253402300799999));
     }
 
     [Test]
@@ -570,6 +638,23 @@ public sealed class SsoCredentialsProviderTests
 
         // Assert
         await Assert.That((invalidated, world.Handler.Requests.Count)).IsEqualTo((true, 2));
+    }
+
+    [Test]
+    public async Task TryInvalidate_Current_LogsTheRoleWhoseCredentialsItDrops()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory();
+        var world = new World(Session, logs: logs);
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddHours(8));
+        var rejected = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        world.Provider.TryInvalidate(rejected);
+
+        // Assert
+        await Assert.That(logs.Entries.Single().Message)
+            .IsEqualTo("DynamoDB rejected the credentials from the SSO role ReadOnly in the account 123456789012 as expired. They are dropped and fetched again.");
     }
 
     [Test]

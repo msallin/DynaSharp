@@ -48,6 +48,19 @@ public sealed class DynamoDbWriterTests
     }
 
     [Test]
+    public async Task WriteNumberSetElement_Char_ThrowsArgumentExceptionSayingItIsText()
+    {
+        // Arrange
+
+        // Act
+        var act = () => TestJson.Write(static w => w.WriteNumberSetElement('7'));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("A char is text, not a number, so it cannot be an element of a number set. (Parameter 'value')", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task WriteString_Value_WritesStringDescriptor()
     {
         // Arrange

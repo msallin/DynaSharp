@@ -1006,6 +1006,23 @@ internal sealed class ConflictRetryTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_RunWithTheNumberWithoutAResultThatDoesNotCompleteAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        var context = new CountingSynchronizationContext();
+        var run = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = NewClient();
+
+        // Act
+        var call = context.Start(() => Shop(client).RetryOnConflictAsync((_, _) => new ValueTask(run.Task)));
+        run.SetResult();
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_WaitBetweenRuns_ResumesWithoutTheContextOfTheCaller()
     {
         // Arrange
@@ -1177,7 +1194,8 @@ internal sealed class ConflictRetryTests
         var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, (ConflictKind)value));
 
         // Assert
-        await Assert.That((failure.ParamName, failure.ActualValue, script.Runs)).IsEqualTo(("retryOn", (object?)(ConflictKind)value, 0));
+        await Assert.That((failure.ParamName, failure.ActualValue, failure.Message.StartsWith("Name the conflicts that run the delegate again: ConditionalCheckFailed, TransactionConflict or Any.", StringComparison.Ordinal), script.Runs))
+            .IsEqualTo(("retryOn", (object?)(ConflictKind)value, true, 0));
     }
 
     [Test]

@@ -20,6 +20,18 @@ public sealed class NumberConverterTests
     ];
 
     [Test]
+    public async Task Read_CharFromTextOfTwoCharacters_ThrowsJsonExceptionSayingWhatItExpected()
+    {
+        // Arrange
+
+        // Act
+        var act = () => ConverterRun.Read<char, NumberConverter<char>>("""{"S":"ab"}""");
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("Expected a string of one character.", StringComparison.Ordinal);
+    }
+
+    [Test]
     [Arguments(int.MinValue, """{"N":"-2147483648"}""")]
     [Arguments(-1, """{"N":"-1"}""")]
     [Arguments(0, """{"N":"0"}""")]

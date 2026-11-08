@@ -12,7 +12,8 @@ public sealed class NonEmptySetConverterTests
         var act = () => ConverterRun.Write<HashSet<string>, NonEmptySetConverter<HashSet<string>, string, HashSetConverter<string, StringSetElement>>>([]);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<EmptySetException>().WithParameterName("value");
+        await Assert.That(act).ThrowsExactly<EmptySetException>()
+            .WithMessage("A DynamoDB set cannot be empty, and DynamoDB rejects one also inside a list or a map. Leave the empty set out, or store its elements as a list. (Parameter 'value')", StringComparison.Ordinal);
     }
 
     [Test]

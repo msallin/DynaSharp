@@ -35,6 +35,7 @@ public sealed class CommandLineTests
     [Arguments("say\\\"hi\\\"", "[say\"hi\"]")]
     [Arguments("a\"b c\"d", "[ab cd]")]
     [Arguments("a\\\\ b", "[a\\\\]|[b]")]
+    [Arguments("a \\", "[a]|[\\]")]
     public async Task Split_Windows_ReturnsTheWordsOfBotocore(string text, string expected)
     {
         // Arrange

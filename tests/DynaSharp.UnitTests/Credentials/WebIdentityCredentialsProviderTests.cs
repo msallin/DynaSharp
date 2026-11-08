@@ -208,6 +208,28 @@ public sealed class WebIdentityCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_StsAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var answerReady = new TaskCompletionSource();
+        var world = new World();
+        world.Answer = async (_, _) =>
+        {
+            await answerReady.Task.ConfigureAwait(false);
+            return world.Success();
+        };
+        var context = new CountingSynchronizationContext();
+        var call = context.Start(() => world.Provider.GetCredentialsAsync(CancellationToken.None).AsTask());
+
+        // Act
+        answerReady.SetResult();
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_TokenFileWithoutRole_ThrowsWithoutARequest()
     {
         // Arrange (botocore raises InvalidConfigError here)
@@ -217,7 +239,9 @@ public sealed class WebIdentityCredentialsProviderTests
         var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
 
         // Assert
-        await Assert.That((exception.Message.StartsWith("AWS_WEB_IDENTITY_TOKEN_FILE is set but AWS_ROLE_ARN is not", StringComparison.Ordinal), world.Handler.Requests.Count)).IsEqualTo((true, 0));
+        await Assert.That((exception.Message, world.Handler.Requests.Count)).IsEqualTo((
+            "AWS_WEB_IDENTITY_TOKEN_FILE is set but AWS_ROLE_ARN is not: web identity federation needs the role to assume. Set AWS_ROLE_ARN, or pass credentials in the client options.",
+            0));
     }
 
     [Test]
@@ -781,6 +805,20 @@ public sealed class WebIdentityCredentialsProviderTests
         // Assert
         await Assert.That(logs.Entries.Select(static entry => (entry.EventId.Id, entry.Level, entry.Message)).Single())
             .IsEqualTo((24, LogLevel.Warning, "STS rejected the token of the web identity token file as expired. The file is read again and the request is sent once more."));
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_HttpEndpointOnRemoteHost_WarnsAtTheFirstFetch()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory(LogLevel.Warning);
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries.Select(static entry => entry.EventId.Id)).IsEquivalentTo([25]);
     }
 
     [Test]

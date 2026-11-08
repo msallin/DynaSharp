@@ -155,7 +155,7 @@ public sealed class EnvironmentCredentialsProviderTests
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(credentials.Expiration).IsEqualTo(Now.AddHours(1));
+        await Assert.That((credentials.Expiration, credentials.Expiration?.Offset)).IsEqualTo((Now.AddHours(1), TimeSpan.Zero));
     }
 
     [Test]

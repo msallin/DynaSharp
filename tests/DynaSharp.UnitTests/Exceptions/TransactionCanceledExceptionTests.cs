@@ -102,6 +102,20 @@ public sealed class TransactionCanceledExceptionTests
     }
 
     [Test]
+    public async Task ReasonFor_DefaultMarker_ThrowsArgumentExceptionSayingWhereAMarkerComesFrom()
+    {
+        // Arrange
+        var failure = new TransactionCanceledException("Cancelled.", [new CancellationReason { Code = "None" }]);
+
+        // Act
+        var act = () => failure.ReasonFor(default);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("This marker is a default value. A marker comes from an action of a transaction, through its out parameter. (Parameter 'marker')", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task ReasonFor_NoReasonForTheAction_IsUnknown()
     {
         // Arrange (DynamoDB sends no reasons for a cancellation that is not tied to an action)

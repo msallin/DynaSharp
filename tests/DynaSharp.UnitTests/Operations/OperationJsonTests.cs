@@ -66,7 +66,7 @@ public sealed class OperationJsonTests
         var act = () => TestJson.Read(json, static (ref reader) => OperationJson.ReadConsumedCapacity(ref reader));
 
         // Assert
-        await Assert.That(act).ThrowsExactly<JsonException>();
+        await Assert.That(act).ThrowsExactly<JsonException>().WithMessage("The number is outside the range of a double.", StringComparison.Ordinal);
     }
 
     [Test]

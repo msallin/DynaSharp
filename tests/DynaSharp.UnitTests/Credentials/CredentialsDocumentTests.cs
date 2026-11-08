@@ -224,7 +224,7 @@ public sealed class CredentialsDocumentTests
         document.TryCreateCredentials(out var credentials);
 
         // Assert
-        await Assert.That(credentials!.Expiration).IsEqualTo(new DateTimeOffset(year, month, day, hour, minute, second, millisecond, TimeSpan.Zero));
+        await Assert.That((credentials!.Expiration, credentials.Expiration?.Offset)).IsEqualTo((new DateTimeOffset(year, month, day, hour, minute, second, millisecond, TimeSpan.Zero), TimeSpan.Zero));
     }
 
     [Test]

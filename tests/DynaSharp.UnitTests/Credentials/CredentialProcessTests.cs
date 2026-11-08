@@ -1,5 +1,6 @@
 using System.Text;
 using DynaSharp.Credentials;
+using TUnit.Core.Enums;
 
 namespace DynaSharp.UnitTests.Credentials;
 
@@ -57,7 +58,7 @@ public sealed class CredentialProcessTests
         var result = await CredentialProcess.Runner(missing, [], TimeSpan.FromMinutes(1), TimeProvider.System);
 
         // Assert
-        await Assert.That((result.End, result.Error is System.ComponentModel.Win32Exception)).IsEqualTo((ProcessEnd.NotStarted, true));
+        await Assert.That((result.End, result.Error is System.ComponentModel.Win32Exception, result.Output.Length)).IsEqualTo((ProcessEnd.NotStarted, true, 0));
     }
 
     [Test]
@@ -70,7 +71,48 @@ public sealed class CredentialProcessTests
         var result = await CredentialProcess.Runner(program.FileName, program.Arguments, TimeSpan.FromMilliseconds(500), TimeProvider.System);
 
         // Assert
-        await Assert.That(result.End).IsEqualTo(ProcessEnd.TimedOut);
+        await Assert.That((result.End, result.Output.Length)).IsEqualTo((ProcessEnd.TimedOut, 0));
+    }
+
+    [Test]
+    [ExcludeOn(OS.Windows)]
+    public async Task Runner_ProgramRunsPastTheTimeout_StopsTheProcessesItStarted()
+    {
+        // Arrange
+        using var program = FakeProgram.WithAChild(string.Empty);
+
+        // Act
+        await CredentialProcess.Runner(program.FileName, program.Arguments, TimeSpan.FromMilliseconds(500), TimeProvider.System);
+
+        // Assert
+        await Assert.That(await HasEndedAsync(program.ChildIdFile)).IsTrue();
+    }
+
+    [Test]
+    [ExcludeOn(OS.Windows)]
+    public async Task Runner_ProgramWritesMoreThanTheLimit_StopsTheProcessesItStarted()
+    {
+        // Arrange
+        using var program = FakeProgram.WithAChild(new string('x', CredentialProcess.MaxOutputBytes + 1));
+
+        // Act
+        await CredentialProcess.Runner(program.FileName, program.Arguments, TimeSpan.FromMinutes(1), TimeProvider.System);
+
+        // Assert
+        await Assert.That(await HasEndedAsync(program.ChildIdFile)).IsTrue();
+    }
+
+    [Test]
+    public async Task Runner_ProgramReadsItsInput_ReadsTheEndOfItAtOnce()
+    {
+        // Arrange
+        using var program = FakeProgram.EchoingInput();
+
+        // Act
+        var result = await CredentialProcess.Runner(program.FileName, program.Arguments, TimeSpan.FromSeconds(30), TimeProvider.System);
+
+        // Assert
+        await Assert.That((result.End, Encoding.UTF8.GetString(result.Output).Trim())).IsEqualTo((ProcessEnd.Exited, "[]"));
     }
 
     [Test]
@@ -83,7 +125,7 @@ public sealed class CredentialProcessTests
         var result = await CredentialProcess.Runner(program.FileName, program.Arguments, TimeSpan.FromMinutes(1), TimeProvider.System);
 
         // Assert
-        await Assert.That(result.End).IsEqualTo(ProcessEnd.TooMuchOutput);
+        await Assert.That((result.End, result.Output.Length)).IsEqualTo((ProcessEnd.TooMuchOutput, 0));
     }
 
     [Test]
@@ -110,5 +152,34 @@ public sealed class CredentialProcessTests
 
         // Assert
         await Assert.That(text).IsEqualTo(nameof(ProcessResult));
+    }
+
+    // Whether the process whose id the file holds ends within ten seconds. A killed process that nobody has reaped yet is a zombie, which counts as ended.
+    private static async Task<bool> HasEndedAsync(string idFile)
+    {
+        var stat = $"/proc/{(await File.ReadAllTextAsync(idFile)).Trim()}/stat";
+        var deadline = TimeProvider.System.GetTimestamp() + (10 * TimeProvider.System.TimestampFrequency);
+        while (TimeProvider.System.GetTimestamp() < deadline)
+        {
+            string text;
+            try
+            {
+                text = await File.ReadAllTextAsync(stat);
+            }
+            catch (IOException)
+            {
+                return true;
+            }
+
+            // The state follows the name, which is in parentheses: "1234 (sleep) Z ...".
+            if (text[(text.LastIndexOf(')', StringComparison.Ordinal) + 2)..].StartsWith('Z', StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            await Task.Yield();
+        }
+
+        return false;
     }
 }

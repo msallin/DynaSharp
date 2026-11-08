@@ -256,6 +256,20 @@ public sealed class PooledByteBufferTests
     }
 
     [Test]
+    public async Task Unwrap_GroupThatFillsTheArray_TakesOffItsFirstAndLastByte()
+    {
+        // Arrange: the pool hands out arrays of exactly the length asked for, so the group ends at the end of the array
+        var buffer = new PooledByteBuffer(9, new CountingArrayPool<byte>());
+        Write(buffer, "x AND (a)");
+
+        // Act
+        buffer.Unwrap(6);
+
+        // Assert
+        await Assert.That(Encoding.UTF8.GetString(buffer.WrittenSpan)).IsEqualTo("x AND a");
+    }
+
+    [Test]
     public async Task Dispose_CalledTwice_DoesNotThrow()
     {
         // Arrange

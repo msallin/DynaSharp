@@ -227,6 +227,26 @@ public sealed class ProfileChainTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_CredentialSourceEcsContainerAnswersLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange
+        var containerReady = new TaskCompletionSource();
+        var world = new World(
+            $"[profile dev]\nrole_arn = {Role}\ncredential_source = EcsContainer\n",
+            variables: [("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/task")],
+            container: containerReady.Task);
+        var context = new CountingSynchronizationContext();
+        var call = context.Start(() => world.Provider("dev").GetCredentialsAsync(CancellationToken.None).AsTask());
+
+        // Act
+        containerReady.SetResult();
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
     [Arguments("Environment", "No credentials from the credential_source Environment of the profile 'dev': AWS_ACCESS_KEY_ID is not set or empty.")]
     [Arguments("EcsContainer", "No credentials from the credential_source EcsContainer of the profile 'dev': neither AWS_CONTAINER_CREDENTIALS_RELATIVE_URI nor AWS_CONTAINER_CREDENTIALS_FULL_URI is set.")]
     [Arguments("Ec2InstanceMetadata", "No credentials from the credential_source Ec2InstanceMetadata of the profile 'dev': it is disabled by AWS_EC2_METADATA_DISABLED=true.")]
@@ -591,6 +611,38 @@ public sealed class ProfileChainTests
     }
 
     [Test]
+    [Arguments("", "[dev]\n" + BaseKeys, "the static keys of the credentials file")]
+    [Arguments("[profile dev]\n" + BaseKeys, null, "the static keys of the config file")]
+    [Arguments("[profile dev]\nrole_arn = " + Role + "\nweb_identity_token_file = " + TokenPath + "\n", null, "web identity federation into the role " + Role)]
+    public async Task GetCredentialsAsync_Source_LogsWhereTheCredentialsComeFrom(string config, string? credentials, string source)
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory();
+        var world = new World(config, credentials, logs: logs);
+
+        // Act
+        await world.Provider("dev", ClientRegion).GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(logs.Entries.Single(entry => entry.EventId.Id == 26).Message).IsEqualTo($"The profile 'dev' gets its credentials from {source}.");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_SourceProfileWithARoleAndOnlyAnAccessKey_FailsAsIncomplete()
+    {
+        // Arrange (botocore counts either key as static keys, which then win over the role of the source profile)
+        var world = new World(
+            $"[profile dev]\nrole_arn = {Role}\nsource_profile = base\n[profile base]\nrole_arn = {Role}\nsource_profile = other\naws_access_key_id = AKIABASE\n[profile other]\n{BaseKeys}");
+
+        // Act
+        var act = async () => await world.Provider("dev", ClientRegion).GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>()
+            .WithMessageContaining("The profile 'base' is incomplete: aws_access_key_id and aws_secret_access_key must both be set and not empty.", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_AssumedRole_LogsTheRoleAndTheSource()
     {
         // Arrange
@@ -617,17 +669,24 @@ public sealed class ProfileChainTests
             string? credentials = null,
             ProcessCredentialsProviderTests.FakeRunner? runner = null,
             CapturingLoggerFactory? logs = null,
-            (string Name, string Value)[]? variables = null)
+            (string Name, string Value)[]? variables = null,
+            Task? container = null)
         {
-            Handler = new StubHandler((request, _) =>
+            Handler = new StubHandler(async (request, _) =>
             {
+                if (request.RequestUri!.AbsolutePath.StartsWith("/v2/credentials/", StringComparison.Ordinal))
+                {
+                    await (container ?? Task.CompletedTask).ConfigureAwait(false);
+                    return new StubResponse { Body = ContainerJson(Time.GetUtcNow().AddHours(1)) };
+                }
+
                 if (request.RequestUri!.AbsolutePath == "/federation/credentials")
                 {
-                    return Task.FromResult(SsoCredentialsProviderTests.RoleCredentials(Time.GetUtcNow().AddHours(1)));
+                    return SsoCredentialsProviderTests.RoleCredentials(Time.GetUtcNow().AddHours(1));
                 }
 
                 var issued = Interlocked.Increment(ref _issued);
-                return Task.FromResult(new StubResponse { Body = AssumeRoleCredentialsProviderTests.StsSuccess($"ASIA{issued}", Time.GetUtcNow().AddHours(1)) });
+                return new StubResponse { Body = AssumeRoleCredentialsProviderTests.StsSuccess($"ASIA{issued}", Time.GetUtcNow().AddHours(1)) };
             });
             _files[ConfigPath] = config;
             _files[CredentialsPath] = credentials ?? string.Empty;

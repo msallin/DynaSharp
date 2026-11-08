@@ -114,6 +114,52 @@ public sealed class KeyReaderTests
     }
 
     [Test]
+    [Arguments("4F9C2A7E-0000-4000-8000-000000000000")]
+    [Arguments("4f9c2a7e_0000-4000-8000-000000000000")]
+    public async Task TryReadGuid_NotTheLowercaseForm_FailsAndLeavesTheReader(string text)
+    {
+        // Arrange
+        var input = System.Text.Encoding.UTF8.GetBytes(text);
+
+        // Act
+        var result = ReadAll(input, static (ref KeyReader reader) => !reader.TryReadGuid(out var value) && value == Guid.Empty && !reader.IsAtEnd);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    [Arguments("P12x4.5")]
+    [Arguments("P1234,5")]
+    public async Task TryReadFixedPoint_CharacterOutOfPlace_FailsAndLeavesTheReader(string text)
+    {
+        // Arrange
+        var input = System.Text.Encoding.UTF8.GetBytes(text);
+
+        // Act
+        var result = ReadAll(input, static (ref KeyReader reader) => !reader.TryReadFixedPoint(4, 1, out var value) && value == 0m && !reader.IsAtEnd);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    [Arguments("007")]
+    [Arguments("+7")]
+    [Arguments("-0")]
+    public async Task TryReadInt64_IntegerInALenientForm_FailsAndLeavesTheReader(string text)
+    {
+        // Arrange
+        var input = System.Text.Encoding.UTF8.GetBytes(text);
+
+        // Act
+        var result = ReadAll(input, static (ref KeyReader reader) => !reader.TryReadInt64(default, out var value) && value == 0 && !reader.IsAtEnd);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
     [Arguments(0)]
     [Arguments(-1)]
     public async Task TryReadDigits_WidthBelowOne_Fails(int width)

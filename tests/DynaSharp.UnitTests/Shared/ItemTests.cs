@@ -152,7 +152,8 @@ public sealed class ItemTests
         Action act = () => item.Add("a", default);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>();
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("A default AttributeValue has no type and cannot be part of an item. (Parameter 'value')", StringComparison.Ordinal);
     }
 
     [Test]

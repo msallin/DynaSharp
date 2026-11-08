@@ -75,6 +75,7 @@ public sealed class ProcessCredentialsProviderTests
     [Arguments("""{"Version":"1","AccessKeyId":"a","SecretAccessKey":"s"}""")]
     [Arguments("""{"Version":1e400,"AccessKeyId":"a","SecretAccessKey":"s"}""")]
     [Arguments("""{"Version":null,"AccessKeyId":"a","SecretAccessKey":"s"}""")]
+    [Arguments("""{"Version":{"Version":1},"AccessKeyId":"a","SecretAccessKey":"s"}""")]
     public async Task GetCredentialsAsync_VersionIsNotOne_FailsNamingTheVersion(string json)
     {
         // Arrange
@@ -96,6 +97,7 @@ public sealed class ProcessCredentialsProviderTests
     [Arguments("""{"Version":1,"AccessKeyId":7,"SecretAccessKey":"s"}""")]
     [Arguments("""{"Version":1,"AccessKeyId":"a","SecretAccessKey":{"x":1}}""")]
     [Arguments("""{"Version":1,"AccessKeyId":null,"SecretAccessKey":"s"}""")]
+    [Arguments("""{"Version":1,"SecretAccessKey":"s","AccessKeyId":{"AccessKeyId":"a"}}""")]
     public async Task GetCredentialsAsync_KeyMissing_FailsNamingTheMembers(string json)
     {
         // Arrange
@@ -180,7 +182,7 @@ public sealed class ProcessCredentialsProviderTests
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(credentials.Expiration).IsEqualTo(new DateTimeOffset(2026, 10, 31, 13, 34, 56, TimeSpan.Zero));
+        await Assert.That((credentials.Expiration, credentials.Expiration?.Offset)).IsEqualTo((new DateTimeOffset(2026, 10, 31, 13, 34, 56, TimeSpan.Zero), TimeSpan.Zero));
     }
 
     [Test]

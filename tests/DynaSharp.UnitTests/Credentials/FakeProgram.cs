@@ -23,6 +23,9 @@ internal sealed class FakeProgram : IDisposable
     /// <summary>Gets the arguments that run the script.</summary>
     public string[] Arguments { get; }
 
+    /// <summary>Gets the file in which <see cref="WithAChild"/> writes the id of its child.</summary>
+    public string ChildIdFile => Path.Combine(Directory, "child.pid");
+
     /// <summary>Gets the line of a <c>credential_process</c> setting that runs it: no quotes, because the temporary folders of the tests have no spaces.</summary>
     public string CommandLine => string.Join(' ', [FileName, .. Arguments]);
 
@@ -41,6 +44,23 @@ internal sealed class FakeProgram : IDisposable
     public static FakeProgram EchoingFirstArgument() => OperatingSystem.IsWindows()
         ? Script(CreateDirectory(), "@echo off\r\necho [%~1]\r\n")
         : Script(CreateDirectory(), "echo \"[$1]\"\n");
+
+    /// <summary>A program that writes its first line of input in brackets.</summary>
+    public static FakeProgram EchoingInput() => OperatingSystem.IsWindows()
+        ? Script(CreateDirectory(), "@echo off\r\nset /p line=\r\necho [%line%]\r\n")
+        : Script(CreateDirectory(), "read line\necho \"[$line]\"\n");
+
+    /// <summary>
+    /// A program that starts a child which runs for a minute, writes the id of the child to <see cref="ChildIdFile"/>, then writes <paramref name="output"/> and
+    /// waits for the child. Only for <c>/bin/sh</c>.
+    /// </summary>
+    public static FakeProgram WithAChild(string output)
+    {
+        var directory = CreateDirectory();
+        var outputFile = Path.Combine(directory, "out.txt");
+        File.WriteAllText(outputFile, output);
+        return Script(directory, $"sleep 60 &\necho $! > '{Path.Combine(directory, "child.pid")}'\ncat '{outputFile}'\nwait\n");
+    }
 
     /// <summary>A program that runs for a minute without writing anything.</summary>
     public static FakeProgram Hanging() => OperatingSystem.IsWindows()

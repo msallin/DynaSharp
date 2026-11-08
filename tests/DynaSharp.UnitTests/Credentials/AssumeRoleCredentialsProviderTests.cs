@@ -54,7 +54,7 @@ public sealed class AssumeRoleCredentialsProviderTests
         var act = () => new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, sessionName);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("roleSessionName");
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessageContaining($"The session name {Sts.SessionNameRule}. (Parameter 'roleSessionName')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -67,7 +67,7 @@ public sealed class AssumeRoleCredentialsProviderTests
         var act = () => new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, null, options);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("options");
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessageContaining("The external id must not be empty; null sends none. (Parameter 'options')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -84,7 +84,7 @@ public sealed class AssumeRoleCredentialsProviderTests
         var act = () => new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, null, options);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("options");
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("The duration of the session must be 15 minutes to 12 hours. (Parameter 'options')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -97,7 +97,7 @@ public sealed class AssumeRoleCredentialsProviderTests
         var act = () => new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), RoleArn, null, options);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("options");
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessageContaining("The duration of the session must be a whole number of seconds. (Parameter 'options')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -233,6 +233,19 @@ public sealed class AssumeRoleCredentialsProviderTests
         // Assert
         var request = world.Handler.Requests[0];
         await Assert.That($"{request.RequestUri} {Header(request, "Authorization").Split('/')[2]}").IsEqualTo("https://vpce-1.sts.eu-west-1.vpce.amazonaws.com/ eu-west-1");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_EndpointAndRegionInTheEnvironmentAndARegionGiven_SignsForTheRegionGiven()
+    {
+        // Arrange
+        var world = new World(Settings("s"), Env(("AWS_ENDPOINT_URL_STS", "http://localhost:4566"), ("AWS_REGION", "ap-south-2")));
+
+        // Act
+        await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(Header(world.Handler.Requests[0], "Authorization").Split('/')[2]).IsEqualTo(Region.Name);
     }
 
     [Test]
@@ -523,6 +536,22 @@ public sealed class AssumeRoleCredentialsProviderTests
     }
 
     [Test]
+    public async Task TryInvalidate_Current_LogsTheRoleWhoseCredentialsItDrops()
+    {
+        // Arrange
+        using var logs = new CapturingLoggerFactory();
+        var world = new World(logs: logs);
+        var rejected = await world.Provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Act
+        world.Provider.TryInvalidate(rejected);
+
+        // Assert
+        await Assert.That(logs.Entries.Single().Message)
+            .IsEqualTo($"DynamoDB rejected the credentials from the role {RoleArn} as expired. They are dropped and fetched again.");
+    }
+
+    [Test]
     public async Task TryInvalidate_Null_ThrowsArgumentNullException()
     {
         // Arrange
@@ -667,11 +696,11 @@ public sealed class AssumeRoleCredentialsProviderTests
         private int _issued;
         private Func<RecordedRequest, StubResponse> _answer;
 
-        public World(AssumeRoleCredentialsProvider.Settings? settings = null, Func<string, string?>? environment = null, ICredentialsProvider? source = null)
+        public World(AssumeRoleCredentialsProvider.Settings? settings = null, Func<string, string?>? environment = null, ICredentialsProvider? source = null, CapturingLoggerFactory? logs = null)
         {
             _answer = _ => Success();
             Handler = new StubHandler((request, _) => Task.FromResult(_answer(request)));
-            var dependencies = new CredentialsDependencies(environment ?? Env(), NoFiles, NoWrites, CredentialProcess.Runner, Handler, new ClockSkewCorrection(Time), NullLoggerFactory.Instance);
+            var dependencies = new CredentialsDependencies(environment ?? Env(), NoFiles, NoWrites, CredentialProcess.Runner, Handler, new ClockSkewCorrection(Time), (Microsoft.Extensions.Logging.ILoggerFactory?)logs ?? NullLoggerFactory.Instance);
             Provider = new AssumeRoleCredentialsProvider(source ?? new StaticCredentialsProvider(Source), settings ?? Settings(), dependencies);
         }
 

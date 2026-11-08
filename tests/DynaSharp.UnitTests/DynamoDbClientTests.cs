@@ -14,6 +14,21 @@ public sealed class DynamoDbClientTests
     private static readonly Uri LocalEndpoint = new("http://localhost:8000");
 
     [Test]
+    public async Task Table_EmptySortKeyName_ThrowsArgumentExceptionSayingToLeaveItOut()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var act = () => client.Table("Shop", "pk", string.Empty);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessage("A sort key name cannot be empty. Leave it out for a table without one. (Parameter 'sortKey')", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task Constructor_NullOptions_ThrowsArgumentNullException()
     {
         // Arrange

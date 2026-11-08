@@ -139,6 +139,34 @@ public sealed class ConverterChecksTests
         await Assert.That(act).ThrowsExactly<JsonException>();
     }
 
+    [Test]
+    [Arguments("""{"sk":{"S":"a"}}""")]
+    [Arguments("""{"pk":{"N":"1"}}""")]
+    public async Task TryFindString_NoStringUnderTheName_ReturnsFalse(string json)
+    {
+        // Arrange
+        // Act
+        var found = TestJson.Read(json, static (ref reader) =>
+        {
+            reader.ReadStartItem();
+            return ConverterChecks.TryFindString(reader, "pk"u8, out var text) || !text.IsEmpty;
+        });
+
+        // Assert
+        await Assert.That(found).IsFalse();
+    }
+
+    [Test]
+    public async Task WriteElement_NullBinarySetElement_ThrowsArgumentNullException()
+    {
+        // Arrange
+        // Act
+        var act = () => TestJson.Write(static w => BinarySetElement.WriteElement(w, null!));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("value");
+    }
+
     private static string Check(string json, byte[] expected) => TestJson.Read(json, (ref reader) =>
     {
         reader.ReadStartItem();

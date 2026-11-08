@@ -23,6 +23,41 @@ public sealed class KeyFormatExceptionTests
         new("formattable with a delimiter", "S3cr3t#Value", static (ref KeyWriter writer) => writer.WriteFormattable(new RawText("S3cr3t#Value"), "#"u8, Name)),
     ];
 
+    public static IEnumerable<(FailingWrite Failing, string Reason)> Reasons() =>
+    [
+        (new("negative digits", "-1", static (ref KeyWriter writer) => writer.WriteDigits(-1L, 12, Name)), "The value is negative, which a zero-padded format cannot order."),
+        (new("digits too wide", "1000", static (ref KeyWriter writer) => writer.WriteDigits(1000UL, 3, Name)), "The value has more digits than the width of its format."),
+        (new("too many fraction digits", "1.234", static (ref KeyWriter writer) => writer.WriteFixedPoint(1.234m, 8, 2, Name)), "The value has more fraction digits than its format."),
+        (new("out of range", "12345.67", static (ref KeyWriter writer) => writer.WriteFixedPoint(12345.67m, 4, 2, Name)), "The value is out of the range of its format."),
+        (new("unspecified time", "2026", static (ref KeyWriter writer) => writer.WriteTimestamp(new DateTime(2026, 10, 31, 0, 0, 0, DateTimeKind.Unspecified), KeyTimeFormat.Day, Name)), "The kind of the time is unspecified; use UTC or local time."),
+        (new("never fits", "-", static (ref KeyWriter writer) => writer.WriteFormattable(default(NeverFits), "#"u8, Name)), "The formatted text is longer than the limit of 65536 bytes."),
+    ];
+
+    [Test]
+    [MethodDataSource(nameof(Reasons))]
+    public async Task Message_FailedWrite_SaysWhatIsWrongWithTheValue(FailingWrite failing, string reason)
+    {
+        // Arrange
+        // Act
+        var exception = Capture(failing);
+
+        // Assert
+        await Assert.That(exception.Message).StartsWith(reason, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task InTemplate_ValueWithADelimiter_KeepsThatItHoldsOne()
+    {
+        // Arrange
+        var exception = Capture(FailingWrites().First());
+
+        // Act
+        var inTemplate = exception.InTemplate("A#{Name}", "#").InTemplate("B#{Name}", "#");
+
+        // Assert
+        await Assert.That(inTemplate.Message).StartsWith("The value contains a delimiter of the key template 'B#{Name}' ('#').", StringComparison.Ordinal);
+    }
+
     [Test]
     [MethodDataSource(nameof(FailingWrites))]
     public async Task Message_FailedWrite_NamesNoValue(FailingWrite failing)

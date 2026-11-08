@@ -106,6 +106,42 @@ public sealed class DynamoDbExceptionTests
     }
 
     [Test]
+    public async Task BatchIncompleteException_NullUnprocessedItems_ThrowsArgumentNullException()
+    {
+        // Arrange
+
+        // Act
+        var act = () => new BatchIncompleteException(Message, null!, 0);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("unprocessedItems");
+    }
+
+    [Test]
+    public async Task BatchGetIncompleteException_NullUnprocessedKeys_ThrowsArgumentNullException()
+    {
+        // Arrange
+
+        // Act
+        var act = () => new BatchGetIncompleteException<Item>(Message, null!, []);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("unprocessedKeys");
+    }
+
+    [Test]
+    public async Task BatchGetIncompleteException_NullItems_ThrowsArgumentNullException()
+    {
+        // Arrange
+
+        // Act
+        var act = () => new BatchGetIncompleteException<Item>(Message, new Dictionary<string, KeysAndAttributes>(), null!);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("items");
+    }
+
+    [Test]
     [MethodDataSource(nameof(Transience))]
     public async Task IsTransient_Failure_SaysWhetherTheSameCallCanPassLater(TransienceCase failure)
     {
