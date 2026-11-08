@@ -9,7 +9,7 @@ which points at them instead of repeating them.
 | Project | Target | Role | Depends on |
 |---|---|---|---|
 | `src/DynaSharp` | `net11.0`, C# 14 | The library, one assembly, internal by default | Nothing at run time; the generator as a build order only |
-| `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and two code fixes in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0, a floor (`Directory.Packages.props`); no project |
+| `src/DynaSharp.Generators` | `netstandard2.0`, C# 12 | Source generator, analyzers and three code fixes in one dll, packed into `DynaSharp` under `analyzers/dotnet/cs` | Roslyn 5.0.0, a floor (`Directory.Packages.props`); no project |
 | `src/DynaSharp.Testing` | `net11.0`, C# 14 | The stubs and recorders of `api.md` section 16, `StubSts` on a socket of its own (a credentials provider's HTTP is not behind `HttpHandler`), and `FakeDynamoDb` (section 14) | `DynaSharp` and its internals (below), so its nuspec pins `DynaSharp` to `[X]`, the version it was packed with (target `PinDynaSharpVersion`) |
 | `src/DynaSharp.Coordination` | `net11.0`, C# 14 | `LockTable`, `LockTableOptions`, `Lease`, `LeaseTransactExtensions`, and `Testing/` (`LockTableTesting`, `LockState`, namespace `DynaSharp.Coordination.Testing`); `api.md` section 17 | The public API of `DynaSharp` only, so its nuspec says `DynaSharp >= X` |
 | `tests/DynaSharp.UnitTests` | `net11.0` | Unit, generator and analyzer tests, the only coverage source | The four projects of `src`, the generator as analyzer and as assembly |
@@ -365,7 +365,7 @@ are public types in `DynaSharp.dll`, found by metadata name in `WellKnownNames`.
 Incrementality rests on value equality: `EquatableArray<T>` compares by content, and an equal `BuildResult` stops everything downstream. The transform of
 `ForAttributeWithMetadataName` reruns on any change in any file, because Roslyn combines the nodes with the compilation (`Unchanged` in `IncrementalityTests`; `Cached` would mean
 it did not run), so an edit of an assembly attribute reaches every model without a node of its own. Only the diagnostic paths combine with `CompilationProvider`, and
-`DiagnosticReporter` is the only code after the transform that touches the compilation, resolving a `Spot` in a real tree so `#pragma` and `.editorconfig` work.
+`DiagnosticReporter` is the only code after the transform that touches the compilation, resolving a `Spot` in a real tree so `#pragma` and `.editorconfig` work. A `DiagnosticInfo` with a `Fix` gives the diagnostic the property `Fix`, which a code fix reads: `DYNA020` carries the suggested discriminator for `DeclareDiscriminatorCodeFix`, which offers it, `[Discriminator(OptOut = true)]` and the opt-out of the project (on the `[assembly: DynamoDbDefaults]` it has, else beside the other attributes of the assembly in source, else in the entity's file; its fix-all edits each project once).
 `HintNames.FindClashes` looks at all types through `Collect()` and yields one value that is nearly always empty, so a new type does not touch the others' output.
 `IncrementalityTests` pins this per kind of edit, and `TrackedOutputWalker` checks that no tracked output holds a symbol or a plain array.
 
@@ -452,7 +452,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA218` | `ConflictRetryAnalyzer`, on the model, with `SemanticModel.AnalyzeDataFlow` over the delegate once it holds a versioned write | `ConflictRetry.RunAsync`, which runs the delegate again unless a constant `retryOn` leaves out `ConflictKind.ConditionalCheckFailed` (held as a number), and `WriteRules`, which sends the version an item or `IfVersion` holds | Its snippets run over a `StubHandler`: the mistake sends one body 5 times |
 
 A path parameter is known by its name, `path` or `paths`, so a new method that takes a path follows that or goes unchecked. `DYNA212` and `DYNA214` are warnings (decision 15),
-and `ExpressionParser` accepts everything DynamoDB might, for the same reason. `WrapInAttrCodeFix` and `IncludeEntitiesCodeFix` alone need Workspaces, which only an IDE loads; the
+and `ExpressionParser` accepts everything DynamoDB might, for the same reason. `WrapInAttrCodeFix`, `IncludeEntitiesCodeFix` and `DeclareDiscriminatorCodeFix` alone need Workspaces, which only an IDE loads; the
 note on `RS1038` in the generator's project file explains why that holds.
 
 ## 10. Tests and oracles

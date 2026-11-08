@@ -13,4 +13,9 @@ namespace DynaSharp.Generators;
 /// <param name="Type">
 /// The metadata name of a type of the compilation whose <c>[DynamoDbEntity]</c> is the place, for a value that cannot know a place: one of all the entities, which would change with every edit that moves one. Null otherwise.
 /// </param>
-internal sealed record DiagnosticInfo(string Id, EquatableArray<string> Arguments, string FilePath, TextSpan Span, string? Type = null);
+/// <param name="Fix">What a code fix writes, which the diagnostic carries in its property <see cref="FixProperty"/>; null for none.</param>
+internal sealed record DiagnosticInfo(string Id, EquatableArray<string> Arguments, string FilePath, TextSpan Span, string? Type = null, string? Fix = null)
+{
+    /// <summary>The property of a diagnostic that holds <see cref="Fix"/>.</summary>
+    public const string FixProperty = "Fix";
+}

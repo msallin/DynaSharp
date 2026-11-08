@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace DynaSharp.Generators;
@@ -16,7 +17,8 @@ internal static class DiagnosticReporter
             // workspace, which is source without being in this compilation.
             var tree = compilation.SyntaxTrees.FirstOrDefault(candidate => candidate.FilePath == info.FilePath);
             var location = info.Type is { } type ? EntityAttributeOf(compilation, type) : tree is null ? Location.None : Location.Create(tree, info.Span);
-            output.ReportDiagnostic(Diagnostic.Create(Descriptors.ById[info.Id], location, [.. info.Arguments]));
+            var properties = info.Fix is { } fix ? ImmutableDictionary<string, string?>.Empty.Add(DiagnosticInfo.FixProperty, fix) : null;
+            output.ReportDiagnostic(Diagnostic.Create(Descriptors.ById[info.Id], location, properties, [.. info.Arguments]));
         }
     }
 

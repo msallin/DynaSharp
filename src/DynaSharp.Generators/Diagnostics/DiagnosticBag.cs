@@ -27,6 +27,14 @@ internal sealed class DiagnosticBag
     public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, params string[] arguments) =>
         _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span));
 
+    /// <summary>As <see cref="ReportKeepingTheModel(DiagnosticDescriptor, Spot, string[])"/>, with the text a code fix writes, which the diagnostic carries in <see cref="DiagnosticInfo.FixProperty"/>.</summary>
+    /// <param name="descriptor">The descriptor, an error.</param>
+    /// <param name="spot">Where it is.</param>
+    /// <param name="fix">What the code fix writes.</param>
+    /// <param name="arguments">The arguments of the message.</param>
+    public void ReportKeepingTheModel(DiagnosticDescriptor descriptor, Spot spot, string fix, string[] arguments) =>
+        _items.Add(new DiagnosticInfo(descriptor.Id, new EquatableArray<string>(arguments), spot.FilePath, spot.Span, Fix: fix));
+
     /// <summary>Records that the compiler already reports a problem, such as a type that does not resolve, so no model can exist.</summary>
     public void MarkBroken() => HasErrors = true;
 
