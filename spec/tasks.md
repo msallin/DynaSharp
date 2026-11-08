@@ -79,8 +79,8 @@ Analyzers and docs:
 - [x] `DYNA206` (b): the version at 0, or `IgnoreVersion()` after `IfNotExists()`: the two ways the message names. Dropping `IfNotExists()` turns a first write into a checked one that fails for a missing item, so it is not offered.
 - [x] `DYNA107` (b): `Sparse = true` on the index, or make the property non-nullable and `required`.
 - [x] `DYNA104` (b): one action per format the message lists for the type.
-- [ ] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
-- [ ] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
+- [x] `DYNA032` (a): add `nameof(X)` to `[ComputedFrom]` (the name in a property).
+- [x] `DYNA114` (a): add `[ComputedFrom(nameof(...))]` with the stored properties the getter reads (`ComputedGetterAnalyzer` already walks it).
 - [ ] `DYNA123` (a): add `[KeyOnly]` to the property.
 - [x] `DYNA110` (a): remove `Sparse = true`.
 - [ ] `DYNA036` (a): on a `DateTimeOffset`, add `[DynamoDbConverter(typeof(EpochSecondsConverter))]`.

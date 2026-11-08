@@ -56,7 +56,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 
 `DYNA032` (warning): the getter of a `[ComputedFrom]` property reads a stored property of the same instance that the attribute does not name, such as `[ComputedFrom(nameof(First))] public string Full => First + Last;` beside `[GlobalIndexKey("ByName", PartitionKey = "NAME#{Full}")]`. An update knows what a key is computed from only by the attribute, so `people.Update(key).Set(Person.Attrs.Last, "Doe")` goes through, and the index keeps the key with the old last name. Reported once per such property, where the getter first reads it.
 
-- **Fix.** Name every stored property the getter reads. A read that does not change the result is reported too: suppress the warning there.
+- **Fix.** Name every stored property the getter reads; the code fix adds the one reported. A read that does not change the result is reported too: suppress the warning there.
 - **Not reported.** The getter is read as written: what a method or property it calls reads, such as `Format()`, is not followed, nor is a property of another instance. The version, a `[KeyOnly]` property and a computed one cannot be named, so they are not reported.
 
 `DYNA033` (warning): `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]` on an enum whose generated converter does not read it by name, so the attribute changes nothing: a `[Flags]` enum is stored as a number, which has no name to miss, and an enum with its own `[DynamoDbConverter]` is read by that converter. Reported once, on the attribute, whether a type uses the enum or not. Also reported on a property of such an enum where an unknown name still throws: a non-nullable `required` property, a property set by a constructor parameter without a default, and a plain key of the table or an index, which a read takes as stored.
@@ -134,7 +134,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
 | `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>`. The code fix writes it with the digits of the largest value, all flags together for `[Flags]`, where no member is negative |
-| `DYNA114` | A computed property in an index template, which no update can follow | Add `[ComputedFrom]` naming the stored properties it reads, or use a stored property |
+| `DYNA114` | A computed property in an index template, which no update can follow | Add `[ComputedFrom]` naming the stored properties it reads, or use a stored property. The code fix adds `[ComputedFrom(nameof(...))]` with the stored properties of the same instance the getter reads |
 | `DYNA115` (info) | A string before a delimiter in a sort key, so values with a smaller character sort out of order | Use a delimiter below the values, or accept the rare caveat |
 
 `DYNA116` (warning): a `DateTime` or `DateTimeOffset` in `s`, `ms` or `us` is the last placeholder of the table key. `[SortKey("{At:ms}")]` keeps milliseconds, so two puts 0.5 ms apart write one key, and the second silently replaces the first. The end of the whole key counts: the sort key, or the partition key of a table without one.

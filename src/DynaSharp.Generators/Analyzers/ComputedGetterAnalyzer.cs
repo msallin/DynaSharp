@@ -36,6 +36,28 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
         });
     }
 
+    /// <summary>Whether a property is read from the instance the getter belongs to: not the receiver of an object initializer, which is an instance reference as well.</summary>
+    /// <param name="reference">The read.</param>
+    /// <returns>True for <c>this.X</c> or <c>X</c>.</returns>
+    internal static bool IsOfThisInstance(IPropertyReferenceOperation reference) =>
+        reference.Instance is IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.ContainingTypeInstance };
+
+    /// <summary>Whether an operation stands inside a <c>nameof</c>, which reads nothing.</summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>True inside <c>nameof</c>.</returns>
+    internal static bool IsInNameOf(IOperation operation)
+    {
+        for (var parent = operation.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent is INameOfOperation)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static void Analyze(OperationBlockAnalysisContext context, ModelCatalog models)
     {
         if (context.OwningSymbol is not IMethodSymbol { MethodKind: MethodKind.PropertyGet } getter)
@@ -71,7 +93,8 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
             var name = reference.Property.Name;
             if (nameable.Contains(name) && reported.Add(name))
             {
-                context.ReportDiagnostic(Diagnostic.Create(Descriptors.UnnamedComputedSource, reference.Syntax.GetLocation(), input.Property, name));
+                var properties = ImmutableDictionary<string, string?>.Empty.Add(DiagnosticInfo.FixProperty, name);
+                context.ReportDiagnostic(Diagnostic.Create(Descriptors.UnnamedComputedSource, reference.Syntax.GetLocation(), properties, input.Property, name));
             }
         }
     }
@@ -127,21 +150,4 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
         ICoalesceOperation coalesce => PassedOn(coalesce.Value) is { } left && PassedOn(coalesce.WhenNull) is { } right ? [.. left, .. right] : null,
         _ => null,
     };
-
-    // Not a receiver of an object initializer, which is an instance reference as well.
-    private static bool IsOfThisInstance(IPropertyReferenceOperation reference) =>
-        reference.Instance is IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.ContainingTypeInstance };
-
-    private static bool IsInNameOf(IOperation operation)
-    {
-        for (var parent = operation.Parent; parent is not null; parent = parent.Parent)
-        {
-            if (parent is INameOfOperation)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

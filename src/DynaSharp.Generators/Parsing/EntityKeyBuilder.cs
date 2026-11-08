@@ -298,7 +298,7 @@ internal sealed class EntityKeyBuilder(
 
         if (role.IsIndex && property is { IsComputed: true, ComputedFrom: null })
         {
-            bag.Report(Descriptors.ComputedInIndex, spot, property.Name);
+            bag.Report(Descriptors.ComputedInIndex, spot, ComputedSources(property.Name), [property.Name]);
         }
 
         var key = new KeyModel(property.AttributeName, builderName, null, property.Name, SharesAttribute: false, WireType: ConverterResolver.WireTypeOf(property));
@@ -327,14 +327,13 @@ internal sealed class EntityKeyBuilder(
         var binding = KeyTemplateBinder.Bind(template, parsed.Nodes, _inputs, role);
         foreach (var problem in binding.Problems)
         {
+            var fix = FixOf(problem);
             if (problem.KeepsModel)
             {
-                bag.ReportKeepingTheModel(problem.Descriptor, spot, problem.Fix, problem.Arguments);
+                bag.ReportKeepingTheModel(problem.Descriptor, spot, fix, problem.Arguments);
             }
             else
             {
-                // An input of a public builder is as public as the entity.
-                var fix = problem.Descriptor == Descriptors.InaccessibleType ? Types.AccessibilityFix(Types.Effective(type), problem.Arguments[1]) : problem.Fix;
                 bag.Report(problem.Descriptor, spot, fix, problem.Arguments);
             }
         }
@@ -588,6 +587,24 @@ internal sealed class EntityKeyBuilder(
         }
 
         return new EquatableArray<ComputedInput>([.. inputs]);
+    }
+
+    // What the code fix of a problem of a template needs, where the binder cannot know it. An input of a public builder is as public as the entity.
+    private string? FixOf(KeyProblem problem)
+    {
+        if (problem.Descriptor == Descriptors.ComputedInIndex)
+        {
+            return ComputedSources(problem.Arguments[0]);
+        }
+
+        return problem.Descriptor == Descriptors.InaccessibleType ? Types.AccessibilityFix(Types.Effective(type), problem.Arguments[1]) : problem.Fix;
+    }
+
+    // The fix of DYNA114: the computed property, then each property [ComputedFrom] can name, which the code fix narrows to what the getter reads.
+    private string ComputedSources(string property)
+    {
+        var nameable = properties.Where(static candidate => candidate is { IsStored: true, IsComputed: false, Version: null }).Select(static candidate => candidate.Name);
+        return string.Join(DiagnosticInfo.FixSeparator.ToString(), nameable.Prepend(property));
     }
 
     private string? ComputedFromProblem(PropertyFacts property, List<string> names, string? version)
