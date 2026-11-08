@@ -59,6 +59,22 @@ public sealed partial class QueryCommandTests
     }
 
     [Test]
+    public async Task ItemsAsync_LimitBelowTakeAndAboveWhatIsLeft_AsksTheLastPageForWhatIsLeft()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(More("1", "2", "3", "4"));
+        handler.Enqueue(Last("5"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var items = await client.Table("Shop", "pk", "sk").Query("a").Limit(4).Take(5).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That((items.SortKeys(), Limits(handler))).IsEqualTo(("1,2,3,4,5", "4,1"));
+    }
+
+    [Test]
     public async Task ItemsAsync_TakeReached_SendsNoFurtherPage()
     {
         // Arrange

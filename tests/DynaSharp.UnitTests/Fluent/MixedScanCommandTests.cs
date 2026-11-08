@@ -192,4 +192,29 @@ public sealed class MixedScanCommandTests
         // Assert
         await Assert.That(texts.All(static text => text.StartsWith("Scan on Shop: {\"TableName\":\"Shop\"", StringComparison.Ordinal))).IsTrue();
     }
+
+    [Test]
+    [Arguments("ItemsAsync")]
+    [Arguments("PagesAsync")]
+    [Arguments("PageAsync")]
+    public async Task Terminal_Projection_SendsItWithWhatTheTypesNeed(string terminal)
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => Page());
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var expected = shop.Scan().Of<Alpha, Beta>().Project(OutsideTheEntity).ToRequestJson();
+        var read = shop.Scan().Of<Alpha, Beta>().Project(OutsideTheEntity);
+
+        // Act
+        await (terminal switch
+        {
+            "ItemsAsync" => (Task)read.ItemsAsync().ToListAsync(),
+            "PagesAsync" => read.PagesAsync().ToListAsync(),
+            _ => read.PageAsync().AsTask(),
+        });
+
+        // Assert
+        await Assert.That(handler.Requests.Single().BodyText).IsEqualTo(expected);
+    }
 }

@@ -334,7 +334,7 @@ public sealed class ContinuationTokenTests
         var failure = await TestClient.CaptureAsync<ArgumentException>(() => Task.FromResult(ContinuationToken.FromKey(key)));
 
         // Assert
-        await Assert.That(failure.ParamName).IsEqualTo("key");
+        await Assert.That((failure.ParamName, failure.Message)).IsEqualTo(("key", "A key has attributes. An empty one is no position in a read. (Parameter 'key')"));
     }
 
     [Test]

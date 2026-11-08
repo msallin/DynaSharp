@@ -154,6 +154,19 @@ public sealed class MixedTests
     }
 
     [Test]
+    public async Task Match_DefaultValue_ThrowsSayingItHoldsNothing()
+    {
+        // Arrange
+        var empty = default(Mixed<Alpha, Beta>);
+
+        // Act
+        var failure = TestClient.Catch(() => empty.Match(static _ => { }, static _ => { }));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo("This Mixed is a default value, which holds nothing. Items of a mixed read always hold one of their types.");
+    }
+
+    [Test]
     public async Task Match_NullFunctionOrAction_Throws()
     {
         // Arrange

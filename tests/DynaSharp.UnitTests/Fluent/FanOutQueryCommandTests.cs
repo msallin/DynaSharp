@@ -495,6 +495,25 @@ public sealed class FanOutQueryCommandTests
     }
 
     [Test]
+    public async Task ItemsAsync_IndexWithoutSortKey_GivesThePartitionsInTheirOrderAndNotByTheKeyOfTheTable()
+    {
+        // Arrange (the items of the first partition have the larger key of the table)
+        using var handler = new StubHandler(request =>
+        {
+            var partition = PartitionOf(request);
+            var key = partition == "s1" ? "b" : "a";
+            return StubResponse.Json("{\"Items\":[{\"status\":{\"S\":\"" + partition + "\"},\"pk\":{\"S\":\"" + key + "\"},\"sk\":{\"S\":\"1\"}}]}");
+        });
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var items = await client.Table("Shop", "pk", "sk").Index("ByStatus", "status").Query(["s1", "s0"]).ItemsAsync().ToListAsync();
+
+        // Assert
+        await Assert.That(string.Join(",", items.Select(static item => item.GetString("pk")))).IsEqualTo("b,a");
+    }
+
+    [Test]
     public async Task ItemsAsync_Entity_ReadsIt()
     {
         // Arrange

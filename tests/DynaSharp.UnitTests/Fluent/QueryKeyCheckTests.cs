@@ -130,6 +130,36 @@ public sealed class QueryKeyCheckTests
     }
 
     [Test]
+    public async Task Query_NumberKeyOfAnotherAttributeOnAnIndexWithoutASchema_ThrowsNamingTheWayOut()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byCode = client.Table("Shop", "pk").Index("ByCode", "code");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = byCode.Query(NumberKeyed.Keys.Pk.Of(7)));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("attribute Id").And.Contains("as an AttributeValue");
+    }
+
+    [Test]
+    public async Task Query_NumberKeysOfAnotherAttributeOnAnIndexWithoutASchema_ThrowsNamingTheWayOut()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var byCode = client.Table("Shop", "pk").Index("ByCode", "code");
+
+        // Act
+        var failure = Assert.Throws<ArgumentException>(() => _ = byCode.Query([NumberKeyed.Keys.Pk.Of(7)]));
+
+        // Assert
+        await Assert.That(failure.Message).Contains("attribute Id").And.Contains("as an AttributeValue");
+    }
+
+    [Test]
     public async Task Query_BinaryKeyOfAnotherAttribute_ThrowsNamingTheWayOut()
     {
         // Arrange

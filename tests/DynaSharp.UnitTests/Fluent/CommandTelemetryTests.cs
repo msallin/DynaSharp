@@ -112,6 +112,20 @@ public sealed class CommandTelemetryTests
     }
 
     [Test]
+    public async Task PageAsync_ScanWithoutSegments_HasTheTagsOfTheRequestApi()
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => StubResponse.Json("""{"Items":[{"pk":{"S":"a"}}],"Count":1,"ScannedCount":3}"""));
+
+        // Act
+        var request = await RunAsync(handler, client => client.ScanAsync(new ScanRequest { TableName = "Users", Limit = 5 }));
+        var command = await RunAsync(handler, async client => await client.Table("Users", "pk").Scan().Limit(5).PageAsync());
+
+        // Assert
+        await Assert.That((command.OperationName, Normal(command))).IsEqualTo((request.OperationName, Normal(request)));
+    }
+
+    [Test]
     public async Task SendAsync_SelectOfAGet_HasTheTagsOfTheRequestApi()
     {
         // Arrange

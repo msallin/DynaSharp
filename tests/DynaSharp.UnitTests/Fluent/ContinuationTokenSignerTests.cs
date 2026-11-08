@@ -23,7 +23,7 @@ public sealed class ContinuationTokenSignerTests
         var failure = TestClient.Catch(() => _ = new ContinuationTokenSigner());
 
         // Assert
-        await Assert.That(failure is ArgumentException { ParamName: "keys" }).IsTrue();
+        await Assert.That(failure is ArgumentException { ParamName: "keys", Message: "A signer needs a key to sign with. (Parameter 'keys')" }).IsTrue();
     }
 
     [Test]
@@ -242,6 +242,7 @@ public sealed class ContinuationTokenSignerTests
     [Arguments("other table")]
     [Arguments("an index")]
     [Arguments("other sort key condition")]
+    [Arguments("other operator")]
     [Arguments("a sort key condition")]
     [Arguments("a scan")]
     public async Task PageAsync_TokenOfAnotherQuery_Throws(string other)
@@ -254,6 +255,7 @@ public sealed class ContinuationTokenSignerTests
             "other table" => static (client, after) => client.Table("Archive", "pk", "sk").Query("a", SortKeyCondition.BeginsWith("x")).PageAsync(after),
             "an index" => static (client, after) => client.Table("Orders", "pk", "sk").Index("ByPk", "pk", "sk").Query("a", SortKeyCondition.BeginsWith("x")).PageAsync(after),
             "other sort key condition" => static (client, after) => client.Table("Orders", "pk", "sk").Query("a", SortKeyCondition.BeginsWith("y")).PageAsync(after),
+            "other operator" => static (client, after) => client.Table("Orders", "pk", "sk").Query("a", SortKeyCondition.Gt("x")).PageAsync(after),
             "a sort key condition" => static (client, after) => client.Table("Orders", "pk", "sk").Query("a").PageAsync(after),
             _ => static (client, after) => client.Table("Orders", "pk", "sk").Scan().PageAsync(after),
         };
@@ -263,6 +265,32 @@ public sealed class ContinuationTokenSignerTests
 
         // Assert
         await Assert.That(failure.Message).StartsWith("This continuation token does not carry a signature");
+    }
+
+    [Test]
+    public async Task PageAsync_TokenOfAQueryWithTheOtherComparison_Throws()
+    {
+        // Arrange (the two conditions differ in the operator alone)
+        var text = await FirstNextAsync(new ContinuationTokenSigner(KeyA), static shop => shop.Query("a", SortKeyCondition.Gt("x")).PageAsync());
+
+        // Act
+        var failure = await CaptureAsync(new ContinuationTokenSigner(KeyA), text, static (shop, after) => shop.Query("a", SortKeyCondition.Lt("x")).PageAsync(after));
+
+        // Assert
+        await Assert.That(failure.Message).StartsWith("This continuation token does not carry a signature");
+    }
+
+    [Test]
+    public async Task PageAsync_SignedTokenOfAQueryBetweenTwoValues_ReadsOn()
+    {
+        // Arrange (the condition has more values than names)
+        var text = await FirstNextAsync(new ContinuationTokenSigner(KeyA), static shop => shop.Query("a", SortKeyCondition.Between("a", "c")).PageAsync());
+
+        // Act
+        var startKey = await ReadAsync(new ContinuationTokenSigner(KeyA), text, static (shop, after) => shop.Query("a", SortKeyCondition.Between("a", "c")).PageAsync(after));
+
+        // Assert
+        await Assert.That(startKey).IsEqualTo(Key("1"));
     }
 
     // What the signature leaves out: the filter, the projection, the page size and the direction, which a web API may let its client change between pages.

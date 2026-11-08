@@ -97,6 +97,20 @@ public sealed class MixedQueryCommandTests
     }
 
     [Test]
+    public async Task Project_TypesWithoutASortKey_AddsTheDiscriminatorAndThePartitionKeyOnce()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table("Shop", "pk").Query("a").Of<Kinded, KindedToo>().Project(OutsideTheEntity).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).Contains("\"ProjectionExpression\":\"#n2, #n1, #n0\"");
+    }
+
+    [Test]
     public async Task Of_Index_ReadsTheIndex()
     {
         // Arrange
@@ -509,5 +523,30 @@ public sealed class MixedQueryCommandTests
 
         // Assert
         await Assert.That(texts.All(static text => text.StartsWith("Query on Shop: {\"TableName\":\"Shop\"", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    [Arguments("ItemsAsync")]
+    [Arguments("PagesAsync")]
+    [Arguments("PageAsync")]
+    public async Task Terminal_Projection_SendsItWithWhatTheTypesNeed(string terminal)
+    {
+        // Arrange
+        using var handler = new StubHandler(_ => Page());
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var expected = shop.Query("a").Of<Alpha, Beta>().Project(OutsideTheEntity).ToRequestJson();
+        var read = shop.Query("a").Of<Alpha, Beta>().Project(OutsideTheEntity);
+
+        // Act
+        await (terminal switch
+        {
+            "ItemsAsync" => (Task)read.ItemsAsync().ToListAsync(),
+            "PagesAsync" => read.PagesAsync().ToListAsync(),
+            _ => read.PageAsync().AsTask(),
+        });
+
+        // Assert
+        await Assert.That(handler.Requests.Single().BodyText).IsEqualTo(expected);
     }
 }

@@ -170,7 +170,23 @@ public sealed class SelectCommandTests
         });
 
         // Assert
-        await Assert.That(failure.ParamName).IsEqualTo("attribute");
+        await Assert.That((failure.ParamName, failure.Message))
+            .IsEqualTo(("attribute", "The attribute path \"lines[1].n\" has a list index, and a single list element cannot be selected. (Parameter 'attribute')"));
+    }
+
+    [Test]
+    public async Task Select_PathWithAListIndexOnAQuery_ThrowsAtTheCall()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = shop.Query("a").Select(new Attr<int, NumberConverter<int>>("lines[1].n")));
+
+        // Assert
+        await Assert.That((failure as ArgumentException)?.ParamName).IsEqualTo("attribute");
     }
 
     [Test]
@@ -527,6 +543,7 @@ public sealed class SelectCommandTests
     [Arguments("""{"Item":{}}""")]
     [Arguments("""{"Item":{"Home":{"M":{}}}}""")]
     [Arguments("""{"Item":{"Home":{"NULL":true}}}""")]
+    [Arguments("""{"Item":{"Home":{"L":[{"M":{"City":{"S":"Bern"}}}]},"Other":{"N":"1"}}}""")]
     public async Task SendAsync_NestedPathMissing_FollowsTheHandleOfTheLeaf(string response)
     {
         // Arrange

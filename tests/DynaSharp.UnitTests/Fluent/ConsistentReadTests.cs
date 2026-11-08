@@ -96,6 +96,21 @@ public sealed class ConsistentReadTests
     }
 
     [Test]
+    public async Task Consistent_GlobalIndexWithThePartitionKeyOfTheTableThroughATableWithoutASchema_Throws()
+    {
+        // Arrange (the attribute does not tell, and the entity that declares the index does)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var index = client.Table("Shop", "pk", "sk").Index<LabeledNote>(LabeledNote.Indexes.OnPartition);
+
+        // Act
+        var failure = Assert.Throws<InvalidOperationException>(() => _ = index.Query("a").Consistent());
+
+        // Assert
+        await Assert.That(failure.Message).Contains("global secondary index");
+    }
+
+    [Test]
     public async Task Consistent_IndexByHandWithAnotherPartitionKey_ThrowsBecauseOnlyAGlobalOneHasThat()
     {
         // Arrange

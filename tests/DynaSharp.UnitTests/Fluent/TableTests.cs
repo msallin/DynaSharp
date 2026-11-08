@@ -4,8 +4,32 @@ using DynaSharp.UnitTests.Mapping.KeyEntities;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-public sealed class TableTests
+internal sealed class TableTests
 {
+    public static IEnumerable<NullCase> NullReceivers()
+    {
+        Table<Item> items = null!;
+        Table<Customer> customers = null!;
+        Index<Item> itemIndex = null!;
+        Index<Customer> customerIndex = null!;
+        var key = Customer.Keys.Pk.Of("a");
+        yield return new("Index<TEntity> of a table without a schema", "table", () => _ = items.Index<Customer>("ByName"));
+        yield return new("Query of a table by a typed key", "table", () => _ = customers.Query(key));
+        yield return new("Query of a table without a schema by a typed key", "table", () => _ = items.Query(key));
+        yield return new("Query of a table by typed keys", "table", () => _ = customers.Query([key]));
+        yield return new("Query of a table without a schema by typed keys", "table", () => _ = items.Query((IEnumerable<PartitionKey<Customer>>)[key]));
+        yield return new("Query of an index without a schema by a typed key", "index", () => _ = itemIndex.Query(key));
+        yield return new("Query of an index by typed keys", "index", () => _ = customerIndex.Query([key]));
+        yield return new("Query of an index without a schema by typed keys", "index", () => _ = itemIndex.Query((IEnumerable<PartitionKey<Customer>>)[key]));
+        yield return new("Get of a table without a schema", "table", () => _ = items.Get("a"));
+        yield return new("Query of a table without a schema by a span of strings", "table", () => _ = items.Query((ReadOnlySpan<string>)["a"]));
+        yield return new("Query of a table without a schema by strings", "table", () => _ = items.Query((IEnumerable<string>)["a"]));
+        yield return new("Query of an index without a schema by a value", "index", () => _ = itemIndex.Query((AttributeValue)"a"));
+        yield return new("Query of an index without a schema by values", "index", () => _ = itemIndex.Query((IEnumerable<AttributeValue>)["a"]));
+        yield return new("Query of an index without a schema by a span of strings", "index", () => _ = itemIndex.Query((ReadOnlySpan<string>)["a"]));
+        yield return new("Query of an index without a schema by strings", "index", () => _ = itemIndex.Query((IEnumerable<string>)["a"]));
+    }
+
     [Test]
     public async Task Table_Names_AreKept()
     {
@@ -309,7 +333,7 @@ public sealed class TableTests
         });
 
         // Assert
-        await Assert.That(failure.ParamName).IsEqualTo("partitionKey");
+        await Assert.That((failure.ParamName, failure.Message)).IsEqualTo(("partitionKey", "A key attribute cannot be empty. (Parameter 'partitionKey')"));
     }
 
     [Test]
@@ -489,6 +513,20 @@ public sealed class TableTests
     }
 
     [Test]
+    [MethodDataSource(nameof(NullReceivers))]
+    public async Task Extensions_NullTableOrIndex_ThrowNamingIt(NullCase call)
+    {
+        // Arrange
+        ArgumentNullException.ThrowIfNull(call);
+
+        // Act
+        var failure = TestClient.Catch(call.Call);
+
+        // Assert
+        await Assert.That((failure as ArgumentNullException)?.ParamName).IsEqualTo(call.ParamName);
+    }
+
+    [Test]
     public async Task BeginScan_EntityWithADiscriminator_FiltersOnIt()
     {
         // Arrange
@@ -577,5 +615,15 @@ public sealed class TableTests
             writer.WriteAttributeName("pk"u8);
             writer.WriteString("a"u8);
         }
+    }
+
+    /// <summary>A call of an extension method on a table or index that is <see langword="null"/>.</summary>
+    /// <param name="Name">What is called, for the name of the test.</param>
+    /// <param name="ParamName">The parameter the exception names.</param>
+    /// <param name="Call">The call.</param>
+    internal sealed record NullCase(string Name, string ParamName, Action Call)
+    {
+        /// <inheritdoc/>
+        public override string ToString() => Name;
     }
 }

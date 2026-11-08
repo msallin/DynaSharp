@@ -77,6 +77,7 @@ public sealed class NumberOrderTests
     [Arguments("-12.5", "-125E-1")]
     [Arguments("1000", "1E+3")]
     [Arguments("0.001", "1E-3")]
+    [Arguments("0.1", "1E-000000001")]
     public async Task TryAppend_TwoSpellingsOfANumber_HaveOneForm(string first, string second)
     {
         // Arrange and Act

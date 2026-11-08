@@ -107,7 +107,7 @@ public sealed class ExpressionWriterTests
         var act = () => writer.CommitPending(Clause.Condition);
 
         // Assert
-        await Assert.That(act).Throws<ArgumentException>();
+        await Assert.That(act).Throws<ArgumentException>().WithMessageContaining("names no attribute", StringComparison.Ordinal);
     }
 
     [Test]

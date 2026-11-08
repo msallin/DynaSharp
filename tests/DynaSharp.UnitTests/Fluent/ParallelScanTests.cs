@@ -549,6 +549,181 @@ public sealed class ParallelScanTests
         await Assert.That(text).Contains("Scan on Shop: {\"TableName\":\"Shop\"");
     }
 
+    [Test]
+    public async Task ItemsAsync_SegmentFailsWhileTheCallerHasAPageToRead_StopsTheOthersAtOnce()
+    {
+        // Arrange (the first segment handed a page over and waits for its next one when the second fails)
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new StubHandler(async (request, token) =>
+        {
+            if (SegmentOf(request) == 1)
+            {
+                return StubResponse.DynamoDbError("ResourceNotFoundException", "Gone.");
+            }
+
+            if (StartKeyOf(request) is null)
+            {
+                return More("1");
+            }
+
+            await WaitUntilCancelledAsync(stopped.SetResult, token);
+            return Last();
+        });
+        using var client = TestClient.Create(handler);
+        var enumerator = client.Table("Shop", "pk", "sk").Scan().Parallel(2).ItemsAsync().GetAsyncEnumerator();
+
+        // Act
+        await enumerator.MoveNextAsync();
+        var stoppedFirst = await stopped.Task.WaitAsync(TimeSpan.FromSeconds(10)).ContinueWith(static wait => wait.IsCompletedSuccessfully, TaskScheduler.Default);
+        await TestClient.CaptureAsync<ResourceNotFoundException>(async () => await enumerator.MoveNextAsync());
+        await enumerator.DisposeAsync();
+
+        // Assert
+        await Assert.That(stoppedFirst).IsTrue();
+    }
+
+    [Test]
+    public async Task ItemsAsync_PageThatComesLater_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange (the reader waits for the handover, and the segment for its response)
+        var context = new CountingSynchronizationContext();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new StubHandler(async (request, _) =>
+        {
+            if (SegmentOf(request) == 0)
+            {
+                await release.Task.ConfigureAwait(false);
+            }
+
+            return Last("1");
+        });
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var reading = context.Start(() => ReadAllAsync(shop.Scan().Parallel(2).ItemsAsync()));
+
+        // Act
+        release.SetResult();
+        await reading;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ItemsAsync_HandoverThatIsFull_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange (the second page waits for room, which the reader makes)
+        var context = new CountingSynchronizationContext();
+        using var handler = new StubHandler();
+        handler.Enqueue(More("1"));
+        handler.Enqueue(More("2"));
+        handler.Enqueue(Last("3"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        await context.Start(() => ReadAllAsync(shop.Scan().Parallel(1).ItemsAsync()));
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ItemsAsync_BreakOutEarly_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange (stopping the segment that still waits takes a moment)
+        var context = new CountingSynchronizationContext();
+        using var handler = new StubHandler(async (request, token) =>
+        {
+            if (SegmentOf(request) == 1)
+            {
+                await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
+            }
+
+            return Last("1");
+        });
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        await context.Start(() => ReadFirstAsync(shop.Scan().Parallel(2).ItemsAsync()));
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ItemsAsync_CancelledWhileASegmentFinishesItsRequest_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange (the second segment is in a request that does not end at the cancellation, and the read waits for it)
+        var context = new CountingSynchronizationContext();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new StubHandler(async (request, _) =>
+        {
+            if (SegmentOf(request) == 1)
+            {
+                await release.Task.ConfigureAwait(false);
+            }
+
+            return Last("1");
+        });
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var reading = context.Start(() => ReadFirstAsync(shop.Scan().Parallel(2).ItemsAsync(cancellation.Token), cancellation));
+
+        // Act
+        release.SetResult();
+        await reading;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ItemsAsync_SegmentFailsWhileAnotherWaits_DoesNotResumeOnTheContextOfTheCaller()
+    {
+        // Arrange (the failure stops the first segment, which takes a moment)
+        var context = new CountingSynchronizationContext();
+        using var handler = new StubHandler(async (request, token) =>
+        {
+            if (SegmentOf(request) == 1)
+            {
+                return StubResponse.DynamoDbError("ResourceNotFoundException", "Gone.");
+            }
+
+            await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
+            return Last();
+        });
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        await TestClient.CaptureAsync<ResourceNotFoundException>(() => context.Start(() => ReadAllAsync(shop.Scan().Parallel(2).ItemsAsync())));
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    private static async Task ReadAllAsync<T>(IAsyncEnumerable<T> items)
+    {
+        await foreach (var _ in items.ConfigureAwait(false))
+        {
+        }
+    }
+
+    private static async Task ReadFirstAsync<T>(IAsyncEnumerable<T> items, CancellationTokenSource? cancellation = null)
+    {
+        await foreach (var _ in items.ConfigureAwait(false))
+        {
+            // In place, so that the read stops on the context of the caller.
+#pragma warning disable CA1849
+            cancellation?.Cancel();
+#pragma warning restore CA1849
+            break;
+        }
+    }
+
     private static int SegmentOf(RecordedRequest request)
     {
         using var document = JsonDocument.Parse(request.BodyText);
