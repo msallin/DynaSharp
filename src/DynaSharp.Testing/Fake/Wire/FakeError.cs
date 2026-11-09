@@ -103,7 +103,6 @@ internal sealed class FakeError : Exception
     /// <returns>The error.</returns>
     public static FakeError TransactionCanceled(IReadOnlyList<CancellationReason> reasons)
     {
-        ArgumentNullException.ThrowIfNull(reasons);
         var codes = string.Join(", ", reasons.Select(static reason => reason.Code ?? "None"));
         return new(
             DynamoDbNamespace + "TransactionCanceledException",

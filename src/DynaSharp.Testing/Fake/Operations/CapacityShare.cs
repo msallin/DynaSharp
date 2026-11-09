@@ -13,7 +13,6 @@ internal readonly record struct CapacityShare(string TableName, double TableUnit
     /// <returns>The share.</returns>
     public static CapacityShare OfWrite(FakeTable table, WriteOutcome outcome, int factor)
     {
-        ArgumentNullException.ThrowIfNull(table);
         return new CapacityShare(
             table.Name,
             factor * WriteCapacity.Units(outcome),

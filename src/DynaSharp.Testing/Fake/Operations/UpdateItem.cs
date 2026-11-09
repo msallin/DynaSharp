@@ -50,7 +50,6 @@ internal static class UpdateItem
     /// <exception cref="FakeError">A <c>ValidationException</c>: the update is not valid on the item, changes a key attribute, or makes an item DynamoDB does not store. Nothing changes then.</exception>
     public static WriteOutcome Apply(FakeTable table, ItemKey key, Item? current, ParsedUpdate? update)
     {
-        ArgumentNullException.ThrowIfNull(table);
         var keyItem = table.KeySchema.ToItem(key);
         if (update is null)
         {

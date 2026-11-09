@@ -45,8 +45,6 @@ internal static class Batches
     /// <exception cref="FakeError">A <c>ValidationException</c>.</exception>
     public static void ThrowIfSeen(HashSet<(string Table, ItemKey Key)> seen, FakeTable table, ItemKey key, string message)
     {
-        ArgumentNullException.ThrowIfNull(seen);
-        ArgumentNullException.ThrowIfNull(table);
         if (!seen.Add((table.Name, key)))
         {
             throw FakeError.Validation(message);

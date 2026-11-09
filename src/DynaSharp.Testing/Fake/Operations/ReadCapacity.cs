@@ -39,7 +39,6 @@ internal static class ReadCapacity
     /// <param name="index">The units read from an index, or <see langword="null"/> for a read of the table.</param>
     public static void Write(Utf8JsonWriter response, ReturnConsumedCapacity mode, string tableName, double tableUnits, IndexUnits? index)
     {
-        ArgumentNullException.ThrowIfNull(response);
         if (mode == ReturnConsumedCapacity.None)
         {
             return;

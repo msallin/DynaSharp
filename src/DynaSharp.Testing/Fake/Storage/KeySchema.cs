@@ -40,7 +40,6 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     /// <exception cref="FakeError">A <c>ValidationException</c>: an attribute is missing, one more is there, a type is not the declared one, a value is empty or too large.</exception>
     public ItemKey ReadKey(IReadOnlyDictionary<string, AttributeValue> key)
     {
-        ArgumentNullException.ThrowIfNull(key);
         if (key.Count != (SortKeyName is null ? 1 : 2) || !key.ContainsKey(PartitionKeyName) || (SortKeyName is not null && !key.ContainsKey(SortKeyName)))
         {
             throw FakeError.Validation(NoMatch);
@@ -63,7 +62,6 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     /// <exception cref="FakeError">A <c>ValidationException</c>: a key attribute is missing, has another type, is empty or too large.</exception>
     public ItemKey KeyOf(IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         var partition = KeyAttribute(item, PartitionKeyName, PartitionKeyType);
         var sort = SortKeyName is null ? (AttributeValue?)null : KeyAttribute(item, SortKeyName, SortKeyType!.Value);
         ThrowIfEmptyOrLarge(partition, sort);
@@ -79,7 +77,6 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     /// <exception cref="FakeError">A <c>ValidationException</c>, <c>Size limit exceeded</c> for a value too large.</exception>
     public void ThrowIfInvalidIndexKey(IReadOnlyDictionary<string, AttributeValue> item, string indexName)
     {
-        ArgumentNullException.ThrowIfNull(item);
         ThrowIfInvalidIndexKey(item, PartitionKeyName, PartitionKeyType, MaxPartitionKeyBytes, indexName);
         if (SortKeyName is not null)
         {
@@ -92,7 +89,6 @@ internal sealed record KeySchema(string PartitionKeyName, ScalarAttributeType Pa
     /// <returns><see langword="true"/> if the item has the whole key.</returns>
     public bool Covers(IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         return item.TryGetValue(PartitionKeyName, out var partition) && HasType(partition, PartitionKeyType)
             && (SortKeyName is null || (item.TryGetValue(SortKeyName, out var sort) && HasType(sort, SortKeyType!.Value)));
     }

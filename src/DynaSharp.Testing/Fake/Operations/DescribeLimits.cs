@@ -20,7 +20,6 @@ internal static class DescribeLimits
     /// <param name="response">The writer, inside the object of the response.</param>
     public static void Handle(FakeDatabase db, JsonElement request, Utf8JsonWriter response)
     {
-        ArgumentNullException.ThrowIfNull(response);
         RequestJson.Members(request, Name);
         response.WriteNumber("AccountMaxReadCapacityUnits"u8, AccountUnits);
         response.WriteNumber("AccountMaxWriteCapacityUnits"u8, AccountUnits);

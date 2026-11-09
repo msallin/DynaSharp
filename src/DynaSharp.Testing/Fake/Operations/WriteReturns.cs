@@ -35,8 +35,6 @@ internal static class WriteReturns
     /// <param name="outcome">What the write did.</param>
     public static void Write(Utf8JsonWriter response, FakeTable table, ReturnValue returnValues, ReturnItemCollectionMetrics metrics, WriteOutcome outcome)
     {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(table);
         var attributes = returnValues switch
         {
             ReturnValue.None => null,
@@ -67,8 +65,6 @@ internal static class WriteReturns
     /// <param name="writes">The writes, with their tables.</param>
     public static void WriteAll(Utf8JsonWriter response, ReturnItemCollectionMetrics metrics, IEnumerable<(FakeTable Table, WriteOutcome Outcome)> writes)
     {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(writes);
         var byTable = writes.Where(write => HasMetrics(write.Table, metrics)).GroupBy(static write => write.Table).ToList();
         if (byTable.Count == 0)
         {

@@ -18,7 +18,6 @@ internal static class ResponseJson
     /// <param name="item">The item.</param>
     public static void WriteItem(Utf8JsonWriter json, string member, IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(json);
         json.WritePropertyName(member);
         AttributeValueConverter.WriteItem(new DynamoDbWriter(json), item);
     }
@@ -29,8 +28,6 @@ internal static class ResponseJson
     /// <param name="items">The items.</param>
     public static void WriteItems(Utf8JsonWriter json, string member, IEnumerable<IReadOnlyDictionary<string, AttributeValue>> items)
     {
-        ArgumentNullException.ThrowIfNull(json);
-        ArgumentNullException.ThrowIfNull(items);
         json.WriteStartArray(member);
         var writer = new DynamoDbWriter(json);
         foreach (var item in items)
@@ -49,8 +46,6 @@ internal static class ResponseJson
     /// <param name="capacity">The capacity.</param>
     public static void WriteConsumedCapacity(Utf8JsonWriter json, ConsumedCapacity capacity)
     {
-        ArgumentNullException.ThrowIfNull(json);
-        ArgumentNullException.ThrowIfNull(capacity);
         json.WriteStartObject();
         OperationJson.WriteStringIfSet(json, "TableName"u8, capacity.TableName);
         WriteUnits(json, capacity.CapacityUnits, capacity.ReadCapacityUnits, capacity.WriteCapacityUnits);
@@ -70,8 +65,6 @@ internal static class ResponseJson
     /// <param name="reasons">The reasons, one per action.</param>
     public static void WriteCancellationReasons(Utf8JsonWriter json, IReadOnlyList<CancellationReason> reasons)
     {
-        ArgumentNullException.ThrowIfNull(json);
-        ArgumentNullException.ThrowIfNull(reasons);
         json.WriteStartArray("CancellationReasons"u8);
         foreach (var reason in reasons)
         {
@@ -92,8 +85,6 @@ internal static class ResponseJson
     /// <param name="status">The status to report: <c>ACTIVE</c>, or <c>DELETING</c> in the answer of <c>DeleteTable</c>.</param>
     public static void WriteTableDescription(Utf8JsonWriter json, string member, FakeTable table, TableStatus status)
     {
-        ArgumentNullException.ThrowIfNull(json);
-        ArgumentNullException.ThrowIfNull(table);
         json.WriteStartObject(member);
         TableJson.WriteAttributeDefinitions(json, table.AttributeDefinitions);
         json.WriteString("TableName"u8, table.Name);
@@ -143,7 +134,6 @@ internal static class ResponseJson
     /// <returns>The elements, <c>HASH</c> first.</returns>
     public static IReadOnlyList<KeySchemaElement> KeyElements(KeySchema keySchema)
     {
-        ArgumentNullException.ThrowIfNull(keySchema);
         return keySchema.SortKeyName is null
             ? [new KeySchemaElement(keySchema.PartitionKeyName, KeyType.Hash)]
             : [new KeySchemaElement(keySchema.PartitionKeyName, KeyType.Hash), new KeySchemaElement(keySchema.SortKeyName, KeyType.Range)];

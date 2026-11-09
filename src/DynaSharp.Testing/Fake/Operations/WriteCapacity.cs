@@ -54,7 +54,6 @@ internal static class WriteCapacity
     /// <returns>The units per index that the write touches, global indexes first, each in the order of the table.</returns>
     public static IReadOnlyList<IndexUnits> IndexWriteUnits(FakeTable table, Item? oldImage, Item? newImage)
     {
-        ArgumentNullException.ThrowIfNull(table);
         var units = new List<IndexUnits>();
         foreach (var index in table.GlobalIndexes.Concat(table.LocalIndexes))
         {
@@ -86,7 +85,6 @@ internal static class WriteCapacity
     /// <param name="indexes">The units of the indexes.</param>
     public static void Write(Utf8JsonWriter response, ReturnConsumedCapacity mode, string tableName, double tableUnits, IReadOnlyList<IndexUnits> indexes)
     {
-        ArgumentNullException.ThrowIfNull(response);
         response.WritePropertyName("ConsumedCapacity"u8);
         ResponseJson.WriteConsumedCapacity(response, Of(mode, new CapacityShare(tableName, tableUnits, indexes), Split.None));
     }
@@ -98,8 +96,6 @@ internal static class WriteCapacity
     /// <param name="split">The units that <c>INDEXES</c> repeats <c>CapacityUnits</c> in; ignored for <c>TOTAL</c>.</param>
     public static void WriteAll(Utf8JsonWriter response, ReturnConsumedCapacity mode, IEnumerable<CapacityShare> shares, Split split = Split.None)
     {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(shares);
         response.WriteStartArray("ConsumedCapacity"u8);
         foreach (var table in shares.GroupBy(static share => share.TableName, StringComparer.Ordinal))
         {

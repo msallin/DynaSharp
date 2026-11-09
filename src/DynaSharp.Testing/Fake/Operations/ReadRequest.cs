@@ -23,7 +23,6 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
     /// <exception cref="FakeError">A <c>ResourceNotFoundException</c> for the table, a <c>ValidationException</c> for an index the table does not have, a <c>Limit</c> below 1 or a consistent read of a global index.</exception>
     public static ReadRequest Read(FakeDatabase db, JsonElement request)
     {
-        ArgumentNullException.ThrowIfNull(db);
         var tableName = TableOperations.ReadTableName(request);
         var indexName = RequestJson.Optional(request, "IndexName") is { } indexValue ? RequestJson.ReadString(indexValue, "IndexName") : null;
         int? limit = RequestJson.Optional(request, "Limit") is { } limitValue ? RequestJson.ReadInt(limitValue, "Limit") : null;
@@ -89,8 +88,6 @@ internal sealed record ReadRequest(FakeTable Table, FakeIndex? Index, int? Limit
     /// <param name="page">The page.</param>
     public void Write(Utf8JsonWriter response, Page page)
     {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(page);
         if (Select != SelectKind.Count)
         {
             ResponseJson.WriteItems(response, "Items", page.Items);

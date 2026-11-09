@@ -24,7 +24,6 @@ internal static class AttributeRules
     /// <exception cref="FakeError">A <c>ValidationException</c> for a value DynamoDB rejects.</exception>
     public static Item Normalize(IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         var copy = new Item(item.Count);
         foreach (var (name, value) in item)
         {

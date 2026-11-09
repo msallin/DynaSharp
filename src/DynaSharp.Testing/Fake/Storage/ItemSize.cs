@@ -20,7 +20,6 @@ internal static class ItemSize
     /// <returns>The size in bytes.</returns>
     public static long Of(IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         long size = 0;
         foreach (var (name, value) in item)
         {

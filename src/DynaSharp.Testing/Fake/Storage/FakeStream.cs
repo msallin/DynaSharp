@@ -144,8 +144,6 @@ internal sealed class FakeStream
     /// <param name="nextSequenceNumber">Gives the next sequence number of the fake.</param>
     public void Split(DateTimeOffset now, int children, TimeSpan secondChildListedAfter, Func<int> nextShardNumber, Func<BigInteger> nextSequenceNumber)
     {
-        ArgumentNullException.ThrowIfNull(nextShardNumber);
-        ArgumentNullException.ThrowIfNull(nextSequenceNumber);
         _reshaped = true;
         foreach (var parent in _shards.FindAll(static shard => shard.IsOpen))
         {

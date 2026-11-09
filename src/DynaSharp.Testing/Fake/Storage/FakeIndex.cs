@@ -64,7 +64,6 @@ internal sealed class FakeIndex
     /// <returns>The projected item, a new one unless the projection is <c>ALL</c>.</returns>
     public Item Project(Item item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         if (Projection.ProjectionType == ProjectionType.All)
         {
             return item;
@@ -93,7 +92,6 @@ internal sealed class FakeIndex
     /// <returns>The partition key of the index and the slot.</returns>
     public (AttributeValue Partition, SlotKey Slot) Locate(IReadOnlyDictionary<string, AttributeValue> item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         var tableKey = _tableKey.KeyOf(item);
         var sort = KeySchema.SortKeyName is { } sortName ? item[sortName] : AttributeValue.Null;
         return (item[KeySchema.PartitionKeyName], new SlotKey(sort, tableKey.Partition, tableKey.Sort ?? AttributeValue.Null));
@@ -121,7 +119,6 @@ internal sealed class FakeIndex
     /// <param name="items">Every item of the table.</param>
     public void Backfill(IEnumerable<Item> items)
     {
-        ArgumentNullException.ThrowIfNull(items);
         foreach (var item in items)
         {
             Reindex(null, item);

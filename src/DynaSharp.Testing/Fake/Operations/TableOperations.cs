@@ -137,8 +137,6 @@ internal static class TableOperations
     /// <exception cref="FakeError">A <c>ValidationException</c>, a <c>ResourceInUseException</c> for a name that is taken, an <c>UnsupportedByFakeException</c>.</exception>
     public static FakeTable Create(FakeDatabase db, CreateTableRequest request)
     {
-        ArgumentNullException.ThrowIfNull(db);
-        ArgumentNullException.ThrowIfNull(request);
         ThrowIfInvalidName(request.TableName, "tableName");
         if (request.Tags is { Count: > 0 })
         {
@@ -206,8 +204,6 @@ internal static class TableOperations
     /// <exception cref="FakeError">A <c>ValidationException</c>, a <c>ResourceNotFoundException</c>, a <c>LimitExceededException</c>, an <c>UnsupportedByFakeException</c>.</exception>
     public static FakeTable Update(FakeDatabase db, UpdateTableRequest request)
     {
-        ArgumentNullException.ThrowIfNull(db);
-        ArgumentNullException.ThrowIfNull(request);
         ThrowIfInvalidName(request.TableName, "tableName");
         var table = db.DescribeTable(request.TableName);
         var updates = request.GlobalSecondaryIndexUpdates ?? [];
@@ -322,7 +318,6 @@ internal static class TableOperations
     /// <exception cref="FakeError">A <c>ResourceNotFoundException</c>, a <c>ValidationException</c>.</exception>
     public static FakeTable Delete(FakeDatabase db, string name)
     {
-        ArgumentNullException.ThrowIfNull(db);
         ThrowIfInvalidName(name, "tableName");
         if (db.DescribeTable(name).DeletionProtectionEnabled)
         {

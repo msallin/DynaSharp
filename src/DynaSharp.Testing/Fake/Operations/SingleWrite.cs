@@ -66,7 +66,6 @@ internal sealed record SingleWrite(
     /// <param name="outcome">What the write did.</param>
     public void Answer(Utf8JsonWriter response, FakeTable table, WriteOutcome outcome)
     {
-        ArgumentNullException.ThrowIfNull(table);
         WriteReturns.Write(response, table, ReturnValues, ItemCollectionMetrics, outcome);
         if (ConsumedCapacity != ReturnConsumedCapacity.None)
         {

@@ -43,8 +43,6 @@ internal static class PageBuilder
     /// </exception>
     public static Page Build(IEnumerable<Item> items, PageOptions options)
     {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(options);
         var unprojected = options.Index is { } read ? options.FilterAttributes.Where(attribute => !read.Projects(attribute)).Order(StringComparer.Ordinal).ToList() : [];
         if (unprojected.Count > 0 && options.IsQuery)
         {
@@ -102,7 +100,6 @@ internal static class PageBuilder
     /// <exception cref="FakeError">A <c>ValidationException</c> for a key with an attribute too many or too few, of another type, or empty, an empty map included.</exception>
     public static Item? ReadStartKey(JsonElement request, FakeTable table, FakeIndex? index)
     {
-        ArgumentNullException.ThrowIfNull(table);
         if (RequestJson.Optional(request, "ExclusiveStartKey") is not { } value)
         {
             return null;
