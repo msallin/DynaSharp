@@ -82,7 +82,7 @@ public sealed class Lease : IAsyncDisposable
 
         // The heartbeat outlives the call that acquired the lease, so it must not keep that call's span as its parent, nor its async locals alive, for
         // the lifetime of the lease. Its first wait is armed here, so the heartbeat is running when the acquire returns.
-        using (SuppressFlow())
+        using (ExecutionContext.SuppressFlow())
         {
             var first = Task.Delay(NextBeatIn(), locks.Time, Ended);
             _heartbeat = Task.Run(() => HeartbeatAsync(first));
@@ -205,11 +205,8 @@ public sealed class Lease : IAsyncDisposable
     }
 
     /// <summary>Sets <see cref="Current"/> for the code that runs from here in this async flow, which <see cref="Leadership"/> does for a term.</summary>
-    /// <param name="lease">The lease of the term, or <see langword="null"/> when it ends.</param>
-    internal static void SetCurrent(Lease? lease) => CurrentLease.Value = lease;
-
-    // Suppresses the flow of the execution context, unless the caller did already, which a second suppression would throw for.
-    private static AsyncFlowControl? SuppressFlow() => ExecutionContext.IsFlowSuppressed() ? null : ExecutionContext.SuppressFlow();
+    /// <param name="lease">The lease of the term.</param>
+    internal static void SetCurrent(Lease lease) => CurrentLease.Value = lease;
 
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Nobody observes the heartbeat. Every way out of it ends with the lease lost, released, or running out.")]
     private async Task HeartbeatAsync(Task wait)

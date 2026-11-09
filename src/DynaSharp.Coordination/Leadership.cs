@@ -71,8 +71,8 @@ internal static class Leadership
         {
             using (var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.Ended))
             {
-                // Lease.Current is set for the work and what it starts. This async method keeps the change from its caller anyway; the finally clears it
-                // for the end of the term all the same.
+                // Lease.Current is set for the work and what it starts. An async method never passes the change of an AsyncLocal back to its caller, so the
+                // term ends without a reset.
                 Lease.SetCurrent(lease);
                 try
                 {
@@ -100,7 +100,6 @@ internal static class Leadership
         }
         finally
         {
-            Lease.SetCurrent(null);
             var end = EndOf(lease, returned, cancellationToken);
             CoordinationLog.TermEnded(locks.Logger, lease.Name, locks.Table.Name, end, locks.Options.HolderLabel);
         }
