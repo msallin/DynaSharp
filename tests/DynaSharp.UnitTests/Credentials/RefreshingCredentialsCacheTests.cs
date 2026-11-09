@@ -233,6 +233,108 @@ public sealed class RefreshingCredentialsCacheTests
     }
 
     [Test]
+    public async Task GetAsync_FreshCredentialsAlreadyInTheMandatoryPeriod_AreServedWithoutAFetchDuringTheRetryInterval()
+    {
+        // Arrange (a credential_process that hands out leases of 5 minutes)
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => Fetched(ref calls, Credentials($"key{calls}", time.GetUtcNow().AddMinutes(5))));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(RefreshingCredentialsCache.AdvisoryRetryInterval - Tick);
+
+        // Act
+        await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(calls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsAlreadyInTheMandatoryPeriodAfterTheRetryInterval_RefreshInTheBackgroundAndReturnTheCurrentOnes()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => Fetched(ref calls, Credentials($"key{calls}", time.GetUtcNow().AddMinutes(5))));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(RefreshingCredentialsCache.AdvisoryRetryInterval);
+
+        // Act
+        var outcome = await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((outcome.Credentials!.AccessKeyId, calls)).IsEqualTo(("key0", 2));
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsInTheMandatoryPeriodOneTickBeforeTheMargin_AreStillServedWhileTheRefreshFails()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => calls++ == 0 ? Found(Credentials("short", time.GetUtcNow().AddMinutes(5))) : Fail("unavailable", time));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromMinutes(4) - Tick);
+
+        // Act
+        var outcome = await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(outcome.Credentials!.AccessKeyId).IsEqualTo("short");
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsInTheMandatoryPeriodAtTheMargin_WaitForTheRefresh()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => calls++ == 0 ? Found(Credentials("short", time.GetUtcNow().AddMinutes(5))) : Fail("unavailable", time));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromMinutes(4));
+
+        // Act
+        var act = async () => await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsShorterThanTwiceTheMargin_WaitForTheRefreshAfterHalfTheirLife()
+    {
+        // Arrange (a lease of 40 seconds is served for 20)
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => calls++ == 0 ? Found(Credentials("short", time.GetUtcNow().AddSeconds(40))) : Fail("unavailable", time));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(20));
+
+        // Act
+        var act = async () => await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<CredentialsUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetAsync_FreshCredentialsShorterThanTwiceTheMarginOneTickBeforeHalfTheirLife_AreStillServed()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var calls = 0;
+        var cache = Create(time, () => calls++ == 0 ? Found(Credentials("short", time.GetUtcNow().AddSeconds(40))) : Fail("unavailable", time));
+        await cache.GetAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(20) - Tick);
+
+        // Act
+        var outcome = await cache.GetAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That(outcome.Credentials!.AccessKeyId).IsEqualTo("short");
+    }
+
+    [Test]
     public async Task GetAsync_AfterTheRetryInterval_FetchesAgain()
     {
         // Arrange

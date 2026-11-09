@@ -22,6 +22,12 @@ namespace DynaSharp.Credentials;
 /// the fetch, and a failure is thrown.
 /// </para>
 /// <para>
+/// Credentials that are already in the mandatory period as they arrive (a <c>credential_process</c> that hands out leases of 5 minutes)
+/// would make every caller wait for a fetch, on every call. They are served without waiting until <see cref="ShortLeaseMargin"/> before
+/// they expire (half of what was left as they arrived, if that is less), and refreshed in the background meanwhile, at most once per
+/// <see cref="AdvisoryRetryInterval"/>. Expired credentials are never served.
+/// </para>
+/// <para>
 /// There is at most one fetch at a time (single flight), also across the first load. It runs on its own, independent of the
 /// cancellation tokens of the callers, so a caller that gives up never cancels the fetch for the others; it only stops waiting.
 /// No lock is held while a fetch runs, and no thread is blocked.
@@ -44,6 +50,9 @@ internal sealed class RefreshingCredentialsCache
     /// <summary>Gets the pause after a failed fetch in the advisory period.</summary>
     public static readonly TimeSpan AdvisoryRetryInterval = TimeSpan.FromSeconds(30);
 
+    /// <summary>Gets the time before expiry until which credentials that arrived in the mandatory period are served without waiting.</summary>
+    public static readonly TimeSpan ShortLeaseMargin = TimeSpan.FromMinutes(1);
+
     private readonly string _source;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger _logger;
@@ -54,6 +63,9 @@ internal sealed class RefreshingCredentialsCache
     private AwsCredentials? _current;
     private TaskCompletionSource<FetchResult>? _flight;
     private DateTimeOffset _nextAdvisoryFetch;
+
+    // Until when _current, which arrived in the mandatory period, is served as if it were in the advisory one. MinValue for any other.
+    private DateTimeOffset _shortLeaseUntil = DateTimeOffset.MinValue;
     private bool _everFetched;
 
     /// <summary>
@@ -111,6 +123,10 @@ internal sealed class RefreshingCredentialsCache
     private static bool ExpiresWithin(AwsCredentials credentials, DateTimeOffset now, TimeSpan window) =>
         credentials.Expiration is { } expiration && expiration - now < window;
 
+    // Called under _gate, so that _shortLeaseUntil belongs to current.
+    private bool IsMandatory(AwsCredentials? current, DateTimeOffset now) =>
+        current is null || (ExpiresWithin(current, now, MandatoryWindow) && now >= _shortLeaseUntil);
+
     private async ValueTask<CredentialsOutcome> GetSlowAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -129,7 +145,7 @@ internal sealed class RefreshingCredentialsCache
                 return CredentialsOutcome.Found(current);
             }
 
-            mandatory = current is null || ExpiresWithin(current, now, MandatoryWindow);
+            mandatory = IsMandatory(current, now);
             if (!mandatory && now < _nextAdvisoryFetch)
             {
                 return CredentialsOutcome.Found(current!);
@@ -187,7 +203,7 @@ internal sealed class RefreshingCredentialsCache
                 var now = _timeProvider.GetUtcNow();
                 var current = _current;
                 hadCredentials = _everFetched;
-                mandatory = current is null || ExpiresWithin(current, now, MandatoryWindow);
+                mandatory = IsMandatory(current, now);
                 if (fresh is not null)
                 {
                     // Credentials that are in the advisory period as they arrive, such as a session of the 15 minutes that AssumeRole allows at
@@ -195,6 +211,9 @@ internal sealed class RefreshingCredentialsCache
                     _current = fresh;
                     _everFetched = true;
                     _nextAdvisoryFetch = now + AdvisoryRetryInterval;
+                    _shortLeaseUntil = fresh.Expiration is { } expiration && expiration - now < MandatoryWindow
+                        ? expiration - TimeSpan.FromTicks(Math.Min(ShortLeaseMargin.Ticks, (expiration - now).Ticks / 2))
+                        : DateTimeOffset.MinValue;
                 }
                 else if (!mandatory)
                 {

@@ -90,6 +90,14 @@ sso_region = eu-west-1
 
 `SsoCredentialsProvider` does the same in code: `new SsoCredentialsProvider("https://corp.awsapps.com/start", AwsRegion.FromName("eu-west-1"), "123456789012", "ReadOnly", "corp")`.
 
+## When credentials are refreshed
+
+Temporary credentials (a container, the instance metadata service, a web identity, a `credential_process`, an assumed role, SSO) are fetched again before their `Expiration`, by one fetch at a time that every call shares:
+
+- **From 15 minutes before:** the fetch runs in the background and calls keep the credentials they have, so a slow or failing source delays no request. A failure logs a warning and the next fetch waits 30 seconds; so do new credentials that arrive with less than 15 minutes left, such as an assumed role with a `Duration` of 15 minutes, which is therefore assumed again every 30 seconds.
+- **From 10 minutes before:** a call waits for the fetch and fails with `CredentialsUnavailableException` if it fails.
+- **Short leases:** credentials that arrive with less than 10 minutes left, such as a program that hands out leases of 5 minutes, are used without waiting until one minute before they expire (half of what they had left, if that is less), and fetched again in the background at most every 30 seconds. Expired credentials are never sent.
+
 ## Test without STS
 
 `StubSts` of `DynaSharp.Testing` stands in for STS on a port of the machine, so a test of a web identity or an assumed role runs without AWS, see [STS](testing.md#sts).
