@@ -286,6 +286,7 @@ public sealed class TableOperationsTests
     [Arguments("{}", """{"TableNames":["Alpha","Beta","Gamma"]}""")]
     [Arguments("""{"Limit":2}""", """{"TableNames":["Alpha","Beta"],"LastEvaluatedTableName":"Beta"}""")]
     [Arguments("""{"Limit":2,"ExclusiveStartTableName":"Beta"}""", """{"TableNames":["Gamma"]}""")]
+    [Arguments("""{"Limit":1}""", """{"TableNames":["Alpha"],"LastEvaluatedTableName":"Alpha"}""")]
     [Arguments("""{"Limit":3}""", """{"TableNames":["Alpha","Beta","Gamma"]}""")]
     [Arguments("""{"ExclusiveStartTableName":"Gamma"}""", """{"TableNames":[]}""")]
     public async Task HandleListTables_ThreeTables_PagesThemInOrdinalOrder(string request, string expected)
@@ -795,6 +796,7 @@ public sealed class TableOperationsTests
     [Arguments("""{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}""", """{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}""")]
     [Arguments("""{"MaxReadRequestUnits":7}""", """{"MaxReadRequestUnits":7}""")]
     [Arguments("""{"MaxReadRequestUnits":-1,"MaxWriteRequestUnits":40000}""", """{"MaxWriteRequestUnits":40000}""")]
+    [Arguments("""{"MaxReadRequestUnits":40000}""", """{"MaxReadRequestUnits":40000}""")]
     public async Task HandleCreateTable_OnDemandThroughput_DescribesTheMaximums(string maximums, string described)
     {
         // Arrange
@@ -1036,6 +1038,259 @@ public sealed class TableOperationsTests
         // Assert
         await Assert.That(act).Throws<FakeError>().WithMessage("At least one of ProvisionedThroughput, BillingMode, UpdateStreamEnabled, GlobalSecondaryIndexUpdates or SSESpecification or ReplicaUpdates is required", StringComparison.Ordinal);
     }
+
+    [Test]
+    [Arguments("DescribeTable", """{"TableName":1}""", "The member TableName must be a string, and it is Number.")]
+    [Arguments("ListTables", """{"ExclusiveStartTableName":1}""", "The member ExclusiveStartTableName must be a string, and it is Number.")]
+    [Arguments("ListTables", """{"Limit":"5"}""", "The member Limit must be a number, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Key + ""","AttributeDefinitions":{}}""", "The member AttributeDefinitions must be an array, and it is Object.")]
+    [Arguments("CreateTable", NameAndMode + Key + ""","AttributeDefinitions":[{"AttributeName":1,"AttributeType":"S"}]}""", "The member AttributeName must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + ""","KeySchema":{}}""", "The member KeySchema must be an array, and it is Object.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + ""","KeySchema":[{"AttributeName":1,"KeyType":"HASH"}]}""", "The member AttributeName must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + ""","KeySchema":[{"AttributeName":"pk","KeyType":1}]}""", "The member KeyType must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","LocalSecondaryIndexes":[{"IndexName":1,"KeySchema":[],"Projection":{}}]}""", "The member IndexName must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","GlobalSecondaryIndexes":[{"IndexName":1,"KeySchema":[],"Projection":{}}]}""", "The member IndexName must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","GlobalSecondaryIndexes":[{"IndexName":"ByG","KeySchema":[],"Projection":{"ProjectionType":"INCLUDE","NonKeyAttributes":"x"}}]}""", "The member NonKeyAttributes must be an array, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","ProvisionedThroughput":{"ReadCapacityUnits":"5","WriteCapacityUnits":5}}""", "The member ReadCapacityUnits must be a number, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":"5"}}""", "The member WriteCapacityUnits must be a number, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","OnDemandThroughput":{"MaxReadRequestUnits":"5"}}""", "The member MaxReadRequestUnits must be a number, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","OnDemandThroughput":{"MaxWriteRequestUnits":"5"}}""", "The member MaxWriteRequestUnits must be a number, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","StreamSpecification":{"StreamEnabled":"yes"}}""", "The member StreamEnabled must be a boolean, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","SSESpecification":{"Enabled":"yes"}}""", "The member Enabled must be a boolean, and it is String.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","SSESpecification":{"Enabled":true,"KMSMasterKeyId":1}}""", "The member KMSMasterKeyId must be a string, and it is Number.")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","DeletionProtectionEnabled":"yes"}""", "The member DeletionProtectionEnabled must be a boolean, and it is String.")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","DeletionProtectionEnabled":"yes"}""", "The member DeletionProtectionEnabled must be a boolean, and it is String.")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":{}}""", "The member GlobalSecondaryIndexUpdates must be an array, and it is Object.")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":1}}]}""", "The member IndexName must be a string, and it is Number.")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Delete":{"IndexName":1}}]}""", "The member IndexName must be a string, and it is Number.")]
+    public async Task HandleTableOperation_MemberOfAnotherKind_AnswersSerializationNamingIt(string operation, string request, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+
+        // Act
+        var answer = FakeCalls.Error(fake, operation, request);
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "SerializationException", message));
+    }
+
+    [Test]
+    [Arguments("DescribeTable", """{"TableName":"Thread","Extra":1}""", "the member Extra in DescribeTable")]
+    [Arguments("DeleteTable", """{"TableName":"Thread","Extra":1}""", "the member Extra in DeleteTable")]
+    [Arguments("ListTables", """{"Extra":1}""", "the member Extra in ListTables")]
+    [Arguments("CreateTable", NameAndMode + Key + ""","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S","Extra":1}]}""", "the member Extra in AttributeDefinitions of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + ""","KeySchema":[{"AttributeName":"pk","KeyType":"HASH","Extra":1}]}""", "the member Extra in KeySchema of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1,"Extra":1}}""", "the member Extra in ProvisionedThroughput of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","LocalSecondaryIndexes":[{"IndexName":"ByG","Extra":1}]}""", "the member Extra in LocalSecondaryIndexes of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","GlobalSecondaryIndexes":[{"IndexName":"ByG","Extra":1}]}""", "the member Extra in GlobalSecondaryIndexes of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","GlobalSecondaryIndexes":[{"IndexName":"ByG","KeySchema":[{"AttributeName":"g","KeyType":"HASH","Extra":1}]}]}""", "the member Extra in KeySchema of GlobalSecondaryIndexes of CreateTable")]
+    [Arguments("CreateTable", NameAndMode + Definitions + Key + ""","GlobalSecondaryIndexes":[{"IndexName":"ByG","KeySchema":[],"Projection":{"ProjectionType":"ALL","Extra":1}}]}""", "the member Extra in Projection of GlobalSecondaryIndexes of CreateTable")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Replace":{}}]}""", "the member Replace in GlobalSecondaryIndexUpdates of UpdateTable")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"ByG","Extra":1}}]}""", "the member Extra in Create of UpdateTable")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Delete":{"IndexName":"ByAuthor","Extra":1}}]}""", "the member Extra in Delete of UpdateTable")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","ProvisionedThroughput":{"Extra":1}}}]}""", "the member Extra in ProvisionedThroughput of Update of UpdateTable")]
+    [Arguments("UpdateTable", """{"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","OnDemandThroughput":{"Extra":1}}}]}""", "the member Extra in OnDemandThroughput of Update of UpdateTable")]
+    public async Task HandleTableOperation_MemberTheFakeDoesNotImplement_AnswersUnsupportedNamingIt(string operation, string request, string named)
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+
+        // Act
+        var (_, code, message) = FakeCalls.Error(fake, operation, request);
+
+        // Assert
+        await Assert.That((code, message.StartsWith($"FakeDynamoDb does not support {named}: ", StringComparison.Ordinal))).IsEqualTo(("UnsupportedByFakeException", true));
+    }
+
+    [Test]
+    public async Task HandleCreateTable_UnknownSseType_AnswersValidationNamingIt()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", NameAndMode + Definitions + Key + ""","SSESpecification":{"Enabled":true,"SSEType":"RSA"}}""");
+
+        // Assert
+        await Assert.That(answer.Message).StartsWith("1 validation error detected: Value 'RSA' at 'sSEType' failed to satisfy constraint: Member must satisfy enum value set: [");
+    }
+
+    [Test]
+    public async Task HandleCreateTable_IndexesAtTheLimit_CreatesTheTable()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var localIndexes = string.Join(",", Enumerable.Range(0, 5).Select(i => $$$"""{"IndexName":"Local{{{i}}}","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"a","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}"""));
+        var globalIndexes = string.Join(",", Enumerable.Range(0, 20).Select(i => $$$"""{"IndexName":"Global{{{i}}}","KeySchema":[{"AttributeName":"a","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}}"""));
+        var request = $$"""
+            {"TableName":"Tab","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"sk","AttributeType":"S"},{"AttributeName":"a","AttributeType":"S"}],
+             "KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"sk","KeyType":"RANGE"}],"BillingMode":"PAY_PER_REQUEST",
+             "LocalSecondaryIndexes":[{{localIndexes}}],"GlobalSecondaryIndexes":[{{globalIndexes}}]}
+            """;
+
+        // Act
+        var table = FakeCalls.Ok(fake, "CreateTable", request).GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That((table.GetProperty("LocalSecondaryIndexes").GetArrayLength(), table.GetProperty("GlobalSecondaryIndexes").GetArrayLength())).IsEqualTo((5, 20));
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_ThroughputOfTwoIndexes_UpdatesBoth()
+    {
+        // Arrange: only creating and deleting an index is one per request; changing the throughput of several is not.
+        var fake = FakeCalls.With(Thread);
+        FakeCalls.Ok(fake, "UpdateTable", """
+            {"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"BySubject","KeySchema":[{"AttributeName":"Subject","KeyType":"HASH"}],"Projection":{"ProjectionType":"KEYS_ONLY"},
+             "ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}}],"AttributeDefinitions":[{"AttributeName":"Subject","AttributeType":"S"}]}
+            """);
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", """
+            {"TableName":"Thread","GlobalSecondaryIndexUpdates":[{"Update":{"IndexName":"ByAuthor","ProvisionedThroughput":{"ReadCapacityUnits":7,"WriteCapacityUnits":7}}},
+             {"Update":{"IndexName":"BySubject","ProvisionedThroughput":{"ReadCapacityUnits":8,"WriteCapacityUnits":8}}}]}
+            """).GetProperty("TableDescription");
+
+        // Assert
+        var units = table.GetProperty("GlobalSecondaryIndexes").EnumerateArray().Select(static index => index.GetProperty("ProvisionedThroughput").GetProperty("ReadCapacityUnits").GetInt64()).Order();
+        await Assert.That(string.Join(',', units)).IsEqualTo("7,8");
+    }
+
+    [Test]
+    public async Task HandleUpdateTable_OnDemandTableWithMaximumsChangingItsClass_KeepsTheMaximums()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users.TrimEnd()[..^1] + ""","OnDemandThroughput":{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}}""");
+
+        // Act
+        var table = FakeCalls.Ok(fake, "UpdateTable", """{"TableName":"Users","TableClass":"STANDARD_INFREQUENT_ACCESS"}""").GetProperty("TableDescription");
+
+        // Assert
+        await Assert.That(table.GetProperty("OnDemandThroughput").GetRawText()).IsEqualTo("""{"MaxReadRequestUnits":10,"MaxWriteRequestUnits":5}""");
+    }
+
+    [Test]
+    public async Task HandleCreateTable_KeyNotDefinedAmongTwoDefinitions_ListsBoth()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", NameAndMode + Definitions + ""","KeySchema":[{"AttributeName":"x","KeyType":"HASH"}]}""");
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo(Invalid + "Some index key attributes are not defined in AttributeDefinitions. Keys: [x], AttributeDefinitions: [pk, g]");
+    }
+
+    [Test]
+    public async Task HandleCreateTable_LocalIndexWithTooShortAName_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        const string Request = """
+            {"TableName":"Tab","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"sk","AttributeType":"S"},{"AttributeName":"a","AttributeType":"S"}],
+             "KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"sk","KeyType":"RANGE"}],"BillingMode":"PAY_PER_REQUEST",
+             "LocalSecondaryIndexes":[{"IndexName":"B","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"a","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]}
+            """;
+
+        // Act
+        var answer = FakeCalls.Error(fake, "CreateTable", Request);
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo("1 validation error detected: Value 'B' at 'indexName' failed to satisfy constraint: Member must have length greater than or equal to 3");
+    }
+
+    [Test]
+    public async Task Create_RecordWithTags_ThrowsUnsupported()
+    {
+        // Arrange: the wire refuses Tags as an unknown member before; the record reaches the check.
+        var db = new FakeDatabase(TimeProvider.System);
+        var request = UsersRequest() with { Tags = [new TableTag { Key = "team", Value = "shop" }] };
+
+        // Act
+        var act = () => TableOperations.Create(db, request);
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(FakeError.Unsupported("the member Tags", "CreateTable").Message, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Create_RecordWithAnInvalidName_ThrowsValidation()
+    {
+        // Arrange
+        var db = new FakeDatabase(TimeProvider.System);
+        var request = UsersRequest() with { TableName = "T a" };
+
+        // Act
+        var act = () => TableOperations.Create(db, request);
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(InvalidTableName, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Update_RecordWithAnInvalidName_ThrowsValidation()
+    {
+        // Arrange
+        var db = new FakeDatabase(TimeProvider.System);
+
+        // Act
+        var act = () => TableOperations.Update(db, new UpdateTableRequest { TableName = "T a", BillingMode = BillingMode.PayPerRequest });
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(InvalidTableName, StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Delete_InvalidName_ThrowsValidation()
+    {
+        // Arrange
+        var db = new FakeDatabase(TimeProvider.System);
+
+        // Act
+        var act = () => TableOperations.Delete(db, "T a");
+
+        // Assert
+        await Assert.That(act).Throws<FakeError>().WithMessage(InvalidTableName, StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments(3)]
+    [Arguments(255)]
+    public async Task ThrowIfInvalidName_LengthAtABound_Passes(int length)
+    {
+        // Arrange
+        var name = new string('a', length);
+
+        // Act
+        var act = () => TableOperations.ThrowIfInvalidName(name, "tableName");
+
+        // Assert
+        await Assert.That(act).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task ThrowIfInvalidName_Null_ThrowsArgumentNullException()
+    {
+        // Arrange
+        string name = null!;
+
+        // Act
+        var act = () => TableOperations.ThrowIfInvalidName(name, "tableName");
+
+        // Assert
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("name");
+    }
+
+    private const string InvalidTableName = "1 validation error detected: Value 'T a' at 'tableName' failed to satisfy constraint: Member must satisfy regular expression pattern: [a-zA-Z0-9_.-]+";
+
+    // A CreateTable body in parts, which a case completes and closes.
+    private const string NameAndMode = "{\"TableName\":\"Users\",\"BillingMode\":\"PAY_PER_REQUEST\"";
+
+    private const string Definitions = ""","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}]""";
+
+    private const string Key = ""","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"}]""";
 
     private static string UsersWithIndex(string maximums) => $$"""
         {"TableName":"Users","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}],
