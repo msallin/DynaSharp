@@ -447,6 +447,7 @@ public sealed class LockTable
 
         // A contender that has seen a holder reads before it writes, so that waiting for a live holder costs no failed conditional write.
         Sighting? due = null;
+        string? previousHolder = null;
         if (_sightings.TryGetValue(name, out var sighting) && !sighting.IsStale(Time))
         {
             var item = await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
@@ -458,6 +459,7 @@ public sealed class LockTable
                 }
 
                 due = sighting;
+                previousHolder = LockItem.HolderLabelOf(item);
             }
         }
 
@@ -488,11 +490,12 @@ public sealed class LockTable
             // The item that failed the condition comes with the answer; a service that does not send it, such as an emulator, costs a read. A transaction
             // that holds the item, such as a holder's IsHeld, is a refusal too, and the read says by whom; it changes no record version, so the watch of
             // the holder goes on as it was. The client retries a request whose response was lost, and the retry fails the condition that its first
-            // attempt met, or meets a transaction: then the owner is this one, and the lock is ours.
+            // attempt met, or meets a transaction: then the owner is this one, and the lock is ours. If that attempt was due to take over, it counts as a
+            // takeover from the holder the read before it found, since the item it wrote over is gone.
             var item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
-                ? Acquired(name, owner, holder.FencingToken, leaseDuration, sent, null)
+                ? Acquired(name, owner, holder.FencingToken, leaseDuration, sent, due is null ? null : new(due, previousHolder))
                 : new(null, false, Observe(name, holder));
         }
     }

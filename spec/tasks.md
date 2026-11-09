@@ -130,6 +130,7 @@ Git history has the detail; each line says what an area delivered and where it l
 ### Review of 2026-11-09
 
 - Coordination: a held lock item whose `fence` is no whole number throws `InvalidOperationException` before any write. `LockItem.HolderOf` checks the fence with the other attributes, so the read before a takeover and the item of a failed condition refuse it; before, the takeover was written and then thrown, and left an owner that nobody renewed or released.
+- Coordination: a takeover whose response was lost and whose retry by the client found its own owner counts as a takeover (log 41, `dynasharp.lock.takeover` true) with the holder label the read before the write found; before, it counted as a plain acquire.
 
 ## Decisions
 

@@ -655,6 +655,37 @@ public sealed class LockTableTests
     }
 
     [Test]
+    public async Task TryAcquireAsync_TakeOverResponseLostAndRetried_CountsAndLogsTheTakeover()
+    {
+        // Arrange (the takeover is applied and its answer lost; the retry of the client fails the condition and finds this owner)
+        using var bench = new LockHarness(maxAttempts: 2);
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.acquisitions");
+        await using var holder = await bench.OtherProcess(new ManualTimeProvider(), new() { HolderLabel = "pod-1" }).TryAcquireAsync("job", Lease);
+        await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Clock.Advance(Lease);
+        var lost = false;
+        bench.Intercept = (request, _) =>
+        {
+            if (lost || request.Operation != "UpdateItem")
+            {
+                return Task.FromResult<StubResponse?>(null);
+            }
+
+            lost = true;
+            bench.Fake.Answer(request);
+            return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Lost.", HttpStatusCode.InternalServerError));
+        };
+
+        // Act
+        await using var taken = await bench.RunAsync(bench.Locks.TryAcquireAsync("job", Lease), TimeSpan.FromMilliseconds(10));
+
+        // Assert
+        await Assert.That((taken!.FencingToken, bench.LockLogs.Single(static entry => entry.EventId.Id == 41).Message, metrics.All[^1].TagText)).IsEqualTo(
+            (2L, $"Lock job in table {bench.TableName} was taken over from a holder that did not renew it for its lease of 00:00:30 (holder label pod-1, now (null)).",
+             $"db.collection.name={bench.TableName},dynasharp.lock.takeover=True"));
+    }
+
+    [Test]
     public async Task TryAcquireAsync_FreeItemWithoutAFence_StartsTheTokenAtOne()
     {
         // Arrange (an item at the key without owner and fence, such as one written before by hand)
