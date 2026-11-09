@@ -15,8 +15,8 @@ public sealed class ReservedWordsTests
         // Act
         var unknownThere = words.Where(static word => !GeneratorReservedWords.Contains(word, 0, word.Length));
 
-        // Assert
-        await Assert.That((words.Count, string.Join(' ', unknownThere))).IsEqualTo((573, string.Empty));
+        // Assert (quoted, so that an empty word shows: 573 words of which none the generator lacks is the same set)
+        await Assert.That((words.Count, string.Join(' ', unknownThere.Select(static word => $"'{word}'")))).IsEqualTo((573, string.Empty));
     }
 
     [Test]
