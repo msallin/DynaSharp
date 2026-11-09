@@ -34,8 +34,8 @@ namespace DynaSharp;
 /// length: one of a page is as long as a key of the table, and one of a fan-out grows with its partitions.
 /// </para>
 /// <para>
-/// A token of a fan-out query holds two keys per partition, where it continues and what comes next, or the fact that the partition is done, so it is as long as the list of partitions.
-/// It holds the direction of the read as well. It goes through <see cref="Parse"/> like any other. <c>PageAsync</c> of the fan-out then checks it against the number of its partitions, its direction and the
+/// A token of a fan-out query holds two keys per partition, where it continues and what comes next, or the partition key of a partition that is done, so it is as long as the list of partitions.
+/// It holds the direction of the read as well. It goes through <see cref="Parse"/> like any other. <c>PageAsync</c> of the fan-out then checks it against the number and the order of its partitions, its direction and the
 /// keys of the read, with a <see cref="FormatException"/> as from <see cref="Parse"/>, and DynamoDB checks the start keys.
 /// </para>
 /// <para>Two tokens are equal if their text is. <see cref="ToKey"/> and <see cref="FromKey"/> are the bridge to <c>ExclusiveStartKey</c> and <c>LastEvaluatedKey</c> of the request API.</para>

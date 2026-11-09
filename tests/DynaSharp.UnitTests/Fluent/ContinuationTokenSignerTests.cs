@@ -470,10 +470,11 @@ public sealed class ContinuationTokenSignerTests
     // Each partition gives one item and a next key on its first page, and nothing after.
     private static StubResponse FanOutResponse(RecordedRequest request)
     {
-        var partition = request.BodyText.Contains("\"p0\"", StringComparison.Ordinal) ? "0" : "1";
+        var partition = request.BodyText.Contains("\"p0\"", StringComparison.Ordinal) ? "p0" : "p1";
+        var key = "{\"pk\":{\"S\":\"" + partition + "\"},\"sk\":{\"S\":\"1\"}}";
         return request.BodyText.Contains("ExclusiveStartKey", StringComparison.Ordinal)
             ? StubResponse.Json("""{"Items":[]}""")
-            : StubResponse.Json(Items(Key(partition), partition));
+            : StubResponse.Json("{\"Items\":[" + key + "],\"LastEvaluatedKey\":" + key + "}");
     }
 
     private static async Task<string> FirstNextAsync(ContinuationTokenSigner signer, Func<Table<Item>, ValueTask<Page<Item>>> read)

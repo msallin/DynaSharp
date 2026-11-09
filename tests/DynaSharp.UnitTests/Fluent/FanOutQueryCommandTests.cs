@@ -1716,7 +1716,7 @@ public sealed class FanOutQueryCommandTests
     // What a token is worth without the second key of its entries.
     private static ContinuationToken WithoutHints(ContinuationToken token) => ContinuationToken.FromKey(new Item
     {
-        ["fanOut"] = AttributeValue.FromList(token.ToKey()!["fanOut"].AsList().Select(static entry => entry.IsNull ? entry : AttributeValue.FromList([entry.AsList()[0], AttributeValue.FromMap([])]))),
+        ["fanOut"] = AttributeValue.FromList(token.ToKey()!["fanOut"].AsList().Select(static entry => entry.Type != AttributeType.List ? entry : AttributeValue.FromList([entry.AsList()[0], AttributeValue.FromMap([])]))),
     });
 
     private static string Number(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -84,12 +84,12 @@ internal sealed class FanOutMerge<T> : IDisposable
         for (var position = 0; position < _cursors.Length; position++)
         {
             var entry = entries is null ? default : entries[position];
-            if (entry.Type != AttributeType.Null)
+            if (!FanOutToken.IsDone(entry, _plan, position))
             {
                 var cursor = new FanOutCursor<T>(_template, _plan, position);
                 _cursors[position] = cursor;
                 _heap[_live++] = cursor;
-                FanOutToken.Start(cursor, entry, _plan);
+                FanOutToken.Start(cursor, entry, _plan, position);
             }
         }
 

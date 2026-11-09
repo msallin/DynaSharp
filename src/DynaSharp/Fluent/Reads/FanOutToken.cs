@@ -10,16 +10,18 @@ namespace DynaSharp.Fluent;
 /// </summary>
 /// <remarks>
 /// <code>
-/// {"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"a"},"sk":{"S":"b"}}},{"M":{"pk":{"S":"a"},"sk":{"S":"c"}}}]},{"L":[{"M":{}},{"M":{"pk":{"S":"x"},"sk":{"S":"m"}}}]},{"L":[{"M":{"pk":{"S":"y"},"sk":{"S":"n"}}},{"M":{}}]},{"NULL":true}]},"descending":{"BOOL":true}}
+/// {"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"a"},"sk":{"S":"b"}}},{"M":{"pk":{"S":"a"},"sk":{"S":"c"}}}]},{"L":[{"M":{}},{"M":{"pk":{"S":"x"},"sk":{"S":"m"}}}]},{"L":[{"M":{"pk":{"S":"y"},"sk":{"S":"n"}}},{"M":{}}]},{"S":"z"}]},"descending":{"BOOL":true}}
 /// </code>
 /// <para>
 /// An entry is a start key and the key of the item that comes next, either of which can be an empty map. So the first partition continues after <c>b</c> and has <c>c</c> next, the second starts
-/// from the beginning and has <c>m</c> first, the third continues after <c>n</c> and does not know what comes next, and the fourth is done. The second key is a hint for the merge: it goes
+/// from the beginning and has <c>m</c> first, the third continues after <c>n</c> and does not know what comes next, and the fourth, <c>z</c>, is done: a partition that is done is its partition key, and <c>{"NULL":true}</c>,
+/// which the release before wrote, is read as done too. The second key is a hint for the merge: it goes
 /// into no request, and an entry with an empty one is what a token of a page that was given out whole holds, so a token without hints is a token. <c>descending</c> is there only for
 /// a read in that direction. A key means another position in the other direction, and the merge would go on with no error, so a token is held to the direction it came from.
 /// </para>
 /// <para>
-/// A token comes from a client, so both keys are held to the attributes of the read, and what goes on is not passed on as it is: it is read into values and those are written anew,
+/// A token comes from a client, so both keys are held to the attributes of the read, and the partition key in them and of a partition that is done to the partition at that place
+/// of the query: a token of another list of partitions of the same length would otherwise read one of them from the position of another, or not at all. What goes on is not passed on as it is: it is read into values and those are written anew,
 /// which leaves nothing in the request that was not a value of the key. A hint that lies can only reorder what that client reads, which it could as well do by hand. All this is bad
 /// input that fails like a token <see cref="ContinuationToken.Parse"/> refuses, with a <see cref="FormatException"/>, so that a web handler has one thing to catch before a request goes out.
 /// </para>
@@ -30,6 +32,7 @@ internal static class FanOutToken
     private const string DescendingMember = "descending";
 
     private const string NotOfThisRead = "This position of a fan-out query does not fit this table or index: an entry does not have the attributes of its key.";
+    private const string OtherPartitions = "This position of a fan-out query names another partition than the query has at its place, so it came from another list of partitions. A position goes with the same partitions in the same order.";
 
     /// <summary>Writes a token.</summary>
     /// <typeparam name="T">How the items are read.</typeparam>
@@ -60,7 +63,10 @@ internal static class FanOutToken
             }
             else
             {
-                buffer.Append("{\"NULL\":true}"u8);
+                // The partition key, so that a token of another list of partitions does not end a partition of this one.
+                using var json = WireJson.CreateWriter(buffer);
+                AttributeValueConverter.Write(new DynamoDbWriter(json), plan.PartitionKeys[i]);
+                json.Flush();
             }
         }
 
@@ -106,8 +112,9 @@ internal static class FanOutToken
     /// <param name="cursor">The partition, at its start.</param>
     /// <param name="entry">The entry, or the default value at the start of the read.</param>
     /// <param name="plan">The plan of the read.</param>
-    /// <exception cref="FormatException">The entry does not hold two keys of the attributes of this read, or the end of its partition.</exception>
-    public static void Start<T>(FanOutCursor<T> cursor, AttributeValue entry, FanOutPlan plan)
+    /// <param name="position">The place of the partition in the query.</param>
+    /// <exception cref="FormatException">The entry does not hold two keys of the attributes of this read and of this partition.</exception>
+    public static void Start<T>(FanOutCursor<T> cursor, AttributeValue entry, FanOutPlan plan, int position)
         where T : IDynamoDbDocument<T>
     {
         if (entry.Type == AttributeType.None)
@@ -121,14 +128,30 @@ internal static class FanOutToken
         }
 
         using var buffer = new PooledByteBuffer(512);
-        WriteKey(buffer, start.AsMap(), plan);
+        WriteKey(buffer, start.AsMap(), plan, position);
         var startLength = buffer.WrittenCount;
-        WriteKey(buffer, head.AsMap(), plan);
+        WriteKey(buffer, head.AsMap(), plan, position);
         var keys = buffer.WrittenSpan;
         if (!keys.IsEmpty && cursor.StartAfter(keys[..startLength], keys[startLength..]) is not null)
         {
             throw new FormatException(NotOfThisRead);
         }
+    }
+
+    /// <summary>Tells whether an entry says that its partition is done.</summary>
+    /// <param name="entry">The entry, or the default value at the start of the read.</param>
+    /// <param name="plan">The plan of the read.</param>
+    /// <param name="position">The place of the partition in the query.</param>
+    /// <returns><see langword="true"/> for the partition key of the partition at <paramref name="position"/>, or the null of the release before; <see langword="false"/> for any other entry, which <see cref="Start"/> checks.</returns>
+    /// <exception cref="FormatException">The entry is the partition key of another partition.</exception>
+    public static bool IsDone(AttributeValue entry, FanOutPlan plan, int position)
+    {
+        if (entry.Type is not (AttributeType.String or AttributeType.Number or AttributeType.Binary))
+        {
+            return entry.Type == AttributeType.Null;
+        }
+
+        return entry == plan.PartitionKeys[position] ? true : throw new FormatException(OtherPartitions);
     }
 
     private static bool IsTrue(AttributeValue value) => value.Type == AttributeType.Boolean && value.AsBool();
@@ -141,16 +164,21 @@ internal static class FanOutToken
     }
 
     // Writes what a client sent anew, or nothing for an empty map. The rest of the check is what a key of a response goes through as well, in FanOutCursor.StartAfter.
-    private static void WriteKey(PooledByteBuffer buffer, IReadOnlyDictionary<string, AttributeValue> key, FanOutPlan plan)
+    private static void WriteKey(PooledByteBuffer buffer, IReadOnlyDictionary<string, AttributeValue> key, FanOutPlan plan, int position)
     {
         if (key.Count == 0)
         {
             return;
         }
 
-        if (key.Count != plan.KeyNames.Length)
+        if (key.Count != plan.KeyNames.Length || !key.TryGetValue(plan.KeyNames[0], out var partition))
         {
             throw new FormatException(NotOfThisRead);
+        }
+
+        if (partition != plan.PartitionKeys[position])
+        {
+            throw new FormatException(OtherPartitions);
         }
 
         using var json = WireJson.CreateWriter(buffer);

@@ -36,7 +36,7 @@ public sealed class FanOutTokenTests
         var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).Limit(10).PageAsync(2);
 
         // Assert
-        await Assert.That(Text(page.Next)).IsEqualTo("""{"fanOut":{"L":[{"NULL":true},{"L":[{"M":{"pk":{"S":"p1"},"sk":{"S":"2"}}},{"M":{"pk":{"S":"p1"},"sk":{"S":"3"}}}]}]}}""");
+        await Assert.That(Text(page.Next)).IsEqualTo("""{"fanOut":{"L":[{"S":"p0"},{"L":[{"M":{"pk":{"S":"p1"},"sk":{"S":"2"}}},{"M":{"pk":{"S":"p1"},"sk":{"S":"3"}}}]}]}}""");
     }
 
     [Test]
@@ -199,6 +199,60 @@ public sealed class FanOutTokenTests
     }
 
     [Test]
+    public async Task PageAsync_TokenOfAnotherListWhosePartitionIsDone_ThrowsBeforeAnyRequest()
+    {
+        // Arrange (p1 is done after the first page, and the next query has p2 in its place)
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2").Put("p2", "4");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var token = ContinuationToken.Parse((await shop.Query(TwoPartitions).PageAsync(2)).Next.ToString());
+        var sent = handler.Requests.Count;
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await shop.Query(["p0", "p2"]).PageAsync(10, token));
+
+        // Assert
+        await Assert.That((failure.Message.Contains("another list of partitions", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, sent));
+    }
+
+    [Test]
+    [Arguments("p2", "p1")]
+    [Arguments("p0", "p2")]
+    public async Task PageAsync_TokenOfAnotherListWithTheKeyOfAnotherPartition_ThrowsBeforeAnyRequest(string first, string second)
+    {
+        // Arrange (after one item, p0 holds where it continues and p1 what comes next)
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2").Put("p2", "4");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+        var token = ContinuationToken.Parse((await shop.Query(TwoPartitions).PageAsync(1)).Next.ToString());
+        var sent = handler.Requests.Count;
+
+        // Act
+        var failure = await TestClient.CaptureAsync<FormatException>(async () => await shop.Query([first, second]).PageAsync(10, token));
+
+        // Assert
+        await Assert.That((failure.Message.Contains("another list of partitions", StringComparison.Ordinal), handler.Requests.Count)).IsEqualTo((true, sent));
+    }
+
+    [Test]
+    public async Task PageAsync_DoneEntryOfTheReleaseBefore_ReadsAsDone()
+    {
+        // Arrange (the release before marked a partition that is done with a null)
+        var wire = new FanOutWire().Put("p0", "1", "3").Put("p1", "2");
+        using var handler = new StubHandler(wire.Answer);
+        using var client = TestClient.Create(handler);
+        var token = ContinuationToken.Parse(Versioned("""{"fanOut":{"L":[{"L":[{"M":{"pk":{"S":"p0"},"sk":{"S":"1"}}},{"M":{}}]},{"NULL":true}]}}"""u8));
+
+        // Act
+        var page = await client.Table("Shop", "pk", "sk").Query(TwoPartitions).PageAsync(5, token);
+
+        // Assert
+        await Assert.That((page.Items.Single().GetString("sk"), handler.Requests.Count)).IsEqualTo(("3", 1));
+    }
+
+    [Test]
     public async Task PageAsync_TokenOfAPlainQuery_Throws()
     {
         // Arrange
@@ -301,7 +355,7 @@ public sealed class FanOutTokenTests
         var wire = new FanOutWire().Put("p0", "1", "2");
         using var handler = new StubHandler(wire.Answer);
         using var client = TestClient.Create(handler);
-        var hint = new Item { ["pk"] = "secret-hint", ["sk"] = "0" };
+        var hint = new Item { ["pk"] = "p0", ["sk"] = "secret-hint" };
         var token = ContinuationToken.FromKey(new Item { ["fanOut"] = AttributeValue.FromList([AttributeValue.FromList([AttributeValue.FromMap([]), AttributeValue.FromMap(hint)])]) });
 
         // Act
