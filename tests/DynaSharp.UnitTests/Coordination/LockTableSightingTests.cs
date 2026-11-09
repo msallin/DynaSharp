@@ -79,4 +79,45 @@ public sealed class LockTableSightingTests
         // Assert
         await Assert.That(bench.Locks.SightingCount).IsEqualTo(2);
     }
+
+    [Test]
+    public async Task TryAcquireAsync_SightingStaleBetweenSweeps_IsKeptUntilTheNextSweep()
+    {
+        // Arrange: sweeps at 0 s and 10 s, at most one every 10 s; the sighting of a lease of 1 s, seen at 5 s, is stale from 15 s.
+        using var bench = new LockHarness();
+        await TryHeldAsync(bench, "first", Lease);
+        bench.Clock.Advance(TimeSpan.FromSeconds(5));
+        await TryHeldAsync(bench, "short", TimeSpan.FromSeconds(1));
+        bench.Clock.Advance(TimeSpan.FromSeconds(5));
+        await TryHeldAsync(bench, "second", Lease);
+        bench.Clock.Advance(TimeSpan.FromSeconds(6));
+
+        // Act
+        await TryHeldAsync(bench, "third", Lease);
+
+        // Assert
+        await Assert.That(bench.Locks.SightingCount).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_SweepDueAtThisTick_DropsTheStaleSightings()
+    {
+        // Arrange: the first sweep at 0 s makes the next due at 10 s, when the sighting of a lease of 1 s, seen at 0 s, is stale.
+        using var bench = new LockHarness();
+        await TryHeldAsync(bench, "short", TimeSpan.FromSeconds(1));
+        bench.Clock.Advance(TimeSpan.FromSeconds(10));
+
+        // Act
+        await TryHeldAsync(bench, "next", Lease);
+
+        // Assert
+        await Assert.That(bench.Locks.SightingCount).IsEqualTo(1);
+    }
+
+    // Tries a lock that another holder has, which leaves a sighting of that holder.
+    private static async Task TryHeldAsync(LockHarness bench, string name, TimeSpan lease)
+    {
+        await bench.Locks.SimulateHolderAsync(name, lease);
+        _ = await bench.Locks.TryAcquireAsync(name, Lease);
+    }
 }

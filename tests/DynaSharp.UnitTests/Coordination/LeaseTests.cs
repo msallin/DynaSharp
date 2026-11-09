@@ -945,6 +945,122 @@ public sealed class LeaseTests
         await Assert.That((led is not null, await renewals.Task)).IsEqualTo((true, (Lease?)null));
     }
 
+    [Test]
+    public async Task RenewAsync_FailsWithAServerError_RecordsTheErrorOnTheSpanAndTheRenewal()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Handler.Enqueue(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+        using var capture = new ActivityCapture();
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.renewals");
+
+        // Act
+        await TestClient.CaptureAsync<DynamoDbException>(() => lease!.RenewAsync());
+
+        // Assert
+        var span = capture.All.Single(activity => activity.OperationName == "Lock.Renew");
+        await Assert.That((span.Status, span.GetTagItem("error.type"), metrics.Single().Tags["error.type"])).IsEqualTo(
+            (ActivityStatusCode.Error, (object?)"InternalServerError", (object?)"InternalServerError"));
+    }
+
+    [Test]
+    public async Task RenewAsync_AnswerThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(LockHarness.IsRenewal);
+
+        // Act
+        var renewal = context.Start(() => lease!.RenewAsync());
+        answer.SetResult();
+        await renewal;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DisposeAsync_Held_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var context = new CountingSynchronizationContext();
+
+        // Act
+        await context.Start(() => lease!.DisposeAsync().AsTask());
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DisposeAsync_RenewalInFlightAfterTheLease_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (the lease ran out while the heartbeat waits for the answer to a renewal)
+        using var bench = new LockHarness();
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = bench.Hold(LockHarness.IsRenewal, () => arrived.TrySetResult());
+        bench.Clock.Advance(Period);
+        await arrived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        bench.Clock.Advance(Lease - Period);
+        var context = new CountingSynchronizationContext();
+
+        // Act
+        var dispose = context.Start(() => lease!.DisposeAsync().AsTask());
+        answer.SetResult();
+        await dispose;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DisposeAsync_RenewalInFlightAfterTheLease_ReleasesOnlyOnceTheHeartbeatStopped()
+    {
+        // Arrange (the lease ran out while the heartbeat waits for the answer to a renewal)
+        using var bench = new LockHarness();
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = bench.Hold(LockHarness.IsRenewal, () => arrived.TrySetResult());
+        bench.Clock.Advance(Period);
+        await arrived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        bench.Clock.Advance(Lease - Period);
+
+        // Act
+        var dispose = lease!.DisposeAsync().AsTask();
+        var sentWhileRenewing = string.Join(",", bench.Handler.Requests.Select(static request => LockHarness.IsRenewal(request) ? "renewal" : request.Operation));
+        answer.SetResult();
+        await dispose;
+
+        // Assert
+        await Assert.That(sentWhileRenewing).IsEqualTo("UpdateItem,renewal");
+    }
+
+    [Test]
+    public async Task DisposeAsync_LostAndAReleaseThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (the heartbeat lost the lease and stopped; the release is answered late)
+        using var bench = new LockHarness();
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Steal("job", "thief");
+        await BeatAsync(bench, lease!);
+        var answer = bench.Hold(static _ => true);
+        var context = new CountingSynchronizationContext();
+
+        // Act
+        var dispose = context.Start(() => lease!.DisposeAsync().AsTask());
+        answer.SetResult();
+        await dispose;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
     // Moves the clock to the next renewal of the heartbeat and waits until it is done.
     private static bool LinksTo(IEnumerable<ActivityLink>? links, ActivityTraceId trace) => links?.Any(link => link.Context.TraceId == trace) == true;
 

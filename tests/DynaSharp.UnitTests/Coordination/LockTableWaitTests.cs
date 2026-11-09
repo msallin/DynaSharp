@@ -80,4 +80,50 @@ public sealed class LockTableWaitTests
         // Assert
         await Assert.That(lease.FencingToken).IsEqualTo(holder + 1);
     }
+
+    [Test]
+    public async Task AcquireAsync_InfiniteWaitOnAHeldLock_WaitsUntilItCanTakeItOver()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var holder = await bench.Locks.SimulateHolderAsync("job", Lease);
+
+        // Act
+        await using var lease = await bench.RunAsync(bench.Locks.AcquireAsync("job", Lease, Timeout.InfiniteTimeSpan), TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That(lease.FencingToken).IsEqualTo(holder + 1);
+    }
+
+    [Test]
+    public async Task AcquireAsync_WaitShorterThanAPoll_ThrowsAtTheEndOfTheWait()
+    {
+        // Arrange (the holder is polled every 10 s; the wait of 2 s ends before the first poll)
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var start = bench.Clock.GetTimestamp();
+
+        // Act
+        var exception = await TestClient.CaptureAsync<TimeoutException>(() => bench.RunAsync(bench.Locks.AcquireAsync("job", Lease, TimeSpan.FromSeconds(2)), TimeSpan.FromSeconds(1)));
+
+        // Assert
+        await Assert.That((exception.Message.Contains("lock job of table", StringComparison.Ordinal), bench.Clock.GetElapsedTime(start) < TimeSpan.FromSeconds(10))).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task AcquireAsync_LockReleasedDuringALongWait_TakesItAtTheNextPoll()
+    {
+        // Arrange (the contender found the lock held and polls every 10 s, well within its wait of a minute)
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var start = bench.Clock.GetTimestamp();
+        var waiting = bench.Locks.AcquireAsync("job", Lease, TimeSpan.FromMinutes(1));
+        await bench.Locks.SimulateReleaseAsync("job");
+
+        // Act
+        await using var lease = await bench.RunAsync(waiting, TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That(bench.Clock.GetElapsedTime(start) < TimeSpan.FromMinutes(1)).IsTrue();
+    }
 }

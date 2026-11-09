@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using DynaSharp.Coordination;
+using DynaSharp.Coordination.Testing;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Telemetry;
 using Microsoft.Extensions.Logging;
@@ -395,6 +396,24 @@ public sealed class LockTableTests
         bench.Intercept = (_, _) =>
         {
             bench.Clock.Advance(Lease);
+            return Task.FromResult<StubResponse?>(null);
+        };
+
+        // Act
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+
+        // Assert
+        await Assert.That((lease!.Ended.IsCancellationRequested, lease.LossReason)).IsEqualTo((true, "expired"));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_ResponseArrivesWellAfterTheLease_ReturnsALostLease()
+    {
+        // Arrange (the answer comes a second after the whole lease has passed)
+        using var bench = new LockHarness();
+        bench.Intercept = (_, _) =>
+        {
+            bench.Clock.Advance(Lease + TimeSpan.FromSeconds(1));
             return Task.FromResult<StubResponse?>(null);
         };
 
@@ -865,7 +884,7 @@ public sealed class LockTableTests
         var act = () => new LockTable(bench.Table, options);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("options");
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessage("The holder label must have from 1 to 256 characters. (Parameter 'options')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -885,7 +904,9 @@ public sealed class LockTableTests
     [Test]
     [Arguments("")]
     [Arguments("a.b")]
+    [Arguments(".expires")]
     [Arguments("a[0]")]
+    [Arguments("[0]")]
     [Arguments("_type")]
     [Arguments("owner")]
     [Arguments("rvn")]
@@ -903,7 +924,8 @@ public sealed class LockTableTests
         var act = () => new LockTable(bench.Table, new() { TimeToLiveAttribute = attribute });
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentException>().WithParameterName("options");
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessage(
+            $"The time to live attribute \"{attribute}\" must be a top-level attribute that is neither a key of table {bench.TableName} nor one of the lock item. (Parameter 'options')", StringComparison.Ordinal);
     }
 
     [Test]
@@ -1124,6 +1146,169 @@ public sealed class LockTableTests
 
         // Assert
         await Assert.That(bench.ItemOf("job")!.Count).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_FreeItemWithAFenceOfZero_StartsTheTokenAtOne()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        bench.Fake.Put(bench.TableName, new Item(bench.KeyOf("b")) { ["fence"] = 0L });
+
+        // Act
+        await using var lease = await bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(lease!.FencingToken).IsEqualTo(1L);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_AnswerThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(static _ => true);
+
+        // Act
+        var acquire = context.Start(() => bench.Locks.TryAcquireAsync("job", Lease));
+        answer.SetResult();
+        await using var lease = await acquire;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_ReadAfterATransactionThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (the write meets a transaction at once, and the read that says who holds the lock is answered late)
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var read = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bench.Intercept = async (request, _) =>
+        {
+            if (request.Operation == "UpdateItem")
+            {
+                return TransactionConflict();
+            }
+
+            await read.Task.ConfigureAwait(false);
+            return null;
+        };
+
+        // Act
+        var acquire = context.Start(() => bench.Locks.TryAcquireAsync("job", Lease));
+        read.SetResult();
+        await acquire;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AcquireAsync_AnswerThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(static _ => true);
+
+        // Act
+        var acquire = context.Start(() => bench.Locks.AcquireAsync("job", Lease));
+        answer.SetResult();
+        await using var lease = await acquire;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AcquireAsync_WaitAndAnAnswerThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(static _ => true);
+
+        // Act
+        var acquire = context.Start(() => bench.Locks.AcquireAsync("job", Lease, TimeSpan.FromSeconds(5)));
+        answer.SetResult();
+        await using var lease = await acquire;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_ReadOfASeenHolderThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (a try that saw the holder reads before it writes)
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        _ = await bench.Locks.TryAcquireAsync("job", Lease);
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(static request => request.Operation == "GetItem");
+
+        // Act
+        var acquire = context.Start(() => bench.Locks.TryAcquireAsync("job", Lease));
+        answer.SetResult();
+        await acquire;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AcquireAsync_WaitForTheNextPoll_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (the first try is refused at once, so the wait for the next poll starts on the context of the caller)
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var context = new CountingSynchronizationContext();
+        var acquire = context.Start(() => bench.Locks.AcquireAsync("job", Lease));
+        await bench.Locks.SimulateReleaseAsync("job");
+
+        // Act
+        bench.Clock.Advance(Lease / 3);
+        await using var lease = await acquire.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AcquireAsync_HolderLeaseNoMultipleOfThePoll_TakesOverWhenTheLeaseRunsOut()
+    {
+        // Arrange (a lease of 35 s is polled every 10 s, and the last wait is the 5 s that are left of it)
+        using var bench = new LockHarness();
+        var lease = TimeSpan.FromSeconds(35);
+        var holder = await bench.Locks.SimulateHolderAsync("job", lease);
+        var start = bench.Clock.GetTimestamp();
+
+        // Act
+        await using var taken = await bench.RunAsync(bench.Locks.AcquireAsync("job", lease), TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That((taken.FencingToken, bench.Clock.GetElapsedTime(start) < TimeSpan.FromSeconds(40))).IsEqualTo((holder + 1, true));
+    }
+
+    [Test]
+    public async Task AcquireAsync_HolderWithAShortLeaseReleases_AcquiresWithinAThirdOfItsLease()
+    {
+        // Arrange (a third of the holder's lease of 6 s is 2 s, sooner than the poll of 10 s and than the end of the lease)
+        using var bench = new LockHarness();
+        var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("job", TimeSpan.FromSeconds(6));
+        var waiting = bench.Locks.AcquireAsync("job", Lease);
+        SpinWait.SpinUntil(() => bench.Clock.ActiveTimers == 1, TimeSpan.FromSeconds(10));
+        await holder!.DisposeAsync();
+
+        // Act
+        bench.Clock.Advance(TimeSpan.FromSeconds(2));
+        await using var lease = await waiting.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        await Assert.That(lease.FencingToken).IsEqualTo(2L);
     }
 
     private static StubResponse TransactionConflict() =>

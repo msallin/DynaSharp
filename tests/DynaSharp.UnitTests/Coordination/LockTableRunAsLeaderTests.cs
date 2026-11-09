@@ -520,6 +520,78 @@ public sealed class LockTableRunAsLeaderTests
         await Assert.That(act).ThrowsExactly<ResourceNotFoundException>();
     }
 
+    [Test]
+    public async Task RunAsLeaderAsync_WorkThatDoesNotCompleteAtOnce_ResumesWithoutTheContextOfTheCaller()
+    {
+        // Arrange (the acquire is answered at once, so the work starts on the context of the caller)
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Act
+        var election = context.Start(() => bench.Locks.RunAsLeaderAsync("leader", Lease, (_, _) => done.Task));
+        done.SetResult();
+        await election;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_LeaseLost_LogsTheEndOfTheTermAsLost()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var leading = new TaskCompletionSource<Lease>(TaskCreationOptions.RunContinuationsAsynchronously);
+        async Task Work(Lease lease, CancellationToken stop)
+        {
+            if (lease.FencingToken == 1)
+            {
+                leading.SetResult(lease);
+                await Task.Delay(Timeout.Infinite, stop);
+            }
+        }
+
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work);
+        var first = await leading.Task;
+        var beat = first.NextBeat;
+        bench.Steal("leader", "thief");
+        bench.Clock.Advance(Lease / 3);
+        await beat;
+
+        // Act
+        await bench.RunAsync(Completion(election), TimeSpan.FromSeconds(1));
+
+        // Assert
+        await Assert.That(bench.LockLogs.First(static entry => entry.EventId.Id == 46).Message).IsEqualTo(
+            $"This process no longer leads on lock leader in table {bench.TableName} (lease_lost, holder label (null)).");
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_CancelledWhileLeading_LogsTheEndOfTheTermAsCancelled()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        using var stop = new CancellationTokenSource();
+        var leading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        async Task Work(Lease lease, CancellationToken token)
+        {
+            leading.SetResult();
+            await Task.Delay(Timeout.Infinite, token);
+        }
+
+        var election = bench.Locks.RunAsLeaderAsync("leader", Lease, Work, stop.Token);
+        await leading.Task;
+
+        // Act
+        await stop.CancelAsync();
+        await election.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+
+        // Assert
+        await Assert.That(bench.LockLogs.Single(static entry => entry.EventId.Id == 46).Message).IsEqualTo(
+            $"This process no longer leads on lock leader in table {bench.TableName} (cancelled, holder label (null)).");
+    }
+
     private static async Task<bool> Completion(Task task)
     {
         await task;

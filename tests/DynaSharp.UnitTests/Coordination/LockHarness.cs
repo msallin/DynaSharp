@@ -44,6 +44,15 @@ internal sealed class LockHarness : IDisposable
     /// <summary>Gets or sets what runs before the fake answers a request: it may answer in its place, or wait, or move the clock.</summary>
     public Func<RecordedRequest, CancellationToken, Task<StubResponse?>>? Intercept { get; set; }
 
+    /// <summary>Gets whether a request renews a lease: an <c>UpdateItem</c> that neither removes attributes, as a release does, nor raises the fencing token, as an acquire does.</summary>
+    /// <param name="request">The request.</param>
+    /// <returns><see langword="true"/> for a renewal.</returns>
+    public static bool IsRenewal(RecordedRequest request)
+    {
+        var body = Encoding.UTF8.GetString(request.Body.Span);
+        return request.Operation == "UpdateItem" && !body.Contains("REMOVE", StringComparison.Ordinal) && !body.Contains("ADD", StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// Holds back every request but a release until it is cancelled, as a DynamoDB that does not answer would. A release still goes through, so that
     /// disposing a lease at the end of a test ends.
@@ -61,6 +70,29 @@ internal sealed class LockHarness : IDisposable
             await Task.Delay(Timeout.Infinite, cancellationToken);
             return null;
         };
+
+    /// <summary>
+    /// Holds back the requests that <paramref name="held"/> picks until the test completes the returned source, whether or not they are cancelled, as a
+    /// DynamoDB that answers late would; the fake answers the others at once.
+    /// </summary>
+    /// <param name="held">Picks the requests to hold back.</param>
+    /// <param name="onHold">What runs when a request is held back, before it waits.</param>
+    /// <returns>The source that lets the held requests take their answers.</returns>
+    public TaskCompletionSource Hold(Func<RecordedRequest, bool> held, Action? onHold = null)
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Intercept = async (request, _) =>
+        {
+            if (held(request))
+            {
+                onHold?.Invoke();
+                await release.Task.ConfigureAwait(false);
+            }
+
+            return null;
+        };
+        return release;
+    }
 
     /// <summary>Gets the key of the item of a lock in this table.</summary>
     /// <param name="name">The name of the lock.</param>
@@ -124,7 +156,7 @@ internal sealed class LockHarness : IDisposable
 
     private async Task<StubResponse> AnswerAsync(RecordedRequest request, CancellationToken cancellationToken)
     {
-        if (Intercept is { } intercept && await intercept(request, cancellationToken) is { } answer)
+        if (Intercept is { } intercept && await intercept(request, cancellationToken).ConfigureAwait(false) is { } answer)
         {
             return answer;
         }

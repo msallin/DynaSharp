@@ -386,6 +386,33 @@ public sealed class LockTableTestingTests
         await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("locks");
     }
 
+    [Test]
+    [Arguments("SimulateHolderAsync")]
+    [Arguments("SimulateReleaseAsync")]
+    [Arguments("SimulateDeleteAsync")]
+    [Arguments("GetStateAsync")]
+    public async Task Helper_AnswerThatDoesNotComeAtOnce_ResumesWithoutTheContextOfTheCaller(string helper)
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        var context = new CountingSynchronizationContext();
+        var answer = bench.Hold(static _ => true);
+
+        // Act
+        var call = context.Start(() => helper switch
+        {
+            "SimulateHolderAsync" => bench.Locks.SimulateHolderAsync("job", Lease),
+            "SimulateReleaseAsync" => bench.Locks.SimulateReleaseAsync("job"),
+            "SimulateDeleteAsync" => bench.Locks.SimulateDeleteAsync("job"),
+            _ => bench.Locks.GetStateAsync("job"),
+        });
+        answer.SetResult();
+        await call;
+
+        // Assert
+        await Assert.That(context.Posts).IsEqualTo(0);
+    }
+
     private static async Task<bool> Completion(Task task)
     {
         await task;

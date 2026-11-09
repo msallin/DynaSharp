@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using DynaSharp.Coordination;
 
 namespace DynaSharp.UnitTests.Coordination;
@@ -61,5 +62,37 @@ public sealed class CoordinationTelemetryTests
 
         // Assert
         await Assert.That(links).IsNull();
+    }
+
+    [Test]
+    public async Task Meter_LockInstruments_HaveTheirUnitsAndDescriptions()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", TimeSpan.FromSeconds(30));
+        var instruments = new List<string>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, _) =>
+        {
+            if (instrument.Meter.Name == "DynaSharp" && instrument.Name.StartsWith("dynasharp.lock.", StringComparison.Ordinal))
+            {
+                lock (instruments)
+                {
+                    instruments.Add($"{instrument.Name} {instrument.Unit} {instrument.Description}");
+                }
+            }
+        };
+
+        // Act
+        listener.Start();
+
+        // Assert
+        await Assert.That(instruments.Order(StringComparer.Ordinal)).IsEquivalentTo(
+        [
+            "dynasharp.lock.acquisitions {lease} Number of leases a LockTable acquired, also by taking over a lock whose holder stopped renewing it.",
+            "dynasharp.lock.contention_retries {retry} Number of times RunAsLeaderAsync contended again after an acquire failed with a transient error, with error.type.",
+            "dynasharp.lock.losses {lease} Number of leases lost before they were released: taken over, deleted, run out, or the table gone.",
+            "dynasharp.lock.renewals {renewal} Number of renewals of leases, by the heartbeat or by RenewAsync, with error.type on the failed ones.",
+        ]);
     }
 }
