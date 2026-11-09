@@ -267,6 +267,8 @@ public sealed class KeyDiagnosticsTests
     [Arguments("""PartitionKey([|"{Number:d0}{Id}"|])""", "DYNA105 Error: Format 'd0' is out of range")]
     [Arguments("""PartitionKey("E"), SortKey([|"{Name:plain}#{Id}"|])""", "DYNA104 Error: Format 'plain' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
     [Arguments("""PartitionKey([|"A#{Name:RAW}"|]), GlobalIndexKey("GSI1", PartitionKey = "B#{Name:raw}")""", "DYNA104 Error: Format 'RAW' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{Name:xyz}{Id}"|])""", "DYNA104 Error: Format 'xyz' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
+    [Arguments("""PartitionKey("E"), SortKey([|"{Id:bogus}{At}"|])""", "DYNA104 Error: Format 'bogus' does not fit type 'string'. It takes no format, or raw at the end of the template.")]
     public async Task Build_FormatThatDoesNotFitBeforeANeighbour_ReportsTheFormatAlone(string attributes, string expected)
     {
         // Arrange (the default the placeholder fell back to is variable-width and strict, which is not what the format meant)
@@ -281,6 +283,28 @@ public sealed class KeyDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, expected));
+    }
+
+    [Test]
+    public async Task Build_FormatThatDoesNotFitBeforeAPlaceholderOfASortKey_ReportsTheOtherEntitiesToo()
+    {
+        // Arrange (the model the misfit keeps goes on to the emitter, which must not fail on a placeholder behind a string)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E"), SortKey([|"{A:xyz}{B}"|])]
+            public partial class E { public required string A { get; set; } public required string B { get; set; } }
+
+            [DynamoDbEntity, Discriminator("F"), PartitionKey([|"F#{Missing}"|])]
+            public partial class F { public required string Id { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(
+            Source,
+            "DYNA104 Error: Format 'xyz' does not fit type 'string'. It takes no format, or raw at the end of the template.",
+            "DYNA102 Error: Key template references unknown property 'Missing'"));
     }
 
     [Test]

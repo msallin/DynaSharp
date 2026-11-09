@@ -296,6 +296,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
     // Whether the bytes of the key follow the value. A fixed width does, which is what it is for. A string does at the end of the key, and before a space, which sorts below
     // everything a value may hold. Before another delimiter a value such as "a b" sorts below "a". The other variable widths sort by their text: 10 before 9, an enum by name.
+    // A placeholder right behind it comes only from a format that fell back to the default, an error already, and is no order either.
     private bool IsInOrder(PlaceholderSegment placeholder)
     {
         if (placeholder.Encoding.FixedWidth > 0)
@@ -305,7 +306,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
 
         var next = template.Segments.ToList().IndexOf(placeholder) + 1;
         return placeholder.Encoding is StringEncoding
-            && (next == template.Segments.Count || ((LiteralSegment)template.Segments[next]).Text[0] == ' ');
+            && (next == template.Segments.Count || (template.Segments[next] is LiteralSegment literal && literal.Text[0] == ' '));
     }
 
     private void EmitPrefixPartial()
