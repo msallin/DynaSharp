@@ -278,9 +278,9 @@ public static class ItemTableExtensions
     /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static BatchGetCommand<Item> Get(this BatchGetCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
+        command.CheckedTable().CheckKey(partitionKey, sortKey);
         var state = command.Enter();
         var table = state.Table;
-        table.CheckKey(partitionKey, sortKey);
         state.Actions.Add(table, state.Body.WrittenCount);
         state.WriteKeyObject(table, partitionKey, sortKey);
         return new(state, table);
@@ -295,6 +295,7 @@ public static class ItemTableExtensions
     /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static BatchWriteCommand<Item> Delete(this BatchWriteCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
+        command.CheckedTable().CheckKey(partitionKey, sortKey);
         var state = command.Enter();
         BatchWriteOperation.AddDelete(state, state.Table, partitionKey, sortKey);
         return new(state, state.Table);

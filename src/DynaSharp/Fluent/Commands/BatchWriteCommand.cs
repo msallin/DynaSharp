@@ -169,6 +169,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     public BatchWriteCommand<T> Delete(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);
+        table.Model.CheckKey(partitionKey, sortKey);
         var state = Enter();
         BatchWriteOperation.AddDelete(state, table.Model, partitionKey, sortKey);
         return new(state, state.Table);
@@ -291,4 +292,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     public string ToRequestJson() => BatchDriver.RenderJson<BatchWriteOperation, BatchWriteResult>(Enter().Settle());
 
     internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+
+    // The table of the command, for a check of an argument that must leave the command as it was when it throws.
+    internal TableModel CheckedTable() => CommandState.Check(_state, _version, Operation, _table).Table;
 }

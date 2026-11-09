@@ -1063,6 +1063,25 @@ public sealed class BatchWriteCommandTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Delete_EmptyKeyValue_ThrowsAndLeavesTheCommandUsable(bool otherTable)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var command = client.Table("Shop", "pk").BatchWrite();
+        var other = otherTable ? client.Table("Other", "pk") : null;
+        var failure = EmptyDelete(command, other);
+
+        // Act
+        var json = command.Delete("a").ToRequestJson();
+
+        // Assert
+        await Assert.That((failure is ArgumentException, json.Length > 0)).IsEqualTo((true, true));
+    }
+
+    [Test]
     public async Task PutAll_NullItemInTheSequence_ThrowsNamingTheSequence()
     {
         // Arrange
@@ -1709,6 +1728,19 @@ public sealed class BatchWriteCommandTests
         catch (InvalidOperationException)
         {
             return (first, true);
+        }
+    }
+
+    private static ArgumentException? EmptyDelete(BatchWriteCommand<Item> command, Table<Item>? other)
+    {
+        try
+        {
+            _ = other is null ? command.Delete(string.Empty) : command.Delete(other, string.Empty);
+            return null;
+        }
+        catch (ArgumentException exception)
+        {
+            return exception;
         }
     }
 

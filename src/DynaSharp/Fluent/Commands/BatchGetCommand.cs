@@ -64,6 +64,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     public BatchGetCommand<T> Get<TKey>(TKey key)
         where TKey : IKey<T>
     {
+        Argument.ThrowIfNull(key);
         var state = Enter();
         AddKey(state, key);
         return new(state, state.Table);
@@ -198,11 +199,12 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
 
     internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
 
+    // The table of the command, for a check of an argument that must leave the command as it was when it throws.
+    internal TableModel CheckedTable() => CommandState.Check(_state, _version, Operation, _table).Table;
+
     private static void AddKey<TKey>(CommandState state, TKey key)
         where TKey : IKey<T>
     {
-        Argument.ThrowIfNull(key);
-
         state.Actions.Add(state.Table, state.Body.WrittenCount);
         var json = state.BodyJson;
         json.WriteStartObject();

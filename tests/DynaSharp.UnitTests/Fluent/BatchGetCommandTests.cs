@@ -67,6 +67,24 @@ public sealed class BatchGetCommandTests
     }
 
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task Get_RefusedKey_ThrowsAndLeavesTheCommandUsable(bool nullKey)
+    {
+        // Arrange (a null generated key, or an empty value)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var command = client.Table("Shop", "pk").BatchGet();
+        var failure = Refuse(command, nullKey);
+
+        // Act
+        var json = command.Get("a").ToRequestJson();
+
+        // Assert
+        await Assert.That((failure is ArgumentException, json.Contains("\"a\"", StringComparison.Ordinal))).IsEqualTo((true, true));
+    }
+
+    [Test]
     public async Task SendAsync_Await_SendsIt()
     {
         // Arrange
@@ -749,6 +767,19 @@ public sealed class BatchGetCommandTests
 
     private static Task<BatchGetResult<Item>> Send(Table<Item> table, CancellationToken cancellationToken) =>
         table.BatchGet().Get("a").SendAsync(cancellationToken).AsTask();
+
+    private static ArgumentException? Refuse(BatchGetCommand<Item> command, bool nullKey)
+    {
+        try
+        {
+            _ = nullKey ? command.Get((TextKey)null!) : command.Get(string.Empty);
+            return null;
+        }
+        catch (ArgumentException exception)
+        {
+            return exception;
+        }
+    }
 
     // A key of an untyped table, which a caller writes by hand; a class, so that it can be null.
     private sealed class TextKey(string partitionKey) : IKey<Item>
