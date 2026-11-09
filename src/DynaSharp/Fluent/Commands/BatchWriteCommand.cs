@@ -165,7 +165,7 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public BatchWriteCommand<T> Delete(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);

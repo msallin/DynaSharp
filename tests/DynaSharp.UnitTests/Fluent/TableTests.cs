@@ -30,6 +30,20 @@ internal sealed class TableTests
         yield return new("Query of an index without a schema by strings", "index", () => _ = itemIndex.Query((IEnumerable<string>)["a"]));
     }
 
+    public static IEnumerable<KeyCase> KeysWithoutTheirSortKey()
+    {
+        yield return new("Get", static (items, client) => _ = items.Get("a"));
+        yield return new("Update", static (items, client) => _ = items.Update("a"));
+        yield return new("Delete", static (items, client) => _ = items.Delete("a"));
+        yield return new("BatchGet of the table", static (items, client) => _ = items.BatchGet().Get("a"));
+        yield return new("BatchWrite of the table", static (items, client) => _ = items.BatchWrite().Delete("a"));
+        yield return new("BatchWrite of another table", static (items, client) => _ = client.Table("Other", "pk").BatchWrite().Delete(items, "a"));
+        yield return new("TransactGet", static (items, client) => _ = client.TransactGet().Get(items, "a", out _));
+        yield return new("TransactWrite Update", static (items, client) => _ = client.TransactWrite().Update(items, "a"));
+        yield return new("TransactWrite Delete", static (items, client) => _ = client.TransactWrite().Delete(items, "a"));
+        yield return new("TransactWrite Check", static (items, client) => _ = client.TransactWrite().Check(items, "a"));
+    }
+
     [Test]
     public async Task Table_Names_AreKept()
     {
@@ -394,6 +408,23 @@ internal sealed class TableTests
     }
 
     [Test]
+    [MethodDataSource(nameof(KeysWithoutTheirSortKey))]
+    public async Task Key_WithoutTheSortKeyOfTheTable_ThrowsNamingIt(KeyCase call)
+    {
+        // Arrange
+        ArgumentNullException.ThrowIfNull(call);
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failure = TestClient.Catch(() => call.Call(shop, client));
+
+        // Assert
+        await Assert.That(((failure as ArgumentException)?.ParamName, failure.Message)).IsEqualTo(("sortKey", "The table Shop was opened with the sort key sk, so a key of it needs one. (Parameter 'sortKey')"));
+    }
+
+    [Test]
     public async Task Get_SortKeyOnATableWithoutOne_ThrowsNamingTheTable()
     {
         // Arrange
@@ -622,6 +653,12 @@ internal sealed class TableTests
     /// <param name="ParamName">The parameter the exception names.</param>
     /// <param name="Call">The call.</param>
     internal sealed record NullCase(string Name, string ParamName, Action Call)
+    {
+        /// <inheritdoc/>
+        public override string ToString() => Name;
+    }
+
+    internal sealed record KeyCase(string Name, Action<Table<Item>, DynamoDbClient> Call)
     {
         /// <inheritdoc/>
         public override string ToString() => Name;

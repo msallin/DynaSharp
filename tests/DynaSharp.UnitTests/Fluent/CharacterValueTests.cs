@@ -25,10 +25,10 @@ public sealed class CharacterValueTests
         // Act
         var json = action switch
         {
-            "Set" => fixture.Shop.Update("k").Set("x", 'a').ToRequestJson(),
-            "SetIfNotExists" => fixture.Shop.Update("k").SetIfNotExists("x", 'a').ToRequestJson(),
-            "Add" => fixture.Shop.Update("k").Add("x", 'a').ToRequestJson(),
-            _ => fixture.Shop.Update("k").Set(Attr<char>("x"), 'a').ToRequestJson(),
+            "Set" => fixture.Shop.Update("k", "s").Set("x", 'a').ToRequestJson(),
+            "SetIfNotExists" => fixture.Shop.Update("k", "s").SetIfNotExists("x", 'a').ToRequestJson(),
+            "Add" => fixture.Shop.Update("k", "s").Add("x", 'a').ToRequestJson(),
+            _ => fixture.Shop.Update("k", "s").Set(Attr<char>("x"), 'a').ToRequestJson(),
         };
 
         // Assert
@@ -77,12 +77,12 @@ public sealed class CharacterValueTests
         // Act
         var json = comparison switch
         {
-            "Eq" => fixture.Shop.Update("k").If(attribute.Eq('a')).ToRequestJson(),
-            "Ne" => fixture.Shop.Update("k").If(attribute.Ne('a')).ToRequestJson(),
-            "Lt" => fixture.Shop.Update("k").If(attribute.Lt('a')).ToRequestJson(),
-            "Le" => fixture.Shop.Update("k").If(attribute.Le('a')).ToRequestJson(),
-            "Gt" => fixture.Shop.Update("k").If(attribute.Gt('a')).ToRequestJson(),
-            _ => fixture.Shop.Update("k").If(attribute.Ge('a')).ToRequestJson(),
+            "Eq" => fixture.Shop.Update("k", "s").If(attribute.Eq('a')).ToRequestJson(),
+            "Ne" => fixture.Shop.Update("k", "s").If(attribute.Ne('a')).ToRequestJson(),
+            "Lt" => fixture.Shop.Update("k", "s").If(attribute.Lt('a')).ToRequestJson(),
+            "Le" => fixture.Shop.Update("k", "s").If(attribute.Le('a')).ToRequestJson(),
+            "Gt" => fixture.Shop.Update("k", "s").If(attribute.Gt('a')).ToRequestJson(),
+            _ => fixture.Shop.Update("k", "s").If(attribute.Ge('a')).ToRequestJson(),
         };
 
         // Assert
@@ -96,7 +96,7 @@ public sealed class CharacterValueTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Shop.Update("k").If(Attr("x").Between('a', 'b')).ToRequestJson();
+        var json = fixture.Shop.Update("k", "s").If(Attr("x").Between('a', 'b')).ToRequestJson();
 
         // Assert
         await Assert.That(ValuesOf(json)).IsEqualTo("""{":v0":{"S":"a"},":v1":{"S":"b"}}""");
@@ -109,7 +109,7 @@ public sealed class CharacterValueTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Shop.Update("k").If($"{Attr("x")} = {'a'}").ToRequestJson();
+        var json = fixture.Shop.Update("k", "s").If($"{Attr("x")} = {'a'}").ToRequestJson();
 
         // Assert
         await Assert.That(ValuesOf(json)).IsEqualTo(Value);
@@ -122,7 +122,7 @@ public sealed class CharacterValueTests
         using var fixture = new Fixture();
 
         // Act
-        var json = fixture.Shop.Update("k").Set("x", 'a').Set("y", "a").ToRequestJson();
+        var json = fixture.Shop.Update("k", "s").Set("x", 'a').Set("y", "a").ToRequestJson();
 
         // Assert
         await Assert.That(ValuesOf(json)).IsEqualTo(Value);

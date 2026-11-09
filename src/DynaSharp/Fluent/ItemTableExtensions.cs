@@ -88,7 +88,7 @@ public static class ItemTableExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static GetCommand<Item> Get(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -106,7 +106,7 @@ public static class ItemTableExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static UpdateCommand<Item> Update(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -124,7 +124,7 @@ public static class ItemTableExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static DeleteCommand<Item> Delete(this Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -275,7 +275,7 @@ public static class ItemTableExtensions
     /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command, which replaces this one.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static BatchGetCommand<Item> Get(this BatchGetCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         var state = command.Enter();
@@ -292,7 +292,7 @@ public static class ItemTableExtensions
     /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The command, which replaces this one.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static BatchWriteCommand<Item> Delete(this BatchWriteCommand<Item> command, AttributeValue partitionKey, AttributeValue sortKey = default)
     {
         var state = command.Enter();

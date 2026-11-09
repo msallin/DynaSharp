@@ -154,7 +154,7 @@ public static class TransactWriteExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static UpdateStep Update<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out _)));
 
@@ -167,7 +167,7 @@ public static class TransactWriteExtensions
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static UpdateStep Update<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectUpdate(AddAction(chain, table, "{\"Update\":"u8, partitionKey, sortKey, out marker)));
 
@@ -208,7 +208,7 @@ public static class TransactWriteExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static ConditionStep Delete<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out _)));
 
@@ -221,7 +221,7 @@ public static class TransactWriteExtensions
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static ConditionStep Delete<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(WriteRules.ExpectVersion(AddAction(chain, table, "{\"Delete\":"u8, partitionKey, sortKey, out marker)));
 
@@ -265,7 +265,7 @@ public static class TransactWriteExtensions
     /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static ConditionStep Check<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey = default)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out _));
 
@@ -278,7 +278,7 @@ public static class TransactWriteExtensions
     /// <param name="marker">What finds this action in a cancelled transaction.</param>
     /// <returns>The step.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     public static ConditionStep Check<TChain>(this TChain chain, Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => new(AddAction(chain, table, "{\"ConditionCheck\":"u8, partitionKey, sortKey, out marker));
 

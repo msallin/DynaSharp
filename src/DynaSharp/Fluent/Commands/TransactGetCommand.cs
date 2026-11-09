@@ -46,7 +46,7 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
     /// <param name="slot">What reads the item from the result.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A key is empty, or the table has no sort key.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
     /// <exception cref="InvalidOperationException">The transaction holds 100 gets already.</exception>
     public TransactGetCommand Get(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out TransactSlot<Item> slot)
     {
@@ -59,13 +59,13 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
         return new(state);
     }
 
-    /// <summary>Adds a get on a table without a schema and without a sort key, by the value of the partition key. DynamoDB rejects a key without its sort key on a table that has one.</summary>
+    /// <summary>Adds a get on a table without a schema and without a sort key, by the value of the partition key.</summary>
     /// <param name="table">The table.</param>
     /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
     /// <param name="slot">What reads the item from the result.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">The key is empty.</exception>
+    /// <exception cref="ArgumentException">The key is empty, or the table has a sort key.</exception>
     /// <exception cref="InvalidOperationException">The transaction holds 100 gets already.</exception>
     public TransactGetCommand Get(Table<Item> table, AttributeValue partitionKey, out TransactSlot<Item> slot) => Get(table, partitionKey, default, out slot);
 

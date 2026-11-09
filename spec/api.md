@@ -640,7 +640,7 @@ A string with a lone surrogate is no text: `DynamoDbWriter` throws `ArgumentExce
 
 | Failure | Where |
 |---|---|
-| A bad key of `Table<Item>`: empty string, empty binary, or a sort key on a table opened without one | `ArgumentException` at the call |
+| A bad key of `Table<Item>`: empty string, empty binary, a sort key on a table opened without one, or none on a table opened with one | `ArgumentException` at the call |
 | A typed key from bad input | `KeyFormatException`, an `ArgumentException` naming the placeholder, never the value; from a generated builder it names the template, and for a delimiter the template's delimiters: `The value contains a delimiter of the key template 'USER#{Id}' ('#'). (Parameter 'Id')` |
 | A rejected request of a command | `ValidationException` with `Expressions`, `ExpressionNames` (`#n0 = status`), `ExpressionValueTypes` (`:v0` is `S`) and a `Message` line `Expression: #n0 = :v0, where #n0 = status, :v0 (S)`; no values. In a transaction or batch get the entries are prefixed (`TransactItems[2].`) |
 | An item that does not fit the type | `DynamoDbMappingException` with `EntityType`, `AttributeName`, `Key`, also for an item of another type (the discriminator value is named: it is a type tag). A stored key that does not fit its template says so without the value. `Key` is the table's key attributes of the item, on `Get`, `Query`, `Scan`, fan-out, `BatchGet` and mixed reads (null after `Select` on `Query`/`Scan`); message and telemetry never show it. `OnMappingFailure`, section 6 |

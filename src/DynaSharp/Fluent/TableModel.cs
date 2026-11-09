@@ -155,7 +155,7 @@ internal sealed class TableModel
     /// <param name="partitionKey">The partition key.</param>
     /// <param name="sortKey">The sort key, or the default value if there is none.</param>
     /// <returns>The state of the command.</returns>
-    /// <exception cref="ArgumentException">A key is empty, or there is a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is there and the table has none, or missing and the table has one.</exception>
     public CommandState Begin(AttributeValue partitionKey, AttributeValue sortKey)
     {
         CheckKey(partitionKey, sortKey);
@@ -181,7 +181,7 @@ internal sealed class TableModel
     /// <summary>Finds what is wrong with a key at the call that passed it.</summary>
     /// <param name="partitionKey">The partition key.</param>
     /// <param name="sortKey">The sort key, or the default value if there is none.</param>
-    /// <exception cref="ArgumentException">A key is empty, or there is a sort key and the table has none.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is there and the table has none, or missing and the table has one.</exception>
     public void CheckKey(AttributeValue partitionKey, AttributeValue sortKey)
     {
         ThrowIfEmpty(partitionKey, nameof(partitionKey));
@@ -192,6 +192,10 @@ internal sealed class TableModel
             {
                 throw new ArgumentException($"The table {Name} was opened without a sort key, so a key of it has none.", nameof(sortKey));
             }
+        }
+        else if (SortKeyName is not null)
+        {
+            throw new ArgumentException($"The table {Name} was opened with the sort key {SortKeyName}, so a key of it needs one.", nameof(sortKey));
         }
     }
 

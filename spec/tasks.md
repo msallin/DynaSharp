@@ -142,6 +142,7 @@ Git history has the detail; each line says what an area delivered and where it l
 - Streams: a `DescribeStream` that listed no shard of an `ENABLED`/`ENABLING` stream (one just enabled) ended `ReadStreamAsync` at once; the listing is now repeated every `EmptyPageDelay`, at least every second, until a shard is listed, and those shards are read from their first record, also under `Latest` (`StreamMerge.DiscoverAsync`).
 - A format that does not fit, on a string of a sort key right before another placeholder (`{A:xyz}{B}`), reports DYNA104 instead of failing the generator (CS8785, which took every diagnostic of the compilation with it): the order check of the emitter reads a placeholder behind the string as no order.
 - `[KeyOnly]` held without loss only by a key of a sparse index whose other inputs can be absent is `DYNA109`, since a `Put` of an item the index leaves out stored no value and every read of it threw. Of several lossless keys, restoring and the fallback of a stored input take one that is on every item. `Claim` of the unit tests had the case and gets the index `BySeal`.
+- A key of `Table<Item>` without the sort key the table was opened with throws `ArgumentException` (`sortKey`) at the call, as the reverse mistake did: `Get`, `Update`, `Delete`, `Get` of a batch get, `Delete` of a batch write and the transaction verbs. It went out before and DynamoDB answered it.
 
 ## Decisions
 
