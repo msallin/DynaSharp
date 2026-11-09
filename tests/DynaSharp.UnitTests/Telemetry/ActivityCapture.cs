@@ -10,6 +10,7 @@ internal sealed class ActivityCapture : IDisposable
 {
     private readonly Lock _gate = new();
     private readonly List<Activity> _stopped = [];
+    private readonly List<(Func<Activity, bool> Match, TaskCompletionSource<Activity> Stopped)> _waiters = [];
     private readonly Activity _parent;
     private readonly ActivityListener _listener;
 
@@ -31,10 +32,18 @@ internal sealed class ActivityCapture : IDisposable
             {
                 if (activity.TraceId == traceId)
                 {
+                    List<TaskCompletionSource<Activity>> matched = [];
                     lock (_gate)
                     {
                         _stopped.Add(activity);
+                        foreach (var waiter in _waiters.Where(waiter => waiter.Match(activity)).ToList())
+                        {
+                            _waiters.Remove(waiter);
+                            matched.Add(waiter.Stopped);
+                        }
                     }
+
+                    matched.ForEach(stopped => stopped.SetResult(activity));
                 }
             },
         };
@@ -81,6 +90,22 @@ internal sealed class ActivityCapture : IDisposable
     /// <summary>Runs a call like <see cref="RunAsync(HttpMessageHandler, Func{DynamoDbClient, Task}, TimeProvider?, ActivitySamplingResult, Uri?, TimeSpan?)"/> with a listener that samples as given.</summary>
     public static Task<Activity> RunAsync(HttpMessageHandler handler, Func<DynamoDbClient, Task> call, ActivitySamplingResult sampling) =>
         RunAsync(handler, call, null, sampling);
+
+    /// <summary>Waits until an activity that <paramref name="match"/> accepts stops, or returns one that stopped already.</summary>
+    public Task<Activity> StoppedAsync(Func<Activity, bool> match)
+    {
+        lock (_gate)
+        {
+            if (_stopped.FirstOrDefault(match) is { } stopped)
+            {
+                return Task.FromResult(stopped);
+            }
+
+            var waiter = new TaskCompletionSource<Activity>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _waiters.Add((match, waiter));
+            return waiter.Task;
+        }
+    }
 
     /// <summary>Gets the one activity that was stopped, which fails if there was none or more.</summary>
     public Activity Single()

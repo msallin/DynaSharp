@@ -334,6 +334,11 @@ internal sealed class StreamMerge
         {
             // Stopped by the consumer or by another reader, which has reported why.
         }
+        catch (ChannelClosedException)
+        {
+            // Another reader failed while this one waited for room in the channel: only FailAsync closes it while a reader runs, and it has reported
+            // why. Not filtered on the completion of the reader, which comes only once FailAsync has drained the channel, maybe after this catch.
+        }
 #pragma warning disable CA1031 // The failure is not swallowed: the consumer gets it from the channel.
         catch (Exception failure)
 #pragma warning restore CA1031

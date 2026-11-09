@@ -136,6 +136,7 @@ Git history has the detail; each line says what an area delivered and where it l
 - `DictionaryConverter` writes an empty map name that `JsonValueWriter` refuses, and the fake accepts it: `FidelityTests` question 12 asks real DynamoDB (Dynoxide and DynamoDB Local answer `ValidationException`); the behaviour stays until the answer is in (Open).
 - Credentials: a provider that cancels its own lookup (its endpoint timed out; neither the caller's token nor the attempt timeout) surfaces as `CredentialsUnavailableException` around the cancellation, asked once and never retried, instead of a retried `TimeoutException` that blamed the HTTP handler (`DynamoDbPipeline.GetCredentialsAsync`).
 - Credentials: credentials that arrive already inside the mandatory refresh period (a `credential_process` with 5-minute leases) are served without waiting until `ShortLeaseMargin` (1 min, or half their remaining life) before expiry and refreshed in the background at most every `AdvisoryRetryInterval`, instead of a fetch on every call (`RefreshingCredentialsCache`); the rule is in [docs/credentials.md](../docs/credentials.md#when-credentials-are-refreshed).
+- Streams: a healthy shard of `ReadStreamAsync` that waited for room in the full buffer when another shard failed got `ChannelClosedException` and ended its span as failed; it now ends quietly, as one stopped by the cancel (`StreamMerge.ReadShardAsync`). The catch is not filtered on the completion of the reader, which comes only after `FailAsync` drained the channel.
 
 ## Decisions
 

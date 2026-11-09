@@ -157,6 +157,53 @@ public sealed class ReadStreamTelemetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_AnotherShardFailsWhileThisOneWaitsForRoomInTheBuffer_EndsItsSpanWithoutAFailure()
+    {
+        // Arrange (shard "full" fills the buffer of 16 records, the consumer holds the first, and its next record waits for room; then shard "bad" fails)
+        using var capture = new ActivityCapture();
+        var bufferFull = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new StubHandler(async (request, cancellationToken) =>
+        {
+            var shardId = request.Operation == "GetShardIterator" ? request.BodyJson.GetProperty("ShardId").GetString() : null;
+            var iterator = request.Operation == "GetRecords" ? request.BodyJson.GetProperty("ShardIterator").GetString() : null;
+            switch (request.Operation, shardId, iterator)
+            {
+                case ("DescribeStream", _, _):
+                    return StubResponse.StreamDescription(new StreamDescription { StreamStatus = StreamStatus.Enabled, Shards = [StubResponse.Shard("full"), StubResponse.Shard("bad")] });
+                case (_, "full", _):
+                    return StubResponse.ShardIterator("full/0");
+                case (_, "bad", _):
+                    // More round trips for "bad" than "full" has left, so the record of "full" waits for room when "bad" fails.
+                    await bufferFull.Task.WaitAsync(cancellationToken);
+                    return StubResponse.ShardIterator("bad/0");
+                case (_, _, "full/0"):
+                    return StubResponse.Records("full/1", [.. Enumerable.Range(1, 17).Select(static number => Insert($"full-{number}"))]);
+                case (_, _, "full/1"):
+                    bufferFull.SetResult();
+                    return StubResponse.Records("full/2", Insert("full-18"));
+                case (_, _, ['b', 'a', 'd', '/', var page]) when page < '5':
+                    return StubResponse.Records($"bad/{(char)(page + 1)}");
+                case (_, _, "bad/5"):
+                    return StubResponse.DynamoDbError("AccessDeniedException", "Not allowed.");
+                default:
+                    return await UntilCancelledAsync(cancellationToken);
+            }
+        });
+        using var streams = TestClient.CreateStreams(handler);
+        var request = new ReadStreamRequest { StreamArn = TestClient.StreamArn, ShardIteratorType = ShardIteratorType.TrimHorizon, EmptyPageDelay = TimeSpan.Zero };
+        var records = streams.ReadStreamAsync(request).GetAsyncEnumerator();
+        await records.MoveNextAsync();
+
+        // Act
+        await capture.StoppedAsync(static span => Equals(span.GetTagItem("dynasharp.stream.shard_id"), "bad"));
+        await TestClient.CaptureAsync<AccessDeniedException>(async () => await records.MoveNextAsync());
+        await records.DisposeAsync();
+
+        // Assert
+        await Assert.That(Shard(capture, "full").Status).IsEqualTo(ActivityStatusCode.Unset);
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Listener_CountsTheRecordsHandedOut()
     {
         // Arrange
