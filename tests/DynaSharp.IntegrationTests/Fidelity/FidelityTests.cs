@@ -366,6 +366,31 @@ public sealed class FidelityTests(Backend backend)
         await Assert.That(outcome).IsIn("ValidationException", "OK, 0 items", "OK, 1 items");
     }
 
+    // Question 12: an empty name inside a map. DictionaryConverter writes one and FakeDynamoDb stores it, while AttributeValue.FromJson refuses it as a name DynamoDB does not have;
+    // the answer says which side is right. A stored map is read back, to see that the name stays.
+    [Test]
+    public async Task PutItem_MapWithAnEmptyName_IsRecorded()
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync();
+        var json = $$$$$$"""{"TableName":"{{{{{{table}}}}}}","Item":{"pk":{"S":"e"},"m":{"M":{"":{"S":"x"}}}}}""";
+
+        // Act
+        var response = await sandbox.Emulator.Raw.SendAsync("PutItem", json);
+        var answer = Outcome(response);
+        if (answer == "OK")
+        {
+            var read = (await sandbox.Emulator.Raw.SendAsync("GetItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"e"}},"ConsistentRead":true}""")).EnsureSuccess();
+            answer = JsonNode.Parse(read.Body)!["Item"]!["m"]!["M"]!.AsObject().ContainsKey(string.Empty) ? "OK, kept" : "OK, dropped";
+        }
+
+        var outcome = Record("12 PutItem of a map with an empty name", answer, response, null);
+
+        // Assert
+        await Assert.That(outcome).IsIn("OK, kept", "OK, dropped", "ValidationException");
+    }
+
     // One item for each failing update: a number of 38 digits, and nothing else that the updates reach. The other item is the one the condition check reads.
     private static async Task<string> SeedForUpdatesAsync(Sandbox sandbox)
     {
