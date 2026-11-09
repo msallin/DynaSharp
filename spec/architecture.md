@@ -211,6 +211,7 @@ through `CommandState.Write`), later clauses may change the verdict, and `WriteS
 | `WriteItem` of a versioned entity | `UnsettledVersion`, `EntityVersion`, `StoredVersion` | `AppendVersion`. The item always holds the next version, so `IgnoreVersion` only drops the condition |
 | `IfNotExists` of a put or a step | `ItemMustNotExist` | Throws if `UnsettledVersion` holds a version above 0, which no missing item can have |
 | `ExpectVersion` for a write by key | `UnsettledVersion` | Throws unless `IfVersion` or `IgnoreVersion` came |
+| `AdvanceVersion`, the `IfVersion(n)` of an update | `OwedVersion`, `StoredVersion` | `ExpressionWriter.SetVersion`, `SET #v = :next`, first, unless an action already changes the attribute, which leaves `StoredVersion` null. The condition was appended at the call |
 | `IfVersion(0)` of an entity with `EntityWrites.AllowsMissingVersion` | `VersionMustReadAsZero` | `AppendVersionZero` (missing or 0), unless `IfNotExists` came, which replaces it; a version from an entity decides the same way |
 | `ExpectVersionOf` for `Delete(entity)` | `UnsettledVersion`, `EntityVersion` | `AppendVersion` of what the entity held |
 | `ExpectUpdate` | `OwesLiteralKeys`, `OwesDiscriminator` | `SetMissingAttribute` per key of `EntityWrites.LiteralKeys`, then for the discriminator |
@@ -219,7 +220,7 @@ through `CommandState.Write`), later clauses may change the verdict, and `WriteS
 | `StoreKeyInputs` | `StoresKeyInputs` | `KeyInputChanges.StoreTableInputs`: `SetMissingAttribute` per `EntityWrites.StoredTableInputs`, from `HeldKey` or `Parse` of the key text unless `DynamoDbKeyInput.IsCutOff`; no read, and it throws for what a key given as strings cannot give back |
 | `NoteBatchWrite` | `UnsettledVersion` | Throws unless `IgnoreVersion` came. `BatchWriteOperation.AddPut` writes the next version, because a batch that is sent has `IgnoreVersion` |
 
-The order in `Settle` matters, so each sees the actions before it: version condition, keys, stored inputs, indexes of literals, discriminator, and last the next version of an
+The order in `Settle` matters, so each sees the actions before it: next version of a checked update, version condition, keys, stored inputs, indexes of literals, discriminator, and last the next version of an
 update without the check. `EntityVersion` is cleared when the version settles, because a transaction reuses the state for its next action. `VersionChecked` makes `IgnoreVersion`
 after `IfVersion` throw. Raw paths go past all of this on purpose. `api.md` section 8 is the contract.
 

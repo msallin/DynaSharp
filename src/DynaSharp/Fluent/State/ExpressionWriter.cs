@@ -266,6 +266,24 @@ internal sealed class ExpressionWriter
     }
 
     /// <summary>
+    /// Adds <c>name = version</c> to the <c>SET</c> clause, the next version of a checked update, unless an action of the update changes the attribute, as in <see cref="SetMissingAttribute"/>.
+    /// It runs last, so that it sees them all.
+    /// </summary>
+    /// <param name="attributeName">The attribute of the version.</param>
+    /// <param name="version">The next version.</param>
+    /// <returns><see langword="true"/> if it was added, <see langword="false"/> if an action of the update stores what it likes there.</returns>
+    public bool SetVersion(string attributeName, long version)
+    {
+        if (HasActionOnAttribute(attributeName))
+        {
+            return false;
+        }
+
+        SetAttribute<long, NumberConverter<long>>(attributeName, version);
+        return true;
+    }
+
+    /// <summary>
     /// Adds <c>name = if_not_exists(name, :zero) + :one</c> to the <c>SET</c> clause, the next version of an update that does not know the one it advances from: an item without a version reads as 0, so it
     /// gets 1, as a first checked write stores. An action of the update on the attribute takes precedence, as in <see cref="SetMissingAttribute"/>. It runs last, so that it sees them all.
     /// </summary>

@@ -30,6 +30,10 @@ public static class EntityWriteExtensions
     /// attribute, which <see cref="IgnoreVersion{T}(UpdateCommand{T})"/> writes to. With <see cref="VersionMissing.Allow"/> it looks at the version attribute instead, and writes to an item
     /// without one or with 0 in it.
     /// </para>
+    /// <para>
+    /// <b>Setting the version yourself.</b> An update that sets, adds to or removes the version attribute by its own action, before or after this, keeps that action in place of the next version,
+    /// and still checks this one. <see cref="WriteResult{T}.Version"/> is then <see langword="null"/>, because the update does not know what the action stores.
+    /// </para>
     /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>
     /// <param name="command">The command.</param>

@@ -159,16 +159,17 @@ internal static class WriteRules
         state.Write.ExpectedVersion = version;
     }
 
-    /// <summary>Adds the condition on a version and sets the next one, for an update.</summary>
+    /// <summary>
+    /// Adds the condition on a version and owes the next one, for an update. <see cref="WriteState.Settle"/> sets it, because only then is it known whether the update has an action of its own on the
+    /// attribute, which takes its place.
+    /// </summary>
     /// <param name="state">The state, whose table is the one of the write.</param>
     /// <param name="version">The version the item must have.</param>
     /// <exception cref="InvalidOperationException">The table has no version.</exception>
     public static void AdvanceVersion(CommandState state, long version)
     {
         IfVersion(state, version);
-        var next = version + 1;
-        state.Expressions.SetAttribute<long, NumberConverter<long>>(VersionAttribute(state), next);
-        state.Write.StoredVersion = next;
+        state.Write.OwedVersion = version + 1;
     }
 
     /// <summary>

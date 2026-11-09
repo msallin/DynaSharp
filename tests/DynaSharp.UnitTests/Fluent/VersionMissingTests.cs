@@ -219,7 +219,7 @@ public sealed class VersionMissingTests
     }
 
     [Test]
-    [Arguments(true, "#n1")]
+    [Arguments(true, "#n0")]
     [Arguments(false, "#n0")]
     public async Task ToRequestJson_UpdateIfVersionZeroAndIfNotExists_AsksForTheKeyAloneOnceInEitherOrder(bool versionFirst, string key)
     {
@@ -330,7 +330,7 @@ public sealed class VersionMissingTests
     }
 
     [Test]
-    [Arguments(true, "(attribute_exists(#n1)) AND (attribute_not_exists(#n0) OR #n0 = :v1)")]
+    [Arguments(true, "(attribute_exists(#n0)) AND (attribute_not_exists(#n1) OR #n1 = :v1)")]
     [Arguments(false, "(attribute_exists(#n0)) AND (attribute_not_exists(#n1) OR #n1 = :v1)")]
     public async Task ToRequestJson_UpdateIfVersionZeroAndIfExists_AsksForAnItemAtZeroInEitherOrder(bool versionFirst, string condition)
     {

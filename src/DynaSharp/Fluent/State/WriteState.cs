@@ -57,6 +57,9 @@ internal struct WriteState
     /// <summary>Gets or sets the version the write stores, for its result.</summary>
     public long? StoredVersion { get; set; }
 
+    /// <summary>Gets or sets the next version a checked update stores, which <see cref="Settle"/> writes unless the update has an action of its own on the attribute, see <see cref="WriteRules.AdvanceVersion"/>.</summary>
+    public long? OwedVersion { get; set; }
+
     /// <summary>
     /// Gets or sets the parts of the condition the write sends, for the message of a <see cref="ConditionalCheckFailedException"/>, see <see cref="FailedCondition.Explain"/>. <see cref="Settle"/> leaves it, because the
     /// response comes after it, so it lasts until the state goes back. A transaction sets it as well and does not read it.
@@ -110,6 +113,12 @@ internal struct WriteState
         if (mustExist && versionChecked && expected == 0 && !readsAsZero)
         {
             throw ExistsAtVersionZero(state.Table);
+        }
+
+        if (OwedVersion is { } next)
+        {
+            OwedVersion = null;
+            StoredVersion = state.Expressions.SetVersion(state.Table.Writes!.VersionAttributeName!, next) ? next : null;
         }
 
         if (readsAsZero && !mustNotExist)

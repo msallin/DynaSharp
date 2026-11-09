@@ -99,6 +99,56 @@ public sealed class WriteRulesUpdateTests
     }
 
     [Test]
+    [Arguments("raw path after")]
+    [Arguments("handle after")]
+    public async Task ToRequestJson_UpdateIfVersionThatSetsTheVersion_ChecksAndKeepsTheValueOfTheCaller(string shape)
+    {
+        // Arrange (DynamoDB refuses two actions on one path, so the action of the caller takes the place of the next version, as with IgnoreVersion)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var tickets = client.Table<Ticket>("Shop");
+
+        // Act
+        var json = shape switch
+        {
+            "raw path after" => tickets.Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).Set("Revision", 9).ToRequestJson(),
+            _ => tickets.Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).Set(Ticket.Attrs.Revision, 9).ToRequestJson(),
+        };
+
+        // Assert
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v1, #n1 = if_not_exists(#n1, :v2)","ConditionExpression":"#n0 = :v0","ExpressionAttributeNames":{"#n0":"Revision","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"3"},":v1":{"N":"9"},":v2":{"S":"TICKET"}}}"""));
+    }
+
+    [Test]
+    public async Task ToRequestJson_UpdateThatSetsTheVersionBeforeIfVersion_ChecksAndKeepsTheValueOfTheCaller()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).Set("Revision", 9).IfVersion(3).ToRequestJson();
+
+        // Assert
+        await Assert.That(json).IsEqualTo(Fill("""{"TableName":"Shop","Key":@KEY,"UpdateExpression":"SET #n0 = :v0, #n1 = if_not_exists(#n1, :v2)","ConditionExpression":"#n0 = :v1","ExpressionAttributeNames":{"#n0":"Revision","#n1":"_type"},"ExpressionAttributeValues":{":v0":{"N":"9"},":v1":{"N":"3"},":v2":{"S":"TICKET"}}}"""));
+    }
+
+    [Test]
+    public async Task SendAsync_UpdateIfVersionThatSetsTheVersion_ReturnsNoVersion()
+    {
+        // Arrange (the update does not know what the action of the caller stores)
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        handler.Enqueue(StubResponse.Json("{}"));
+
+        // Act
+        var result = await client.Table<Ticket>("Shop").Update(Ticket.Keys.Of("t1", Day)).IfVersion(3).Add("Revision", 5).SendAsync();
+
+        // Assert
+        await Assert.That(result.Version).IsNull();
+    }
+
+    [Test]
     public async Task ToRequestJson_UpdateIfVersionAfterIgnoreVersion_AdvancesFromThatVersionOnce()
     {
         // Arrange
