@@ -474,6 +474,54 @@ public sealed class EntityKeyBuilderTests
     }
 
     [Test]
+    public async Task Build_KeyOnlyInASparseKeyAndAnother_IsRestoredFromTheOther()
+    {
+        // Arrange (an item without a Tracking has no key of ByTrack, so only the other index holds the note of every item)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("T#{Tenant}"), SortKey("ITEM"), GlobalIndexKey("ByTrack", PartitionKey = "TRACK#{Tracking}", SortKey = "N#{Note}", Sparse = true), GlobalIndexKey("ByNote", PartitionKey = "N#{Note}")]
+            public partial class E { public required string Tenant { get; set; } public string? Tracking { get; set; } [KeyOnly] public required string Note { get; set; } }
+            """;
+
+        // Act
+        var property = Analysis.Model(Source, "global::Shop.E").Properties.Single(candidate => candidate.Name == "Note");
+
+        // Assert
+        await Assert.That(property.RestoredFromKey).IsEqualTo("bynotepk");
+    }
+
+    [Test]
+    public async Task Build_StoredInputInASparseKeyAndAnother_FallsBackOnTheOther()
+    {
+        // Arrange
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("T#{Tenant}"), SortKey("ITEM"), GlobalIndexKey("ByTrack", PartitionKey = "TRACK#{Tracking}", SortKey = "N#{Note}", Sparse = true), GlobalIndexKey("ByNote", PartitionKey = "N#{Note}")]
+            public partial class E { public required string Tenant { get; set; } public string? Tracking { get; set; } public required string Note { get; set; } }
+            """;
+
+        // Act
+        var property = Analysis.Model(Source, "global::Shop.E").Properties.Single(candidate => candidate.Name == "Note");
+
+        // Assert
+        await Assert.That(property.FallbackKey).IsEqualTo("bynotepk");
+    }
+
+    [Test]
+    public async Task Build_NullableKeyOnlyThatAloneMakesItsKeySparse_IsRestoredFromIt()
+    {
+        // Arrange (the key is missing exactly when the value is null, which is what a missing attribute reads as)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("T#{Tenant}"), GlobalIndexKey("ByTrack", PartitionKey = "TRACK#{Tracking}", Sparse = true)]
+            public partial class E { public required string Tenant { get; set; } [KeyOnly] public string? Tracking { get; set; } }
+            """;
+
+        // Act
+        var property = Analysis.Model(Source, "global::Shop.E").Properties.Single(candidate => candidate.Name == "Tracking");
+
+        // Assert
+        await Assert.That(property.RestoredFromKey).IsEqualTo("bytrackpk");
+    }
+
+    [Test]
     [Arguments("""PartitionKey("A#{Id}"), SortKey("{At:yyyy}")""", """public DateTime At { get; set; } public string Id { get; set; } = "";""", "At")]
     [Arguments("""PartitionKey("A"), GlobalIndexKey("GSI1", PartitionKey = "A#{Id}", SortKey = "B", Sparse = true)""", """public string? Id { get; set; }""", "Id")]
     [Arguments("""PartitionKey("A#{Id}")""", """[DynamoDbAttribute("Id")] public string Id => "x";""", "Id")]

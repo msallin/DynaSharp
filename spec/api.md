@@ -162,7 +162,7 @@ A timestamp in a template is UTC, and bare `{At}` is `{At:ticks}`: `2026-10-09T1
 | `[Discriminator("X")]` | type | Required on an entity unless `DiscriminatorOptOut` of the assembly defaults. Missing, `DYNA020` is an error suggesting the upper snake case name (`TRANSPORT_RECORD`), and the type is generated as with `OptOut`, so that error alone fails the build. `AttributeName` overrides `_type`; `OptOut = true` is for tables other tools write, and keeps the type out of mixed reads |
 | `[Version]` | property | `Missing` (`VersionMissing`), section 8 |
 | `[TimeToLive]` | property of an entity | The table's time to live attribute, which `CreateTable()` and `FakeDynamoDb.CreateTable<T>` turn on. Stored as epoch seconds (`EpochSecondsConverter`, an integer, or a custom `IAddableConverter`), one per entity, else `DYNA036`; on a document `DYNA012`. In `DynamoDbEntityInfo.TimeToLiveAttributeName` |
-| `[KeyOnly]` | property | Stored only in a key, restored by parsing it, so the key must hold it losslessly |
+| `[KeyOnly]` | property | Stored only in a key, restored by parsing it, so the key must hold it losslessly and be on every item: a sparse index whose other inputs can be absent does not count (`DYNA109`). Of several such keys, the first restores it |
 | `[DynamoDbAttribute(name)]` | property | Renames, whatever `Naming` says; on a computed property stores it (written, never read) |
 | `[ComputedFrom(names)]` | computed property | The stored properties its getter reads, so it can feed an index template, section 8 |
 | `[DynamoDbIgnore]` | property | Not mapped |

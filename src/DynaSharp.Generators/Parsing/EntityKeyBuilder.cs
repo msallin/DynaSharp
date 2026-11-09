@@ -45,6 +45,9 @@ internal sealed class EntityKeyBuilder(
     // The index each key of an index belongs to, for the code fix of DYNA030.
     private readonly Dictionary<KeyModel, string> _indexOfKey = [];
 
+    // The inputs that leave an item out of its sparse index, for each key of one.
+    private readonly Dictionary<KeyModel, EquatableArray<string>> _absentInputsOfKey = [];
+
     private readonly List<(KeyTemplate Template, Spot Spot, IReadOnlyCollection<string> Fallbacks)> _templates = [];
 
     public EntityModel? Build(DiscriminatorInfo discriminator)
@@ -525,6 +528,10 @@ internal sealed class EntityKeyBuilder(
         foreach (var key in ownKeys.OfType<KeyModel>())
         {
             _indexOfKey[key] = name;
+            if (sparse)
+            {
+                _absentInputsOfKey[key] = all;
+            }
         }
 
         return new IndexModel(name, partition, sort, sparse, isLocal, all);
@@ -736,14 +743,21 @@ internal sealed class EntityKeyBuilder(
                 continue;
             }
 
-            var lossless = holders.Find(static holder => holder.Placeholder.Encoding.IsLossless);
-            if (lossless.Key is null)
+            var lossless = holders.FindAll(static holder => holder.Placeholder.Encoding.IsLossless);
+            if (lossless.Count == 0)
             {
                 bag.Report(Descriptors.InvalidKeyOnly, spot, property.Name, "no key holds it without loss, a timestamp needs the format ticks, which a placeholder without a format has");
                 continue;
             }
 
-            property.RestoredFromKey = lossless.Key.AttributeName;
+            var kept = lossless.Find(IsKeptWithTheValue);
+            if (kept.Key is null)
+            {
+                bag.Report(Descriptors.InvalidKeyOnly, spot, property.Name, "only a sparse key holds it without loss, and an item that key leaves out would lose it");
+                continue;
+            }
+
+            property.RestoredFromKey = kept.Key.AttributeName;
         }
     }
 
@@ -753,9 +767,15 @@ internal sealed class EntityKeyBuilder(
     {
         foreach (var property in properties.Where(static property => property.IsStored && !property.IsComputed && !Types.Unwrap(property.Type).IsNullable))
         {
-            property.FallbackKey = HoldersOf(property).Find(static holder => holder.Placeholder.Encoding.IsLossless).Key?.AttributeName;
+            var lossless = HoldersOf(property).FindAll(static holder => holder.Placeholder.Encoding.IsLossless);
+            property.FallbackKey = (lossless.Find(IsKeptWithTheValue).Key ?? lossless.FirstOrDefault().Key)?.AttributeName;
         }
     }
+
+    // Whether an item that holds the value holds the key too: a sparse index leaves an item out when another of its inputs is absent, and the value would go with it. Absent on its
+    // own, the value is null, which is what the missing key reads as.
+    private bool IsKeptWithTheValue((KeyModel Key, PlaceholderSegment Placeholder) holder) =>
+        !_absentInputsOfKey.TryGetValue(holder.Key, out var inputs) || inputs.All(input => input == holder.Placeholder.Property);
 
     private List<(KeyModel Key, PlaceholderSegment Placeholder)> HoldersOf(PropertyFacts property) =>
     [

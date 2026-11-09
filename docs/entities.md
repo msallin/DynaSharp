@@ -49,7 +49,7 @@ Such an order and a customer share a table and a partition:
 
 Those are the default names. Key inputs are stored as follows:
 
-- **Put** also stores them as attributes, unless `[KeyOnly]` says the key is enough. Such a property has no attribute, so no handle in `Attrs`.
+- **Put** also stores them as attributes, unless `[KeyOnly]` says the key is enough. Such a property has no attribute, so no handle in `Attrs`. The key has to be on every item that holds the value, so a sparse index that leaves an item out for another input is not enough (`DYNA109`).
 - **Update** writes no input of the table key unless `StoreKeyInputs()` asks. An item it created holds the key without those attributes, and a read restores them from the key.
 - **A `raw` input of the table key**, such as `{Key:raw}`, goes with `[KeyOnly]`, since without it only the items a `Put` wrote hold it as an attribute. `DYNA123` (info) reports one without it; an adopted table whose items hold the attribute suppresses it, see [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter).
 

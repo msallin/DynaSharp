@@ -514,6 +514,22 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
+    public async Task Build_KeyOnlyHeldOnlyByASparseKey_ReportsDyna109()
+    {
+        // Arrange (an item without a TrackingId has no key of ByTrack, so a Put would store no note and a read would find none)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("T#{Tenant}"), SortKey("ITEM"), GlobalIndexKey("ByTrack", PartitionKey = "TRACK#{TrackingId}", SortKey = "N#{Note}", Sparse = true)]
+            public partial class E { public required string Tenant { get; set; } public string? TrackingId { get; set; } [[|KeyOnly|]] public required string Note { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA109 Error: [KeyOnly] on 'Note' is invalid: only a sparse key holds it without loss, and an item that key leaves out would lose it"));
+    }
+
+    [Test]
     public async Task Build_PlainKeyThatIsKeyOnly_ReportsDyna109()
     {
         // Arrange

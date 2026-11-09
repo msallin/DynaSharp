@@ -21,7 +21,7 @@ public sealed partial class KeyTemplateEmitterTests
             [DynamoDbEntity]
             [Discriminator("COPY")]
             [PartitionKey("COPY#{Id}")]
-            [SortKey("DATA")]
+            [SortKey("@SORTKEY")]
             [GlobalIndexKey("ByIt", PartitionKey = "T#{Trigger}", SortKey = "@TEMPLATE", Sparse = true)]
             public partial record Copied
             {
@@ -79,8 +79,8 @@ public sealed partial class KeyTemplateEmitterTests
     [Test]
     public async Task Lines_InputOnlyAKeyHolds_CopiesNothing()
     {
-        // Arrange, Act (a [KeyOnly] property has no attribute to copy from)
-        var copyOf = CopyOfTheSortKey("[KeyOnly] public required string Value { get; init; }", "{Value}", attribute: string.Empty);
+        // Arrange, Act (a [KeyOnly] property has no attribute to copy from; the table key holds it for an item the sparse index leaves out)
+        var copyOf = CopyOfTheSortKey("[KeyOnly] public required string Value { get; init; }", "{Value}", attribute: string.Empty, sortKey: "V#{Value}");
 
         // Assert
         await Assert.That(copyOf).IsNull();
@@ -96,9 +96,12 @@ public sealed partial class KeyTemplateEmitterTests
         await Assert.That(copyOf).IsEqualTo("Value");
     }
 
-    private static string? CopyOfTheSortKey(string property, string template, string attribute = "[DynamoDbAttribute(\"stored\")] ")
+    private static string? CopyOfTheSortKey(string property, string template, string attribute = "[DynamoDbAttribute(\"stored\")] ", string sortKey = "DATA")
     {
-        var source = Source.Replace("@TEMPLATE", template, StringComparison.Ordinal).Replace("@PROPERTY", attribute + property, StringComparison.Ordinal);
+        var source = Source
+            .Replace("@TEMPLATE", template, StringComparison.Ordinal)
+            .Replace("@PROPERTY", attribute + property, StringComparison.Ordinal)
+            .Replace("@SORTKEY", sortKey, StringComparison.Ordinal);
         var result = GeneratorRun.Generate(source, new DynaSharpGenerator(), LanguageVersion.Latest);
         var generated = string.Concat(result.Results[0].GeneratedSources.Select(static file => file.SourceText.ToString()));
         var line = generated.Split('\n').Single(static line => line.Contains("new __Map.DynamoDbKeyTemplate(\"byitsk\"", StringComparison.Ordinal));
