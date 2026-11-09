@@ -961,6 +961,59 @@ public sealed class DynamoDbPipelineTests
     }
 
     [Test]
+    public async Task ExecuteAsync_CallerCancelsWhileTheCredentialsAreLookedUp_ThrowsOperationCanceledExceptionWithTheCallersToken()
+    {
+        // Arrange
+        var credentials = new WaitingCredentialsProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        using var client = TestClient.Create(handler, new ManualTimeProvider(), credentials: credentials);
+        using var cancellation = new CancellationTokenSource();
+        var call = client.GetItemAsync(TestClient.GetItem(), cancellation.Token);
+        await credentials.Asked;
+        await cancellation.CancelAsync();
+
+        // Act
+        var exception = await TestClient.CaptureAsync<OperationCanceledException>(() => call);
+
+        // Assert
+        await Assert.That(exception.CancellationToken).IsEqualTo(cancellation.Token);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_AttemptTimesOutWhileTheCredentialsAreLookedUp_ThrowsTimeoutException()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var credentials = new WaitingCredentialsProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        using var client = TestClient.Create(handler, time, attemptTimeout: TimeSpan.FromSeconds(30), credentials: credentials);
+        var call = client.GetItemAsync(TestClient.GetItem());
+        await credentials.Asked;
+        time.Advance(TimeSpan.FromSeconds(30));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<TimeoutException>(() => call);
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo("DynamoDB GetItem did not complete within the attempt timeout of 00:00:30.");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_CredentialsProviderCancelsItselfWithoutAttemptTimeout_ThrowsCredentialsUnavailableException()
+    {
+        // Arrange
+        var cancellation = new TaskCanceledException("The credentials endpoint did not answer.");
+        using var handler = new StubHandler(_ => StubResponse.Json(TestClient.GetItemResponseJson));
+        using var client = TestClient.Create(handler, attemptTimeout: Timeout.InfiniteTimeSpan, credentials: new ThrowingCredentialsProvider(cancellation));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(() => client.GetItemAsync(TestClient.GetItem()));
+
+        // Assert
+        await Assert.That((exception.InnerException, handler.Requests.Count)).IsEqualTo(((Exception?)cancellation, 0));
+    }
+
+    [Test]
     public async Task ExecuteAsync_HandlerCancelsOnItsOwnWithoutAttemptTimeout_ThrowsTimeoutExceptionAroundTheCancellation()
     {
         // Arrange (a cancellation that neither the caller nor the timeout caused, such as the one of SocketsHttpHandler.ConnectTimeout)
@@ -1236,6 +1289,26 @@ public sealed class DynamoDbPipelineTests
     {
         public ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken) =>
             throw new CredentialsUnavailableException("No credentials.");
+    }
+
+    private sealed class ThrowingCredentialsProvider(Exception failure) : ICredentialsProvider
+    {
+        public ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken) => throw failure;
+    }
+
+    // Answers only when the token of the lookup is cancelled, and says when it was asked.
+    private sealed class WaitingCredentialsProvider : ICredentialsProvider
+    {
+        private readonly TaskCompletionSource _asked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Asked => _asked.Task;
+
+        public async ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken)
+        {
+            _asked.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            throw new InvalidOperationException("Not reached.");
+        }
     }
 
     private sealed class FailingStream(Exception? failure = null, Action? onRead = null) : System.IO.Stream

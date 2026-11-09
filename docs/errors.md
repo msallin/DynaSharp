@@ -114,7 +114,7 @@ await customers.Update(Customer.Keys.Of("alice"))
 ## Timeouts and cancellation
 
 - **`AttemptTimeout`**, 30 seconds by default, bounds one attempt, from looking up the credentials to reading the whole response. It surfaces as `TimeoutException`, never `OperationCanceledException`, and is retried with a fresh timeout per attempt, so a call can take `MaxAttempts * AttemptTimeout` plus the waits. `Timeout.InfiniteTimeSpan` turns it off.
-- **A timeout of the HTTP handler**, such as `ConnectTimeout` of a `SocketsHttpHandler` given as `HttpHandler`, surfaces as `TimeoutException` too, with the handler's `TaskCanceledException` inside, and is retried like `AttemptTimeout`. Every cancellation that the caller's token did not cause counts as such a timeout.
+- **A timeout of the HTTP handler**, such as `ConnectTimeout` of a `SocketsHttpHandler` given as `HttpHandler`, surfaces as `TimeoutException` too, with the handler's `TaskCanceledException` inside, and is retried like `AttemptTimeout`. Every cancellation of the request that the caller's token did not cause counts as such a timeout. A credentials provider that cancels its own lookup (an endpoint it gave up on) is no such timeout: it surfaces as `CredentialsUnavailableException` with the cancellation inside, and is not retried.
 - **A `CancellationToken`** bounds the whole call, retries and waits included, and surfaces as `OperationCanceledException`, never retried. To bound a call in time, cancel the token after that time.
 
 ```csharp

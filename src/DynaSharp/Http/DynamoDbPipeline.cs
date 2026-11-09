@@ -337,7 +337,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         var token = timeout?.Token ?? cancellationToken;
         try
         {
-            var credentials = await _credentials.GetCredentialsAsync(token).ConfigureAwait(false);
+            var credentials = await GetCredentialsAsync(timeout, token, cancellationToken).ConfigureAwait(false);
             var signedAt = _clock.GetUtcNow();
             using var request = CreateRequest(call.Target, prepared, credentials, signedAt);
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
@@ -383,6 +383,20 @@ internal sealed class DynamoDbPipeline : IDisposable
 
             // The response is read or failed by now, whatever happened to the attempt.
             buffers.Response.Release();
+        }
+    }
+
+    // The attempt timeout covers the lookup. A cancellation that neither the caller nor the attempt timeout asked for is the provider's
+    // own (an endpoint it gave up on), so it is the provider's failure, never retried, and not a timeout of the HTTP handler.
+    private async ValueTask<AwsCredentials> GetCredentialsAsync(CancellationTokenSource? timeout, CancellationToken token, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _credentials.GetCredentialsAsync(token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested && timeout is not { IsCancellationRequested: true })
+        {
+            throw new CredentialsUnavailableException($"The credentials provider was cancelled without a cancellation of the call: {exception.Message}", exception);
         }
     }
 

@@ -338,6 +338,21 @@ public sealed class DynamoDbPipelineRetryTests
     }
 
     [Test]
+    public async Task ExecuteAsync_CredentialsProviderCancelsItself_ThrowsCredentialsUnavailableOnceAndSendsNothing()
+    {
+        // Arrange
+        var credentials = new SelfCancellingCredentialsProvider();
+        using var handler = new StubHandler { DefaultResponse = Success() };
+        using var client = CreateClient(handler, credentials: credentials);
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(() => client.GetItemAsync(TestClient.GetItem()));
+
+        // Assert
+        await Assert.That((exception.InnerException is TaskCanceledException, credentials.Count, handler.Requests.Count)).IsEqualTo((true, 1, 0));
+    }
+
+    [Test]
     public async Task ExecuteAsync_CallerCancelsWhileAnAttemptIsPending_DoesNotRetry()
     {
         // Arrange
@@ -1010,6 +1025,20 @@ public sealed class DynamoDbPipelineRetryTests
 
     private static string Milliseconds(IReadOnlyList<TimeSpan> delays) =>
         string.Join(',', delays.Select(delay => delay.TotalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+    // A provider whose own internal timeout fires: the caller cancelled nothing and the attempt timeout did not run out.
+    private sealed class SelfCancellingCredentialsProvider : ICredentialsProvider
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public ValueTask<AwsCredentials> GetCredentialsAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _count);
+            throw new TaskCanceledException("The credentials endpoint did not answer.");
+        }
+    }
 
     private sealed class MissingCredentialsProvider : ICredentialsProvider
     {
