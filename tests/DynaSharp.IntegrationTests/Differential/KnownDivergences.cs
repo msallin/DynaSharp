@@ -70,8 +70,8 @@ internal static class KnownDivergences
     private const string KeyFaultOrder =
         "A transaction with a key off the schema, an index key of another type or an update of a key attribute in one action and another fault elsewhere (an empty key, one item twice): the fake cancels for the first, the emulators fail the request for the other fault. Which fault DynamoDB names first is fine print the fake does not mimic.";
 
-    private const string DynoxideIndexScanFilter =
-        "Dynoxide applies the filter of a scan of an index to the projected attributes; the fake and DynamoDB Local apply it to the table item.";
+    private const string DynamoDbLocalIndexScanFilter =
+        "DynamoDB Local applies the filter of a scan of a global index to the table item; the fake and Dynoxide apply it to the projected attributes, as the Developer Guide says a global index holds only those (FidelityTests question 11).";
 
     private const string ValidationException = "ValidationException";
 
@@ -128,7 +128,7 @@ internal static class KnownDivergences
         (null, TokenReplay, static d => d.Fake.ErrorCode == "IdempotentParameterMismatchException" && d.Emulator.ErrorCode is null),
         (Backend.Dynoxide, DynoxideValidation, static d => d.Fake.ErrorCode == ValidationException && d.Emulator.ErrorCode != ValidationException),
         (Backend.Dynoxide, DynoxideTransactionCapacity, static d => d.IsCapacityOnly && d.Operation.Name.StartsWith("Transact", StringComparison.Ordinal)),
-        (Backend.Dynoxide, DynoxideIndexScanFilter, static d => d.Operation.Name == "Scan" && d.Operation.Body["IndexName"] is not null && d.Operation.Body["FilterExpression"] is not null
+        (Backend.DynamoDbLocal, DynamoDbLocalIndexScanFilter, static d => d.Operation.Name == "Scan" && d.Operation.Body["IndexName"] is not null && d.Operation.Body["FilterExpression"] is not null
             && d.Fake.ErrorCode is null && d.Emulator.ErrorCode is null),
         (Backend.Dynoxide, DynoxideSetDelete, static d => d.Fake.ErrorCode is null && d.Emulator.ErrorCode is null
             && Numbers.Normalized(d.Fake.Result, emptyNumberSets: true) == Numbers.Normalized(d.Emulator.Result, emptyNumberSets: true)),

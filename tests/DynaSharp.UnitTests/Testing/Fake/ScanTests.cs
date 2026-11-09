@@ -353,15 +353,26 @@ public sealed class ScanTests
     }
 
     [Test]
-    [Arguments("ByCustomer")]
-    [Arguments("ByStatus")]
-    public async Task Handle_FilterOfAnIndexOnAnAttributeItDoesNotProject_FiltersTheItemsOfTheTable(string index)
+    public async Task Handle_FilterOfAGlobalIndexOnAnAttributeItDoesNotProject_FiltersTheProjectedEntries()
+    {
+        // Arrange: a global index holds only what it projects, so the attribute is missing in each entry and the filter matches none (FidelityTests asks real DynamoDB).
+        var fake = ReadTables.ShopWith(("a", 3));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Scan", """{"TableName":"Shop","IndexName":"ByCustomer","FilterExpression":"v = :v","ExpressionAttributeValues":{":v":{"N":"2"}}}""");
+
+        // Assert
+        await Assert.That((body.GetProperty("Count").GetInt32(), body.GetProperty("ScannedCount").GetInt32())).IsEqualTo((0, 3));
+    }
+
+    [Test]
+    public async Task Handle_FilterOfALocalIndexOnAnAttributeItDoesNotProject_FiltersTheItemsOfTheTable()
     {
         // Arrange: DynamoDB Local 3.3.2 rejects this filter in a query, and in a scan evaluates it on the item of the table and answers the entries of the index.
         var fake = ReadTables.ShopWith(("a", 3));
 
         // Act
-        var body = FakeCalls.Ok(fake, "Scan", $$$$"""{"TableName":"Shop","IndexName":"{{{{index}}}}","FilterExpression":"v = :v","ExpressionAttributeValues":{":v":{"N":"2"}}}""");
+        var body = FakeCalls.Ok(fake, "Scan", """{"TableName":"Shop","IndexName":"ByStatus","FilterExpression":"v = :v","ExpressionAttributeValues":{":v":{"N":"2"}}}""");
 
         // Assert
         await Assert.That((string.Join(",", ReadTables.Keys(body)), body.GetProperty("Items")[0].TryGetProperty("v", out _))).IsEqualTo(("a/2", false));

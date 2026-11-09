@@ -14,7 +14,8 @@ public enum TableDriftKind
 
     /// <summary>
     /// An index of that name is on the table with other keys than the entities declare: other attribute names, a sort key where they declare none or none where they declare one, another type of a key attribute, or
-    /// local where they declare global, or global where they declare local. Queries of it read other attributes than the code expects, or fail.
+    /// local where they declare global, or global where they declare local. Queries of it read other attributes than the code expects, or fail. Also an index whose projection leaves out the discriminator of an entity
+    /// that declares it, which a typed read of the index filters on, so it finds nothing or fails.
     /// </summary>
     IndexDiffers,
 

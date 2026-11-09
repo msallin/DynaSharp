@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json.Nodes;
 using DynaSharp.IntegrationTests.Backends;
 using DynaSharp.IntegrationTests.Support;
+using DynaSharp.Requests;
 
 namespace DynaSharp.IntegrationTests.Fidelity;
 
@@ -21,6 +22,8 @@ public sealed class FidelityTests(Backend backend)
     public const string ReportVariableName = "DYNASHARP_FIDELITY_REPORT";
 
     private const string Canceled = "TransactionCanceledException";
+
+    private const string KeysOnlyIndex = "by-g";
 
     private const string KeyMismatch = "ValidationError: The provided key element does not match the schema";
 
@@ -335,12 +338,50 @@ public sealed class FidelityTests(Backend backend)
         await Assert.That(outcome).IsEqualTo(expected);
     }
 
+    // Question 11: a filter on an attribute that a global index of keys only does not project. DynamoDB Local rejects it in a query and evaluates a scan on the table item; Dynoxide
+    // evaluates both on the entry of the index, where the attribute is missing. A typed read of DynaSharp filters on _type, so the answer says what such a read of an index meets.
+    [Test]
+    [Arguments("Scan")]
+    [Arguments("Query")]
+    public async Task IndexRead_FilterOnAnAttributeAKeysOnlyGlobalIndexDoesNotProject_IsRecorded(string operation)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await CreateKeysOnlyIndexTableAsync(sandbox);
+        await sandbox.Client.PutItemAsync(new PutItemRequest { TableName = table, Item = new Dictionary<string, AttributeValue> { ["pk"] = "a", ["g"] = "x", ["v"] = "keep" } });
+
+        // An index read through the client waits until the write reached the index on real DynamoDB (SettlingHandler); the raw client does not.
+        await sandbox.Client.ScanAsync(new ScanRequest { TableName = table, IndexName = KeysOnlyIndex });
+        const string QueryMembers = """ "KeyConditionExpression":"g = :g","ExpressionAttributeValues":{":g":{"S":"x"},":v":{"S":"keep"}}, """;
+        const string ScanMembers = """ "ExpressionAttributeValues":{":v":{"S":"keep"}}, """;
+        var key = operation == "Query" ? QueryMembers : ScanMembers;
+        var json = $$$$$"""{"TableName":"{{{{{table}}}}}","IndexName":"{{{{{KeysOnlyIndex}}}}}",{{{{{key}}}}}"FilterExpression":"v = :v"}""";
+
+        // Act
+        var response = await sandbox.Emulator.Raw.SendAsync(operation, json);
+        var answer = response.StatusCode == HttpStatusCode.OK ? $"OK, {JsonNode.Parse(response.Body)!["Count"]!.GetValue<int>()} items" : Outcome(response);
+        var outcome = Record($"11 {operation} of a keys-only global index with a filter on an attribute it does not project", answer, response, null);
+
+        // Assert
+        await Assert.That(outcome).IsIn("ValidationException", "OK, 0 items", "OK, 1 items");
+    }
+
     // One item for each failing update: a number of 38 digits, and nothing else that the updates reach. The other item is the one the condition check reads.
     private static async Task<string> SeedForUpdatesAsync(Sandbox sandbox)
     {
         var table = await sandbox.CreateTableAsync();
         (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"target"},"n":{"N":"{{{{{new string('9', 38)}}}}}"}}}""")).EnsureSuccess();
         (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"other"}}}""")).EnsureSuccess();
+        return table;
+    }
+
+    // A table with a global index on g that projects the keys only.
+    private static async Task<string> CreateKeysOnlyIndexTableAsync(Sandbox sandbox)
+    {
+        var table = Tables.UniqueName();
+        var request = Tables.Request(table, new TableSpec(GlobalIndexes: [new GlobalIndexSpec(KeysOnlyIndex, "g")]));
+        var index = request.GlobalSecondaryIndexes![0] with { Projection = new IndexProjection { ProjectionType = ProjectionType.KeysOnly } };
+        await sandbox.CreateTableAsync(request with { GlobalSecondaryIndexes = [index] });
         return table;
     }
 

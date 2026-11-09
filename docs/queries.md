@@ -110,6 +110,8 @@ var byStatus = orders.Index(Order.Indexes.ByStatus);
 var shipped = byStatus.Query(Order.Keys.ByStatusPk.Of(OrderStatus.Shipped)).ItemsAsync(ct);
 ```
 
+A typed query or scan of an index filters on the discriminator, `_type` or the name the entity gives it, so the index must project it. An index that `CreateTable()` creates projects every attribute. One created by another tool with `KEYS_ONLY`, or with `INCLUDE` that leaves it out, makes a typed read of it fail with a `ValidationException` or find nothing; `CreateTable().IfNotExists()` reports such an index as drift, see [A table that exists](tables.md#a-table-that-exists). Read it [without a model](without-a-model.md), or give it a projection with `_type`.
+
 A key built for another index or for the table throws `ArgumentException` at the call, before a request, naming the builder to use: for `byStatus.Query(Order.Keys.Pk.Of("alice"))` that is `Order.Keys.ByStatusPk.Of(...)`. `DYNA224` reports it in the build only where `Index(...)` is in the chain of the query, so for an index in a field such as `byStatus` it shows the first time the call runs.
 
 ## Scan

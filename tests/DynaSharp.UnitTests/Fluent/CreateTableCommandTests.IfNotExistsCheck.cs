@@ -232,6 +232,32 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_IfNotExistsOverAnIndexThatDoesNotProjectTheDiscriminator_ReportsIt()
+    {
+        // Arrange (GSI1 of keys only, ByTracking including _type, LSI1 of every attribute: only GSI1 lacks the discriminator a typed read filters on)
+        const string KeysOnlyGsi1 = """
+            {"IndexName":"GSI1","IndexStatus":"ACTIVE","KeySchema":[{"AttributeName":"gsi1pk","KeyType":"HASH"},{"AttributeName":"gsi1sk","KeyType":"RANGE"}],"Projection":{"ProjectionType":"KEYS_ONLY"}}
+            """;
+        const string TrackingWithType = """
+            {"IndexName":"ByTracking","IndexStatus":"ACTIVE","KeySchema":[{"AttributeName":"bytrackingpk","KeyType":"HASH"}],"Projection":{"ProjectionType":"INCLUDE","NonKeyAttributes":["_type"]}}
+            """;
+        const string AllLsi1 = """
+            {"IndexName":"LSI1","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"lsi1sk","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}
+            """;
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.Json(Described($$"""{{OrderKey}},{{OrderAttributes}},"GlobalSecondaryIndexes":[{{KeysOnlyGsi1}},{{TrackingWithType}}],"LocalSecondaryIndexes":[{{AllLsi1}}]""")));
+        using var client = TestClient.Create(handler);
+        const string Lacks = "The table Shop has the index GSI1 with a projection of KeysOnly, which lacks _type, the discriminator of the entities. A typed read of it filters on _type, so it finds nothing or fails. "
+            + "An index keeps the projection it was created with: delete it and create it again with _type in the projection, or with ALL.";
+
+        // Act
+        var result = await client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().SendAsync();
+
+        // Assert
+        await Assert.That(result.Drift.Single()).IsEqualTo(new TableDrift(TableDriftKind.IndexDiffers, "GSI1", Lacks));
+    }
+
+    [Test]
     public async Task SendAsync_IfNotExistsOverALocalIndexWhereAGlobalIsDeclared_SaysBoth()
     {
         // Arrange

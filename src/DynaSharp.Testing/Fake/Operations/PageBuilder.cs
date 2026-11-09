@@ -23,7 +23,9 @@ namespace DynaSharp.Testing.Fake;
 /// </para>
 /// <para>
 /// The filter of a <c>Query</c> of a secondary index, global or local, may read only what the index projects, else the query is a <c>ValidationException</c>, as on DynamoDB Local. The
-/// filter of a <c>Scan</c> of an index is evaluated on the item of the table where it reads an attribute the index does not project, as on DynamoDB Local, and costs nothing more.
+/// filter of a <c>Scan</c> of a global index is evaluated on the entry of the index, so an attribute it does not project is missing there, as the Developer Guide says a global index
+/// holds only what it projects (<c>FidelityTests</c> asks real DynamoDB). The filter of a <c>Scan</c> of a local index is evaluated on the item of the table where it reads an attribute
+/// the index does not project, as on DynamoDB Local, and costs nothing more.
 /// </para>
 /// </remarks>
 internal static class PageBuilder
@@ -57,7 +59,7 @@ internal static class PageBuilder
             throw FakeError.Validation(Invalid + $"Global secondary index {global.Name} does not project [{string.Join(", ", missing)}]");
         }
 
-        var filterReadsTable = unprojected.Count > 0;
+        var filterReadsTable = unprojected.Count > 0 && !options.Index!.IsGlobal;
         var fetches = options.Index is { IsGlobal: false } index && index.Projection.ProjectionType != ProjectionType.All;
         var result = new List<Item>();
         var count = 0;
