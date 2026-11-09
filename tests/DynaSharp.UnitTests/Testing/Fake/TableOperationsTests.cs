@@ -10,6 +10,15 @@ public sealed class TableOperationsTests
 {
     private const string Invalid = "One or more parameter values were invalid: ";
 
+    private const string InvalidTableName = "1 validation error detected: Value 'T a' at 'tableName' failed to satisfy constraint: Member must satisfy regular expression pattern: [a-zA-Z0-9_.-]+";
+
+    // A CreateTable body in parts, which a case completes and closes.
+    private const string NameAndMode = "{\"TableName\":\"Users\",\"BillingMode\":\"PAY_PER_REQUEST\"";
+
+    private const string Definitions = ""","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}]""";
+
+    private const string Key = ""","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"}]""";
+
     private const string Thread = """
         {"TableName":"Thread",
          "AttributeDefinitions":[{"AttributeName":"ForumName","AttributeType":"S"},{"AttributeName":"Subject","AttributeType":"S"},{"AttributeName":"LastPostDateTime","AttributeType":"S"},
@@ -1295,15 +1304,6 @@ public sealed class TableOperationsTests
         // Assert
         await Assert.That(Guid.TryParse(table.GetProperty("TableId").GetString(), out _)).IsTrue();
     }
-
-    private const string InvalidTableName = "1 validation error detected: Value 'T a' at 'tableName' failed to satisfy constraint: Member must satisfy regular expression pattern: [a-zA-Z0-9_.-]+";
-
-    // A CreateTable body in parts, which a case completes and closes.
-    private const string NameAndMode = "{\"TableName\":\"Users\",\"BillingMode\":\"PAY_PER_REQUEST\"";
-
-    private const string Definitions = ""","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}]""";
-
-    private const string Key = ""","KeySchema":[{"AttributeName":"pk","KeyType":"HASH"}]""";
 
     private static string UsersWithIndex(string maximums) => $$"""
         {"TableName":"Users","AttributeDefinitions":[{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"g","AttributeType":"S"}],
