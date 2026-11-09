@@ -400,14 +400,17 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// A shard that fails for a moment is read on from where it stopped. When the last attempt of a call of a shard fails with what <see cref="DynamoDbException.IsTransient"/> calls transient,
     /// or with a network failure or a timeout of an attempt, the reader of the shard waits, from a second up, doubling to half a minute, with jitter, on
     /// <see cref="DynamoDbClientOptions.TimeProvider"/>, and sends the call again: a page with the same iterator, which returns the same records, and a look for children
-    /// again. An iterator that expired in the meantime is renewed after the last record the shard handed out, or at the start position of the shard when it has handed out
-    /// none, so nothing repeats and nothing is skipped, and a position trimmed in the meantime throws <see cref="TrimmedDataAccessException"/>. The reader tries for
-    /// 15 minutes from the failure that started the outage, the life of an iterator, within which the position is never lost; a page or a look that succeeds ends the
+    /// again. An iterator that expired in the meantime is renewed after the last record the shard handed out, so nothing repeats and nothing is skipped, or at the start
+    /// position of the shard when it has handed out none. For a shard read from <see cref="ShardIteratorType.Latest"/> that is <see cref="ShardIteratorType.Latest"/>
+    /// again, which skips what was written while the iterator was expired, since DynamoDB Streams has no position by time: read from
+    /// <see cref="ShardIteratorType.TrimHorizon"/>, or resume a shard after a stored sequence number with <see cref="ReadShardAsync"/>, where that matters. A position
+    /// trimmed in the meantime throws <see cref="TrimmedDataAccessException"/>. The reader tries for
+    /// 15 minutes from the failure that started the outage, the life of an iterator; a page or a look that succeeds ends the
     /// outage. The first listing of the shards is not tried again: nothing has been read then, and a setup that does not work shows at once.
     /// </para>
     /// <para>
     /// Any other failure, and one that outlasts the 15 minutes, ends the sequence with that exception: the other readers are stopped and awaited, and the records
-    /// still in the buffer are dropped. Nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
+    /// still in the buffer are dropped. Apart from that case, nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
     /// closed shard that DynamoDB removed, 24 hours after it closed, before it was read, whose records are lost. Disposing the enumerator or cancelling stops
     /// every reader and waits for it, also one that waits to try again, so none outlives the enumeration. <see cref="ReadStreamRequest.OnJoined"/> says when every
     /// shard read from the start holds its position.
