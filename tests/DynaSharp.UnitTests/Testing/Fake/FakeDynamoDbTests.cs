@@ -145,7 +145,7 @@ public sealed class FakeDynamoDbTests
         Action[] calls = [() => fake.Answer(null!), () => fake.Answer(null!, "{}"), () => fake.Answer("GetItem", null!)];
 
         // Assert
-        await Assert.That(calls.Count(call => Throws<ArgumentNullException>(call))).IsEqualTo(3);
+        await Assert.That(string.Join(',', calls.Select(NullParameter))).IsEqualTo("request,operation,requestJson");
     }
 
     [Test]
@@ -795,7 +795,7 @@ public sealed class FakeDynamoDbTests
         ];
 
         // Assert
-        await Assert.That(calls.Count(call => Throws<ArgumentNullException>(call))).IsEqualTo(calls.Length);
+        await Assert.That(string.Join(',', calls.Select(NullParameter))).IsEqualTo("request,command,tableName,tableName,tableName,tableName,item,tableName,key,tableName,key,tableName,key,key,entity");
     }
 
     [Test]
@@ -1101,6 +1101,20 @@ public sealed class FakeDynamoDbTests
         }
 
         throw new InvalidOperationException($"No {typeof(T).Name} was thrown.");
+    }
+
+    // The parameter an ArgumentNullException names, or "none" when the call throws none.
+    private static string NullParameter(Action call)
+    {
+        try
+        {
+            call();
+            return "none";
+        }
+        catch (ArgumentNullException exception)
+        {
+            return exception.ParamName ?? "none";
+        }
     }
 
     private static bool Throws<T>(Action call)

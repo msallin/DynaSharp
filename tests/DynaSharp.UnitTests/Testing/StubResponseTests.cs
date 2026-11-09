@@ -293,7 +293,7 @@ public sealed class StubResponseTests
         var act = () => StubResponse.Items<Item>(null!);
 
         // Assert
-        await Assert.That(act).Throws<ArgumentNullException>();
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("items");
     }
 
     [Test]
@@ -616,21 +616,21 @@ public sealed class StubResponseTests
         ];
 
         // Act
-        var failures = calls.Count(static call =>
+        var parameters = calls.Select(static call =>
         {
             try
             {
                 call();
-                return false;
+                return "none";
             }
-            catch (ArgumentNullException)
+            catch (ArgumentNullException exception)
             {
-                return true;
+                return exception.ParamName;
             }
         });
 
         // Assert
-        await Assert.That(failures).IsEqualTo(calls.Length);
+        await Assert.That(string.Join(',', parameters)).IsEqualTo("tableName,tableName,keys,tableName,keys,found");
     }
 
     [Test]
@@ -666,7 +666,7 @@ public sealed class StubResponseTests
         var act = () => StubResponse.BatchItems(null!, Array.Empty<Item>());
 
         // Assert
-        await Assert.That(act).Throws<ArgumentNullException>();
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("tableName");
     }
 
     [Test]
@@ -678,7 +678,7 @@ public sealed class StubResponseTests
         var act = () => StubResponse.BatchItems<Item>("Forum", null!);
 
         // Assert
-        await Assert.That(act).Throws<ArgumentNullException>();
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("items");
     }
 
     [Test]

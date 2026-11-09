@@ -144,7 +144,7 @@ public sealed class RecordedRequestTests
         var act = () => request.ReadItem(null!);
 
         // Assert
-        await Assert.That(act).Throws<ArgumentNullException>();
+        await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("member");
     }
 
     [Test]

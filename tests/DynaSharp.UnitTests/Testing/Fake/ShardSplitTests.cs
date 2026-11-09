@@ -221,7 +221,7 @@ public sealed class ShardSplitTests
         var act = () => fake.SplitStreamShards(null!);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("tableName");
     }
 
     private static ManualTimeProvider Clock() => new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));

@@ -150,7 +150,7 @@ public sealed class StreamSwitchTests
         var act = () => fake.EnableStream("Users", viewType);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>();
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithMessageContaining("The view type must be NewImage, OldImage, NewAndOldImages or KeysOnly.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -163,7 +163,7 @@ public sealed class StreamSwitchTests
         var act = () => fake.EnableStream(null!, StreamViewType.NewImage);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("tableName");
     }
 
     [Test]
@@ -176,7 +176,7 @@ public sealed class StreamSwitchTests
         var act = () => fake.DisableStream(null!);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>();
+        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("tableName");
     }
 
     private static ManualTimeProvider Clock() => new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
