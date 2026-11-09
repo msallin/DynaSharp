@@ -375,7 +375,9 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <see cref="ChangeRecord"/>, because <see cref="GetRecordsAsync"/> cannot know it.
     /// </para>
     /// <para>
-    /// <see cref="DescribeStreamAsync"/> lists the shards, page by page. With <see cref="ShardIteratorType.TrimHorizon"/> each shard whose parent is not listed is
+    /// <see cref="DescribeStreamAsync"/> lists the shards, page by page. A stream that is <see cref="StreamStatus.Enabled"/> or <see cref="StreamStatus.Enabling"/> and
+    /// lists no shard yet, as one just enabled can, is listed again every <see cref="ReadStreamRequest.EmptyPageDelay"/> but at least every second, until it lists one,
+    /// and the shards of that listing opened after the start, so they are read from their first record whatever the position. With <see cref="ShardIteratorType.TrimHorizon"/> each shard whose parent is not listed is
     /// read from its oldest record, closed or open, and the others wait for their parent. With <see cref="ShardIteratorType.Latest"/> each shard open at the
     /// start is read from now on, and a shard closed at the start has nothing to read from now on, but is watched for children as a shard read to its end is, unless
     /// its children listed at the start opened more than a minute before: a split in progress at the start can list its second child only later. A shard read to its

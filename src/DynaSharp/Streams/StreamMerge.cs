@@ -145,14 +145,26 @@ internal sealed class StreamMerge
         try
         {
             // Not tried again: nothing has been read yet, and a setup that does not work, such as a wrong endpoint, shows at once.
-            var (shards, _) = await ShardsAsync(null, null).ConfigureAwait(false);
+            var (shards, status) = await ShardsAsync(null, null).ConfigureAwait(false);
+
+            // A stream that was just enabled can list no shard yet, and ending then would end a reading that the stream has not begun. A shard listed on a
+            // later look opened after the start, so it is read from its first record, also under Latest.
+            var late = false;
+            while (shards.Count == 0 && status is StreamStatus.Enabled or StreamStatus.Enabling)
+            {
+                var changed = _client.NextStreamChange?.Invoke();
+                await _client.IdleAsync(_request.EmptyPageDelay > FirstChildLookDelay ? _request.EmptyPageDelay : FirstChildLookDelay, changed, _stop.Token).ConfigureAwait(false);
+                (shards, status) = await ShardsAsync(null, null).ConfigureAwait(false);
+                late = true;
+            }
+
             var listed = new HashSet<string>(StringComparer.Ordinal);
             foreach (var shard in shards)
             {
                 listed.Add(shard.ShardId!);
             }
 
-            var latest = _request.ShardIteratorType == ShardIteratorType.Latest;
+            var latest = !late && _request.ShardIteratorType == ShardIteratorType.Latest;
             var children = latest ? ChildrenOf(shards) : null;
             foreach (var shard in shards)
             {

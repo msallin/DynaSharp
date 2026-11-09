@@ -141,6 +141,83 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
+    [Arguments(StreamStatus.Enabling)]
+    [Arguments(StreamStatus.Enabled)]
+    public async Task ReadStreamAsync_EnabledStreamListsNoShardYet_ReadsTheShardOnceItIsListed(StreamStatus status)
+    {
+        // Arrange: a stream that was just enabled lists its first shard only on the second look
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(status, null), Description(StreamStatus.Enabled, null, Closed("s")));
+        script.Answer("children:s", Description(StreamStatus.Disabled, null));
+        script.ClosedShard("s", "s-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That(string.Join(",", SequenceNumbers(await reading))).IsEqualTo("s-1");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_NoShardListedYetWithALongerDelayAndAChangeSignal_ListsAgainAfterTheDelay()
+    {
+        // Arrange: a signal of changes that never comes, as a fake would give, and a delay above the second
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null), Description(StreamStatus.Enabled, null, Closed("s")));
+        script.Answer("children:s", Description(StreamStatus.Disabled, null));
+        script.ClosedShard("s", "s-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
+        var never = new TaskCompletionSource();
+        streams.NextStreamChange = () => never.Task;
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { EmptyPageDelay = TimeSpan.FromSeconds(2) }).ToListAsync().AsTask();
+
+        // Act
+        var delays = await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+
+        // Assert
+        await Assert.That((string.Join(",", SequenceNumbers(await reading)), delays[0])).IsEqualTo(("s-1", TimeSpan.FromSeconds(2)));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_LatestAndNoShardListedYet_ReadsTheShardListedLaterFromItsFirstRecord()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabling, null), Description(StreamStatus.Enabled, null, Closed("s")));
+        script.Answer("children:s", Description(StreamStatus.Disabled, null));
+        script.ClosedShard("s", "s-1");
+        using var streams = TestClient.CreateStreams(script.Handler, time, attemptTimeout: Timeout.InfiniteTimeSpan);
+        var reading = streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync().AsTask();
+
+        // Act
+        await AdvanceThroughDelaysAsync(reading, time, TestClient.DefaultAttemptTimeout);
+        await reading;
+
+        // Assert
+        await Assert.That(string.Join(",", Positions(script.Handler))).IsEqualTo("s:TRIM_HORIZON");
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_DisabledStreamWithoutShards_EndsAfterOneLook()
+    {
+        // Arrange
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Disabled, null));
+        using var streams = TestClient.CreateStreams(script.Handler);
+
+        // Act
+        var records = await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+
+        // Assert
+        await Assert.That((records.Count, script.Handler.Requests.Count)).IsEqualTo((0, 1));
+    }
+
+    [Test]
     public async Task ReadStreamAsync_LatestAndAClosedShardWithoutAChildYet_ReadsTheChildOnceItIsListed()
     {
         // Arrange: the shard closed just before the start, and DynamoDB lists its child a second later
