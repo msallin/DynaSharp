@@ -89,6 +89,19 @@ public sealed class GetItemTests
     }
 
     [Test]
+    public async Task Handle_NamesOfAnotherKindWithoutAnExpression_AnswersSerializationNamingTheMap()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "GetItem", """{"TableName":"Orders","Key":{"pk":{"S":"c#1"},"sk":{"N":"1"}},"ExpressionAttributeNames":{"#a":1}}""");
+
+        // Assert
+        await Assert.That(answer.Message).IsEqualTo("The member ExpressionAttributeNames must be a string, and it is Number.");
+    }
+
+    [Test]
     [Arguments("TOTAL", false, """{"TableName":"Orders","CapacityUnits":0.5}""")]
     [Arguments("TOTAL", true, """{"TableName":"Orders","CapacityUnits":1.0}""")]
     [Arguments("INDEXES", true, """{"TableName":"Orders","CapacityUnits":1.0,"Table":{"CapacityUnits":1.0}}""")]

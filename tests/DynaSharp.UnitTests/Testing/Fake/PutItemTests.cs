@@ -106,6 +106,7 @@ public sealed class PutItemTests
     [Arguments("""{"ConditionExpression":"#v > :v","ExpressionAttributeNames":{"#v":"Views"}}""", "Invalid ConditionExpression: An expression attribute value used in expression is not defined; attribute value: :v")]
     [Arguments("""{"ConditionExpression":"attribute_exists(ForumName)","ExpressionAttributeValues":{":v":{"N":"1"}}}""", "Value provided in ExpressionAttributeValues unused in expressions: keys: {:v}")]
     [Arguments("""{"Expected":{"ForumName":{"Exists":false}},"ConditionExpression":"attribute_not_exists(ForumName)"}""", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {Expected} Expression parameters: {ConditionExpression}")]
+    [Arguments("""{"ConditionalOperator":"AND","ConditionExpression":"attribute_not_exists(ForumName)"}""", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {ConditionalOperator} Expression parameters: {ConditionExpression}")]
     [Arguments("""{"TableName":"ab"}""", "1 validation error detected: Value 'ab' at 'tableName' failed to satisfy constraint: Member must have length greater than or equal to 3")]
     public async Task Handle_RequestDynamoDbRejects_AnswersValidation(string change, string message)
     {

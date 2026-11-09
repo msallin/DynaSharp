@@ -89,6 +89,53 @@ public sealed class TimeToLiveTests
     }
 
     [Test]
+    [Arguments("""{"TableName":"Users","TimeToLiveSpecification":{"Enabled":"yes","AttributeName":"expires"}}""", "The member Enabled must be a boolean, and it is String.")]
+    [Arguments("""{"TableName":"Users","TimeToLiveSpecification":{"Enabled":true,"AttributeName":1}}""", "The member AttributeName must be a string, and it is Number.")]
+    public async Task HandleUpdate_MemberOfAnotherKind_AnswersSerializationNamingIt(string request, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateTimeToLive", request);
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "SerializationException", message));
+    }
+
+    [Test]
+    [Arguments("DescribeTimeToLive", """{"TableName":"Users","Extra":1}""", "the member Extra in DescribeTimeToLive")]
+    [Arguments("UpdateTimeToLive", """{"TableName":"Users","Extra":1,"TimeToLiveSpecification":{"Enabled":true,"AttributeName":"expires"}}""", "the member Extra in UpdateTimeToLive")]
+    [Arguments("UpdateTimeToLive", """{"TableName":"Users","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"expires","Extra":1}}""", "the member Extra in TimeToLiveSpecification of UpdateTimeToLive")]
+    public async Task Handle_MemberTheFakeDoesNotImplement_AnswersUnsupportedNamingIt(string operation, string request, string named)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var (_, code, message) = FakeCalls.Error(fake, operation, request);
+
+        // Assert
+        await Assert.That((code, message.StartsWith($"FakeDynamoDb does not support {named}: ", StringComparison.Ordinal))).IsEqualTo(("UnsupportedByFakeException", true));
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(255)]
+    public async Task HandleUpdate_AttributeNameOfALengthAtABound_EnablesIt(int length)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        var name = new string('a', length);
+
+        // Act
+        FakeCalls.Ok(fake, "UpdateTimeToLive", $$$"""{"TableName":"Users","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"{{{name}}}"}}""");
+
+        // Assert
+        await Assert.That(FakeCalls.Ok(fake, "DescribeTimeToLive", """{"TableName":"Users"}""").GetProperty("TimeToLiveDescription").GetProperty("AttributeName").GetString()).IsEqualTo(name);
+    }
+
+    [Test]
     public async Task HandleUpdate_NoTable_AnswersResourceNotFound()
     {
         // Arrange

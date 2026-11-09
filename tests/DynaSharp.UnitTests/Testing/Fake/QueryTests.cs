@@ -41,6 +41,26 @@ public sealed class QueryTests
     }
 
     [Test]
+    [Arguments(""","IndexName":1""", "The member IndexName must be a string, and it is Number.")]
+    [Arguments(""","Limit":"1" """, "The member Limit must be a number, and it is String.")]
+    [Arguments(""","ConsistentRead":"yes" """, "The member ConsistentRead must be a boolean, and it is String.")]
+    [Arguments(""","ReturnConsumedCapacity":1""", "The member ReturnConsumedCapacity must be a string, and it is Number.")]
+    [Arguments(""","ExpressionAttributeNames":[]""", "The member ExpressionAttributeNames must be an object, and it is Array.")]
+    [Arguments(""","ExpressionAttributeValues":[]""", "The member ExpressionAttributeValues must be an object, and it is Array.")]
+    [Arguments(""","ExpressionAttributeValues":{":pk":{"S":"a"}},"ProjectionExpression":1""", "The member ProjectionExpression must be a string, and it is Number.")]
+    public async Task Handle_MemberOfAnotherKind_AnswersSerializationNamingIt(string options, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(ReadTables.Shop);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "Query", $$$"""{"TableName":"Shop","KeyConditionExpression":"pk = :pk"{{{options}}}}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "SerializationException", message));
+    }
+
+    [Test]
     [Arguments("KeyConditions")]
     [Arguments("QueryFilter")]
     [Arguments("AttributesToGet")]

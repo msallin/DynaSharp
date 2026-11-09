@@ -35,6 +35,19 @@ public sealed class UpdateItemTests
     }
 
     [Test]
+    public async Task Handle_AttributeUpdatesWithAnUpdateExpression_AnswersValidation()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "UpdateItem", $$$$$"""{"TableName":"Users","Key":{{{{{Key}}}}},"AttributeUpdates":{"email":{"Action":"DELETE"}},"UpdateExpression":"REMOVE email"}""");
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", "Can not use both expression and non-expression parameters in the same request: Non-expression parameters: {AttributeUpdates} Expression parameters: {UpdateExpression}"));
+    }
+
+    [Test]
     public async Task Handle_AddTwice_AddsTheNumbers()
     {
         // Arrange

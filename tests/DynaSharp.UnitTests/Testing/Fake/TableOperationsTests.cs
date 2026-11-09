@@ -1283,6 +1283,19 @@ public sealed class TableOperationsTests
         await Assert.That(act).Throws<ArgumentNullException>().WithParameterName("name");
     }
 
+    [Test]
+    public async Task HandleDescribeTable_Table_HasATableIdThatIsAUuid()
+    {
+        // Arrange
+        var fake = FakeCalls.With(Thread);
+
+        // Act
+        var table = FakeCalls.Ok(fake, "DescribeTable", """{"TableName":"Thread"}""").GetProperty("Table");
+
+        // Assert
+        await Assert.That(Guid.TryParse(table.GetProperty("TableId").GetString(), out _)).IsTrue();
+    }
+
     private const string InvalidTableName = "1 validation error detected: Value 'T a' at 'tableName' failed to satisfy constraint: Member must satisfy regular expression pattern: [a-zA-Z0-9_.-]+";
 
     // A CreateTable body in parts, which a case completes and closes.

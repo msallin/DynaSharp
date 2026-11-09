@@ -89,6 +89,19 @@ public sealed class DeleteItemTests
     }
 
     [Test]
+    public async Task Handle_MalformedValuesWithoutAnExpression_AnswersValidationNamingTheMap()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Orders);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "DeleteItem", $$$$$"""{"TableName":"Orders","Key":{{{{{Key}}}}},"ExpressionAttributeValues":{":v":{"X":"a"}}}""");
+
+        // Assert
+        await Assert.That(answer.Message).StartsWith("Supplied AttributeValue is not valid in ExpressionAttributeValues: ");
+    }
+
+    [Test]
     public async Task Handle_ExpectedWithAConditionExpression_AnswersValidation()
     {
         // Arrange

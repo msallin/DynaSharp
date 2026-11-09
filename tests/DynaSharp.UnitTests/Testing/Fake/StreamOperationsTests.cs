@@ -247,6 +247,7 @@ public sealed class StreamOperationsTests
     [Arguments("ListStreams", """{"Shards":1}""", "the member Shards in ListStreams")]
     [Arguments("DescribeStream", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","ShardFilter":{"Type":"CHILD_SHARDS","ShardId":"s","Depth":1}}""", "the member Depth in ShardFilter of DescribeStream")]
     [Arguments("GetShardIterator", """{"Timestamp":1}""", "the member Timestamp in GetShardIterator")]
+    [Arguments("DescribeStream", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","Extra":1}""", "the member Extra in DescribeStream")]
     [Arguments("GetRecords", """{"ShardIterator":"x","StreamArn":"y"}""", "the member StreamArn in GetRecords")]
     public async Task Handle_MemberTheFakeDoesNotImplement_AnswersUnsupported(string operation, string request, string named)
     {
@@ -607,6 +608,7 @@ public sealed class StreamOperationsTests
     [Arguments("""{"ShardIteratorType":"LATEST","SequenceNumber":"1"}""", "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"1"}""", "Invalid SequenceNumber 1: a sequence number is a decimal number of 21 to 40 digits")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"1000000000000000000000000000000000000000000"}""", "Invalid SequenceNumber 1000000000000000000000000000000000000000000: a sequence number is a decimal number of 21 to 40 digits")]
+    [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"1000000000000000000000000000000000000000"}""", "Invalid SequenceNumber 1000000000000000000000000000000000000000 for the shard shardId-00000001767225600000-00000001: it is outside the range of the shard")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"10000000000000000000x"}""", "Invalid SequenceNumber 10000000000000000000x: a sequence number is a decimal number of 21 to 40 digits")]
     [Arguments("""{"ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"099999999999999999999"}""", "Invalid SequenceNumber 99999999999999999999 for the shard shardId-00000001767225600000-00000001: it is outside the range of the shard")]
     [Arguments("""{"ShardIteratorType":"AFTER_SEQUENCE_NUMBER","SequenceNumber":"100000000000000000002"}""", "Invalid SequenceNumber 100000000000000000002 for the shard shardId-00000001767225600000-00000001: it is outside the range of the shard")]
@@ -624,6 +626,62 @@ public sealed class StreamOperationsTests
 
         // Assert
         await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "ValidationException", message));
+    }
+
+    [Test]
+    [Arguments("ListStreams", """{"TableName":1}""", "The member TableName must be a string, and it is Number.")]
+    [Arguments("ListStreams", """{"Limit":"5"}""", "The member Limit must be a number, and it is String.")]
+    [Arguments("DescribeStream", """{"StreamArn":1}""", "The member StreamArn must be a string, and it is Number.")]
+    [Arguments("DescribeStream", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","ExclusiveStartShardId":1}""", "The member ExclusiveStartShardId must be a string, and it is Number.")]
+    [Arguments("DescribeStream", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","ShardFilter":{"Type":"CHILD_SHARDS","ShardId":1}}""", "The member ShardId must be a string, and it is Number.")]
+    [Arguments("GetShardIterator", """{"StreamArn":1}""", "The member StreamArn must be a string, and it is Number.")]
+    [Arguments("GetShardIterator", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","ShardId":1}""", "The member ShardId must be a string, and it is Number.")]
+    [Arguments("GetShardIterator", """{"StreamArn":"arn:aws:dynamodb:us-east-1:123456789012:table/Users/stream/x","ShardId":"s","ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":1}""", "The member SequenceNumber must be a string, and it is Number.")]
+    [Arguments("GetRecords", """{"ShardIterator":1}""", "The member ShardIterator must be a string, and it is Number.")]
+    public async Task Handle_MemberOfAnotherKind_AnswersSerializationNamingIt(string operation, string request, string message)
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+
+        // Act
+        var answer = FakeCalls.Error(fake, operation, request);
+
+        // Assert
+        await Assert.That(answer).IsEqualTo((HttpStatusCode.BadRequest, "SerializationException", message));
+    }
+
+    [Test]
+    [Arguments(37)]
+    [Arguments(1024)]
+    public async Task HandleDescribeStream_ArnOfALengthAtABound_LooksForTheStream(int length)
+    {
+        // Arrange
+        var fake = FakeCalls.With();
+        var arn = new string('a', length);
+
+        // Act
+        var answer = FakeCalls.Error(fake, "DescribeStream", $$"""{"StreamArn":"{{arn}}"}""");
+
+        // Assert
+        await Assert.That(answer.Code).IsEqualTo("ResourceNotFoundException");
+    }
+
+    [Test]
+    public async Task HandleGetRecords_LimitFromALaterPosition_CountsFromThere()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeStreams.Users("KEYS_ONLY"));
+        FakeStreams.Put(fake, "a", 1);
+        FakeStreams.Put(fake, "b", 1);
+        FakeStreams.Put(fake, "c", 1);
+        FakeStreams.Put(fake, "d", 1);
+        var iterator = FakeStreams.Iterator(fake, "AFTER_SEQUENCE_NUMBER", "100000000000000000001");
+
+        // Act
+        var page = FakeStreams.Page(fake, iterator, limit: 2);
+
+        // Assert
+        await Assert.That(page.GetProperty("Records").GetArrayLength()).IsEqualTo(2);
     }
 
     [Test]
