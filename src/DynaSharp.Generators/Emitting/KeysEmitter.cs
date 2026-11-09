@@ -132,6 +132,16 @@ internal static class KeysEmitter
         code.Line("/// <inheritdoc/>");
         code.Line("public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)");
         code.Open();
+        if (inputs.Count > 0)
+        {
+            // A Guid, a timestamp or a number of its own default would make a key, so a default value is found by what only the constructor sets.
+            code.Line("if (!_made)");
+            code.Open();
+            code.Line("throw new global::System.ArgumentException(\"This key is a default value. A key comes from Keys.Of(...), not default.\", \"key\");");
+            code.Close();
+            code.Blank();
+        }
+
         foreach (var key in keys)
         {
             var fields = Inputs(type, key).Select(input => $"_{inputs.FindIndex(known => known.Property == input.Property)}").ToList();
@@ -211,6 +221,7 @@ internal static class KeysEmitter
             code.Line($"private readonly {inputs[index].ValueType} _{index};");
         }
 
+        code.Line("private readonly bool _made;");
         code.Blank();
         code.Line($"internal PrimaryKey({signature})");
         code.Open();
@@ -218,6 +229,8 @@ internal static class KeysEmitter
         {
             code.Line($"_{index} = {inputs[index].Parameter};");
         }
+
+        code.Line("_made = true;");
 
         code.Close();
         code.Blank();

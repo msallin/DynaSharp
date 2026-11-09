@@ -279,16 +279,23 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
         {
             private readonly string _0;
             private readonly int _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, int count)
             {
                 _0 = id;
                 _1 = count;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

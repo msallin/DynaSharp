@@ -170,15 +170,22 @@ partial class Fixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Fixed>
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Keys.Fixed>
         {
             private readonly string _0;
+            private readonly bool _made;
 
             internal PrimaryKey(string tenant)
             {
                 _0 = tenant;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

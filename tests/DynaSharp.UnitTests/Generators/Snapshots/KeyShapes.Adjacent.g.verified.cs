@@ -172,16 +172,23 @@ partial class Adjacent : __Map.IDynamoDbDiscriminated<global::KeyShapes.Adjacent
         {
             private readonly int _0;
             private readonly string _1;
+            private readonly bool _made;
 
             internal PrimaryKey(int code, string name)
             {
                 _0 = code;
                 _1 = name;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer);
                 writer.WriteAttributeName("sk"u8);

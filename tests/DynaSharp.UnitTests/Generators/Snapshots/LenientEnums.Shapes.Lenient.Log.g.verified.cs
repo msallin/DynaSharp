@@ -263,15 +263,22 @@ partial class Log : __Map.IDynamoDbDiscriminated<global::Shapes.Lenient.Log>
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Lenient.Log>
         {
             private readonly global::Shapes.Lenient.Wind _0;
+            private readonly bool _made;
 
             internal PrimaryKey(global::Shapes.Lenient.Wind id)
             {
                 _0 = id;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 Shapes_Lenient_WindConverter.Write(writer, _0);
             }

@@ -202,16 +202,23 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
         {
             private readonly string _0;
             private readonly string _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, string sort)
             {
                 _0 = id;
                 _1 = sort;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
                 writer.WriteAttributeName("Sort"u8);

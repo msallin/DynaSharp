@@ -172,16 +172,23 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
         {
             private readonly string _0;
             private readonly int _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, int version)
             {
                 _0 = id;
                 _1 = version;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

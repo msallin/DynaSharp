@@ -149,16 +149,23 @@ partial record BinaryKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Bina
         {
             private readonly byte[] _0;
             private readonly global::System.DateTimeOffset _1;
+            private readonly bool _made;
 
             internal PrimaryKey(byte[] id, global::System.DateTimeOffset at)
             {
                 _0 = id;
                 _1 = at;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.BinaryConverter.Write(writer, _0);
                 writer.WriteAttributeName("At"u8);

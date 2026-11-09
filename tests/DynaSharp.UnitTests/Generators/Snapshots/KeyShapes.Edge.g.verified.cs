@@ -181,16 +181,23 @@ partial class Edge : __Map.IDynamoDbDiscriminated<global::KeyShapes.Edge>
         {
             private readonly string _0;
             private readonly string _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string source, string target)
             {
                 _0 = source;
                 _1 = target;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

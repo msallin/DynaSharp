@@ -165,16 +165,23 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
         {
             private readonly global::System.DateTimeOffset _0;
             private readonly global::System.Guid _1;
+            private readonly bool _made;
 
             internal PrimaryKey(global::System.DateTimeOffset at, global::System.Guid id)
             {
                 _0 = at;
                 _1 = id;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

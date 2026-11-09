@@ -162,15 +162,22 @@ partial class Inner : __Map.IDynamoDbDiscriminated<global::Shapes.Nested.Outer.M
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Nested.Outer.Middle.Inner>
         {
             private readonly string _0;
+            private readonly bool _made;
 
             internal PrimaryKey(string id)
             {
                 _0 = id;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
             }

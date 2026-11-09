@@ -254,16 +254,23 @@ partial record PlainRanges : __Map.IDynamoDbDiscriminated<global::KeyShapes.Plai
         {
             private readonly string _0;
             private readonly global::System.Guid _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, global::System.Guid @ref)
             {
                 _0 = id;
                 _1 = @ref;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
                 writer.WriteAttributeName("Ref"u8);

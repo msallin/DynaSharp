@@ -328,6 +328,7 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
             private readonly global::System.DateOnly _1;
             private readonly global::System.DateTimeOffset _2;
             private readonly int _3;
+            private readonly bool _made;
 
             internal PrimaryKey(string stream, global::System.DateOnly day, global::System.DateTimeOffset at, int sequence)
             {
@@ -335,11 +336,17 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
                 _1 = day;
                 _2 = at;
                 _3 = sequence;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

@@ -145,15 +145,22 @@ partial record KeyOnlyPlan : __Map.IDynamoDbDiscriminated<global::KeyShapes.KeyO
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.KeyOnlyPlan>
         {
             private readonly global::KeyShapes.Plan _0;
+            private readonly bool _made;
 
             internal PrimaryKey(global::KeyShapes.Plan plan)
             {
                 _0 = plan;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
             }

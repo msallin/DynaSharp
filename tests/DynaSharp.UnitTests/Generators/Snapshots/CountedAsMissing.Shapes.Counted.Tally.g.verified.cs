@@ -329,16 +329,23 @@ partial class Tally : __Map.IDynamoDbDiscriminated<global::Shapes.Counted.Tally>
         {
             private readonly string _0;
             private readonly int _1;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, int slot)
             {
                 _0 = id;
                 _1 = slot;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::Shapes.Counted.Counts.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

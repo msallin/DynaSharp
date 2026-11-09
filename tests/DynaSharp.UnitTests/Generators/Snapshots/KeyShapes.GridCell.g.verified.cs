@@ -188,17 +188,24 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
             private readonly string _0;
             private readonly string _1;
             private readonly int _2;
+            private readonly bool _made;
 
             internal PrimaryKey(string name, string column, int row)
             {
                 _0 = name;
                 _1 = column;
                 _2 = row;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

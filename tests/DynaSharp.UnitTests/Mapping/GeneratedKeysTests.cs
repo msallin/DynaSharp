@@ -37,6 +37,15 @@ public sealed class GeneratedKeysTests
 
     public delegate bool KeyParseCall();
 
+    public static IEnumerable<Func<Action>> DefaultKeys()
+    {
+        yield return static () => () => KeyJson(default(UserProfile.Keys.PrimaryKey));
+        yield return static () => () => KeyJson(default(KeyedOrder.Keys.PrimaryKey));
+        yield return static () => () => KeyJson(default(Ledger.Keys.PrimaryKey));
+        yield return static () => () => KeyJson(default(Quota.Keys.PrimaryKey));
+        yield return static () => () => KeyJson(default(Device.Keys.PrimaryKey));
+    }
+
     public static IEnumerable<KeyFormatCall> InvalidValueFormats() =>
     [
         () => Member.Keys.Pk.Format("a#b", "1"),
@@ -1001,16 +1010,31 @@ public sealed class GeneratedKeysTests
     }
 
     [Test]
-    public async Task WriteKey_DefaultOfAKey_FailsWhenTheKeyIsWritten()
+    [MethodDataSource(nameof(DefaultKeys))]
+    public async Task WriteKey_DefaultOfAKey_FailsWhenTheKeyIsWritten(Action write)
     {
-        // Arrange (no Of has seen it)
-        UserProfile.Keys.PrimaryKey key = default;
+        // Arrange (no Of has seen it, and Guid, timestamps, enums and numbers would write a key of their own default)
 
         // Act
-        var act = () => KeyJson(key);
+        var failure = Assert.Throws<ArgumentException>(write);
 
         // Assert
-        await Assert.That(act).ThrowsExactly<KeyFormatException>();
+        await Assert.That((failure.GetType(), failure.ParamName, failure.Message)).IsEqualTo((typeof(ArgumentException), (string?)"key", "This key is a default value. A key comes from Keys.Of(...), not default. (Parameter 'key')"));
+    }
+
+    [Test]
+    public async Task Get_DefaultOfAKeyOfGuidsAndATimestamp_ThrowsBeforeARequest()
+    {
+        // Arrange
+        using var handler = new DynaSharp.Testing.StubHandler();
+        using var client = TestClient.Create(handler);
+        var orders = client.Table<KeyedOrder>("Shop");
+
+        // Act
+        var failure = TestClient.Catch(() => orders.Get(default(KeyedOrder.Keys.PrimaryKey)).ToRequestJson());
+
+        // Assert
+        await Assert.That((failure as ArgumentException)?.ParamName).IsEqualTo("key");
     }
 
     private static IEnumerable<(string? Name, Type Type)> Parameters(Type builder, string method) =>

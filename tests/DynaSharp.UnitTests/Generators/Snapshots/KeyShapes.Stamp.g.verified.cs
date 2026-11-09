@@ -222,17 +222,24 @@ partial record Stamp : __Map.IDynamoDbDiscriminated<global::KeyShapes.Stamp>
             private readonly string _0;
             private readonly global::System.DateTimeOffset _1;
             private readonly int _2;
+            private readonly bool _made;
 
             internal PrimaryKey(string room, global::System.DateTimeOffset at, int seq)
             {
                 _0 = room;
                 _1 = at;
                 _2 = seq;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Room"u8);
                 global::DynaSharp.Serialization.StringConverter.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

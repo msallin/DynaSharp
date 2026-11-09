@@ -217,16 +217,23 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
         {
             private readonly global::Shapes.ExplicitConverters.Tag _0;
             private readonly global::Shapes.ExplicitConverters.Cents _1;
+            private readonly bool _made;
 
             internal PrimaryKey(global::Shapes.ExplicitConverters.Tag id, global::Shapes.ExplicitConverters.Cents net)
             {
                 _0 = id;
                 _1 = net;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.NullableConverter<global::Shapes.ExplicitConverters.Tag, global::Shapes.ExplicitConverters.TagConverter>.Write(writer, _0);
                 writer.WriteAttributeName("Net"u8);

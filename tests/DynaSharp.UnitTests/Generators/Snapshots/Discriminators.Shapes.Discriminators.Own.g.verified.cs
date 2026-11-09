@@ -160,15 +160,22 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::Shapes.Discriminators.Own>
         {
             private readonly int _0;
+            private readonly bool _made;
 
             internal PrimaryKey(int id)
             {
                 _0 = id;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, _0);
             }

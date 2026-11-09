@@ -145,7 +145,7 @@ For `[DynamoDbEntity]` and `[DynamoDbDocument]` types, which must be `partial`:
 
 **`TryOf`** is for a value from outside: `null` exactly where `Of` throws `KeyFormatException`, because both run one generated code path over one `KeyWriter` told not to throw; nothing is thrown and caught, and it costs what `Of` costs. It returns `PrimaryKey?`/`PartitionKey<T>?` (`is { } key`), no `out` form. Sort key builders have none (no `Of`). It exists only where a value can be turned away: not on a key of literals, a plain key (no template; an empty string is DynamoDB's to reject), or a key of `Guid`, `DateOnly` and `DateTimeOffset` alone; `Keys.TryOf` checks the keys that can fail. The rule is by encoding: a plain number counts, as does `d3` over a `byte`.
 
-The check of `Keys.Of` renders into a stack buffer (a longer value borrows from the pool, as a write does) and drops it; a command renders again when it writes. A key that cannot fail skips it. `default(PrimaryKey)` throws when written.
+The check of `Keys.Of` renders into a stack buffer (a longer value borrows from the pool, as a write does) and drops it; a command renders again when it writes. A key that cannot fail skips it. `default(PrimaryKey)` throws `ArgumentException` (`key`) when written, whatever its inputs: one of `Guid`, timestamps or numbers alone would make a key of its own default otherwise, so the struct holds a flag its constructor sets (one `bool`, no cost the key benchmarks show).
 
 A timestamp in a template is UTC, and bare `{At}` is `{At:ticks}`: `2026-10-09T10:00:00.1234567Z`, the only lossless format, so a read can restore the property from the key. `{At:ms}` stores `2026-10-09T10:00:00.123Z`, what AWS SDK keys hold. Other formats are in `requirements.md`.
 

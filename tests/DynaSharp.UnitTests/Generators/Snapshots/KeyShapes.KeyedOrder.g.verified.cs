@@ -367,17 +367,24 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
             private readonly global::System.Guid _0;
             private readonly global::System.DateTimeOffset _1;
             private readonly global::System.Guid _2;
+            private readonly bool _made;
 
             internal PrimaryKey(global::System.Guid userId, global::System.DateTimeOffset createdAt, global::System.Guid orderId)
             {
                 _0 = userId;
                 _1 = createdAt;
                 _2 = orderId;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

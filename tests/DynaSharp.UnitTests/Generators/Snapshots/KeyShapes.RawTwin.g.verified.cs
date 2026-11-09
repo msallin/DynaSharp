@@ -156,15 +156,22 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.RawTwin>
         {
             private readonly string _0;
+            private readonly bool _made;
 
             internal PrimaryKey(string key)
             {
                 _0 = key;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
             }

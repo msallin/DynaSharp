@@ -304,6 +304,7 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
             private readonly string _1;
             private readonly global::System.DateOnly _2;
             private readonly string _3;
+            private readonly bool _made;
 
             internal PrimaryKey(string key, string site, global::System.DateOnly day, string @ref)
             {
@@ -311,11 +312,17 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
                 _1 = site;
                 _2 = day;
                 _3 = @ref;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

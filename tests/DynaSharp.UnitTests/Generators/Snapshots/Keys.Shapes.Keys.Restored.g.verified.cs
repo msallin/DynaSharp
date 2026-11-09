@@ -221,17 +221,24 @@ partial record Restored : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Resto
             private readonly string _0;
             private readonly global::System.DateTime _1;
             private readonly global::System.Guid _2;
+            private readonly bool _made;
 
             internal PrimaryKey(string user, global::System.DateTime at, global::System.Guid id)
             {
                 _0 = user;
                 _1 = at;
                 _2 = id;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);

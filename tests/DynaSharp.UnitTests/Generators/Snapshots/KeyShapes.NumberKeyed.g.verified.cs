@@ -151,16 +151,23 @@ partial record NumberKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Numb
         {
             private readonly int _0;
             private readonly long _1;
+            private readonly bool _made;
 
             internal PrimaryKey(int id, long sequence)
             {
                 _0 = id;
                 _1 = sequence;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Id"u8);
                 global::DynaSharp.Serialization.NumberConverter<int>.Write(writer, _0);
                 writer.WriteAttributeName("Sequence"u8);

@@ -141,15 +141,22 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
         public readonly struct PrimaryKey : global::DynaSharp.Mapping.IKey<global::KeyShapes.Quota>
         {
             private readonly global::KeyShapes.Plan _0;
+            private readonly bool _made;
 
             internal PrimaryKey(global::KeyShapes.Plan plan)
             {
                 _0 = plan;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("Plan"u8);
                 KeyShapes_PlanConverter.Write(writer, _0);
             }

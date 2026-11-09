@@ -246,17 +246,24 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
             private readonly string _0;
             private readonly string _1;
             private readonly int _2;
+            private readonly bool _made;
 
             internal PrimaryKey(string id, string name, int seat)
             {
                 _0 = id;
                 _1 = name;
                 _2 = seat;
+                _made = true;
             }
 
             /// <inheritdoc/>
             public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)
             {
+                if (!_made)
+                {
+                    throw new global::System.ArgumentException("This key is a default value. A key comes from Keys.Of(...), not default.", "key");
+                }
+
                 writer.WriteAttributeName("pk"u8);
                 Pk.Write(writer, _0);
                 writer.WriteAttributeName("sk"u8);
