@@ -620,6 +620,41 @@ public sealed class LockTableTests
     }
 
     [Test]
+    public async Task TryAcquireAsync_HeldItemWithAFenceThatIsNoWholeNumber_ThrowsWithoutWriting()
+    {
+        // Arrange (an owner, so the write fails its condition, and the item that failed it has a fence no lock writes)
+        using var bench = new LockHarness();
+        var foreign = new Item(bench.KeyOf("b")) { ["owner"] = "x", ["rvn"] = "r", ["leaseMs"] = 30_000, ["fence"] = 1.5m };
+        bench.Fake.Put(bench.TableName, foreign);
+
+        // Act
+        var act = () => bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("its attribute fence is missing or not a whole number", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_WaitedOutHolderWithAFenceThatIsNoWholeNumber_ThrowsAndLeavesTheItem()
+    {
+        // Arrange (the contender saw a holder; by the end of its lease the item has a fence no lock writes, which the read before the takeover finds)
+        using var bench = new LockHarness();
+        await using var holder = await bench.OtherProcess(new ManualTimeProvider()).TryAcquireAsync("b", Lease);
+        await bench.Locks.TryAcquireAsync("b", Lease);
+        var corrupt = bench.ItemOf("b")!;
+        corrupt["fence"] = 1.5m;
+        bench.Fake.Put(bench.TableName, corrupt);
+        bench.Clock.Advance(Lease);
+
+        // Act
+        var act = () => bench.Locks.TryAcquireAsync("b", Lease);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessageContaining("its attribute fence is missing or not a whole number", StringComparison.Ordinal);
+        await Assert.That(bench.ItemOf("b")!.GetString("owner")).IsEqualTo(holder!.Owner);
+    }
+
+    [Test]
     public async Task TryAcquireAsync_FreeItemWithoutAFence_StartsTheTokenAtOne()
     {
         // Arrange (an item at the key without owner and fence, such as one written before by hand)

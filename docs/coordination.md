@@ -43,7 +43,7 @@ The item of the lock `nightly-report` has the partition key `LOCK#nightly-report
 
 A release keeps the item, and by default it has no time to live, so the fencing token never goes back. Deleting the item starts the token at 1 again, also while a lease holds it: that lease is then lost with the reason `deleted`, and the next acquire gets token 1.
 
-The key of a lock belongs to the lock. An item at that key with an `owner` but without the other attributes, such as an entity whose key happens to be `LOCK#` and a name, makes `TryAcquireAsync`, `AcquireAsync` and `RunAsLeaderAsync` throw `InvalidOperationException`, naming the lock and the table, instead of guessing how long that item holds the lock. Give the lock another name.
+The key of a lock belongs to the lock. An item at that key with an `owner` but without the other attributes, or with one of a kind a lock never writes (a `fence` that is no whole number), such as an entity whose key happens to be `LOCK#` and a name, makes `TryAcquireAsync`, `AcquireAsync` and `RunAsLeaderAsync` throw `InvalidOperationException`, naming the lock and the table, instead of guessing how long that item holds the lock. Give the lock another name.
 
 Hold one `LockTable` per table in a process. It remembers the holders it has seen, which a takeover depends on. Two instances in one process contend like two processes. It forgets a holder that no try has looked at for ten of its leases, so a process that gives up on a lock per job does not remember every lock it ever met; a try that comes back later watches the holder for a whole lease again.
 

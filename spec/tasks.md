@@ -127,6 +127,10 @@ Git history has the detail; each line says what an area delivered and where it l
 - Docs site (DocFX): guide, diagnostics page, API reference; the docs pass after 0.8.0.
 - Stryker survivors of `fluent` and `core` on `e78cb67`: verdicts below, what is left under Open.
 
+### Review of 2026-11-09
+
+- Coordination: a held lock item whose `fence` is no whole number throws `InvalidOperationException` before any write. `LockItem.HolderOf` checks the fence with the other attributes, so the read before a takeover and the item of a failed condition refuse it; before, the takeover was written and then thrown, and left an owner that nobody renewed or released.
+
 ## Decisions
 
 Where `requirements.md`, `api.md` or `architecture.md` section 13 ("Decisions you must not undo") states a decision in full, the row only points there.

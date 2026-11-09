@@ -56,7 +56,8 @@ internal static class LockItem
 
     /// <summary>
     /// Reads who holds a lock from its item, and checks that the item is one that <see cref="LockTable"/> wrote: an <c>owner</c> and an <c>rvn</c> that are
-    /// strings, and a <c>leaseMs</c> that is a whole number from 1 to the milliseconds of a day.
+    /// strings, a <c>leaseMs</c> that is a whole number from 1 to the milliseconds of a day, and a <c>fence</c>, if there is one, that is a whole number from 0.
+    /// A contender checks the item before it writes, so that it never takes over an item it cannot read back.
     /// </summary>
     /// <param name="item">The item, or <see langword="null"/> if there is none.</param>
     /// <param name="name">The name of the lock, for the message.</param>
@@ -73,7 +74,7 @@ internal static class LockItem
         var owner = Text(item, Owner, name, table);
         var recordVersion = Text(item, RecordVersion, name, table);
         var leaseDuration = TimeSpan.FromMilliseconds(Whole(item, LeaseDuration, 1, (long)TimeSpan.FromDays(1).TotalMilliseconds, name, table));
-        return new(owner, recordVersion, leaseDuration);
+        return new(owner, recordVersion, leaseDuration, FencingTokenOf(item, name, table));
     }
 
     /// <summary>Reads the label of the holder from an item, which is only for the logs, so anything but a string counts as none.</summary>
@@ -114,5 +115,6 @@ internal static class LockItem
     /// <param name="Owner">The owner id of the lease that holds it.</param>
     /// <param name="RecordVersion">The record version number of the last acquire or renewal.</param>
     /// <param name="LeaseDuration">The duration of the holder's lease.</param>
-    internal sealed record Holder(string Owner, string RecordVersion, TimeSpan LeaseDuration);
+    /// <param name="FencingToken">The fencing token of the holder's lease.</param>
+    internal sealed record Holder(string Owner, string RecordVersion, TimeSpan LeaseDuration, long FencingToken);
 }

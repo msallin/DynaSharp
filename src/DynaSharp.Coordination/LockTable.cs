@@ -492,7 +492,7 @@ public sealed class LockTable
             var item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
-                ? Acquired(name, owner, LockItem.FencingTokenOf(item, name, Table.Name), leaseDuration, sent, null)
+                ? Acquired(name, owner, holder.FencingToken, leaseDuration, sent, null)
                 : new(null, false, Observe(name, holder));
         }
     }
