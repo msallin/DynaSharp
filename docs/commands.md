@@ -250,11 +250,15 @@ await carts.RetryOnConflictAsync(
         var cart = await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
         await carts.Put(cart! with { Lines = lines }).SendAsync(token);
     },
-    onConflict: (run, conflict) => Console.WriteLine($"Run {run} lost with {conflict.ErrorCode}, trying again"),
-    cancellationToken: ct);
+    ct,
+    onConflict: (run, conflict) => Console.WriteLine($"Run {run} lost with {conflict.ErrorCode}, trying again"));
 ```
 
-A run whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once, see [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
+The token comes right after the delegate, and the options after it: `RetryOnConflictAsync(run, ct, ConflictKind.TransactionConflict, maxAttempts: 10)`. A run whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once, see [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
+
+The delegate can return a `ValueTask` or a `Task`, with a result or without, so a method of yours goes in by name: `carts.RetryOnConflictAsync(SaveAsync, ct)` for a `Task SaveAsync(CancellationToken)`. A lambda takes the `ValueTask` form.
+
+A transaction cancelled only for throttling (`TransactionFailure.Throttled` on every failed action) is no conflict, so `RetryOnConflictAsync` does not run it again, and the client does not repeat a cancelled transaction either, although `IsTransient` is true for it. Catch it around the call when `IsTransient` says so, and send it again after a wait of your own.
 
 ## See what goes over the wire
 

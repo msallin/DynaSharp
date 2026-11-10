@@ -165,7 +165,7 @@ public sealed class ConflictRetryTelemetryTests
         var shop = client.Table(table, "pk");
 
         // Act
-        await CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey }).IfNotExists().SendAsync(ct), ConflictKind.TransactionConflict));
+        await CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => await shop.Put(new Item { ["pk"] = SecretKey }).IfNotExists().SendAsync(ct), CancellationToken.None, ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That(counters.All.Count).IsEqualTo(0);

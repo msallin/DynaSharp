@@ -4,7 +4,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// A request was rejected because an ongoing transaction includes the item it addresses. Not retried by the client: repeat the request after a short wait, which
-/// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> does.
+/// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> does.
 /// </summary>
 /// <remarks>
 /// This is the error of single-item operations and reads. A transaction that conflicts with another one is cancelled with a

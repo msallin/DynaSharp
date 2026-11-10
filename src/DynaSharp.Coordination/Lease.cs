@@ -191,7 +191,7 @@ public sealed class Lease : IAsyncDisposable
         using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.ReleaseSpan, Locks.Table.Name, Name, _acquiredIn);
         try
         {
-            await Locks.Table.RetryOnConflictAsync(SendReleaseAsync, ConflictKind.TransactionConflict, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            await Locks.Table.RetryOnConflictAsync(SendReleaseAsync, CancellationToken.None, ConflictKind.TransactionConflict).ConfigureAwait(false);
         }
         catch (ConditionalCheckFailedException)
         {
@@ -265,7 +265,7 @@ public sealed class Lease : IAsyncDisposable
         var sent = Locks.Time.GetTimestamp();
         try
         {
-            await Locks.Table.RetryOnConflictAsync(SendRenewalAsync, ConflictKind.TransactionConflict, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await Locks.Table.RetryOnConflictAsync(SendRenewalAsync, cancellationToken, ConflictKind.TransactionConflict).ConfigureAwait(false);
             CoordinationTelemetry.Renew(this, null);
             return Extend(sent);
         }

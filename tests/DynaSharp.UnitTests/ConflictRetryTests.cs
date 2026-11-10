@@ -460,7 +460,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.TransactionConflict, 5));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), CancellationToken.None, ConflictKind.TransactionConflict, 5));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(1);
@@ -474,7 +474,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), ConflictKind.Any, 2));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunWithoutResultAsync(ct), CancellationToken.None, ConflictKind.Any, 2));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(2);
@@ -516,7 +516,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), ConflictKind.Any, 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync((_, ct) => script.RunAsync(ct), CancellationToken.None, ConflictKind.Any, 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -1049,7 +1049,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, named.RetryOn);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, named.RetryOn);
 
         // Assert
         await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
@@ -1064,7 +1064,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, unnamed.RetryOn));
+        var failure = await TestClient.CaptureAsync<DynamoDbException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, unnamed.RetryOn));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, unnamed.Exception), script.Runs)).IsEqualTo((true, 1));
@@ -1079,7 +1079,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.Any);
+        var result = await Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.Any);
 
         // Assert
         await Assert.That((result, script.Runs)).IsEqualTo((2, 2));
@@ -1094,7 +1094,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = await TestClient.CaptureAsync<Exception>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.Any));
+        var failure = await TestClient.CaptureAsync<Exception>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.Any));
 
         // Assert
         await Assert.That((ReferenceEquals(failure, other.Exception), script.Runs)).IsEqualTo((true, 1));
@@ -1109,7 +1109,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, named.RetryOn);
+        await Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, CancellationToken.None, named.RetryOn);
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(2);
@@ -1123,7 +1123,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.TransactionConflict));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, CancellationToken.None, ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(1);
@@ -1140,7 +1140,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<TransactionConflictException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, maxAttempts));
+        await TestClient.CaptureAsync<TransactionConflictException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.TransactionConflict, maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -1157,7 +1157,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, ConflictKind.ConditionalCheckFailed, maxAttempts));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, CancellationToken.None, ConflictKind.ConditionalCheckFailed, maxAttempts));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(maxAttempts);
@@ -1171,7 +1171,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.ConditionalCheckFailed));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.ConditionalCheckFailed));
 
         // Assert
         await Assert.That(script.Runs).IsEqualTo(5);
@@ -1191,7 +1191,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, (ConflictKind)value));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, (ConflictKind)value));
 
         // Assert
         await Assert.That((failure.ParamName, failure.ActualValue, failure.Message.StartsWith("Name the conflicts that run the delegate again: ConditionalCheckFailed, TransactionConflict or Any.", StringComparison.Ordinal), script.Runs))
@@ -1206,7 +1206,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, default(ConflictKind), 3));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, CancellationToken.None, default(ConflictKind), 3));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("retryOn", 0));
@@ -1220,7 +1220,7 @@ internal sealed class ConflictRetryTests
         using var client = NewClient();
 
         // Act
-        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, ConflictKind.TransactionConflict, 0));
+        var failure = Catch<ArgumentOutOfRangeException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.TransactionConflict, 0));
 
         // Assert
         await Assert.That((failure.ParamName, script.Runs)).IsEqualTo(("maxAttempts", 0));
@@ -1234,7 +1234,7 @@ internal sealed class ConflictRetryTests
         Func<CancellationToken, ValueTask>? operation = null;
 
         // Act
-        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!, default(ConflictKind)));
+        var failure = Catch<ArgumentNullException>(() => Shop(client).RetryOnConflictAsync(operation!, CancellationToken.None, default(ConflictKind)));
 
         // Assert
         await Assert.That(failure.ParamName).IsEqualTo("operation");
@@ -1265,6 +1265,7 @@ internal sealed class ConflictRetryTests
                     return false;
                 }
             },
+            CancellationToken.None,
             ConflictKind.TransactionConflict);
 
         // Assert
@@ -1280,7 +1281,7 @@ internal sealed class ConflictRetryTests
         using var client = TestClient.Create(handler, random: FixedRandom.Zero);
 
         // Act
-        var failure = await TestClient.CaptureAsync<TransactionCanceledException>(() => Shop(client).RetryOnConflictAsync(ct => SendTransactionAsync(client, ct), ConflictKind.TransactionConflict));
+        var failure = await TestClient.CaptureAsync<TransactionCanceledException>(() => Shop(client).RetryOnConflictAsync(ct => SendTransactionAsync(client, ct), CancellationToken.None, ConflictKind.TransactionConflict));
 
         // Assert
         await Assert.That((failure.Failures.Single().Reason, handler.Requests.Count)).IsEqualTo((TransactionFailure.ConditionalCheckFailed, 1));

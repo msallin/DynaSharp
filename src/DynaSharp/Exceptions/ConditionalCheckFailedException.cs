@@ -5,7 +5,7 @@ namespace DynaSharp;
 
 /// <summary>
 /// The condition expression of a write did not hold, so nothing was written. Not retried by the client, because the same request meets the same condition. Code that reads again
-/// and decides again can run in <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/>, which repeats it for you.
+/// and decides again can run in <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/>, which repeats it for you.
 /// <see cref="Key"/> says which item it was about.
 /// </summary>
 /// <remarks>
@@ -77,7 +77,7 @@ public sealed class ConditionalCheckFailedException : DynamoDbException
     /// </para>
     /// <para>
     /// It is taken from the request only when the condition fails. After the last run of
-    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> it is the key of that run.
+    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> it is the key of that run.
     /// </para>
     /// </remarks>
     public Item? Key { get; private set; }

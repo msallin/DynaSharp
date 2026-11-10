@@ -124,8 +124,8 @@ the two cannot disagree. `RetryPolicy` holds the numbers. `.MaxAttempts(n)` reac
 
 `Table<T>.RetryOnConflictAsync` is the one retry a caller asks for, above the pipeline, which never sees it: `ConflictRetry` runs a delegate, `FailureClassifier.IsConflict`
 decides from the `ConflictKind` the call names whether it runs again, `RetryPolicy.GetConflictDelay` how long it waits (client's clock, the policy's jitter, nothing from the
-quota). A run is any number of calls with their own attempts. A delegate with or without the run number goes into one loop as state with a static invoker, so neither allocates
-a closure. `onConflict` runs inside the `catch` of a conflict another run follows, after the metric and before the wait, so what it throws replaces the conflict. The method's
+quota). A run is any number of calls with their own attempts. Each of the eight delegate shapes goes into one loop (`ConflictRetry.StartAsync<T, TOperation>`) as state with a static invoker
+from `Table<T>`, so none allocates a closure: a `Task` is wrapped in a `ValueTask`, and a delegate without a result gets a static `async` invoker that returns `true`. `onConflict` runs inside the `catch` of a conflict another run follows, after the metric and before the wait, so what it throws replaces the conflict. The method's
 remarks are the contract.
 
 **Telemetry** (names in `TelemetryNames`, the list for users in `docs/observability.md`): one span per request (`DynamoDB.GetItem`), so a batch of three requests is three spans,

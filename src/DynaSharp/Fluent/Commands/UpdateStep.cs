@@ -259,7 +259,7 @@ public readonly ref struct UpdateStep : ITransactWriteStep<UpdateStep>, IUpdatab
     /// </summary>
     /// <remarks>
     /// A key does not carry a version, so an update of an entity with a <see cref="Mapping.VersionAttribute"/> needs this or <see cref="IgnoreVersion"/>, and the next action throws
-    /// <see cref="InvalidOperationException"/> without it. <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> repeats a transaction
+    /// <see cref="InvalidOperationException"/> without it. <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> repeats a transaction
     /// together with the read of the version. An action of the update on the version attribute, before or after this, takes the place of the next version, and the check stays.
     /// </remarks>
     /// <param name="version">The version last read. A version of 0 stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key. With <see cref="Mapping.VersionMissing.Allow"/> it stands for what reads as 0, an item without a version attribute or with 0 in it, or none.</param>

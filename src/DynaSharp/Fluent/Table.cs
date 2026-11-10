@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using DynaSharp.Fluent;
 using DynaSharp.Http;
 using DynaSharp.Mapping;
@@ -308,16 +310,42 @@ public sealed partial class Table<T>
     ///     return await carts.Update(Cart.Keys.Of("bob")).Set(Cart.Attrs.Lines, lines).IfVersion(cart!.Revision).SendAsync(token);
     /// }, ct);
     /// </code>
+    /// A registration whose claims are a transaction: a taken email is the answer, and only a transaction in the way is asked again.
+    /// <code>
+    /// var registered = await customers.RetryOnConflictAsync(async token =>
+    /// {
+    ///     TransactMarker taken = default;
+    ///     try
+    ///     {
+    ///         await client.TransactWrite().Unique(emails, new EmailClaim(customer.Email, customer.Id), out taken).Put(customers, customer).IfNotExists().SendAsync(token);
+    ///         return true;
+    ///     }
+    ///     catch (TransactionCanceledException exception) when (exception.ReasonFor(taken) == TransactionFailure.ConditionalCheckFailed)
+    ///     {
+    ///         return false;
+    ///     }
+    /// }, ct, ConflictKind.TransactionConflict);
+    /// </code>
     /// </example>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>, and it must read what it depends on itself, see the remarks.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <param name="cancellationToken">
+    /// Goes to each run, and ends a wait between two runs at once. It comes before the options, which then need no names: <c>RetryOnConflictAsync(run, ct, ConflictKind.TransactionConflict)</c>.
+    /// </param>
+    /// <param name="retryOn">
+    /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
+    /// </param>
+    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
+    /// <param name="onConflict">
+    /// Called with the number of the run that lost, 1 for the first, and its exception, before the wait and the next run, for a log; <see langword="null"/>, the default, for none. The conflict of the last run
+    /// surfaces instead, and what this throws ends the retries with that exception.
+    /// </param>
     /// <returns>What the run that got through returned.</returns>
     /// <remarks>
     /// <para>
-    /// <b>No command retries a conflict by itself.</b> This is the loop to ask for it. Nothing ties a run to this table: it can read and write others, and send a transaction. The overload that takes a
-    /// <see cref="ConflictKind"/> repeats one kind of conflict only, for a run whose failed condition is its answer, and takes another number of runs:
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/>.
+    /// <b>No command retries a conflict by itself.</b> This is the loop to ask for it. Nothing ties a run to this table: it can read and write others, and send a transaction. A run can return a
+    /// <see cref="Task"/> or a <see cref="ValueTask"/>, with a result or without, and it can take the number of its run, 1 for the first: each shape has an overload with these parameters, and an
+    /// <see langword="async"/> lambda takes the one with <see cref="ValueTask"/>.
     /// </para>
     /// <para>
     /// <b>Read inside the delegate.</b> Each run starts from nothing, so <paramref name="operation"/> reads, decides and writes. A write built from what was read before this call
@@ -330,6 +358,22 @@ public sealed partial class Table<T>
     /// catches itself and turns into its result, because whatever leaves the delegate as one of the three exceptions counts as lost. A transaction runs again if any of its reasons is
     /// one of the two, whatever the other actions report, and the limit on the runs is what ends it when another reason does not pass. A run that reads nothing cannot decide again, so a failed condition there is
     /// the answer, and <see cref="ConflictKind.TransactionConflict"/> lets it surface at once.
+    /// </para>
+    /// <para>
+    /// <b>Which conflicts.</b> <see cref="ConflictKind.TransactionConflict"/> is for a run whose failed condition is an answer that asking again does not change, such as a value that is taken, or a record that
+    /// exists. That surfaces at once, with no wait and no second run, and so does anything else that <paramref name="retryOn"/> does not name. A cancelled transaction runs again when any of its reasons is of
+    /// a kind named there, whatever the others say. <see cref="ConflictKind.ConditionalCheckFailed"/> alone leaves a transaction in the way to the caller, which a run that never meets a transaction does
+    /// not need either way.
+    /// </para>
+    /// <para>
+    /// <b>How many runs.</b> Every failed condition on a version means that another writer got through, so <c>n</c> writers on one item need at most <c>n</c> runs each, whatever the timing. That is the
+    /// number to pass as <paramref name="maxAttempts"/> when more than five writers meet on one item. <see cref="TransactionFailure.TransactionConflict"/> has no such bound, because the transaction that
+    /// was in the way may fail too.
+    /// </para>
+    /// <para>
+    /// <b>A transaction that was only throttled is retried by nobody.</b> A <see cref="TransactionCanceledException"/> whose failed actions are all <see cref="TransactionFailure.Throttled"/> is no
+    /// conflict, so this call does not run it again, and the client does not repeat a cancelled transaction either, although <see cref="DynamoDbException.IsTransient"/> is <see langword="true"/> for it.
+    /// Catch it around this call when <see cref="DynamoDbException.IsTransient"/> says so, and send it again after a wait of your own.
     /// </para>
     /// <para>
     /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged, so a
@@ -345,6 +389,13 @@ public sealed partial class Table<T>
     /// <b>A wait.</b> Between two runs it waits a random time up to <c>min(1 s, 10 ms * 2^(run - 1))</c> on <see cref="DynamoDbClientOptions.TimeProvider"/>, so that writers that failed together
     /// do not meet again; a conflict usually clears within that. This has nothing to do with <see cref="DynamoDbClientOptions.MaxAttempts"/>: it takes nothing from the retry quota, and every
     /// call of a run has its own attempts, as it would outside.
+    /// </para>
+    /// <para>
+    /// <b>Hearing of a conflict.</b> <paramref name="onConflict"/> runs after each run that lost and is repeated, before the wait, so a log of the conflict needs no <c>catch</c> and rethrow in the
+    /// delegate: <c>onConflict: (run, conflict) =&gt; logger.LogWarning("Run {Run} lost: {Error}", run, conflict.ErrorCode)</c>. It gets a <see cref="ConditionalCheckFailedException"/>, a
+    /// <see cref="TransactionConflictException"/> or a <see cref="TransactionCanceledException"/>, whichever the run threw. It is not called for the conflict of the last run, which this call rethrows, nor
+    /// for a failure that is no conflict. It runs on the thread of the loop and holds it up, so it does no I/O. An exception it throws surfaces from this call in place of the conflict, with no wait and
+    /// no further run.
     /// </para>
     /// <para>
     /// <b>A lost response can look like a conflict.</b> When a conditional write reaches DynamoDB and its response is lost, the next attempt of that call fails its condition on what the first
@@ -363,120 +414,113 @@ public sealed partial class Table<T>
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item, see the remarks.</exception>
-    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
-    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken) =>
-        ConflictRetry.StartAsync(Model.Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, onConflict: null, cancellationToken);
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    [OverloadResolutionPriority(1)]
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static (operation, _, token) => operation(token),
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     /// <summary>
-    /// Runs a write up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names:
-    /// <c>RetryOnConflictAsync(operation, ConflictKind.TransactionConflict, cancellationToken: ct)</c>. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> for what a run is and how to write one.
+    /// Runs a read-modify-write whose run returns a <see cref="Task{TResult}"/>, such as a method passed by name, and repeats it when it loses to another writer, as the overload for a <see cref="ValueTask{TResult}"/> does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
     /// </summary>
-    /// <example>
-    /// A registration whose claims are a transaction: a taken email is the answer, and only a transaction in the way is asked again.
-    /// <code>
-    /// var registered = await customers.RetryOnConflictAsync(async token =>
-    /// {
-    ///     TransactMarker taken = default;
-    ///     try
-    ///     {
-    ///         await client.TransactWrite().Unique(emails, new EmailClaim(customer.Email, customer.Id), out taken).Put(customers, customer).IfNotExists().SendAsync(token);
-    ///         return true;
-    ///     }
-    ///     catch (TransactionCanceledException exception) when (exception.ReasonFor(taken) == TransactionFailure.ConditionalCheckFailed)
-    ///     {
-    ///         return false;
-    ///     }
-    /// }, ConflictKind.TransactionConflict, cancellationToken: ct);
-    /// </code>
-    /// </example>
-    /// <remarks>
-    /// <para>
-    /// <see cref="ConflictKind.TransactionConflict"/> is for a run whose failed condition is an answer that asking again does not change, such as a value that is taken, or a record that exists. It surfaces at once,
-    /// with no wait and no second run, and so does anything else that is not named. A cancelled transaction runs again when any of its reasons is of a kind named here, whatever the others say, and the limit on the
-    /// runs ends it when another reason does not pass.
-    /// </para>
-    /// <para>
-    /// <see cref="ConflictKind.ConditionalCheckFailed"/> alone leaves a transaction in the way to the caller, which a run that never meets a transaction does not need either way.
-    /// </para>
-    /// <para>
-    /// Every failed condition on a version means that another writer got through, so <c>n</c> writers on one item need at most <c>n</c> runs each, whatever the timing. That is the number to pass
-    /// as <paramref name="maxAttempts"/> when more than five writers meet on one item. <see cref="TransactionFailure.TransactionConflict"/> has no such bound, because the transaction that was in the way may fail too.
-    /// </para>
-    /// <para>
-    /// <b>Hearing of a conflict.</b> <paramref name="onConflict"/> runs after each run that lost and is repeated, before the wait, so a log of the conflict needs no <c>catch</c> and rethrow in the
-    /// delegate: <c>onConflict: (run, conflict) =&gt; logger.LogWarning("Run {Run} lost: {Error}", run, conflict.ErrorCode)</c>. It gets a <see cref="ConditionalCheckFailedException"/>, a
-    /// <see cref="TransactionConflictException"/> or a <see cref="TransactionCanceledException"/>, whichever the run threw. It is not called for the conflict of the last run, which this call rethrows, nor
-    /// for a failure that is no conflict. It runs on the thread of the loop and holds it up, so it does no I/O. An exception it throws surfaces from this call in place of the conflict, with no wait and
-    /// no further run.
-    /// </para>
-    /// </remarks>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
-    /// <param name="retryOn">
-    /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
-    /// </param>
-    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="onConflict">
-    /// Called with the number of the run that lost, 1 for the first, and its exception, before the wait and the next run, for a log; <see langword="null"/>, the default, for none. The conflict of the last run
-    /// surfaces instead, and what this throws ends the retries with that exception.
-    /// </param>
-    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
-    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, ValueTask<TResult>> operation, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Model.Core, operation, retryOn, maxAttempts, onConflict, cancellationToken);
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static (operation, _, token) => new ValueTask<TResult>(operation(token)),
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write that returns nothing, and runs it again when it loses to another writer. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> for what a run is, what makes it run again and how to write one.
+    /// Runs a read-modify-write that returns nothing, and repeats it when it loses to another writer, as the overload with a result does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
     /// </summary>
     /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
-    /// <returns>A task that completes when a run got through.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
-    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
-    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken) =>
-        ConflictRetry.StartAsync(Model.Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, onConflict: null, cancellationToken);
-
-    /// <summary>
-    /// Runs a write that returns nothing up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/>.
-    /// </summary>
-    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
-    /// <param name="retryOn">
-    /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
-    /// </param>
-    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="onConflict">
-    /// Called with the number of the run that lost, 1 for the first, and its exception, before the wait and the next run, for a log; <see langword="null"/>, the default, for none. The conflict of the last run
-    /// surfaces instead, and what this throws ends the retries with that exception.
-    /// </param>
-    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
-    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Model.Core, operation, retryOn, maxAttempts, onConflict, cancellationToken);
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    [OverloadResolutionPriority(1)]
+    public Task RetryOnConflictAsync(Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static async (operation, _, token) =>
+            {
+                await operation(token).ConfigureAwait(false);
+                return true;
+            },
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     /// <summary>
-    /// Runs a read-modify-write that gets the number of its run, 1 for the first, and repeats it when it loses to another writer, as
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> does.
+    /// Runs a read-modify-write whose run returns a <see cref="Task"/> and nothing else, such as a method passed by name, and repeats it when it loses to another writer, as the overload with a result does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
+    /// </summary>
+    /// <param name="operation">One run. It gets <paramref name="cancellationToken"/>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    public Task RetryOnConflictAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static async (operation, _, token) =>
+            {
+                await operation(token).ConfigureAwait(false);
+                return true;
+            },
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
+
+    /// <summary>
+    /// Runs a read-modify-write that gets the number of its run, 1 for the first, and repeats it when it loses to another writer, as the overload without the number does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
     /// </summary>
     /// <example>
     /// A value read before the call, which the first run takes and every later run reads again:
@@ -492,76 +536,116 @@ public sealed partial class Table<T>
     /// <remarks>Only the first run may take what was read before: the run after a conflict has lost to a write that this value does not hold, and taking it again fails the same way, which is what <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA218</see> reports for a version from before the call.</remarks>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
-    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
-    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task<TResult> RetryOnConflictAsync<TResult>(Func<int, CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken) =>
-        ConflictRetry.StartAsync(Model.Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, onConflict: null, cancellationToken);
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    [OverloadResolutionPriority(1)]
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<int, CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static (operation, run, token) => operation(run, token),
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     /// <summary>
-    /// Runs a write with the number of the run up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{int, CancellationToken, ValueTask{TResult}}, CancellationToken)"/> for the number, and <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/> for the rest.
+    /// Runs a read-modify-write that gets the number of its run and returns a <see cref="Task{TResult}"/>, and repeats it when it loses to another writer, as the overload without the number does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
     /// </summary>
     /// <typeparam name="TResult">What a run returns.</typeparam>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
-    /// <param name="retryOn">
-    /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
-    /// </param>
-    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="onConflict">
-    /// Called with the number of the run that lost, 1 for the first, and its exception, before the wait and the next run, for a log; <see langword="null"/>, the default, for none. The conflict of the last run
-    /// surfaces instead, and what this throws ends the retries with that exception.
-    /// </param>
-    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
     /// <returns>What the run that got through returned.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
-    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task<TResult> RetryOnConflictAsync<TResult>(Func<int, CancellationToken, ValueTask<TResult>> operation, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Model.Core, operation, retryOn, maxAttempts, onConflict, cancellationToken);
-
-    /// <summary>Runs a read-modify-write that returns nothing, with the number of the run. See <see cref="RetryOnConflictAsync{TResult}(Func{int, CancellationToken, ValueTask{TResult}}, CancellationToken)"/>.</summary>
-    /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
-    /// <param name="cancellationToken">Goes to each run, and ends a wait between two runs at once.</param>
-    /// <returns>A task that completes when a run got through.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of the last run failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
-    /// <exception cref="TransactionConflictException">The last run met an ongoing transaction.</exception>
-    /// <exception cref="TransactionCanceledException">The last run was cancelled with a conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task RetryOnConflictAsync(Func<int, CancellationToken, ValueTask> operation, CancellationToken cancellationToken) =>
-        ConflictRetry.StartAsync(Model.Core, operation, ConflictKind.Any, ConflictRetry.DefaultMaxAttempts, onConflict: null, cancellationToken);
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    public Task<TResult> RetryOnConflictAsync<TResult>(Func<int, CancellationToken, Task<TResult>> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static (operation, run, token) => new ValueTask<TResult>(operation(run, token)),
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     /// <summary>
-    /// Runs a write that returns nothing, with the number of the run, up to <paramref name="maxAttempts"/> times, and again only on the conflicts that <paramref name="retryOn"/> names. See
-    /// <see cref="RetryOnConflictAsync{TResult}(Func{int, CancellationToken, ValueTask{TResult}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/>.
+    /// Runs a read-modify-write that gets the number of its run and returns nothing, and repeats it when it loses to another writer, as the overload without the number does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
     /// </summary>
     /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
-    /// <param name="retryOn">
-    /// The conflicts that run it again: <see cref="ConflictKind.Any"/>, the default, <see cref="ConflictKind.ConditionalCheckFailed"/> or <see cref="ConflictKind.TransactionConflict"/>.
-    /// </param>
-    /// <param name="maxAttempts">How many runs there can be, the first one included, so 1 means no second run. The default is 5.</param>
-    /// <param name="onConflict">
-    /// Called with the number of the run that lost, 1 for the first, and its exception, before the wait and the next run, for a log; <see langword="null"/>, the default, for none. The conflict of the last run
-    /// surfaces instead, and what this throws ends the retries with that exception.
-    /// </param>
-    /// <param name="cancellationToken">Passed to every run; it also ends the wait between two runs. Because <paramref name="maxAttempts"/> comes before it, pass it by name: <c>cancellationToken: ct</c>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
     /// <returns>A task that completes when a run got through.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
-    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed, of the last run when <paramref name="retryOn"/> names it, else of the first that failed.</exception>
-    /// <exception cref="TransactionConflictException">A run met an ongoing transaction, the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
     /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
-    public Task RetryOnConflictAsync(Func<int, CancellationToken, ValueTask> operation, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null, CancellationToken cancellationToken = default) =>
-        ConflictRetry.StartAsync(Model.Core, operation, retryOn, maxAttempts, onConflict, cancellationToken);
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    [OverloadResolutionPriority(1)]
+    public Task RetryOnConflictAsync(Func<int, CancellationToken, ValueTask> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static async (operation, run, token) =>
+            {
+                await operation(run, token).ConfigureAwait(false);
+                return true;
+            },
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
+
+    /// <summary>
+    /// Runs a read-modify-write that gets the number of its run and returns a <see cref="Task"/> and nothing else, and repeats it when it loses to another writer, as the overload without the number does. See <see cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> for what a run is and how to write one.
+    /// </summary>
+    /// <param name="operation">One run. It gets the number of the run and <paramref name="cancellationToken"/>.</param>
+    /// <param name="cancellationToken"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='cancellationToken']/node()"/></param>
+    /// <param name="retryOn"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='retryOn']/node()"/></param>
+    /// <param name="maxAttempts"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='maxAttempts']/node()"/></param>
+    /// <param name="onConflict"><inheritdoc cref="RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})" path="/param[@name='onConflict']/node()"/></param>
+    /// <returns>A task that completes when a run got through.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryOn"/> is not one of the three values, or <paramref name="maxAttempts"/> is below 1.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during a wait, with that token. A run reports it in its own way.</exception>
+    /// <exception cref="ConditionalCheckFailedException">The condition of a run failed: of the last run when <paramref name="retryOn"/> names it, else of the first that failed. <see cref="ConditionalCheckFailedException.Key"/> says on which item.</exception>
+    /// <exception cref="TransactionConflictException">A run met an ongoing transaction: the last run when <paramref name="retryOn"/> names it, else the first that met one.</exception>
+    /// <exception cref="TransactionCanceledException">The last run was cancelled with a named conflict among its reasons, or any run was cancelled with none.</exception>
+    [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last", Justification = "The options after the token are optional and rarely passed, and the token goes positionally right after the run.")]
+    public Task RetryOnConflictAsync(Func<int, CancellationToken, Task> operation, CancellationToken cancellationToken = default, ConflictKind retryOn = ConflictKind.Any, int maxAttempts = ConflictRetry.DefaultMaxAttempts, Action<int, DynamoDbException>? onConflict = null) =>
+        ConflictRetry.StartAsync(
+            Model.Core,
+            static async (operation, run, token) =>
+            {
+                await operation(run, token).ConfigureAwait(false);
+                return true;
+            },
+            operation,
+            retryOn,
+            maxAttempts,
+            onConflict,
+            cancellationToken);
 
     private CommandState BeginWithKey<TKey>(TKey key)
         where TKey : IKey<T>

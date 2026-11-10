@@ -1,7 +1,7 @@
 namespace DynaSharp;
 
 /// <summary>
-/// Which lost races <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, ConflictKind, int, Action{int, DynamoDbException}, CancellationToken)"/> runs its delegate again on. Without it, a retry takes
+/// Which lost races <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> runs its delegate again on. Without it, a retry takes
 /// <see cref="Any"/>.
 /// </summary>
 /// <remarks>

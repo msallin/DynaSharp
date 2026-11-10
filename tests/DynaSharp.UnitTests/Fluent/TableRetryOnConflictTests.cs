@@ -59,6 +59,78 @@ internal sealed class TableRetryOnConflictTests
     }
 
     [Test]
+    public async Task RetryOnConflictAsync_MethodsThatReturnTasks_RunAgainOnAConflict()
+    {
+        // Arrange (methods passed by name, each of the four shapes that return a Task, and each losing its first run)
+        using var handler = new StubHandler();
+        for (var shape = 0; shape < 4; shape++)
+        {
+            handler.Enqueue(StubResponse.ConditionalCheckFailed());
+            handler.Enqueue(StubResponse.Json("{}"));
+        }
+
+        using var client = TestClient.Create(handler, random: FixedRandom.Zero);
+        var shop = client.Table("Shop", "pk");
+        List<int> runs = [];
+
+        async Task<int> SaveAsync(CancellationToken ct)
+        {
+            await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
+            return 7;
+        }
+
+        async Task SaveWithoutResultAsync(CancellationToken ct) => await SaveAsync(ct);
+
+        async Task<int> SaveRunAsync(int run, CancellationToken ct)
+        {
+            runs.Add(run);
+            return await SaveAsync(ct);
+        }
+
+        async Task SaveRunWithoutResultAsync(int run, CancellationToken ct) => await SaveRunAsync(run, ct);
+
+        // Act
+        var results = (await shop.RetryOnConflictAsync(SaveAsync, CancellationToken.None, ConflictKind.ConditionalCheckFailed), await shop.RetryOnConflictAsync(SaveRunAsync));
+        await shop.RetryOnConflictAsync(SaveWithoutResultAsync, CancellationToken.None, ConflictKind.Any, 2);
+        await shop.RetryOnConflictAsync(SaveRunWithoutResultAsync);
+
+        // Assert
+        await Assert.That((results, string.Join(",", runs), handler.Requests.Count)).IsEqualTo(((7, 7), "1,2,1,2", 8));
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_TokenBeforeTheOptions_ReachesTheRunsOfTaskShapes()
+    {
+        // Arrange
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        List<CancellationToken> seen = [];
+        using var client = TestClient.Create(new StubHandler());
+        var shop = client.Table("Shop", "pk");
+
+        Task<int> Counted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return Task.FromResult(1);
+        }
+
+        Task Noted(CancellationToken ct)
+        {
+            seen.Add(ct);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await shop.RetryOnConflictAsync(Counted, token, ConflictKind.TransactionConflict);
+        await shop.RetryOnConflictAsync(Noted, token, ConflictKind.TransactionConflict, 1);
+        await shop.RetryOnConflictAsync((_, ct) => Counted(ct), token, ConflictKind.Any, 3, static (_, _) => { });
+        await shop.RetryOnConflictAsync((_, ct) => Noted(ct), token, ConflictKind.ConditionalCheckFailed);
+
+        // Assert
+        await Assert.That(seen.Count == 4 && seen.All(ct => ct == token)).IsTrue();
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_NeverGetsThrough_RunsFiveTimes()
     {
         // Arrange
@@ -244,6 +316,7 @@ internal sealed class TableRetryOnConflictTests
                 await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
                 return 7;
             },
+            CancellationToken.None,
             ConflictKind.TransactionConflict);
 
         // Assert
@@ -265,6 +338,7 @@ internal sealed class TableRetryOnConflictTests
                 await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
                 return 7;
             },
+            CancellationToken.None,
             ConflictKind.TransactionConflict));
 
         // Assert
@@ -288,6 +362,7 @@ internal sealed class TableRetryOnConflictTests
                 await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
                 return 7;
             },
+            CancellationToken.None,
             ConflictKind.ConditionalCheckFailed,
             maxAttempts));
 
@@ -306,7 +381,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.ConditionalCheckFailed);
+        await shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, CancellationToken.None, ConflictKind.ConditionalCheckFailed);
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(2);
@@ -321,7 +396,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.Any, maxAttempts: 2));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async ct => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, CancellationToken.None, ConflictKind.Any, maxAttempts: 2));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(2);
@@ -365,6 +440,7 @@ internal sealed class TableRetryOnConflictTests
                 await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct);
                 return 7;
             },
+            CancellationToken.None,
             ConflictKind.ConditionalCheckFailed,
             3));
 
@@ -403,7 +479,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async (_, ct) => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, ConflictKind.Any, 2));
+        await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => shop.RetryOnConflictAsync(async (_, ct) => { await shop.Put().With("pk", "a").IfNotExists().SendAsync(ct); }, CancellationToken.None, ConflictKind.Any, 2));
 
         // Assert
         await Assert.That(handler.Requests.Count).IsEqualTo(2);
@@ -418,7 +494,7 @@ internal sealed class TableRetryOnConflictTests
         var shop = client.Table("Shop", "pk");
 
         // Act
-        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => ValueTask.CompletedTask, default(ConflictKind)));
+        var failure = TestClient.Catch(() => _ = shop.RetryOnConflictAsync(static _ => ValueTask.CompletedTask, CancellationToken.None, default(ConflictKind)));
 
         // Assert
         await Assert.That(((ArgumentOutOfRangeException)failure).ParamName).IsEqualTo("retryOn");

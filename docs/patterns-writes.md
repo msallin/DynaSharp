@@ -95,7 +95,7 @@ Task<Registration> RegisterAsync(Registrant user) => shop.RetryOnConflictAsync(a
     {
         return Registration.HandleTaken;
     }
-}, ConflictKind.TransactionConflict, cancellationToken: ct);
+}, ct, ConflictKind.TransactionConflict);
 ```
 
 `ConflictKind.TransactionConflict` reruns the delegate only when another registration of the same value is in flight. A failed condition, here the `IfNotExists` of an existing record, surfaces at once.

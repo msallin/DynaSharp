@@ -23,7 +23,7 @@ public static class EntityWriteExtensions
     /// <para>
     /// <b>Required for a versioned entity.</b> A key does not carry a version, so an update of an entity with a <see cref="VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion{T}(UpdateCommand{T})"/>. Nothing is read or retried by itself:
-    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> is how to ask for that, around code that reads the version again.
+    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> is how to ask for that, around code that reads the version again.
     /// </para>
     /// <para>
     /// <b>Version 0</b> stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key and fails on any item under the key, also on one without a version
@@ -140,7 +140,7 @@ public static class EntityWriteExtensions
     /// <para>
     /// <b>Required for a versioned entity.</b> A key does not carry a version, so a delete by a key of an entity with a <see cref="VersionAttribute"/> needs this or
     /// <see cref="IgnoreVersion{T}(DeleteCommand{T})"/>; a delete of an entity takes the version from it, and this checks another one in its place.
-    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken)"/> repeats code that reads the version again.
+    /// <see cref="Table{T}.RetryOnConflictAsync{TResult}(Func{CancellationToken, ValueTask{TResult}}, CancellationToken, ConflictKind, int, Action{int, DynamoDbException})"/> repeats code that reads the version again.
     /// </para>
     /// <para>
     /// <b>Version 0</b> stands for an item that does not exist, so it renders <c>attribute_not_exists</c> on the partition key, and the delete fails on any item under the key. With

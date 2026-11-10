@@ -109,6 +109,7 @@ public sealed class UniquenessConstraintTests(Backend backend)
                 return Registration.HandleTaken;
             }
         },
+        CancellationToken.None,
         ConflictKind.TransactionConflict,
         maxAttempts: 10);
 }
