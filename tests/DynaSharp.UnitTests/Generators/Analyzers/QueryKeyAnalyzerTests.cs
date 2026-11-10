@@ -292,7 +292,7 @@ public sealed class QueryKeyAnalyzerTests
 
     [Test]
     [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
-    [Arguments("""public static void Run() { var market = orders.Index("ByMarket"); Keep(market); Index<Order> other; other = market; _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index("ByMarket"); Keep(market); Index<Order> other; other = market; var copy = market; _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
     [Arguments("""private static readonly Index<Order> market = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
     [Arguments("""private static readonly Index<Order> market; static Code() { market = orders.Index(Order.Indexes.ByMarket); Keep(market); } public static void Run() { _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
     [Arguments("""private static Index<Order> Market { get; } = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = Market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
@@ -375,6 +375,21 @@ public sealed class QueryKeyAnalyzerTests
             public Index<Order> this[int shard] => Tables.Orders.Index(Order.Indexes.ByMarket);
 
             public string Run() => ByMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson() + this[0].Query(Order.Keys.Pk.Of("u")).ToRequestJson();
+        }
+        """)]
+    [Arguments("""
+        public abstract class Base
+        {
+            public abstract Index<Order> ByMarket { get; }
+
+            public string Run() => ByMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson();
+        }
+
+        public sealed class Derived : Base
+        {
+            public override Index<Order> ByMarket => Tables.Orders.Index(Order.Indexes.ByMarket);
+
+            public string Other() => ByMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson();
         }
         """)]
     [Arguments("""

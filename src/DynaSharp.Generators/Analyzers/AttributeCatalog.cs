@@ -11,19 +11,14 @@ internal sealed class AttributeCatalog(ModelCatalog models)
 
     /// <summary>The mapped type of a command that has no attribute of this name.</summary>
     /// <remarks>
-    /// Commands are ref structs, and a read of several types takes a name that any of them has. <c>Attr&lt;T, TConverter&gt;</c> also starts with a type argument, but that one is the type of the value,
-    /// and it is no ref struct. A step of a transaction has no type argument, so it says nothing.
+    /// Commands are ref structs, and the callers pass only those: <c>Attr&lt;T, TConverter&gt;</c> also starts with a type argument, but that one is the type of the value. A read of several types takes
+    /// a name that any of them has. A step of a transaction has no type argument, so it says nothing.
     /// </remarks>
-    /// <param name="command">The type that declares the parameter the name is given to.</param>
+    /// <param name="command">The command the name is given to, a ref struct.</param>
     /// <param name="root">The first name of the path.</param>
     /// <returns>The first type argument, or null when a type has the name or one cannot be known.</returns>
     public ITypeSymbol? TypeWithout(INamedTypeSymbol command, string root)
     {
-        if (!command.IsRefLikeType)
-        {
-            return null;
-        }
-
         var types = DynaSharpTypes.TypesReadBy(command).ToList();
         foreach (var argument in types)
         {

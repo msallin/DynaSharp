@@ -10,7 +10,7 @@ namespace DynaSharp.Generators;
 /// <remarks>
 /// <para>
 /// A local counts when its declaration is the only write to it in the member: no assignment, no <c>ref</c> or <c>out</c> argument, no tuple it could be deconstructed into, and no <c>ref</c> local
-/// over it. A <c>readonly</c> field and a get-only auto-property count when exactly one write reaches them, their initializer or one assignment in a constructor of their type, and a get-only
+/// in the member. A <c>readonly</c> field and a get-only auto-property count when exactly one write reaches them, their initializer or one assignment in a constructor of their type, and a get-only
 /// property with an expression body counts by that expression. Whatever else is no such value: a field that is not <c>readonly</c>, a property with a setter or an <c>init</c>, one that can be overridden, one declared in
 /// parts, and a member of a type declared in another file, which the semantic model of this one cannot read.
 /// </para>
@@ -35,6 +35,12 @@ internal static class OnlyValue
         IOperation? value = null;
         foreach (var operation in RootOf(reference).Descendants())
         {
+            // A ref local can write any local it refers to, which is more than this follows.
+            if (operation is IVariableDeclaratorOperation { Symbol.IsRef: true })
+            {
+                return null;
+            }
+
             if (operation is IVariableDeclaratorOperation { Initializer: { } initializer } declarator && Same(declarator.Symbol, local))
             {
                 value = initializer.Value;
@@ -45,7 +51,7 @@ internal static class OnlyValue
             }
         }
 
-        return local.IsRef ? null : value;
+        return value;
     }
 
     private static IOperation? OfProperty(IPropertySymbol property, IPropertyReferenceOperation reference)
@@ -114,15 +120,23 @@ internal static class OnlyValue
         _ => false,
     };
 
-    // Whether a reference stands where a value goes in: the target of an assignment, a ref or out argument, a tuple that can be deconstructed into, or the ref local over it.
-    private static bool Writes(IOperation reference) => reference.Parent switch
+    // Whether a reference stands where a value goes in: the target of an assignment, a ref or out argument, or a tuple that can be deconstructed into.
+    private static bool Writes(IOperation reference)
     {
-        IAssignmentOperation assignment => assignment.Target == reference,
-        IArgumentOperation argument => argument.Parameter?.RefKind is RefKind.Ref or RefKind.Out,
-        ITupleOperation => true,
-        IVariableInitializerOperation { Parent: IVariableDeclaratorOperation { Symbol.IsRef: true } } => true,
-        _ => false,
-    };
+        var parent = reference.Parent;
+        if (parent is IAssignmentOperation assignment)
+        {
+            return assignment.Target == reference;
+        }
+
+        if (parent is IArgumentOperation argument)
+        {
+            // Only the argument of __arglist has no parameter, and its value is the list, never a reference.
+            return argument.Parameter!.RefKind is RefKind.Ref or RefKind.Out;
+        }
+
+        return parent is ITupleOperation;
+    }
 
     private static IOperation RootOf(IOperation operation)
     {
