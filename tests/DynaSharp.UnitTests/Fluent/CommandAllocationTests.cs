@@ -974,14 +974,15 @@ public sealed class CommandAllocationTests
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
         var shop = client.Table("Shop", "pk", "sk");
+        string[] sortKeys = [SortKey + "1", SortKey + "2", SortKey + "3"];
 
         // Act (the conversion of a step costs a handle on the stack)
-        var allocated = Measure((client, shop), static input =>
+        var allocated = Measure((client, shop, sortKeys), static input =>
         {
             var command = input.client.TransactWrite();
             for (var i = 0; i < 3; i++)
             {
-                command = command.Update(input.shop, PartitionKey, SortKey).Add("n", 1);
+                command = command.Update(input.shop, PartitionKey, input.sortKeys[i]).Add("n", 1);
             }
 
             return CommandHelpers.FinishAndRelease(command.Delete(input.shop, PartitionKey, "other"));

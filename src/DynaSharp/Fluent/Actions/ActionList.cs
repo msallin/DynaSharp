@@ -23,6 +23,9 @@ internal sealed class ActionList
 
     private int[] _offsets = new int[FirstCapacity + 1];
     private int[] _tableIndexes = new int[FirstCapacity];
+
+    // Where the key of each action that names its item by key starts and ends in the body, two entries per action; an empty range for one that does not.
+    private int[] _keys = new int[FirstCapacity * 2];
     private TableModel[] _tables = new TableModel[4];
 
     /// <summary>Initializes a new instance of the <see cref="ActionList"/> class.</summary>
@@ -77,10 +80,35 @@ internal sealed class ActionList
         {
             Array.Resize(ref _tableIndexes, Count * 2);
             Array.Resize(ref _offsets, (Count * 2) + 1);
+            Array.Resize(ref _keys, Count * 4);
         }
 
+        _keys[Count * 2] = 0;
+        _keys[(Count * 2) + 1] = 0;
         _offsets[Count] = offset;
         _tableIndexes[Count++] = IndexOf(table);
+    }
+
+    /// <summary>Records the key of the last action, which names its item by key, and finds an action before it on the same item.</summary>
+    /// <param name="start">Where the key object starts in the body.</param>
+    /// <param name="body">The body, which ends with the key.</param>
+    /// <returns>The index of the earlier action on the same item, or -1 if there is none.</returns>
+    public int AddKey(int start, ReadOnlySpan<byte> body)
+    {
+        // The same item of the same table has the same key bytes, as both are written the same way; a key written apart, such as a number as 1 and as 1.0, is left to DynamoDB.
+        var index = Count - 1;
+        _keys[index * 2] = start;
+        _keys[(index * 2) + 1] = body.Length;
+        var key = body[start..];
+        for (var i = 0; i < index; i++)
+        {
+            if (_tableIndexes[i] == _tableIndexes[index] && body[_keys[i * 2].._keys[(i * 2) + 1]].SequenceEqual(key))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>Marks the end of the last action. Call it before anything asks where an action ends.</summary>
@@ -141,6 +169,7 @@ internal sealed class ActionList
         {
             _tableIndexes = new int[FirstCapacity];
             _offsets = new int[FirstCapacity + 1];
+            _keys = new int[FirstCapacity * 2];
         }
 
         Array.Clear(_tables, 0, TableCount);

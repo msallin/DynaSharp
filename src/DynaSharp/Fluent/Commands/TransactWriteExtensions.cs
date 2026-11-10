@@ -12,7 +12,8 @@ namespace DynaSharp;
 /// <remarks>
 /// Every verb that starts an action has a form with <c>out</c> that hands out a <see cref="TransactMarker"/>, which finds that action in a
 /// <see cref="TransactionCanceledException"/>. On a table without a sort key, pass <see langword="default"/> for it. A verb throws
-/// <see cref="InvalidOperationException"/> for action 101, because DynamoDB takes 100.
+/// <see cref="InvalidOperationException"/> for action 101, because DynamoDB takes 100. An <c>Update</c>, <c>Delete</c> or <c>Check</c> throws it too when an <c>Update</c>, <c>Delete</c> or <c>Check</c>
+/// before it in the transaction names the same item by the same key, because DynamoDB refuses two actions on one item; the transaction cannot be sent then.
 /// </remarks>
 public static class TransactWriteExtensions
 {
@@ -456,6 +457,7 @@ public static class TransactWriteExtensions
         var state = chain.Enter();
         marker = new TransactMarker(Transaction.AddAction(state, model, kind));
         state.WriteKey(partitionKey, sortKey);
+        Transaction.AddKey(state);
         return state;
     }
 
@@ -471,6 +473,7 @@ public static class TransactWriteExtensions
         marker = new TransactMarker(Transaction.AddAction(state, table.Model, kind));
         key.WriteKey(state.StartKey());
         state.EndKey();
+        Transaction.AddKey(state);
         return state;
     }
 }

@@ -36,7 +36,7 @@ public sealed class TransactWriteItemsOperationTests
                     ConditionCheck = new TransactConditionCheck
                     {
                         TableName = "Customers",
-                        Key = new Dictionary<string, AttributeValue> { ["pk"] = "CUSTOMER#1" },
+                        Key = new Dictionary<string, AttributeValue> { ["pk"] = "CUSTOMER#2" },
                         ConditionExpression = "attribute_exists(pk)",
                     },
                 },

@@ -120,7 +120,7 @@ public sealed partial class CommandVectorTests
         [("TransactGetItems", "HundredActions")] = client => Numbered(client.TransactGet(), client.Table("Users", "pk", "sk"), 100).ToRequestJson(),
         [("TransactWriteItems", "PutOnly")] = client => client.TransactWrite().Token(Token).Put(client.Table("Users", "pk"), new Item { ["pk"] = "user-1" }).ToRequestJson(),
         [("TransactWriteItems", "EveryActionKindMinimal")] = client => client.TransactWrite()
-            .Check(client.Table("Customers", "pk"), "CUSTOMER#1").If($"attribute_exists({Attr("pk")})")
+            .Check(client.Table("Customers", "pk"), "CUSTOMER#2").If($"attribute_exists({Attr("pk")})")
             .Put(Orders(client), new Item { ["pk"] = "CUSTOMER#1", ["sk"] = "ORDER#1" })
             .Update(client.Table("Customers", "pk"), "CUSTOMER#1").Add("orders", 1)
             .Delete(client.Table("Coupons", "code"), "WELCOME10")

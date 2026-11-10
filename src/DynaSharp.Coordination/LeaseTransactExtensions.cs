@@ -16,12 +16,14 @@ public static class LeaseTransactExtensions
     /// step. A lease that ran out on the local clock still passes while nobody has taken the lock over, which is safe, because nobody else holds it.
     /// The lock item must be in a table of the same account and region as the other items of the transaction. While the transaction runs, a contender's acquire that meets it counts as refused,
     /// and a renewal or release of this lease that meets it is sent again after a short wait, so the lease is not lost to its own transaction.
+    /// One transaction takes one check per lock: DynamoDB refuses two actions on one item.
     /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
     /// <param name="lease">The lease.</param>
     /// <returns>The step, which takes more conditions with <c>If</c>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="lease"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The transaction checks or writes the item of this lock already, such as with an <c>IsHeld</c> of the same lease; it cannot be sent then.</exception>
     public static ConditionStep IsHeld<TChain>(this TChain chain, Lease lease)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => IsHeld(chain, lease, out _);
 
@@ -32,13 +34,13 @@ public static class LeaseTransactExtensions
     /// </summary>
     /// <remarks>
     /// The lease is taken when the step is added. Work that outlives its term keeps the lease that ended, and the transaction fails at DynamoDB, as fencing should.
-    /// A lease from <see cref="LockTable.TryAcquireAsync"/> or <see cref="LockTable.AcquireAsync(string, TimeSpan, CancellationToken)"/> is never current: pass it to
+    /// A lease from <see cref="LockTable.TryAcquireAsync(string, TimeSpan, CancellationToken)"/> or <see cref="LockTable.AcquireAsync(string, TimeSpan, CancellationToken)"/> is never current: pass it to
     /// <see cref="IsHeld{TChain}(TChain, Lease)"/>. <see cref="Lease.Current"/> says where else it is <see langword="null"/>.
     /// </remarks>
     /// <typeparam name="TChain">The type of the command or step before this.</typeparam>
     /// <param name="chain">The command or step before this, which this replaces.</param>
     /// <returns>The step, which takes more conditions with <c>If</c>.</returns>
-    /// <exception cref="InvalidOperationException">No lease is current: the code runs outside the work of <see cref="LockTable.RunAsLeaderAsync"/>, or started before its term.</exception>
+    /// <exception cref="InvalidOperationException">No lease is current: the code runs outside the work of <see cref="LockTable.RunAsLeaderAsync"/>, or started before its term. Or the transaction checks or writes the item of its lock already.</exception>
     public static ConditionStep IsHeld<TChain>(this TChain chain)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => IsHeld(chain, CurrentLease(), out _);
 
@@ -47,7 +49,7 @@ public static class LeaseTransactExtensions
     /// <param name="chain">The command or step before this, which this replaces.</param>
     /// <param name="marker">What finds this check in a cancelled transaction: <c>exception.ReasonFor(marker)</c>.</param>
     /// <returns>The step, which takes more conditions with <c>If</c>.</returns>
-    /// <exception cref="InvalidOperationException">No lease is current: the code runs outside the work of <see cref="LockTable.RunAsLeaderAsync"/>, or started before its term.</exception>
+    /// <exception cref="InvalidOperationException">No lease is current: the code runs outside the work of <see cref="LockTable.RunAsLeaderAsync"/>, or started before its term. Or the transaction checks or writes the item of its lock already.</exception>
     public static ConditionStep IsHeld<TChain>(this TChain chain, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct => IsHeld(chain, CurrentLease(), out marker);
 
@@ -58,6 +60,7 @@ public static class LeaseTransactExtensions
     /// <param name="marker">What finds this check in a cancelled transaction: <c>exception.ReasonFor(marker)</c>.</param>
     /// <returns>The step, which takes more conditions with <c>If</c>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="lease"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The transaction checks or writes the item of this lock already; it cannot be sent then.</exception>
     public static ConditionStep IsHeld<TChain>(this TChain chain, Lease lease, out TransactMarker marker)
         where TChain : ITransactWriteChain<TChain>, allows ref struct
     {

@@ -7,7 +7,7 @@ using static DynaSharp.Expr;
 namespace DynaSharp.Coordination;
 
 /// <summary>
-/// Named locks in a DynamoDB table, each held through a <see cref="Lease"/> with a fencing token: <see cref="AcquireAsync(string, TimeSpan, CancellationToken)"/> and <see cref="TryAcquireAsync"/> take one,
+/// Named locks in a DynamoDB table, each held through a <see cref="Lease"/> with a fencing token: <see cref="AcquireAsync(string, TimeSpan, CancellationToken)"/> and <see cref="TryAcquireAsync(string, TimeSpan, CancellationToken)"/> take one,
 /// <see cref="RunAsLeaderAsync"/> elects a leader.
 /// </summary>
 /// <example>
@@ -176,8 +176,8 @@ public sealed class LockTable
     /// </para>
     /// <para>
     /// <b>Short-lived processes.</b> A takeover needs a <see cref="LockTable"/> that lives longer than a lease. A process that lives shorter, such as a scheduled job, a function or a
-    /// command line tool, never takes over a lock whose holder crashed with this, whatever it waits between its runs: it calls <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>
-    /// with a wait of more than one lease, which waits out a crashed holder and gives up on a live one. So does a process that tries less often than every ten leases: a <see cref="LockTable"/> forgets a
+    /// command line tool, never takes over a lock whose holder crashed with this, whatever it waits between its runs: it calls <see cref="TryAcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>
+    /// with a wait of a little more than one lease, which waits out a crashed holder and gives up on a live one. So does a process that tries less often than every ten leases: a <see cref="LockTable"/> forgets a
     /// holder that no try has looked at for ten of its leases, so that a contender that gives up on many locks does not remember them all.
     /// </para>
     /// <para>
@@ -221,17 +221,63 @@ public sealed class LockTable
     }
 
     /// <summary>
+    /// Tries to acquire a lock, waiting at most <paramref name="wait"/>: <see langword="null"/> if it has not got it by then. A wait of a little more than one lease takes over the lock
+    /// of a holder that crashed, also in a process that runs once, such as a scheduled job or a function.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var lease = await locks.TryAcquireAsync("nightly-report", TimeSpan.FromSeconds(30), wait: TimeSpan.FromSeconds(40), ct);
+    /// if (lease is null)
+    /// {
+    ///     return; // Another process runs the report.
+    /// }
+    ///
+    /// await using (lease)
+    /// {
+    /// }
+    /// </code>
+    /// </example>
+    /// <remarks>
+    /// <inheritdoc cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)" path="/remarks/para"/>
+    /// <para>
+    /// <b>Two endings.</b> It waits as <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/> does, which throws <see cref="TimeoutException"/> where this returns <see langword="null"/>.
+    /// </para>
+    /// </remarks>
+    /// <param name="name">The name of the lock.</param>
+    /// <param name="leaseDuration">How long the lease lasts without a renewal, from <see cref="MinLeaseDuration"/> to <see cref="MaxLeaseDuration"/>.</param>
+    /// <param name="wait">How long to wait for the lock, more than zero, or <see cref="Timeout.InfiniteTimeSpan"/> for as long as it takes.</param>
+    /// <param name="cancellationToken">Ends the wait with an <see cref="OperationCanceledException"/>.</param>
+    /// <returns>
+    /// The lease, or <see langword="null"/> if the lock was not acquired when <paramref name="wait"/> was over. An acquire whose answer came only after a whole lease hands out a lease that has
+    /// ended already, see <see cref="Lease.Ended"/>.
+    /// </returns>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="leaseDuration"/> is below <see cref="MinLeaseDuration"/> or above <see cref="MaxLeaseDuration"/>, or <paramref name="wait"/> is zero or negative and not <see cref="Timeout.InfiniteTimeSpan"/>.
+    /// </exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
+    /// <exception cref="DynamoDbException">DynamoDB failed a request, after the retries of the client.</exception>
+    /// <exception cref="InvalidOperationException">The item at the key of the lock has an <c>owner</c> but is not a lock item written by <see cref="LockTable"/>.</exception>
+    public Task<Lease?> TryAcquireAsync(string name, TimeSpan leaseDuration, TimeSpan wait, CancellationToken cancellationToken = default)
+    {
+        Validate(name, leaseDuration, wait);
+        return ContendAsync(name, leaseDuration, Limit(wait), null, timeoutThrows: false, cancellationToken);
+    }
+
+    /// <summary>
     /// Acquires a lock, waiting as long as it takes: cancel the token to give up. It takes a lock over once its holder has not renewed it for a whole lease.
     /// </summary>
     /// <remarks>
     /// <para>
     /// <b>Polling.</b> While another holder has the lock it reads the item every third of that holder's lease, or every 10 seconds if that is sooner, and takes the lock over once the
     /// holder has not renewed it for a whole lease, measured on the monotonic clock of the client from the first time this saw that record version. The wait sends one strongly consistent <c>GetItem</c> per poll and no write while the holder renews; it writes when it finds the lock free or the
-    /// holder due, see <see cref="TryAcquireAsync"/>. A try that meets a transaction on the lock item, such as the holder's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, is refused and waits as for a held lock.
+    /// holder due, see <see cref="TryAcquireAsync(string, TimeSpan, CancellationToken)"/>. A try that meets a transaction on the lock item, such as the holder's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, is refused and waits as for a held lock.
     /// </para>
     /// <para>
-    /// <b>Giving up.</b> A process that must not wait for a live holder takes the overload with a wait of a little more than one lease, <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>: that is long enough to take over the
-    /// lock of a holder that crashed, which <see cref="TryAcquireAsync"/> of a short-lived process cannot.
+    /// <b>Giving up.</b> A process that must not wait for a live holder takes a wait of a little more than one lease, <see cref="TryAcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>
+    /// or <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>: that is long enough to take over the lock of a holder that crashed, which
+    /// <see cref="TryAcquireAsync(string, TimeSpan, CancellationToken)"/> of a short-lived process cannot.
     /// </para>
     /// </remarks>
     /// <param name="name">The name of the lock.</param>
@@ -247,7 +293,7 @@ public sealed class LockTable
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration);
-        return await ContendAsync(name, leaseDuration, null, null, cancellationToken).ConfigureAwait(false);
+        return (await ContendAsync(name, leaseDuration, null, null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
     }
 
     /// <summary>
@@ -274,20 +320,17 @@ public sealed class LockTable
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="leaseDuration"/> is below <see cref="MinLeaseDuration"/> or above <see cref="MaxLeaseDuration"/>, or <paramref name="wait"/> is zero or negative and not <see cref="Timeout.InfiniteTimeSpan"/>.
     /// </exception>
-    /// <exception cref="TimeoutException">Another holder still had the lock when <paramref name="wait"/> was over. The message names the lock and the table.</exception>
+    /// <exception cref="TimeoutException">
+    /// The lock was not acquired when <paramref name="wait"/> was over: another holder had it, or the last try found it free and lost it to another write. The message names the lock, the table and which of the two.
+    /// </exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="DynamoDbException">DynamoDB failed a request, after the retries of the client.</exception>
     /// <exception cref="InvalidOperationException">The item at the key of the lock has an <c>owner</c> but is not a lock item written by <see cref="LockTable"/>.</exception>
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, TimeSpan wait, CancellationToken cancellationToken = default)
     {
-        Validate(name, leaseDuration);
-        if (wait != Timeout.InfiniteTimeSpan)
-        {
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(wait, TimeSpan.Zero);
-        }
-
-        return await ContendAsync(name, leaseDuration, wait == Timeout.InfiniteTimeSpan ? null : wait, null, cancellationToken).ConfigureAwait(false);
+        Validate(name, leaseDuration, wait);
+        return (await ContendAsync(name, leaseDuration, Limit(wait), null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
     }
 
     /// <summary>
@@ -372,16 +415,17 @@ public sealed class LockTable
             ? update.Set(attribute, Time.GetUtcNow().ToUnixTimeSeconds() + (long)Options.TimeToLiveRetention.TotalSeconds)
             : update;
 
-    /// <summary>Acquires a lock as <see cref="AcquireAsync(string, TimeSpan, CancellationToken)"/> does, with checked arguments.</summary>
+    /// <summary>Acquires a lock as <see cref="AcquireAsync(string, TimeSpan, CancellationToken)"/> does, with checked arguments: the one wait of every acquire that waits.</summary>
     /// <param name="name">The name of the lock.</param>
     /// <param name="leaseDuration">How long the lease lasts without a renewal.</param>
-    /// <param name="wait">How long to wait before a <see cref="TimeoutException"/>, or <see langword="null"/> for as long as it takes.</param>
+    /// <param name="wait">How long to wait, or <see langword="null"/> for as long as it takes.</param>
     /// <param name="answered">Called after each try that DynamoDB answered, with the lock free or held, or <see langword="null"/>.</param>
+    /// <param name="timeoutThrows">Whether a wait that is over throws <see cref="TimeoutException"/>, in the span of an acquire, or returns <see langword="null"/>, in the span of a try.</param>
     /// <param name="cancellationToken">Ends the wait.</param>
-    /// <returns>The lease.</returns>
-    internal async Task<Lease> ContendAsync(string name, TimeSpan leaseDuration, TimeSpan? wait, Action? answered, CancellationToken cancellationToken)
+    /// <returns>The lease, or <see langword="null"/> when the wait is over and <paramref name="timeoutThrows"/> is <see langword="false"/>.</returns>
+    internal async Task<Lease?> ContendAsync(string name, TimeSpan leaseDuration, TimeSpan? wait, Action? answered, bool timeoutThrows, CancellationToken cancellationToken)
     {
-        using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.AcquireSpan, Table.Name, name);
+        using var activity = CoordinationTelemetry.Start(timeoutThrows ? CoordinationTelemetry.AcquireSpan : CoordinationTelemetry.TryAcquireSpan, Table.Name, name);
         try
         {
             var started = Time.GetTimestamp();
@@ -402,7 +446,15 @@ public sealed class LockTable
                     var left = limit - Time.GetElapsedTime(started);
                     if (left <= TimeSpan.Zero)
                     {
-                        throw new TimeoutException($"The lock {name} of table {Table.Name} was still held by another holder after a wait of {limit}.");
+                        if (!timeoutThrows)
+                        {
+                            CoordinationTelemetry.Acquire(activity, null, false);
+                            return null;
+                        }
+
+                        throw new TimeoutException(attempt.Free
+                            ? $"The lock {name} of table {Table.Name} was not acquired within a wait of {limit}: the last try found it free, but another write to its item came first."
+                            : $"The lock {name} of table {Table.Name} was not acquired within a wait of {limit}: another holder had it at the last try.");
                     }
 
                     delay = delay < left ? delay : left;
@@ -417,6 +469,17 @@ public sealed class LockTable
             throw;
         }
     }
+
+    private static void Validate(string name, TimeSpan leaseDuration, TimeSpan wait)
+    {
+        Validate(name, leaseDuration);
+        if (wait != Timeout.InfiniteTimeSpan)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(wait, TimeSpan.Zero);
+        }
+    }
+
+    private static TimeSpan? Limit(TimeSpan wait) => wait == Timeout.InfiniteTimeSpan ? null : wait;
 
     private static LockTableOptions Validate(LockTableOptions options, Table<Item> table)
     {
@@ -455,7 +518,7 @@ public sealed class LockTable
             {
                 if (holder.RecordVersion != sighting.RecordVersion || Time.GetElapsedTime(sighting.Timestamp) < sighting.LeaseDuration)
                 {
-                    return new(null, false, Observe(name, holder));
+                    return Refused(name, holder);
                 }
 
                 due = sighting;
@@ -496,7 +559,7 @@ public sealed class LockTable
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
                 ? Acquired(name, owner, holder.FencingToken, leaseDuration, sent, due is null ? null : new(due, previousHolder))
-                : new(null, false, Observe(name, holder));
+                : Refused(name, holder);
         }
     }
 
@@ -509,8 +572,10 @@ public sealed class LockTable
             CoordinationLog.TakenOver(Logger, name, Table.Name, takeOver.From.LeaseDuration, takeOver.PreviousHolder, Options.HolderLabel);
         }
 
-        return new(new Lease(this, name, owner, fencingToken, leaseDuration, sent), takeOver is not null, default);
+        return new(new Lease(this, name, owner, fencingToken, leaseDuration, sent), takeOver is not null, default, false);
     }
+
+    private Attempt Refused(string name, LockItem.Holder? holder) => new(null, false, Observe(name, holder), holder is null);
 
     // Remembers the holder the lock has now, and says how long to wait before the next try: at once if it is free, else a third of the holder's lease,
     // or 10 seconds if that is sooner, or less if the lease runs out before.
@@ -562,8 +627,8 @@ public sealed class LockTable
         }
     }
 
-    /// <summary>What a try gave: a lease, or how long to wait before the next try.</summary>
-    private readonly record struct Attempt(Lease? Lease, bool TakeOver, TimeSpan Wait);
+    /// <summary>What a try gave: a lease, or how long to wait before the next try, and whether it found the lock free after its write lost.</summary>
+    private readonly record struct Attempt(Lease? Lease, bool TakeOver, TimeSpan Wait, bool Free);
 
     /// <summary>A holder as a contender saw it first: its record version, when on the monotonic clock, and the duration of its lease.</summary>
     private sealed record Sighting(string RecordVersion, long Timestamp, TimeSpan LeaseDuration)

@@ -35,6 +35,8 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 
 `Put` returns a step that takes the clauses of a put, `Update` one of an update, and `Delete` and `Check` one with conditions only. Each step offers the verbs of the next action as well. `Unique(table, item, out marker)` is a put with `attribute_not_exists` on the partition key. `TransactionCanceledException` has `ReasonFor(marker)`, `ItemFor(marker)` and `Failures`, the reason of every action.
 
+DynamoDB refuses a transaction with two actions on one item, so a check and a change of the same item go on one action: `Update(...).If(...)`. An `Update`, `Delete` or `Check` of an item that an `Update`, `Delete` or `Check` before it names by the same key throws `InvalidOperationException` when it is added, naming both actions; one that only DynamoDB can tell, such as a `Put` of that item, fails with a `ValidationException` when sent.
+
 `PutAll(table, items)` adds a put of each item, as many `Put` steps without clauses would. The sequence is enumerated at the call, and the put that would be action 101 throws `InvalidOperationException`, so a longer list takes a transaction per chunk:
 
 ```csharp

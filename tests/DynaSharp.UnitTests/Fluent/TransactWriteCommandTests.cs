@@ -454,6 +454,53 @@ public sealed class TransactWriteCommandTests
     }
 
     [Test]
+    public async Task Check_ItemAnUpdateBeforeNames_ThrowsNamingTheEarlierAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Delete(shop, "a", "2").Update(shop, "a", "1").Set("n", 1).Check(shop, "a", "1"));
+
+        // Assert
+        await Assert.That((failure is InvalidOperationException, failure.Message)).IsEqualTo((true,
+            "Action 3 of this transaction names the same item of table Shop as action 2 (Update), and DynamoDB refuses a transaction with two actions on one item. Put the conditions and changes on one action."));
+    }
+
+    [Test]
+    public async Task Delete_GeneratedKeyACheckBeforeNames_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var customers = client.Table<Customer>("Shop");
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.TransactWrite().Check(customers, Customer.Keys.Of("lock")).IfExists().Delete(customers, Customer.Keys.Of("lock")));
+
+        // Assert
+        await Assert.That(failure is InvalidOperationException).IsTrue();
+    }
+
+    [Test]
+    public async Task Check_SameKeyOnAnotherTable_AddsTheAction()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk");
+        var audit = client.Table("Audit", "pk");
+
+        // Act
+        var json = client.TransactWrite().Check(shop, "a").If(Attr("pk").Exists()).Check(audit, "a").If(Attr("pk").Exists()).ToRequestJson();
+
+        // Assert
+        await Assert.That(json.Contains("\"Audit\"", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task PutAll_Items_WritesWhatAChainOfPutsWrites()
     {
         // Arrange
@@ -791,7 +838,7 @@ public sealed class TransactWriteCommandTests
             var command = client.TransactWrite();
             for (var i = 0; i < 101; i++)
             {
-                command = command.Delete(shop, "key");
+                command = command.Delete(shop, "key-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
         });
 

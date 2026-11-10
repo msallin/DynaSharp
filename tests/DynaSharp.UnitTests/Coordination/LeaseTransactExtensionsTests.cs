@@ -42,6 +42,22 @@ public sealed class LeaseTransactExtensionsTests
     }
 
     [Test]
+    public async Task IsHeld_SameLeaseTwice_ThrowsInvalidOperationExceptionBeforeSending()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        var requests = bench.Handler.Requests.Count;
+
+        // Act
+        var failure = TestClient.Catch(() => _ = bench.Client.TransactWrite().IsHeld(lease!).Put(bench.Table, Report(lease!)).IsHeld(lease!));
+
+        // Assert
+        await Assert.That((failure is InvalidOperationException, failure.Message.Contains("as action 1 (ConditionCheck)", StringComparison.Ordinal), bench.Handler.Requests.Count))
+            .IsEqualTo((true, true, requests));
+    }
+
+    [Test]
     public async Task IsHeld_Released_CancelsTheTransaction()
     {
         // Arrange

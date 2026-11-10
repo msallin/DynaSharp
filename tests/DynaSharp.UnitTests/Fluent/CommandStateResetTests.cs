@@ -32,6 +32,7 @@ public sealed class CommandStateResetTests
         ["PlaceholderMaps._valueSlices"] = "Capacity: offsets, of which only those below the count are read.",
         ["ActionList._offsets"] = "Capacity: offsets, of which only those below the count are read.",
         ["ActionList._tableIndexes"] = "Capacity: indexes, of which only those below the count are read.",
+        ["ActionList._keys"] = "Capacity: ranges of keys, of which only those below the count are read.",
     };
 
     // Four is as long as the shortest array that a count goes with, so that counts and arrays agree.

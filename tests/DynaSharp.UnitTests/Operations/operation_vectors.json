@@ -4221,7 +4221,7 @@
               "TableName": "Customers",
               "Key": {
                 "pk": {
-                  "S": "CUSTOMER#1"
+                  "S": "CUSTOMER#2"
                 }
               },
               "ConditionExpression": "attribute_exists(pk)"
@@ -4269,7 +4269,7 @@
         ],
         "ClientRequestToken": "3d2f7c8e-5a41-4b6e-9a0f-2c1d8e7b6a54"
       },
-      "body": "{\"TransactItems\": [{\"ConditionCheck\": {\"TableName\": \"Customers\", \"Key\": {\"pk\": {\"S\": \"CUSTOMER#1\"}}, \"ConditionExpression\": \"attribute_exists(pk)\"}}, {\"Put\": {\"TableName\": \"Orders\", \"Item\": {\"pk\": {\"S\": \"CUSTOMER#1\"}, \"sk\": {\"S\": \"ORDER#1\"}}}}, {\"Update\": {\"TableName\": \"Customers\", \"Key\": {\"pk\": {\"S\": \"CUSTOMER#1\"}}, \"UpdateExpression\": \"ADD orders :one\", \"ExpressionAttributeValues\": {\":one\": {\"N\": \"1\"}}}}, {\"Delete\": {\"TableName\": \"Coupons\", \"Key\": {\"code\": {\"S\": \"WELCOME10\"}}}}], \"ClientRequestToken\": \"3d2f7c8e-5a41-4b6e-9a0f-2c1d8e7b6a54\"}"
+      "body": "{\"TransactItems\": [{\"ConditionCheck\": {\"TableName\": \"Customers\", \"Key\": {\"pk\": {\"S\": \"CUSTOMER#2\"}}, \"ConditionExpression\": \"attribute_exists(pk)\"}}, {\"Put\": {\"TableName\": \"Orders\", \"Item\": {\"pk\": {\"S\": \"CUSTOMER#1\"}, \"sk\": {\"S\": \"ORDER#1\"}}}}, {\"Update\": {\"TableName\": \"Customers\", \"Key\": {\"pk\": {\"S\": \"CUSTOMER#1\"}}, \"UpdateExpression\": \"ADD orders :one\", \"ExpressionAttributeValues\": {\":one\": {\"N\": \"1\"}}}}, {\"Delete\": {\"TableName\": \"Coupons\", \"Key\": {\"code\": {\"S\": \"WELCOME10\"}}}}], \"ClientRequestToken\": \"3d2f7c8e-5a41-4b6e-9a0f-2c1d8e7b6a54\"}"
     },
     {
       "service": "dynamodb",

@@ -986,7 +986,7 @@ REQUESTS += [
         "EveryActionKindMinimal",
         {
             "TransactItems": [
-                {"ConditionCheck": {"TableName": "Customers", "Key": {"pk": S("CUSTOMER#1")}, "ConditionExpression": "attribute_exists(pk)"}},
+                {"ConditionCheck": {"TableName": "Customers", "Key": {"pk": S("CUSTOMER#2")}, "ConditionExpression": "attribute_exists(pk)"}},
                 {"Put": {"TableName": "Orders", "Item": {"pk": S("CUSTOMER#1"), "sk": S("ORDER#1")}}},
                 {"Update": {"TableName": "Customers", "Key": {"pk": S("CUSTOMER#1")}, "UpdateExpression": "ADD orders :one",
                             "ExpressionAttributeValues": {":one": N("1")}}},

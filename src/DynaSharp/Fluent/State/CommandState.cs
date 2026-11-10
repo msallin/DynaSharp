@@ -75,9 +75,6 @@ internal sealed class CommandState
     private int _version;
     private bool _itemOpen;
 
-    // Where the object of the key of the action that is being written starts in the body.
-    private int _keyStart;
-
     // Where the object of the item of a put starts and ends in the body, for ReturnsWrittenItem. The end is known once the item is closed.
     private int _itemStart;
     private int _itemEnd;
@@ -121,6 +118,9 @@ internal sealed class CommandState
 
     /// <summary>Gets what a command of several actions keeps about them. A state that never serves such a command never makes one.</summary>
     public ActionList Actions => _actions ??= new ActionList(Pool);
+
+    /// <summary>Gets where the object of the key last written starts in the body.</summary>
+    public int KeyStart { get; private set; }
 
     /// <summary>Gets what an update did to properties that feed keys. A state that never updates such a property never makes one.</summary>
     public KeyInputChanges KeyInputs => _keyInputs ??= new KeyInputChanges();
@@ -259,7 +259,7 @@ internal sealed class CommandState
     {
         // ,"Key":{"pk":{"S":"a"},"sk":{"S":"b"}}
         var table = Table;
-        _keyStart = Body.WrittenCount + ",\"Key\":"u8.Length;
+        KeyStart = Body.WrittenCount + ",\"Key\":"u8.Length;
         WriteKey(table, table.KeyStart, partitionKey, sortKey);
     }
 
@@ -278,7 +278,7 @@ internal sealed class CommandState
     public DynamoDbWriter StartKey()
     {
         Body.Append(",\"Key\":"u8);
-        _keyStart = Body.WrittenCount;
+        KeyStart = Body.WrittenCount;
         BodyJson.WriteStartObject();
         return new DynamoDbWriter(BodyJson);
     }
@@ -302,7 +302,7 @@ internal sealed class CommandState
         var mark = Body.WrittenCount;
         key.WriteKey(StartKey());
         EndKey();
-        Expressions.AppendKeyCondition(Body.WrittenSpan[_keyStart..]);
+        Expressions.AppendKeyCondition(Body.WrittenSpan[KeyStart..]);
         Body.Truncate(mark);
     }
 
@@ -322,7 +322,7 @@ internal sealed class CommandState
     /// <returns>The key attributes.</returns>
     public Item ReadKey()
     {
-        var reader = new DynamoDbReader(Body.WrittenSpan[_keyStart..]);
+        var reader = new DynamoDbReader(Body.WrittenSpan[KeyStart..]);
         reader.ReadStartItem();
         return AttributeValueConverter.ReadAttributes(ref reader);
     }
@@ -539,7 +539,7 @@ internal sealed class CommandState
         _read = default;
         Table = null!;
         _itemOpen = false;
-        _keyStart = 0;
+        KeyStart = 0;
         _itemStart = 0;
         _itemEnd = 0;
         _pageMark = 0;

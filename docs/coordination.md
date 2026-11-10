@@ -75,15 +75,11 @@ The trade-off: a lock whose item was deleted starts its fencing token at 1 again
 
 `AcquireAsync` waits until it has the lock, `TryAcquireAsync` tries once and returns `null` if another holder has it. Disposing the lease releases the lock.
 
-A process that runs once and stops, such as a scheduled job, a function or a command line tool, gives `AcquireAsync` a wait a little longer than one lease. That gives up on a live holder with a `TimeoutException` that names the lock, and still takes over the lock of a holder that crashed, which needs a whole lease of waiting. The wait runs on the `TimeProvider` of the client, and it never cuts off a request: the last try is the one at the end of the wait. A retry of the same `LockTable`, such as the next delivery of a message, keeps what the try before saw of the holder:
+A process that runs once and stops, such as a scheduled job, a function or a command line tool, gives `TryAcquireAsync` a wait a little longer than one lease. That gives up on a live holder with `null`, and still takes over the lock of a holder that crashed, which needs a whole lease of waiting. The wait runs on the `TimeProvider` of the client, and it never cuts off a request: the last try is the one at the end of the wait. A retry of the same `LockTable`, such as the next delivery of a message, keeps what the try before saw of the holder. `AcquireAsync` with a wait does the same and throws a `TimeoutException` that names the lock instead of returning `null`:
 
 ```csharp
-Lease lease;
-try
-{
-    lease = await locks.AcquireAsync("nightly-report", TimeSpan.FromSeconds(30), wait: TimeSpan.FromSeconds(40), ct);
-}
-catch (TimeoutException)
+var lease = await locks.TryAcquireAsync("nightly-report", TimeSpan.FromSeconds(30), wait: TimeSpan.FromSeconds(40), ct);
+if (lease is null)
 {
     return; // Another process runs the report.
 }
@@ -98,7 +94,7 @@ await using (lease)
 }
 ```
 
-`TryAcquireAsync` fits a process that lives longer than a lease and tries again on its own schedule. It never waits, so it takes over a crashed holder's lock only once the same `LockTable` has seen the holder unchanged for a whole lease, over several calls. A short-lived process that calls it once per run never does:
+`TryAcquireAsync` without a wait fits a process that lives longer than a lease and tries again on its own schedule. It never waits, so it takes over a crashed holder's lock only once the same `LockTable` has seen the holder unchanged for a whole lease, over several calls. A short-lived process that calls it once per run never does; it passes the wait above:
 
 ```csharp
 var lease = await locks.TryAcquireAsync("cache-refresh", TimeSpan.FromSeconds(30), ct);
@@ -158,6 +154,8 @@ await client.TransactWrite()
     .Put(orders, order)
     .SendAsync(ct);
 ```
+
+A transaction takes one `IsHeld` per lock, because DynamoDB refuses two actions on one item: a second `IsHeld` of the same lease, or any other action on the lock item, throws `InvalidOperationException` when it is added, and the transaction is not sent.
 
 The check reads the item when the transaction commits, which is what makes it safe; `Ended` is only what this process knows. A transaction that fails it throws `TransactionCanceledException`, and the marker tells a lost lease from another reason:
 
@@ -332,7 +330,7 @@ The log category is `DynaSharp.Coordination.LockTable`, and it logs what no call
 
 ## Testing
 
-A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep. `fake.CreateTable("Shop", "pk", "sk")` creates a table with string keys for it, and `fake.CreateTable(locks.CreateTable())` the table of its own of `LockTable.Open`, from the command the service sends, at once and without a request:
+A `LockTable` over a client of [`FakeDynamoDb`](testing.md) works as it does against DynamoDB, and a fake `TimeProvider` in the options of the client moves the heartbeat and the waits of a contender without a sleep. A `TimeProvider` written by hand must advance `GetTimestamp` together with its timers, since a lease measures itself on that clock: one that fires the timers and leaves `GetTimestamp` standing ends every lease as `expired` after one duration. `fake.CreateTable("Shop", "pk", "sk")` creates a table with string keys for it, and `fake.CreateTable(locks.CreateTable())` the table of its own of `LockTable.Open`, from the command the service sends, at once and without a request:
 
 ```csharp
 using DynaSharp.Coordination;

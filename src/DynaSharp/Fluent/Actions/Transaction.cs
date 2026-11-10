@@ -48,6 +48,21 @@ internal static class Transaction
         return index;
     }
 
+    /// <summary>Records the key the action just added names its item by, and refuses it if an action before it names the same item.</summary>
+    /// <param name="state">The state of the command, whose body ends with the key.</param>
+    /// <exception cref="InvalidOperationException">An action before it names the same item.</exception>
+    public static void AddKey(CommandState state)
+    {
+        var body = state.Body.WrittenSpan;
+        var actions = state.Actions;
+        var earlier = actions.AddKey(state.KeyStart, body);
+        if (earlier >= 0)
+        {
+            throw new InvalidOperationException(
+                $"Action {actions.Count} of this transaction names the same item of table {state.Table.Name} as action {earlier + 1} ({actions.VerbOf(earlier, body)}), and DynamoDB refuses a transaction with two actions on one item. Put the conditions and changes on one action.");
+        }
+    }
+
     /// <summary>Ends the last action and the list. The options follow from <see cref="CommandState.Finish"/>.</summary>
     /// <param name="state">The state of the command.</param>
     public static void EndActions(CommandState state)
