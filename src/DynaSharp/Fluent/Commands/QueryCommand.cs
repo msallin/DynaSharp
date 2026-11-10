@@ -322,14 +322,17 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         PagedRead<QueryPageOperation<T>, T>.Items(Prepare(), cancellationToken);
 
     /// <summary>
-    /// Reads the first item that matches, in the order of the query, and stops there. It goes on through pages that a filter left empty, and sends no page after the one that holds the item.
+    /// Reads the first item that matches, in the order of the query, and stops there. Without a filter it asks for one item; with one it goes on through pages that the filter left empty.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// It adds no <see cref="Limit"/>, because a limit counts items before the filter, so a limit of 1 on a filtered read would look at one item and could miss the match, and because what goes out
-    /// stays what <see cref="ToRequestJson"/> shows. So the first page comes back whole, up to 1 MB, and costs the capacity of all it read. A read of a partition without a filter that wants one
-    /// item says so: <c>orders.Query(pk).Descending().Limit(1).ItemAsync(ct)</c> reads the newest and pays for one. A read of an entity filters on its discriminator, so in a partition that holds
-    /// several types that limit counts the items of the other types too, and <see cref="ItemAsync"/> goes on to the next page.
+    /// <b>One item without a filter.</b> A read without a filter, a <see cref="Limit"/> and a <see cref="Take"/> sends <c>"Limit": 1</c>, which is all that <see cref="ToRequestJson"/> does not show:
+    /// its first item is the one it gives, so <c>orders.Query(pk).Descending().ItemAsync(ct)</c> reads the newest and pays for one.
+    /// </para>
+    /// <para>
+    /// <b>With a filter</b> it adds no limit, because a limit counts items before the filter, so a limit of 1 would look at one item per page. The first page comes back whole, up to 1 MB, and costs
+    /// the capacity of all it read. A read of an entity filters on its discriminator, unless its key condition stands for that, so this holds for it too. A <see cref="Limit"/> or a
+    /// <see cref="Take"/> of the chain stays as it is: <c>Limit(1)</c> on a read of an entity in a partition of several types counts the items of the other types too, and this goes on to the next page.
     /// </para>
     /// <para>An entity that is a struct reads as its default value when no item matches, so a miss looks like an item of default values there. <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> tells them apart.</para>
     /// </remarks>

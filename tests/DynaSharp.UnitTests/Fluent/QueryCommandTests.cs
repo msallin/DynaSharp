@@ -596,7 +596,7 @@ public sealed partial class QueryCommandTests
     }
 
     [Test]
-    public async Task ItemAsync_NoLimitAsked_SendsWhatToRequestJsonShows()
+    public async Task ItemAsync_Filter_SendsWhatToRequestJsonShows()
     {
         // Arrange (a limit works before the filter, so one of its own could lose the match)
         using var handler = new StubHandler();
@@ -613,6 +613,23 @@ public sealed partial class QueryCommandTests
     }
 
     [Test]
+    public async Task ItemAsync_NoFilterLimitOrTake_AsksForOneItem()
+    {
+        // Arrange (the first item read is the one given, so a page of one is all it needs)
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+        var shop = client.Table("Shop", "pk", "sk");
+
+        // Act
+        var rendered = shop.Query("a").Descending().ToRequestJson();
+        await shop.Query("a").Descending().ItemAsync();
+
+        // Assert
+        await Assert.That((rendered.Contains("Limit", StringComparison.Ordinal), handler.Requests[0].BodyText.Contains("\"Limit\":1", StringComparison.Ordinal))).IsEqualTo((false, true));
+    }
+
+    [Test]
     public async Task ItemAsync_LimitAsked_SendsIt()
     {
         // Arrange
@@ -621,11 +638,28 @@ public sealed partial class QueryCommandTests
         using var client = TestClient.Create(handler);
 
         // Act
-        await client.Table("Shop", "pk", "sk").Query("a").Limit(1).ItemAsync();
+        await client.Table("Shop", "pk", "sk").Query("a").Limit(5).ItemAsync();
 
         // Assert
         await Assert.That(handler.Requests[0].BodyText).Contains("""
-            "Limit":1
+            "Limit":5
+            """);
+    }
+
+    [Test]
+    public async Task ItemAsync_Take_SendsTheTakeAsTheLimit()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        handler.Enqueue(Last("1"));
+        using var client = TestClient.Create(handler);
+
+        // Act
+        await client.Table("Shop", "pk", "sk").Query("a").Take(3).ItemAsync();
+
+        // Assert
+        await Assert.That(handler.Requests[0].BodyText).Contains("""
+            "Limit":3
             """);
     }
 

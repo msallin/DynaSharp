@@ -57,7 +57,7 @@ internal static class PagedRead<TOperation, T>
         }
     }
 
-    /// <summary>Reads pages up to the first that holds an item, which makes a page a filter left empty no reason to stop, and the next page no reason to go on.</summary>
+    /// <summary>Reads pages up to the first that holds an item, which makes a page a filter left empty no reason to stop, and the next page no reason to go on, as <see cref="FindAsync"/> does.</summary>
     /// <param name="state">The state of the read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The first item, or the default value if there is none, a task that the caller awaits exactly once.</returns>
@@ -68,7 +68,10 @@ internal static class PagedRead<TOperation, T>
         return first.Found ? first.Value : default;
     }
 
-    /// <summary>Reads pages as <see cref="FirstAsync"/> does, and says whether there was an item, for a type whose default value is a value.</summary>
+    /// <summary>
+    /// Reads pages up to the first that holds an item, and says whether there was one, for a type whose default value is a value. A read without a filter, a <c>Limit</c> and a <c>Take</c> sends
+    /// <c>Limit: 1</c>, because its first item read is the one it gives.
+    /// </summary>
     /// <param name="state">The state of the read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The first item and whether there is one, with the capacity of the last page, a task that the caller awaits exactly once.</returns>
@@ -76,6 +79,13 @@ internal static class PagedRead<TOperation, T>
     public static async ValueTask<SelectResult<T>> FindAsync(CommandState state, CancellationToken cancellationToken)
     {
         var version = state.Version;
+
+        // Without a filter the first item read is the one given, so a page of one costs one item; with a filter, or a limit the caller chose, the pages stay as they are.
+        if (state.Read.Limit == 0 && state.Read.Take == 0 && state.Expressions[Clause.Filter].WrittenCount == 0)
+        {
+            state.Read.Limit = 1;
+        }
+
         try
         {
             PageData<T> page;
