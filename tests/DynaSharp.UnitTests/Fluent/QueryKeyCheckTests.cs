@@ -1,6 +1,9 @@
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
 
+// These tests query with a key of another attribute on purpose, to see the query throw at run time.
+#pragma warning disable DYNA224
+
 namespace DynaSharp.UnitTests.Fluent;
 
 /// <summary>What <c>Query</c> does with a <see cref="PartitionKey{TEntity}"/> of the entity that was built for another attribute, which the compiler cannot see.</summary>
