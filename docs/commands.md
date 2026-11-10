@@ -45,7 +45,7 @@ var moved = await customers.Update(Customer.Keys.Of("alice"))
     .SendAsync(ct);
 ```
 
-`Set` of null removes the attribute, and `SetIfNotNull` adds nothing for null, which suits a change where only some fields came in:
+`Set` of null removes the attribute, so `Set(Customer.Attrs.ShipTo, customer.ShipTo)` with a field the request left out removes the address. `SetIfNotNull` adds nothing for null, which suits a change where only some fields came in, and [`DYNA243`](diagnostics.md#commands) points at a `Set` of a value that may be null:
 
 ```csharp
 await customers.Update(Customer.Keys.Of("alice"))

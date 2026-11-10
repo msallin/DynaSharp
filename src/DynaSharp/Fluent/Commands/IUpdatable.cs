@@ -43,6 +43,11 @@ public interface IUpdatable<TSelf>
     /// <b>Add and SetIfNotExists.</b> By the handle of such a property they throw too: the value they leave is not known here, so the key cannot follow. In a transaction the check runs
     /// when the action ends, at the next verb.
     /// </para>
+    /// <para>
+    /// <b>A value that may be null.</b> A field that a request left out, <c>Set(Customer.Attrs.ShipTo, dto.ShipTo)</c>, removes the attribute. Where null means no change, use
+    /// <see cref="SetIfNotNull{TValue, TConverter}(Attr{TValue, TConverter}, TValue)"/>; <see href="https://msallin.github.io/DynaSharp/diagnostics.html#commands">DYNA243</see> points out a value the
+    /// compiler sees may be null.
+    /// </para>
     /// </remarks>
     /// <typeparam name="TValue">The type of the attribute.</typeparam>
     /// <typeparam name="TConverter">The converter.</typeparam>

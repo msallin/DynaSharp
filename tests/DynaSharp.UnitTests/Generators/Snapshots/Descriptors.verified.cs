@@ -103,6 +103,7 @@ DYNA043 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA240 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA241 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA242 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
+DYNA243 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA001 | Error | DynaSharp.Mapping | Type is not partial | Type '{0}' must be partial, as must its containing types
 DYNA002 | Error | DynaSharp.Mapping | Entity has no partition key | Entity '{0}' has no partition key. Add [PartitionKey], or use [DynamoDbDocument] for a nested type.
 DYNA003 | Error | DynaSharp.Mapping | Unsupported property type | Property '{0}' has unsupported type '{1}'. {2}.
@@ -208,3 +209,4 @@ DYNA043 | Error | DynaSharp.Mapping | A generated class takes over a type name |
 DYNA240 | Warning | DynaSharp.Commands | Entity of the table left out of CreateTable | CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each.
 DYNA241 | Warning | DynaSharp.Commands | Update may create an item the entity cannot read | If no item has this key, the Update creates one without {0}, and every read of '{1}' then throws DynamoDbMappingException. Call IfExists() to update only an item that exists, or set {0} as well.
 DYNA242 | Error | DynaSharp.Commands | Add on a time to live | '{0}' is the time to live, which DynamoDB stores as seconds since 1970, and Add cannot add to the instant it holds. Write the new expiry with Set({0}, expiry), or add seconds to the stored number with Add(Expr.Attr<long>("{1}"), seconds).
+DYNA243 | Info | DynaSharp.Commands | Set of a value that may be null | This value may be null, and Set of null removes '{0}' from the item. Where null means no change, as for a field a request left out, use SetIfNotNull.

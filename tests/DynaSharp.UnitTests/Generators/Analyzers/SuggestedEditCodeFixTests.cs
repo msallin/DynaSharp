@@ -125,7 +125,7 @@ public sealed class SuggestedEditCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA241", "DYNA242"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA241", "DYNA242", "DYNA243"]);
     }
 
     [Test]
@@ -612,6 +612,34 @@ public sealed class SuggestedEditCodeFixTests
 
         // Assert
         await Assert.That(fixes).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""string? shipTo = Flag ? "x" : null; _ = orders.Update(key).Set(Order.Attrs.ShipTo, shipTo).ToRequestJson();""", """string? shipTo = Flag ? "x" : null; _ = orders.Update(key).SetIfNotNull(Order.Attrs.ShipTo, shipTo).ToRequestJson();""")]
+    [Arguments("""string? shipTo = Flag ? "x" : null; _ = client.TransactWrite().Update(orders, key).Set(Order.Attrs.ShipTo, shipTo).ToRequestJson();""", """string? shipTo = Flag ? "x" : null; _ = client.TransactWrite().Update(orders, key).SetIfNotNull(Order.Attrs.ShipTo, shipTo).ToRequestJson();""")]
+    public async Task Fix_SetOfAValueThatMayBeNull_WritesSetIfNotNull(string statement, string expected)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var fixes = await FixesAsync(source, "DYNA243", new NullableSetAnalyzer());
+
+        // Assert
+        await Assert.That(fixes).IsEquivalentTo([("Use SetIfNotNull", Run(expected))]);
+    }
+
+    [Test]
+    public async Task Fix_SetOfAValueThatMayBeNull_LeavesNoDiagnosticAndCompiles()
+    {
+        // Arrange
+        var source = Run("""string? shipTo = Flag ? "x" : null; _ = orders.Update(key).Set(Order.Attrs.ShipTo, shipTo).ToRequestJson();""");
+
+        // Act
+        var fixedSource = (await FixesAsync(source, "DYNA243", new NullableSetAnalyzer())).Single().Text;
+
+        // Assert
+        await Assert.That(await CheckAsync(fixedSource, new NullableSetAnalyzer())).IsEqualTo((string.Empty, 0));
     }
 
     [Test]
