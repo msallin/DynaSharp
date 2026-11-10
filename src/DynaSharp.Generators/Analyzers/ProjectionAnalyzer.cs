@@ -10,7 +10,7 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// What a read of part of an item cannot get from it. DYNA208: <c>orders.Query(pk).Project("Total").ItemsAsync()</c> where the entity has a member that a read throws without, which is what the generator's
-/// <see cref="MissingBehavior.Throw"/> says. A read adds its discriminator and its keys, so a member that one of those restores is not missing. DYNA209: <c>Select(handle)</c> of an attribute that an item can
+/// <see cref="MissingBehavior.Throw"/> says. A read adds its discriminator and its keys, so a member that one of those restores is not missing. DYNA209: <c>Select(handle)</c>, or <c>And(handle)</c> after it, of an attribute that an item can
 /// lack where a read of the entity goes on: a stored property that a key of the table holds, which an item created by an update does not have and a read restores from the key,
 /// a property with <c>[OmitEmpty]</c> that is not nullable, which an empty value leaves out and a read keeps at its initial value, and a property
 /// that is not nullable or <c>required</c> whose converter can count a stored value as missing, which a read keeps at its initial value too. A converter that says what a missing attribute reads as gives <c>Select</c> a value for all of these.
@@ -25,6 +25,11 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     private const string ProjectVerb = "Project";
 
     private const string SelectVerb = "Select";
+
+    // What adds an attribute to a Select, on the commands it leaves: GetSelectCommand and the others of that name. A condition has an And too.
+    private const string AndVerb = "And";
+
+    private const string SelectCommandSuffix = "SelectCommand";
 
     private const string HandlesClass = "Attrs";
 
@@ -71,7 +76,8 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         {
             AnalyzeProject(context, invocation, models);
         }
-        else if (invocation.TargetMethod.Name == SelectVerb)
+        else if (invocation.TargetMethod.Name == SelectVerb
+            || (invocation.TargetMethod.Name == AndVerb && invocation.TargetMethod.ContainingType.Name.EndsWith(SelectCommandSuffix, StringComparison.Ordinal)))
         {
             AnalyzeSelect(context, invocation, models);
         }
@@ -143,7 +149,7 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
             if (type!.Properties.FirstOrDefault(property => IsNeeded(property) && !Reaches(property, names, keys)) is { } missing)
             {
                 var name = ((InvocationExpressionSyntax)project.Syntax).Expression.GetLastToken();
-                var select = project.Type!.GetMembers(SelectVerb).IsEmpty ? string.Empty : ", or use Select(handle) to read one attribute";
+                var select = project.Type!.GetMembers(SelectVerb).IsEmpty ? string.Empty : ", or use Select(handle).And(handle) to read the attributes alone";
                 var edits = WithMissing(project, read.Cast<INamedTypeSymbol>().Zip(types!, static (symbol, model) => (symbol, model!)), names, keys);
                 context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.ProjectionLeavesOutRequired, name.GetLocation(), edits, missing.Name, type.Name, select));
                 return;

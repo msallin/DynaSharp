@@ -406,7 +406,7 @@ public sealed class ProjectionAnalyzerTests
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message(member, type, ", or use Select(handle) to read one attribute")));
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message(member, type, ", or use Select(handle).And(handle) to read the attributes alone")));
     }
 
     [Test]
@@ -436,7 +436,7 @@ public sealed class ProjectionAnalyzerTests
         var report = await Shared.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Carrier", "Parcel", ", or use Select(handle) to read one attribute")));
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message("Carrier", "Parcel", ", or use Select(handle).And(handle) to read the attributes alone")));
     }
 
     [Test]
@@ -594,12 +594,14 @@ public sealed class ProjectionAnalyzerTests
         var report = await AnalyzerRun.ReportWithAsync(source, new ProjectionAnalyzer());
 
         // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA208 Warning: This Project leaves out 'TotalDue' of 'Bill', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it, or use Select(handle) to read one attribute."));
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA208 Warning: This Project leaves out 'TotalDue' of 'Bill', and a read of the entity cannot do without it, so the read throws DynamoDbMappingException. Include it, or use Select(handle).And(handle) to read the attributes alone."));
     }
 
     [Test]
     [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select([|Omitter.Attrs.Title|]).SendAsync();""", "Title")]
     [Arguments("""_ = omitters.Query(Omitter.Keys.Pk.Of("a")).Select([|Omitter.Attrs.Lines|]).ValuesAsync();""", "Lines")]
+    [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Note).And([|Omitter.Attrs.Title|]).SendAsync();""", "Title")]
+    [Arguments("""_ = omitters.Scan().Select(Omitter.Attrs.Note).And(Omitter.Attrs.Plain).And([|Omitter.Attrs.Lines|]).ValuesAsync();""", "Lines")]
     public async Task Select_PropertyThatOmitEmptyLeavesOut_Reports(string statement, string property)
     {
         // Arrange
@@ -616,6 +618,7 @@ public sealed class ProjectionAnalyzerTests
     [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Note).SendAsync();""")]
     [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Labels).SendAsync();""")]
     [Arguments("""_ = omitters.Get(Omitter.Keys.Of("a")).Select(Omitter.Attrs.Plain).SendAsync();""")]
+    [Arguments("""_ = omitters.Query(Omitter.Keys.Pk.Of("a")).Filter(Omitter.Attrs.Title.Exists().And(Omitter.Attrs.Lines.Exists())).Select(Omitter.Attrs.Note).And(Omitter.Attrs.Plain).ValuesAsync();""")]
     public async Task Select_PropertyWithAnAnswerForAMissingAttribute_ReportsNothing(string statement)
     {
         // Arrange (a nullable property reads null and a set an empty set, and the last one is always written)

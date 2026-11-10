@@ -158,6 +158,19 @@ var first = await byStatus.Query(open).Descending().PageAsync(25, ct);
 var second = await byStatus.Query(open).Descending().PageAsync(25, first.Next, ct);
 ```
 
+## Read a few attributes
+
+`Project` asks DynamoDB for some attributes, and the read still builds the entity, which throws when a `required` member is left out. `Select(handle)` reads one attribute without the entity, and `And(handle)` adds up to three more, as a tuple:
+
+```csharp
+await foreach (var (total, status) in orders.Query(Order.Keys.Pk.Of("alice")).Select(Order.Attrs.Total).And(Order.Attrs.Status).ValuesAsync(ct))
+{
+    Console.WriteLine($"{status}: {total}");
+}
+```
+
+Every other clause comes before `Select`. It saves bandwidth, not capacity: DynamoDB charges for whole items. See [What a call returns](commands.md#what-a-call-returns) for what a missing attribute gives.
+
 ## Skip items that fail to map
 
 An item that its type cannot read, such as one with an enum value a newer deployment wrote, ends the read with `DynamoDbMappingException`, which names the attribute and holds the key in `Key`, because such an item is a bug of the model or of a writer. `OnMappingFailure` skips it instead and hands the exception to a callback:

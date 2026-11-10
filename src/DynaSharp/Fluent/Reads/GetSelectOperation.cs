@@ -4,11 +4,11 @@ using DynaSharp.Serialization;
 
 namespace DynaSharp.Fluent;
 
-/// <summary><c>GetItem</c>, read for one attribute. The telemetry is that of the read it comes from, and no <c>Item</c> in the response means that no item has the key.</summary>
-/// <typeparam name="TValue">The type of the attribute.</typeparam>
-/// <typeparam name="TConverter">The converter.</typeparam>
-internal readonly struct GetSelectOperation<TValue, TConverter> : ICommandOperation<SelectResult<TValue>>
-    where TConverter : IDynamoDbConverter<TValue>
+/// <summary><c>GetItem</c>, read for some attributes. The telemetry is that of the read it comes from, and no <c>Item</c> in the response means that no item has the key.</summary>
+/// <typeparam name="TValue">What the item gives: the attribute, or a tuple of them.</typeparam>
+/// <typeparam name="TReader">What reads the item.</typeparam>
+internal readonly struct GetSelectOperation<TValue, TReader> : ICommandOperation<SelectResult<TValue>>
+    where TReader : IItemReader<TValue>
 {
     public static string Name => GetItemOperation.Name;
 
@@ -48,7 +48,7 @@ internal readonly struct GetSelectOperation<TValue, TConverter> : ICommandOperat
     {
         try
         {
-            return SelectedItem<TValue, TConverter>.Read(ref reader, state);
+            return TReader.Read(ref reader, state);
         }
         catch (DynamoDbMappingException failure)
         {

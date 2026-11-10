@@ -67,6 +67,9 @@ internal sealed class CommandState
     private const int FirstPageKeyLength = 256;
 
     private readonly ClientCore _core;
+
+    // The attributes of a read of some attributes, in the order of the tuple it gives: four at most, which the types of the commands keep to.
+    private readonly string?[] _selectedPaths = new string?[4];
     private ActionList? _actions;
     private KeyInputChanges? _keyInputs;
     private HeldKey? _keyHolder;
@@ -170,7 +173,7 @@ internal sealed class CommandState
     /// <summary>Gets or sets the item collection metrics to return.</summary>
     public ReturnItemCollectionMetrics ReturnMetrics { get; set; }
 
-    /// <summary>Gets or sets the attribute that the response is read for, when one attribute is all a command returns.</summary>
+    /// <summary>Gets or sets the attribute that the response of a write is read for, when one attribute is all a command returns.</summary>
     public string? ReturnPath { get; set; }
 
     /// <summary>
@@ -477,12 +480,36 @@ internal sealed class CommandState
         }
 
         Expressions.Projection.Add(new ReadOnlySpan<string>(in path));
-        ReturnPath = path;
+        _selectedPaths[0] = path;
         _read.ChecksDiscriminator = discriminator == DiscriminatorCheck.CheckEachItem;
         if (_read.ChecksDiscriminator)
         {
             Expressions.Projection.AddName(Table.DiscriminatorAttributeName!);
         }
+    }
+
+    /// <summary>Gets an attribute that a read of some attributes gives, see <see cref="SelectAttribute"/> and <see cref="SelectAnother"/>.</summary>
+    /// <param name="position">Which one, 0 for the first.</param>
+    /// <returns>The path.</returns>
+    public string SelectedPath(int position) => _selectedPaths[position]!;
+
+    /// <summary>Stops an attribute that a read of some attributes gives already, before the command is entered, so that the command stays as it was.</summary>
+    /// <param name="attribute">The path of the next attribute.</param>
+    /// <exception cref="ArgumentException">The read gives that attribute already.</exception>
+    public void ThrowIfSelected(string attribute)
+    {
+        if (Array.IndexOf(_selectedPaths, attribute) >= 0)
+        {
+            throw new ArgumentException($"This read of {Table.Name} selects {attribute} already. Select each attribute once.", nameof(attribute));
+        }
+    }
+
+    /// <summary>Adds an attribute to a read that <see cref="SelectAttribute"/> started: it joins the projection and is read after the ones before it.</summary>
+    /// <param name="path">The path, which <see cref="ThrowIfSelected"/> has let through.</param>
+    public void SelectAnother(string path)
+    {
+        Expressions.Projection.Add(new ReadOnlySpan<string>(in path));
+        _selectedPaths[Array.IndexOf(_selectedPaths, null)] = path;
     }
 
     /// <summary>Sends the command. The caller entered the state, and from here on the call owns it: the pipeline releases it, whatever happens.</summary>
@@ -552,6 +579,7 @@ internal sealed class CommandState
         ReturnCapacity = default;
         ReturnMetrics = default;
         ReturnPath = null;
+        Array.Clear(_selectedPaths);
         ResponseCapacity = null;
         ItemKeys = null;
         _core.Commands.Return(this);

@@ -2,12 +2,14 @@ using System.Reflection;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-// A read of one attribute repeats the terminals of the read it came from by hand, so a terminal added to the read would go missing there without a word.
+// A read of some attributes repeats the terminals of the read it came from by hand, so a terminal added to the read would go missing there without a word.
 public sealed class SelectForwardingTests
 {
     private const BindingFlags DeclaredPublicMethods = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
     private const string RendersTheRequest = "ToRequestJson";
+
+    private const string AddsAnAttribute = "And";
 
     // What a read of one attribute leaves out on purpose. An entry that it does offer fails too, so the list stays true.
     private static readonly Dictionary<string, string> NotOffered = new(StringComparer.Ordinal)
@@ -25,6 +27,12 @@ public sealed class SelectForwardingTests
     [Test]
     [Arguments(typeof(QueryCommand<>), typeof(QuerySelectCommand<,>))]
     [Arguments(typeof(ScanCommand<>), typeof(ScanSelectCommand<,>))]
+    [Arguments(typeof(QueryCommand<>), typeof(QuerySelectCommand<,,,>))]
+    [Arguments(typeof(QueryCommand<>), typeof(QuerySelectCommand<,,,,,>))]
+    [Arguments(typeof(QueryCommand<>), typeof(QuerySelectCommand<,,,,,,,>))]
+    [Arguments(typeof(ScanCommand<>), typeof(ScanSelectCommand<,,,>))]
+    [Arguments(typeof(ScanCommand<>), typeof(ScanSelectCommand<,,,,,>))]
+    [Arguments(typeof(ScanCommand<>), typeof(ScanSelectCommand<,,,,,,,>))]
     public async Task Terminals_OfARead_AreThoseOfTheReadWithoutACount(Type read, Type select)
     {
         // Arrange
@@ -71,15 +79,21 @@ public sealed class SelectForwardingTests
     [Test]
     [Arguments(typeof(QuerySelectCommand<,>))]
     [Arguments(typeof(ScanSelectCommand<,>))]
+    [Arguments(typeof(QuerySelectCommand<,,,>))]
+    [Arguments(typeof(QuerySelectCommand<,,,,,>))]
+    [Arguments(typeof(QuerySelectCommand<,,,,,,,>))]
+    [Arguments(typeof(ScanSelectCommand<,,,>))]
+    [Arguments(typeof(ScanSelectCommand<,,,,,>))]
+    [Arguments(typeof(ScanSelectCommand<,,,,,,,>))]
     public async Task PublicMethods_OfARead_AreAllTerminals(Type select)
     {
         // Arrange
         ArgumentNullException.ThrowIfNull(select);
 
         // Act
-        var others = PublicMethods(select).Where(static method => !IsTerminal(method)).Select(static method => method.Name);
+        var others = PublicMethods(select).Where(static method => !IsTerminal(method) && method.Name != AddsAnAttribute).Select(static method => method.Name);
 
-        // Assert (the type says that no clause can follow Select)
+        // Assert (the type says that no clause but another attribute can follow Select)
         await Assert.That(others).IsEmpty();
     }
 

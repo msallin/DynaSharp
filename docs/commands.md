@@ -73,6 +73,7 @@ A write has no `Found`: it finds nothing, unless it asks for the item that was t
 | `Get(...).ItemAsync(ct)` | `T?` | The item, or null |
 | `Get(...).SendAsync(ct)` | `GetResult<T>` | `Found`, `Item` and `ConsumedCapacity` |
 | `Get(...).Select(handle).SendAsync(ct)`, `Query(...).Select(handle).ValueAsync(ct)` | `SelectResult<TValue>` | `Found`, `Value`, which throws when no item was found, and `GetValueOrDefault(...)` |
+| The same with `.And(handle)` after `Select` | `SelectResult<(T1, T2)>`, up to four | The same, with the values as a tuple in the order of the calls |
 | `Put`, `Update`, `Delete` with `SendAsync(ct)` | `WriteResult<T>` | `HasItem` and `Item`, what `ReturnOld()` or `ReturnNew()` asked for; `Version`; `ConsumedCapacity` and `ItemCollectionMetrics`; `ConditionMet`, always true |
 | `Put`, `Update`, `Delete` with `TrySendAsync(ct)` | `WriteResult<T>` | The same, or `ConditionMet` false, with `Item` what the condition saw under `ReturnOldOnFailure()` |
 | `Update(...).Return(handle).SendAsync(ct)` | The value | The attribute after the update |
@@ -97,6 +98,22 @@ if (!deleted.HasItem)
 ```csharp
 var total = await orders.Get(Order.Keys.Of("alice", 1)).Select(Order.Attrs.Total).SendAsync(ct);
 decimal amount = total.GetValueOrDefault(0m);    // total.Found ? total.Value : 0m
+```
+
+`And(handle)` adds an attribute to the same request, up to four, and the read gives them as a tuple. It is what `Project` cannot be on an entity with `required` members, because no entity is built, and each attribute follows the rules of `Select` alone: a missing one is null for a nullable handle, empty for a set, and an exception otherwise.
+
+```csharp
+var order = await orders.Get(Order.Keys.Of("alice", 1)).Select(Order.Attrs.Total).And(Order.Attrs.Status).SendAsync(ct);
+if (order.Found)
+{
+    var (amount, status) = order.Value;
+    Console.WriteLine($"{status}: {amount}");
+}
+
+await foreach (var (number, placed) in orders.Query(Order.Keys.Pk.Of("alice")).Select(Order.Attrs.Number).And(Order.Attrs.PlacedAt).ValuesAsync(ct))
+{
+    Console.WriteLine($"{number} at {placed}");
+}
 ```
 
 `await command` is `SendAsync()` without a token; a read has none, so `await orders.Query(...)` does not compile.

@@ -188,6 +188,32 @@ public sealed class SelectTests(Backend backend)
     }
 
     [Test]
+    public async Task Get_SeveralAttributes_GivesThemAsATuple()
+    {
+        // Arrange
+        await using var shop = await SeededAsync();
+
+        // Act
+        var order = await shop.Orders.Get(FirstOrder).Consistent().Select(Order.Attrs.Total).And(Order.Attrs.TrackingId).SendAsync();
+
+        // Assert
+        await Assert.That((order.Found, order.Value)).IsEqualTo((true, (12.5m, (Guid?)null)));
+    }
+
+    [Test]
+    public async Task Query_SeveralAttributesInAPartitionOfTwoEntities_GivesTheTuplesOfItsOwnType()
+    {
+        // Arrange
+        await using var shop = await SeededAsync();
+
+        // Act
+        var orders = await Read.ToListAsync(shop.Orders.Query(Order.Keys.Pk.Of("alice")).Consistent().Select(Order.Attrs.Total).And(Order.Attrs.TrackingId).ValuesAsync());
+
+        // Assert
+        await Assert.That((orders.Count, orders.Sum(static order => order.Item1), orders.Count(static order => order.Item2 == Second))).IsEqualTo((2, 19.5m, 1));
+    }
+
+    [Test]
     public async Task Scan_TableOfTwoEntities_GivesTheValuesOfItsOwnType()
     {
         // Arrange

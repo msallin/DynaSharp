@@ -36,19 +36,52 @@ public readonly ref struct ScanSelectCommand<TValue, TConverter> : IReadCommand
 
     internal CommandHandle Handle => new(_state, _version, Operation, _table);
 
+    /// <summary>Reads one more attribute in the same request, so that the read gives a tuple. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
+    /// <remarks><inheritdoc cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})" path="/remarks"/></remarks>
+    /// <typeparam name="TNext">The type of the attribute.</typeparam>
+    /// <typeparam name="TNextConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps. A list element cannot be read.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or the read gives that attribute already.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
+    public ScanSelectCommand<TValue, TConverter, TNext, TNextConverter> And<TNext, TNextConverter>(Attr<TNext, TNextConverter> attribute)
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+
+    /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
+    /// <typeparam name="TNext">The type of the attribute.</typeparam>
+    /// <typeparam name="TNextConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or the read gives that attribute already.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
+    public ScanSelectCommand<TValue, TConverter, TNext?, NullableConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableHandleConverter<TNext, TNextConverter>> attribute)
+        where TNext : struct
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+
+    /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
+    /// <typeparam name="TNext">The type of the attribute.</typeparam>
+    /// <typeparam name="TNextConverter">The converter of the attribute.</typeparam>
+    /// <param name="attribute">The attribute, a name or a path through maps.</param>
+    /// <returns>The command that is left.</returns>
+    /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or the read gives that attribute already.</exception>
+    /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
+    public ScanSelectCommand<TValue, TConverter, TNext?, NullableReferenceConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableReferenceHandleConverter<TNext, TNextConverter>> attribute)
+        where TNext : class
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+
     /// <summary>Reads the attribute of all items of all pages as they come, as <see cref="ScanCommand{T}.ItemsAsync"/> reads the items.</summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per page.</param>
     /// <returns>The values, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public IAsyncEnumerable<TValue> ValuesAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.Items(Enter(), cancellationToken);
+        PagedRead<ScanSelectPageOperation<TValue, SelectedItem<TValue, TConverter>>, TValue>.Items(Enter(), cancellationToken);
 
     /// <summary>Reads all pages as they come, as <see cref="ScanCommand{T}.PagesAsync"/> does, with the values in <see cref="Page{T}.Items"/>.</summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result.</param>
     /// <returns>The pages, which can be enumerated once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public IAsyncEnumerable<Page<TValue>> PagesAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.Pages(Enter(), cancellationToken);
+        PagedRead<ScanSelectPageOperation<TValue, SelectedItem<TValue, TConverter>>, TValue>.Pages(Enter(), cancellationToken);
 
     /// <summary>Reads one page, as <see cref="ScanCommand{T}.PageAsync(ContinuationToken?, CancellationToken)"/> does, with the values in <see cref="Page{T}.Items"/>.</summary>
     /// <param name="after">The position to continue from, the <see cref="Page{T}.Next"/> of the page before, or <c>null</c> for the first page, as is a <c>default</c> token. It must come from the same scan, and the same segment.</param>
@@ -62,7 +95,7 @@ public readonly ref struct ScanSelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="DynamoDbMappingException">An item has no such attribute and the handle cannot be null, or its value cannot be read as <typeparamref name="TValue"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<Page<TValue>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default) =>
-        PagedRead<ScanSelectPageOperation<TValue, TConverter>, TValue>.PageAsync(Enter(), after.GetValueOrDefault(), cancellationToken);
+        PagedRead<ScanSelectPageOperation<TValue, SelectedItem<TValue, TConverter>>, TValue>.PageAsync(Enter(), after.GetValueOrDefault(), cancellationToken);
 
     /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>

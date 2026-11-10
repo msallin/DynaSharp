@@ -597,7 +597,7 @@ public sealed class CommandAllocationTests
         var allocated = Measure((state, json), static input =>
         {
             var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
-            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Value;
+            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Fluent.SelectedItem<int, DynaSharp.Serialization.NumberConverter<int>>>.ReadResponse(ref reader, input.state).Value;
         });
 
         // Assert
@@ -617,7 +617,7 @@ public sealed class CommandAllocationTests
         var allocated = Measure((state, json), static input =>
         {
             var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
-            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Value;
+            return DynaSharp.Fluent.GetSelectOperation<int, DynaSharp.Fluent.SelectedItem<int, DynaSharp.Serialization.NumberConverter<int>>>.ReadResponse(ref reader, input.state).Value;
         });
 
         // Assert
@@ -639,7 +639,7 @@ public sealed class CommandAllocationTests
         var allocated = Measure((state, json), static input =>
         {
             var reader = new DynaSharp.Serialization.DynamoDbReader(input.json);
-            return DynaSharp.Fluent.QuerySelectPageOperation<int, DynaSharp.Serialization.NumberConverter<int>>.ReadResponse(ref reader, input.state).Count;
+            return DynaSharp.Fluent.QuerySelectPageOperation<int, DynaSharp.Fluent.SelectedItem<int, DynaSharp.Serialization.NumberConverter<int>>>.ReadResponse(ref reader, input.state).Count;
         });
 
         // Assert
